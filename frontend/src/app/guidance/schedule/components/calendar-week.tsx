@@ -6,7 +6,7 @@ import {
   isToday,
   startOfWeek,
 } from "date-fns";
-import type { GuidanceCalendarEvent } from "@/services/guidance/calendar.service";
+import type { CalendarEvent } from "./calendar-utils";
 import styles from "./guidance-calendar.module.css";
 import {
   dateKey,
@@ -17,16 +17,16 @@ import {
   sessionTypeLabel,
 } from "./calendar-utils";
 
-const START_HOUR = 6;
-const END_HOUR = 21;
-const HOUR_REM = 3;
+export const START_HOUR = 6;
+export const END_HOUR = 21;
+export const HOUR_REM = 3;
 const DEFAULT_DURATION_MIN = 60;
-const DAY_HEIGHT_REM = (END_HOUR - START_HOUR) * HOUR_REM;
+export const DAY_HEIGHT_REM = (END_HOUR - START_HOUR) * HOUR_REM;
 
-const HOURS = Array.from({ length: END_HOUR - START_HOUR }, (_, i) => START_HOUR + i);
+export const HOURS = Array.from({ length: END_HOUR - START_HOUR }, (_, i) => START_HOUR + i);
 
 interface PositionedEvent {
-  event: GuidanceCalendarEvent;
+  event: CalendarEvent;
   topRem: number;
   heightRem: number;
   lane: number;
@@ -34,10 +34,10 @@ interface PositionedEvent {
 }
 
 /** Greedy lane packing so overlapping sessions sit side by side. */
-function packDay(events: GuidanceCalendarEvent[]): PositionedEvent[] {
+function packDay(events: CalendarEvent[]): PositionedEvent[] {
   const sorted = [...events].sort((a, b) => a.start.localeCompare(b.start));
   const laneEnds: number[] = [];
-  const placed: { event: GuidanceCalendarEvent; start: number; end: number; lane: number }[] = [];
+  const placed: { event: CalendarEvent; start: number; end: number; lane: number }[] = [];
 
   for (const event of sorted) {
     const start = new Date(event.start).getTime();
@@ -79,7 +79,7 @@ export function CalendarWeek({
   selectedKey: string | null;
   grouped: ReturnType<typeof groupByDay>;
   onSelectDay: (key: string) => void;
-  onSelectEvent: (event: GuidanceCalendarEvent) => void;
+  onSelectEvent: (event: CalendarEvent) => void;
 }) {
   const weekStart = startOfWeek(cursor, { weekStartsOn: 1 });
   const days = Array.from({ length: 7 }, (_, i) => addDays(weekStart, i));

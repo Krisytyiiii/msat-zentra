@@ -13,7 +13,6 @@ import {
   startOfWeek,
 } from "date-fns";
 import { CalendarDays, Loader2, RefreshCw } from "lucide-react";
-import { Skeleton } from "@/components/ui/skeleton";
 import { KanbanBoard } from "@/components/ui/kanban-board";
 import { PageEmptyCallout } from "@/components/shared/page-empty-callout";
 import { GuidancePageHeader } from "../components/GuidancePageHeader";
@@ -22,7 +21,6 @@ import { guidanceLiveQueryOptions } from "@/lib/api/live";
 import {
   ALL_CALENDAR_TRACKS,
   fetchGuidanceCalendar,
-  type GuidanceCalendarEvent,
   type GuidanceCalendarTrack,
 } from "@/services/guidance/calendar.service";
 import {
@@ -33,7 +31,8 @@ import {
 import { CalendarMonth } from "./components/calendar-month";
 import { CalendarWeek } from "./components/calendar-week";
 import { CalendarDayRail } from "./components/calendar-day-rail";
-import { dateKey, groupByDay, parseDateKey } from "./components/calendar-utils";
+import { GuidanceScheduleSkeleton } from "./components/calendar-skeleton";
+import { dateKey, groupByDay, parseDateKey, type CalendarEvent } from "./components/calendar-utils";
 import styles from "./components/guidance-calendar.module.css";
 
 const WEEK_OPTS = { weekStartsOn: 1 as const };
@@ -132,13 +131,15 @@ export default function GuidanceSchedulePage() {
     pushState({ date: next });
   }
 
-  function toggleTrack(track: GuidanceCalendarTrack) {
+  function toggleTrack(track: string) {
     setEnabledTracks((current) =>
-      current.includes(track) ? current.filter((t) => t !== track) : [...current, track],
+      current.includes(track as GuidanceCalendarTrack)
+        ? current.filter((t) => t !== track)
+        : [...current, track as GuidanceCalendarTrack],
     );
   }
 
-  function selectEvent(event: GuidanceCalendarEvent) {
+  function selectEvent(event: CalendarEvent) {
     setSelectedEventId(event.id);
     pushState({ date: new Date(event.start) });
   }
@@ -163,13 +164,7 @@ export default function GuidanceSchedulePage() {
       />
 
       {calendarQuery.isLoading || !termReady ? (
-        <div className={styles.skeletonBoard}>
-          <div className={styles.skelGrid} aria-hidden="true">
-            {Array.from({ length: 42 }, (_, i) => (
-              <Skeleton key={i} className={styles.skelCell} />
-            ))}
-          </div>
-        </div>
+        <GuidanceScheduleSkeleton view={view} cursor={cursor} />
       ) : calendarQuery.isError ? (
         <div className={styles.errorCard}>
           <p className={styles.errorTitle}>Couldn&apos;t load the calendar.</p>
