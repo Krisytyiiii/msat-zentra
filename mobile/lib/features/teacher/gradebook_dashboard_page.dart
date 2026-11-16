@@ -40,13 +40,14 @@ class GradebookDashboardPage extends ConsumerWidget {
           orElse: () => const <Map<String, dynamic>>[],
         );
         if (classes.isEmpty) {
-          return const Padding(
-            padding: EdgeInsets.all(16),
-            child: ZEmpty(
-              icon: Icons.grade_outlined,
-              title: 'No classes assigned yet',
-              subtitle: 'Ask your registrar to assign your subjects and sections first.',
-            ),
+          return ZEmptyPage(
+            icon: Icons.grade_outlined,
+            title: 'No classes assigned yet',
+            subtitle: 'Ask your registrar to assign your subjects and sections first.',
+            onRefresh: () async {
+              ref.invalidate(overviewProvider);
+              ref.invalidate(overviewSecondaryProvider);
+            },
           );
         }
         return RefreshIndicator(

@@ -150,15 +150,12 @@ class _GradebookBody extends StatelessWidget {
     final students = [for (final s in (data['students'] as List? ?? [])) GradebookStudent.fromJson(s as Map<String, dynamic>)];
     final components = [for (final c in (data['components'] as List? ?? [])) GradeComponent.fromJson(c as Map<String, dynamic>)];
     if (components.isEmpty) {
-      return Padding(
-        padding: const EdgeInsets.all(16),
-        child: ZEmpty(
-          icon: Icons.assignment_outlined,
-          title: 'No components yet',
-          subtitle: 'Add Written Work / Performance Task / Exam to start encoding.',
-          actionLabel: 'Add Written Work',
-          onAction: () => onAdd('WRITTEN_WORK'),
-        ),
+      return ZEmptyPage(
+        icon: Icons.assignment_outlined,
+        title: 'No components yet',
+        subtitle: 'Add Written Work / Performance Task / Exam to start encoding.',
+        actionLabel: 'Add Written Work',
+        onAction: () => onAdd('WRITTEN_WORK'),
       );
     }
     return ListView(

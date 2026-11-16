@@ -10,6 +10,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../core/api_client.dart';
+import '../../design/status_palette.dart';
 import '../../shared/user_messages.dart';
 
 // Folder body color per anecdotal category — web parity with
@@ -42,6 +43,17 @@ String anecdotalCategoryLabel(String? category) {
   if (key == null || key.isEmpty) return '—';
   return key.split('_').map((w) => w.isEmpty ? w : '${w[0].toUpperCase()}${w.substring(1)}').join(' ');
 }
+
+/// Chip tone for a category — web AnecdotalSideRail legend tones (behavioral
+/// amber, bullying red, academic blue, attendance green, health violet).
+StatusTone anecdotalCategoryTone(String? category) => switch (category?.trim().toLowerCase()) {
+  'behavioral' => StatusTone.amber,
+  'bullying' => StatusTone.red,
+  'academic' => StatusTone.blue,
+  'attendance' => StatusTone.green,
+  'health' => StatusTone.violet,
+  _ => StatusTone.neutral,
+};
 
 class AnecdotalFolder {
   final String id;

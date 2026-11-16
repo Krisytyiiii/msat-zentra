@@ -37,13 +37,11 @@ class AdmCasesPage extends ConsumerWidget {
       error: (e, _) => ErrorView(message: e, onRetry: () => ref.invalidate(admCasesProvider)),
       data: (list) {
         if (list.isEmpty) {
-          return const Padding(
-            padding: EdgeInsets.all(16),
-            child: ZEmpty(
-              icon: Icons.folder_shared_outlined,
-              title: 'No ADM cases',
-              subtitle: 'Referred students under ADM monitoring appear here with their stage.',
-            ),
+          return ZEmptyPage(
+            icon: Icons.folder_shared_outlined,
+            title: 'No ADM cases',
+            subtitle: 'Referred students under ADM monitoring appear here with their stage.',
+            onRefresh: () async => ref.invalidate(admCasesProvider),
           );
         }
         return RefreshIndicator(

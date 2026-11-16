@@ -41,9 +41,11 @@ class AdviserSchedulePage extends ConsumerWidget {
       error: (e, _) => ErrorView(message: e, onRetry: () => ref.invalidate(adviserScheduleProvider)),
       data: (list) {
         if (list.isEmpty) {
-          return const Padding(
-            padding: EdgeInsets.all(16),
-            child: ZEmpty(icon: Icons.calendar_month_outlined, title: 'No schedule yet', subtitle: 'Committed timetable slots appear here once approved.'),
+          return ZEmptyPage(
+            icon: Icons.calendar_month_outlined,
+            title: 'No schedule yet',
+            subtitle: 'Committed timetable slots appear here once approved.',
+            onRefresh: () async => ref.invalidate(adviserScheduleProvider),
           );
         }
         final byDay = <int, List<TimetableSlot>>{};

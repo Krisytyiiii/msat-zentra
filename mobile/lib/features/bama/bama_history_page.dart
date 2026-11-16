@@ -5,6 +5,7 @@
 import 'package:flutter/material.dart';
 
 import '../../design/screen_search.dart';
+import '../../shared/widgets.dart';
 import 'bama_conversations.dart';
 
 class BamaHistoryPage extends StatefulWidget {
@@ -42,7 +43,6 @@ class _State extends State<BamaHistoryPage> {
 
   @override
   Widget build(BuildContext context) {
-    final theme = Theme.of(context);
     // Header search when inside the staff shell; local field otherwise.
     final scope = ScreenSearchScope.maybeOf(context);
     final needle = (scope?.query ?? _q.text).trim().toLowerCase();
@@ -63,11 +63,16 @@ class _State extends State<BamaHistoryPage> {
         ),
       Expanded(
         child: shown.isEmpty
-            ? Center(
-                child: Text(
-                  _items.isEmpty ? 'No ${title.toLowerCase()} yet.' : 'No chats match "$needle".',
-                  style: theme.textTheme.bodySmall,
-                ),
+            ? ZEmptyPage(
+                icon: widget.type == 'grade-flag'
+                    ? Icons.flag_outlined
+                    : Icons.history_edu_outlined,
+                title: _items.isEmpty
+                    ? 'No ${title.toLowerCase()} yet'
+                    : 'No chats match',
+                subtitle: _items.isEmpty
+                    ? 'Conversations you file through Bama appear here.'
+                    : 'Try a different search.',
               )
             : ListView.separated(
                 padding: const EdgeInsets.fromLTRB(16, 0, 16, 80),

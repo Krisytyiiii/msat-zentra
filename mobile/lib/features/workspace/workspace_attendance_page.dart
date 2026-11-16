@@ -236,9 +236,11 @@ class _State extends ConsumerState<WorkspaceAttendancePage> {
       return ErrorView(message: _error!, onRetry: _loadPairs);
     }
     if (_pairs.isEmpty) {
-      return const Padding(
-        padding: EdgeInsets.all(16),
-        child: ZEmpty(icon: Icons.class_outlined, title: 'No teaching load', subtitle: 'Link your timetable code or ask the Master Teacher. Classes from My Classes appear here.'),
+      return ZEmptyPage(
+        icon: Icons.class_outlined,
+        title: 'No teaching load',
+        subtitle: 'Link your timetable code or ask the Master Teacher. Classes from My Classes appear here.',
+        onRefresh: _loadPairs,
       );
     }
     String subjectName = '';
@@ -308,9 +310,10 @@ class _State extends ConsumerState<WorkspaceAttendancePage> {
       ),
       Expanded(
         child: _marks.isEmpty
-            ? const Padding(
-                padding: EdgeInsets.all(16),
-                child: ZEmpty(icon: Icons.fact_check_outlined, title: 'No roster', subtitle: 'Pick a class with an elapsed meetup.'),
+            ? const ZEmptyPage(
+                icon: Icons.fact_check_outlined,
+                title: 'No roster',
+                subtitle: 'Pick a class with an elapsed meetup.',
               )
             : ListView.separated(
                 padding: const EdgeInsets.fromLTRB(16, 0, 16, 80),

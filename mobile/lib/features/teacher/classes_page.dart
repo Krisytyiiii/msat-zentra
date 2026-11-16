@@ -19,9 +19,11 @@ class ClassesPage extends ConsumerWidget {
       data: (data) {
         final classes = (data['classes'] as List? ?? []);
         if (classes.isEmpty) {
-          return const Padding(
-            padding: EdgeInsets.all(16),
-            child: ZEmpty(icon: Icons.class_outlined, title: 'No classes this term', subtitle: 'Link your timetable code or ask the Master Teacher.'),
+          return ZEmptyPage(
+            icon: Icons.class_outlined,
+            title: 'No classes this term',
+            subtitle: 'Link your timetable code or ask the Master Teacher.',
+            onRefresh: () async => ref.invalidate(overviewProvider),
           );
         }
         return RefreshIndicator(

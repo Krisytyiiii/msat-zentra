@@ -480,21 +480,11 @@ class _AdvisoryListState extends ConsumerState<AdvisoryListPage> {
   );
 
   Widget _empty({required String title, required String subtitle}) =>
-      RefreshIndicator(
+      ZEmptyPage(
+        icon: _showArchived ? Icons.archive_outlined : Icons.group_outlined,
+        title: title,
+        subtitle: subtitle,
         onRefresh: _refreshAll,
-        child: ListView(
-          physics: const AlwaysScrollableScrollPhysics(),
-          padding: _listPadding,
-          children: [
-            ZEmpty(
-              icon: _showArchived
-                  ? Icons.archive_outlined
-                  : Icons.group_outlined,
-              title: title,
-              subtitle: subtitle,
-            ),
-          ],
-        ),
       );
 
   Widget _activeList(AdvisoryRoster roster, String query) {

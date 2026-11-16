@@ -96,56 +96,70 @@ class _State extends ConsumerState<ReferralPage> {
     // The staff shell owns search; standalone keeps this field.
     final scope = ScreenSearchScope.maybeOf(context);
     final q = (scope?.query ?? _q).trim().toLowerCase();
-    return ListView(padding: const EdgeInsets.fromLTRB(16, 12, 16, 80), children: [
-      ZCard(
-        child: Row(children: [
-          const Expanded(
-            child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-              Text('New referral', style: TextStyle(fontSize: 15, fontWeight: FontWeight.w600)),
-              SizedBox(height: 2),
-              Text('Pick a filed anecdotal record, then route it.', style: TextStyle(fontSize: 13)),
-            ]),
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        // Composer + search stay put; only the timeline scrolls, so its empty
+        // state can sit in the middle of the space that is left.
+        Padding(
+          padding: const EdgeInsets.fromLTRB(16, 12, 16, 0),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              ZCard(
+                child: Row(children: [
+                  const Expanded(
+                    child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                      Text('New referral', style: TextStyle(fontSize: 15, fontWeight: FontWeight.w600)),
+                      SizedBox(height: 2),
+                      Text('Pick a filed anecdotal record, then route it.', style: TextStyle(fontSize: 13)),
+                    ]),
+                  ),
+                  FilledButton(onPressed: () => _openComposer(), child: const Text('Refer')),
+                ]),
+              ),
+              const SizedBox(height: 12),
+              if (scope == null) ...[
+                ZSearchField(hint: 'Filter by name, LRN, or role', onChanged: (v) => setState(() => _q = v.trim().toLowerCase())),
+                const SizedBox(height: 8),
+              ],
+              Text('Timeline', style: Theme.of(context).textTheme.labelSmall?.copyWith(letterSpacing: 0.4)),
+            ],
           ),
-          FilledButton(onPressed: () => _openComposer(), child: const Text('Refer')),
-        ]),
-      ),
-      const SizedBox(height: 12),
-      if (scope == null) ...[
-        ZSearchField(hint: 'Filter by name, LRN, or role', onChanged: (v) => setState(() => _q = v.trim().toLowerCase())),
-        const SizedBox(height: 8),
+        ),
+        Expanded(
+          child: list.when(
+            loading: () => const Padding(padding: EdgeInsets.all(16), child: ZSkeletonList()),
+            error: (e, _) => ErrorView(message: e, onRetry: () => ref.invalidate(referralsProvider)),
+            data: (items) {
+              final shown = items.where((r) {
+                if (q.isEmpty) return true;
+                return (r['studentName']?.toString() ?? '').toLowerCase().contains(q) ||
+                    (r['lrn']?.toString() ?? '').contains(q) ||
+                    (r['targetRole']?.toString() ?? '').toLowerCase().contains(q);
+              }).toList();
+              if (shown.isEmpty) {
+                return ZEmptyPage(
+                  icon: Icons.send_outlined,
+                  title: items.isEmpty ? 'No referrals this term' : 'No referrals match',
+                  subtitle: items.isEmpty ? 'Sent referrals and their status appear here.' : 'Try a different search.',
+                  onRefresh: () async => _refresh(),
+                );
+              }
+              return RefreshIndicator(
+                onRefresh: () async => _refresh(),
+                child: ListView.separated(
+                  padding: const EdgeInsets.fromLTRB(16, 8, 16, 80),
+                  itemCount: shown.length,
+                  separatorBuilder: (context, _) => const SizedBox(height: 8),
+                  itemBuilder: (context, i) => _ReferralCard(referral: shown[i], onChanged: _refresh),
+                ),
+              );
+            },
+          ),
+        ),
       ],
-      Text('Timeline', style: Theme.of(context).textTheme.labelSmall?.copyWith(letterSpacing: 0.4)),
-      const SizedBox(height: 8),
-      list.when(
-        loading: () => const ZSkeletonList(),
-        error: (e, _) => ErrorView(message: e, onRetry: () => ref.invalidate(referralsProvider)),
-        data: (items) {
-          final shown = items.where((r) {
-            if (q.isEmpty) return true;
-            return (r['studentName']?.toString() ?? '').toLowerCase().contains(q) ||
-                (r['lrn']?.toString() ?? '').contains(q) ||
-                (r['targetRole']?.toString() ?? '').toLowerCase().contains(q);
-          }).toList();
-          if (shown.isEmpty) {
-            return Padding(
-              padding: const EdgeInsets.only(top: 8),
-              child: ZEmpty(
-                icon: Icons.send_outlined,
-                title: items.isEmpty ? 'No referrals this term' : 'No referrals match',
-                subtitle: items.isEmpty ? 'Sent referrals and their status appear here.' : 'Try a different search.',
-              ),
-            );
-          }
-          return Column(children: [
-            for (final r in shown)
-              Padding(
-                padding: const EdgeInsets.only(bottom: 8),
-                child: _ReferralCard(referral: r, onChanged: _refresh),
-              ),
-          ]);
-        },
-      ),
-    ]);
+    );
   }
 
   void _openComposer() {

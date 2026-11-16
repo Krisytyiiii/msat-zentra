@@ -65,13 +65,11 @@ class _State extends ConsumerState<AcademicOverviewPage> {
                       ),
                     );
               if (shown.isEmpty) {
-                return const Padding(
-                  padding: EdgeInsets.all(16),
-                  child: ZEmpty(
-                    icon: Icons.school_outlined,
-                    title: 'No students match',
-                    subtitle: 'Try a different search.',
-                  ),
+                return ZEmptyPage(
+                  icon: Icons.school_outlined,
+                  title: 'No students match',
+                  subtitle: 'Try a different search.',
+                  onRefresh: () async => ref.invalidate(advisoryProvider),
                 );
               }
               final graded = shown

@@ -435,6 +435,7 @@ class _StudentDetailState extends ConsumerState<StudentDetailPage> {
             ),
             if (academicGrades == null)
               const ZEmpty(
+                compact: true,
                 icon: Icons.grade_outlined,
                 title: 'No grades encoded this term',
                 subtitle:
@@ -448,6 +449,7 @@ class _StudentDetailState extends ConsumerState<StudentDetailPage> {
             ),
             if (attendance == null)
               const ZEmpty(
+                compact: true,
                 icon: Icons.fact_check_outlined,
                 title: 'No attendance yet',
                 subtitle:
@@ -461,6 +463,7 @@ class _StudentDetailState extends ConsumerState<StudentDetailPage> {
             ),
             if (data.anecdotal.isEmpty)
               const ZEmpty(
+                compact: true,
                 icon: Icons.note_outlined,
                 title: 'No anecdotal records this term',
                 subtitle: 'File one in Chat with Bama.',
@@ -488,6 +491,7 @@ class _StudentDetailState extends ConsumerState<StudentDetailPage> {
             ),
             if (referrals.isEmpty)
               const ZEmpty(
+                compact: true,
                 icon: Icons.send_outlined,
                 title: 'No referrals',
                 subtitle: 'File an anecdotal in Bama, then refer from there.',

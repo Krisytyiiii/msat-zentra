@@ -164,35 +164,133 @@ class ZSearchField extends StatelessWidget {
       );
 }
 
+/// Soft amber "nothing here yet" callout. Renders inline inside a section
+/// (`compact: true`) or centred on a page through [ZEmptyPage].
 class ZEmpty extends StatelessWidget {
   final IconData icon;
   final String title;
   final String? subtitle;
   final String? actionLabel;
   final VoidCallback? onAction;
-  const ZEmpty({super.key, required this.icon, required this.title, this.subtitle, this.actionLabel, this.onAction});
+
+  /// Section-level sizing: smaller icon and padding, so it can sit inside a
+  /// card column without pushing the rest of the section down.
+  final bool compact;
+
+  const ZEmpty({
+    super.key,
+    required this.icon,
+    required this.title,
+    this.subtitle,
+    this.actionLabel,
+    this.onAction,
+    this.compact = false,
+  });
+
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
-      decoration: BoxDecoration(
-        color: ZTokens.factorAcademic.withValues(alpha: 0.10),
-        borderRadius: const BorderRadius.horizontal(right: Radius.circular(ZTokens.radiusLg)),
-        border: const Border(left: BorderSide(color: ZTokens.factorAcademic, width: 3)),
-      ),
-      child: Column(mainAxisSize: MainAxisSize.min, children: [
-        Container(
-          padding: const EdgeInsets.all(12),
-            decoration: const BoxDecoration(shape: BoxShape.circle),
-            child: Icon(icon, size: 20, color: theme.brightness == Brightness.dark ? ZTokens.factorAcademic : const Color(0xFFB45309)),
+    final dark = theme.brightness == Brightness.dark;
+    final accent = ZTokens.factorAcademic;
+    return Align(
+      alignment: Alignment.center,
+      child: ConstrainedBox(
+        constraints: const BoxConstraints(maxWidth: 460),
+        child: Container(
+          padding: EdgeInsets.symmetric(
+            horizontal: compact ? 14 : 20,
+            vertical: compact ? 14 : 22,
+          ),
+          decoration: BoxDecoration(
+            color: accent.withValues(alpha: dark ? 0.10 : 0.07),
+            borderRadius: BorderRadius.circular(ZTokens.radiusLg),
+            border: Border.all(color: accent.withValues(alpha: 0.35)),
+          ),
+          child: Column(mainAxisSize: MainAxisSize.min, children: [
+            Container(
+              padding: EdgeInsets.all(compact ? 8 : 11),
+              decoration: BoxDecoration(
+                shape: BoxShape.circle,
+                color: accent.withValues(alpha: 0.16),
+              ),
+              child: Icon(
+                icon,
+                size: compact ? 18 : 22,
+                color: dark ? accent : const Color(0xFFB45309),
+              ),
+            ),
+            SizedBox(height: compact ? 8 : 12),
+            Text(title, textAlign: TextAlign.center, style: theme.textTheme.bodyMedium?.copyWith(fontWeight: FontWeight.w600)),
+            if (subtitle != null) ...[
+              const SizedBox(height: 4),
+              Text(subtitle!, textAlign: TextAlign.center, style: theme.textTheme.bodySmall?.copyWith(color: theme.colorScheme.onSurfaceVariant)),
+            ],
+            if (actionLabel != null) ...[
+              const SizedBox(height: 12),
+              FilledButton(onPressed: onAction, child: Text(actionLabel!)),
+            ],
+          ]),
         ),
-        const SizedBox(height: 8),
-        Text(title, textAlign: TextAlign.center, style: theme.textTheme.bodyMedium?.copyWith(fontWeight: FontWeight.w600)),
-        if (subtitle != null) ...[const SizedBox(height: 4), Text(subtitle!, textAlign: TextAlign.center, style: theme.textTheme.bodySmall)],
-        if (actionLabel != null) ...[const SizedBox(height: 12), FilledButton(onPressed: onAction, child: Text(actionLabel!))],
-      ]),
+      ),
     );
+  }
+}
+
+/// Page-level empty state: centres [ZEmpty] in the space the page has left
+/// under its header, still scrolls when text is scaled up, and can pull to
+/// refresh so an otherwise empty desk is not stuck without a reload path.
+class ZEmptyPage extends StatelessWidget {
+  final IconData icon;
+  final String title;
+  final String? subtitle;
+  final String? actionLabel;
+  final VoidCallback? onAction;
+  final Future<void> Function()? onRefresh;
+
+  const ZEmptyPage({
+    super.key,
+    required this.icon,
+    required this.title,
+    this.subtitle,
+    this.actionLabel,
+    this.onAction,
+    this.onRefresh,
+  });
+
+  static const _padding = EdgeInsets.all(24);
+
+  @override
+  Widget build(BuildContext context) {
+    final content = LayoutBuilder(
+      builder: (context, constraints) {
+        // Inside an unbounded parent (a plain ListView) there is nothing to
+        // centre against, so the callout keeps its natural height.
+        final viewport = constraints.maxHeight.isFinite ? constraints.maxHeight : 0.0;
+        final minHeight = viewport > _padding.vertical ? viewport - _padding.vertical : 0.0;
+        return SingleChildScrollView(
+          physics: onRefresh == null ? const ClampingScrollPhysics() : const AlwaysScrollableScrollPhysics(),
+          padding: _padding,
+          child: ConstrainedBox(
+            constraints: BoxConstraints(minHeight: minHeight),
+            child: Center(
+              child: ConstrainedBox(
+                constraints: const BoxConstraints(maxWidth: 420),
+                child: ZEmpty(
+                  icon: icon,
+                  title: title,
+                  subtitle: subtitle,
+                  actionLabel: actionLabel,
+                  onAction: onAction,
+                ),
+              ),
+            ),
+          ),
+        );
+      },
+    );
+    final refresh = onRefresh;
+    if (refresh == null) return content;
+    return RefreshIndicator(onRefresh: refresh, child: content);
   }
 }
 
