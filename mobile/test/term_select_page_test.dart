@@ -15,6 +15,7 @@ import 'package:zentra_mobile/features/auth/first_time_gate.dart';
 import 'package:zentra_mobile/features/auth/login_background.dart';
 import 'package:zentra_mobile/features/auth/term_select_page.dart';
 import 'package:zentra_mobile/shared/models.dart';
+import 'package:zentra_mobile/shared/widgets.dart' show ErrorView;
 
 List<SchoolYear> fixture() => [
   SchoolYear.fromJson({
@@ -496,6 +497,139 @@ void main() {
       expect(tester.takeException(), isNull);
     },
   );
+
+  for (final size in [const Size(320, 740), const Size(1200, 900)]) {
+    for (final scale in [1.0, 1.5]) {
+      testWidgets(
+        'loading, error and retry retain their placement at $size, text=$scale',
+        (tester) async {
+          tester.view.physicalSize = size;
+          tester.view.devicePixelRatio = 1;
+          addTearDown(tester.view.resetPhysicalSize);
+          addTearDown(tester.view.resetDevicePixelRatio);
+          final api = _GateApi()..linked = false;
+          addTearDown(api.dio.close);
+          final initial = Completer<Map<String, dynamic>>();
+          final retried = Completer<Map<String, dynamic>>();
+          var calls = 0;
+          await tester.pumpWidget(
+            ProviderScope(
+              overrides: [
+                apiClientProvider.overrideWithValue(api),
+                overviewProvider.overrideWith(
+                  (ref) => ++calls == 1 ? initial.future : retried.future,
+                ),
+              ],
+              child: MaterialApp(
+                builder: (context, child) => MediaQuery(
+                  data: MediaQuery.of(context).copyWith(
+                    disableAnimations: true,
+                    textScaler: TextScaler.linear(scale),
+                  ),
+                  child: child!,
+                ),
+                home: const FirstTimeGate(),
+              ),
+            ),
+          );
+          for (var i = 0; i < 8; i++) {
+            await tester.pump(const Duration(milliseconds: 10));
+          }
+          final brand = tester.getRect(find.text('Zentra'));
+          final footer = tester.getRect(
+            find.text('Mati School of Arts and Trades'),
+          );
+          final region = tester.getRect(
+            find.byKey(const ValueKey('auth-flow-center')),
+          );
+          final loadingCenter = tester.getCenter(find.byType(AuthLoading));
+          initial.completeError(ApiException('NETWORK', 'private details'));
+          await tester.pumpAndSettle();
+          expect(find.text('Try again'), findsOneWidget);
+          expect(tester.getRect(find.text('Zentra')), brand);
+          expect(
+            tester.getRect(find.text('Mati School of Arts and Trades')),
+            footer,
+          );
+          expect(
+            tester.getRect(find.byKey(const ValueKey('auth-flow-center'))),
+            region,
+          );
+          final errorContent = find.descendant(
+            of: find.byType(ErrorView),
+            matching: find.byType(Column),
+          );
+          expect(
+            tester.getCenter(errorContent).dy,
+            closeTo(loadingCenter.dy, 1),
+          );
+          expect(
+            tester.getCenter(find.widgetWithText(FilledButton, 'Try again')).dx,
+            closeTo(size.width / 2, 1),
+          );
+          expect(find.textContaining('private details'), findsNothing);
+          await tester.tap(find.text('Try again'));
+          await tester.pumpAndSettle();
+          expect(find.byType(AuthLoading), findsOneWidget);
+          expect(tester.getCenter(find.byType(AuthLoading)), loadingCenter);
+          expect(tester.getRect(find.text('Zentra')), brand);
+          expect(
+            tester.getRect(find.text('Mati School of Arts and Trades')),
+            footer,
+          );
+          retried.complete({'isAdviser': false});
+          await tester.pumpAndSettle();
+          expect(calls, 2);
+          expect(find.text('Link your classes'), findsWidgets);
+          expect(tester.takeException(), isNull);
+        },
+      );
+    }
+  }
+
+  testWidgets('a later overview error also uses the centered workspace shell', (
+    tester,
+  ) async {
+    final api = _GateApi()..linked = false;
+    addTearDown(api.dio.close);
+    var fail = false;
+    await tester.pumpWidget(
+      ProviderScope(
+        overrides: [
+          apiClientProvider.overrideWithValue(api),
+          overviewProvider.overrideWith((ref) {
+            if (fail) throw ApiException('NETWORK', 'private details');
+            return {'isAdviser': false};
+          }),
+        ],
+        child: MaterialApp(
+          builder: (context, child) => MediaQuery(
+            data: MediaQuery.of(context).copyWith(disableAnimations: true),
+            child: child!,
+          ),
+          home: const FirstTimeGate(),
+        ),
+      ),
+    );
+    for (var i = 0; i < 8; i++) {
+      await tester.pump(const Duration(milliseconds: 10));
+    }
+    expect(find.text('Link your classes'), findsWidgets);
+    fail = true;
+    ProviderScope.containerOf(tester.element(find.byType(FirstTimeGate)))
+        .invalidate(overviewProvider);
+    await tester.pumpAndSettle();
+    final region = tester.getRect(
+      find.byKey(const ValueKey('auth-flow-center')),
+    );
+    final content = find.descendant(
+      of: find.byType(ErrorView),
+      matching: find.byType(Column),
+    );
+    expect(tester.getCenter(content).dy, closeTo(region.center.dy, 1));
+    expect(find.text('Try again'), findsOneWidget);
+    expect(tester.takeException(), isNull);
+  });
 
   testWidgets('leaving workspace preparation during a request is safe', (
     tester,

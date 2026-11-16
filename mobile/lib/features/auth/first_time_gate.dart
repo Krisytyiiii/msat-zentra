@@ -105,11 +105,11 @@ class _GateState extends ConsumerState<FirstTimeGate> {
   @override
   Widget build(BuildContext context) {
     if (_busy) return const AuthFlowScaffold(centerContent: true, child: AuthLoading(label: 'Preparing workspace…'));
-    if (_error != null) return AuthFlowScaffold(child: ErrorView(message: _error!, onRetry: _retry));
+    if (_error != null) return AuthFlowScaffold(centerContent: true, child: ErrorView(message: _error!, onRetry: _retry));
     final overview = ref.watch(overviewProvider);
     return overview.when(
       loading: () => const AuthFlowScaffold(centerContent: true, child: AuthLoading(label: 'Preparing workspace…')),
-      error: (e, _) => AuthFlowScaffold(child: ErrorView(message: e, onRetry: _retry)),
+      error: (e, _) => AuthFlowScaffold(centerContent: true, child: ErrorView(message: e, onRetry: _retry)),
       data: (data) {
         final isAdviser = data['isAdviser'] == true;
         final teacherName = _me?['teacherName'];
