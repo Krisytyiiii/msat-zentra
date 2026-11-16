@@ -389,7 +389,7 @@ class ZentraDrawer extends ConsumerWidget {
             _item(context, Icons.school_outlined, 'Academic', '/adviser/academic', _selected('/adviser/academic')),
             _item(context, Icons.folder_shared_outlined, 'ADM cases', '/adviser/adm-cases', _selected('/adviser/adm-cases')),
             _item(context, Icons.note_outlined, 'Anecdotal', '/adviser/anecdotal', _selected('/adviser/anecdotal')),
-            _item(context, Icons.calendar_month_outlined, 'Section schedule', '/adviser/schedule', _selected('/adviser/schedule') || _selected('/workspace/schedule')),
+            _item(context, Icons.calendar_month_outlined, 'Class Schedule', '/adviser/schedule', _selected('/adviser/schedule') || _selected('/workspace/schedule')),
             _item(context, Icons.chat_bubble_outline, 'Chat with Bama', '/adviser/bama', _selected('/adviser/bama')),
             _item(context, Icons.send_outlined, 'Referrals', '/adviser/referrals', _selected('/adviser/referrals')),
           ],

@@ -49,7 +49,7 @@ ScreenSearchSpec screenSearchSpecFor(String location, [Uri? uri]) {
       );
     case '/adviser/schedule':
     case '/workspace/schedule':
-      return const ScreenSearchSpec.pages('Schedule');
+      return const ScreenSearchSpec.pages('Class Schedule');
     case '/adviser/bama':
       return const ScreenSearchSpec.pages('Chat with Bama');
     case '/adviser/bama/history':
@@ -128,7 +128,7 @@ List<ScreenSearchDestination> screenSearchCatalog({required bool isAdviser}) {
         Icons.note_outlined,
       ),
       const ScreenSearchDestination(
-        'Section schedule',
+        'Class Schedule',
         '/adviser/schedule',
         Icons.calendar_month_outlined,
       ),

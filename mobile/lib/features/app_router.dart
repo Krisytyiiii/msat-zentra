@@ -138,7 +138,7 @@ final routerProvider = Provider<GoRouter>((ref) {
       ),
       // Shared Workspace (both roles, same web data)
       GoRoute(path: '/workspace/overview', builder: (context, _) => const WorkspaceShell(selected: WorkspaceRoute.overview, child: OverviewPage())),
-      GoRoute(path: '/workspace/schedule', builder: (context, _) => const WorkspaceShell(selected: WorkspaceRoute.schedule, child: AdviserSchedulePage())),
+      GoRoute(path: '/workspace/schedule', builder: (context, _) => const WorkspaceShell(selected: WorkspaceRoute.schedule, child: AdviserSchedulePage(advisory: false))),
       GoRoute(path: '/workspace/classes', builder: (context, _) => const WorkspaceShell(selected: WorkspaceRoute.classes, child: ClassesPage())),
       GoRoute(path: '/workspace/gradebook', builder: (context, _) => const WorkspaceShell(selected: WorkspaceRoute.gradebook, child: GradebookDashboardPage())),
       GoRoute(
