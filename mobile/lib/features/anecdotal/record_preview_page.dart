@@ -3,9 +3,8 @@
 // the official GCForm-01 export (GET /api/anecdotal/:id/pdf, drawn
 // server-side from the same record data) and renders it with pinch-zoom +
 // double-tap. The PDF is cached on disk per signature state, so signed
-// forms stay viewable offline. Below the sheet: the web-exact signature
-// flow + both downloads (.xlsx for the official file, .PDF to share the
-// preview itself).
+// downloads can reuse the rendered bytes. The full-height print layout keeps
+// signature controls in a sheet and exports in a separate bottom action bar.
 
 import 'dart:io';
 import 'dart:typed_data';
@@ -19,10 +18,11 @@ import 'package:share_plus/share_plus.dart';
 
 import '../../shared/models.dart';
 import '../../shared/widgets.dart';
-import '../../shared/spinner.dart';
+import '../../design/status_palette.dart';
 import '../../shared/user_messages.dart';
 import 'anecdotal_data.dart';
 import 'signature_block.dart';
+import 'preview_action_bar.dart';
 
 class RecordPreviewPage extends ConsumerStatefulWidget {
   final MyAnecdotalRecord record;
@@ -34,6 +34,11 @@ class RecordPreviewPage extends ConsumerStatefulWidget {
 
 class _PreviewState extends ConsumerState<RecordPreviewPage> {
   final _pdfController = PdfViewerController();
+  PdfViewerParams? _params;
+  final _zoom = ValueNotifier<double>(1);
+  bool _viewerReady = false;
+  int _pageCount = 0;
+  int _pageNumber = 1;
   Map<String, dynamic>? _detail;
   Uint8List? _pdfBytes;
   String? _error;
@@ -48,7 +53,53 @@ class _PreviewState extends ConsumerState<RecordPreviewPage> {
   }
 
   @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    if (_params != null) return;
+    _params ??= PdfViewerParams(
+      backgroundColor: Theme.of(context).colorScheme.surfaceContainerLow,
+      margin: 16,
+      pageDropShadow: const BoxShadow(
+        color: Color(0x47000000), blurRadius: 18, offset: Offset(0, 6),
+      ),
+      sizeDelegateProvider: const PdfViewerSizeDelegateProviderSmart(),
+      onViewerReady: (document, controller) {
+        if (!mounted) return;
+        setState(() {
+          _viewerReady = true;
+          _pageCount = document.pages.length;
+        });
+        _syncZoom();
+      },
+      onPageChanged: (page) {
+        if (mounted && page != null) setState(() => _pageNumber = page);
+      },
+      onGeneralTap: (_, controller, details) {
+        if (details.type != PdfViewerGeneralTapType.doubleTap) return false;
+        final fit = controller.calcMatrixFitWidthForPage(pageNumber: _pageNumber);
+        if (fit != null && controller.currentZoom > fit.storage[0] * 1.1) {
+          controller.goTo(fit);
+        } else {
+          controller.zoomUp(zoomCenter: details.localPosition);
+        }
+        return true;
+      },
+      errorBannerBuilder: (_, error, stack, document) => ErrorView(
+        message: 'The document could not be displayed. Please try again.',
+        onRetry: _load,
+      ),
+    );
+    _pdfController.addListener(_syncZoom);
+  }
+
+  void _syncZoom() {
+    if (mounted && _pdfController.isReady) _zoom.value = _pdfController.currentZoom;
+  }
+
+  @override
   void dispose() {
+    _pdfController.removeListener(_syncZoom);
+    _zoom.dispose();
     // PdfViewerController holds no native resources in this version —
     // the viewer detaches itself when unmounted.
     super.dispose();
@@ -75,6 +126,8 @@ class _PreviewState extends ConsumerState<RecordPreviewPage> {
       _pdfBytes = null;
       _error = null;
       _busy = true;
+      _viewerReady = false;
+      _pageNumber = 1;
     });
     try {
       final detail = await fetchRecordDetail(ref, widget.record.id);
@@ -105,6 +158,13 @@ class _PreviewState extends ConsumerState<RecordPreviewPage> {
       if (mounted) {
         setState(() {
           _error = userMessage(e);
+          _busy = false;
+        });
+      }
+    } catch (_) {
+      if (mounted) {
+        setState(() {
+          _error = 'The official form could not be loaded. Please try again.';
           _busy = false;
         });
       }
@@ -165,71 +225,160 @@ class _PreviewState extends ConsumerState<RecordPreviewPage> {
     }
   }
 
-  @override
-  Widget build(BuildContext context) {
-    return Scaffold(
-      appBar: AppBar(title: const Text('GCForm-01 preview')),
-      body: Builder(builder: (_) {
-        if (_busy) {
-          return const Padding(padding: EdgeInsets.all(16), child: ZSkeletonList(count: 6));
-        }
-        if (_error != null || _detail == null || _pdfBytes == null) {
-          return Padding(padding: const EdgeInsets.all(16), child: ErrorView(message: _error ?? 'Could not load.', onRetry: _load));
-        }
-        final detail = _detail!;
-        final canSign = detail['canSign'] == true;
-        final sig = recordSignatureOf(detail);
-        return Column(children: [
-          Expanded(
-            flex: 6,
-            child: Container(
-              color: Theme.of(context).colorScheme.surfaceContainerLow,
-              child: PdfViewer.data(
-                _pdfBytes!,
-                sourceName: 'ocform01_${widget.record.id}',
-                controller: _pdfController,
+  Future<void> _openSignature() async {
+    final detail = _detail;
+    if (detail == null) return;
+    final changed = await showModalBottomSheet<bool>(
+      context: context,
+      isScrollControlled: true,
+      useSafeArea: true,
+      // Drag only the handle, not the drawing canvas.
+      enableDrag: false,
+      builder: (sheetContext) => DraggableScrollableSheet(
+        expand: false,
+        initialChildSize: 0.8,
+        minChildSize: 0.5,
+        maxChildSize: 0.95,
+        builder: (_, scrollController) => Column(
+          children: [
+            SingleChildScrollView(
+              controller: scrollController,
+              child: const SizedBox(
+                height: 32,
+                child: Center(child: Icon(Icons.drag_handle)),
               ),
             ),
-          ),
-          Expanded(
-            flex: 4,
-            child: ListView(
-              padding: const EdgeInsets.all(16),
-              children: [
-                SignatureBlock(
-                  recordId: widget.record.id,
-                  canSign: canSign,
-                  signature: sig,
-                  onChanged: _load,
-                ),
-                const SizedBox(height: 12),
-                Row(children: [
-                  Expanded(
-                    child: OutlinedButton.icon(
-                      icon: _exportingXlsx
-                          ? const ZSpinner(size: 16)
-                          : const Icon(Icons.download_outlined, size: 16),
-                      onPressed: _exportingXlsx ? null : _shareXlsx,
-                      label: Text(_exportingXlsx ? 'Preparing…' : 'Download .xlsx'),
-                    ),
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 16),
+              child: Row(
+                children: [
+                  const Expanded(child: Text('Report signature')),
+                  IconButton(
+                    tooltip: 'Close signature',
+                    onPressed: () => Navigator.pop(sheetContext),
+                    icon: const Icon(Icons.close),
                   ),
-                  const SizedBox(width: 8),
-                  Expanded(
-                    child: FilledButton.icon(
-                      icon: _exportingPdf
-                          ? const ZSpinner(size: 16)
-                          : const Icon(Icons.picture_as_pdf_outlined, size: 16),
-                      onPressed: _exportingPdf ? null : _sharePdf,
-                      label: Text(_exportingPdf ? 'Preparing…' : 'Download .PDF'),
-                    ),
-                  ),
-                ]),
-                const SizedBox(height: 8),
-              ],
+                ],
+              ),
             ),
-          ),
-        ]);
-      }),
+            Expanded(
+              child: SingleChildScrollView(
+                padding: const EdgeInsets.all(16),
+                child: SignatureBlock(
+                  recordId: widget.record.id,
+                  canSign: detail['canSign'] == true,
+                  signature: recordSignatureOf(detail),
+                  onChanged: () {
+                    if (sheetContext.mounted) Navigator.pop(sheetContext, true);
+                  },
+                ),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+    if (changed == true && mounted) await _load();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final sig = _detail == null ? null : recordSignatureOf(_detail!);
+    final loaded = !_busy && _error == null && _detail != null && _pdfBytes != null;
+    return Scaffold(
+      appBar: AppBar(
+        toolbarHeight: 80,
+        title: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            const Text('GCForm-01 — Anecdotal Report',
+                maxLines: 1, overflow: TextOverflow.ellipsis,
+                style: TextStyle(fontSize: 15, fontWeight: FontWeight.w600)),
+            Text('${widget.record.studentName} · ${widget.record.date}',
+                maxLines: 1, overflow: TextOverflow.ellipsis,
+                style: Theme.of(context).textTheme.bodySmall),
+          ],
+        ),
+        actions: [
+          if (sig != null)
+            const Padding(
+              padding: EdgeInsets.only(right: 12),
+              child: ZStatusPill(text: 'Signed', tone: StatusTone.green),
+            ),
+        ],
+      ),
+      bottomNavigationBar: loaded
+          ? PreviewActionBar(
+              canSign: _detail!['canSign'] == true,
+              signed: sig != null,
+              onSign: _openSignature,
+              onXlsx: _shareXlsx,
+              onPdf: _sharePdf,
+              xlsxBusy: _exportingXlsx,
+              pdfBusy: _exportingPdf,
+            )
+          : null,
+      body: ColoredBox(
+        color: Theme.of(context).colorScheme.surfaceContainerLow,
+        child: _busy
+            ? const Padding(
+                padding: EdgeInsets.all(16), child: ZSkeletonList(count: 6))
+            : !loaded
+                ? ErrorView(
+                    message: _error ?? 'The official form could not be loaded.',
+                    onRetry: _load)
+                : Stack(
+                    children: [
+                      Positioned.fill(
+                        child: PdfViewer.data(
+                          _pdfBytes!,
+                          sourceName: 'ocform01_${widget.record.id}',
+                          controller: _pdfController,
+                          params: _params!,
+                        ),
+                      ),
+                      if (_viewerReady)
+                        Positioned(
+                          left: 12, right: 12, bottom: 12,
+                          child: SafeArea(
+                            top: false,
+                            child: Row(
+                              children: [
+                                if (_pageCount > 1)
+                                  Chip(label: Text('$_pageNumber of $_pageCount')),
+                                const Spacer(),
+                                Material(
+                                  elevation: 4,
+                                  borderRadius: BorderRadius.circular(8),
+                                  child: Row(
+                                    mainAxisSize: MainAxisSize.min,
+                                    children: [
+                                      IconButton(
+                                        tooltip: 'Zoom out',
+                                        onPressed: () => _pdfController.zoomDown(),
+                                        icon: const Icon(Icons.remove),
+                                      ),
+                                      ValueListenableBuilder<double>(
+                                        valueListenable: _zoom,
+                                        builder: (_, zoom, _) => Text(
+                                          '${(zoom * 100).round()}%',
+                                          style: Theme.of(context).textTheme.bodySmall),
+                                      ),
+                                      IconButton(
+                                        tooltip: 'Zoom in',
+                                        onPressed: () => _pdfController.zoomUp(),
+                                        icon: const Icon(Icons.add),
+                                      ),
+                                    ],
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                        ),
+                    ],
+                  ),
+      ),
     );
   }
 }
