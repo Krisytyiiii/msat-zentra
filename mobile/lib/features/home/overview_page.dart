@@ -7,6 +7,7 @@ import 'package:go_router/go_router.dart';
 import 'package:intl/intl.dart';
 
 import '../../core/session.dart';
+import '../../design/screen_search.dart';
 import '../../design/theme.dart';
 import '../../shared/user_messages.dart';
 import '../../shared/widgets.dart';
@@ -93,6 +94,8 @@ class _OverviewPageState extends ConsumerState<OverviewPage>
         (ref.watch(authProvider).role == 'adviser');
     final section = summary.asData?.value.sectionName;
     final theme = Theme.of(context);
+    // The staff shell already names this screen in the header.
+    final inShell = ScreenSearchScope.maybeOf(context) != null;
     return RefreshIndicator(
       onRefresh: _refresh,
       child: SingleChildScrollView(
@@ -104,8 +107,10 @@ class _OverviewPageState extends ConsumerState<OverviewPage>
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
-                Text('Overview', style: theme.textTheme.headlineSmall),
-                const SizedBox(height: 6),
+                if (!inShell) ...[
+                  Text('Overview', style: theme.textTheme.headlineSmall),
+                  const SizedBox(height: 6),
+                ],
                 summary.when(
                   data: (data) => Text(
                     data.teacherName.trim().isEmpty

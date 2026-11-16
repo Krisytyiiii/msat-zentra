@@ -10,6 +10,7 @@ import 'package:intl/intl.dart';
 
 import '../../core/session.dart';
 import '../../core/sync_outbox.dart';
+import '../../design/screen_search.dart';
 import '../../design/theme.dart';
 import '../../design/tokens.dart';
 import '../../shared/models.dart';
@@ -44,6 +45,7 @@ class _AdvisoryListState extends ConsumerState<AdvisoryListPage> {
   }
 
   void _view(bool archived) {
+    ScreenSearchScope.read(context)?.clear();
     _search.clear();
     setState(() {
       _q = '';
@@ -291,6 +293,9 @@ class _AdvisoryListState extends ConsumerState<AdvisoryListPage> {
     final archived = _showArchived ? ref.watch(archivedAdvisoryProvider) : null;
     final sections = active.asData?.value.sections ?? const <AdvisorySection>[];
     final pending = ref.watch(outboxProvider).pendingCount;
+    // The staff shell supplies the header search; standalone stays local.
+    final scope = ScreenSearchScope.maybeOf(context);
+    final query = (scope?.query ?? _q).trim().toLowerCase();
     return PopScope(
       canPop: !_expanded,
       onPopInvokedWithResult: (didPop, _) {
@@ -315,12 +320,13 @@ class _AdvisoryListState extends ConsumerState<AdvisoryListPage> {
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.stretch,
                         children: [
-                          Text(
-                            _showArchived
-                                ? 'Archived students'
-                                : 'Advisory list',
-                            style: theme.textTheme.headlineSmall,
-                          ),
+                          if (scope == null || _showArchived)
+                            Text(
+                              _showArchived
+                                  ? 'Archived students'
+                                  : 'Advisory list',
+                              style: theme.textTheme.headlineSmall,
+                            ),
                           if (_showArchived) ...[
                             Align(
                               alignment: Alignment.centerLeft,
@@ -337,27 +343,35 @@ class _AdvisoryListState extends ConsumerState<AdvisoryListPage> {
                               ),
                             ),
                           ],
-                          const SizedBox(height: 12),
-                          Row(
-                            children: [
-                              Expanded(
-                                child: TextField(
-                                  controller: _search,
-                                  decoration: const InputDecoration(
-                                    prefixIcon: Icon(Icons.search, size: 18),
-                                    hintText: 'Search name or LRN',
-                                  ),
-                                  onChanged: (value) => setState(
-                                    () => _q = value.trim().toLowerCase(),
+                          if (scope == null) ...[
+                            const SizedBox(height: 12),
+                            Row(
+                              children: [
+                                Expanded(
+                                  child: TextField(
+                                    controller: _search,
+                                    decoration: const InputDecoration(
+                                      prefixIcon: Icon(Icons.search, size: 18),
+                                      hintText: 'Search name or LRN',
+                                    ),
+                                    onChanged: (value) => setState(
+                                      () => _q = value.trim().toLowerCase(),
+                                    ),
                                   ),
                                 ),
-                              ),
-                              if (pending > 0) ...[
-                                const SizedBox(width: 8),
-                                PendingChip(count: pending),
+                                if (pending > 0) ...[
+                                  const SizedBox(width: 8),
+                                  PendingChip(count: pending),
+                                ],
                               ],
-                            ],
-                          ),
+                            ),
+                          ] else if (pending > 0) ...[
+                            const SizedBox(height: 12),
+                            Align(
+                              alignment: Alignment.centerLeft,
+                              child: PendingChip(count: pending),
+                            ),
+                          ],
                           if (!_showArchived) ...[
                             const SizedBox(height: 10),
                             Wrap(
@@ -398,7 +412,7 @@ class _AdvisoryListState extends ConsumerState<AdvisoryListPage> {
                                 onRetry: () =>
                                     ref.invalidate(archivedAdvisoryProvider),
                               ),
-                              data: _archivedList,
+                              data: (list) => _archivedList(list, query),
                             )
                           : active.when(
                               loading: () => const Padding(
@@ -409,7 +423,7 @@ class _AdvisoryListState extends ConsumerState<AdvisoryListPage> {
                                 message: error,
                                 onRetry: () => ref.invalidate(advisoryProvider),
                               ),
-                              data: _activeList,
+                              data: (roster) => _activeList(roster, query),
                             ),
                     ),
                   ],
@@ -483,13 +497,13 @@ class _AdvisoryListState extends ConsumerState<AdvisoryListPage> {
         ),
       );
 
-  Widget _activeList(AdvisoryRoster roster) {
+  Widget _activeList(AdvisoryRoster roster, String query) {
     final shown = roster.students
         .where(
           (student) =>
-              (_q.isEmpty ||
-                  student.name.toLowerCase().contains(_q) ||
-                  student.lrn.contains(_q)) &&
+              (query.isEmpty ||
+                  student.name.toLowerCase().contains(query) ||
+                  student.lrn.contains(query)) &&
               (_filter == 'All' ||
                   student.riskLevel == _filter ||
                   student.flags.contains(_filter)),
@@ -586,13 +600,13 @@ class _AdvisoryListState extends ConsumerState<AdvisoryListPage> {
     );
   }
 
-  Widget _archivedList(List<ArchivedAdvisoryStudent> students) {
+  Widget _archivedList(List<ArchivedAdvisoryStudent> students, String query) {
     final shown = students
         .where(
           (student) =>
-              _q.isEmpty ||
-              student.name.toLowerCase().contains(_q) ||
-              student.lrn.contains(_q),
+              query.isEmpty ||
+              student.name.toLowerCase().contains(query) ||
+              student.lrn.contains(query),
         )
         .toList();
     if (shown.isEmpty) {

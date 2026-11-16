@@ -12,6 +12,7 @@ import 'package:image_picker/image_picker.dart';
 
 import '../../core/session.dart';
 import '../../design/brand.dart';
+import '../../design/screen_search.dart';
 import '../../design/theme_picker.dart';
 import '../../shared/widgets.dart';
 import '../../shared/spinner.dart';
@@ -234,10 +235,11 @@ class _State extends ConsumerState<SettingsPage> {
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final profile = ref.watch(teacherProfileProvider);
+    final inShell = ScreenSearchScope.maybeOf(context) != null;
     return ListView(
       padding: const EdgeInsets.fromLTRB(16, 12, 16, 80),
       children: [
-        Text('Settings', style: theme.textTheme.headlineSmall),
+        if (!inShell) Text('Settings', style: theme.textTheme.headlineSmall),
         Text(
           'Your profile, appearance, and account security.',
           style: theme.textTheme.bodySmall,

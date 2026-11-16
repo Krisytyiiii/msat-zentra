@@ -11,6 +11,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../core/api_client.dart';
+import '../../design/screen_search.dart';
 import '../../shared/user_messages.dart';
 import '../../shared/widgets.dart';
 import '../../design/status_palette.dart';
@@ -92,6 +93,9 @@ class _State extends ConsumerState<ReferralPage> {
   @override
   Widget build(BuildContext context) {
     final list = ref.watch(referralsProvider);
+    // The staff shell owns search; standalone keeps this field.
+    final scope = ScreenSearchScope.maybeOf(context);
+    final q = (scope?.query ?? _q).trim().toLowerCase();
     return ListView(padding: const EdgeInsets.fromLTRB(16, 12, 16, 80), children: [
       ZCard(
         child: Row(children: [
@@ -106,8 +110,10 @@ class _State extends ConsumerState<ReferralPage> {
         ]),
       ),
       const SizedBox(height: 12),
-      ZSearchField(hint: 'Filter by name, LRN, or role', onChanged: (v) => setState(() => _q = v.trim().toLowerCase())),
-      const SizedBox(height: 8),
+      if (scope == null) ...[
+        ZSearchField(hint: 'Filter by name, LRN, or role', onChanged: (v) => setState(() => _q = v.trim().toLowerCase())),
+        const SizedBox(height: 8),
+      ],
       Text('Timeline', style: Theme.of(context).textTheme.labelSmall?.copyWith(letterSpacing: 0.4)),
       const SizedBox(height: 8),
       list.when(
@@ -115,10 +121,10 @@ class _State extends ConsumerState<ReferralPage> {
         error: (e, _) => ErrorView(message: e, onRetry: () => ref.invalidate(referralsProvider)),
         data: (items) {
           final shown = items.where((r) {
-            if (_q.isEmpty) return true;
-            return (r['studentName']?.toString() ?? '').toLowerCase().contains(_q) ||
-                (r['lrn']?.toString() ?? '').contains(_q) ||
-                (r['targetRole']?.toString() ?? '').toLowerCase().contains(_q);
+            if (q.isEmpty) return true;
+            return (r['studentName']?.toString() ?? '').toLowerCase().contains(q) ||
+                (r['lrn']?.toString() ?? '').contains(q) ||
+                (r['targetRole']?.toString() ?? '').toLowerCase().contains(q);
           }).toList();
           if (shown.isEmpty) {
             return Padding(

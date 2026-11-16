@@ -4,6 +4,7 @@
 
 import 'package:flutter/material.dart';
 
+import '../../design/screen_search.dart';
 import 'bama_conversations.dart';
 
 class BamaHistoryPage extends StatefulWidget {
@@ -42,21 +43,24 @@ class _State extends State<BamaHistoryPage> {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
-    final needle = _q.text.trim().toLowerCase();
+    // Header search when inside the staff shell; local field otherwise.
+    final scope = ScreenSearchScope.maybeOf(context);
+    final needle = (scope?.query ?? _q.text).trim().toLowerCase();
     final shown = _items.where((c) {
       if (needle.isEmpty) return true;
       return c.title.toLowerCase().contains(needle) || c.messages.any((m) => m.text.toLowerCase().contains(needle));
     }).toList();
     final title = widget.type == 'grade-flag' ? 'Grade flag logs' : 'Anecdotal logs';
     return Column(children: [
-      Padding(
-        padding: const EdgeInsets.fromLTRB(16, 12, 16, 8),
-        child: TextField(
-          controller: _q,
-          decoration: const InputDecoration(prefixIcon: Icon(Icons.search, size: 18), hintText: 'Search chats…'),
-          onChanged: (_) => setState(() {}),
+      if (scope == null)
+        Padding(
+          padding: const EdgeInsets.fromLTRB(16, 12, 16, 8),
+          child: TextField(
+            controller: _q,
+            decoration: const InputDecoration(prefixIcon: Icon(Icons.search, size: 18), hintText: 'Search chats…'),
+            onChanged: (_) => setState(() {}),
+          ),
         ),
-      ),
       Expanded(
         child: shown.isEmpty
             ? Center(

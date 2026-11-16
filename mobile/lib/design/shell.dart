@@ -1,8 +1,10 @@
 // Zentra app shell — drawer-routed (no bottom nav).
-// Header: [≡] logo + Zentra (left) | [🔔][avatar] (right). No term text.
+// Header: [≡] current screen title + search (left) | [🔔][avatar] (right).
+// Branding lives in the drawer; the header always names the open screen.
+// Search is contextual: desks with a filterable list consume the shared
+// query (hiding their inline field), every other desk opens a page finder.
 // Drawer: brand → term switcher dropdown → Advisory → Workspace.
 // Avatar popup is the system menu: Settings / Appearance / Logout.
-// Branding: left-aligned logo + wordmark (matches web topbar brand left).
 
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -12,78 +14,348 @@ import '../core/notifications.dart';
 import '../core/session.dart';
 import '../core/sync_outbox.dart';
 import '../features/adviser/adm_cases_page.dart' show admCasesProvider;
-import '../features/adviser/advisory_list_page.dart' show advisoryProvider, archivedAdvisoryProvider;
+import '../features/adviser/advisory_list_page.dart'
+    show advisoryProvider, archivedAdvisoryProvider;
 import '../features/home/role_home.dart' show AdviserRoute, WorkspaceRoute;
 import '../features/settings/settings_data.dart' show teacherProfileProvider;
 import '../shared/models.dart' show Term;
 import '../shared/widgets.dart';
 import '../shared/user_messages.dart';
 import 'brand.dart';
+import 'screen_search.dart';
 
-class ZentraShell extends ConsumerWidget {
+class ZentraShell extends ConsumerStatefulWidget {
   final Widget child;
   final String selectedPath;
+
+  /// Test/preview override; production resolves from the matched route.
+  final ScreenSearchSpec? spec;
+
   const ZentraShell({
     super.key,
     required this.child,
     required this.selectedPath,
+    this.spec,
   });
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
-    return Scaffold(
-      appBar: const ZentraAppBar(),
-      drawer: ZentraDrawer(selectedPath: selectedPath),
-      body: child,
+  ConsumerState<ZentraShell> createState() => _ZentraShellState();
+}
+
+class _ZentraShellState extends ConsumerState<ZentraShell> {
+  static const _wideBreakpoint = 720.0;
+
+  final _text = TextEditingController();
+  final _focus = FocusNode();
+  final _search = ScreenSearchController();
+  String _location = '';
+  bool _compactOpen = false;
+
+  @override
+  void initState() {
+    super.initState();
+    // The shell itself is outside the scope, so listen directly for query
+    // changes that must swap the body (page finder, clear button).
+    _search.addListener(_onSearchChanged);
+  }
+
+  void _onSearchChanged() {
+    if (mounted) setState(() {});
+  }
+
+  @override
+  void dispose() {
+    _search.removeListener(_onSearchChanged);
+    _text.dispose();
+    _focus.dispose();
+    _search.dispose();
+    super.dispose();
+  }
+
+  /// One query per desk: moving away clears search without notifying
+  /// listeners in the middle of a build.
+  void _syncLocation(String location) {
+    if (_location == location) return;
+    _location = location;
+    _text.clear();
+    _search.resetSilently();
+    _compactOpen = false;
+    if (_focus.hasFocus) {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (mounted) _focus.unfocus();
+      });
+    }
+  }
+
+  void _openCompact() {
+    setState(() => _compactOpen = true);
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (mounted) _focus.requestFocus();
+    });
+  }
+
+  void _closeCompact() {
+    _text.clear();
+    _search.clear();
+    _focus.unfocus();
+    setState(() => _compactOpen = false);
+  }
+
+  void _clearQuery() {
+    _text.clear();
+    _search.clear();
+    _focus.requestFocus();
+  }
+
+  void _openDestination(String path) {
+    _text.clear();
+    _search.clear();
+    _focus.unfocus();
+    setState(() => _compactOpen = false);
+    context.go(path);
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final router = GoRouter.maybeOf(context);
+    final routeState = router == null ? null : GoRouterState.of(context);
+    final location = routeState?.matchedLocation ?? widget.selectedPath;
+    _syncLocation(location);
+    final spec = widget.spec ?? screenSearchSpecFor(location, routeState?.uri);
+    final isAdviser = ref
+        .watch(overviewProvider)
+        .maybeWhen(
+          data: (d) => d['isAdviser'] == true,
+          orElse: () => ref.read(authProvider).role == 'adviser',
+        );
+    final wide = MediaQuery.sizeOf(context).width >= _wideBreakpoint;
+    final query = _search.query.trim().toLowerCase();
+    final showingPages =
+        spec.mode == ScreenSearchMode.pages && query.isNotEmpty;
+    final destinations = showingPages
+        ? [
+            for (final d in screenSearchCatalog(isAdviser: isAdviser))
+              if (d.label.toLowerCase().contains(query) ||
+                  d.path.toLowerCase().contains(query))
+                d,
+          ]
+        : const <ScreenSearchDestination>[];
+
+    return ScreenSearchScope(
+      controller: _search,
+      child: Scaffold(
+        appBar: AppBar(
+          leading: _compactOpen
+              ? IconButton(
+                  icon: const Icon(Icons.arrow_back),
+                  tooltip: 'Close search',
+                  onPressed: _closeCompact,
+                )
+              : Builder(
+                  builder: (ctx) => IconButton(
+                    icon: const Icon(Icons.menu),
+                    tooltip: 'Menu',
+                    onPressed: () => Scaffold.of(ctx).openDrawer(),
+                  ),
+                ),
+          title: _compactOpen
+              ? _searchField(context, spec)
+              : Row(
+                  children: [
+                    Expanded(
+                      child: Text(
+                        spec.title,
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: theme.textTheme.titleMedium?.copyWith(
+                          fontSize: 17,
+                          fontWeight: FontWeight.w700,
+                        ),
+                      ),
+                    ),
+                    if (wide) ...[
+                      const SizedBox(width: 16),
+                      SizedBox(
+                        width: (MediaQuery.sizeOf(context).width * 0.32).clamp(
+                          220.0,
+                          340.0,
+                        ),
+                        child: _searchField(context, spec),
+                      ),
+                    ],
+                  ],
+                ),
+          actions: [
+            if (!wide && !_compactOpen)
+              IconButton(
+                key: const ValueKey('screen-search-open'),
+                icon: const Icon(Icons.search),
+                tooltip: spec.filtersContent
+                    ? 'Search this screen'
+                    : 'Find a page',
+                onPressed: _openCompact,
+              ),
+            if (!_compactOpen) ...[
+              _BellButton(),
+              Padding(
+                padding: const EdgeInsets.only(right: 12),
+                child: InkWell(
+                  borderRadius: BorderRadius.circular(999),
+                  onTap: () => showZAccount(context, ref),
+                  child: TeacherAvatar(
+                    photoUrl: ref
+                        .watch(teacherProfileProvider)
+                        .maybeWhen(data: (p) => p.photoUrl, orElse: () => null),
+                    radius: 16,
+                  ),
+                ),
+              ),
+            ],
+          ],
+          bottom: PreferredSize(
+            preferredSize: const Size.fromHeight(1),
+            child: Divider(height: 1, color: theme.colorScheme.outline),
+          ),
+        ),
+        drawer: ZentraDrawer(selectedPath: widget.selectedPath),
+        body: Stack(
+          children: [
+            Positioned.fill(
+              child: ExcludeFocus(excluding: showingPages, child: widget.child),
+            ),
+            if (showingPages)
+              Positioned.fill(
+                child: _PageSearchResults(
+                  destinations: destinations,
+                  onOpen: _openDestination,
+                ),
+              ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _searchField(BuildContext context, ScreenSearchSpec spec) {
+    final theme = Theme.of(context);
+    final border = OutlineInputBorder(
+      borderRadius: BorderRadius.circular(999),
+      borderSide: BorderSide(color: theme.colorScheme.outlineVariant),
+    );
+    return SizedBox(
+      height: 40,
+      child: TextField(
+        key: const ValueKey('screen-search-field'),
+        controller: _text,
+        focusNode: _focus,
+        textInputAction: TextInputAction.search,
+        onChanged: _search.setQuery,
+        style: theme.textTheme.bodyMedium,
+        decoration: InputDecoration(
+          hintText: spec.hint,
+          isDense: true,
+          filled: true,
+          fillColor: theme.colorScheme.surfaceContainerLow,
+          constraints: const BoxConstraints(minHeight: 40),
+          contentPadding: const EdgeInsets.symmetric(vertical: 8),
+          prefixIcon: const Icon(Icons.search, size: 18),
+          prefixIconConstraints: const BoxConstraints(minWidth: 38),
+          suffixIcon: _text.text.isEmpty
+              ? null
+              : IconButton(
+                  key: const ValueKey('screen-search-clear'),
+                  icon: const Icon(Icons.close, size: 16),
+                  tooltip: 'Clear search',
+                  onPressed: _clearQuery,
+                ),
+          suffixIconConstraints: const BoxConstraints(
+            minWidth: 36,
+            minHeight: 36,
+          ),
+          border: border,
+          enabledBorder: border,
+          focusedBorder: border.copyWith(
+            borderSide: BorderSide(color: theme.colorScheme.primary),
+          ),
+        ),
+      ),
     );
   }
 }
 
-class ZentraAppBar extends ConsumerWidget implements PreferredSizeWidget {
-  const ZentraAppBar({super.key});
+class _PageSearchResults extends StatelessWidget {
+  const _PageSearchResults({required this.destinations, required this.onOpen});
+
+  final List<ScreenSearchDestination> destinations;
+  final ValueChanged<String> onOpen;
 
   @override
-  Size get preferredSize => const Size.fromHeight(56);
-
-  @override
-  Widget build(BuildContext context, WidgetRef ref) {
+  Widget build(BuildContext context) {
     final theme = Theme.of(context);
-    return AppBar(
-      leading: Builder(
-        builder: (ctx) => IconButton(
-          icon: const Icon(Icons.menu),
-          tooltip: 'Menu',
-          onPressed: () => Scaffold.of(ctx).openDrawer(),
-        ),
-      ),
-      // Left-aligned logo + wordmark only — scope lives in the drawer
-      // switcher (never centered, keeps room for back chevrons on detail).
-      title: const Row(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          ZLogo(size: 28),
-          SizedBox(width: 10),
-          Text('Zentra', style: TextStyle(fontSize: 17, fontWeight: FontWeight.w700, letterSpacing: -0.2)),
-        ],
-      ),
-      actions: [
-        _BellButton(),
-        Padding(
-          padding: const EdgeInsets.only(right: 12),
-          child: InkWell(
-            borderRadius: BorderRadius.circular(999),
-            onTap: () => showZAccount(context, ref),
-            child: TeacherAvatar(
-              photoUrl: ref.watch(teacherProfileProvider).maybeWhen(data: (p) => p.photoUrl, orElse: () => null),
-              radius: 16,
+    return ColoredBox(
+      color: theme.colorScheme.surface,
+      child: destinations.isEmpty
+          ? Center(
+              child: Padding(
+                padding: const EdgeInsets.all(24),
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Icon(
+                      Icons.search_off,
+                      size: 32,
+                      color: theme.colorScheme.onSurfaceVariant,
+                    ),
+                    const SizedBox(height: 12),
+                    Text(
+                      'No pages match',
+                      style: theme.textTheme.titleSmall,
+                      textAlign: TextAlign.center,
+                    ),
+                    const SizedBox(height: 4),
+                    Text(
+                      'Try a menu name such as Academic, Attendance, or Referrals.',
+                      style: theme.textTheme.bodySmall,
+                      textAlign: TextAlign.center,
+                    ),
+                  ],
+                ),
+              ),
+            )
+          : ListView(
+              key: const ValueKey('screen-search-results'),
+              padding: const EdgeInsets.fromLTRB(16, 16, 16, 32),
+              children: [
+                Text(
+                  'PAGES',
+                  style: theme.textTheme.labelSmall?.copyWith(
+                    letterSpacing: 0.6,
+                    color: theme.colorScheme.onSurfaceVariant,
+                  ),
+                ),
+                const SizedBox(height: 8),
+                for (final d in destinations)
+                  Padding(
+                    padding: const EdgeInsets.only(bottom: 8),
+                    child: ZCard(
+                      padding: EdgeInsets.zero,
+                      onTap: () => onOpen(d.path),
+                      child: ListTile(
+                        leading: Icon(d.icon, size: 20),
+                        title: Text(
+                          d.label,
+                          style: const TextStyle(
+                            fontSize: 13,
+                            fontWeight: FontWeight.w600,
+                          ),
+                        ),
+                        trailing: const Icon(Icons.chevron_right, size: 18),
+                      ),
+                    ),
+                  ),
+              ],
             ),
-          ),
-        ),
-      ],
-      bottom: PreferredSize(
-        preferredSize: const Size.fromHeight(1),
-        child: Divider(height: 1, color: theme.colorScheme.outline),
-      ),
     );
   }
 }

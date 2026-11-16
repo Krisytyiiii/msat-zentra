@@ -7,6 +7,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
+import '../../design/screen_search.dart';
 import '../../design/status_palette.dart';
 import '../../shared/widgets.dart';
 import 'advisory_list_page.dart' show advisoryProvider;
@@ -24,15 +25,20 @@ class _State extends ConsumerState<AcademicOverviewPage> {
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final roster = ref.watch(advisoryProvider);
+    // Inside the staff shell the header owns search; standalone previews keep
+    // this field and its local query.
+    final scope = ScreenSearchScope.maybeOf(context);
+    final q = (scope?.query ?? _q).trim().toLowerCase();
     return Column(
       children: [
-        Padding(
-          padding: const EdgeInsets.fromLTRB(16, 12, 16, 8),
-          child: ZSearchField(
-            hint: 'Search name or LRN',
-            onChanged: (v) => setState(() => _q = v.trim().toLowerCase()),
+        if (scope == null)
+          Padding(
+            padding: const EdgeInsets.fromLTRB(16, 12, 16, 8),
+            child: ZSearchField(
+              hint: 'Search name or LRN',
+              onChanged: (v) => setState(() => _q = v.trim().toLowerCase()),
+            ),
           ),
-        ),
         Expanded(
           child: roster.when(
             loading: () => const Padding(
@@ -48,9 +54,9 @@ class _State extends ConsumerState<AcademicOverviewPage> {
                   r.students
                       .where(
                         (s) =>
-                            _q.isEmpty ||
-                            s.name.toLowerCase().contains(_q) ||
-                            s.lrn.contains(_q),
+                            q.isEmpty ||
+                            s.name.toLowerCase().contains(q) ||
+                            s.lrn.contains(q),
                       )
                       .toList()
                     ..sort(

@@ -9,6 +9,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
+import '../../design/screen_search.dart';
 import '../../shared/widgets.dart';
 import 'anecdotal_data.dart';
 import 'record_preview_page.dart';
@@ -27,6 +28,20 @@ class _State extends ConsumerState<AnecdotalRepoPage> {
   int _page = 0;
   bool _legendOpen = true;
 
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    // Header search: keep the list scoped to the shared query and restart
+    // paging whenever it changes. Standalone previews keep their own field.
+    final scope = ScreenSearchScope.maybeOf(context);
+    if (scope == null) return;
+    final next = scope.query.trim().toLowerCase();
+    if (next != _q) {
+      _q = next;
+      _page = 0;
+    }
+  }
+
   void _openDetail(MyAnecdotalRecord r) {
     Navigator.of(context).push(
       MaterialPageRoute(builder: (_) => RecordPreviewPage(record: r)),
@@ -37,15 +52,18 @@ class _State extends ConsumerState<AnecdotalRepoPage> {
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final repo = ref.watch(anecdotalMineProvider);
+    final scope = ScreenSearchScope.maybeOf(context);
     return Column(children: [
       Padding(
         padding: const EdgeInsets.fromLTRB(16, 12, 16, 8),
         child: Column(children: [
-          ZSearchField(hint: 'Search name, LRN, or section', onChanged: (v) => setState(() {
-            _q = v.trim().toLowerCase();
-            _page = 0;
-          })),
-          const SizedBox(height: 8),
+          if (scope == null) ...[
+            ZSearchField(hint: 'Search name, LRN, or section', onChanged: (v) => setState(() {
+              _q = v.trim().toLowerCase();
+              _page = 0;
+            })),
+            const SizedBox(height: 8),
+          ],
           SegTabs<String>(
             values: const ['all', 'students'],
             labels: const ['All records', 'By student'],
