@@ -3,6 +3,7 @@ import 'dart:io';
 
 import 'package:dio/dio.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:go_router/go_router.dart';
@@ -28,13 +29,12 @@ Map<String, dynamic> critical({bool adviser = true}) => {
     'openFlags': 99,
   },
   'advisoryTotal': 40, 'atRiskStudents': 3,
-  // These intentionally contain just one row: never use list length as a total.
+  // Partial rows must never replace authoritative totals.
   'classes': [{}],
   'advisory': {
     'students': [{}],
   },
 };
-
 Map<String, dynamic> configJson() => {
   'startTime': '07:30',
   'periodMins': 60,
@@ -42,7 +42,6 @@ Map<String, dynamic> configJson() => {
   'morningRecess': {'enabled': true, 'afterPeriod': 2, 'mins': 15},
   'afternoonRecess': {'enabled': false, 'afterPeriod': 6, 'mins': 15},
 };
-
 Term term({String id = 'term', DateTime? start, DateTime? end}) => Term(
   id: id,
   schoolYearId: 'year',
@@ -51,7 +50,6 @@ Term term({String id = 'term', DateTime? start, DateTime? end}) => Term(
   startDate: start ?? DateTime.utc(2020),
   endDate: end ?? DateTime.utc(2100),
 );
-
 TimetableSlot slot({int day = 1, int period = 0, String status = 'APPROVED'}) =>
     TimetableSlot(
       day: day,
@@ -61,7 +59,6 @@ TimetableSlot slot({int day = 1, int period = 0, String status = 'APPROVED'}) =>
       subjectCode: 'MATH',
       sectionName: 'Arts',
     );
-
 OverviewSchedule schedule({Term? scope, List<TimetableSlot>? slots}) =>
     OverviewSchedule(
       term: scope ?? term(),
@@ -69,13 +66,13 @@ OverviewSchedule schedule({Term? scope, List<TimetableSlot>? slots}) =>
       config: SchoolDayConfig.fromJson(configJson()),
     );
 
-class TestTermStore extends TermNotifier {
-  TestTermStore(Term selected) {
-    state = selected;
+class TestTerm extends TermNotifier {
+  TestTerm() {
+    state = term();
   }
   @override
-  Future<void> select(Term term) async {
-    state = term;
+  Future<void> select(Term value) async {
+    state = value;
   }
 }
 
@@ -86,57 +83,57 @@ class TestApi extends ApiClient {
       InterceptorsWrapper(
         onRequest: (options, handler) {
           paths.add(options.path);
-          final Object data = switch (options.path) {
-            '/api/teacher/schedule/config' => {'config': configJson()},
-            '/api/teacher/schedule/my-slots' => {
-              'slots': [
-                {
-                  'day': 1,
-                  'period': 0,
-                  'status': 'APPROVED',
-                  'subject': {'name': 'Math'},
-                  'section': {'name': 'Arts'},
-                },
-              ],
-            },
-            '/api/teacher/schedule/teachers/me' => {
-              'teacherName': linked ? {'name': 'Teacher'} : null,
-              'termGrant': verified ? {'id': 'grant'} : null,
-            },
-            _ => {},
-          };
           handler.resolve(
-            Response(requestOptions: options, statusCode: 200, data: data),
+            Response(
+              requestOptions: options,
+              statusCode: 200,
+              data: switch (options.path) {
+                '/api/teacher/schedule/teachers/me' => {
+                  'teacherName': linked ? {'name': 'Teacher'} : null,
+                  'termGrant': verified ? {'id': 'grant'} : null,
+                },
+                '/api/teacher/schedule/config' => {'config': configJson()},
+                '/api/teacher/schedule/my-slots' => {
+                  'slots': [
+                    {
+                      'day': 1,
+                      'period': 0,
+                      'status': 'APPROVED',
+                      'subject': {'name': 'Math'},
+                      'section': {'name': 'Arts'},
+                    },
+                  ],
+                },
+                _ => {},
+              },
+            ),
           );
         },
       ),
     );
   }
-  final paths = <String>[];
   bool linked = true;
   bool verified = true;
+  final paths = <String>[];
   @override
   Future<String?> accessToken() async => null;
 }
 
 Future<void> mountOverview(
   WidgetTester tester, {
+  double width = 390,
+  double scale = 1,
   bool adviser = true,
   FutureOr<Map<String, dynamic>> Function()? loadCritical,
   FutureOr<Map<String, dynamic>> Function()? loadSecondary,
   FutureOr<OverviewSchedule> Function()? loadSchedule,
-  Size size = const Size(390, 844),
-  double scale = 1,
-  bool dark = false,
-  Color? primary,
 }) async {
-  tester.view.physicalSize = size;
+  tester.view.physicalSize = Size(width, 900);
   tester.view.devicePixelRatio = 1;
   addTearDown(tester.view.resetPhysicalSize);
   addTearDown(tester.view.resetDevicePixelRatio);
   final api = TestApi();
   addTearDown(api.dio.close);
-  final store = TestTermStore(term());
   final router = GoRouter(
     initialLocation: '/workspace/overview',
     routes: [
@@ -145,20 +142,18 @@ Future<void> mountOverview(
         builder: (_, _) => const Scaffold(body: OverviewPage()),
       ),
       for (final path in [
+        '/adviser/advisory',
+        '/adviser/bama',
+        '/adviser/schedule',
         '/workspace/gradebook',
         '/workspace/attendance',
         '/workspace/classes',
         '/workspace/schedule',
-        '/adviser/advisory',
-        '/adviser/schedule',
-        '/adviser/bama',
       ])
         GoRoute(
           path: path,
-          builder: (_, state) => Scaffold(
-            appBar: AppBar(),
-            body: Text('Opened ${state.uri.path}'),
-          ),
+          builder: (_, state) =>
+              Scaffold(appBar: AppBar(), body: Text('Opened ${state.uri}')),
         ),
     ],
   );
@@ -168,33 +163,27 @@ Future<void> mountOverview(
       overrides: [
         apiClientProvider.overrideWithValue(api),
         authProvider.overrideWith((ref) => AuthNotifier(api)),
-        termProvider.overrideWith((ref) => store),
+        termProvider.overrideWith((ref) => TestTerm()),
         overviewProvider.overrideWith((ref) {
           ref.watch(termProvider);
-          return loadCritical != null
-              ? loadCritical()
-              : critical(adviser: adviser);
+          return loadCritical?.call() ?? critical(adviser: adviser);
         }),
         overviewSecondaryProvider.overrideWith((ref) {
           ref.watch(termProvider);
-          return loadSecondary != null
-              ? loadSecondary()
-              : {'pendingAssessments': 2};
+          return loadSecondary?.call() ?? {'pendingAssessments': 2};
         }),
         overviewScheduleProvider.overrideWith((ref) {
           ref.watch(termProvider);
-          return loadSchedule != null ? loadSchedule() : schedule();
+          return loadSchedule?.call() ?? schedule();
         }),
       ],
       child: MaterialApp.router(
-        theme: dark
-            ? zDarkTheme(primaryOverride: primary)
-            : zLightTheme(primaryOverride: primary),
+        theme: zWorkspaceTheme(),
         routerConfig: router,
         builder: (context, child) => MediaQuery(
           data: MediaQuery.of(context).copyWith(
-            textScaler: TextScaler.linear(scale),
             disableAnimations: true,
+            textScaler: TextScaler.linear(scale),
           ),
           child: child!,
         ),
@@ -217,42 +206,38 @@ void main() {
     await temp.delete(recursive: true);
   });
 
-  test(
-    'summary uses authoritative counts, not lists or misnamed openFlags',
-    () {
-      final adviser = OverviewSummary.fromJson(critical());
-      expect(adviser.classCount, 4);
-      expect(adviser.learnerCount, 40);
-      expect(adviser.supportCount, 3);
-      final teacher = OverviewSummary.fromJson(critical(adviser: false));
-      expect(teacher.learnerCount, 150);
-      expect(teacher.supportCount, isNull);
-      expect(
-        OverviewAttention.fromJson({'pendingAssessments': 2})
-            .pendingAssessments,
-        2,
-      );
-      expect(OverviewSummary.fromJson({}).classCount, isNull);
-      expect(
-        OverviewSummary.fromJson({
-          'kpi': {'classCount': -1},
-        }).classCount,
-        isNull,
-      );
-      expect(OverviewAttention.fromJson({}).pendingAssessments, isNull);
-    },
-  );
-
-  test('period times include breaks and web lunch precedence', () {
+  test('typed summaries use real totals and secondary scoring data', () {
+    final adviser = OverviewSummary.fromJson(critical());
+    expect(adviser.learnerCount, 40);
+    expect(adviser.classCount, 4);
+    expect(adviser.supportCount, 3);
+    final teacher = OverviewSummary.fromJson(critical(adviser: false));
+    expect(teacher.learnerCount, 150);
+    expect(teacher.supportCount, isNull);
+    expect(OverviewSummary.fromJson({}).classCount, isNull);
+    expect(
+      OverviewSummary.fromJson({
+        'kpi': {'classCount': -1},
+      }).classCount,
+      isNull,
+    );
+    expect(
+      OverviewAttention.fromJson({'pendingAssessments': 2}).pendingAssessments,
+      2,
+    );
+    expect(
+      OverviewAttention.fromJson({'openFlags': 99}).pendingAssessments,
+      isNull,
+    );
+  });
+  test('periods use server start time, recess and lunch precedence', () {
     final config = SchoolDayConfig.fromJson(configJson());
     expect(config.periods[0], (start: 450, end: 510));
     expect(config.periods[2], (start: 585, end: 645));
     expect(config.periods[4], (start: 795, end: 855));
-    final sameBreak = configJson();
-    sameBreak['morningRecess'] = {
-      'enabled': true,
-      'afterPeriod': 4,
-      'mins': 15,
+    final sameBreak = {
+      ...configJson(),
+      'morningRecess': {'enabled': true, 'afterPeriod': 4, 'mins': 15},
     };
     expect(SchoolDayConfig.fromJson(sameBreak).periods[4].start, 780);
     expect(() => SchoolDayConfig.fromJson({}), throwsFormatException);
@@ -261,15 +246,14 @@ void main() {
       throwsFormatException,
     );
   });
-
   test(
-    'next class uses Philippine date, approved slots and zero-based periods',
+    'next class uses Philippine time, approved slots and zero-based periods',
     () {
-      final now = DateTime.utc(2026, 11, 15, 23); // Monday, 7 AM PH.
+      final now = DateTime.utc(2026, 11, 15, 23);
       final result = schedule(
         slots: [
           slot(period: 2),
-          slot(period: 0, status: 'SUBMITTED'),
+          slot(status: 'SUBMITTED'),
           slot(period: 1),
         ],
       ).nextClass(now)!;
@@ -281,162 +265,206 @@ void main() {
       expect(philippineTime(nextWeek.startsAt).day, 23);
     },
   );
-
-  test('historical, future, missing-date and term-end scopes do not invent classes', () {
-    final now = DateTime.utc(2026, 11, 16);
-    expect(
-      schedule(scope: term(end: DateTime.utc(2025))).nextClass(now),
-      isNull,
-    );
-    expect(
-      schedule(scope: term(start: DateTime.utc(2027))).scopeNotice(now),
-      contains('different term'),
-    );
-    final undated = Term(
-      id: 'u',
-      schoolYearId: 'year',
-      schoolYearName: '',
-      termNumber: 1,
-    );
-    expect(
-      schedule(scope: undated).scopeNotice(now),
-      contains('dates aren’t available'),
-    );
-    expect(
-      schedule(
-        scope: term(end: now.add(const Duration(hours: 1))),
-        slots: [slot(period: 7)],
-      ).nextClass(now),
-      isNull,
-    );
-    expect(
-      schedule(
-        slots: [
-          slot(status: 'SUBMITTED'),
-          slot(period: 50),
-        ],
-      ).nextClass(now),
-      isNull,
-    );
-  });
-
   test(
-    'schedule source is shared and reloads when the selected term changes',
-    () async {
-      final api = TestApi();
-      final store = TestTermStore(term());
-      final container = ProviderContainer(
-        overrides: [
-          apiClientProvider.overrideWithValue(api),
-          termProvider.overrideWith((ref) => store),
-          schoolYearsProvider.overrideWith(
-            (ref) => [
-              SchoolYear(
-                id: 'year',
-                name: 'Year',
-                isActive: true,
-                terms: [
-                  term(),
-                  term(id: 'next'),
-                ],
-              ),
-            ],
-          ),
-        ],
+    'historical, future, missing-date and term-end scopes never invent classes',
+    () {
+      final now = DateTime.utc(2026, 11, 16);
+      expect(
+        schedule(scope: term(end: DateTime.utc(2025))).nextClass(now),
+        isNull,
       );
-      final sub = container.listen(overviewScheduleProvider, (_, _) {});
-      await container.read(overviewScheduleProvider.future);
-      await container.read(adviserScheduleProvider.future);
-      expect(api.paths.where((p) => p.endsWith('/my-slots')).length, 1);
-      await store.select(term(id: 'next'));
-      final reloaded = await container.read(overviewScheduleProvider.future);
-      expect(reloaded.term.id, 'next');
-      expect(api.paths.where((p) => p.endsWith('/my-slots')).length, 2);
-      sub.close();
-      container.dispose();
-      api.dio.close();
+      expect(
+        schedule(scope: term(start: DateTime.utc(2027))).scopeNotice(now),
+        contains('different term'),
+      );
+      final undated = Term(
+        id: 'u',
+        schoolYearId: 'year',
+        schoolYearName: '',
+        termNumber: 1,
+      );
+      expect(
+        schedule(scope: undated).scopeNotice(now),
+        contains('dates aren’t available'),
+      );
+      expect(
+        schedule(
+          scope: term(end: now.add(const Duration(hours: 1))),
+          slots: [slot(period: 7)],
+        ).nextClass(now),
+        isNull,
+      );
+      expect(
+        schedule(
+          slots: [
+            slot(status: 'SUBMITTED'),
+            slot(period: 50),
+          ],
+        ).nextClass(now),
+        isNull,
+      );
     },
   );
-
-  testWidgets(
-    'quick actions honor permissions and open existing destinations',
-    (tester) async {
-      final opened = <String>[];
-      await tester.pumpWidget(
-        MaterialApp(
-          home: Scaffold(
-            body: OverviewQuickActions(isAdviser: true, onOpen: opened.add),
-          ),
+  test('schedule shares existing source and reloads on term change without chart calls', () async {
+    final api = TestApi();
+    final store = TestTerm();
+    final container = ProviderContainer(
+      overrides: [
+        apiClientProvider.overrideWithValue(api),
+        termProvider.overrideWith((ref) => store),
+        schoolYearsProvider.overrideWith(
+          (ref) => [
+            SchoolYear(
+              id: 'year',
+              name: 'Year',
+              isActive: true,
+              terms: [
+                term(),
+                term(id: 'next'),
+              ],
+            ),
+          ],
         ),
-      );
-      for (final label in [
-        'Chat with Bama',
-        'Enter grades',
-        'Take attendance',
-      ]) {
-        await tester.tap(find.text(label));
-      }
-      expect(opened, [
-        '/adviser/bama?new=1',
-        '/workspace/gradebook',
-        '/workspace/attendance',
-      ]);
-      opened.clear();
-      await tester.pumpWidget(
-        MaterialApp(
-          home: Scaffold(
-            body: OverviewQuickActions(isAdviser: false, onOpen: opened.add),
-          ),
-        ),
-      );
-      await tester.tap(find.text('Chat with Bama'));
-      expect(opened, isEmpty);
-      expect(find.text('Advisers only'), findsOneWidget);
-    },
-  );
-
-  testWidgets('overview shows real totals and secondary grading count', (
-    tester,
-  ) async {
-    await mountOverview(tester);
-    expect(find.text('Welcome back, Maria Santos.'), findsOneWidget);
-    expect(find.textContaining('Grade 8 – Arts'), findsOneWidget);
-    expect(find.text('2 assessments with missing scores'), findsOneWidget);
-    expect(find.text('3 learners may need support'), findsOneWidget);
-    expect(find.textContaining('grade flags'), findsNothing);
-    await tester.ensureVisible(find.text('At a glance'));
-    expect(find.text('40'), findsOneWidget);
-    expect(find.text('150'), findsNothing);
-    expect(tester.takeException(), isNull);
+      ],
+    );
+    addTearDown(container.dispose);
+    addTearDown(api.dio.close);
+    final sub = container.listen(overviewScheduleProvider, (_, _) {});
+    addTearDown(sub.close);
+    await container.read(overviewScheduleProvider.future);
+    await container.read(adviserScheduleProvider.future);
+    expect(api.paths.where((p) => p.endsWith('/my-slots')).length, 1);
+    await store.select(term(id: 'next'));
+    expect(
+      (await container.read(overviewScheduleProvider.future)).term.id,
+      'next',
+    );
+    expect(api.paths.where((p) => p.endsWith('/my-slots')).length, 2);
+    expect(api.paths.any((p) => p.endsWith('/insights')), isFalse);
   });
 
   testWidgets(
-    'subject teachers see teaching totals without adviser-only content',
+    'compact sections are in the requested order with no charts or tables',
+    (tester) async {
+      await mountOverview(tester);
+      final headings = [
+        'Overview',
+        'Quick actions',
+        'Up next',
+        'Needs attention',
+        'At a glance',
+      ];
+      for (var i = 1; i < headings.length; i++) {
+        expect(
+          tester.getTopLeft(find.text(headings[i])).dy,
+          greaterThan(tester.getTopLeft(find.text(headings[i - 1])).dy),
+        );
+      }
+      expect(find.text('Welcome back, Maria Santos.'), findsOneWidget);
+      expect(find.textContaining('2026–2027 · Term 2'), findsOneWidget);
+      expect(find.textContaining('Grade 8 – Arts'), findsOneWidget);
+      expect(find.text('2 assessments with missing scores'), findsOneWidget);
+      expect(find.text('3 learners may need support'), findsOneWidget);
+      expect(find.textContaining('grade flags'), findsNothing);
+      for (final title in [
+        'Risk mix',
+        'Subject averages',
+        'Assessment pipeline',
+        'Daily values',
+      ]) {
+        expect(find.text(title), findsNothing);
+      }
+      expect(find.byType(DataTable), findsNothing);
+      expect(find.text('99'), findsNothing);
+      await tester.ensureVisible(find.text('At a glance'));
+      expect(find.text('40'), findsOneWidget);
+      expect(find.text('150'), findsNothing);
+      expect(tester.takeException(), isNull);
+    },
+  );
+  for (final action in [
+    (label: 'Chat with Bama', path: '/adviser/bama'),
+    (label: 'Enter grades', path: '/workspace/gradebook'),
+    (label: 'Take attendance', path: '/workspace/attendance'),
+  ]) {
+    testWidgets(
+      '${action.label} opens its existing destination without resetting chat',
+      (tester) async {
+        await mountOverview(tester);
+        await tester.tap(find.text(action.label));
+        await tester.pumpAndSettle();
+        expect(find.text('Opened ${action.path}'), findsOneWidget);
+      },
+    );
+  }
+  testWidgets(
+    'subject teachers see disabled Bama and shared actions and totals',
     (tester) async {
       await mountOverview(tester, adviser: false);
       expect(find.text('Advisers only'), findsOneWidget);
+      await tester.tap(find.text('Chat with Bama'));
+      await tester.pumpAndSettle();
+      expect(find.byType(OverviewPage), findsOneWidget);
       expect(find.textContaining('may need support'), findsNothing);
+      expect(find.text('Need support'), findsNothing);
       await tester.ensureVisible(find.text('At a glance'));
       expect(find.text('150'), findsOneWidget);
-      expect(find.text('Need support'), findsNothing);
+      await tester.ensureVisible(find.text('Enter grades'));
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('Enter grades'));
+      await tester.pumpAndSettle();
+      expect(find.text('Opened /workspace/gradebook'), findsOneWidget);
     },
   );
-
-  testWidgets('secondary failure leaves quick actions and schedule usable', (
+  for (final adviser in [true, false]) {
+    testWidgets('schedule link uses accessible route for adviser=$adviser', (
+      tester,
+    ) async {
+      await mountOverview(tester, adviser: adviser);
+      await tester.ensureVisible(find.text('View schedule'));
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('View schedule'));
+      await tester.pumpAndSettle();
+      expect(
+        find.text(
+          'Opened ${adviser ? '/adviser/schedule' : '/workspace/schedule'}',
+        ),
+        findsOneWidget,
+      );
+    });
+  }
+  testWidgets('both attention summaries link to accessible screens', (
     tester,
   ) async {
-    await mountOverview(
-      tester,
-      loadSecondary: () => throw ApiException('NETWORK', 'private details'),
-    );
-    expect(find.text('Enter grades'), findsOneWidget);
-    expect(find.text('Mathematics'), findsOneWidget);
-    expect(find.textContaining('internet connection'), findsOneWidget);
-    expect(find.textContaining('private details'), findsNothing);
-    expect(find.textContaining('No missing scores'), findsNothing);
+    await mountOverview(tester);
+    await tester.ensureVisible(find.text('2 assessments with missing scores'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('2 assessments with missing scores'));
+    await tester.pumpAndSettle();
+    expect(find.text('Opened /workspace/gradebook'), findsOneWidget);
+    await tester.pageBack();
+    await tester.pumpAndSettle();
+    await tester.ensureVisible(find.text('3 learners may need support'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('3 learners may need support'));
+    await tester.pumpAndSettle();
+    expect(find.text('Opened /adviser/advisory'), findsOneWidget);
   });
-
-  testWidgets('all-clear is limited to known checks, never missing data', (
+  testWidgets(
+    'partial secondary failure leaves quick actions and schedule usable',
+    (tester) async {
+      await mountOverview(
+        tester,
+        loadSecondary: () => throw ApiException('NETWORK', 'private SQL'),
+      );
+      expect(find.text('Enter grades'), findsOneWidget);
+      expect(find.text('Mathematics'), findsOneWidget);
+      expect(find.textContaining('internet connection'), findsOneWidget);
+      expect(find.textContaining('private SQL'), findsNothing);
+      expect(find.textContaining('No missing scores'), findsNothing);
+    },
+  );
+  testWidgets('all-clear applies only to known checks, not missing data', (
     tester,
   ) async {
     await mountOverview(
@@ -447,64 +475,38 @@ void main() {
     expect(find.text('No missing scores from these checks.'), findsOneWidget);
     await tester.pumpWidget(const SizedBox());
     await mountOverview(tester, loadSecondary: () => {});
-    expect(find.textContaining('summary is unavailable'), findsOneWidget);
+    expect(find.text('Grading summary is unavailable.'), findsOneWidget);
     expect(find.textContaining('No missing scores'), findsNothing);
+    await tester.ensureVisible(find.text('Check Gradebook'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Check Gradebook'));
+    await tester.pumpAndSettle();
+    expect(find.text('Opened /workspace/gradebook'), findsOneWidget);
   });
-
   testWidgets(
-    'pull refresh waits for every request and returning from grades refreshes',
+    'unavailable totals stay unknown and zero assignments keep quick actions',
     (tester) async {
-      var calls = 0;
-      Completer<Map<String, dynamic>>? pending;
       await mountOverview(
         tester,
-        loadSecondary: () {
-          calls++;
-          return pending?.future ?? {'pendingAssessments': 2};
+        loadCritical: () => {
+          'isAdviser': true,
+          'teacherName': 'Teacher',
+          'kpi': {'classCount': 0},
         },
       );
-      await tester.tap(find.text('Enter grades'));
-      await tester.pumpAndSettle();
-      expect(find.text('Opened /workspace/gradebook'), findsOneWidget);
-      await tester.pageBack();
-      await tester.pumpAndSettle();
-      expect(calls, 2);
-      pending = Completer<Map<String, dynamic>>();
-      final refresh = tester
-          .widget<RefreshIndicator>(find.byType(RefreshIndicator))
-          .onRefresh();
-      var finished = false;
-      unawaited(refresh.then((_) => finished = true));
-      await tester.pump();
-      expect(finished, isFalse);
-      pending.complete({'pendingAssessments': 0});
-      await tester.pumpAndSettle();
-      expect(finished, isTrue);
+      expect(find.text('Enter grades'), findsOneWidget);
+      expect(
+        find.text('Your advisory support summary is unavailable.'),
+        findsOneWidget,
+      );
+      await tester.ensureVisible(find.text('At a glance'));
+      expect(find.text('0'), findsOneWidget);
+      expect(find.text('—'), findsNWidgets(2));
+      expect(find.text('Unavailable'), findsNWidgets(2));
     },
   );
-
-  testWidgets('live refresh pauses while another route is open', (
-    tester,
-  ) async {
-    var calls = 0;
-    await mountOverview(
-      tester,
-      loadSecondary: () {
-        calls++;
-        return {'pendingAssessments': 2};
-      },
-    );
-    await tester.pump(const Duration(seconds: 21));
-    await tester.pump();
-    expect(calls, 2);
-    await tester.tap(find.text('Enter grades'));
-    await tester.pumpAndSettle();
-    await tester.pump(const Duration(seconds: 21));
-    expect(calls, 2);
-  });
-
   testWidgets(
-    'loading does not block quick actions or pretend counts are zero',
+    'loading schedule and secondary data never blocks quick actions',
     (tester) async {
       final secondary = Completer<Map<String, dynamic>>();
       final upcoming = Completer<OverviewSchedule>();
@@ -525,118 +527,100 @@ void main() {
       );
     },
   );
-
-  testWidgets('schedule errors are isolated and retry loads the schedule', (
+  testWidgets('schedule errors are friendly, isolated and retryable', (
     tester,
   ) async {
     var calls = 0;
     await mountOverview(
       tester,
       loadSchedule: () {
-        calls++;
-        if (calls == 1) throw ApiException('NETWORK', 'private data');
+        if (++calls == 1) throw ApiException('NETWORK', 'private');
         return schedule();
       },
     );
     expect(find.text('2 assessments with missing scores'), findsOneWidget);
     await tester.ensureVisible(find.text('Try again'));
+    await tester.pumpAndSettle();
     await tester.tap(find.text('Try again'));
     await tester.pumpAndSettle();
     expect(calls, 2);
     expect(find.text('Mathematics'), findsOneWidget);
-    expect(tester.takeException(), isNull);
   });
-
-  testWidgets('drawer places Overview before role-specific destinations', (
+  testWidgets('historical timetable is not displayed as todays next class', (
     tester,
   ) async {
-    final api = TestApi();
-    addTearDown(api.dio.close);
-    await tester.pumpWidget(
-      ProviderScope(
-        overrides: [
-          apiClientProvider.overrideWithValue(api),
-          authProvider.overrideWith((ref) => AuthNotifier(api)),
-          termProvider.overrideWith((ref) => TestTermStore(term())),
-          overviewProvider.overrideWith((ref) => critical()),
-        ],
-        child: const MaterialApp(
-          home: Scaffold(
-            body: ZentraDrawer(selectedPath: '/workspace/overview'),
-          ),
-        ),
+    await mountOverview(
+      tester,
+      loadSchedule: () => schedule(
+        scope: term(start: DateTime.utc(1999), end: DateTime.utc(2000)),
       ),
     );
-    await tester.pumpAndSettle();
-    final tile = find.widgetWithText(ListTile, 'Overview');
-    expect(tester.widget<ListTile>(tile).selected, isTrue);
-    expect(
-      tester.getTopLeft(tile).dy,
-      lessThan(tester.getTopLeft(find.text('Advisory list')).dy),
-    );
-    expect(tester.takeException(), isNull);
+    expect(find.textContaining('different term'), findsOneWidget);
+    expect(find.text('Mathematics'), findsNothing);
   });
-
-  testWidgets('class linking is still required before Overview', (
-    tester,
-  ) async {
-    final api = TestApi()..linked = false;
-    addTearDown(api.dio.close);
-    await tester.pumpWidget(
-      ProviderScope(
-        overrides: [
-          apiClientProvider.overrideWithValue(api),
-          overviewProvider.overrideWith((ref) => critical()),
-        ],
-        child: const MaterialApp(home: FirstTimeGate()),
-      ),
-    );
-    for (var i = 0; i < 8; i++) {
-      await tester.pump(const Duration(milliseconds: 100));
-    }
-    expect(find.text('Link your classes'), findsWidgets);
-    expect(find.text('Overview landing'), findsNothing);
-    expect(tester.takeException(), isNull);
-  });
-
   testWidgets(
-    'term changes replace the overview instead of retaining old totals',
+    'pull refresh waits for every request and duplicate refreshes coalesce',
+    (tester) async {
+      Completer<Map<String, dynamic>>? pending;
+      var calls = 0;
+      await mountOverview(
+        tester,
+        loadSecondary: () {
+          calls++;
+          return pending?.future ?? {'pendingAssessments': 2};
+        },
+      );
+      pending = Completer<Map<String, dynamic>>();
+      final callback = tester
+          .widget<RefreshIndicator>(find.byType(RefreshIndicator))
+          .onRefresh;
+      final first = callback();
+      final second = callback();
+      var finished = false;
+      unawaited(first.then((_) => finished = true));
+      await tester.pump();
+      expect(finished, isFalse);
+      expect(calls, 2);
+      pending.complete({'pendingAssessments': 0});
+      await tester.pumpAndSettle();
+      await Future.wait([first, second]);
+      expect(finished, isTrue);
+    },
+  );
+  testWidgets(
+    'poll pauses off-route and returning from tasks refreshes all sections',
     (tester) async {
       var calls = 0;
+      var secondaryCalls = 0;
+      var scheduleCalls = 0;
       await mountOverview(
         tester,
         loadCritical: () {
           calls++;
-          return {
-            ...critical(),
-            'teacherName': calls == 1 ? 'Maria Santos' : 'Updated teacher',
-            'advisoryTotal': calls == 1 ? 40 : 22,
-          };
+          return critical();
+        },
+        loadSecondary: () {
+          secondaryCalls++;
+          return {'pendingAssessments': 2};
+        },
+        loadSchedule: () {
+          scheduleCalls++;
+          return schedule();
         },
       );
-      final container = ProviderScope.containerOf(
-        tester.element(find.byType(OverviewPage)),
-      );
-      await container
-          .read(termProvider.notifier)
-          .select(
-            Term(
-              id: 'new-term',
-              schoolYearId: 'year',
-              schoolYearName: '2027–2028',
-              termNumber: 3,
-            ),
-          );
+      await tester.pump(const Duration(seconds: 21));
       await tester.pumpAndSettle();
-      expect(find.text('Welcome back, Updated teacher.'), findsOneWidget);
-      expect(find.textContaining('2027–2028 · Term 3'), findsOneWidget);
-      await tester.ensureVisible(find.text('At a glance'));
-      expect(find.text('22'), findsOneWidget);
-      expect(find.text('40'), findsNothing);
+      expect([calls, secondaryCalls, scheduleCalls], [2, 2, 2]);
+      await tester.tap(find.text('Enter grades'));
+      await tester.pumpAndSettle();
+      await tester.pump(const Duration(seconds: 21));
+      expect(calls, 2);
+      await tester.pageBack();
+      await tester.pumpAndSettle();
+      expect([calls, secondaryCalls, scheduleCalls], [3, 3, 3]);
     },
   );
-
-  testWidgets('refresh pauses when the app is in the background', (
+  testWidgets('refresh pauses in the background and resumes on foreground', (
     tester,
   ) async {
     var calls = 0;
@@ -659,103 +643,253 @@ void main() {
     await tester.pumpAndSettle();
     expect(calls, 2);
   });
-
-  for (final dark in [false, true]) {
-    for (final width in [320.0, 700.0, 1200.0]) {
-      testWidgets('overview fits $width with larger text, dark=$dark', (
-        tester,
-      ) async {
-        await mountOverview(
-          tester,
-          size: Size(width, 900),
-          scale: 1.5,
-          dark: dark,
-        );
-        await tester.ensureVisible(find.text('At a glance'));
-        await tester.pump();
-        expect(tester.takeException(), isNull);
-        expect(find.text('Chat with Bama'), findsOneWidget);
-      });
-    }
-    testWidgets(
-      'overview preserves custom palette at narrow width, dark=$dark',
-      (tester) async {
-        await mountOverview(
-          tester,
-          size: const Size(320, 900),
-          scale: 1.5,
-          dark: dark,
-          primary: const Color(0xFF16A34A),
-        );
-        await tester.ensureVisible(find.text('At a glance'));
-        await tester.pump();
-        expect(
-          Theme.of(tester.element(find.byType(OverviewPage)))
-              .colorScheme
-              .primary,
-          const Color(0xFF16A34A),
-        );
-        expect(tester.takeException(), isNull);
-      },
-    );
-  }
-
-  for (final adviser in [false, true]) {
-    testWidgets(
-      'verified ${adviser ? 'adviser' : 'teacher'} lands on Overview',
-      (tester) async {
-        final api = TestApi();
-        addTearDown(api.dio.close);
-        final router = GoRouter(
-          initialLocation: '/gate',
-          routes: [
-            GoRoute(path: '/gate', builder: (_, _) => const FirstTimeGate()),
-            GoRoute(
-              path: '/workspace/overview',
-              builder: (_, _) => const Scaffold(body: Text('Overview landing')),
-            ),
-          ],
-        );
-        addTearDown(router.dispose);
-        await tester.pumpWidget(
-          ProviderScope(
-            overrides: [
-              apiClientProvider.overrideWithValue(api),
-              overviewProvider.overrideWith(
-                (ref) => critical(adviser: adviser),
-              ),
-            ],
-            child: MaterialApp.router(routerConfig: router),
-          ),
-        );
-        for (var i = 0; i < 12; i++) {
-          await tester.pump(const Duration(milliseconds: 100));
-        }
-        expect(find.text('Overview landing'), findsOneWidget);
-        expect(tester.takeException(), isNull);
-      },
-    );
-  }
-
-  testWidgets('verification is still required before the new landing', (
+  testWidgets('term changes reload each section and replace old totals', (
     tester,
   ) async {
-    final api = TestApi()..verified = false;
+    var calls = 0;
+    var secondaryCalls = 0;
+    var scheduleCalls = 0;
+    await mountOverview(
+      tester,
+      loadCritical: () {
+        calls++;
+        return {...critical(), 'advisoryTotal': calls == 1 ? 40 : 22};
+      },
+      loadSecondary: () {
+        secondaryCalls++;
+        return {'pendingAssessments': 2};
+      },
+      loadSchedule: () {
+        scheduleCalls++;
+        return schedule();
+      },
+    );
+    final container = ProviderScope.containerOf(
+      tester.element(find.byType(OverviewPage)),
+    );
+    await container
+        .read(termProvider.notifier)
+        .select(
+          Term(
+            id: 'new-term',
+            schoolYearId: 'year',
+            schoolYearName: '2027–2028',
+            termNumber: 3,
+          ),
+        );
+    await tester.pumpAndSettle();
+    expect([calls, secondaryCalls, scheduleCalls], [2, 2, 2]);
+    expect(find.textContaining('2027–2028 · Term 3'), findsOneWidget);
+    await tester.ensureVisible(find.text('At a glance'));
+    expect(find.text('22'), findsOneWidget);
+    expect(find.text('40'), findsNothing);
+  });
+  for (final width in [320.0, 700.0, 1200.0]) {
+    for (final adviser in [true, false]) {
+      testWidgets(
+        'compact overview fits $width at 1.5x text, adviser=$adviser',
+        (tester) async {
+          await mountOverview(
+            tester,
+            width: width,
+            scale: 1.5,
+            adviser: adviser,
+          );
+          await tester.ensureVisible(find.text('At a glance'));
+          await tester.pumpAndSettle();
+          expect(tester.takeException(), isNull);
+          expect(find.text('Chat with Bama'), findsOneWidget);
+          expect(
+            Theme.of(tester.element(find.byType(OverviewPage)))
+                .colorScheme
+                .primary,
+            const Color(0xff7ef5d0),
+          );
+        },
+      );
+    }
+  }
+  testWidgets('quick actions reflow on resize without losing overview state', (
+    tester,
+  ) async {
+    var calls = 0;
+    await mountOverview(
+      tester,
+      width: 700,
+      loadCritical: () {
+        calls++;
+        return critical();
+      },
+    );
+    expect(
+      tester.getTopLeft(find.text('Enter grades')).dx,
+      greaterThan(tester.getTopLeft(find.text('Chat with Bama')).dx),
+    );
+    tester.view.physicalSize = const Size(320, 900);
+    await tester.pumpAndSettle();
+    expect(
+      tester.getTopLeft(find.text('Enter grades')).dy,
+      greaterThan(tester.getTopLeft(find.text('Chat with Bama')).dy),
+    );
+    expect(calls, 1);
+    expect(tester.takeException(), isNull);
+  });
+  testWidgets(
+    'action borders are aligned, softly accented and keyboard accessible',
+    (tester) async {
+      await mountOverview(tester, adviser: false);
+      final bama = find.widgetWithText(OutlinedButton, 'Chat with Bama');
+      final grades = find.widgetWithText(OutlinedButton, 'Enter grades');
+      final attendance = find.widgetWithText(OutlinedButton, 'Take attendance');
+      expect(tester.getSize(bama).height, tester.getSize(grades).height);
+      expect(tester.getSize(grades).height, tester.getSize(attendance).height);
+      expect(tester.getSize(grades).height, greaterThanOrEqualTo(48));
+      expect(tester.widget<OutlinedButton>(bama).onPressed, isNull);
+      final style = tester.widget<OutlinedButton>(grades).style!;
+      final scheme = Theme.of(tester.element(grades)).colorScheme;
+      expect(
+        (style.shape!.resolve({})! as RoundedRectangleBorder).borderRadius,
+        BorderRadius.circular(10),
+      );
+      expect(
+        style.side!.resolve({WidgetState.focused})!.color,
+        scheme.secondary,
+      );
+      expect(style.side!.resolve({WidgetState.focused})!.width, 1.5);
+      expect(style.side!.resolve({})!.width, 1);
+      expect(
+        style.animationDuration,
+        Duration.zero,
+      ); // Reduced motion in fixture.
+      Focus.of(tester.element(find.text('Enter grades'))).requestFocus();
+      await tester.pumpAndSettle();
+      await tester.sendKeyEvent(LogicalKeyboardKey.enter);
+      await tester.pumpAndSettle();
+      expect(find.text('Opened /workspace/gradebook'), findsOneWidget);
+    },
+  );
+  for (final width in [320.0, 700.0]) {
+    testWidgets('stats share one bordered panel and retain links at $width', (
+      tester,
+    ) async {
+      await mountOverview(tester, width: width);
+      final panel = find.byKey(const ValueKey('overview-stats-panel'));
+      await tester.ensureVisible(panel);
+      await tester.pumpAndSettle();
+      final material = tester.widget<Material>(
+        find.descendant(of: panel, matching: find.byType(Material)).first,
+      );
+      expect(
+        (material.shape! as RoundedRectangleBorder).borderRadius,
+        BorderRadius.circular(10),
+      );
+      expect(
+        find.descendant(of: panel, matching: find.byType(InkWell)),
+        findsNWidgets(3),
+      );
+      expect(
+        find.descendant(
+          of: panel,
+          matching: find.byType(width >= 330 ? VerticalDivider : Divider),
+        ),
+        findsNWidgets(2),
+      );
+      await tester.ensureVisible(find.text('Classes'));
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('Classes'));
+      await tester.pumpAndSettle();
+      expect(find.text('Opened /workspace/classes'), findsOneWidget);
+      expect(tester.takeException(), isNull);
+    });
+  }
+  testWidgets('drawer retains Overview as first destination', (tester) async {
+    final api = TestApi();
     addTearDown(api.dio.close);
     await tester.pumpWidget(
       ProviderScope(
         overrides: [
           apiClientProvider.overrideWithValue(api),
-          overviewProvider.overrideWith((ref) => critical(adviser: false)),
+          authProvider.overrideWith((ref) => AuthNotifier(api)),
+          termProvider.overrideWith((ref) => TestTerm()),
+          overviewProvider.overrideWith((ref) => critical()),
         ],
-        child: const MaterialApp(home: FirstTimeGate()),
+        child: MaterialApp(
+          theme: zWorkspaceTheme(),
+          home: const Scaffold(
+            body: ZentraDrawer(selectedPath: '/workspace/overview'),
+          ),
+        ),
       ),
     );
-    for (var i = 0; i < 8; i++) {
-      await tester.pump(const Duration(milliseconds: 100));
+    await tester.pumpAndSettle();
+    final tile = find.widgetWithText(ListTile, 'Overview');
+    expect(tester.widget<ListTile>(tile).selected, isTrue);
+    expect(
+      tester.getTopLeft(tile).dy,
+      lessThan(tester.getTopLeft(find.text('Advisory list')).dy),
+    );
+  });
+  for (final adviser in [true, false]) {
+    for (final verified in [true, false]) {
+      testWidgets(
+        'staff landing preserves verification: adviser=$adviser, verified=$verified',
+        (tester) async {
+          final api = TestApi()..verified = verified;
+          final router = GoRouter(
+            initialLocation: '/gate',
+            routes: [
+              GoRoute(path: '/gate', builder: (_, _) => const FirstTimeGate()),
+              GoRoute(
+                path: '/workspace/overview',
+                builder: (_, _) =>
+                    const Scaffold(body: Text('Overview landing')),
+              ),
+            ],
+          );
+          addTearDown(router.dispose);
+          addTearDown(api.dio.close);
+          await tester.pumpWidget(
+            ProviderScope(
+              overrides: [
+                apiClientProvider.overrideWithValue(api),
+                authProvider.overrideWith((ref) => AuthNotifier(api)),
+                termProvider.overrideWith((ref) => TestTerm()),
+                overviewProvider.overrideWith(
+                  (ref) => critical(adviser: adviser),
+                ),
+              ],
+              child: MaterialApp.router(
+                theme: zWorkspaceTheme(),
+                routerConfig: router,
+              ),
+            ),
+          );
+          await tester.pumpAndSettle();
+          expect(
+            find.text(verified ? 'Overview landing' : 'Verify for this term'),
+            verified ? findsOneWidget : findsNWidgets(2),
+          );
+        },
+      );
     }
-    expect(find.text('Verify for this term'), findsWidgets);
-    expect(find.text('Overview landing'), findsNothing);
-    expect(tester.takeException(), isNull);
+  }
+  testWidgets('class linking still precedes Overview', (tester) async {
+    final api = TestApi()..linked = false;
+    addTearDown(api.dio.close);
+    await tester.pumpWidget(
+      ProviderScope(
+        overrides: [
+          apiClientProvider.overrideWithValue(api),
+          overviewProvider.overrideWith((ref) => critical()),
+        ],
+        child: MaterialApp(
+          theme: zWorkspaceTheme(),
+          home: const FirstTimeGate(),
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+    expect(find.text('Link your classes'), findsNWidgets(2));
+    expect(find.byType(OverviewPage), findsNothing);
   });
 }

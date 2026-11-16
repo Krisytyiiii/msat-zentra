@@ -7,11 +7,13 @@ import 'package:go_router/go_router.dart';
 import 'package:intl/intl.dart';
 
 import '../../core/session.dart';
+import '../../design/theme.dart';
 import '../../shared/user_messages.dart';
 import '../../shared/widgets.dart';
 import '../adviser/adviser_schedule_page.dart';
 import 'overview_data.dart';
 
+/// A compact staff landing page, not a second reporting dashboard.
 class OverviewPage extends ConsumerStatefulWidget {
   const OverviewPage({super.key});
   @override
@@ -35,10 +37,9 @@ class _OverviewPageState extends ConsumerState<OverviewPage>
 
   bool get _visible =>
       mounted &&
-      WidgetsBinding.instance.lifecycleState != AppLifecycleState.paused &&
-      WidgetsBinding.instance.lifecycleState != AppLifecycleState.inactive &&
-      WidgetsBinding.instance.lifecycleState != AppLifecycleState.hidden &&
-      WidgetsBinding.instance.lifecycleState != AppLifecycleState.detached &&
+      (WidgetsBinding.instance.lifecycleState == null ||
+          WidgetsBinding.instance.lifecycleState ==
+              AppLifecycleState.resumed) &&
       ModalRoute.of(context)?.isCurrent == true &&
       TickerMode.valuesOf(context).enabled;
 
@@ -60,14 +61,14 @@ class _OverviewPageState extends ConsumerState<OverviewPage>
   Future<void> _reload() async {
     if (!mounted) return;
     setState(() => _now = DateTime.now());
+    // Reuse the schedule screen's provider instead of fetching a second roster.
     ref.invalidate(adviserScheduleProvider);
     final futures = <Future<Object?>>[
       ref.refresh(overviewProvider.future),
       ref.refresh(overviewSecondaryProvider.future),
       ref.refresh(overviewScheduleProvider.future),
     ];
-    // Individual providers expose their own failures. Refresh stays active
-    // until every request finishes, without swallowing healthy sections.
+    // Each section owns its error; keep the refresh indicator until all settle.
     await Future.wait(
       futures.map(
         (future) =>
@@ -103,13 +104,7 @@ class _OverviewPageState extends ConsumerState<OverviewPage>
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
-                Text(
-                  'Overview',
-                  style: theme.textTheme.headlineSmall?.copyWith(
-                    fontWeight: FontWeight.w600,
-                    letterSpacing: -0.5,
-                  ),
-                ),
+                Text('Overview', style: theme.textTheme.headlineSmall),
                 const SizedBox(height: 6),
                 summary.when(
                   data: (data) => Text(
@@ -135,24 +130,20 @@ class _OverviewPageState extends ConsumerState<OverviewPage>
                     color: theme.colorScheme.onSurfaceVariant,
                   ),
                 ),
-                const SizedBox(height: 24),
-                const _Heading(
-                  'Quick actions',
-                  subtitle: 'Start with your classroom essentials.',
-                ),
-                const SizedBox(height: 12),
+                const SizedBox(height: 20),
+                const _Heading('Quick actions'),
+                const SizedBox(height: 10),
                 OverviewQuickActions(isAdviser: adviser, onOpen: _open),
                 const SizedBox(height: 24),
                 _Heading(
                   'Up next',
-                  subtitle: 'Next confirmed class · Philippine time',
                   action: 'View schedule',
                   onAction: () => _open(
                     adviser ? '/adviser/schedule' : '/workspace/schedule',
                   ),
                 ),
-                const SizedBox(height: 12),
-                ZCard(
+                const SizedBox(height: 10),
+                _OverviewPanel(
                   child: schedule.when(
                     loading: () => const ZSkeletonRow(),
                     error: (error, _) => _InlineError(
@@ -163,22 +154,16 @@ class _OverviewPageState extends ConsumerState<OverviewPage>
                         ref.invalidate(overviewScheduleProvider);
                       },
                     ),
-                    data: (data) => _upNext(data),
+                    data: _upNext,
                   ),
                 ),
                 const SizedBox(height: 24),
-                const _Heading(
-                  'Needs attention',
-                  subtitle: 'A short list of things you can act on.',
-                ),
-                const SizedBox(height: 12),
+                const _Heading('Needs attention'),
+                const SizedBox(height: 10),
                 _attention(summary, attention),
                 const SizedBox(height: 24),
-                const _Heading(
-                  'At a glance',
-                  subtitle: 'For the selected term',
-                ),
-                const SizedBox(height: 12),
+                const _Heading('At a glance'),
+                const SizedBox(height: 10),
                 summary.when(
                   loading: () => const ZSkeletonRow(),
                   error: (error, _) => _InlineError(
@@ -225,10 +210,7 @@ class _OverviewPageState extends ConsumerState<OverviewPage>
             children: [
               Text(
                 next.slot.subjectName,
-                style: const TextStyle(
-                  fontSize: 15,
-                  fontWeight: FontWeight.w600,
-                ),
+                style: Theme.of(context).textTheme.titleMedium,
               ),
               const SizedBox(height: 4),
               Text(
@@ -237,7 +219,7 @@ class _OverviewPageState extends ConsumerState<OverviewPage>
               ),
               const SizedBox(height: 8),
               Text(
-                '${today ? 'Today' : DateFormat('EEE, MMM d').format(start)} · ${DateFormat('h:mm a').format(start)} – ${DateFormat('h:mm a').format(end)}',
+                '${today ? 'Today' : DateFormat('EEE, MMM d').format(start)} · ${DateFormat('h:mm a').format(start)} – ${DateFormat('h:mm a').format(end)} · PH',
                 style: Theme.of(context).textTheme.bodySmall,
               ),
             ],
@@ -252,11 +234,11 @@ class _OverviewPageState extends ConsumerState<OverviewPage>
     AsyncValue<OverviewAttention> attention,
   ) {
     final data = summary.asData?.value;
-    final grading = attention.asData?.value;
-    final pending = grading?.pendingAssessments;
+    final pending = attention.asData?.value.pendingAssessments;
     final support = data?.isAdviser == true ? data?.supportCount : null;
     final clear =
         pending == 0 && data != null && (!data.isAdviser || support == 0);
+    // Two supported, actionable summaries. Never enumerate learners/history here.
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
@@ -269,8 +251,15 @@ class _OverviewPageState extends ConsumerState<OverviewPage>
           data: (data) {
             final count = data.pendingAssessments;
             if (count == null) {
-              return const Text(
-                'Grading summary is unavailable. Open Gradebook to check your assessments.',
+              return Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  const Text('Grading summary is unavailable.'),
+                  TextButton(
+                    onPressed: () => _open('/workspace/gradebook'),
+                    child: const Text('Check Gradebook'),
+                  ),
+                ],
               );
             }
             if (count == 0) return const SizedBox.shrink();
@@ -278,7 +267,7 @@ class _OverviewPageState extends ConsumerState<OverviewPage>
               icon: Icons.edit_note_outlined,
               title:
                   '$count assessment${count == 1 ? '' : 's'} with missing scores',
-              subtitle: 'Open Gradebook to review and enter scores.',
+              subtitle: 'Review and enter scores in Gradebook.',
               onTap: () => _open('/workspace/gradebook'),
             );
           },
@@ -303,8 +292,13 @@ class _OverviewPageState extends ConsumerState<OverviewPage>
               ),
             ),
         ],
+        if (data == null && summary.hasError)
+          const Text(
+            'Learner support checks are unavailable. Retry the overview summary above.',
+          ),
         if (clear)
-          ZCard(
+          Padding(
+            padding: const EdgeInsets.symmetric(vertical: 12),
             child: Text(
               data.isAdviser
                   ? 'No missing scores or advisory risk alerts from these checks.'
@@ -331,71 +325,62 @@ class OverviewQuickActions extends StatelessWidget {
       final row =
           constraints.maxWidth >= 330 &&
           MediaQuery.textScalerOf(context).scale(13) <= 16;
-      final width = row
-          ? (constraints.maxWidth - 20) / 3
-          : constraints.maxWidth;
+      final theme = Theme.of(context);
       final actions = [
         (
           label: 'Chat with Bama',
           icon: Icons.chat_bubble_outline,
-          path: '/adviser/bama?new=1',
+          path: '/adviser/bama',
           enabled: isAdviser,
+          accent: theme.colorScheme.primary,
         ),
         (
           label: 'Enter grades',
           icon: Icons.edit_note_outlined,
           path: '/workspace/gradebook',
           enabled: true,
+          accent: theme.colorScheme.secondary,
         ),
         (
           label: 'Take attendance',
           icon: Icons.fact_check_outlined,
           path: '/workspace/attendance',
           enabled: true,
+          accent: theme.colorScheme.onSurfaceVariant,
         ),
       ];
-      return Wrap(
-        spacing: 10,
-        runSpacing: 10,
+      final tiles = [
+        for (final action in actions)
+          _OverviewActionTile(
+            label: action.label,
+            icon: action.icon,
+            accent: action.accent,
+            stacked: !row,
+            onTap: action.enabled ? () => onOpen(action.path) : null,
+          ),
+      ];
+      if (row) {
+        // Three small tiles only: intrinsic sizing keeps their borders aligned,
+        // including when the Bama restriction adds a second line of text.
+        return IntrinsicHeight(
+          child: Row(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              for (var i = 0; i < tiles.length; i++) ...[
+                if (i > 0) const SizedBox(width: 10),
+                Expanded(child: tiles[i]),
+              ],
+            ],
+          ),
+        );
+      }
+      return Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
-          for (final action in actions)
-            SizedBox(
-              width: width,
-              child: Semantics(
-                enabled: action.enabled,
-                child: ZCard(
-                  onTap: action.enabled ? () => onOpen(action.path) : null,
-                  padding: const EdgeInsets.all(14),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Icon(
-                        action.icon,
-                        size: 24,
-                        color: action.enabled
-                            ? Theme.of(context).colorScheme.primary
-                            : Theme.of(context).colorScheme.onSurfaceVariant,
-                      ),
-                      const SizedBox(height: 12),
-                      Text(
-                        action.label,
-                        style: const TextStyle(
-                          fontSize: 13,
-                          fontWeight: FontWeight.w600,
-                        ),
-                      ),
-                      if (!action.enabled) ...[
-                        const SizedBox(height: 4),
-                        Text(
-                          'Advisers only',
-                          style: Theme.of(context).textTheme.bodySmall,
-                        ),
-                      ],
-                    ],
-                  ),
-                ),
-              ),
-            ),
+          for (var i = 0; i < tiles.length; i++) ...[
+            if (i > 0) const SizedBox(height: 10),
+            tiles[i],
+          ],
         ],
       );
     },
@@ -406,6 +391,7 @@ class OverviewStats extends StatelessWidget {
   const OverviewStats({super.key, required this.summary, required this.onOpen});
   final OverviewSummary summary;
   final ValueChanged<String> onOpen;
+
   @override
   Widget build(BuildContext context) => LayoutBuilder(
     builder: (context, constraints) {
@@ -427,32 +413,32 @@ class OverviewStats extends StatelessWidget {
             path: '/adviser/advisory',
           ),
       ];
-      final columns =
+      final row =
           constraints.maxWidth >= 330 &&
-              MediaQuery.textScalerOf(context).scale(13) <= 16
-          ? items.length
-          : 1;
-      final width = (constraints.maxWidth - (columns - 1) * 10) / columns;
-      return Wrap(
-        spacing: 10,
-        runSpacing: 10,
-        children: [
-          for (final item in items)
-            SizedBox(
-              width: width,
-              child: ZCard(
-                onTap: () => onOpen(item.path),
-                padding: const EdgeInsets.all(14),
+          MediaQuery.textScalerOf(context).scale(13) <= 16;
+      final theme = Theme.of(context);
+      final tiles = [
+        for (final item in items)
+          Semantics(
+            button: true,
+            child: InkWell(
+              onTap: () => onOpen(item.path),
+              focusColor: theme.colorScheme.primary.withValues(alpha: 0.12),
+              hoverColor: theme.colorScheme.primary.withValues(alpha: 0.04),
+              highlightColor: theme.colorScheme.primary.withValues(alpha: 0.08),
+              child: Padding(
+                padding: const EdgeInsets.all(16),
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Text(
                       item.value?.toString() ?? '—',
-                      style: const TextStyle(
-                        fontSize: 25,
-                        fontWeight: FontWeight.w600,
-                        fontFeatures: [FontFeature.tabularFigures()],
-                      ),
+                      style: Theme.of(context).textTheme.headlineSmall
+                          ?.copyWith(
+                            fontSize: 25,
+                            color: Theme.of(context).colorScheme.primary,
+                            fontFeatures: const [FontFeature.tabularFigures()],
+                          ),
                     ),
                     const SizedBox(height: 6),
                     Text(
@@ -468,42 +454,63 @@ class OverviewStats extends StatelessWidget {
                 ),
               ),
             ),
-        ],
+          ),
+      ];
+      final dividerColor = theme.colorScheme.outline.withValues(alpha: 0.55);
+      return _OverviewPanel(
+        key: const ValueKey('overview-stats-panel'),
+        padding: EdgeInsets.zero,
+        child: row
+            ? IntrinsicHeight(
+                child: Row(
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                  children: [
+                    for (var i = 0; i < tiles.length; i++) ...[
+                      if (i > 0)
+                        VerticalDivider(
+                          width: 1,
+                          thickness: 1,
+                          indent: 16,
+                          endIndent: 16,
+                          color: dividerColor,
+                        ),
+                      Expanded(child: tiles[i]),
+                    ],
+                  ],
+                ),
+              )
+            : Column(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
+                  for (var i = 0; i < tiles.length; i++) ...[
+                    if (i > 0)
+                      Divider(
+                        height: 1,
+                        indent: 16,
+                        endIndent: 16,
+                        color: dividerColor,
+                      ),
+                    tiles[i],
+                  ],
+                ],
+              ),
       );
     },
   );
 }
 
 class _Heading extends StatelessWidget {
-  const _Heading(this.title, {this.subtitle, this.action, this.onAction});
+  const _Heading(this.title, {this.action, this.onAction});
   final String title;
-  final String? subtitle;
   final String? action;
   final VoidCallback? onAction;
   @override
-  Widget build(BuildContext context) => Column(
-    crossAxisAlignment: CrossAxisAlignment.start,
+  Widget build(BuildContext context) => Wrap(
+    spacing: 12,
+    crossAxisAlignment: WrapCrossAlignment.center,
     children: [
-      Wrap(
-        crossAxisAlignment: WrapCrossAlignment.center,
-        spacing: 12,
-        children: [
-          Text(
-            title,
-            style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w600),
-          ),
-          if (action != null)
-            TextButton(onPressed: onAction, child: Text(action!)),
-        ],
-      ),
-      if (subtitle != null) ...[
-        const SizedBox(height: 4),
-        Text(
-          subtitle!,
-          style: Theme.of(context).textTheme.bodySmall
-              ?.copyWith(color: Theme.of(context).colorScheme.onSurfaceVariant),
-        ),
-      ],
+      Text(title, style: Theme.of(context).textTheme.titleMedium),
+      if (action != null) TextButton(onPressed: onAction, child: Text(action!)),
     ],
   );
 }
@@ -520,48 +527,201 @@ class _AttentionCard extends StatelessWidget {
   final String subtitle;
   final VoidCallback onTap;
   @override
-  Widget build(BuildContext context) => ZCard(
-    onTap: onTap,
-    child: Row(
-      children: [
-        Icon(icon, color: Theme.of(context).colorScheme.primary),
-        const SizedBox(width: 12),
-        Expanded(
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text(
-                title,
-                style: const TextStyle(
-                  fontSize: 13,
-                  fontWeight: FontWeight.w600,
+  Widget build(BuildContext context) => DecoratedBox(
+    decoration: BoxDecoration(
+      border: Border(
+        bottom: BorderSide(
+          color: Theme.of(context).colorScheme.outline.withValues(alpha: 0.55),
+        ),
+      ),
+    ),
+    child: Material(
+      color: Colors.transparent,
+      child: Semantics(
+        button: true,
+        child: InkWell(
+          onTap: onTap,
+          borderRadius: BorderRadius.circular(10),
+          focusColor: Theme.of(context).colorScheme.secondary
+              .withValues(alpha: 0.12),
+          hoverColor: Theme.of(context).colorScheme.secondary
+              .withValues(alpha: 0.04),
+          child: Padding(
+            padding: const EdgeInsets.symmetric(vertical: 14, horizontal: 4),
+            child: Row(
+              children: [
+                Icon(icon, color: Theme.of(context).colorScheme.secondary),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        title,
+                        style: Theme.of(context).textTheme.titleSmall,
+                      ),
+                      const SizedBox(height: 4),
+                      Text(
+                        subtitle,
+                        style: Theme.of(context).textTheme.bodySmall,
+                      ),
+                    ],
+                  ),
                 ),
-              ),
-              const SizedBox(height: 4),
-              Text(subtitle, style: Theme.of(context).textTheme.bodySmall),
-            ],
+                const SizedBox(width: 6),
+                const Icon(Icons.chevron_right, size: 18),
+              ],
+            ),
           ),
         ),
-        const SizedBox(width: 6),
-        const Icon(Icons.chevron_right, size: 18),
-      ],
+      ),
     ),
   );
 }
 
-@Preview(
-  name: 'Overview quick actions',
-  group: 'Overview',
-  size: Size(390, 300),
-)
-Widget overviewQuickActionsPreview() => MaterialApp(
-  home: Scaffold(
-    body: Padding(
-      padding: const EdgeInsets.all(16),
-      child: OverviewQuickActions(isAdviser: true, onOpen: (_) {}),
-    ),
-  ),
-);
+// Local to Overview: the loading hand-off uses quiet 1px borders and 10px
+// corners. Do not change shared ZCard or any other workspace's presentation.
+class _OverviewPanel extends StatelessWidget {
+  const _OverviewPanel({
+    super.key,
+    required this.child,
+    this.padding = const EdgeInsets.all(16),
+  });
+  final Widget child;
+  final EdgeInsetsGeometry padding;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    return Material(
+      color: theme.cardTheme.color ?? theme.colorScheme.surface,
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(10),
+        side: BorderSide(
+          color: theme.colorScheme.outline.withValues(alpha: 0.72),
+        ),
+      ),
+      clipBehavior: Clip.antiAlias,
+      child: Padding(padding: padding, child: child),
+    );
+  }
+}
+
+class _OverviewActionTile extends StatelessWidget {
+  const _OverviewActionTile({
+    required this.label,
+    required this.icon,
+    required this.accent,
+    required this.stacked,
+    this.onTap,
+  });
+  final String label;
+  final IconData icon;
+  final Color accent;
+  final bool stacked;
+  final VoidCallback? onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final enabled = onTap != null;
+    final ink = enabled ? accent : theme.colorScheme.onSurfaceVariant;
+    final copy = Column(
+      mainAxisSize: MainAxisSize.min,
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(label, style: theme.textTheme.titleSmall),
+        if (!enabled) ...[
+          const SizedBox(height: 4),
+          Text(
+            'Advisers only',
+            style: theme.textTheme.bodySmall?.copyWith(
+              color: theme.colorScheme.onSurfaceVariant,
+            ),
+          ),
+        ],
+      ],
+    );
+    return OutlinedButton(
+      onPressed: onTap,
+      style: ButtonStyle(
+        alignment: Alignment.centerLeft,
+        minimumSize: const WidgetStatePropertyAll(Size(48, 64)),
+        padding: const WidgetStatePropertyAll(EdgeInsets.all(14)),
+        animationDuration: MediaQuery.disableAnimationsOf(context)
+            ? Duration.zero
+            : const Duration(milliseconds: 150),
+        shape: WidgetStatePropertyAll(
+          RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+        ),
+        foregroundColor: WidgetStateProperty.resolveWith(
+          (states) => states.contains(WidgetState.disabled)
+              ? theme.colorScheme.onSurfaceVariant
+              : theme.colorScheme.onSurface,
+        ),
+        backgroundColor: WidgetStatePropertyAll(
+          Color.alphaBlend(
+            ink.withValues(alpha: enabled ? 0.025 : 0.01),
+            theme.cardTheme.color ?? theme.colorScheme.surface,
+          ),
+        ),
+        side: WidgetStateProperty.resolveWith((states) {
+          if (states.contains(WidgetState.disabled)) {
+            return BorderSide(
+              color: theme.colorScheme.outline.withValues(alpha: 0.6),
+            );
+          }
+          if (states.contains(WidgetState.focused)) {
+            return BorderSide(color: accent, width: 1.5);
+          }
+          if (states.contains(WidgetState.pressed) ||
+              states.contains(WidgetState.hovered)) {
+            return BorderSide(color: accent.withValues(alpha: 0.65));
+          }
+          return BorderSide(
+            color: Color.alphaBlend(
+              accent.withValues(alpha: 0.16),
+              theme.colorScheme.outline,
+            ),
+          );
+        }),
+        overlayColor: WidgetStateProperty.resolveWith((states) {
+          if (states.contains(WidgetState.focused) ||
+              states.contains(WidgetState.pressed)) {
+            return accent.withValues(alpha: 0.10);
+          }
+          if (states.contains(WidgetState.hovered)) {
+            return accent.withValues(alpha: 0.05);
+          }
+          return Colors.transparent;
+        }),
+      ),
+      child: stacked
+          ? Row(
+              children: [
+                Icon(icon, size: 22, color: ink),
+                const SizedBox(width: 12),
+                Expanded(child: copy),
+                if (enabled)
+                  Icon(
+                    Icons.chevron_right,
+                    size: 18,
+                    color: theme.colorScheme.onSurfaceVariant,
+                  ),
+              ],
+            )
+          : Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Icon(icon, size: 22, color: ink),
+                const SizedBox(height: 10),
+                copy,
+              ],
+            ),
+    );
+  }
+}
 
 class _InlineError extends StatelessWidget {
   const _InlineError({required this.error, required this.retry});
@@ -579,3 +739,33 @@ class _InlineError extends StatelessWidget {
     ),
   );
 }
+
+@Preview(
+  name: 'Compact Overview actions',
+  group: 'Overview',
+  size: Size(390, 280),
+)
+Widget overviewQuickActionsPreview() => MaterialApp(
+  theme: zWorkspaceTheme(),
+  home: Scaffold(
+    body: Padding(
+      padding: const EdgeInsets.all(16),
+      child: OverviewQuickActions(isAdviser: true, onOpen: (_) {}),
+    ),
+  ),
+);
+
+@Preview(
+  name: 'Overview actions · subject teacher',
+  group: 'Overview',
+  size: Size(390, 280),
+)
+Widget overviewTeacherActionsPreview() => MaterialApp(
+  theme: zWorkspaceTheme(),
+  home: Scaffold(
+    body: Padding(
+      padding: const EdgeInsets.all(16),
+      child: OverviewQuickActions(isAdviser: false, onOpen: (_) {}),
+    ),
+  ),
+);

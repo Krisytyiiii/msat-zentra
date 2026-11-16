@@ -217,17 +217,9 @@ Future<void> mountDesignPage(
       ],
       child: Consumer(
         builder: (context, ref, _) {
-          final palette = ref.watch(themeSettingsProvider);
           return MaterialApp(
-            theme: dark
-                ? zDarkTheme(
-                    primaryOverride: hexToColor(palette.primaryHex),
-                    secondaryOverride: hexToColor(palette.secondaryHex),
-                  )
-                : zLightTheme(
-                    primaryOverride: hexToColor(palette.primaryHex),
-                    secondaryOverride: hexToColor(palette.secondaryHex),
-                  ),
+            theme: zWorkspaceTheme(),
+            themeMode: ThemeMode.dark,
             builder: (context, child) => MediaQuery(
               data: MediaQuery.of(context).copyWith(
                 disableAnimations: true,
@@ -445,7 +437,9 @@ void main() {
             addTearDown(tester.view.resetDevicePixelRatio);
             final primary = custom ? const Color(0xFF16A34A) : null;
             final secondary = custom ? const Color(0xFFFEF3C7) : null;
-            final theme = dark
+            final theme = dark && !custom
+                ? zWorkspaceTheme()
+                : dark
                 ? zDarkTheme(
                     primaryOverride: primary,
                     secondaryOverride: secondary,
@@ -579,8 +573,9 @@ void main() {
               tester.getSize(find.byType(RiskBadge).first).height,
               greaterThan(20),
             );
-            await tester.ensureVisible(find.text('Dark'));
-            await tester.tap(find.text('Dark'));
+            await tester.ensureVisible(
+              find.text('Dark workspace · Mint & violet'),
+            );
             await tester.pump();
             expect(tester.takeException(), isNull);
           },
@@ -629,9 +624,9 @@ void main() {
   }
 
   testWidgets(
-    'palette edits disable conflicting saves and show friendly failures',
+    'appearance explains the fixed mobile identity without changing web settings',
     (tester) async {
-      final api = TestProfileApi()..pendingPatch = Completer<void>();
+      final api = TestProfileApi();
       final settings = TestPaletteSettings();
       await mountDesignPage(
         tester,
@@ -640,38 +635,14 @@ void main() {
         api: api,
         settings: settings,
       );
-       await tester.ensureVisible(find.byTooltip('#7c3aed'));
-       await tester.pumpAndSettle();
-      await tester.tap(find.byTooltip('#7c3aed'));
-      await tester.pump();
-      await settleRequests(tester);
-      expect(api.patches, 1);
+      await tester.ensureVisible(find.text('Dark workspace · Mint & violet'));
+      await tester.pumpAndSettle();
       expect(
-        tester
-            .widget<OutlinedButton>(
-              find.widgetWithText(OutlinedButton, 'Saving palette…'),
-            )
-            .onPressed,
-        isNull,
-      );
-      await tester.tap(find.byTooltip('#16a34a'));
-      expect(api.patches, 1);
-      api.pendingPatch!.complete();
-      await settleRequests(tester);
-      expect(settings.state.primaryHex, '#7c3aed');
-      api.pendingPatch = null;
-      api.failPatch = true;
-       await tester.ensureVisible(find.byTooltip('#16a34a'));
-       await tester.pumpAndSettle();
-      await tester.tap(find.byTooltip('#16a34a'));
-      await settleRequests(tester);
-      expect(
-        find.text(
-          'Something went wrong on our side. Please try again shortly.',
-        ),
+        find.textContaining('Your saved web appearance is unchanged.'),
         findsOneWidget,
       );
-      expect(find.textContaining('private details'), findsNothing);
+      expect(find.text('Reset to default'), findsNothing);
+      expect(api.patches, 0);
       expect(tester.takeException(), isNull);
     },
   );

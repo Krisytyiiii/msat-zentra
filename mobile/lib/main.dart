@@ -9,7 +9,7 @@ import 'package:hive_flutter/hive_flutter.dart';
 import 'core/config.dart';
 import 'core/sync_outbox.dart';
 import 'design/theme.dart';
-import 'design/theme_mode.dart';
+import 'design/theme_mode.dart' show openThemeSettingsBox;
 import 'dev_preview/device_preview_host.dart';
 import 'features/app_router.dart';
 
@@ -30,24 +30,15 @@ class ZentraApp extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final router = ref.watch(routerProvider);
-    final settings = ref.watch(themeSettingsProvider);
     final pending = Hive.box(AppConfig.outboxBox).listenable();
-    final primary = hexToColor(settings.primaryHex);
-    final secondary = hexToColor(settings.secondaryHex);
     return ValueListenableBuilder(
       valueListenable: pending,
       builder: (context, _, _) => MaterialApp.router(
         title: 'Zentra',
         debugShowCheckedModeBanner: false,
-        theme: zLightTheme(
-          primaryOverride: primary,
-          secondaryOverride: secondary,
-        ),
-        darkTheme: zDarkTheme(
-          primaryOverride: primary,
-          secondaryOverride: secondary,
-        ),
-        themeMode: settings.mode,
+        theme: zWorkspaceTheme(),
+        darkTheme: zWorkspaceTheme(),
+        themeMode: ThemeMode.dark,
         routerConfig: router,
         builder: (context, child) => devicePreviewEnabled
             ? DevicePreviewHost(child: child ?? const SizedBox.shrink())

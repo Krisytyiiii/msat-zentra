@@ -19,7 +19,6 @@ import '../shared/models.dart' show Term;
 import '../shared/widgets.dart';
 import '../shared/user_messages.dart';
 import 'brand.dart';
-import 'workspace_palette_gate.dart';
 
 class ZentraShell extends ConsumerWidget {
   final Widget child;
@@ -32,11 +31,11 @@ class ZentraShell extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    return WorkspacePaletteGate(child: Scaffold(
+    return Scaffold(
       appBar: const ZentraAppBar(),
       drawer: ZentraDrawer(selectedPath: selectedPath),
       body: child,
-    ));
+    );
   }
 }
 
@@ -430,7 +429,7 @@ void showZAccount(BuildContext context, WidgetRef ref) {
         ),
         ListTile(
           leading: const Icon(Icons.dark_mode_outlined),
-          title: const Text('Appearance follows system (light/dark)', style: TextStyle(fontSize: 13)),
+          title: const Text('Dark workspace · Mint & violet', style: TextStyle(fontSize: 13)),
         ),
         ListTile(
           leading: const Icon(Icons.logout),

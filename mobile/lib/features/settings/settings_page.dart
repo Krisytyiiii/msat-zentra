@@ -1,6 +1,6 @@
 // Teacher Settings — web parity with frontend/src/app/teacher/settings.
 // Sections: Profile (photo + name), Adviser claim/release, Master Teacher,
-// Appearance (Light/Dark/System, local), Palette (server-persisted), Password.
+// Fixed login-inspired mobile appearance; saved web preferences are untouched.
 // Served at the existing /teacher/more path (drawer + avatar point there).
 
 import 'dart:convert';
@@ -12,35 +12,11 @@ import 'package:image_picker/image_picker.dart';
 
 import '../../core/session.dart';
 import '../../design/brand.dart';
-import '../../design/theme_mode.dart';
 import '../../design/theme_picker.dart';
 import '../../shared/widgets.dart';
 import '../../shared/spinner.dart';
 import '../../shared/user_messages.dart';
 import 'settings_data.dart';
-
-const _primaryPresets = [
-  '#7c3aed',
-  '#2563eb',
-  '#0d9488',
-  '#16a34a',
-  '#d97706',
-  '#ea580c',
-  '#e11d48',
-  '#db2777',
-];
-const _secondaryPresets = [
-  '#27272a',
-  '#3f3f46',
-  '#52525b',
-  '#a1a1aa',
-  '#e4e4e7',
-  '#f4f4f5',
-  '#fef3c7',
-  '#ede9fe',
-];
-
-Color? _swatch(String hex) => hexToColor(hex);
 
 class SettingsPage extends ConsumerStatefulWidget {
   const SettingsPage({super.key});
@@ -349,11 +325,9 @@ class _State extends ConsumerState<SettingsPage> {
                 _section(
                   context,
                   title: 'Appearance',
-                  subtitle: 'Applies instantly across the whole workspace.',
+                  subtitle: 'The same dark mint and violet design as sign-in.',
                   child: _ThemePicker(),
                 ),
-                const SizedBox(height: 8),
-                _PaletteCard(profile: p),
                 const SizedBox(height: 8),
                 _section(
                   context,
@@ -458,155 +432,6 @@ class _ThemePicker extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     return const WorkspaceThemePicker();
-  }
-}
-
-class _PaletteCard extends ConsumerStatefulWidget {
-  final TeacherProfile profile;
-  const _PaletteCard({required this.profile});
-
-  @override
-  ConsumerState<_PaletteCard> createState() => _PaletteCardState();
-}
-
-class _PaletteCardState extends ConsumerState<_PaletteCard> {
-  bool _saving = false;
-  TeacherProfile get profile => widget.profile;
-
-  Future<void> _apply(
-    WidgetRef ref,
-    BuildContext context, {
-    String? primary,
-    String? secondary,
-    bool keepPrimary = true,
-  }) async {
-    if (_saving) return;
-    setState(() => _saving = true);
-    final nextPrimary = keepPrimary
-        ? (primary ?? profile.primaryColor)
-        : primary;
-    final nextSecondary = keepPrimary
-        ? (secondary ?? profile.secondaryColor)
-        : secondary;
-    try {
-      await patchTeacherProfile(ref, {
-        'primaryColor': nextPrimary,
-        'secondaryColor': nextSecondary,
-      });
-      if (!mounted) return;
-      await ref
-          .read(themeSettingsProvider.notifier)
-          .syncPalette(nextPrimary, nextSecondary);
-    } catch (error) {
-      if (context.mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text(
-              userMessage(
-                error,
-                fallback:
-                    'We couldn’t save your workspace colors. Please try again.',
-              ),
-            ),
-          ),
-        );
-      }
-    } finally {
-      if (mounted) setState(() => _saving = false);
-    }
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    Widget swatches(
-      List<String> presets,
-      String? selected,
-      ValueChanged<String> onPick,
-    ) => Wrap(
-      spacing: 8,
-      runSpacing: 8,
-      children: [
-        for (final hex in presets)
-          Semantics(
-            label: 'Color $hex',
-            button: true,
-            enabled: !_saving,
-            selected: selected?.toLowerCase() == hex,
-            child: Tooltip(
-              message: hex,
-              child: InkWell(
-                borderRadius: BorderRadius.circular(999),
-                onTap: _saving ? null : () => onPick(hex),
-                child: Container(
-                  width: 48,
-                  height: 48,
-                  decoration: BoxDecoration(
-                    shape: BoxShape.circle,
-                    color: _swatch(hex),
-                    border: Border.all(
-                      color: selected?.toLowerCase() == hex
-                          ? Theme.of(context).colorScheme.onSurface
-                          : Theme.of(context).colorScheme.outline,
-                      width: selected?.toLowerCase() == hex ? 3 : 1,
-                    ),
-                  ),
-                  child: selected?.toLowerCase() == hex
-                      ? Icon(
-                          Icons.check,
-                          size: 20,
-                          color: contrastForeground(_swatch(hex)!),
-                        )
-                      : null,
-                ),
-              ),
-            ),
-          ),
-      ],
-    );
-    return _State._section(
-      context,
-      title: 'Workspace palette',
-      subtitle:
-          'Uses the same saved button and accent colors as your web workspace.',
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Text('Primary', style: Theme.of(context).textTheme.labelSmall),
-          const SizedBox(height: 6),
-          swatches(
-            _primaryPresets,
-            profile.primaryColor,
-            (hex) => _apply(ref, context, primary: hex),
-          ),
-          const SizedBox(height: 12),
-          Text('Secondary', style: Theme.of(context).textTheme.labelSmall),
-          const SizedBox(height: 6),
-          swatches(
-            _secondaryPresets,
-            profile.secondaryColor,
-            (hex) => _apply(ref, context, secondary: hex),
-          ),
-          const SizedBox(height: 12),
-          Align(
-            alignment: Alignment.centerRight,
-            child: OutlinedButton(
-              onPressed: _saving
-                  ? null
-                  : () async {
-                      await _apply(
-                        ref,
-                        context,
-                        primary: null,
-                        secondary: null,
-                        keepPrimary: false,
-                      );
-                    },
-              child: Text(_saving ? 'Saving palette…' : 'Reset to default'),
-            ),
-          ),
-        ],
-      ),
-    );
   }
 }
 

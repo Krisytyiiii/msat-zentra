@@ -47,6 +47,8 @@ class OverviewSummary {
 class OverviewAttention {
   const OverviewAttention({this.pendingAssessments});
   final int? pendingAssessments;
+  // Secondary pendingAssessments counts unique assessments not fully scored.
+  // Critical kpi.pendingAssessments is a placeholder; openFlags is anecdotes.
   factory OverviewAttention.fromJson(Map<String, dynamic> json) =>
       OverviewAttention(pendingAssessments: _count(json['pendingAssessments']));
 }

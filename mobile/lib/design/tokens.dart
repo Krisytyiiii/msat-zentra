@@ -4,6 +4,19 @@
 
 import 'package:flutter/material.dart';
 
+/// Login-inspired identity shared by every mobile workspace, including portals.
+abstract class ZWorkspace {
+  static const background = Color(0xFF050807);
+  static const foreground = Color(0xFFF3F7F5);
+  static const card = Color(0xFF070D0B);
+  static const muted = Color(0xFF101D18);
+  static const mutedFg = Color(0xFF99AAA3);
+  static const border = Color(0xFF2A3530);
+  static const primary = Color(0xFF7EF5D0);
+  static const primaryFg = Color(0xFF08110E);
+  static const secondary = Color(0xFFA99CFF);
+}
+
 abstract class ZTokens {
   // Radius
   static const double radiusSm = 3.6; // 0.6 * 6

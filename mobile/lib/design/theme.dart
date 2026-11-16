@@ -5,6 +5,11 @@ import 'package:flutter/cupertino.dart';
 import 'tokens.dart';
 import 'theme_mode.dart';
 
+/// The mobile workspace deliberately uses the login's mint/violet identity.
+/// Saved web appearance preferences are retained, but do not override this.
+ThemeData zWorkspaceTheme() =>
+    _workspaceTheme(Brightness.dark, null, null, loginStyle: true);
+
 ThemeData zLightTheme({Color? primaryOverride, Color? secondaryOverride}) =>
     _workspaceTheme(Brightness.light, primaryOverride, secondaryOverride);
 
@@ -14,27 +19,71 @@ ThemeData zDarkTheme({Color? primaryOverride, Color? secondaryOverride}) =>
 ThemeData _workspaceTheme(
   Brightness brightness,
   Color? primaryOverride,
-  Color? secondaryOverride,
-) {
+  Color? secondaryOverride, {
+  bool loginStyle = false,
+}) {
   final dark = brightness == Brightness.dark;
-  final background = dark ? ZDark.background : ZLight.background;
-  final foreground = dark ? ZDark.foreground : ZLight.foreground;
-  final card = dark ? ZDark.card : ZLight.card;
-  final muted = dark ? ZDark.muted : ZLight.muted;
-  final mutedFg = dark ? ZDark.mutedFg : ZLight.mutedFg;
-  final border = dark ? ZDark.border : ZLight.border;
-  final input = dark ? ZDark.input : ZLight.input;
-  final ring = dark ? ZDark.ring : ZLight.ring;
-  final primary = primaryOverride ?? (dark ? ZDark.primary : ZLight.primary);
-  final primaryFg = primaryOverride == null
+  final background = loginStyle
+      ? ZWorkspace.background
+      : dark
+      ? ZDark.background
+      : ZLight.background;
+  final foreground = loginStyle
+      ? ZWorkspace.foreground
+      : dark
+      ? ZDark.foreground
+      : ZLight.foreground;
+  final card = loginStyle
+      ? ZWorkspace.card
+      : dark
+      ? ZDark.card
+      : ZLight.card;
+  final muted = loginStyle
+      ? ZWorkspace.muted
+      : dark
+      ? ZDark.muted
+      : ZLight.muted;
+  final mutedFg = loginStyle
+      ? ZWorkspace.mutedFg
+      : dark
+      ? ZDark.mutedFg
+      : ZLight.mutedFg;
+  final border = loginStyle
+      ? ZWorkspace.border
+      : dark
+      ? ZDark.border
+      : ZLight.border;
+  final input = loginStyle
+      ? ZWorkspace.border
+      : dark
+      ? ZDark.input
+      : ZLight.input;
+  final ring = loginStyle
+      ? ZWorkspace.primary
+      : dark
+      ? ZDark.ring
+      : ZLight.ring;
+  final primary = loginStyle
+      ? ZWorkspace.primary
+      : primaryOverride ?? (dark ? ZDark.primary : ZLight.primary);
+  final primaryFg = loginStyle
+      ? ZWorkspace.primaryFg
+      : primaryOverride == null
       ? (dark ? ZDark.primaryFg : ZLight.primaryFg)
       : contrastForeground(primary);
-  final secondary =
-      secondaryOverride ?? (dark ? ZDark.secondary : ZLight.secondary);
-  final secondaryFg = secondaryOverride == null
+  final secondary = loginStyle
+      ? ZWorkspace.secondary
+      : secondaryOverride ?? (dark ? ZDark.secondary : ZLight.secondary);
+  final secondaryFg = loginStyle
+      ? ZWorkspace.primaryFg
+      : secondaryOverride == null
       ? (dark ? ZDark.foreground : ZLight.primary)
       : contrastForeground(secondary);
-  final destructive = dark ? ZDark.primary : ZLight.primary;
+  final destructive = loginStyle
+      ? const Color(0xFFFF9F9F)
+      : dark
+      ? ZDark.primary
+      : ZLight.primary;
   // Set every Material surface/accent family: unspecified M3 defaults otherwise
   // introduce purple tint that does not exist in the web workspace.
   final scheme = ColorScheme(
@@ -47,7 +96,7 @@ ThemeData _workspaceTheme(
     onSecondary: secondaryFg,
     secondaryContainer: secondary,
     onSecondaryContainer: secondaryFg,
-    tertiary: primary,
+    tertiary: loginStyle ? ZWorkspace.secondary : primary,
     onTertiary: primaryFg,
     tertiaryContainer: muted,
     onTertiaryContainer: foreground,
@@ -213,7 +262,11 @@ ThemeData _workspaceTheme(
       side: BorderSide.none,
     ),
     drawerTheme: DrawerThemeData(
-      backgroundColor: dark ? ZDark.sidebar : ZLight.sidebar,
+      backgroundColor: loginStyle
+          ? ZWorkspace.card
+          : dark
+          ? ZDark.sidebar
+          : ZLight.sidebar,
       surfaceTintColor: Colors.transparent,
     ),
     listTileTheme: ListTileThemeData(
