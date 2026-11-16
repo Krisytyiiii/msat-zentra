@@ -8,6 +8,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../core/api_client.dart';
+import '../../design/tokens.dart';
 import '../../shared/models.dart';
 import '../../design/status_palette.dart';
 import '../../shared/widgets.dart';
@@ -243,8 +244,6 @@ class StudentDetailPage extends ConsumerStatefulWidget {
 }
 
 class _StudentDetailState extends ConsumerState<StudentDetailPage> {
-  bool _finalVersion = true;
-
   Future<_DetailData> _fetch(ApiClient api) async {
     final id = Uri.encodeComponent(widget.student.studentId);
     final isRoster = widget.student.studentId.startsWith('roster:');
@@ -326,7 +325,7 @@ class _StudentDetailState extends ConsumerState<StudentDetailPage> {
     final api = ref.watch(apiClientProvider);
     final theme = Theme.of(context);
     return Scaffold(
-      appBar: AppBar(title: Text(widget.student.name)),
+      appBar: AppBar(title: const Text('Student details')),
       body: FutureBuilder(
         future: _fetch(api),
         builder: (context, snap) {
@@ -355,124 +354,149 @@ class _StudentDetailState extends ConsumerState<StudentDetailPage> {
               : AcademicSummary.fromJson(
                   Map<String, dynamic>.from(academicRaw['summary'] as Map),
                 );
-          return ListView(
-            padding: const EdgeInsets.fromLTRB(16, 12, 16, 24),
-            children: [
-              ZCard(
-                child: Row(
-                  children: [
-                    RiskBadge(
-                      level: (d['riskLevel'] ?? widget.student.riskLevel)
-                          .toString(),
+          return Center(
+            child: ConstrainedBox(
+              constraints: const BoxConstraints(maxWidth: 900),
+              child: ListView(
+                padding: const EdgeInsets.fromLTRB(16, 12, 16, 24),
+                children: [
+                  ZCard(
+                    child: Row(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Icon(
+                          Icons.person_outline,
+                          color: theme.colorScheme.primary,
+                        ),
+                        const SizedBox(width: 12),
+                        Expanded(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text(
+                                (d['name'] ?? widget.student.name).toString(),
+                                style: theme.textTheme.titleMedium?.copyWith(
+                                  fontWeight: FontWeight.w700,
+                                ),
+                              ),
+                              const SizedBox(height: 10),
+                              Wrap(
+                                spacing: 8,
+                                runSpacing: 8,
+                                crossAxisAlignment: WrapCrossAlignment.center,
+                                children: [
+                                  _DetailPill(
+                                    label:
+                                        'LRN ${d['lrn'] ?? widget.student.lrn}',
+                                  ),
+                                  RiskBadge(
+                                    level:
+                                        (d['riskLevel'] ??
+                                                widget.student.riskLevel)
+                                            .toString(),
+                                  ),
+                                ],
+                              ),
+                            ],
+                          ),
+                        ),
+                      ],
                     ),
-                    const SizedBox(width: 8),
-                    Expanded(
-                      child: Text(
-                        'LRN ${d['lrn'] ?? widget.student.lrn}',
-                        style: theme.textTheme.bodySmall?.copyWith(
-                          fontFeatures: const [FontFeature.tabularFigures()],
+                  ),
+                  const _SectionHeading(
+                    title: 'Academic',
+                    icon: Icons.menu_book_outlined,
+                  ),
+                  if (academicGrades == null)
+                    const ZEmpty(
+                      icon: Icons.grade_outlined,
+                      title: 'No grades encoded this term',
+                      subtitle: 'Scores appear once the subject teacher encodes them.',
+                    )
+                  else
+                    _AcademicCard(
+                      grades: academicGrades,
+                      summary: academicSummary,
+                    ),
+                  const _SectionHeading(
+                    title: 'Attendance',
+                    icon: Icons.fact_check_outlined,
+                  ),
+                  if (attendance == null)
+                    const ZEmpty(
+                      icon: Icons.fact_check_outlined,
+                      title: 'No attendance yet',
+                      subtitle: 'Records appear once takes are submitted for this term.',
+                    )
+                  else
+                    _AttendanceCard(summary: attendance),
+                  _SectionHeading(
+                    title: 'Anecdotal (${data.anecdotal.length})',
+                    icon: Icons.note_outlined,
+                  ),
+                  if (data.anecdotal.isEmpty)
+                    const ZEmpty(
+                      icon: Icons.note_outlined,
+                      title: 'No anecdotal records this term',
+                      subtitle: 'File one in Chat with Bama.',
+                    )
+                  else
+                    for (final rec in data.anecdotal)
+                      Padding(
+                        padding: const EdgeInsets.only(bottom: 8),
+                        child: _AnecdotalCard(record: rec),
+                      ),
+                  if (data.admCases.isNotEmpty) ...[
+                    _SectionHeading(
+                      title: 'ADM (${data.admCases.length})',
+                      icon: Icons.assignment_outlined,
+                    ),
+                    for (final c in data.admCases)
+                      Padding(
+                        padding: const EdgeInsets.only(bottom: 8),
+                        child: _AdmCard(caseData: c),
+                      ),
+                  ],
+                  _SectionHeading(
+                    title: 'Referrals (${referrals.length})',
+                    icon: Icons.send_outlined,
+                  ),
+                  if (referrals.isEmpty)
+                    const ZEmpty(
+                      icon: Icons.send_outlined,
+                      title: 'No referrals',
+                      subtitle:
+                          'File an anecdotal in Bama, then refer from there.',
+                    )
+                  else
+                    for (final r in referrals)
+                      Padding(
+                        padding: const EdgeInsets.only(bottom: 8),
+                        child: ZCard(
+                          child: Wrap(
+                            spacing: 12,
+                            runSpacing: 8,
+                            crossAxisAlignment: WrapCrossAlignment.center,
+                            children: [
+                              Text(
+                                _humanize(
+                                  (r as Map)['referredToRole']?.toString(),
+                                ),
+                                style: const TextStyle(
+                                  fontSize: 13,
+                                  fontWeight: FontWeight.w600,
+                                ),
+                              ),
+                              FlagChip(
+                                flag: (r['status']?.toString() ?? 'pending'),
+                              ),
+                            ],
+                          ),
                         ),
                       ),
-                    ),
-                  ],
-                ),
+                ],
               ),
-              const SizedBox(height: 12),
-              Text('Academic', style: theme.textTheme.titleSmall),
-              const SizedBox(height: 8),
-              if (academicGrades == null)
-                const ZEmpty(
-                  icon: Icons.grade_outlined,
-                  title: 'No grades encoded this term',
-                  subtitle:
-                      'Scores appear once the subject teacher encodes them.',
-                )
-              else
-                _AcademicCard(
-                  grades: academicGrades,
-                  summary: academicSummary,
-                  finalVersion: _finalVersion,
-                  onToggle: (v) => setState(() => _finalVersion = v == 'final'),
-                ),
-              const SizedBox(height: 12),
-              Text('Attendance', style: theme.textTheme.titleSmall),
-              const SizedBox(height: 8),
-              if (attendance == null)
-                const ZEmpty(
-                  icon: Icons.fact_check_outlined,
-                  title: 'No attendance yet',
-                  subtitle:
-                      'Records appear once takes are submitted for this term.',
-                )
-              else
-                _AttendanceCard(summary: attendance),
-              const SizedBox(height: 12),
-              Text(
-                'Anecdotal (${data.anecdotal.length})',
-                style: theme.textTheme.titleSmall,
-              ),
-              const SizedBox(height: 8),
-              if (data.anecdotal.isEmpty)
-                const ZEmpty(
-                  icon: Icons.note_outlined,
-                  title: 'No anecdotal records this term',
-                  subtitle: 'File one in Chat with Bama.',
-                )
-              else
-                for (final rec in data.anecdotal)
-                  Padding(
-                    padding: const EdgeInsets.only(bottom: 8),
-                    child: _AnecdotalCard(record: rec),
-                  ),
-              if (data.admCases.isNotEmpty) ...[
-                const SizedBox(height: 12),
-                Text(
-                  'ADM (${data.admCases.length})',
-                  style: theme.textTheme.titleSmall,
-                ),
-                const SizedBox(height: 8),
-                for (final c in data.admCases)
-                  Padding(
-                    padding: const EdgeInsets.only(bottom: 8),
-                    child: _AdmCard(caseData: c),
-                  ),
-              ],
-              const SizedBox(height: 12),
-              Text(
-                'Referrals (${referrals.length})',
-                style: theme.textTheme.titleSmall,
-              ),
-              const SizedBox(height: 8),
-              if (referrals.isEmpty)
-                const ZEmpty(
-                  icon: Icons.send_outlined,
-                  title: 'No referrals',
-                  subtitle: 'File an anecdotal in Bama, then refer from there.',
-                )
-              else
-                for (final r in referrals)
-                  Padding(
-                    padding: const EdgeInsets.only(bottom: 8),
-                    child: ZCard(
-                      child: Row(
-                        children: [
-                          Expanded(
-                            child: Text(
-                              '${(r as Map)['referredToRole'] ?? ''}',
-                              style: const TextStyle(
-                                fontSize: 13,
-                                fontWeight: FontWeight.w600,
-                              ),
-                            ),
-                          ),
-                          FlagChip(
-                            flag: (r['status']?.toString() ?? 'pending'),
-                          ),
-                        ],
-                      ),
-                    ),
-                  ),
-            ],
+            ),
           );
         },
       ),
@@ -480,55 +504,60 @@ class _StudentDetailState extends ConsumerState<StudentDetailPage> {
   }
 }
 
-class _AcademicCard extends StatelessWidget {
+class _AcademicCard extends StatefulWidget {
   final List<AcademicGrade> grades;
   final AcademicSummary? summary;
-  final bool finalVersion;
-  final ValueChanged<String> onToggle;
-  const _AcademicCard({
-    required this.grades,
-    required this.summary,
-    required this.finalVersion,
-    required this.onToggle,
-  });
+  const _AcademicCard({required this.grades, required this.summary});
+
+  @override
+  State<_AcademicCard> createState() => _AcademicCardState();
+}
+
+class _AcademicCardState extends State<_AcademicCard> {
+  bool finalVersion = true;
 
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
+    final grades = widget.grades;
+    final summary = widget.summary;
     final failing = grades.where((g) => g.remarks == 'Failed').toList();
     final gradedAvg = summary?.average;
     return ZCard(
-      padding: EdgeInsets.zero,
+      padding: const EdgeInsets.all(16),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Padding(
-            padding: const EdgeInsets.fromLTRB(12, 10, 12, 0),
-            child: Wrap(
-              crossAxisAlignment: WrapCrossAlignment.center,
-              spacing: 12,
-              runSpacing: 8,
-              children: [
-                Text(
-                  summary == null
-                      ? 'Across ${grades.length} subjects'
-                      : 'Avg ${gradedAvg?.toStringAsFixed(1) ?? '—'} across ${summary!.graded} graded',
-                  style: theme.textTheme.bodySmall?.copyWith(
-                    fontFeatures: const [FontFeature.tabularFigures()],
-                  ),
+          Text('Student grades', style: theme.textTheme.titleSmall),
+          const SizedBox(height: 12),
+          Wrap(
+            spacing: 8,
+            runSpacing: 8,
+            children: [
+              _DetailPill(
+                label: 'Gen avg ${gradedAvg?.toStringAsFixed(1) ?? '—'}',
+                color: theme.colorScheme.primary,
+              ),
+              _DetailPill(
+                label: summary == null
+                    ? '${grades.length} subjects'
+                    : '${summary.graded} of ${summary.subjects} graded',
+              ),
+              if (summary != null) ...[
+                _DetailPill(
+                  label: '${summary.passed} passed',
+                  color: zSuccessText(theme),
                 ),
-                SegTabs<String>(
-                  values: const ['final', 'computed'],
-                  labels: const ['Final', 'Computed'],
-                  selected: finalVersion ? 'final' : 'computed',
-                  onChanged: onToggle,
+                _DetailPill(
+                  label: '${summary.failed} failed',
+                  color: summary.failed > 0 ? zDangerText(theme) : null,
                 ),
               ],
-            ),
+            ],
           ),
           if (summary != null && failing.isNotEmpty)
             Padding(
-              padding: const EdgeInsets.fromLTRB(12, 6, 12, 0),
+              padding: const EdgeInsets.only(top: 12),
               child: Text(
                 '${failing.length} failing — ${failing.map((g) => g.subject).join(', ')} · Needs intervention',
                 style: theme.textTheme.bodySmall?.copyWith(
@@ -536,64 +565,189 @@ class _AcademicCard extends StatelessWidget {
                 ),
               ),
             ),
-          if (summary != null && failing.isEmpty && summary!.graded > 0)
+          if (summary != null && failing.isEmpty && summary.graded > 0)
             Padding(
-              padding: const EdgeInsets.fromLTRB(12, 6, 12, 0),
+              padding: const EdgeInsets.only(top: 12),
               child: Text(
-                'All ${summary!.graded} passed · On track',
+                'All ${summary.graded} passed · On track',
                 style: theme.textTheme.bodySmall?.copyWith(
                   color: zSuccessText(theme),
                 ),
               ),
             ),
-          const SizedBox(height: 6),
-          for (var i = 0; i < grades.length; i++) ...[
-            ListTile(
-              dense: true,
-              title: Text(
-                grades[i].subject,
-                style: const TextStyle(
-                  fontSize: 13,
-                  fontWeight: FontWeight.w600,
-                ),
-              ),
-              subtitle: Text(
-                _humanize(grades[i].lockStatus),
-                style: theme.textTheme.bodySmall,
-              ),
-              trailing: Column(
-                mainAxisSize: MainAxisSize.min,
-                crossAxisAlignment: CrossAxisAlignment.end,
+          const SizedBox(height: 16),
+          SegTabs<String>(
+            values: const ['final', 'computed'],
+            labels: const ['Final', 'Computed'],
+            selected: finalVersion ? 'final' : 'computed',
+            onChanged: (value) =>
+                setState(() => finalVersion = value == 'final'),
+          ),
+          const SizedBox(height: 16),
+          Text(
+            finalVersion
+                ? 'FINAL GRADE PER SUBJECT'
+                : 'COMPUTED AVERAGE PER SUBJECT',
+            style: theme.textTheme.labelSmall?.copyWith(
+              color: theme.colorScheme.onSurfaceVariant,
+              letterSpacing: 0.6,
+            ),
+          ),
+          const SizedBox(height: 10),
+          LayoutBuilder(
+            builder: (context, constraints) {
+              final minWidth = 280 * MediaQuery.textScalerOf(context).scale(1);
+              final columns = constraints.maxWidth >= minWidth * 2 + 12 ? 2 : 1;
+              final width =
+                  (constraints.maxWidth - (columns - 1) * 12) / columns;
+              return Wrap(
+                spacing: 12,
+                runSpacing: 12,
                 children: [
-                  Text(
-                    finalVersion
-                        ? (grades[i].transmutedGrade?.toStringAsFixed(0) ?? '—')
-                        : (grades[i].computedAverage?.toStringAsFixed(1) ??
-                              '—'),
-                    style: TextStyle(
-                      fontSize: 13,
-                      fontWeight: FontWeight.w700,
-                      fontFeatures: const [FontFeature.tabularFigures()],
-                      color: grades[i].remarks == 'Failed'
-                          ? zDangerText(theme)
-                          : null,
-                    ),
-                  ),
-                  if (grades[i].remarks != null)
-                    Text(
-                      grades[i].remarks!,
-                      style: TextStyle(
-                        fontSize: 11,
-                        color: grades[i].remarks == 'Failed'
-                            ? zDangerText(theme)
-                            : zSuccessText(theme),
+                  for (final grade in grades)
+                    SizedBox(
+                      width: width,
+                      child: _SubjectGradeCard(
+                        grade: grade,
+                        finalVersion: finalVersion,
                       ),
                     ),
                 ],
-              ),
+              );
+            },
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _SectionHeading extends StatelessWidget {
+  const _SectionHeading({required this.title, required this.icon});
+  final String title;
+  final IconData icon;
+
+  @override
+  Widget build(BuildContext context) => Padding(
+    padding: const EdgeInsets.only(top: 24, bottom: 12),
+    child: Row(
+      children: [
+        Icon(icon, size: 18, color: Theme.of(context).colorScheme.primary),
+        const SizedBox(width: 8),
+        Expanded(
+          child: Text(title, style: Theme.of(context).textTheme.titleSmall),
+        ),
+      ],
+    ),
+  );
+}
+
+class _DetailPill extends StatelessWidget {
+  const _DetailPill({required this.label, this.color});
+  final String label;
+  final Color? color;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final tone = color ?? theme.colorScheme.onSurfaceVariant;
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 6),
+      decoration: BoxDecoration(
+        color: tone.withValues(alpha: 0.08),
+        border: Border.all(color: tone.withValues(alpha: 0.25)),
+        borderRadius: BorderRadius.circular(ZTokens.radiusMd),
+      ),
+      child: Text(
+        label,
+        style: theme.textTheme.labelSmall?.copyWith(
+          color: tone,
+          fontFeatures: const [FontFeature.tabularFigures()],
+        ),
+      ),
+    );
+  }
+}
+
+class _SubjectGradeCard extends StatelessWidget {
+  const _SubjectGradeCard({required this.grade, required this.finalVersion});
+  final AcademicGrade grade;
+  final bool finalVersion;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final failed = grade.remarks == 'Failed';
+    final tone = failed ? zDangerText(theme) : theme.colorScheme.primary;
+    final value = finalVersion
+        ? grade.transmutedGrade?.toStringAsFixed(0)
+        : grade.computedAverage?.toStringAsFixed(1);
+    return Container(
+      decoration: BoxDecoration(
+        border: Border.all(color: theme.colorScheme.outlineVariant),
+        borderRadius: BorderRadius.circular(ZTokens.radiusLg),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          Padding(
+            padding: const EdgeInsets.all(12),
+            child: Row(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Icon(Icons.menu_book_outlined, size: 18, color: tone),
+                const SizedBox(width: 8),
+                Expanded(
+                  child: Text(
+                    grade.subject,
+                    style: theme.textTheme.bodyMedium?.copyWith(
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
+                ),
+              ],
             ),
-            if (i != grades.length - 1) const Divider(height: 1),
-          ],
+          ),
+          const Divider(height: 1),
+          Container(
+            color: theme.colorScheme.surfaceContainerLow,
+            padding: const EdgeInsets.all(12),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  finalVersion ? 'Final grade' : 'Computed average',
+                  style: theme.textTheme.bodySmall,
+                ),
+                const SizedBox(height: 6),
+                Text(
+                  value ?? '—',
+                  style: theme.textTheme.headlineMedium?.copyWith(
+                    color: value == null
+                        ? theme.colorScheme.onSurfaceVariant
+                        : tone,
+                    fontWeight: FontWeight.w700,
+                    fontFeatures: const [FontFeature.tabularFigures()],
+                  ),
+                ),
+                const SizedBox(height: 10),
+                Wrap(
+                  spacing: 6,
+                  runSpacing: 6,
+                  children: [
+                    if (grade.remarks != null)
+                      _DetailPill(
+                        label: grade.remarks!,
+                        color: failed
+                            ? zDangerText(theme)
+                            : zSuccessText(theme),
+                      ),
+                    _DetailPill(label: _humanize(grade.lockStatus)),
+                  ],
+                ),
+              ],
+            ),
+          ),
         ],
       ),
     );
@@ -615,15 +769,16 @@ class _AttendanceCard extends StatelessWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Row(
+          Wrap(
+            spacing: 12,
+            runSpacing: 8,
+            crossAxisAlignment: WrapCrossAlignment.center,
             children: [
-              Expanded(
-                child: Text(
-                  '$pct% present',
-                  style: theme.textTheme.headlineSmall?.copyWith(
-                    fontWeight: FontWeight.w700,
-                    fontFeatures: const [FontFeature.tabularFigures()],
-                  ),
+              Text(
+                '$pct% present',
+                style: theme.textTheme.headlineSmall?.copyWith(
+                  fontWeight: FontWeight.w700,
+                  fontFeatures: const [FontFeature.tabularFigures()],
                 ),
               ),
               if (summary.isRisk) const RiskBadge(level: 'High'),
@@ -646,12 +801,16 @@ class _AttendanceCard extends StatelessWidget {
               fontFeatures: const [FontFeature.tabularFigures()],
             ),
           ),
-          Text(
-            'P ${summary.present} · A ${summary.absent} · L ${summary.late} · E ${summary.excused}',
-            style: theme.textTheme.bodySmall?.copyWith(
-              color: theme.colorScheme.onSurfaceVariant,
-              fontFeatures: const [FontFeature.tabularFigures()],
-            ),
+          const SizedBox(height: 12),
+          Wrap(
+            spacing: 8,
+            runSpacing: 8,
+            children: [
+              _DetailPill(label: 'Present ${summary.present}'),
+              _DetailPill(label: 'Absent ${summary.absent}'),
+              _DetailPill(label: 'Late ${summary.late}'),
+              _DetailPill(label: 'Excused ${summary.excused}'),
+            ],
           ),
           if (weakest != null) ...[
             const SizedBox(height: 4),
@@ -666,22 +825,27 @@ class _AttendanceCard extends StatelessWidget {
             const SizedBox(height: 8),
             const Divider(height: 1),
             for (var i = 0; i < sorted.length; i++) ...[
-              ListTile(
-                dense: true,
-                contentPadding: EdgeInsets.zero,
-                title: Text(
-                  '${sorted[i].name} (${sorted[i].code})',
-                  style: const TextStyle(
-                    fontSize: 13,
-                    fontWeight: FontWeight.w600,
-                  ),
-                ),
-                trailing: Text(
-                  '${sorted[i].present}/${sorted[i].total} — ${(sorted[i].rate * 100).toStringAsFixed(1)}%',
-                  style: const TextStyle(
-                    fontSize: 12,
-                    fontFeatures: [FontFeature.tabularFigures()],
-                  ),
+              Padding(
+                padding: const EdgeInsets.symmetric(vertical: 12),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      '${sorted[i].name} (${sorted[i].code})',
+                      style: const TextStyle(
+                        fontSize: 13,
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                    const SizedBox(height: 6),
+                    Text(
+                      '${sorted[i].present}/${sorted[i].total} — ${(sorted[i].rate * 100).toStringAsFixed(1)}%',
+                      style: const TextStyle(
+                        fontSize: 12,
+                        fontFeatures: [FontFeature.tabularFigures()],
+                      ),
+                    ),
+                  ],
                 ),
               ),
               if (i != sorted.length - 1) const Divider(height: 1),
