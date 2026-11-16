@@ -2,6 +2,7 @@ import 'package:dio/dio.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:go_router/go_router.dart';
 import 'package:zentra_mobile/core/api_client.dart';
 import 'package:zentra_mobile/design/theme.dart';
 import 'package:zentra_mobile/features/adviser/student_detail_page.dart';
@@ -187,5 +188,99 @@ void main() {
     expect(find.text('No grades encoded this term'), findsOneWidget);
     expect(find.text('No attendance yet'), findsOneWidget);
     expect(tester.takeException(), isNull);
+  });
+
+  group('dedicated full-screen header', () {
+    final learner = AdvisoryStudent(
+      studentId: 'roster:learner-1',
+      name: 'Maria Alexandra Dela Cruz',
+      lrn: '123456789012',
+      hasAccount: false,
+    );
+
+    Future<GoRouter> mountRouter(
+      WidgetTester tester,
+      DetailApi api, {
+      required String initialLocation,
+    }) async {
+      tester.view.devicePixelRatio = 1;
+      tester.view.physicalSize = const Size(390, 900);
+      addTearDown(tester.view.resetDevicePixelRatio);
+      addTearDown(tester.view.resetPhysicalSize);
+      addTearDown(() => api.dio.close(force: true));
+      final router = GoRouter(
+        initialLocation: initialLocation,
+        routes: [
+          GoRoute(
+            path: '/adviser/advisory',
+            builder: (_, _) =>
+                const Scaffold(body: Center(child: Text('advisory list'))),
+          ),
+          GoRoute(
+            path: '/adviser/students/:id',
+            builder: (_, _) => StudentDetailPage(student: learner),
+          ),
+        ],
+      );
+      await tester.pumpWidget(
+        ProviderScope(
+          overrides: [apiClientProvider.overrideWithValue(api)],
+          child: MaterialApp.router(
+            theme: zWorkspaceTheme(),
+            routerConfig: router,
+          ),
+        ),
+      );
+      await tester.pumpAndSettle();
+      return router;
+    }
+
+    testWidgets('names the learner and never repeats the name', (tester) async {
+      await mount(tester, DetailApi());
+      expect(find.byType(AppBar), findsOneWidget);
+      expect(find.text('Maria Alexandra Dela Cruz'), findsOneWidget);
+      expect(find.text('LRN 123456789012'), findsOneWidget);
+      expect(tester.takeException(), isNull);
+    });
+
+    testWidgets('pushed detail shows a back arrow and returns to the list', (
+      tester,
+    ) async {
+      final router = await mountRouter(
+        tester,
+        DetailApi(),
+        initialLocation: '/adviser/advisory',
+      );
+      router.push('/adviser/students/roster%3Alearner-1');
+      await tester.pumpAndSettle();
+
+      expect(find.text('Maria Alexandra Dela Cruz'), findsOneWidget);
+      expect(find.byIcon(Icons.close), findsNothing);
+      final back = find.byIcon(Icons.arrow_back);
+      expect(back, findsOneWidget);
+
+      await tester.tap(back);
+      await tester.pumpAndSettle();
+      expect(find.text('advisory list'), findsOneWidget);
+    });
+
+    testWidgets('deep-linked detail closes back to the advisory list', (
+      tester,
+    ) async {
+      await mountRouter(
+        tester,
+        DetailApi(),
+        initialLocation: '/adviser/students/roster%3Alearner-1',
+      );
+      // Nothing to pop: the header offers an explicit way out instead of a
+      // back arrow that would do nothing.
+      final close = find.byIcon(Icons.close);
+      expect(close, findsOneWidget);
+      expect(find.byIcon(Icons.arrow_back), findsNothing);
+
+      await tester.tap(close);
+      await tester.pumpAndSettle();
+      expect(find.text('advisory list'), findsOneWidget);
+    });
   });
 }

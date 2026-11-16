@@ -8,6 +8,7 @@ import 'package:connectivity_plus/connectivity_plus.dart';
 import 'package:dio/dio.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:go_router/go_router.dart';
 
 import '../../core/api_client.dart';
 import '../../core/sync_outbox.dart';
@@ -102,10 +103,33 @@ class _State extends ConsumerState<GradebookPage> {
     }
   }
 
+  /// Deep links can open the class gradebook as the first route; send those
+  /// back to the class list instead of leaving a header with no way out.
+  void _close() {
+    final router = GoRouter.maybeOf(context);
+    if (router != null && router.canPop()) {
+      router.pop();
+    } else if (router != null) {
+      router.go('/workspace/classes');
+    } else {
+      Navigator.of(context).maybePop();
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
+    final canPop = ModalRoute.of(context)?.canPop ?? false;
     return Scaffold(
-      appBar: AppBar(title: Text(widget.title)),
+      appBar: AppBar(
+        leading: canPop
+            ? null
+            : IconButton(
+                icon: const Icon(Icons.close),
+                tooltip: 'Close',
+                onPressed: _close,
+              ),
+        title: Text(widget.title, maxLines: 1, overflow: TextOverflow.ellipsis),
+      ),
       body: _busy
           ? const LoadingView()
           : _error != null

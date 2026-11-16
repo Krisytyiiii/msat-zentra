@@ -127,14 +127,12 @@ final routerProvider = Provider<GoRouter>((ref) {
         builder: (context, state) {
           final extra = state.extra;
           // Pushed from AdvisoryListPage with the full object; fallback to
-          // deep-link stub (detail fetches live data itself).
-          if (extra is AdvisoryStudent) return AdviserShell(selected: AdviserRoute.advisory, child: StudentDetailPage(student: extra));
+          // deep-link stub (detail fetches live data itself). Detail screens
+          // sit outside the shell: one header, the learner's name.
+          if (extra is AdvisoryStudent) return StudentDetailPage(student: extra);
           final id = state.pathParameters['id'] ?? '';
-          return AdviserShell(
-            selected: AdviserRoute.advisory,
-            child: StudentDetailPage(
-              student: AdvisoryStudent(studentId: Uri.decodeComponent(id), name: 'Student', lrn: '—', hasAccount: true),
-            ),
+          return StudentDetailPage(
+            student: AdvisoryStudent(studentId: Uri.decodeComponent(id), name: 'Student', lrn: '—', hasAccount: true),
           );
         },
       ),
@@ -148,7 +146,8 @@ final routerProvider = Provider<GoRouter>((ref) {
         builder: (context, state) {
           final id = Uri.decodeComponent(state.pathParameters['id'] ?? '');
           final title = state.uri.queryParameters['title'] ?? 'Gradebook';
-          return WorkspaceShell(selected: WorkspaceRoute.classes, child: GradebookPage(classId: id, title: title));
+          // Detail screens sit outside the shell: one header (subject · section).
+          return GradebookPage(classId: id, title: title);
         },
       ),
       GoRoute(path: '/workspace/attendance', builder: (context, _) => const WorkspaceShell(selected: WorkspaceRoute.attendance, child: WorkspaceAttendancePage())),

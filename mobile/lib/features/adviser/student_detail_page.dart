@@ -6,6 +6,7 @@
 
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:go_router/go_router.dart';
 
 import '../../core/api_client.dart';
 import '../../design/tokens.dart';
@@ -244,6 +245,29 @@ class StudentDetailPage extends ConsumerStatefulWidget {
 }
 
 class _StudentDetailState extends ConsumerState<StudentDetailPage> {
+  late final Future<_DetailData> _future;
+
+  @override
+  void initState() {
+    super.initState();
+    // One request set per visit: rebuilding (grade toggle, text scale) must
+    // not refetch the five endpoints.
+    _future = _fetch(ref.read(apiClientProvider));
+  }
+
+  /// A deep link or notification can open this page as the first route, so
+  /// there is nothing to pop; offer a way back to the advisory list instead.
+  void _close() {
+    final router = GoRouter.maybeOf(context);
+    if (router != null && router.canPop()) {
+      router.pop();
+    } else if (router != null) {
+      router.go('/adviser/advisory');
+    } else {
+      Navigator.of(context).maybePop();
+    }
+  }
+
   Future<_DetailData> _fetch(ApiClient api) async {
     final id = Uri.encodeComponent(widget.student.studentId);
     final isRoster = widget.student.studentId.startsWith('roster:');
@@ -322,183 +346,176 @@ class _StudentDetailState extends ConsumerState<StudentDetailPage> {
 
   @override
   Widget build(BuildContext context) {
-    final api = ref.watch(apiClientProvider);
+    final canPop = ModalRoute.of(context)?.canPop ?? false;
+    return FutureBuilder(
+      future: _future,
+      builder: (context, snap) {
+        final data = snap.data;
+        final name = (data?.detail['name'] ?? widget.student.name).toString();
+        return Scaffold(
+          appBar: AppBar(
+            leading: canPop
+                ? null
+                : IconButton(
+                    icon: const Icon(Icons.close),
+                    tooltip: 'Close',
+                    onPressed: _close,
+                  ),
+            title: Text(name, maxLines: 1, overflow: TextOverflow.ellipsis),
+          ),
+          body: data == null
+              ? const Padding(
+                  padding: EdgeInsets.all(16),
+                  child: ZSkeletonList(count: 4),
+                )
+              : _loaded(context, data),
+        );
+      },
+    );
+  }
+
+  Widget _loaded(BuildContext context, _DetailData data) {
     final theme = Theme.of(context);
-    return Scaffold(
-      appBar: AppBar(title: const Text('Student details')),
-      body: FutureBuilder(
-        future: _fetch(api),
-        builder: (context, snap) {
-          if (!snap.hasData) {
-            return const Padding(
-              padding: EdgeInsets.all(16),
-              child: ZSkeletonList(count: 4),
-            );
-          }
-          final data = snap.data!;
-          final d = data.detail;
-          final referrals = (d['referrals'] as List? ?? []);
-          final attendance = data.attendance == null
-              ? null
-              : AttendanceSummary.fromAttendancePayload(data.attendance!);
-          final academicRaw = data.academic;
-          final academicGrades = academicRaw == null
-              ? null
-              : [
-                  for (final g in (academicRaw['grades'] as List? ?? []))
-                    AcademicGrade.fromJson(g as Map<String, dynamic>),
-                ];
-          final academicSummary =
-              academicRaw == null || academicRaw['summary'] == null
-              ? null
-              : AcademicSummary.fromJson(
-                  Map<String, dynamic>.from(academicRaw['summary'] as Map),
-                );
-          return Center(
-            child: ConstrainedBox(
-              constraints: const BoxConstraints(maxWidth: 900),
-              child: ListView(
-                padding: const EdgeInsets.fromLTRB(16, 12, 16, 24),
+    final d = data.detail;
+    final referrals = (d['referrals'] as List? ?? []);
+    final attendance = data.attendance == null
+        ? null
+        : AttendanceSummary.fromAttendancePayload(data.attendance!);
+    final academicRaw = data.academic;
+    final academicGrades = academicRaw == null
+        ? null
+        : [
+            for (final g in (academicRaw['grades'] as List? ?? []))
+              AcademicGrade.fromJson(g as Map<String, dynamic>),
+          ];
+    final academicSummary =
+        academicRaw == null || academicRaw['summary'] == null
+        ? null
+        : AcademicSummary.fromJson(
+            Map<String, dynamic>.from(academicRaw['summary'] as Map),
+          );
+    return Center(
+      child: ConstrainedBox(
+        constraints: const BoxConstraints(maxWidth: 900),
+        child: ListView(
+          padding: const EdgeInsets.fromLTRB(16, 12, 16, 24),
+          children: [
+            ZCard(
+              child: Row(
+                crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  ZCard(
-                    child: Row(
-                      crossAxisAlignment: CrossAxisAlignment.start,
+                  Icon(Icons.person_outline, color: theme.colorScheme.primary),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    // The header names the learner, so this card carries
+                    // only the identity facts worth keeping on screen.
+                    child: Wrap(
+                      spacing: 8,
+                      runSpacing: 8,
+                      crossAxisAlignment: WrapCrossAlignment.center,
                       children: [
-                        Icon(
-                          Icons.person_outline,
-                          color: theme.colorScheme.primary,
+                        _DetailPill(
+                          label: 'LRN ${d['lrn'] ?? widget.student.lrn}',
                         ),
-                        const SizedBox(width: 12),
-                        Expanded(
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              Text(
-                                (d['name'] ?? widget.student.name).toString(),
-                                style: theme.textTheme.titleMedium?.copyWith(
-                                  fontWeight: FontWeight.w700,
-                                ),
-                              ),
-                              const SizedBox(height: 10),
-                              Wrap(
-                                spacing: 8,
-                                runSpacing: 8,
-                                crossAxisAlignment: WrapCrossAlignment.center,
-                                children: [
-                                  _DetailPill(
-                                    label:
-                                        'LRN ${d['lrn'] ?? widget.student.lrn}',
-                                  ),
-                                  RiskBadge(
-                                    level:
-                                        (d['riskLevel'] ??
-                                                widget.student.riskLevel)
-                                            .toString(),
-                                  ),
-                                ],
-                              ),
-                            ],
-                          ),
+                        if ((d['section'] ?? '').toString().isNotEmpty)
+                          _DetailPill(label: d['section'].toString()),
+                        RiskBadge(
+                          level: (d['riskLevel'] ?? widget.student.riskLevel)
+                              .toString(),
                         ),
                       ],
                     ),
                   ),
-                  const _SectionHeading(
-                    title: 'Academic',
-                    icon: Icons.menu_book_outlined,
-                  ),
-                  if (academicGrades == null)
-                    const ZEmpty(
-                      icon: Icons.grade_outlined,
-                      title: 'No grades encoded this term',
-                      subtitle: 'Scores appear once the subject teacher encodes them.',
-                    )
-                  else
-                    _AcademicCard(
-                      grades: academicGrades,
-                      summary: academicSummary,
-                    ),
-                  const _SectionHeading(
-                    title: 'Attendance',
-                    icon: Icons.fact_check_outlined,
-                  ),
-                  if (attendance == null)
-                    const ZEmpty(
-                      icon: Icons.fact_check_outlined,
-                      title: 'No attendance yet',
-                      subtitle: 'Records appear once takes are submitted for this term.',
-                    )
-                  else
-                    _AttendanceCard(summary: attendance),
-                  _SectionHeading(
-                    title: 'Anecdotal (${data.anecdotal.length})',
-                    icon: Icons.note_outlined,
-                  ),
-                  if (data.anecdotal.isEmpty)
-                    const ZEmpty(
-                      icon: Icons.note_outlined,
-                      title: 'No anecdotal records this term',
-                      subtitle: 'File one in Chat with Bama.',
-                    )
-                  else
-                    for (final rec in data.anecdotal)
-                      Padding(
-                        padding: const EdgeInsets.only(bottom: 8),
-                        child: _AnecdotalCard(record: rec),
-                      ),
-                  if (data.admCases.isNotEmpty) ...[
-                    _SectionHeading(
-                      title: 'ADM (${data.admCases.length})',
-                      icon: Icons.assignment_outlined,
-                    ),
-                    for (final c in data.admCases)
-                      Padding(
-                        padding: const EdgeInsets.only(bottom: 8),
-                        child: _AdmCard(caseData: c),
-                      ),
-                  ],
-                  _SectionHeading(
-                    title: 'Referrals (${referrals.length})',
-                    icon: Icons.send_outlined,
-                  ),
-                  if (referrals.isEmpty)
-                    const ZEmpty(
-                      icon: Icons.send_outlined,
-                      title: 'No referrals',
-                      subtitle:
-                          'File an anecdotal in Bama, then refer from there.',
-                    )
-                  else
-                    for (final r in referrals)
-                      Padding(
-                        padding: const EdgeInsets.only(bottom: 8),
-                        child: ZCard(
-                          child: Wrap(
-                            spacing: 12,
-                            runSpacing: 8,
-                            crossAxisAlignment: WrapCrossAlignment.center,
-                            children: [
-                              Text(
-                                _humanize(
-                                  (r as Map)['referredToRole']?.toString(),
-                                ),
-                                style: const TextStyle(
-                                  fontSize: 13,
-                                  fontWeight: FontWeight.w600,
-                                ),
-                              ),
-                              FlagChip(
-                                flag: (r['status']?.toString() ?? 'pending'),
-                              ),
-                            ],
-                          ),
-                        ),
-                      ),
                 ],
               ),
             ),
-          );
-        },
+            const _SectionHeading(
+              title: 'Academic',
+              icon: Icons.menu_book_outlined,
+            ),
+            if (academicGrades == null)
+              const ZEmpty(
+                icon: Icons.grade_outlined,
+                title: 'No grades encoded this term',
+                subtitle:
+                    'Scores appear once the subject teacher encodes them.',
+              )
+            else
+              _AcademicCard(grades: academicGrades, summary: academicSummary),
+            const _SectionHeading(
+              title: 'Attendance',
+              icon: Icons.fact_check_outlined,
+            ),
+            if (attendance == null)
+              const ZEmpty(
+                icon: Icons.fact_check_outlined,
+                title: 'No attendance yet',
+                subtitle:
+                    'Records appear once takes are submitted for this term.',
+              )
+            else
+              _AttendanceCard(summary: attendance),
+            _SectionHeading(
+              title: 'Anecdotal (${data.anecdotal.length})',
+              icon: Icons.note_outlined,
+            ),
+            if (data.anecdotal.isEmpty)
+              const ZEmpty(
+                icon: Icons.note_outlined,
+                title: 'No anecdotal records this term',
+                subtitle: 'File one in Chat with Bama.',
+              )
+            else
+              for (final rec in data.anecdotal)
+                Padding(
+                  padding: const EdgeInsets.only(bottom: 8),
+                  child: _AnecdotalCard(record: rec),
+                ),
+            if (data.admCases.isNotEmpty) ...[
+              _SectionHeading(
+                title: 'ADM (${data.admCases.length})',
+                icon: Icons.assignment_outlined,
+              ),
+              for (final c in data.admCases)
+                Padding(
+                  padding: const EdgeInsets.only(bottom: 8),
+                  child: _AdmCard(caseData: c),
+                ),
+            ],
+            _SectionHeading(
+              title: 'Referrals (${referrals.length})',
+              icon: Icons.send_outlined,
+            ),
+            if (referrals.isEmpty)
+              const ZEmpty(
+                icon: Icons.send_outlined,
+                title: 'No referrals',
+                subtitle: 'File an anecdotal in Bama, then refer from there.',
+              )
+            else
+              for (final r in referrals)
+                Padding(
+                  padding: const EdgeInsets.only(bottom: 8),
+                  child: ZCard(
+                    child: Wrap(
+                      spacing: 12,
+                      runSpacing: 8,
+                      crossAxisAlignment: WrapCrossAlignment.center,
+                      children: [
+                        Text(
+                          _humanize((r as Map)['referredToRole']?.toString()),
+                          style: const TextStyle(
+                            fontSize: 13,
+                            fontWeight: FontWeight.w600,
+                          ),
+                        ),
+                        FlagChip(flag: (r['status']?.toString() ?? 'pending')),
+                      ],
+                    ),
+                  ),
+                ),
+          ],
+        ),
       ),
     );
   }

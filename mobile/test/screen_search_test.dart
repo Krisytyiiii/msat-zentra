@@ -114,11 +114,8 @@ void main() {
         screenSearchSpecFor('/workspace/overview').mode,
         ScreenSearchMode.pages,
       );
-      expect(
-        screenSearchSpecFor('/adviser/students/roster%3A1').title,
-        'Student details',
-      );
-      expect(screenSearchSpecFor('/workspace/classes/c-1').title, 'Gradebook');
+      // Detail screens (`/adviser/students/:id`, `/workspace/classes/:id`)
+      // render their own full-screen header, so the shell never titles them.
       expect(screenSearchSpecFor('/teacher/more').title, 'Settings');
     });
   });
@@ -222,10 +219,7 @@ void main() {
     expect(find.text('PAGES'), findsOneWidget);
     expect(find.text('Academic'), findsOneWidget);
     expect(find.text('Attendance'), findsNothing);
-    expect(
-      find.byKey(const ValueKey('screen-search-results')),
-      findsOneWidget,
-    );
+    expect(find.byKey(const ValueKey('screen-search-results')), findsOneWidget);
 
     await tester.enterText(field, 'zzz');
     await tester.pumpAndSettle();

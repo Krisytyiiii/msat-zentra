@@ -75,12 +75,8 @@ ScreenSearchSpec screenSearchSpecFor(String location, [Uri? uri]) {
     case '/teacher/more':
       return const ScreenSearchSpec.pages('Settings');
   }
-  if (location.startsWith('/adviser/students/')) {
-    return const ScreenSearchSpec.pages('Student details');
-  }
-  if (location.startsWith('/workspace/classes/')) {
-    return const ScreenSearchSpec.pages('Gradebook');
-  }
+  // Pushed detail screens render their own header outside the shell:
+  // `/adviser/students/:id` and `/workspace/classes/:id`.
   final segments = Uri.parse(location).pathSegments;
   final last = segments.isEmpty ? '' : segments.last;
   final title = last.isEmpty
