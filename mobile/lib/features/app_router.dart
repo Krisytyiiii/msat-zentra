@@ -34,6 +34,7 @@ import 'referral/referral_page.dart';
 import 'teacher/classes_page.dart';
 import 'teacher/gradebook_dashboard_page.dart';
 import 'teacher/gradebook_page.dart';
+import 'teacher/assessment_score_page.dart';
 import 'workspace/workspace_attendance_page.dart';
 import '../core/session.dart' show authProvider;
 
@@ -150,6 +151,13 @@ final routerProvider = Provider<GoRouter>((ref) {
       GoRoute(path: '/workspace/schedule', builder: (context, _) => const WorkspaceShell(selected: WorkspaceRoute.schedule, child: AdviserSchedulePage(advisory: false))),
       GoRoute(path: '/workspace/classes', builder: (context, _) => const WorkspaceShell(selected: WorkspaceRoute.classes, child: ClassesPage())),
       GoRoute(path: '/workspace/gradebook', builder: (context, _) => const WorkspaceShell(selected: WorkspaceRoute.gradebook, child: GradebookDashboardPage())),
+      GoRoute(
+        path: '/workspace/classes/:id/assessments/:assessmentId',
+        builder: (context, state) => AssessmentScorePage(
+          classId: state.pathParameters['id']!,
+          assessmentId: state.pathParameters['assessmentId']!,
+        ),
+      ),
       GoRoute(
         path: '/workspace/classes/:id',
         builder: (context, state) {

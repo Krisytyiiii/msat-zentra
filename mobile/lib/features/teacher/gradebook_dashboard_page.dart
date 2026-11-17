@@ -39,6 +39,7 @@ class GradebookDashboardPage extends ConsumerWidget {
           data: (s) => [for (final st in (s['standings'] as List? ?? [])) Map<String, dynamic>.from(st as Map)],
           orElse: () => const <Map<String, dynamic>>[],
         );
+        final secondaryReady = secondary.hasValue && !secondary.hasError;
         if (classes.isEmpty) {
           return ZEmptyPage(
             icon: Icons.grade_outlined,
@@ -59,20 +60,28 @@ class GradebookDashboardPage extends ConsumerWidget {
             padding: const EdgeInsets.fromLTRB(16, 12, 16, 80),
             children: [
               Text(
-                '${classes.length} subject${classes.length == 1 ? '' : 's'} for this term — open a workspace to encode scores.',
+                '${classes.length} subject${classes.length == 1 ? '' : 's'} this term. Open a Class Record to enter scores.',
                 style: Theme.of(context).textTheme.bodySmall,
               ),
               if (secondary.isLoading) ...[
                 const SizedBox(height: 8),
                 Text('Loading assessments…', style: Theme.of(context).textTheme.bodySmall),
               ],
+              if (secondary.hasError)
+                TextButton.icon(
+                  onPressed: () => ref.invalidate(overviewSecondaryProvider),
+                  icon: const Icon(Icons.refresh, size: 16),
+                  label: const Text('Assessment counts unavailable. Retry'),
+                ),
               const SizedBox(height: 12),
               for (final c in classes)
                 Padding(
                   padding: const EdgeInsets.only(bottom: 8),
                   child: _GradebookCard(
                     slot: c,
-                    assessmentCount: assessments.where((a) => a['subject'] == c.subject && a['section'] == c.section).length,
+                    assessmentCount: secondaryReady
+                        ? assessments.where((a) => a['subject'] == c.subject && a['section'] == c.section).length
+                        : null,
                     standing: standings.where((s) => s['subject'] == c.subject && s['section'] == c.section).toList().firstOrNull,
                     secondaryLoading: secondary.isLoading,
                   ),
@@ -87,7 +96,7 @@ class GradebookDashboardPage extends ConsumerWidget {
 
 class _GradebookCard extends StatelessWidget {
   final ClassSlot slot;
-  final int assessmentCount;
+  final int? assessmentCount;
   final Map<String, dynamic>? standing;
   final bool secondaryLoading;
   const _GradebookCard({required this.slot, required this.assessmentCount, required this.standing, required this.secondaryLoading});
@@ -95,9 +104,9 @@ class _GradebookCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
-    final assessed = (standing?['assessed'] ?? 0) as int;
+    final assessed = standing?['assessed'] as int?;
     final students = ((standing?['students'] ?? slot.studentCount)) as int;
-    final pct = students > 0 ? (assessed / students).clamp(0, 1) : 0.0;
+    final pct = assessed != null && students > 0 ? (assessed / students).clamp(0, 1).toDouble() : null;
     return ZCard(
       child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
         Row(children: [
@@ -110,11 +119,11 @@ class _GradebookCard extends StatelessWidget {
           const SizedBox(width: 12),
           Expanded(
             child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-              Text('Subject', style: theme.textTheme.labelSmall?.copyWith(color: theme.colorScheme.onSurfaceVariant)),
-              Text(slot.subject, maxLines: 1, overflow: TextOverflow.ellipsis, style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w600)),
+              Text(slot.subject, maxLines: 2, overflow: TextOverflow.ellipsis, style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w600)),
+              const SizedBox(height: 3),
+              Text('${slot.section} · ${slot.gradeLevel}', style: theme.textTheme.bodySmall),
             ]),
           ),
-          Text('${slot.section} · ${slot.gradeLevel}', style: theme.textTheme.bodySmall),
         ]),
         const SizedBox(height: 8),
         Row(children: [
@@ -123,15 +132,16 @@ class _GradebookCard extends StatelessWidget {
         ]),
         Row(children: [
           Expanded(child: Text(secondaryLoading ? 'Assessments…' : 'Assessments', style: theme.textTheme.bodySmall)),
-          Text('$assessmentCount', style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w600, fontFeatures: [FontFeature.tabularFigures()])),
+          Text(assessmentCount?.toString() ?? '—', style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w600, fontFeatures: [FontFeature.tabularFigures()])),
         ]),
         const SizedBox(height: 8),
-        ClipRRect(
-          borderRadius: BorderRadius.circular(999),
-          child: LinearProgressIndicator(value: pct.toDouble(), minHeight: 6),
-        ),
+        if (pct != null)
+          ClipRRect(
+            borderRadius: BorderRadius.circular(999),
+            child: LinearProgressIndicator(value: pct, minHeight: 6),
+          ),
         const SizedBox(height: 4),
-        Text('$assessed of $students assessed',
+        Text(assessed == null ? 'Assessment coverage unavailable' : '$assessed of $students assessed',
             style: theme.textTheme.bodySmall?.copyWith(fontFeatures: const [FontFeature.tabularFigures()])),
         const SizedBox(height: 8),
         Align(
@@ -140,7 +150,7 @@ class _GradebookCard extends StatelessWidget {
             onPressed: () => context.push(
               '/workspace/classes/${Uri.encodeComponent(slot.id)}?title=${Uri.encodeComponent('${slot.subject} · ${slot.section}')}',
             ),
-            child: const Text('Open workspace'),
+            child: const Text('Open Class Record'),
           ),
         ),
       ]),

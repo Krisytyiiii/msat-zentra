@@ -612,7 +612,7 @@ void main() {
         const GradebookPage(classId: 'class', title: 'Math'),
         dark: dark,
       );
-      await tester.tap(find.text('Quiz 1'));
+      await tester.tap(find.byKey(const ValueKey('score-quiz-student')));
       await tester.pumpAndSettle();
       expect(find.byType(TextFormField), findsOneWidget);
       expect(

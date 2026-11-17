@@ -1,33 +1,46 @@
-// Gradebook workspace — mirrors web ClassWorkspace:
-// GET /api/teacher/grading/classes/:assignmentId
-// -> {assignment, students[], components[{type,weight,assessments[]}]}
-// Actions: add component/preset, add/edit/delete assessment,
-// POST /api/grades/assessments/:id/score {studentId,rawScore}, lock finals.
-
-import 'package:connectivity_plus/connectivity_plus.dart';
-import 'package:dio/dio.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+import 'package:hive_flutter/hive_flutter.dart';
 
 import '../../core/api_client.dart';
+import '../../core/config.dart';
+import '../../core/session.dart';
 import '../../core/sync_outbox.dart';
 import '../../shared/models.dart';
-import '../../shared/widgets.dart';
 import '../../shared/user_messages.dart';
+import '../../shared/widgets.dart';
+import 'assessment_actions.dart';
+import 'class_record_grid.dart';
+import 'gradebook_data.dart';
+import 'gradebook_forms.dart';
+import 'assessment_score_page.dart';
 
 class GradebookPage extends ConsumerStatefulWidget {
+  const GradebookPage({super.key, required this.classId, required this.title});
   final String classId;
   final String title;
-  const GradebookPage({super.key, required this.classId, required this.title});
   @override
   ConsumerState<GradebookPage> createState() => _State();
 }
 
 class _State extends ConsumerState<GradebookPage> {
-  Map<String, dynamic>? _data;
+  ClassRecord? _data;
   bool _busy = true;
+  bool _refreshing = false;
+  bool _expanded = false;
+  bool _editorOpen = false;
   String? _error;
+  String? _refreshError;
+  String _query = '';
+  String _audience = 'regular';
+  int _generation = 0;
+  int _scopeVersion = 0;
+  final _search = TextEditingController();
+  final Map<String, double> _queued = {};
+  GradebookService get _service =>
+      GradebookService(ref.read(apiClientProvider));
 
   @override
   void initState() {
@@ -35,76 +48,155 @@ class _State extends ConsumerState<GradebookPage> {
     _load();
   }
 
-  Future<void> _load() async {
+  @override
+  void dispose() {
+    _search.dispose();
+    super.dispose();
+  }
+
+  @override
+  void didUpdateWidget(GradebookPage oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (oldWidget.classId != widget.classId) _resetScope();
+  }
+
+  void _resetScope() {
+    _scopeVersion++;
+    _expanded = false;
+    _queued.clear();
+    _search.clear();
+    _query = '';
+    _data = null;
+    _load();
+  }
+
+  Future<void> _load({bool silent = false}) async {
+    final generation = ++_generation;
     setState(() {
-      _busy = true;
+      _busy = !silent;
+      _refreshing = silent;
       _error = null;
+      _refreshError = null;
     });
     try {
-      final api = ref.read(apiClientProvider);
-      final res = await api.dio.get('/api/teacher/grading/classes/${Uri.encodeComponent(widget.classId)}');
+      final data = await _service.load(widget.classId);
+      if (!mounted || generation != _generation) return;
+      final queued = <String, double>{};
+      if (Hive.isBoxOpen(AppConfig.outboxBox)) {
+        for (final op in ref.read(outboxProvider).pending) {
+          final body = op['body'];
+          if (body is! Map || body['rawScore'] is! num) continue;
+          for (final assessment in data.assessments) {
+            final path =
+                '/api/grades/assessments/${Uri.encodeComponent(assessment.id)}/score';
+            if (op['path'] == path &&
+                data.learners.any((s) => s.id == body['studentId'])) {
+              queued['${assessment.id}|${body['studentId']}'] =
+                  (body['rawScore'] as num).toDouble();
+            }
+          }
+        }
+      }
       setState(() {
-        _data = Map<String, dynamic>.from(res.data as Map);
+        _data = data;
+        _queued
+          ..clear()
+          ..addAll(queued);
         _busy = false;
+        _refreshing = false;
       });
-    } on DioException catch (e) {
-      final msg = userMessage(e, fallback: 'We couldn’t load the gradebook. Please try again.');
+    } catch (error) {
+      if (!mounted || generation != _generation) return;
       setState(() {
         _busy = false;
-        _error = msg;
+        _refreshing = false;
+        if (silent && _data != null) {
+          _refreshError = userMessage(error);
+        } else {
+          _error = userMessage(error);
+        }
       });
     }
   }
 
-  Future<void> _saveScore({required String assessmentId, required String studentId, required double raw}) async {
-    final api = ref.read(apiClientProvider);
-    final body = {'studentId': studentId, 'rawScore': raw};
-    final conn = await Connectivity().checkConnectivity();
-    if (conn.contains(ConnectivityResult.none)) {
-      await ref.read(outboxProvider).enqueue(method: 'POST', path: '/api/grades/assessments/$assessmentId/score', body: body);
-      if (mounted) ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('You’re offline. The score is saved on this device and is waiting to be sent.')));
-      return;
-    }
-    try {
-      await api.dio.post('/api/grades/assessments/$assessmentId/score', data: body);
-      await _load();
-    } on DioException catch (e) {
-      final msg = userMessage(e, fallback: 'We couldn’t save this score. Please try again.');
-      if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(msg)));
+  void _checkScope(int version) {
+    if (!mounted || version != _scopeVersion) {
+      throw ApiException(
+        'SCOPE_CHANGED',
+        'The selected term changed. Close this form and try again.',
+      );
     }
   }
 
-  Future<void> _addAssessment(String componentType) async {
-    final title = TextEditingController();
-    final max = TextEditingController(text: '100');
-    final ok = await showDialog<bool>(
-      context: context,
-      builder: (_) => AlertDialog(
-        title: Text('New assessment ($componentType)'),
-        content: Column(mainAxisSize: MainAxisSize.min, children: [
-          TextField(controller: title, decoration: const InputDecoration(labelText: 'Title')),
-          TextField(controller: max, decoration: const InputDecoration(labelText: 'Max score'), keyboardType: TextInputType.number),
-        ]),
-        actions: [TextButton(onPressed: () => Navigator.pop(context, false), child: const Text('Cancel')), FilledButton(onPressed: () => Navigator.pop(context, true), child: const Text('Add'))],
-      ),
-    );
-    if (ok != true) return;
+  void _invalidate() {
+    ref.invalidate(overviewProvider);
+    ref.invalidate(overviewSecondaryProvider);
+  }
+
+  Future<void> _openAssessment(String id) async {
+    if (_editorOpen) return;
+    _editorOpen = true;
     try {
-      final api = ref.read(apiClientProvider);
-      await api.dio.post('/api/teacher/grading/classes/${Uri.encodeComponent(widget.classId)}/assessments', data: {
-        'componentType': componentType,
-        'title': title.text.trim(),
-        'maxScore': double.tryParse(max.text) ?? 100,
-      });
-      await _load();
-    } on DioException catch (e) {
-      final msg = userMessage(e, fallback: 'We couldn’t add the assessment. Please try again.');
-      if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(msg)));
+      final router = GoRouter.maybeOf(context);
+      if (router != null) {
+        await router.push<void>(
+          '/workspace/classes/${Uri.encodeComponent(widget.classId)}'
+          '/assessments/${Uri.encodeComponent(id)}',
+        );
+      } else {
+        await Navigator.of(context).push<void>(
+          MaterialPageRoute(
+            builder: (_) =>
+                AssessmentScorePage(classId: widget.classId, assessmentId: id),
+          ),
+        );
+      }
+      if (mounted) await _load(silent: true);
+    } finally {
+      _editorOpen = false;
     }
   }
 
-  /// Deep links can open the class gradebook as the first route; send those
-  /// back to the class list instead of leaving a header with no way out.
+  Future<void> _add(String type) async {
+    if (_editorOpen) return;
+    setState(() => _expanded = false);
+    _editorOpen = true;
+    final version = _scopeVersion;
+    final audience = _audience;
+    final classId = widget.classId;
+    String? createdId;
+    try {
+      await showModalBottomSheet<bool>(
+        context: context,
+        isScrollControlled: true,
+        isDismissible: false,
+        enableDrag: false,
+        builder: (_) => GradebookEditor.assessment(
+          type: type,
+          audience: audience,
+          onSave: (title, max) async {
+            _checkScope(version);
+            createdId = await _service.add(
+              classId,
+              type: type,
+              title: title,
+              maxScore: max,
+              audience: audience,
+            );
+            if (!mounted || version != _scopeVersion) return;
+            _invalidate();
+            await _load(silent: true);
+          },
+        ),
+      );
+    } finally {
+      _editorOpen = false;
+    }
+    if (mounted && version == _scopeVersion && createdId != null) {
+      await _openAssessment(createdId!);
+    }
+  }
+
   void _close() {
     final router = GoRouter.maybeOf(context);
     if (router != null && router.canPop()) {
@@ -118,92 +210,183 @@ class _State extends ConsumerState<GradebookPage> {
 
   @override
   Widget build(BuildContext context) {
+    ref.listen(termProvider, (previous, next) {
+      if (previous?.id != next?.id ||
+          previous?.schoolYearId != next?.schoolYearId) {
+        _resetScope();
+      }
+    });
+    final data = _data;
     final canPop = ModalRoute.of(context)?.canPop ?? false;
-    return Scaffold(
-      appBar: AppBar(
-        leading: canPop
-            ? null
-            : IconButton(
-                icon: const Icon(Icons.close),
-                tooltip: 'Close',
-                onPressed: _close,
+    return CallbackShortcuts(
+      bindings: {
+        const SingleActivator(LogicalKeyboardKey.escape): () {
+          if (_expanded) setState(() => _expanded = false);
+        },
+      },
+      child: PopScope(
+        canPop: !_expanded,
+        onPopInvokedWithResult: (didPop, _) {
+          if (!didPop && _expanded) setState(() => _expanded = false);
+        },
+        child: Scaffold(
+          appBar: AppBar(
+            leading: canPop
+                ? null
+                : IconButton(
+                    icon: const Icon(Icons.close),
+                    tooltip: 'Close',
+                    onPressed: _close,
+                  ),
+            title: Text(
+              widget.title,
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+            ),
+            actions: [
+              IconButton(
+                tooltip: 'Refresh class record',
+                onPressed: _busy || _refreshing
+                    ? null
+                    : () => _load(silent: true),
+                icon: const Icon(Icons.refresh),
               ),
-        title: Text(widget.title, maxLines: 1, overflow: TextOverflow.ellipsis),
+            ],
+          ),
+          body: Stack(
+            children: [
+              if (_busy)
+                const LoadingView()
+              else if (_error != null)
+                ErrorView(message: _error, onRetry: _load)
+              else if (data != null)
+                _record(data),
+              if (_expanded)
+                Positioned.fill(
+                  child: GestureDetector(
+                    behavior: HitTestBehavior.opaque,
+                    onTap: () => setState(() => _expanded = false),
+                    child: const ColoredBox(color: Colors.transparent),
+                  ),
+                ),
+              if (!_busy && _error == null && data != null)
+                Positioned(
+                  key: const ValueKey('assessment-dial-anchor'),
+                  right: 16,
+                  bottom: 88,
+                  child: AssessmentActions(
+                    expanded: _expanded,
+                    onToggle: () => setState(() => _expanded = !_expanded),
+                    onAdd: _add,
+                  ),
+                ),
+            ],
+          ),
+        ),
       ),
-      body: _busy
-          ? const LoadingView()
-          : _error != null
-              ? ErrorView(message: _error!, onRetry: _load)
-              : _GradebookBody(data: _data!, onScore: _saveScore, onAdd: _addAssessment),
     );
   }
-}
 
-class _GradebookBody extends StatelessWidget {
-  final Map<String, dynamic> data;
-  final Future<void> Function({required String assessmentId, required String studentId, required double raw}) onScore;
-  final Future<void> Function(String componentType) onAdd;
-  const _GradebookBody({required this.data, required this.onScore, required this.onAdd});
-
-  @override
-  Widget build(BuildContext context) {
-    final students = [for (final s in (data['students'] as List? ?? [])) GradebookStudent.fromJson(s as Map<String, dynamic>)];
-    final components = [for (final c in (data['components'] as List? ?? [])) GradeComponent.fromJson(c as Map<String, dynamic>)];
-    if (components.isEmpty) {
-      return ZEmptyPage(
-        icon: Icons.assignment_outlined,
-        title: 'No components yet',
-        subtitle: 'Add Written Work / Performance Task / Exam to start encoding.',
-        actionLabel: 'Add Written Work',
-        onAction: () => onAdd('WRITTEN_WORK'),
-      );
-    }
-    return ListView(
-      padding: const EdgeInsets.fromLTRB(16, 12, 16, 80),
+  Widget _record(ClassRecord data) {
+    final theme = Theme.of(context);
+    final learners = data.learners.where((learner) {
+      return learner.isAdm == (_audience == 'adm') &&
+          (_query.isEmpty ||
+              learner.name.toLowerCase().contains(_query) ||
+              learner.displayName.toLowerCase().contains(_query) ||
+              learner.lrn.contains(_query));
+    }).toList();
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
-        for (final comp in components) ...[
-          Row(children: [
-            Expanded(
-              child: Text('${comp.label} · ${comp.type} (${comp.weight}%)',
-                  style: Theme.of(context).textTheme.labelSmall?.copyWith(letterSpacing: 0.4, color: Theme.of(context).colorScheme.onSurfaceVariant)),
-            ),
-            IconButton(icon: const Icon(Icons.add, size: 18), tooltip: 'Add assessment', onPressed: () => onAdd(comp.type)),
-          ]),
-          for (final a in comp.assessments)
-            Padding(
-              padding: const EdgeInsets.only(bottom: 8),
-              child: ZCard(
-                padding: EdgeInsets.zero,
-                child: ExpansionTile(
-                  dense: true,
-                  title: Text(a.title, style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w600)),
-                  subtitle: Text('/${a.maxScore.toStringAsFixed(0)} · ${a.scores.length} scored',
-                      style: const TextStyle(fontSize: 12, fontFeatures: [FontFeature.tabularFigures()])),
-                  children: [
-                    for (final s in students)
-                      ListTile(
-                        dense: true,
-                        title: Text(s.name, style: const TextStyle(fontSize: 13)),
-                        trailing: SizedBox(
-                          width: 90,
-                          child: TextFormField(
-                            initialValue: (a.scores[s.id]?.toString() ?? ''),
-                            keyboardType: TextInputType.number,
-                            decoration: const InputDecoration(hintText: '—'),
-                            style: const TextStyle(fontFeatures: [FontFeature.tabularFigures()]),
-                            onFieldSubmitted: (v) {
-                              final raw = double.tryParse(v);
-                              if (raw != null) onScore(assessmentId: a.id, studentId: s.id, raw: raw);
-                            },
-                          ),
-                        ),
-                      ),
-                  ],
+        Padding(
+          padding: const EdgeInsets.fromLTRB(16, 12, 16, 8),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                'Class Record',
+                style: theme.textTheme.titleMedium?.copyWith(
+                  fontWeight: FontWeight.w600,
                 ),
               ),
-            ),
-          const SizedBox(height: 8),
-        ],
+              const SizedBox(height: 4),
+              Text(
+                '${data.learners.length} learners · '
+                '${data.assessments.where((a) => a.audience == _audience).length} assessments'
+                '${data.assignment['termNumber'] == null ? '' : ' · Term ${data.assignment['termNumber']}'}'
+                '${data.assignment['schoolYear'] == null ? '' : ' · ${data.assignment['schoolYear']}'}',
+                style: theme.textTheme.bodySmall,
+              ),
+              const SizedBox(height: 8),
+              SingleChildScrollView(
+                scrollDirection: Axis.horizontal,
+                child: SegTabs<String>(
+                  values: const ['regular', 'adm'],
+                  labels: const ['Regular', 'ADM'],
+                  selected: _audience,
+                  onChanged: (value) => setState(() {
+                    _audience = value;
+                    _expanded = false;
+                  }),
+                ),
+              ),
+              const SizedBox(height: 8),
+              TextField(
+                controller: _search,
+                decoration: const InputDecoration(
+                  hintText: 'Search learner or LRN',
+                  prefixIcon: Icon(Icons.search, size: 18),
+                ),
+                onChanged: (text) =>
+                    setState(() => _query = text.trim().toLowerCase()),
+              ),
+              if (data.assessments.isEmpty) ...[
+                const SizedBox(height: 6),
+                Text(
+                  'Use + to add Written Work, Performance Task or Exam.',
+                  style: theme.textTheme.bodySmall,
+                ),
+              ],
+              if (_queued.isNotEmpty) ...[
+                const SizedBox(height: 6),
+                Text(
+                  'Queued scores are waiting to sync; grades remain server-confirmed.',
+                  style: theme.textTheme.bodySmall,
+                ),
+              ],
+              if (_refreshError != null)
+                TextButton.icon(
+                  onPressed: () => _load(silent: true),
+                  icon: const Icon(Icons.refresh, size: 16),
+                  label: const Text('Could not refresh. Try again.'),
+                ),
+            ],
+          ),
+        ),
+        if (_refreshing) const LinearProgressIndicator(minHeight: 2),
+        Expanded(
+          child: learners.isEmpty
+              ? ZEmptyPage(
+                  icon: Icons.group_outlined,
+                  title: _query.isNotEmpty
+                      ? 'No learners match'
+                      : _audience == 'adm'
+                      ? 'No ADM learners'
+                      : 'No learners yet',
+                  subtitle: _query.isNotEmpty
+                      ? 'Try another name or LRN.'
+                      : 'Learners in this group will appear here.',
+                )
+              : ClassRecordGrid(
+                  key: ValueKey('${widget.classId}:$_scopeVersion:$_audience'),
+                  record: data,
+                  learners: learners,
+                  audience: _audience,
+                  queued: _queued,
+                  onOpen: (assessment) => _openAssessment(assessment.id),
+                ),
+        ),
       ],
     );
   }
