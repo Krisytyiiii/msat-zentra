@@ -1,349 +1,627 @@
-// Workspace attendance — shared by Advisers + Subject Teachers.
-// Web sequence verbatim (frontend/src/app/teacher/attendance/page.tsx):
-// my-slots pairs -> section-roster (ONLY student source) -> subjects offered
-// (resolvedSubjectId = pair subject ?? first canMark ?? first) -> prefill
-// advisory/attendance -> bulk submit with assignmentId + slot.
-// Never uses overview['advisorySection'] (that was the old adviser-only bug).
+import 'dart:async';
 
-import 'package:connectivity_plus/connectivity_plus.dart';
-import 'package:dio/dio.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:go_router/go_router.dart';
 import 'package:intl/intl.dart';
 
 import '../../core/api_client.dart';
-import '../../shared/user_messages.dart';
 import '../../core/session.dart';
-import '../../core/sync_outbox.dart';
+import '../../design/status_palette.dart';
+import '../../shared/models.dart';
 import '../../shared/widgets.dart';
+import '../adviser/schedule_timing.dart';
+import 'attendance_data.dart';
+import 'attendance_sheet_page.dart';
 
-class TeachingPair {
-  final String sectionId;
-  final String sectionName;
-  final String subjectId;
-  final String subjectName;
-  const TeachingPair({required this.sectionId, required this.sectionName, required this.subjectId, required this.subjectName});
-  String get key => '$sectionId|$subjectId';
-}
-
+/// Shared adviser/subject-teacher attendance entry, using web's teaching load.
 class WorkspaceAttendancePage extends ConsumerStatefulWidget {
   const WorkspaceAttendancePage({super.key});
   @override
-  ConsumerState<WorkspaceAttendancePage> createState() => _State();
+  ConsumerState<WorkspaceAttendancePage> createState() => _AttendanceState();
 }
 
-class _State extends ConsumerState<WorkspaceAttendancePage> {
-  DateTime _date = DateTime.now();
-  List<TeachingPair> _pairs = [];
-  TeachingPair? _pair;
-  List<Map<String, dynamic>> _offered = [];
-  String? _subjectId;
-  String? _assignmentId;
-  List<Map<String, dynamic>> _marks = [];
-  List<Map<String, dynamic>> _roster = [];
-  bool _busy = false;
+class _AttendanceState extends ConsumerState<WorkspaceAttendancePage>
+    with WidgetsBindingObserver {
+  AttendanceAccess? _access;
+  Term? _term;
+  late String _date;
+  bool _scheduledOnly = true;
+  String? _sectionId;
+  Object? _error;
   bool _loading = true;
-  String? _error;
+  bool _fetching = false;
+  bool _opening = false;
+  String _query = '';
+  int _generation = 0;
+  Timer? _timer;
+  final _search = TextEditingController();
 
   @override
   void initState() {
     super.initState();
-    _loadPairs();
+    _date = attendanceDay(philippineTime(ref.read(attendanceClockProvider)()));
+    WidgetsBinding.instance.addObserver(this);
+    _load();
+    _timer = Timer.periodic(const Duration(seconds: 20), (_) {
+      if (mounted &&
+          ModalRoute.of(context)?.isCurrent == true &&
+          WidgetsBinding.instance.lifecycleState == AppLifecycleState.resumed) {
+        _load(silent: true);
+      }
+    });
   }
 
-  Future<void> _loadPairs() async {
+  @override
+  void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
+    _timer?.cancel();
+    _search.dispose();
+    super.dispose();
+  }
+
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    if (state == AppLifecycleState.resumed &&
+        ModalRoute.of(context)?.isCurrent == true) {
+      _load(silent: true);
+    }
+  }
+
+  Future<void> _load({bool silent = false}) async {
+    if (_fetching) return;
+    _fetching = true;
+    final generation = ++_generation;
     setState(() {
-      _loading = true;
+      _loading = !silent || _access == null;
       _error = null;
     });
-    final api = ref.read(apiClientProvider);
     try {
-      // Rail source: my-slots committed pairs (same as web + My Classes).
-      final res = await api.dio.get('/api/teacher/schedule/my-slots');
-      final data = res.data;
-      final List raw = data is List ? data : (data is Map && data['slots'] is List ? data['slots'] as List : []);
-      final seen = <String, TeachingPair>{};
-      for (final s in raw) {
-        final m = s as Map<String, dynamic>;
-        final section = m['section'] as Map<String, dynamic>? ?? {};
-        final subject = m['subject'] as Map<String, dynamic>? ?? {};
-        final sectionId = (m['sectionId'] ?? section['id'])?.toString() ?? '';
-        final subjectId = (m['subjectId'] ?? subject['id'])?.toString() ?? '';
-        if (sectionId.isEmpty || subjectId.isEmpty) continue;
-        final key = '$sectionId|$subjectId';
-        seen.putIfAbsent(
-          key,
-          () => TeachingPair(
-            sectionId: sectionId,
-            sectionName: (section['name'] ?? m['sectionName'] ?? '').toString(),
-            subjectId: subjectId,
-            subjectName: (subject['name'] ?? m['subjectName'] ?? '').toString(),
-          ),
-        );
+      final selected = ref.read(termProvider);
+      if (selected == null) {
+        throw ApiException('NO_TERM', 'Select a school year and term first.');
       }
-      // Fallback: overview classes (assignment id or subjectId|sectionId).
-      if (seen.isEmpty) {
-        final overview = await ref.read(overviewProvider.future);
-        for (final c in (overview['classes'] as List? ?? [])) {
-          final m = c as Map<String, dynamic>;
-          final id = m['id'].toString();
-          String subjectId = '';
-          String sectionId = '';
-          if (id.contains('|')) {
-            final parts = id.split('|');
-            subjectId = parts[0];
-            sectionId = parts[1];
-          } else {
-            continue; // assignment uuids resolve server-side via gradebook, not here
-          }
-          final key = '$sectionId|$subjectId';
-          seen.putIfAbsent(
-            key,
-            () => TeachingPair(
-              sectionId: sectionId,
-              sectionName: (m['section'] ?? '').toString(),
-              subjectId: subjectId,
-              subjectName: (m['subject'] ?? '').toString(),
-            ),
+      final access = await AttendanceService(ref.read(apiClientProvider))
+          .access();
+      if (!mounted || generation != _generation) return;
+      Term? term;
+      if (access.linked && access.entered) {
+        // Resolve authoritative dates even when the saved term is an older
+        // cache entry without date metadata. Never invent a live term window.
+        final years = await ref.read(schoolYearsProvider.future);
+        if (!mounted || generation != _generation) return;
+        term = years
+            .expand((y) => y.terms)
+            .where(
+              (t) =>
+                  t.id == selected.id &&
+                  t.schoolYearId == selected.schoolYearId,
+            )
+            .firstOrNull;
+        if (term?.startDate == null ||
+            term?.endDate == null ||
+            term!.endDate!.isBefore(term.startDate!)) {
+          throw ApiException(
+            'NO_TERM',
+            'The selected term dates are unavailable.',
           );
         }
       }
-      final pairs = seen.values.toList()..sort((a, b) => '${a.sectionName}${a.subjectName}'.compareTo('${b.sectionName}${b.subjectName}'));
       setState(() {
-        _pairs = pairs;
-        _pair = pairs.isEmpty ? null : pairs.first;
+        _access = access;
+        _term = term;
+        if (!access.pairs.any((p) => p.sectionId == _sectionId)) {
+          _sectionId = null;
+        }
+        if (term != null) {
+          // Keep the selected day inside the authoritative term, e.g. when an
+          // older term is selected or the term rolled over while open.
+          final first = attendanceDay(term.startDate!);
+          final last = attendanceDay(term.endDate!);
+          if (_date.compareTo(first) < 0) _date = first;
+          if (_date.compareTo(last) > 0) _date = last;
+        }
         _loading = false;
       });
-      if (_pair != null) await _loadSection();
-    } on DioException catch (e) {
-      setState(() {
-        _loading = false;
-        _error = _msg(e, 'We couldn’t load your classes. Please try again.');
-      });
-    }
-  }
-
-  Future<void> _loadSection() async {
-    final pair = _pair;
-    final term = ref.read(termProvider);
-    if (pair == null || term == null) return;
-    final api = ref.read(apiClientProvider);
-    try {
-      final results = await Future.wait([
-        api.dio.get('/api/attendance/section-roster', queryParameters: {'sectionId': pair.sectionId}),
-        api.dio.get('/api/attendance/subjects', queryParameters: {'sectionId': pair.sectionId, 'termId': term.id}),
-      ]);
-      final rosterRes = results[0];
-      final offeredRes = results[1];
-      final students = [for (final s in ((rosterRes.data as Map)['students'] as List? ?? [])) Map<String, dynamic>.from(s as Map)];
-      final offered = [for (final s in ((offeredRes.data as Map)['subjects'] as List? ?? [])) Map<String, dynamic>.from(s as Map)];
-      // resolvedSubjectId = pair subject if offered, else first canMark, else first.
-      String? subjectId;
-      String? assignmentId;
-      final match = offered.where((o) => o['subjectId']?.toString() == pair.subjectId).toList();
-      if (match.isNotEmpty) {
-        subjectId = match.first['subjectId']?.toString();
-        assignmentId = match.first['assignmentId']?.toString();
-      } else {
-        final markable = offered.where((o) => o['canMark'] == true).toList();
-        final pick = markable.isNotEmpty ? markable.first : (offered.isNotEmpty ? offered.first : null);
-        subjectId = pick?['subjectId']?.toString();
-        assignmentId = pick?['assignmentId']?.toString();
+    } catch (error) {
+      if (mounted && generation == _generation) {
+        setState(() {
+          _error = error;
+          _loading = false;
+        });
       }
-      setState(() {
-        _roster = students;
-        _offered = offered;
-        _subjectId = subjectId;
-        _assignmentId = assignmentId;
-      });
-      await _prefill();
-    } on DioException catch (e) {
-      if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(_msg(e, 'We couldn’t load this section. Please try again.'))));
-    }
-  }
-
-  Future<void> _prefill() async {
-    final pair = _pair;
-    if (pair == null || _subjectId == null) {
-      setState(() => _marks = []);
-      return;
-    }
-    final api = ref.read(apiClientProvider);
-    final dateStr = DateFormat('yyyy-MM-dd').format(_date);
-    try {
-      final res = await api.dio.get('/api/teacher/advisory/attendance', queryParameters: {
-        'date': dateStr,
-        'sectionId': pair.sectionId,
-        'subjectId': _subjectId,
-        'slot': 1,
-      });
-      final marks = [for (final m in (res.data['marks'] as List? ?? [])) Map<String, dynamic>.from(m as Map)];
-      // Merge prefill statuses onto the section roster (roster is the ONLY
-      // student source; prefill only supplies statuses).
-      final byId = {for (final m in marks) m['studentId']?.toString(): m['status']};
-      setState(() {
-        _marks = [
-          for (final s in _roster)
-            {'studentId': s['studentId'], 'name': s['name'], 'status': (byId[s['studentId']?.toString()] ?? 'present').toString()},
-        ];
-      });
-    } catch (_) {
-      setState(() {
-        _marks = [for (final s in _roster) {'studentId': s['studentId'], 'name': s['name'], 'status': 'present'}];
-      });
-    }
-  }
-
-  Future<void> _submit() async {
-    final pair = _pair;
-    final term = ref.read(termProvider);
-    if (pair == null || _subjectId == null || term == null) return;
-    final body = <String, dynamic>{
-      'sectionId': pair.sectionId,
-      'termId': term.id,
-      'date': DateFormat('yyyy-MM-dd').format(_date),
-      'subjectId': _subjectId,
-      'slot': 1,
-      'records': [for (final m in _marks) {'studentId': m['studentId'], 'status': m['status'] ?? 'present'}],
-    };
-    final aid = _assignmentId;
-    if (aid != null) body['assignmentId'] = aid;
-    final conn = await Connectivity().checkConnectivity();
-    if (conn.contains(ConnectivityResult.none)) {
-      await ref.read(outboxProvider).enqueue(method: 'POST', path: '/api/attendance/bulk', body: body);
-      if (mounted) ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('You’re offline. Attendance is saved on this device and is waiting to be sent.')));
-      return;
-    }
-    setState(() => _busy = true);
-    try {
-      await ref.read(apiClientProvider).dio.post('/api/attendance/bulk', data: body);
-      if (mounted) ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Attendance submitted.')));
-    } on DioException catch (e) {
-      if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(_msg(e, 'We couldn’t submit attendance. Please try again.'))));
     } finally {
-      if (mounted) setState(() => _busy = false);
+      if (generation == _generation) _fetching = false;
     }
   }
 
-  String _msg(DioException e, String fallback) {
-    return userMessage(e, fallback: fallback);
+  Future<void> _open(AttendancePair pair) async {
+    if (_opening || _access == null || _error != null) return;
+    _opening = true;
+    final access = _access!;
+    final date = _date;
+    try {
+      await Navigator.of(context).push(
+        MaterialPageRoute<void>(
+          builder: (_) => AttendanceSheetPage(
+            pair: pair,
+            access: access,
+            initialDate: date,
+          ),
+        ),
+      );
+      if (mounted) await _load(silent: true);
+    } finally {
+      _opening = false;
+    }
   }
 
   @override
   Widget build(BuildContext context) {
-    if (_loading) return const Padding(padding: EdgeInsets.all(16), child: ZSkeletonList());
-    if (_error != null) {
-      return ErrorView(message: _error!, onRetry: _loadPairs);
+    ref.listen(termProvider, (_, _) {
+      _generation++;
+      _fetching = false;
+      _access = null;
+      _term = null;
+      _sectionId = null;
+      _scheduledOnly = true;
+      _query = '';
+      _search.clear();
+      _date = attendanceDay(
+        philippineTime(ref.read(attendanceClockProvider)()),
+      );
+      _load();
+    });
+    if (_loading) return const LoadingView();
+    if (_error != null) return ErrorView(message: _error!, onRetry: _load);
+    final access = _access!;
+    if (!access.linked || !access.entered) {
+      return Center(
+        child: Padding(
+          padding: const EdgeInsets.all(20),
+          child: ConstrainedBox(
+            constraints: const BoxConstraints(maxWidth: 440),
+            child: ZCard(
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  const Icon(Icons.key_outlined, size: 28),
+                  const SizedBox(height: 12),
+                  Text(
+                    access.linked
+                        ? 'Enter your school year'
+                        : 'Link your teacher code',
+                    style: Theme.of(context).textTheme.titleMedium,
+                  ),
+                  const SizedBox(height: 8),
+                  const Text(
+                    'Use your teacher code to open the same classes and attendance sheets as web.',
+                    textAlign: TextAlign.center,
+                  ),
+                  const SizedBox(height: 16),
+                  FilledButton(
+                    onPressed: () => context.go('/gate'),
+                    child: const Text('Open verification'),
+                  ),
+                ],
+              ),
+            ),
+          ),
+        ),
+      );
     }
-    if (_pairs.isEmpty) {
+    if (access.pairs.isEmpty) {
       return ZEmptyPage(
         icon: Icons.class_outlined,
         title: 'No teaching load',
-        subtitle: 'Link your timetable code or ask the Master Teacher. Classes from My Classes appear here.',
-        onRefresh: _loadPairs,
+        subtitle:
+            'Your submitted or approved timetable classes will appear here.',
+        onRefresh: _load,
       );
     }
-    String subjectName = '';
-    for (final o in _offered) {
-      if (o['subjectId']?.toString() == _subjectId) {
-        subjectName = o['name']?.toString() ?? '';
-        break;
-      }
-    }
-    return Column(children: [
-      Padding(
-        padding: const EdgeInsets.fromLTRB(16, 12, 16, 8),
-        child: Column(children: [
-          DropdownButtonFormField<String>(
-            initialValue: _pair?.key,
-            decoration: const InputDecoration(labelText: 'Class'),
-            items: [
-              for (final p in _pairs)
-                DropdownMenuItem(value: p.key, child: Text('${p.subjectName} · ${p.sectionName}', style: const TextStyle(fontSize: 13))),
-            ],
-            onChanged: (v) async {
-              final next = _pairs.where((p) => p.key == v).toList();
-              if (next.isEmpty) return;
-              setState(() {
-                _pair = next.first;
-                _subjectId = null;
-                _marks = [];
-              });
-              await _loadSection();
-            },
-          ),
-          const SizedBox(height: 8),
-          Row(children: [
-            Expanded(
-              child: DropdownButtonFormField<String>(
-                initialValue: _subjectId,
-                decoration: const InputDecoration(labelText: 'Subject'),
-                items: [for (final s in _offered) DropdownMenuItem(value: s['subjectId']?.toString(), child: Text(s['name']?.toString() ?? '', style: const TextStyle(fontSize: 13)))],
-                onChanged: (v) async {
-                  final match = _offered.where((o) => o['subjectId']?.toString() == v).toList();
-                  setState(() {
-                    _subjectId = v;
-                    _assignmentId = match.isEmpty ? null : match.first['assignmentId']?.toString();
-                  });
-                  await _prefill();
-                },
-              ),
-            ),
-            const SizedBox(width: 8),
-            OutlinedButton(
-              onPressed: () async {
-                final picked = await showDatePicker(context: context, firstDate: DateTime.now().subtract(const Duration(days: 60)), lastDate: DateTime.now(), initialDate: _date);
-                if (picked != null) {
-                  setState(() => _date = picked);
-                  _prefill();
-                }
-              },
-              child: Text(DateFormat('MMM d').format(_date), style: const TextStyle(fontFeatures: [FontFeature.tabularFigures()])),
-            ),
-          ]),
-          if (subjectName.isNotEmpty)
-            Padding(
-              padding: const EdgeInsets.only(top: 4),
-              child: Row(children: [Expanded(child: Text(subjectName, style: Theme.of(context).textTheme.bodySmall))]),
-            ),
-        ]),
-      ),
-      Expanded(
-        child: _marks.isEmpty
-            ? const ZEmptyPage(
-                icon: Icons.fact_check_outlined,
-                title: 'No roster',
-                subtitle: 'Pick a class with an elapsed meetup.',
-              )
-            : ListView.separated(
-                padding: const EdgeInsets.fromLTRB(16, 0, 16, 80),
-                itemCount: _marks.length,
-                separatorBuilder: (context, _) => const SizedBox(height: 8),
-                itemBuilder: (context, i) {
-                  final m = _marks[i];
-                  return ZCard(
-                    padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-                    child: LayoutBuilder(builder: (context, constraints) {
-                      final name = Text(m['name']?.toString() ?? m['studentId'].toString(), style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w600));
-                      final picker = SegTabs<String>(
-                        values: const ['present', 'absent', 'late', 'excused'],
-                        labels: const ['P', 'A', 'L', 'E'],
-                        selected: (m['status'] ?? 'present').toString(),
-                        onChanged: (v) => setState(() => _marks[i] = {...m, 'status': v}),
-                      );
-                      if (constraints.maxWidth < 400 || MediaQuery.textScalerOf(context).scale(13) > 16) {
-                        return Column(crossAxisAlignment: CrossAxisAlignment.start, children: [name, const SizedBox(height: 8), picker]);
-                      }
-                      return Row(children: [Expanded(child: name), const SizedBox(width: 12), picker]);
-                    }),
+    final now = ref.read(attendanceClockProvider)();
+    final sections = {for (final p in access.pairs) p.sectionId: p.sectionName};
+    final pairs =
+        access.pairs
+            .where(
+              (p) =>
+                  (!_scheduledOnly || _scheduled(p)) &&
+                  (_sectionId == null || p.sectionId == _sectionId) &&
+                  '${p.sectionName} ${p.subjectName}'.toLowerCase().contains(
+                    _query,
+                  ),
+            )
+            .toList()
+          ..sort((a, b) {
+            final rank = _cardState(
+              a,
+              access,
+              now,
+            ).rank.compareTo(_cardState(b, access, now).rank);
+            return rank != 0
+                ? rank
+                : '${a.subjectName} ${a.sectionName}'.compareTo(
+                    '${b.subjectName} ${b.sectionName}',
                   );
-                },
+          });
+    return Center(
+      child: ConstrainedBox(
+        constraints: const BoxConstraints(maxWidth: 760),
+        child: RefreshIndicator(
+          onRefresh: () => _load(silent: true),
+          child: CustomScrollView(
+            keyboardDismissBehavior: ScrollViewKeyboardDismissBehavior.onDrag,
+            physics: const AlwaysScrollableScrollPhysics(),
+            slivers: [
+              SliverToBoxAdapter(
+                child: Padding(
+                  padding: const EdgeInsets.fromLTRB(16, 12, 16, 12),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.stretch,
+                    children: [
+                      Text(
+                        'Take attendance',
+                        style: Theme.of(context).textTheme.titleMedium,
+                      ),
+                      const SizedBox(height: 4),
+                      const Text(
+                        'Pick a date and class, then review and save your marks.',
+                      ),
+                      const SizedBox(height: 12),
+                      _dateControls(),
+                      const SizedBox(height: 8),
+                      Wrap(
+                        spacing: 8,
+                        runSpacing: 6,
+                        children: [
+                          ChoiceChip(
+                            key: const ValueKey('attendance-scheduled'),
+                            label: const Text('Scheduled that day'),
+                            selected: _scheduledOnly,
+                            onSelected: (_) =>
+                                setState(() => _scheduledOnly = true),
+                          ),
+                          ChoiceChip(
+                            key: const ValueKey('attendance-all'),
+                            label: const Text('All classes'),
+                            selected: !_scheduledOnly,
+                            onSelected: (_) =>
+                                setState(() => _scheduledOnly = false),
+                          ),
+                        ],
+                      ),
+                      const SizedBox(height: 12),
+                      DropdownButtonFormField<String>(
+                        key: ValueKey(
+                          'attendance-section-${_sectionId ?? 'all'}',
+                        ),
+                        initialValue: _sectionId ?? '',
+                        isExpanded: true,
+                        decoration: const InputDecoration(labelText: 'Section'),
+                        items: [
+                          const DropdownMenuItem(
+                            value: '',
+                            child: Text('All sections'),
+                          ),
+                          for (final section in sections.entries)
+                            DropdownMenuItem(
+                              value: section.key,
+                              child: Text(
+                                section.value,
+                                maxLines: 1,
+                                overflow: TextOverflow.ellipsis,
+                              ),
+                            ),
+                        ],
+                        onChanged: (value) => setState(
+                          () => _sectionId = value == '' ? null : value,
+                        ),
+                      ),
+                      const SizedBox(height: 10),
+                      TextField(
+                        controller: _search,
+                        decoration: const InputDecoration(
+                          prefixIcon: Icon(Icons.search),
+                          hintText: 'Search subject or section',
+                        ),
+                        onChanged: (v) =>
+                            setState(() => _query = v.trim().toLowerCase()),
+                      ),
+                      const SizedBox(height: 8),
+                      Text(
+                        '${pairs.length} ${pairs.length == 1 ? 'class' : 'classes'} · ${DateFormat('EEE, MMM d').format(DateTime.parse(_date))}',
+                        style: Theme.of(context).textTheme.bodySmall,
+                      ),
+                    ],
+                  ),
+                ),
               ),
+              if (pairs.isEmpty)
+                SliverToBoxAdapter(
+                  child: Padding(
+                    padding: const EdgeInsets.fromLTRB(16, 8, 16, 24),
+                    child: ZCard(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            _query.isNotEmpty || _sectionId != null
+                                ? 'No classes match these filters'
+                                : 'No scheduled classes on this date',
+                            style: const TextStyle(fontWeight: FontWeight.w600),
+                          ),
+                          const SizedBox(height: 6),
+                          const Text(
+                            'Choose another date, or browse all your classes.',
+                          ),
+                          const SizedBox(height: 8),
+                          TextButton(
+                            onPressed: () => setState(() {
+                              _scheduledOnly = false;
+                              _sectionId = null;
+                              _query = '';
+                              _search.clear();
+                            }),
+                            child: const Text('Show all classes'),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
+                )
+              else
+                SliverPadding(
+                  padding: const EdgeInsets.fromLTRB(16, 0, 16, 24),
+                  sliver: SliverList.separated(
+                    itemCount: pairs.length,
+                    separatorBuilder: (_, _) => const SizedBox(height: 10),
+                    itemBuilder: (_, i) {
+                      final pair = pairs[i];
+                      final state = _cardState(pair, access, now);
+                      return ZCard(
+                        key: ValueKey('attendance-class-${pair.key}'),
+                        onTap: () => _open(pair),
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              pair.subjectName,
+                              style: const TextStyle(
+                                fontWeight: FontWeight.w600,
+                              ),
+                            ),
+                            Text(
+                              pair.sectionName,
+                              style: Theme.of(context).textTheme.bodySmall,
+                            ),
+                            const SizedBox(height: 4),
+                            Text(
+                              _scheduleLabel(pair, access),
+                              style: Theme.of(context).textTheme.bodySmall,
+                              maxLines: 2,
+                              overflow: TextOverflow.ellipsis,
+                            ),
+                            const SizedBox(height: 8),
+                            Wrap(
+                              spacing: 6,
+                              runSpacing: 6,
+                              children: [
+                                ZStatusPill(
+                                  text: state.label,
+                                  tone: state.tone,
+                                ),
+                                ZStatusPill(
+                                  text: '${pair.slots.length} weekly meetups',
+                                ),
+                              ],
+                            ),
+                            const SizedBox(height: 6),
+                            Text(
+                              state.message,
+                              style: Theme.of(context).textTheme.bodySmall,
+                            ),
+                            const SizedBox(height: 8),
+                            const Row(
+                              mainAxisAlignment: MainAxisAlignment.end,
+                              children: [
+                                Flexible(child: Text('Open attendance sheet')),
+                                Icon(Icons.chevron_right, size: 18),
+                              ],
+                            ),
+                          ],
+                        ),
+                      );
+                    },
+                  ),
+                ),
+            ],
+          ),
+        ),
       ),
-      Padding(
-        padding: const EdgeInsets.all(16),
-        child: SizedBox(width: double.infinity, child: FilledButton(onPressed: _busy ? null : _submit, child: Text(_busy ? 'Submitting…' : 'Submit attendance'))),
-      ),
-    ]);
+    );
+  }
+
+  String _scheduleLabel(AttendancePair pair, AttendanceAccess access) {
+    const days = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
+    String clock(int m) =>
+        '${(m ~/ 60).toString().padLeft(2, '0')}:${(m % 60).toString().padLeft(2, '0')}';
+    final selected =
+        pair.slots.where((s) => s.day == DateTime.parse(_date).weekday).toList()
+          ..sort((a, b) => a.period.compareTo(b.period));
+    if (!_scheduled(pair)) return 'No meetup on the selected date.';
+    return selected
+            .take(3)
+            .map((s) {
+              final day = s.day >= 1 && s.day <= 7
+                  ? days[s.day - 1]
+                  : 'Day ${s.day}';
+              final periods = access.config?.periods;
+              if (periods == null ||
+                  s.period < 0 ||
+                  s.period >= periods.length) {
+                return '$day · Period ${s.period + 1}';
+              }
+              final t = periods[s.period];
+              return '$day ${clock(t.start)}–${clock(t.end)}';
+            })
+            .join(' · ') +
+        (selected.length > 3 ? ' · +${selected.length - 3} more' : '');
+  }
+
+  bool _scheduled(AttendancePair pair) =>
+      _term?.startDate != null &&
+      _term?.endDate != null &&
+      _date.compareTo(attendanceDay(_term!.startDate!)) >= 0 &&
+      _date.compareTo(attendanceDay(_term!.endDate!)) <= 0 &&
+      DateTime.parse(_date).weekday <= 5 &&
+      pair.slots.any((s) => s.day == DateTime.parse(_date).weekday);
+
+  ({String label, String message, StatusTone tone, int rank}) _cardState(
+    AttendancePair pair,
+    AttendanceAccess access,
+    DateTime now,
+  ) {
+    final gate = attendanceGate(
+      pair,
+      access.config,
+      _date,
+      attendanceDay(_term!.startDate!),
+      attendanceDay(_term!.endDate!),
+      now,
+    );
+    final today = attendanceDay(philippineTime(now));
+    if (!access.canMark(pair) ||
+        !_scheduled(pair) ||
+        (_date.compareTo(today) <= 0 &&
+            gate.locked &&
+            !gate.message.startsWith('Opens at'))) {
+      return (
+        label: 'Read-only',
+        message: !access.canMark(pair)
+            ? 'Verify attendance access to mark this class.'
+            : gate.message,
+        tone: StatusTone.neutral,
+        rank: 30000,
+      );
+    }
+    final periods =
+        pair.slots
+            .where(
+              (s) =>
+                  s.day == DateTime.parse(_date).weekday &&
+                  s.period >= 0 &&
+                  s.period < (access.config?.periods.length ?? 0),
+            )
+            .toList()
+          ..sort((a, b) => a.period.compareTo(b.period));
+    final start = periods.isEmpty
+        ? 0
+        : access.config!.periods[periods.first.period].start;
+    if (_date.compareTo(today) > 0 || gate.message.startsWith('Opens at')) {
+      return (
+        label: 'Upcoming',
+        message: gate.message,
+        tone: StatusTone.neutral,
+        rank: start,
+      );
+    }
+    if (gate.message.startsWith('Live')) {
+      return (
+        label: 'Live',
+        message: gate.message,
+        tone: StatusTone.green,
+        rank: -1,
+      );
+    }
+    return (
+      label: 'Ended',
+      message: gate.message,
+      tone: StatusTone.amber,
+      rank: 10000 + start,
+    );
+  }
+
+  Widget _dateControls() {
+    final first = attendanceDay(_term!.startDate!);
+    final last = attendanceDay(_term!.endDate!);
+    final today = attendanceDay(
+      philippineTime(ref.read(attendanceClockProvider)()),
+    );
+    return Wrap(
+      spacing: 6,
+      runSpacing: 6,
+      crossAxisAlignment: WrapCrossAlignment.center,
+      children: [
+        IconButton(
+          tooltip: 'Previous day',
+          onPressed: _date.compareTo(first) <= 0
+              ? null
+              : () => setState(() {
+                  _date = _date.compareTo(last) > 0
+                      ? last
+                      : attendanceDay(
+                          DateTime.parse(_date)
+                              .subtract(const Duration(days: 1)),
+                        );
+                }),
+          icon: const Icon(Icons.chevron_left),
+        ),
+        OutlinedButton.icon(
+          key: const ValueKey('attendance-class-date'),
+          onPressed: _chooseDate,
+          icon: const Icon(Icons.calendar_today_outlined, size: 16),
+          label: Text(
+            DateFormat('EEE, MMM d, yyyy').format(DateTime.parse(_date)),
+          ),
+        ),
+        IconButton(
+          tooltip: 'Next day',
+          onPressed: _date.compareTo(last) >= 0
+              ? null
+              : () => setState(() {
+                  _date = _date.compareTo(first) < 0
+                      ? first
+                      : attendanceDay(
+                          DateTime.parse(_date).add(const Duration(days: 1)),
+                        );
+                }),
+          icon: const Icon(Icons.chevron_right),
+        ),
+        TextButton(
+          onPressed:
+              _date == today ||
+                  today.compareTo(first) < 0 ||
+                  today.compareTo(last) > 0
+              ? null
+              : () => setState(() => _date = today),
+          child: const Text('Today'),
+        ),
+      ],
+    );
+  }
+
+  Future<void> _chooseDate() async {
+    final term = _term!;
+    final scope = ref.read(termProvider);
+    final first = DateTime.parse(attendanceDay(term.startDate!));
+    final last = DateTime.parse(attendanceDay(term.endDate!));
+    var initial = DateTime.parse(_date);
+    if (initial.isBefore(first)) initial = first;
+    if (initial.isAfter(last)) initial = last;
+    final picked = await showDatePicker(
+      context: context,
+      firstDate: first,
+      lastDate: last,
+      initialDate: initial,
+      helpText: 'Choose attendance date',
+    );
+    if (!mounted) return;
+    final current = ref.read(termProvider);
+    if (picked == null ||
+        current?.id != scope?.id ||
+        current?.schoolYearId != scope?.schoolYearId) {
+      return;
+    }
+    setState(() => _date = attendanceDay(picked));
   }
 }

@@ -22,6 +22,7 @@ import 'package:zentra_mobile/features/settings/settings_data.dart';
 import 'package:zentra_mobile/features/settings/settings_page.dart';
 import 'package:zentra_mobile/features/teacher/gradebook_page.dart';
 import 'package:zentra_mobile/features/workspace/workspace_attendance_page.dart';
+import 'package:zentra_mobile/features/workspace/attendance_data.dart';
 import 'package:zentra_mobile/shared/models.dart';
 import 'package:zentra_mobile/shared/spinner.dart';
 import 'package:zentra_mobile/shared/widgets.dart';
@@ -79,21 +80,40 @@ class TestProfileApi extends ApiClient {
             secondary = (options.data as Map)['secondaryColor'] as String?;
           }
           final extra = switch (options.path) {
+            '/api/teacher/schedule/teachers/me' => {
+              'teacherName': {'id': 'teacher', 'name': 'Teacher'},
+              'termGrant': {'attendanceVerified': true},
+            },
+            '/api/teacher/schedule/config' => {
+              'config': {
+                'startTime': '07:00', 'periodMins': 60,
+                'lunch': {'afterPeriod': 4, 'mins': 60},
+                'morningRecess': {'afterPeriod': 2, 'mins': 15, 'enabled': false},
+                'afternoonRecess': {'afterPeriod': 6, 'mins': 15, 'enabled': false},
+              },
+            },
+            '/api/teacher/advisory/sections' => {'advisorySections': []},
             '/api/teacher/schedule/my-slots' => {
               'slots': [
                 {
+                  'day': 2, 'period': 0, 'status': 'APPROVED',
                   'section': {'id': 'section', 'name': 'Arts'},
                   'subject': {'id': 'subject', 'name': 'Math'},
                 },
               ],
             },
             '/api/attendance/section-roster' => {
+              'sectionId': 'section', 'termId': 'term',
               'students': [
                 {
                   'studentId': 'student',
                   'name': 'A learner with a longer name',
                 },
               ],
+            },
+            '/api/attendance/subject-days' => {
+              'termId': 'term', 'termStart': '2026-11-01',
+              'termEnd': '2026-12-31', 'records': [],
             },
             '/api/attendance/subjects' => {
               'subjects': [
@@ -207,6 +227,14 @@ Future<void> mountDesignPage(
         apiClientProvider.overrideWithValue(client),
         authProvider.overrideWith((ref) => TestPaletteAuth(client)),
         termProvider.overrideWith((ref) => TestDesignTerm()),
+        schoolYearsProvider.overrideWith((_) async => [
+          SchoolYear(id: 'year', name: '2026–2027', isActive: true, terms: [
+            Term(id: 'term', schoolYearId: 'year', schoolYearName: '2026–2027',
+              termNumber: 2, startDate: DateTime.utc(2026, 11, 1),
+              endDate: DateTime.utc(2026, 12, 31)),
+          ]),
+        ]),
+        attendanceClockProvider.overrideWithValue(() => DateTime.utc(2026, 11, 16, 23, 30)),
         themeSettingsProvider.overrideWith(
           (ref) => settings ?? TestPaletteSettings(),
         ),
@@ -244,6 +272,7 @@ void main() {
     Hive.init(temp.path);
     await openThemeSettingsBox();
     await Hive.openBox(AppConfig.termScopeBox);
+    await Hive.openBox(AppConfig.cacheBox, bytes: Uint8List(0));
   });
   setUp(() async => Hive.box('zentra.settings').clear());
   tearDownAll(() async {
@@ -593,13 +622,18 @@ void main() {
         const WorkspaceAttendancePage(),
         dark: dark,
       );
-      expect(find.text('A learner with a longer name'), findsOneWidget);
-      expect(find.widgetWithText(TextButton, 'P'), findsOneWidget);
+      await tester.ensureVisible(find.text('Open attendance sheet'));
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('Open attendance sheet'));
+      await tester.pumpAndSettle();
+      expect(find.text('name, A learner with a longer'), findsOneWidget);
+      final present = find.byKey(const ValueKey('attendance-student-present'));
+      expect(present, findsOneWidget);
       expect(
-        tester.getSize(find.widgetWithText(TextButton, 'P')).height,
+        tester.getSize(present).height,
         greaterThanOrEqualTo(48),
       );
-      await tester.tap(find.widgetWithText(TextButton, 'A'));
+      await tester.tap(find.byKey(const ValueKey('attendance-student-absent')));
       await tester.pump();
       expect(tester.takeException(), isNull);
     });
