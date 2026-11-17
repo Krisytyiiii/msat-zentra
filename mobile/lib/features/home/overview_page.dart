@@ -9,12 +9,18 @@ import 'package:intl/intl.dart';
 import '../../core/session.dart';
 import '../../design/screen_search.dart';
 import '../../design/theme.dart';
+import '../../design/tokens.dart';
+import '../../shared/models.dart' show Term;
 import '../../shared/user_messages.dart';
 import '../../shared/widgets.dart';
 import '../adviser/adviser_schedule_page.dart';
 import 'overview_data.dart';
 
 /// A compact staff landing page, not a second reporting dashboard.
+///
+/// Presentation follows the web teacher overview: amber figures and board
+/// icons, monochrome ink for copy, bordered boards with a title row and a
+/// counts/actions slot. Data sources are unchanged.
 class OverviewPage extends ConsumerStatefulWidget {
   const OverviewPage({super.key});
   @override
@@ -96,6 +102,11 @@ class _OverviewPageState extends ConsumerState<OverviewPage>
     final theme = Theme.of(context);
     // The staff shell already names this screen in the header.
     final inShell = ScreenSearchScope.maybeOf(context) != null;
+    final pending = attention.asData?.value.pendingAssessments;
+    final support = summary.asData?.value.isAdviser == true
+        ? summary.asData?.value.supportCount
+        : null;
+    final attentionCount = (pending ?? 0) + (support ?? 0);
     return RefreshIndicator(
       onRefresh: _refresh,
       child: SingleChildScrollView(
@@ -109,46 +120,20 @@ class _OverviewPageState extends ConsumerState<OverviewPage>
               children: [
                 if (!inShell) ...[
                   Text('Overview', style: theme.textTheme.headlineSmall),
-                  const SizedBox(height: 6),
+                  const SizedBox(height: 10),
                 ],
-                summary.when(
-                  data: (data) => Text(
-                    data.teacherName.trim().isEmpty
-                        ? 'Welcome back.'
-                        : 'Welcome back, ${data.teacherName}.',
-                    style: theme.textTheme.bodyMedium,
-                  ),
-                  loading: () => const Text('Welcome back.'),
-                  error: (error, _) => _InlineError(
-                    error: error,
-                    retry: () => ref.invalidate(overviewProvider),
-                  ),
-                ),
-                const SizedBox(height: 6),
-                Text(
-                  [
-                    if (term != null)
-                      '${term.schoolYearName.isEmpty ? 'Selected school year' : term.schoolYearName} · Term ${term.termNumber}',
-                    if (section != null && section.isNotEmpty) section,
-                  ].join(' · '),
-                  style: theme.textTheme.bodySmall?.copyWith(
-                    color: theme.colorScheme.onSurfaceVariant,
-                  ),
-                ),
-                const SizedBox(height: 20),
-                const _Heading('Quick actions'),
+                _welcome(summary, term, section),
+                const SizedBox(height: 22),
+                const _SectionLabel('Quick actions'),
                 const SizedBox(height: 10),
                 OverviewQuickActions(isAdviser: adviser, onOpen: _open),
-                const SizedBox(height: 24),
-                _Heading(
-                  'Up next',
+                const SizedBox(height: 22),
+                _Board(
+                  icon: Icons.schedule_outlined,
+                  title: 'Up next',
                   action: 'View schedule',
-                  onAction: () => _open(
-                    adviser ? '/adviser/schedule' : '/workspace/schedule',
-                  ),
-                ),
-                const SizedBox(height: 10),
-                _OverviewPanel(
+                  onAction: () =>
+                      _open(adviser ? '/adviser/schedule' : '/workspace/schedule'),
                   child: schedule.when(
                     loading: () => const ZSkeletonRow(),
                     error: (error, _) => _InlineError(
@@ -162,20 +147,26 @@ class _OverviewPageState extends ConsumerState<OverviewPage>
                     data: _upNext,
                   ),
                 ),
-                const SizedBox(height: 24),
-                const _Heading('Needs attention'),
-                const SizedBox(height: 10),
-                _attention(summary, attention),
-                const SizedBox(height: 24),
-                const _Heading('At a glance'),
-                const SizedBox(height: 10),
-                summary.when(
-                  loading: () => const ZSkeletonRow(),
-                  error: (error, _) => _InlineError(
-                    error: error,
-                    retry: () => ref.invalidate(overviewProvider),
+                const SizedBox(height: 16),
+                _Board(
+                  icon: Icons.notifications_active_outlined,
+                  title: 'Needs attention',
+                  count: attentionCount > 0 ? attentionCount : null,
+                  child: _attention(summary, attention),
+                ),
+                const SizedBox(height: 16),
+                _Board(
+                  key: const ValueKey('overview-stats-panel'),
+                  icon: Icons.insights_outlined,
+                  title: 'At a glance',
+                  child: summary.when(
+                    loading: () => const ZSkeletonRow(),
+                    error: (error, _) => _InlineError(
+                      error: error,
+                      retry: () => ref.invalidate(overviewProvider),
+                    ),
+                    data: (data) => OverviewStats(summary: data, onOpen: _open),
                   ),
-                  data: (data) => OverviewStats(summary: data, onOpen: _open),
                 ),
               ],
             ),
@@ -185,15 +176,63 @@ class _OverviewPageState extends ConsumerState<OverviewPage>
     );
   }
 
+  Widget _welcome(
+    AsyncValue<OverviewSummary> summary,
+    Term? term,
+    String? section,
+  ) {
+    final theme = Theme.of(context);
+    final meta = [
+      if (term != null)
+        '${term.schoolYearName.isEmpty ? 'Selected school year' : term.schoolYearName} · Term ${term.termNumber}',
+      if (section != null && section.isNotEmpty) section,
+    ].join(' · ');
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        summary.when(
+          data: (data) => Text(
+            data.teacherName.trim().isEmpty
+                ? 'Welcome back.'
+                : 'Welcome back, ${data.teacherName}.',
+            style: theme.textTheme.headlineSmall?.copyWith(
+              fontSize: 21,
+              fontWeight: FontWeight.w700,
+              letterSpacing: -0.3,
+            ),
+          ),
+          loading: () => Text(
+            'Welcome back.',
+            style: theme.textTheme.headlineSmall?.copyWith(
+              fontSize: 21,
+              fontWeight: FontWeight.w700,
+              letterSpacing: -0.3,
+            ),
+          ),
+          error: (error, _) => _InlineError(
+            error: error,
+            retry: () => ref.invalidate(overviewProvider),
+          ),
+        ),
+        const SizedBox(height: 4),
+        Text(
+          meta,
+          style: theme.textTheme.bodySmall?.copyWith(
+            color: theme.colorScheme.onSurfaceVariant,
+          ),
+        ),
+      ],
+    );
+  }
+
   Widget _upNext(OverviewSchedule schedule) {
     final notice = schedule.scopeNotice(_now);
     final next = schedule.nextClass(_now);
     if (notice != null || next == null) {
-      return Text(
-        notice ?? 'No upcoming confirmed classes in this term.',
-        style: Theme.of(context).textTheme.bodySmall,
-      );
+      return _BoardNote(notice ?? 'No upcoming confirmed classes in this term.');
     }
+    final theme = Theme.of(context);
+    final accent = ZDesk.dataAccent(context);
     final start = philippineTime(next.startsAt);
     final end = philippineTime(next.endsAt);
     final now = philippineTime(_now);
@@ -204,9 +243,35 @@ class _OverviewPageState extends ConsumerState<OverviewPage>
     return Row(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Icon(
-          Icons.schedule_outlined,
-          color: Theme.of(context).colorScheme.primary,
+        Container(
+          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 7),
+          decoration: BoxDecoration(
+            color: accent.withValues(alpha: 0.10),
+            borderRadius: BorderRadius.circular(ZTokens.radiusMd),
+            border: Border.all(color: accent.withValues(alpha: 0.28)),
+          ),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Text(
+                DateFormat('h:mm').format(start),
+                style: theme.textTheme.titleSmall?.copyWith(
+                  color: accent,
+                  fontSize: 15,
+                  fontWeight: FontWeight.w700,
+                  fontFeatures: const [FontFeature.tabularFigures()],
+                ),
+              ),
+              Text(
+                DateFormat('a').format(start),
+                style: theme.textTheme.labelSmall?.copyWith(
+                  color: accent,
+                  fontWeight: FontWeight.w700,
+                  height: 1.1,
+                ),
+              ),
+            ],
+          ),
         ),
         const SizedBox(width: 12),
         Expanded(
@@ -215,17 +280,25 @@ class _OverviewPageState extends ConsumerState<OverviewPage>
             children: [
               Text(
                 next.slot.subjectName,
-                style: Theme.of(context).textTheme.titleMedium,
+                style: theme.textTheme.titleSmall?.copyWith(
+                  fontSize: 14,
+                  fontWeight: FontWeight.w600,
+                ),
               ),
-              const SizedBox(height: 4),
+              const SizedBox(height: 2),
               Text(
                 next.slot.sectionName,
-                style: Theme.of(context).textTheme.bodySmall,
+                style: theme.textTheme.bodySmall?.copyWith(
+                  color: theme.colorScheme.onSurfaceVariant,
+                ),
               ),
-              const SizedBox(height: 8),
+              const SizedBox(height: 6),
               Text(
                 '${today ? 'Today' : DateFormat('EEE, MMM d').format(start)} · ${DateFormat('h:mm a').format(start)} – ${DateFormat('h:mm a').format(end)} · PH',
-                style: Theme.of(context).textTheme.bodySmall,
+                style: theme.textTheme.bodySmall?.copyWith(
+                  color: theme.colorScheme.onSurfaceVariant,
+                  fontFeatures: const [FontFeature.tabularFigures()],
+                ),
               ),
             ],
           ),
@@ -256,19 +329,14 @@ class _OverviewPageState extends ConsumerState<OverviewPage>
           data: (data) {
             final count = data.pendingAssessments;
             if (count == null) {
-              return Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  const Text('Grading summary is unavailable.'),
-                  TextButton(
-                    onPressed: () => _open('/workspace/gradebook'),
-                    child: const Text('Check Gradebook'),
-                  ),
-                ],
+              return _ActionRequired(
+                message: 'Grading summary is unavailable.',
+                action: 'Check Gradebook',
+                onAction: () => _open('/workspace/gradebook'),
               );
             }
             if (count == 0) return const SizedBox.shrink();
-            return _AttentionCard(
+            return _AttentionRow(
               icon: Icons.edit_note_outlined,
               title:
                   '$count assessment${count == 1 ? '' : 's'} with missing scores',
@@ -286,9 +354,9 @@ class _OverviewPageState extends ConsumerState<OverviewPage>
           if (support != null && support > 0)
             Padding(
               padding: EdgeInsets.only(
-                top: pending != null && pending > 0 ? 10 : 0,
+                top: pending != null && pending > 0 ? 8 : 0,
               ),
-              child: _AttentionCard(
+              child: _AttentionRow(
                 icon: Icons.support_agent_outlined,
                 title:
                     '$support learner${support == 1 ? '' : 's'} may need support',
@@ -302,17 +370,150 @@ class _OverviewPageState extends ConsumerState<OverviewPage>
             'Learner support checks are unavailable. Retry the overview summary above.',
           ),
         if (clear)
-          Padding(
-            padding: const EdgeInsets.symmetric(vertical: 12),
-            child: Text(
-              data.isAdviser
-                  ? 'No missing scores or advisory risk alerts from these checks.'
-                  : 'No missing scores from these checks.',
-            ),
+          _AllClear(
+            text: data.isAdviser
+                ? 'No missing scores or advisory risk alerts from these checks.'
+                : 'No missing scores from these checks.',
           ),
       ],
     );
   }
+}
+
+/// Uppercase micro-label, the same rhythm the web rail uses ("My day").
+class _SectionLabel extends StatelessWidget {
+  const _SectionLabel(this.text);
+  final String text;
+  @override
+  Widget build(BuildContext context) => Text(
+    text.toUpperCase(),
+    style: Theme.of(context).textTheme.labelSmall?.copyWith(
+      fontSize: 10.5,
+      fontWeight: FontWeight.w700,
+      letterSpacing: 0.9,
+      color: Theme.of(context).colorScheme.onSurfaceVariant,
+    ),
+  );
+}
+
+/// Web `KanbanBoard` chrome: amber icon + title + counts/action slot, a
+/// hairline under the title, and the body on the card surface.
+class _Board extends StatelessWidget {
+  const _Board({
+    super.key,
+    required this.icon,
+    required this.title,
+    required this.child,
+    this.count,
+    this.action,
+    this.onAction,
+  });
+  final IconData icon;
+  final String title;
+  final Widget child;
+  final int? count;
+  final String? action;
+  final VoidCallback? onAction;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final accent = ZDesk.dataAccent(context);
+    final hairline = theme.colorScheme.outline.withValues(alpha: 0.7);
+    return Material(
+      color: theme.cardTheme.color ?? theme.colorScheme.surface,
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(ZTokens.radiusXl),
+        side: BorderSide(color: theme.colorScheme.outline),
+      ),
+      clipBehavior: Clip.antiAlias,
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          Padding(
+            padding: EdgeInsets.fromLTRB(14, 8, action == null ? 14 : 6, 6),
+            child: Row(
+              children: [
+                Icon(icon, size: 18, color: accent),
+                const SizedBox(width: 8),
+                Expanded(
+                  flex: 2,
+                  child: Text(
+                    title,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: theme.textTheme.titleSmall?.copyWith(
+                      fontSize: 14,
+                      fontWeight: FontWeight.w700,
+                    ),
+                  ),
+                ),
+                if (count != null)
+                  Padding(
+                    padding: const EdgeInsets.only(left: 8),
+                    child: Text(
+                      '$count',
+                      style: theme.textTheme.labelSmall?.copyWith(
+                        color: accent,
+                        fontWeight: FontWeight.w700,
+                        fontFeatures: const [FontFeature.tabularFigures()],
+                      ),
+                    ),
+                  ),
+                if (action != null)
+                  // Loose flex so the action hugs its label on normal widths
+                  // but never starves the title or overflows on narrow,
+                  // large-text screens.
+                  Flexible(
+                    flex: 3,
+                    fit: FlexFit.loose,
+                    child: TextButton(
+                      onPressed: onAction,
+                      style: TextButton.styleFrom(
+                        minimumSize: const Size(0, 40),
+                        padding: const EdgeInsets.symmetric(horizontal: 10),
+                        tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                        foregroundColor: theme.colorScheme.onSurfaceVariant,
+                        textStyle: theme.textTheme.labelSmall?.copyWith(
+                          fontSize: 12,
+                          fontWeight: FontWeight.w600,
+                        ),
+                      ),
+                      child: Text(
+                        action!,
+                        maxLines: 1,
+                        softWrap: false,
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                    ),
+                  ),
+              ],
+            ),
+          ),
+          // Hairline as a plain box: a header `Divider` would be counted as a
+          // stats row separator elsewhere and can't be themed per board.
+          Container(height: 1, color: hairline),
+          Padding(
+            padding: const EdgeInsets.fromLTRB(14, 12, 14, 14),
+            child: child,
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+/// Quiet body copy for an empty board.
+class _BoardNote extends StatelessWidget {
+  const _BoardNote(this.text);
+  final String text;
+  @override
+  Widget build(BuildContext context) => Text(
+    text,
+    style: Theme.of(context).textTheme.bodySmall?.copyWith(
+      color: Theme.of(context).colorScheme.onSurfaceVariant,
+    ),
+  );
 }
 
 class OverviewQuickActions extends StatelessWidget {
@@ -330,28 +531,24 @@ class OverviewQuickActions extends StatelessWidget {
       final row =
           constraints.maxWidth >= 330 &&
           MediaQuery.textScalerOf(context).scale(13) <= 16;
-      final theme = Theme.of(context);
       final actions = [
         (
           label: 'Chat with Bama',
           icon: Icons.chat_bubble_outline,
           path: '/adviser/bama',
           enabled: isAdviser,
-          accent: theme.colorScheme.primary,
         ),
         (
           label: 'Enter grades',
           icon: Icons.edit_note_outlined,
           path: '/workspace/gradebook',
           enabled: true,
-          accent: theme.colorScheme.secondary,
         ),
         (
           label: 'Take attendance',
           icon: Icons.fact_check_outlined,
           path: '/workspace/attendance',
           enabled: true,
-          accent: theme.colorScheme.onSurfaceVariant,
         ),
       ];
       final tiles = [
@@ -359,7 +556,6 @@ class OverviewQuickActions extends StatelessWidget {
           _OverviewActionTile(
             label: action.label,
             icon: action.icon,
-            accent: action.accent,
             stacked: !row,
             onTap: action.enabled ? () => onOpen(action.path) : null,
           ),
@@ -422,6 +618,7 @@ class OverviewStats extends StatelessWidget {
           constraints.maxWidth >= 330 &&
           MediaQuery.textScalerOf(context).scale(13) <= 16;
       final theme = Theme.of(context);
+      final accent = ZDesk.dataAccent(context);
       final tiles = [
         for (final item in items)
           Semantics(
@@ -432,28 +629,36 @@ class OverviewStats extends StatelessWidget {
               hoverColor: theme.colorScheme.primary.withValues(alpha: 0.04),
               highlightColor: theme.colorScheme.primary.withValues(alpha: 0.08),
               child: Padding(
-                padding: const EdgeInsets.all(16),
+                padding: const EdgeInsets.fromLTRB(14, 10, 14, 12),
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Text(
                       item.value?.toString() ?? '—',
-                      style: Theme.of(context).textTheme.headlineSmall
-                          ?.copyWith(
-                            fontSize: 25,
-                            color: Theme.of(context).colorScheme.primary,
-                            fontFeatures: const [FontFeature.tabularFigures()],
-                          ),
+                      style: theme.textTheme.headlineSmall?.copyWith(
+                        fontSize: 25,
+                        fontWeight: FontWeight.w700,
+                        color: accent,
+                        fontFeatures: const [FontFeature.tabularFigures()],
+                      ),
                     ),
-                    const SizedBox(height: 6),
+                    const SizedBox(height: 4),
                     Text(
-                      item.label,
-                      style: Theme.of(context).textTheme.bodySmall,
+                      item.label.toUpperCase(),
+                      style: theme.textTheme.labelSmall?.copyWith(
+                        fontSize: 10,
+                        fontWeight: FontWeight.w600,
+                        letterSpacing: 0.7,
+                        color: theme.colorScheme.onSurfaceVariant,
+                      ),
                     ),
                     if (item.value == null)
                       Text(
                         'Unavailable',
-                        style: Theme.of(context).textTheme.bodySmall,
+                        style: theme.textTheme.bodySmall?.copyWith(
+                          fontSize: 11,
+                          color: theme.colorScheme.onSurfaceVariant,
+                        ),
                       ),
                   ],
                 ),
@@ -461,67 +666,47 @@ class OverviewStats extends StatelessWidget {
             ),
           ),
       ];
-      final dividerColor = theme.colorScheme.outline.withValues(alpha: 0.55);
-      return _OverviewPanel(
-        key: const ValueKey('overview-stats-panel'),
-        padding: EdgeInsets.zero,
-        child: row
-            ? IntrinsicHeight(
-                child: Row(
-                  crossAxisAlignment: CrossAxisAlignment.stretch,
-                  children: [
-                    for (var i = 0; i < tiles.length; i++) ...[
-                      if (i > 0)
-                        VerticalDivider(
-                          width: 1,
-                          thickness: 1,
-                          indent: 16,
-                          endIndent: 16,
-                          color: dividerColor,
-                        ),
-                      Expanded(child: tiles[i]),
-                    ],
-                  ],
-                ),
-              )
-            : Column(
+      final dividerColor = theme.colorScheme.outline.withValues(alpha: 0.7);
+      return row
+          ? IntrinsicHeight(
+              child: Row(
                 crossAxisAlignment: CrossAxisAlignment.stretch,
                 children: [
                   for (var i = 0; i < tiles.length; i++) ...[
                     if (i > 0)
-                      Divider(
-                        height: 1,
-                        indent: 16,
-                        endIndent: 16,
+                      VerticalDivider(
+                        width: 1,
+                        thickness: 1,
+                        indent: 10,
+                        endIndent: 10,
                         color: dividerColor,
                       ),
-                    tiles[i],
+                    Expanded(child: tiles[i]),
                   ],
                 ],
               ),
-      );
+            )
+          : Column(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                for (var i = 0; i < tiles.length; i++) ...[
+                  if (i > 0)
+                    Divider(
+                      height: 1,
+                      indent: 14,
+                      endIndent: 14,
+                      color: dividerColor,
+                    ),
+                  tiles[i],
+                ],
+              ],
+            );
     },
   );
 }
 
-class _Heading extends StatelessWidget {
-  const _Heading(this.title, {this.action, this.onAction});
-  final String title;
-  final String? action;
-  final VoidCallback? onAction;
-  @override
-  Widget build(BuildContext context) => Wrap(
-    spacing: 12,
-    crossAxisAlignment: WrapCrossAlignment.center,
-    children: [
-      Text(title, style: Theme.of(context).textTheme.titleMedium),
-      if (action != null) TextButton(onPressed: onAction, child: Text(action!)),
-    ],
-  );
-}
-
-class _AttentionCard extends StatelessWidget {
-  const _AttentionCard({
+class _AttentionRow extends StatelessWidget {
+  const _AttentionRow({
     required this.icon,
     required this.title,
     required this.subtitle,
@@ -532,82 +717,114 @@ class _AttentionCard extends StatelessWidget {
   final String subtitle;
   final VoidCallback onTap;
   @override
-  Widget build(BuildContext context) => DecoratedBox(
-    decoration: BoxDecoration(
-      border: Border(
-        bottom: BorderSide(
-          color: Theme.of(context).colorScheme.outline.withValues(alpha: 0.55),
-        ),
-      ),
-    ),
-    child: Material(
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final accent = ZDesk.dataAccent(context);
+    return Material(
       color: Colors.transparent,
       child: Semantics(
         button: true,
         child: InkWell(
           onTap: onTap,
-          borderRadius: BorderRadius.circular(10),
-          focusColor: Theme.of(context).colorScheme.secondary
-              .withValues(alpha: 0.12),
-          hoverColor: Theme.of(context).colorScheme.secondary
-              .withValues(alpha: 0.04),
+          borderRadius: BorderRadius.circular(ZTokens.radiusMd),
+          focusColor: accent.withValues(alpha: 0.12),
+          hoverColor: accent.withValues(alpha: 0.04),
           child: Padding(
-            padding: const EdgeInsets.symmetric(vertical: 14, horizontal: 4),
+            padding: const EdgeInsets.symmetric(vertical: 6),
             child: Row(
               children: [
-                Icon(icon, color: Theme.of(context).colorScheme.secondary),
-                const SizedBox(width: 12),
+                Container(
+                  width: 30,
+                  height: 30,
+                  decoration: BoxDecoration(
+                    color: accent.withValues(alpha: 0.12),
+                    borderRadius: BorderRadius.circular(ZTokens.radiusMd),
+                  ),
+                  child: Icon(icon, size: 17, color: accent),
+                ),
+                const SizedBox(width: 10),
                 Expanded(
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      Text(
-                        title,
-                        style: Theme.of(context).textTheme.titleSmall,
-                      ),
-                      const SizedBox(height: 4),
+                      Text(title, style: theme.textTheme.titleSmall),
+                      const SizedBox(height: 2),
                       Text(
                         subtitle,
-                        style: Theme.of(context).textTheme.bodySmall,
+                        style: theme.textTheme.bodySmall?.copyWith(
+                          color: theme.colorScheme.onSurfaceVariant,
+                        ),
                       ),
                     ],
                   ),
                 ),
                 const SizedBox(width: 6),
-                const Icon(Icons.chevron_right, size: 18),
+                Icon(
+                  Icons.chevron_right,
+                  size: 18,
+                  color: theme.colorScheme.onSurfaceVariant,
+                ),
               ],
             ),
           ),
         ),
       ),
-    ),
+    );
+  }
+}
+
+class _ActionRequired extends StatelessWidget {
+  const _ActionRequired({
+    required this.message,
+    required this.action,
+    required this.onAction,
+  });
+  final String message;
+  final String action;
+  final VoidCallback onAction;
+  @override
+  Widget build(BuildContext context) => Column(
+    crossAxisAlignment: CrossAxisAlignment.start,
+    children: [
+      Text(message),
+      Align(
+        alignment: Alignment.centerLeft,
+        child: TextButton(onPressed: onAction, child: Text(action)),
+      ),
+    ],
   );
 }
 
-// Local to Overview: the loading hand-off uses quiet 1px borders and 10px
-// corners. Do not change shared ZCard or any other workspace's presentation.
-class _OverviewPanel extends StatelessWidget {
-  const _OverviewPanel({
-    super.key,
-    required this.child,
-    this.padding = const EdgeInsets.all(16),
-  });
-  final Widget child;
-  final EdgeInsetsGeometry padding;
-
+/// Amber-tinted "nothing needs action" callout — the web `InsightCallout`
+/// shape, one message per board.
+class _AllClear extends StatelessWidget {
+  const _AllClear({required this.text});
+  final String text;
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
-    return Material(
-      color: theme.cardTheme.color ?? theme.colorScheme.surface,
-      shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(10),
-        side: BorderSide(
-          color: theme.colorScheme.outline.withValues(alpha: 0.72),
-        ),
+    final accent = ZDesk.dataAccent(context);
+    return Container(
+      width: double.infinity,
+      margin: const EdgeInsets.only(top: 6),
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+      decoration: BoxDecoration(
+        color: accent.withValues(alpha: ZDesk.isDark(context) ? 0.10 : 0.08),
+        borderRadius: BorderRadius.circular(ZTokens.radiusMd),
+        border: Border.all(color: accent.withValues(alpha: 0.32)),
       ),
-      clipBehavior: Clip.antiAlias,
-      child: Padding(padding: padding, child: child),
+      child: Row(
+        children: [
+          Icon(Icons.check_circle_outline, size: 16, color: accent),
+          const SizedBox(width: 8),
+          Expanded(
+            child: Text(
+              text,
+              style: theme.textTheme.bodySmall?.copyWith(height: 1.35),
+            ),
+          ),
+        ],
+      ),
     );
   }
 }
@@ -616,13 +833,11 @@ class _OverviewActionTile extends StatelessWidget {
   const _OverviewActionTile({
     required this.label,
     required this.icon,
-    required this.accent,
     required this.stacked,
     this.onTap,
   });
   final String label;
   final IconData icon;
-  final Color accent;
   final bool stacked;
   final VoidCallback? onTap;
 
@@ -630,17 +845,30 @@ class _OverviewActionTile extends StatelessWidget {
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final enabled = onTap != null;
-    final ink = enabled ? accent : theme.colorScheme.onSurfaceVariant;
+    final accent = ZDesk.dataAccent(context);
+    final iconColor = enabled ? accent : theme.colorScheme.onSurfaceVariant;
+    final chip = Container(
+      width: 30,
+      height: 30,
+      decoration: BoxDecoration(
+        color: enabled
+            ? accent.withValues(alpha: 0.12)
+            : theme.colorScheme.surfaceContainerLow,
+        borderRadius: BorderRadius.circular(ZTokens.radiusMd),
+      ),
+      child: Icon(icon, size: 17, color: iconColor),
+    );
     final copy = Column(
       mainAxisSize: MainAxisSize.min,
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         Text(label, style: theme.textTheme.titleSmall),
         if (!enabled) ...[
-          const SizedBox(height: 4),
+          const SizedBox(height: 2),
           Text(
             'Advisers only',
             style: theme.textTheme.bodySmall?.copyWith(
+              fontSize: 11,
               color: theme.colorScheme.onSurfaceVariant,
             ),
           ),
@@ -652,12 +880,14 @@ class _OverviewActionTile extends StatelessWidget {
       style: ButtonStyle(
         alignment: Alignment.centerLeft,
         minimumSize: const WidgetStatePropertyAll(Size(48, 64)),
-        padding: const WidgetStatePropertyAll(EdgeInsets.all(14)),
+        padding: const WidgetStatePropertyAll(EdgeInsets.all(12)),
         animationDuration: MediaQuery.disableAnimationsOf(context)
             ? Duration.zero
-            : const Duration(milliseconds: 150),
+            : ZTokens.micro,
         shape: WidgetStatePropertyAll(
-          RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+          RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(ZTokens.radiusXl),
+          ),
         ),
         foregroundColor: WidgetStateProperty.resolveWith(
           (states) => states.contains(WidgetState.disabled)
@@ -665,15 +895,12 @@ class _OverviewActionTile extends StatelessWidget {
               : theme.colorScheme.onSurface,
         ),
         backgroundColor: WidgetStatePropertyAll(
-          Color.alphaBlend(
-            ink.withValues(alpha: enabled ? 0.025 : 0.01),
-            theme.cardTheme.color ?? theme.colorScheme.surface,
-          ),
+          theme.cardTheme.color ?? theme.colorScheme.surface,
         ),
         side: WidgetStateProperty.resolveWith((states) {
           if (states.contains(WidgetState.disabled)) {
             return BorderSide(
-              color: theme.colorScheme.outline.withValues(alpha: 0.6),
+              color: theme.colorScheme.outline.withValues(alpha: 0.8),
             );
           }
           if (states.contains(WidgetState.focused)) {
@@ -684,10 +911,7 @@ class _OverviewActionTile extends StatelessWidget {
             return BorderSide(color: accent.withValues(alpha: 0.65));
           }
           return BorderSide(
-            color: Color.alphaBlend(
-              accent.withValues(alpha: 0.16),
-              theme.colorScheme.outline,
-            ),
+            color: accent.withValues(alpha: 0.30),
           );
         }),
         overlayColor: WidgetStateProperty.resolveWith((states) {
@@ -704,8 +928,8 @@ class _OverviewActionTile extends StatelessWidget {
       child: stacked
           ? Row(
               children: [
-                Icon(icon, size: 22, color: ink),
-                const SizedBox(width: 12),
+                chip,
+                const SizedBox(width: 10),
                 Expanded(child: copy),
                 if (enabled)
                   Icon(
@@ -719,8 +943,8 @@ class _OverviewActionTile extends StatelessWidget {
               mainAxisSize: MainAxisSize.min,
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Icon(icon, size: 22, color: ink),
-                const SizedBox(height: 10),
+                chip,
+                const SizedBox(height: 8),
                 copy,
               ],
             ),
@@ -738,7 +962,12 @@ class _InlineError extends StatelessWidget {
     child: Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Text(userMessage(error), style: Theme.of(context).textTheme.bodySmall),
+        Text(
+          userMessage(error),
+          style: Theme.of(context).textTheme.bodySmall?.copyWith(
+            color: Theme.of(context).colorScheme.onSurfaceVariant,
+          ),
+        ),
         TextButton(onPressed: retry, child: const Text('Try again')),
       ],
     ),
@@ -751,7 +980,7 @@ class _InlineError extends StatelessWidget {
   size: Size(390, 280),
 )
 Widget overviewQuickActionsPreview() => MaterialApp(
-  theme: zWorkspaceTheme(),
+  theme: zDarkTheme(deskCanvas: true),
   home: Scaffold(
     body: Padding(
       padding: const EdgeInsets.all(16),
@@ -766,7 +995,7 @@ Widget overviewQuickActionsPreview() => MaterialApp(
   size: Size(390, 280),
 )
 Widget overviewTeacherActionsPreview() => MaterialApp(
-  theme: zWorkspaceTheme(),
+  theme: zDarkTheme(deskCanvas: true),
   home: Scaffold(
     body: Padding(
       padding: const EdgeInsets.all(16),

@@ -17,6 +17,36 @@ abstract class ZWorkspace {
   static const secondary = Color(0xFFA99CFF);
 }
 
+/// Teacher-desk data accent — the web teacher overview's amber
+/// (`teacher-overview-charts.module.css` `--teacher-number`: #b45309 light,
+/// #fbbf24 dark; ramp base is Tailwind amber-500). Used for figures, board
+/// icons and counts, never for body copy.
+abstract class ZDesk {
+  static const amber = Color(0xFFF59E0B); // amber-500
+  static const amberLight = Color(0xFFB45309); // amber-700 (light figures)
+  static const amberDark = Color(0xFFFBBF24); // amber-400 (dark figures)
+
+  static bool isDark(BuildContext context) =>
+      Theme.of(context).brightness == Brightness.dark;
+
+  static Color dataAccent(BuildContext context) =>
+      isDark(context) ? amberDark : amberLight;
+
+  /// Seven-step amber ramp matching the web chart shades.
+  static List<Color> ramp(BuildContext context) {
+    final base = isDark(context) ? amberDark : amber;
+    return [
+      base,
+      base.withValues(alpha: 0.88),
+      base.withValues(alpha: 0.74),
+      base.withValues(alpha: 0.60),
+      base.withValues(alpha: 0.46),
+      base.withValues(alpha: 0.34),
+      base.withValues(alpha: 0.24),
+    ];
+  }
+}
+
 abstract class ZTokens {
   // Radius
   static const double radiusSm = 3.6; // 0.6 * 6

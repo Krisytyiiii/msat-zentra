@@ -20,7 +20,8 @@ import '../../shared/user_messages.dart';
 import '../../core/config.dart';
 import '../../core/session.dart';
 import '../../core/sync_outbox.dart';
-import '../../design/brand.dart';
+import '../../design/bama_mascot.dart';
+import '../../design/tokens.dart';
 import '../../shared/widgets.dart';
 import '../adviser/advisory_list_page.dart' show advisoryProvider, archivedAdvisoryProvider;
 import '../referral/referral_page.dart' show referralsProvider, referableProvider;
@@ -1002,7 +1003,7 @@ class _State extends ConsumerState<BamaChatPage> {
             const SizedBox(width: 8),
             Expanded(
               child: FilledButton(
-                style: FilledButton.styleFrom(backgroundColor: const Color(0xFFDC2626), foregroundColor: Colors.white),
+                style: FilledButton.styleFrom(backgroundColor: ZTokens.destructiveRed, foregroundColor: Colors.white),
                 onPressed: () {
                   Navigator.pop(ctx);
                   _confirmDelete(target);
@@ -1043,7 +1044,7 @@ class _ChatHeader extends StatelessWidget implements PreferredSizeWidget {
         onPressed: busy ? null : onBack,
       ),
       title: Row(children: [
-        const BamaAvatar(radius: 18),
+        const BamaMascot(size: 36),
         const SizedBox(width: 10),
         Expanded(
           child: Column(mainAxisSize: MainAxisSize.min, crossAxisAlignment: CrossAxisAlignment.start, children: [
@@ -1093,7 +1094,7 @@ class _Welcome extends StatelessWidget {
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     return ListView(padding: const EdgeInsets.fromLTRB(24, 24, 24, 170), children: [
-      const Center(child: BamaAvatar(radius: 28)),
+      const Center(child: BamaMascot(size: 96)),
       const SizedBox(height: 12),
       const Center(child: Text('Chat with Bama', style: TextStyle(fontSize: 20, fontWeight: FontWeight.w700))),
       const SizedBox(height: 4),
@@ -1375,7 +1376,7 @@ class _Bubble extends StatelessWidget {
     return Row(crossAxisAlignment: CrossAxisAlignment.start, children: [
       const Padding(
         padding: EdgeInsets.only(right: 8, top: 2),
-        child: BamaAvatar(radius: 14),
+        child: BamaMascot(size: 28),
       ),
       Flexible(child: bubble),
     ]);

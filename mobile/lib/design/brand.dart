@@ -97,28 +97,3 @@ class TeacherAvatar extends StatelessWidget {
   }
 }
 
-/// Bama's profile picture — the penguin avatar, used everywhere Bama speaks
-/// in the chat thread (welcome hero, message bubbles, typing row). The art
-/// is self-contained in a circle, so it clips cleanly with no tile.
-class BamaAvatar extends StatelessWidget {
-  final double radius;
-  const BamaAvatar({super.key, this.radius = 14});
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      width: radius * 2,
-      height: radius * 2,
-      decoration: BoxDecoration(
-        shape: BoxShape.circle,
-        color: Theme.of(context).colorScheme.surfaceContainerLow,
-      ),
-      clipBehavior: Clip.antiAlias,
-      child: Image.asset(
-        'assets/bama.png',
-        fit: BoxFit.cover,
-        errorBuilder: (context, _, _) => Icon(Icons.pets, size: radius, color: Theme.of(context).colorScheme.primary),
-      ),
-    );
-  }
-}

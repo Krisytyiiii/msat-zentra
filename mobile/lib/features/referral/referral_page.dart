@@ -12,6 +12,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../core/api_client.dart';
 import '../../design/screen_search.dart';
+import '../../design/tokens.dart';
 import '../../shared/user_messages.dart';
 import '../../shared/widgets.dart';
 import '../../design/status_palette.dart';
@@ -288,7 +289,10 @@ class _ReferralCard extends ConsumerWidget {
             if (error != null) Text(error!, style: TextStyle(color: Theme.of(ctx).colorScheme.error, fontSize: 13)),
             const SizedBox(height: 8),
             FilledButton(
-              style: FilledButton.styleFrom(backgroundColor: const Color(0xFFDC2626), foregroundColor: Colors.white),
+              style: FilledButton.styleFrom(
+                backgroundColor: ZTokens.destructiveRed,
+                foregroundColor: Colors.white,
+              ),
               onPressed: () async {
                 if (reason.text.trim().isEmpty) {
                   setSheet(() => error = 'A reason is required.');
@@ -396,7 +400,10 @@ class _ReferralCard extends ConsumerWidget {
             const SizedBox(width: 8),
             Expanded(
               child: FilledButton(
-                style: FilledButton.styleFrom(backgroundColor: const Color(0xFFDC2626), foregroundColor: Colors.white),
+                style: FilledButton.styleFrom(
+                  backgroundColor: ZTokens.destructiveRed,
+                  foregroundColor: Colors.white,
+                ),
                 onPressed: () async {
                   try {
                     await ref.read(apiClientProvider).dio.delete('/api/referrals/${referral['id']}');

@@ -828,17 +828,17 @@ class _SheetState extends ConsumerState<AttendanceSheetPage>
                                         style: OutlinedButton.styleFrom(
                                           minimumSize: const Size(64, 48),
                                           backgroundColor: value == entry.key
-                                              ? _color(entry.key)
+                                              ? _color(context, entry.key)
                                                     .withValues(alpha: .15)
                                               : null,
                                           side: BorderSide(
                                             color: value == entry.key
-                                                ? _color(entry.key)
+                                                ? _color(context, entry.key)
                                                 : Theme.of(context)
                                                       .dividerColor,
                                           ),
                                           foregroundColor: value == entry.key
-                                              ? _color(entry.key)
+                                              ? _color(context, entry.key)
                                               : null,
                                         ),
                                         onPressed:
@@ -861,12 +861,15 @@ class _SheetState extends ConsumerState<AttendanceSheetPage>
     );
   }
 
-  Color _color(String value) => switch (value) {
-    'absent' => const Color(0xfff87171),
-    'late' => const Color(0xfffbbf24),
-    'excused' => const Color(0xffa99cff),
-    _ => const Color(0xff7ef5d0),
-  };
+  Color _color(BuildContext context, String value) => statusColors(
+    switch (value) {
+      'absent' => StatusTone.red,
+      'late' => StatusTone.amber,
+      'excused' => StatusTone.blue,
+      _ => StatusTone.green,
+    },
+    Theme.of(context),
+  ).foreground;
 }
 
 class _AttendanceCodeDialog extends StatefulWidget {

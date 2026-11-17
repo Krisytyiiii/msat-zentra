@@ -19,6 +19,8 @@ import '../shared/models.dart';
 import 'adviser/academic_overview_page.dart';
 import 'adviser/adm_cases_page.dart';
 import 'adviser/advisory_list_page.dart';
+import 'adviser/advisory_attendance_detail_page.dart';
+import 'adviser/advisory_attendance_page.dart';
 import 'anecdotal/anecdotal_repo_page.dart';
 import 'adviser/adviser_schedule_page.dart';
 import 'adviser/student_detail_page.dart';
@@ -36,10 +38,33 @@ import 'teacher/gradebook_dashboard_page.dart';
 import 'teacher/gradebook_page.dart';
 import 'teacher/assessment_score_page.dart';
 import 'workspace/workspace_attendance_page.dart';
-import '../core/session.dart' show authProvider;
+import '../core/session.dart' show authProvider, sessionRoleHint;
+import '../design/theme.dart' show zWorkspaceTheme;
+import 'coordinator/coordinator_shell.dart';
+import 'coordinator/coordinator_pages.dart';
+import 'coordinator/coordinator_case_page.dart';
+import 'coordinator/coordinator_monitoring.dart';
+import 'coordinator/coordinator_settings.dart';
+import 'coordinator/coordinator_notifications.dart';
+
+String? coordinatorRedirect(String? role, String location, bool hasTerm) {
+  if (role == 'adm_coordinator') {
+    if (location == '/coordinator') return '/coordinator/overview';
+    return location.startsWith('/coordinator/') ? null : '/coordinator/overview';
+  }
+  if (location == '/coordinator' || location.startsWith('/coordinator/')) {
+    return hasTerm ? '/gate' : '/term';
+  }
+  return null;
+}
+
+Widget _coordinatorView(Widget child) => Theme(data: zWorkspaceTheme(), child: child);
 
 final routerProvider = Provider<GoRouter>((ref) {
-  return GoRouter(
+  final authChanges = ValueNotifier<int>(0);
+  ref.listen(authProvider, (_, _) => authChanges.value++);
+  final router = GoRouter(
+    refreshListenable: authChanges,
     initialLocation: '/login',
     redirect: (context, state) async {
       final box = Hive.box(AppConfig.termScopeBox);
@@ -49,6 +74,11 @@ final routerProvider = Provider<GoRouter>((ref) {
       final loc = state.matchedLocation;
       if (token == null && loc != '/login') return '/login';
       if (token != null) {
+        final role = container.read(authProvider).role ?? sessionRoleHint(
+          Hive.box(AppConfig.portalBox).get('role') as String?, token);
+        final coordinator = coordinatorRedirect(role, loc, hasTerm);
+        if (coordinator != null) return coordinator;
+        if (role == 'adm_coordinator') return null;
         final portal = container.read(authProvider).portal ??
             Hive.box(AppConfig.portalBox).get('portal') as String? ?? 'staff';
         if (portal == 'student' || portal == 'parent') {
@@ -71,6 +101,23 @@ final routerProvider = Provider<GoRouter>((ref) {
     },
     routes: [
       GoRoute(path: '/login', builder: (context, _) => const LoginPage()),
+      GoRoute(path: '/coordinator', redirect: (_, _) => '/coordinator/overview'),
+      GoRoute(path: '/coordinator/overview', builder: (_, _) => _coordinatorView(
+        const CoordinatorShell(path: '/coordinator/overview', child: CoordinatorOverviewPage()))),
+      for (final desk in ['referrals', 'enrolled', 'certifications', 'devices'])
+        GoRoute(path: '/coordinator/$desk', builder: (_, _) => _coordinatorView(
+          CoordinatorShell(key: ValueKey('coordinator-$desk'),
+            path: '/coordinator/$desk', child: CoordinatorListPage(desk: desk)))),
+      GoRoute(path: '/coordinator/referrals/:id', builder: (_, state) => _coordinatorView(
+        CoordinatorCasePage(key: ValueKey(state.pathParameters['id']),
+          caseId: state.pathParameters['id']!))),
+      GoRoute(path: '/coordinator/enrolled/:id', builder: (_, state) => _coordinatorView(
+        CoordinatorMonitoringPage(key: ValueKey(state.pathParameters['id']),
+          caseId: state.pathParameters['id']!))),
+      GoRoute(path: '/coordinator/settings', builder: (_, _) => _coordinatorView(
+        const CoordinatorShell(path: '/coordinator/settings', child: CoordinatorSettingsPage()))),
+      GoRoute(path: '/coordinator/notifications', builder: (_, _) => _coordinatorView(
+        const CoordinatorNotificationsPage())),
       GoRoute(path: '/student/home', builder: (context, _) => const StudentHomePage()),
       GoRoute(path: '/student/grades', builder: (context, _) => const StudentGradesPage()),
       GoRoute(path: '/student/attendance', builder: (context, _) => const StudentAttendancePage()),
@@ -90,8 +137,32 @@ final routerProvider = Provider<GoRouter>((ref) {
       )),
       GoRoute(path: '/term', builder: (context, _) => const TermSelectPage()),
       GoRoute(path: '/gate', builder: (context, _) => const FirstTimeGate()),
-      // Adviser section (drawer replace-targets; no Advisory attendance)
+      // Adviser section (drawer replace-targets)
       GoRoute(path: '/adviser/advisory', builder: (context, _) => const AdviserShell(selected: AdviserRoute.advisory, child: AdvisoryListPage())),
+      GoRoute(
+        path: '/adviser/advisory/attendance',
+        builder: (context, _) => const AdviserShell(
+          selected: AdviserRoute.advisoryAttendance,
+          child: AdvisoryAttendancePage(),
+        ),
+      ),
+      GoRoute(
+        path: '/adviser/advisory/attendance/:studentId',
+        builder: (context, state) {
+          final extra = state.extra;
+          final selection = extra is AdvisoryAttendanceSelection ? extra : null;
+          // Pushed from the list with the loaded snapshot; a deep link falls
+          // back to `?section=` and reloads the matrix itself.
+          return AdvisoryAttendanceDetailPage(
+            studentId: Uri.decodeComponent(
+              state.pathParameters['studentId'] ?? '',
+            ),
+            sectionId: state.uri.queryParameters['section'],
+            student: selection?.student,
+            subjects: selection?.subjects,
+          );
+        },
+      ),
       GoRoute(path: '/adviser/academic', builder: (context, _) => const AdviserShell(selected: AdviserRoute.academic, child: AcademicOverviewPage())),
       GoRoute(path: '/adviser/adm-cases', builder: (context, _) => const AdviserShell(selected: AdviserRoute.admCases, child: AdmCasesPage())),
       GoRoute(path: '/adviser/anecdotal', builder: (context, _) => const AdviserShell(selected: AdviserRoute.anecdotal, child: AnecdotalRepoPage())),
@@ -192,4 +263,6 @@ final routerProvider = Provider<GoRouter>((ref) {
     ],
     errorBuilder: (context, _) => const Scaffold(body: Center(child: Text('Page not found'))),
   );
+  ref.onDispose(() { router.dispose(); authChanges.dispose(); });
+  return router;
 });

@@ -13,6 +13,7 @@ import 'package:zentra_mobile/core/config.dart';
 import 'package:zentra_mobile/core/session.dart';
 import 'package:zentra_mobile/design/shell.dart';
 import 'package:zentra_mobile/design/theme.dart';
+import 'package:zentra_mobile/design/tokens.dart';
 import 'package:zentra_mobile/features/adviser/adviser_schedule_page.dart';
 import 'package:zentra_mobile/features/auth/first_time_gate.dart';
 import 'package:zentra_mobile/features/home/overview_data.dart';
@@ -124,6 +125,7 @@ Future<void> mountOverview(
   double width = 390,
   double scale = 1,
   bool adviser = true,
+  ThemeData? theme,
   FutureOr<Map<String, dynamic>> Function()? loadCritical,
   FutureOr<Map<String, dynamic>> Function()? loadSecondary,
   FutureOr<OverviewSchedule> Function()? loadSchedule,
@@ -178,7 +180,7 @@ Future<void> mountOverview(
         }),
       ],
       child: MaterialApp.router(
-        theme: zWorkspaceTheme(),
+        theme: theme ?? zDarkTheme(deskCanvas: true),
         routerConfig: router,
         builder: (context, child) => MediaQuery(
           data: MediaQuery.of(context).copyWith(
@@ -349,7 +351,7 @@ void main() {
       await mountOverview(tester);
       final headings = [
         'Overview',
-        'Quick actions',
+        'QUICK ACTIONS',
         'Up next',
         'Needs attention',
         'At a glance',
@@ -697,18 +699,34 @@ void main() {
           );
           await tester.ensureVisible(find.text('At a glance'));
           await tester.pumpAndSettle();
-          expect(tester.takeException(), isNull);
+          final thrown = tester.takeException();
+          expect(thrown, isNull);
           expect(find.text('Chat with Bama'), findsOneWidget);
           expect(
-            Theme.of(tester.element(find.byType(OverviewPage)))
-                .colorScheme
-                .primary,
-            const Color(0xff7ef5d0),
+            Theme.of(
+              tester.element(find.byType(OverviewPage)),
+            ).scaffoldBackgroundColor,
+            ZWorkspace.background,
           );
         },
       );
     }
   }
+  testWidgets('light workspace keeps the same compact overview readable', (
+    tester,
+  ) async {
+    await mountOverview(tester, theme: zLightTheme());
+    final theme = Theme.of(tester.element(find.byType(OverviewPage)));
+    expect(theme.brightness, Brightness.light);
+    expect(theme.scaffoldBackgroundColor, ZLight.background);
+    expect(find.text('Welcome back, Maria Santos.'), findsOneWidget);
+    expect(find.textContaining('2026–2027 · Term 2'), findsOneWidget);
+    expect(find.text('2 assessments with missing scores'), findsOneWidget);
+    await tester.ensureVisible(find.text('At a glance'));
+    await tester.pumpAndSettle();
+    expect(find.text('40'), findsOneWidget);
+    expect(tester.takeException(), isNull);
+  });
   testWidgets('quick actions reflow on resize without losing overview state', (
     tester,
   ) async {
@@ -746,14 +764,13 @@ void main() {
       expect(tester.getSize(grades).height, greaterThanOrEqualTo(48));
       expect(tester.widget<OutlinedButton>(bama).onPressed, isNull);
       final style = tester.widget<OutlinedButton>(grades).style!;
-      final scheme = Theme.of(tester.element(grades)).colorScheme;
       expect(
         (style.shape!.resolve({})! as RoundedRectangleBorder).borderRadius,
-        BorderRadius.circular(10),
+        BorderRadius.circular(ZTokens.radiusXl),
       );
       expect(
         style.side!.resolve({WidgetState.focused})!.color,
-        scheme.secondary,
+        ZDesk.dataAccent(tester.element(grades)),
       );
       expect(style.side!.resolve({WidgetState.focused})!.width, 1.5);
       expect(style.side!.resolve({})!.width, 1);
@@ -781,7 +798,7 @@ void main() {
       );
       expect(
         (material.shape! as RoundedRectangleBorder).borderRadius,
-        BorderRadius.circular(10),
+        BorderRadius.circular(ZTokens.radiusXl),
       );
       expect(
         find.descendant(of: panel, matching: find.byType(InkWell)),
@@ -794,9 +811,9 @@ void main() {
         ),
         findsNWidgets(2),
       );
-      await tester.ensureVisible(find.text('Classes'));
+      await tester.ensureVisible(find.text('CLASSES'));
       await tester.pumpAndSettle();
-      await tester.tap(find.text('Classes'));
+      await tester.tap(find.text('CLASSES'));
       await tester.pumpAndSettle();
       expect(find.text('Opened /workspace/classes'), findsOneWidget);
       expect(tester.takeException(), isNull);

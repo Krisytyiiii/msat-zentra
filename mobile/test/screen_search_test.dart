@@ -85,6 +85,14 @@ void main() {
         ScreenSearchMode.filter,
       );
       expect(
+        screenSearchSpecFor('/adviser/advisory/attendance').title,
+        'Advisory attendance',
+      );
+      expect(
+        screenSearchSpecFor('/adviser/advisory/attendance').mode,
+        ScreenSearchMode.filter,
+      );
+      expect(
         screenSearchSpecFor('/adviser/academic').mode,
         ScreenSearchMode.filter,
       );
@@ -128,7 +136,13 @@ void main() {
       expect(adviser.first, 'Overview');
       expect(
         adviser,
-        containsAll(['Advisory list', 'Academic', 'Referrals', 'Attendance']),
+        containsAll([
+          'Advisory list',
+          'Advisory attendance',
+          'Academic',
+          'Referrals',
+          'Attendance',
+        ]),
       );
       expect(adviser, isNot(contains('My schedule')));
 
@@ -137,6 +151,7 @@ void main() {
           .toList();
       expect(teacher, contains('My schedule'));
       expect(teacher, isNot(contains('Advisory list')));
+      expect(teacher, isNot(contains('Advisory attendance')));
       expect(teacher, isNot(contains('Referrals')));
     });
   });

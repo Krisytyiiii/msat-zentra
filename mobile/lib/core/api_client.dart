@@ -32,7 +32,9 @@ class ApiClient {
         if (token != null && token.isNotEmpty) {
           opts.headers['Authorization'] = 'Bearer $token';
         }
-        if (Hive.isBoxOpen(AppConfig.termScopeBox)) {
+        final role = Hive.isBoxOpen(AppConfig.portalBox)
+            ? Hive.box(AppConfig.portalBox).get('role') : null;
+        if (role != 'adm_coordinator' && Hive.isBoxOpen(AppConfig.termScopeBox)) {
           final box = Hive.box(AppConfig.termScopeBox);
           final sy = box.get('schoolYearId') as String?;
           final term = box.get('termId') as String?;

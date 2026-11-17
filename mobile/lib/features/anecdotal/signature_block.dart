@@ -11,6 +11,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:signature/signature.dart';
 
 import '../../shared/widgets.dart';
+import '../../design/status_palette.dart';
 import 'anecdotal_data.dart';
 
 /// Drawn sign-off from the detail payload (`signature: {by, at, imageUrl}`),
@@ -280,7 +281,9 @@ class _SignatureBlockState extends ConsumerState<SignatureBlock> {
           SizedBox(
             width: double.infinity,
             child: OutlinedButton.icon(
-              style: OutlinedButton.styleFrom(foregroundColor: const Color(0xFFDC2626)),
+              style: OutlinedButton.styleFrom(
+                foregroundColor: zDangerText(Theme.of(context)),
+              ),
               icon: const Icon(Icons.delete_outline, size: 16),
               onPressed: _remove,
               onLongPress: () => setState(() => _confirmingRemove = false),

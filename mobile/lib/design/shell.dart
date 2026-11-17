@@ -23,6 +23,7 @@ import '../shared/widgets.dart';
 import '../shared/user_messages.dart';
 import 'brand.dart';
 import 'screen_search.dart';
+import 'theme_mode.dart' show themeSettingsProvider;
 
 class ZentraShell extends ConsumerStatefulWidget {
   final Widget child;
@@ -385,7 +386,8 @@ class ZentraDrawer extends ConsumerWidget {
           _item(context, Icons.dashboard_outlined, 'Overview', '/workspace/overview', _selected('/workspace/overview')),
           if (isAdviser) ...[
             const _DrawerHeader('Advisory'),
-            _item(context, Icons.group_outlined, 'Advisory list', '/adviser/advisory', _selected('/adviser/advisory')),
+            _item(context, Icons.group_outlined, 'Advisory list', '/adviser/advisory', _selected('/adviser/advisory') && !_selected('/adviser/advisory/attendance')),
+            _item(context, Icons.fact_check_outlined, 'Advisory attendance', '/adviser/advisory/attendance', _selected('/adviser/advisory/attendance')),
             _item(context, Icons.school_outlined, 'Academic', '/adviser/academic', _selected('/adviser/academic')),
             _item(context, Icons.folder_shared_outlined, 'ADM cases', '/adviser/adm-cases', _selected('/adviser/adm-cases')),
             _item(context, Icons.note_outlined, 'Anecdotal', '/adviser/anecdotal', _selected('/adviser/anecdotal')),
@@ -524,6 +526,7 @@ void showZTermPicker(BuildContext context, WidgetRef ref) {
 extension AdviserRouteLocation on AdviserRoute {
   String get path => switch (this) {
         AdviserRoute.advisory => '/adviser/advisory',
+        AdviserRoute.advisoryAttendance => '/adviser/advisory/attendance',
         AdviserRoute.academic => '/adviser/academic',
         AdviserRoute.admCases => '/adviser/adm-cases',
         AdviserRoute.anecdotal => '/adviser/anecdotal',
@@ -700,8 +703,20 @@ void showZAccount(BuildContext context, WidgetRef ref) {
           },
         ),
         ListTile(
-          leading: const Icon(Icons.dark_mode_outlined),
-          title: const Text('Dark workspace · Mint & violet', style: TextStyle(fontSize: 13)),
+          leading: const Icon(Icons.brightness_6_outlined),
+          title: Text(
+            'Appearance · ${switch (ref.read(themeSettingsProvider).mode) {
+              ThemeMode.light => 'Light',
+              ThemeMode.dark => 'Dark',
+              ThemeMode.system => 'System',
+            }}',
+            style: const TextStyle(fontSize: 13),
+          ),
+          trailing: const Icon(Icons.chevron_right, size: 18),
+          onTap: () {
+            Navigator.pop(ctx);
+            ctx.go('/teacher/more');
+          },
         ),
         ListTile(
           leading: const Icon(Icons.logout),

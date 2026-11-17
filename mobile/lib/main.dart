@@ -9,7 +9,7 @@ import 'package:hive_flutter/hive_flutter.dart';
 import 'core/config.dart';
 import 'core/sync_outbox.dart';
 import 'design/theme.dart';
-import 'design/theme_mode.dart' show openThemeSettingsBox;
+import 'design/theme_mode.dart' show openThemeSettingsBox, themeSettingsProvider;
 import 'dev_preview/device_preview_host.dart';
 import 'features/app_router.dart';
 
@@ -30,15 +30,18 @@ class ZentraApp extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final router = ref.watch(routerProvider);
+    final mode = ref.watch(themeSettingsProvider.select((s) => s.mode));
     final pending = Hive.box(AppConfig.outboxBox).listenable();
     return ValueListenableBuilder(
       valueListenable: pending,
       builder: (context, _, _) => MaterialApp.router(
         title: 'Zentra',
         debugShowCheckedModeBanner: false,
-        theme: zWorkspaceTheme(),
-        darkTheme: zWorkspaceTheme(),
-        themeMode: ThemeMode.dark,
+        // Web palette in both modes; the dark desk keeps the teacher shell
+        // canvas (#050807) the web uses behind every staff board.
+        theme: zLightTheme(),
+        darkTheme: zDarkTheme(deskCanvas: true),
+        themeMode: mode,
         routerConfig: router,
         builder: (context, child) => devicePreviewEnabled
             ? DevicePreviewHost(child: child ?? const SizedBox.shrink())

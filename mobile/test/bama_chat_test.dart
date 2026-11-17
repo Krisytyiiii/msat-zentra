@@ -8,6 +8,7 @@ import 'package:hive_flutter/hive_flutter.dart';
 import 'package:zentra_mobile/core/api_client.dart';
 import 'package:zentra_mobile/core/config.dart';
 import 'package:zentra_mobile/core/session.dart';
+import 'package:zentra_mobile/design/bama_mascot.dart';
 import 'package:zentra_mobile/design/theme.dart';
 import 'package:zentra_mobile/features/bama/bama_chat_page.dart';
 import 'package:zentra_mobile/features/bama/bama_conversations.dart';
@@ -228,6 +229,7 @@ void main() {
     expect(find.text('Anecdotal record'), findsOneWidget);
     expect(find.text('Grade flag'), findsNothing);
     expect(find.text('Grade flag logs'), findsNothing);
+    expect(find.byType(BamaMascot), findsOneWidget);
     expect(bamaChatTypes, ['anecdotal']);
   });
 
@@ -262,6 +264,13 @@ void main() {
       await tester.tap(find.text('Ana Reyes'));
       await tester.pump();
       expect(find.byType(BamaWritingIndicator), findsOneWidget);
+      expect(
+        find.descendant(
+          of: find.byType(BamaWritingIndicator),
+          matching: find.byType(BamaMascot),
+        ),
+        findsOneWidget,
+      );
       await tester.tap(find.byTooltip('Back'));
       await tester.pumpAndSettle();
       expect(find.text('Staff shell header'), findsOneWidget);
@@ -344,6 +353,7 @@ void main() {
       expect(find.text('Saved prompt'), findsOneWidget);
       expect(find.byType(BamaWritingIndicator), findsNothing);
       expect(find.byTooltip('Close'), findsOneWidget);
+      expect(find.byType(BamaMascot), findsNWidgets(2));
       await tester.tap(find.byTooltip('Close'));
       await tester.pumpAndSettle();
       expect(find.text('Staff shell header'), findsOneWidget);

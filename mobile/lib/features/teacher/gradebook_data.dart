@@ -1,4 +1,5 @@
 import '../../core/api_client.dart';
+import '../../shared/names.dart';
 
 const assessmentTypes = {
   'WRITTEN_WORK': 'Written Work',
@@ -9,51 +10,6 @@ const assessmentTypes = {
 String gradeNumber(num value) => value == value.roundToDouble()
     ? value.toInt().toString()
     : value.toString();
-
-// Same surname-particle and existing-comma rules as web lib/names.ts.
-({String surname, String given}) _nameParts(String name) {
-  final clean = name.trim().replaceAll(RegExp(r'\s+'), ' ');
-  if (clean.contains(',')) {
-    final parts = clean.split(',');
-    return (surname: parts.first.trim(), given: parts.skip(1).join(',').trim());
-  }
-  final parts = clean.split(' ');
-  if (parts.length <= 1) return (surname: clean, given: '');
-  const particles = {
-    'de',
-    'del',
-    'dela',
-    'delos',
-    'delas',
-    'da',
-    'das',
-    'dos',
-    'la',
-    'las',
-    'los',
-    'san',
-    'santa',
-    'sta',
-    'sto',
-    'van',
-    'von',
-    'der',
-    'den',
-    'bin',
-    'binti',
-    'al',
-    'el',
-  };
-  var start = parts.length - 1;
-  while (start > 1 &&
-      particles.contains(parts[start - 1].toLowerCase().replaceAll('.', ''))) {
-    start--;
-  }
-  return (
-    surname: parts.skip(start).join(' '),
-    given: parts.take(start).join(' '),
-  );
-}
 
 class RecordLearner {
   RecordLearner(Map<String, dynamic> json)
@@ -71,12 +27,7 @@ class RecordLearner {
   final Map<String, dynamic>? finalGrade;
   bool get locked =>
       const ['locked', 'adviser_approved'].contains(finalGrade?['lockStatus']);
-  String get displayName {
-    final parts = _nameParts(name);
-    return parts.given.isEmpty
-        ? parts.surname
-        : '${parts.surname}, ${parts.given}';
-  }
+  String get displayName => formatSurnameFirst(name);
 }
 
 class RecordAssessment {
@@ -120,16 +71,9 @@ class ClassRecord {
           component['type'] as String: (component['weight'] as num? ?? 0)
               .toDouble(),
       } {
-    learners.sort((a, b) {
-      final left = _nameParts(a.name);
-      final right = _nameParts(b.name);
-      final surname = left.surname.toLowerCase().compareTo(
-        right.surname.toLowerCase(),
-      );
-      return surname != 0
-          ? surname
-          : left.given.toLowerCase().compareTo(right.given.toLowerCase());
-    });
+    learners.sort(
+      (a, b) => compareSurnameFirst(a.name, b.name),
+    );
   }
   final Map<String, dynamic> assignment;
   final List<RecordLearner> learners;

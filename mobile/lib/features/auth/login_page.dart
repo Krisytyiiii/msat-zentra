@@ -59,7 +59,9 @@ class _LoginPageState extends ConsumerState<LoginPage> {
       if (!mounted) return;
       if (ok) {
         TextInput.finishAutofillContext();
-        context.go(_portal == 'staff' ? '/term' : '/$_portal/home');
+        context.go(ref.read(authProvider).role == 'adm_coordinator'
+            ? '/coordinator/overview'
+            : _portal == 'staff' ? '/term' : '/$_portal/home');
       } else {
         setState(() => _error = ref.read(authProvider).error);
       }

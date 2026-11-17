@@ -2,7 +2,7 @@ import 'dart:math' as math;
 
 import 'package:flutter/material.dart';
 
-import '../../design/brand.dart';
+import '../../design/bama_mascot.dart';
 
 class BamaWritingIndicator extends StatefulWidget {
   const BamaWritingIndicator({super.key});
@@ -45,7 +45,7 @@ class _WritingState extends State<BamaWritingIndicator>
         padding: const EdgeInsets.only(bottom: 8),
         child: Row(
           children: [
-            const BamaAvatar(radius: 14),
+            const BamaMascot(size: 28),
             const SizedBox(width: 8),
             const Flexible(
               child: Text('Bama is writing…', style: TextStyle(fontSize: 13)),

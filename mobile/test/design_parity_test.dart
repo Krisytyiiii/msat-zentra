@@ -246,8 +246,8 @@ Future<void> mountDesignPage(
       child: Consumer(
         builder: (context, ref, _) {
           return MaterialApp(
-            theme: zWorkspaceTheme(),
-            themeMode: ThemeMode.dark,
+            theme: dark ? zDarkTheme(deskCanvas: true) : zLightTheme(),
+            themeMode: dark ? ThemeMode.dark : ThemeMode.light,
             builder: (context, child) => MediaQuery(
               data: MediaQuery.of(context).copyWith(
                 disableAnimations: true,
@@ -466,10 +466,9 @@ void main() {
             addTearDown(tester.view.resetDevicePixelRatio);
             final primary = custom ? const Color(0xFF16A34A) : null;
             final secondary = custom ? const Color(0xFFFEF3C7) : null;
-            final theme = dark && !custom
-                ? zWorkspaceTheme()
-                : dark
+            final theme = dark
                 ? zDarkTheme(
+                    deskCanvas: !custom,
                     primaryOverride: primary,
                     secondaryOverride: secondary,
                   )
@@ -603,7 +602,7 @@ void main() {
               greaterThan(20),
             );
             await tester.ensureVisible(
-              find.text('Dark workspace · Mint & violet'),
+              find.text('Follows this device’s appearance'),
             );
             await tester.pump();
             expect(tester.takeException(), isNull);
@@ -658,7 +657,7 @@ void main() {
   }
 
   testWidgets(
-    'appearance explains the fixed mobile identity without changing web settings',
+    'appearance switches the web palette without changing web settings',
     (tester) async {
       final api = TestProfileApi();
       final settings = TestPaletteSettings();
@@ -669,10 +668,13 @@ void main() {
         api: api,
         settings: settings,
       );
-      await tester.ensureVisible(find.text('Dark workspace · Mint & violet'));
+      await tester.ensureVisible(find.text('Follows this device’s appearance'));
       await tester.pumpAndSettle();
+      expect(find.text('System'), findsOneWidget);
+      expect(find.text('Light'), findsOneWidget);
+      expect(find.text('Dark'), findsOneWidget);
       expect(
-        find.textContaining('Your saved web appearance is unchanged.'),
+        find.textContaining('Mint and violet identify Zentra'),
         findsOneWidget,
       );
       expect(find.text('Reset to default'), findsNothing);

@@ -13,20 +13,31 @@ ThemeData zWorkspaceTheme() =>
 ThemeData zLightTheme({Color? primaryOverride, Color? secondaryOverride}) =>
     _workspaceTheme(Brightness.light, primaryOverride, secondaryOverride);
 
-ThemeData zDarkTheme({Color? primaryOverride, Color? secondaryOverride}) =>
-    _workspaceTheme(Brightness.dark, primaryOverride, secondaryOverride);
+/// Staff desk dark theme: web neutral surfaces (cards, borders, muted) on the
+/// teacher shell canvas (#050807), exactly like the web teacher desk.
+ThemeData zDarkTheme({
+  Color? primaryOverride,
+  Color? secondaryOverride,
+  bool deskCanvas = false,
+}) => _workspaceTheme(
+  Brightness.dark,
+  primaryOverride,
+  secondaryOverride,
+  deskCanvas: deskCanvas,
+);
 
 ThemeData _workspaceTheme(
   Brightness brightness,
   Color? primaryOverride,
   Color? secondaryOverride, {
   bool loginStyle = false,
+  bool deskCanvas = false,
 }) {
   final dark = brightness == Brightness.dark;
   final background = loginStyle
       ? ZWorkspace.background
       : dark
-      ? ZDark.background
+      ? (deskCanvas ? ZWorkspace.background : ZDark.background)
       : ZLight.background;
   final foreground = loginStyle
       ? ZWorkspace.foreground

@@ -33,9 +33,26 @@ class ScreenSearchSpec {
 /// desks here and in [screenSearchCatalog] instead of inside the shell.
 ScreenSearchSpec screenSearchSpecFor(String location, [Uri? uri]) {
   switch (location) {
+    case '/coordinator/overview':
+      return const ScreenSearchSpec.pages('Overview');
+    case '/coordinator/referrals':
+      return const ScreenSearchSpec.filter('ADM Cases', 'Search learner or LRN');
+    case '/coordinator/enrolled':
+      return const ScreenSearchSpec.filter('Enrolled', 'Search learner or LRN');
+    case '/coordinator/certifications':
+      return const ScreenSearchSpec.filter('Certifications', 'Search learner or LRN');
+    case '/coordinator/devices':
+      return const ScreenSearchSpec.filter('Devices', 'Search learner, LRN or serial');
+    case '/coordinator/settings':
+      return const ScreenSearchSpec.pages('Settings');
     case '/adviser/advisory':
       return const ScreenSearchSpec.filter(
         'Advisory list',
+        'Search name or LRN',
+      );
+    case '/adviser/advisory/attendance':
+      return const ScreenSearchSpec.filter(
+        'Advisory attendance',
         'Search name or LRN',
       );
     case '/adviser/academic':
@@ -109,6 +126,11 @@ List<ScreenSearchDestination> screenSearchCatalog({required bool isAdviser}) {
         'Advisory list',
         '/adviser/advisory',
         Icons.group_outlined,
+      ),
+      const ScreenSearchDestination(
+        'Advisory attendance',
+        '/adviser/advisory/attendance',
+        Icons.fact_check_outlined,
       ),
       const ScreenSearchDestination(
         'Academic',
