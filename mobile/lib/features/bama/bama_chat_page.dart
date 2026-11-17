@@ -1,5 +1,5 @@
 // Chat with Bama — full web messaging parity (adviser-only filing surface).
-// Threads (anecdotal wizard + grade-flag free-chat stub), welcome cards,
+// Anecdotal-only guided threads, welcome cards,
 // inline picker cards, datetime sheet, preview card, confirm sheet, staged
 // filing progress, filed cards, ended bar, delete flow, Hive persistence.
 // Ports: BamaChat.tsx, BamaThread, BamaSidebar, BamaComposer, BamaFlowDialogs,
@@ -16,33 +16,44 @@ import 'package:go_router/go_router.dart';
 import 'package:hive_flutter/hive_flutter.dart';
 import 'package:intl/intl.dart';
 
-import '../../core/api_client.dart';
 import '../../shared/user_messages.dart';
 import '../../core/config.dart';
 import '../../core/session.dart';
 import '../../core/sync_outbox.dart';
 import '../../design/brand.dart';
+import '../../shared/widgets.dart';
 import '../adviser/advisory_list_page.dart' show advisoryProvider, archivedAdvisoryProvider;
 import '../referral/referral_page.dart' show referralsProvider, referableProvider;
+import '../anecdotal/anecdotal_data.dart' show anecdotalMineProvider;
 import 'bama_conversations.dart';
 import 'bama_flow.dart';
+import 'bama_service.dart';
+import 'bama_writing_indicator.dart';
 
 class BamaChatPage extends ConsumerStatefulWidget {
   /// When true (e.g. opened via `/adviser/bama?new=1`), land on the welcome
   /// cards with no active thread — mirrors web `?new` deep-links. Threads
   /// are preserved in Chats.
   final bool freshEntry;
-  const BamaChatPage({super.key, this.freshEntry = false});
+  /// Non-null only on the full-screen route, outside the staff shell.
+  final String? conversationId;
+  final bool newConversation;
+  const BamaChatPage({
+    super.key,
+    this.freshEntry = false,
+    this.conversationId,
+    this.newConversation = false,
+  });
   @override
   ConsumerState<BamaChatPage> createState() => _State();
 }
 
 class _State extends ConsumerState<BamaChatPage> {
   List<BamaConversation> _convos = [];
+  List<BamaConversation> _legacyConvos = [];
   String? _activeId;
   // Ephemeral draft: a freshly opened thread that is NOT recorded until its
-  // commit point (student picked for anecdotal, first message for
-  // grade-flag). Never enters _convos, never persisted — leaving without
+  // commit point (student picked). Never enters _convos, never persisted — leaving without
   // committing discards it silently.
   BamaConversation? _pending;
   bool _hydrated = false;
@@ -68,20 +79,54 @@ class _State extends ConsumerState<BamaChatPage> {
   Timer? _replyTimer;
   Timer? _progressTimer;
   int _progressValue = 0;
+  int? _writingMessageId;
+  int _optionsGeneration = 0;
+  bool _openingConversation = false;
+  StreamSubscription<BoxEvent>? _storeChanges;
+  bool _storeRefreshQueued = false;
+  bool get _dedicated => widget.conversationId != null;
 
   @override
   void initState() {
     super.initState();
     _hydrate();
-    if (widget.freshEntry) {
+    if (_dedicated) {
+      _activeId = widget.conversationId;
+      if (_active == null && widget.newConversation &&
+          !_legacyConvos.any((c) => c.id == _activeId)) {
+        _startDraft('anecdotal', id: widget.conversationId);
+      }
+      final flow = _flows[_activeId];
+      _dateInput = flow?.observationDate ??
+          (flow?.tier == null ? '' : DateTime.now().toIso8601String().split('T').first);
+      _timeInput = flow?.observationTime ?? '';
+      _loadOptions();
+    } else {
+      final remembered = widget.freshEntry ? null : _active?.id;
       _activeId = null;
-      _save();
+      // Route replacement (Start new chat) completes the old push future
+      // early. Keep the landing snapshot current across those replacements too.
+      _storeChanges = Hive.box(AppConfig.bamaBox).watch().listen((_) {
+        if (_storeRefreshQueued) return;
+        _storeRefreshQueued = true;
+        scheduleMicrotask(() {
+          _storeRefreshQueued = false;
+          if (!mounted) return;
+          _hydrate();
+          _activeId = null;
+        });
+      });
+      if (remembered != null) {
+        WidgetsBinding.instance.addPostFrameCallback((_) {
+          if (mounted) _openConversation(remembered);
+        });
+      }
     }
-    _loadOptions();
   }
 
   @override
   void dispose() {
+    _storeChanges?.cancel();
     _replyTimer?.cancel();
     _progressTimer?.cancel();
     _draft.dispose();
@@ -116,7 +161,9 @@ class _State extends ConsumerState<BamaChatPage> {
       }
     }
     setState(() {
-      _convos = convos;
+      _convos = convos.where((c) => c.type == 'anecdotal').toList();
+      // Keep old unsupported chats on disk, but never expose/resume them.
+      _legacyConvos = convos.where((c) => c.type != 'anecdotal').toList();
       _activeId = box.get('activeId') as String?;
       if (_activeId != null && _convos.every((c) => c.id != _activeId)) _activeId = null;
       _nextMsgId = (box.get('nextId') as int?) ?? 1;
@@ -128,7 +175,7 @@ class _State extends ConsumerState<BamaChatPage> {
   void _save() {
     if (!_hydrated) return;
     Hive.box(AppConfig.bamaBox).putAll({
-      'conversations': [for (final c in _convos.take(50)) c.toJson()],
+      'conversations': [for (final c in [..._convos.take(50), ..._legacyConvos]) c.toJson()],
       'activeId': _activeId,
       'nextId': _nextMsgId,
       'flows': {for (final e in _flows.entries) e.key: e.value.toJson()},
@@ -245,27 +292,27 @@ class _State extends ConsumerState<BamaChatPage> {
   // --- options ---
 
   Future<void> _loadOptions() async {
+    final generation = ++_optionsGeneration;
     try {
-      final api = ref.read(apiClientProvider);
       // Same source web uses (fetchAnecdotalOptions): students + classes +
       // sectionClasses scoped to the teacher's sections and active term.
-      final res = await api.dio.get('/api/teacher/grade-flags/options');
-      if (!mounted) return;
+      final data = await ref.read(bamaServiceProvider).fetchOptions();
+      if (!mounted || generation != _optionsGeneration) return;
       setState(() {
-        _students = [for (final s in (res.data['students'] as List? ?? [])) Map<String, dynamic>.from(s as Map)];
-        _classes = [for (final c in (res.data['sectionClasses'] as List? ?? [])) Map<String, dynamic>.from(c as Map)];
+        _students = [for (final s in (data['students'] as List? ?? [])) Map<String, dynamic>.from(s as Map)];
+        _classes = [for (final c in (data['sectionClasses'] as List? ?? [])) Map<String, dynamic>.from(c as Map)];
         _optionsPending = false;
         _optionsError = null;
       });
     } on DioException catch (e) {
-      if (!mounted) return;
+      if (!mounted || generation != _optionsGeneration) return;
       final msg = userMessage(e, fallback: 'We couldn’t load your learners. Please try again.');
       setState(() {
         _optionsPending = false;
         _optionsError = msg;
       });
     } catch (_) {
-      if (!mounted) return;
+      if (!mounted || generation != _optionsGeneration) return;
       setState(() {
         _optionsPending = false;
         _optionsError = 'Couldn\'t load students. Check your connection.';
@@ -275,16 +322,17 @@ class _State extends ConsumerState<BamaChatPage> {
 
   // --- threads ---
 
-  void _startDraft(String type) {
+  void _startDraft(String type, {String? id}) {
+    _cancelReply();
     _discardPending();
     final now = DateTime.now().millisecondsSinceEpoch;
-    final id = bamaNewId();
+    id ??= bamaNewId();
     _flows.remove(id);
     final convo = BamaConversation(
       id: id,
       type: type,
       title: 'New chat',
-      messages: [BamaMessage(id: _mid(), fromUser: false, text: bamaGreetings[type]!, at: now)],
+      messages: [],
       updatedAt: now,
     );
     setState(() {
@@ -297,37 +345,72 @@ class _State extends ConsumerState<BamaChatPage> {
       _timeInput = '';
       _confirmFiling = false;
     });
+    _pushAssistant(bamaGreetings['anecdotal']!);
     _scrollToBottom();
   }
 
-  void _startAnecdotalChat() => _startDraft('anecdotal');
+  void _startAnecdotalChat() => _openConversation(bamaNewId(), create: true);
 
-  void _startGradeFlagChat() => _startDraft('grade-flag');
+  Future<void> _openConversation(String id, {bool create = false}) async {
+    if (_openingConversation) return;
+    final location = '/adviser/bama/conversation/${Uri.encodeComponent(id)}'
+        '${create ? '?new=1' : ''}';
+    if (_dedicated) {
+      if (_filing) return;
+      _cancelReply();
+      context.pushReplacement(location);
+      return;
+    }
+    _openingConversation = true;
+    try {
+      await context.push<void>(location);
+      if (!mounted) return;
+      // The child owns writes while open. Reload instead of saving the landing
+      // screen's old snapshot over the child's latest answers or filed state.
+      _hydrate();
+      setState(() => _activeId = null);
+    } finally {
+      _openingConversation = false;
+    }
+  }
 
   void _backToWelcome() {
+    if (_filing) return;
+    _cancelReply();
     _discardPending();
     setState(() {
-      _activeId = null;
+      if (!_dedicated) _activeId = null;
       _draft.clear();
       _flowError = null;
       _confirmFiling = false;
     });
     _save();
+    if (_dedicated) {
+      final router = GoRouter.of(context);
+      if (router.canPop()) {
+        router.pop();
+      } else {
+        router.go('/adviser/bama?new=1');
+      }
+    }
   }
 
   void _confirmDelete(BamaConversation target) {
+    if (_activeId == target.id) _cancelReply();
     setState(() {
       _convos.removeWhere((c) => c.id == target.id);
       _flows.remove(target.id);
       if (_activeId == target.id) _activeId = null;
     });
     _save();
+    if (_dedicated && _active == null) _backToWelcome();
   }
 
   /// Reset the flow back to [step] (student|class|category|tier|datetime),
   /// clearing that step and everything after it, then re-ask conversationally.
   /// Filed threads never reach here (composer/ended bar block edits).
   void _resetToStep(String step) {
+    if (_sending || _filing) return;
     final active = _active;
     if (active == null || active.filed || active.type != 'anecdotal') return;
     final f = _flow();
@@ -356,11 +439,38 @@ class _State extends ConsumerState<BamaChatPage> {
   void _pushAssistant(String text, {Map<String, dynamic>? preview}) {
     final active = _active;
     if (active == null) return;
-    active.messages.add(BamaMessage(id: _mid(), fromUser: false, text: text, at: DateTime.now().millisecondsSinceEpoch, preview: preview));
+    _cancelReply();
+    final message = BamaMessage(id: _mid(), fromUser: false, text: text, at: DateTime.now().millisecondsSinceEpoch, preview: preview);
+    active.messages.add(message);
     _touch(active);
-    setState(() {});
+    setState(() {
+      _sending = true;
+      _writingMessageId = message.id;
+    });
+    // Persist the prompt with the advanced flow immediately. If interrupted,
+    // resuming shows the saved prompt rather than losing a question.
+    _replyTimer = Timer(const Duration(milliseconds: 600), () {
+      if (!mounted || _activeId != active.id) return;
+      setState(() {
+        _sending = false;
+        _writingMessageId = null;
+      });
+      _scrollToBottom();
+    });
     _save();
     _scrollToBottom();
+  }
+
+  void _cancelReply() {
+    _replyTimer?.cancel();
+    _replyTimer = null;
+    _sending = false;
+    _writingMessageId = null;
+  }
+
+  void _resume(String id) {
+    if (!_convos.any((c) => c.id == id && c.type == 'anecdotal')) return;
+    _openConversation(id);
   }
 
   void _pushUser(String text) {
@@ -377,6 +487,7 @@ class _State extends ConsumerState<BamaChatPage> {
   }
 
   void _handleStudentPick(String id) {
+    if (_sending || _filing) return;
     final active = _active;
     if (active == null || active.filed) return;
     final f = _flow();
@@ -401,6 +512,7 @@ class _State extends ConsumerState<BamaChatPage> {
   }
 
   void _handleClassPick(String key) {
+    if (_sending || _filing) return;
     final active = _active;
     if (active == null || active.filed) return;
     final f = _flow();
@@ -414,6 +526,7 @@ class _State extends ConsumerState<BamaChatPage> {
   }
 
   void _handleCategoryPick(String value) {
+    if (_sending || _filing) return;
     final active = _active;
     if (active == null || active.filed) return;
     final f = _flow();
@@ -426,6 +539,7 @@ class _State extends ConsumerState<BamaChatPage> {
   }
 
   void _handleTierPick(String value) {
+    if (_sending || _filing) return;
     final active = _active;
     if (active == null || active.filed) return;
     final f = _flow();
@@ -458,6 +572,7 @@ class _State extends ConsumerState<BamaChatPage> {
   }
 
   void _handleDatetimeConfirm() {
+    if (_sending || _filing) return;
     final active = _active;
     if (active == null || active.filed) return;
     final f = _flow();
@@ -473,7 +588,7 @@ class _State extends ConsumerState<BamaChatPage> {
 
   void _handleAnecSend() {
     final active = _active;
-    if (active == null || active.filed || _filing) return;
+    if (active == null || active.filed || _filing || _sending) return;
     final f = _flow();
     if (f.textQuestion != null) {
       final value = _draft.text.trim();
@@ -534,7 +649,7 @@ class _State extends ConsumerState<BamaChatPage> {
 
   Future<void> _fileRecord() async {
     final active = _active;
-    if (active == null || active.filed || _filing) return;
+    if (active == null || active.filed || _filing || _sending) return;
     final f = _flow();
     final student = _studentById(f.studentId);
     if (student == null) {
@@ -573,12 +688,6 @@ class _State extends ConsumerState<BamaChatPage> {
       category: f.category!,
       tier: f.tier ?? 'restricted',
     );
-    final conn = await Connectivity().checkConnectivity();
-    if (conn.contains(ConnectivityResult.none)) {
-      await ref.read(outboxProvider).enqueue(method: 'POST', path: '/api/anecdotal', body: body);
-      _pushAssistant('Saved offline — will file when you reconnect.');
-      return;
-    }
     setState(() {
       _filing = true;
       _confirmFiling = false;
@@ -597,7 +706,16 @@ class _State extends ConsumerState<BamaChatPage> {
       });
     });
     try {
-      final res = await ref.read(apiClientProvider).dio.post('/api/anecdotal', data: body);
+      final conn = await Connectivity().checkConnectivity();
+      if (!mounted) return;
+      if (conn.contains(ConnectivityResult.none)) {
+        await ref.read(outboxProvider).enqueue(method: 'POST', path: '/api/anecdotal', body: body);
+        if (mounted && _activeId == active.id) {
+          _pushAssistant('Saved offline — will file when you reconnect.');
+        }
+        return;
+      }
+      final result = await ref.read(bamaServiceProvider).createRecord(body);
       _progressTimer?.cancel();
       if (!mounted) return;
       setState(() {
@@ -605,7 +723,7 @@ class _State extends ConsumerState<BamaChatPage> {
         _fileStage = 'Done — GCForm-01 ready.';
       });
       final categoryLabel = anecdotalCategoryLabels[f.category] ?? '';
-      final recordId = res.data is Map ? (res.data as Map)['id']?.toString() : null;
+      final recordId = result['id']?.toString();
       final detail = _previewOf(f)
         ..['recordFiled'] = true
         ..['recordId'] = recordId;
@@ -613,7 +731,11 @@ class _State extends ConsumerState<BamaChatPage> {
       active.messages.add(BamaMessage(id: _mid(), fromUser: true, text: '$categoryLabel — $note', at: DateTime.now().millisecondsSinceEpoch, detail: detail));
       active.messages.add(BamaMessage(id: _mid(), fromUser: false, text: 'Anecdotal record filed.', at: DateTime.now().millisecondsSinceEpoch, detail: detail));
       active.title = '$name · $categoryLabel · Filed';
-      _touch(active);
+      _touch(BamaConversation(
+        id: active.id, type: 'anecdotal', title: active.title,
+        messages: active.messages, updatedAt: DateTime.now().millisecondsSinceEpoch,
+        filed: true,
+      ));
       _flows.remove(active.id);
       setState(() {});
       _save();
@@ -622,6 +744,7 @@ class _State extends ConsumerState<BamaChatPage> {
       ref.invalidate(archivedAdvisoryProvider);
       ref.invalidate(referralsProvider);
       ref.invalidate(referableProvider);
+      ref.invalidate(anecdotalMineProvider);
       if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Anecdotal record filed · $name · $categoryLabel.')));
     } on DioException catch (e) {
       final msg = userMessage(e, fallback: 'We couldn’t file this record. Please try again.');
@@ -632,91 +755,79 @@ class _State extends ConsumerState<BamaChatPage> {
         _fileStage = '';
       });
       if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(msg)));
+    } catch (error) {
+      if (!mounted) return;
+      setState(() {
+        _flowError = userMessage(error, fallback: 'We couldn’t file this record. Please try again.');
+      });
     } finally {
       _progressTimer?.cancel();
       if (mounted) setState(() => _filing = false);
     }
   }
 
-  // --- grade-flag free chat (stub, mirrors web 700ms fake reply) ---
-
-  void _handleFreeSend() {
-    final active = _active;
-    final text = _draft.text.trim();
-    if (text.isEmpty || _sending || active == null || active.filed) return;
-    _commitPending(active);
-    if (active.title == 'New chat') active.title = bamaTitleOf(text);
-    active.messages.add(BamaMessage(id: _mid(), fromUser: true, text: text, at: DateTime.now().millisecondsSinceEpoch));
-    _touch(active);
-    setState(() {
-      _draft.clear();
-      _sending = true;
-    });
-    _save();
-    _scrollToBottom();
-    _replyTimer?.cancel();
-    _replyTimer = Timer(const Duration(milliseconds: 700), () {
-      if (!mounted) return;
-      active.messages.add(
-        BamaMessage(id: _mid(), fromUser: false, text: bamaFreeFollowups[active.type]!, at: DateTime.now().millisecondsSinceEpoch),
-      );
-      _touch(active);
-      setState(() => _sending = false);
-      _save();
-      _scrollToBottom();
-    });
-  }
-
   void _handleSend() {
-    if (_anecMode) {
-      _handleAnecSend();
-    } else {
-      _handleFreeSend();
-    }
+    if (_anecMode && !_sending) _handleAnecSend();
   }
 
   @override
   Widget build(BuildContext context) {
+    if (_dedicated) {
+      ref.listen(termProvider, (previous, next) {
+      if (previous?.id == next?.id && previous?.schoolYearId == next?.schoolYearId) return;
+      _backToWelcome();
+      setState(() {
+        _students = [];
+        _classes = [];
+        _optionsPending = true;
+        _optionsError = null;
+      });
+      _loadOptions();
+      });
+    }
     // Adviser gate (mirrors web TeacherChatPage): subject teachers see notice.
     final overview = ref.watch(overviewProvider);
     final notAdviser = overview.maybeWhen(data: (d) => d['isAdviser'] == false, orElse: () => false);
     if (notAdviser) {
-      return const Center(
+      return _frame(const Center(
         child: Padding(
           padding: EdgeInsets.all(24),
           child: Text('Chat with Bama is available to class advisers.', textAlign: TextAlign.center),
         ),
-      );
+      ));
     }
     if (!_hydrated) {
-      return const Center(child: Text('Loading…'));
+      return _frame(const Center(child: Text('Loading…')));
     }
-    final active = _active;
-    return Stack(
+    final active = _dedicated ? _active : null;
+    if (_dedicated && active == null) {
+      return _frame(
+        ZEmptyPage(
+          icon: Icons.chat_bubble_outline,
+          title: 'Conversation unavailable',
+          subtitle: 'This saved anecdotal chat could not be found.',
+          actionLabel: 'Back to Bama',
+          onAction: _backToWelcome,
+        ),
+      );
+    }
+    return _frame(Stack(
       children: [
         Column(children: [
-          if (active != null)
-            _ChatHeader(
-              subtitle: active.type == 'grade-flag' ? 'Grade Flag Assistant' : 'Anecdotal Record Assistant',
-              onBack: _backToWelcome,
-              onDelete: () => _askDelete(active),
-              onEdit: _openEditSheet,
-              canEdit: _anecMode && !active.filed && _flow().studentId.isNotEmpty,
-            ),
           Expanded(
             child: active == null
                 ? _Welcome(
                     conversations: _convos,
                     onStartAnecdotal: _startAnecdotalChat,
-                    onStartGradeFlag: _startGradeFlagChat,
-                    onResume: (id) => setState(() => _activeId = id),
+                     onResume: _resume,
                     onDelete: _askDelete,
                     onSeeAll: _openHistory,
                   )
                 : _ThreadView(
                     key: ValueKey(active.id),
                     active: active,
-                    sending: _sending,
+                     sending: _sending,
+                     writingMessageId: _writingMessageId,
                     filing: _filing,
                     flow: _anecMode ? _flow() : null,
                     flowError: _flowError,
@@ -765,29 +876,67 @@ class _State extends ConsumerState<BamaChatPage> {
             ),
         ]),
         if (active == null)
-          _SpeedDial(
-            onAnecdotal: _startAnecdotalChat,
-            onGradeFlag: _startGradeFlagChat,
-          ),
+           Positioned(
+             right: 16, bottom: 24,
+             child: FloatingActionButton(
+               tooltip: 'New anecdotal chat',
+               onPressed: _startAnecdotalChat,
+               child: const Icon(Icons.add),
+             ),
+           ),
         if (_filing) _FilingOverlay(progress: _fileProgress, stage: _fileStage),
         if (_confirmFiling && active != null && _anecMode) _ConfirmSheet(flow: _flow(), onKeep: () => setState(() => _confirmFiling = false), onFile: _fileRecord),
       ],
+    ));
+  }
+
+  Widget _frame(Widget body) {
+    if (!_dedicated) return body;
+    final active = _active;
+    return PopScope(
+      canPop: !_filing,
+      onPopInvokedWithResult: (didPop, _) {
+        if (!didPop) return;
+        _cancelReply();
+        _discardPending();
+      },
+      child: Scaffold(
+        resizeToAvoidBottomInset: true,
+        appBar: _ChatHeader(
+          subtitle: 'Anecdotal Record Assistant',
+          onBack: _backToWelcome,
+          onDelete: active == null ? null : () => _askDelete(active),
+          onEdit: _openEditSheet,
+          canEdit: active != null && !_sending && !_filing &&
+              !active.filed && _flow().studentId.isNotEmpty,
+          busy: _filing,
+        ),
+        body: SafeArea(top: false, child: body),
+      ),
     );
   }
 
-  void _openHistory(String type) {
-    context.push(
+  Future<void> _openHistory(String type) async {
+    _cancelReply();
+    await context.push<void>(
       '/adviser/bama/history?type=$type',
       extra: {
         'type': type,
         'conversations': _convos,
-        'onResume': (String id) => setState(() => _activeId = id),
+         'onResume': (String id) async {
+           if (mounted) await _openConversation(id);
+         },
         'onDelete': (BamaConversation c) => _askDelete(c),
       },
     );
+    if (mounted) {
+      _hydrate();
+      setState(() => _activeId = null);
+    }
   }
 
   void _openEditSheet() {
+    if (_sending || _filing) return;
     final active = _active;
     if (active == null || active.filed || active.type != 'anecdotal') return;
     final f = _flow();
@@ -870,42 +1019,54 @@ class _State extends ConsumerState<BamaChatPage> {
 
 // --- in-chat header (message-style) ---
 
-class _ChatHeader extends StatelessWidget {
+class _ChatHeader extends StatelessWidget implements PreferredSizeWidget {
   final String subtitle;
   final VoidCallback onBack;
-  final VoidCallback onDelete;
+  final VoidCallback? onDelete;
   final VoidCallback onEdit;
   final bool canEdit;
-  const _ChatHeader({required this.subtitle, required this.onBack, required this.onDelete, required this.onEdit, required this.canEdit});
+  final bool busy;
+  const _ChatHeader({required this.subtitle, required this.onBack, required this.onDelete, required this.onEdit, required this.canEdit, required this.busy});
+
+  @override
+  Size get preferredSize => const Size.fromHeight(72);
 
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 6),
-      decoration: BoxDecoration(border: Border(bottom: BorderSide(color: theme.colorScheme.outline))),
-      child: Row(children: [
-        IconButton(icon: const Icon(Icons.arrow_back, size: 20), tooltip: 'Back', onPressed: onBack),
-        const BamaAvatar(radius: 20),
+    final canPop = GoRouter.of(context).canPop();
+    return AppBar(
+      toolbarHeight: 72,
+      leading: IconButton(
+        icon: Icon(canPop ? Icons.arrow_back : Icons.close, size: 20),
+        tooltip: canPop ? 'Back' : 'Close',
+        onPressed: busy ? null : onBack,
+      ),
+      title: Row(children: [
+        const BamaAvatar(radius: 18),
         const SizedBox(width: 10),
         Expanded(
-          child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+          child: Column(mainAxisSize: MainAxisSize.min, crossAxisAlignment: CrossAxisAlignment.start, children: [
             const Text('Bama', maxLines: 1, overflow: TextOverflow.ellipsis, style: TextStyle(fontSize: 14, fontWeight: FontWeight.w700)),
-            Text(subtitle, style: theme.textTheme.bodySmall),
+            Text(subtitle, maxLines: 2, overflow: TextOverflow.ellipsis, style: theme.textTheme.bodySmall),
           ]),
         ),
-        PopupMenuButton<String>(
+      ]),
+      actions: [
+        if (onDelete != null) PopupMenuButton<String>(
+          enabled: !busy,
+          tooltip: 'Conversation actions',
           icon: const Icon(Icons.more_vert, size: 20),
           onSelected: (v) {
             if (v == 'edit') onEdit();
-            if (v == 'delete') onDelete();
+            if (v == 'delete') onDelete?.call();
           },
-          itemBuilder: (_) => const [
-            PopupMenuItem(value: 'edit', child: Text('Change answer', style: TextStyle(fontSize: 13))),
-            PopupMenuItem(value: 'delete', child: Text('Delete chat', style: TextStyle(fontSize: 13))),
+           itemBuilder: (_) => [
+             if (canEdit) const PopupMenuItem(value: 'edit', child: Text('Change answer', style: TextStyle(fontSize: 13))),
+             const PopupMenuItem(value: 'delete', child: Text('Delete chat', style: TextStyle(fontSize: 13))),
           ],
         ),
-      ]),
+      ],
     );
   }
 }
@@ -914,14 +1075,12 @@ class _ChatHeader extends StatelessWidget {
 
 class _Welcome extends StatelessWidget {
   final VoidCallback onStartAnecdotal;
-  final VoidCallback onStartGradeFlag;
   final List<BamaConversation> conversations;
   final ValueChanged<String> onResume;
   final ValueChanged<BamaConversation> onDelete;
   final ValueChanged<String> onSeeAll;
   const _Welcome({
     required this.onStartAnecdotal,
-    required this.onStartGradeFlag,
     required this.conversations,
     required this.onResume,
     required this.onDelete,
@@ -951,12 +1110,6 @@ class _Welcome extends StatelessWidget {
         subtitle: 'Write an incident report',
         onTap: onStartAnecdotal,
       ),
-      const SizedBox(height: 8),
-      _EntryCard(
-        title: 'Grade flag',
-        subtitle: 'Raise a grade concern',
-        onTap: onStartGradeFlag,
-      ),
       const SizedBox(height: 16),
       _LogSection(
         title: 'Anecdotal logs',
@@ -965,15 +1118,6 @@ class _Welcome extends StatelessWidget {
         onResume: onResume,
         onDelete: onDelete,
         onSeeAll: () => onSeeAll('anecdotal'),
-      ),
-      const SizedBox(height: 8),
-      _LogSection(
-        title: 'Grade flag logs',
-        emptyText: 'No grade flag chats yet.',
-        items: _ofType('grade-flag'),
-        onResume: onResume,
-        onDelete: onDelete,
-        onSeeAll: () => onSeeAll('grade-flag'),
       ),
     ]);
   }
@@ -1065,112 +1209,12 @@ class _LogSection extends StatelessWidget {
   }
 }
 
-class _SpeedDial extends StatefulWidget {
-  final VoidCallback onAnecdotal;
-  final VoidCallback onGradeFlag;
-  const _SpeedDial({required this.onAnecdotal, required this.onGradeFlag});
-
-  @override
-  State<_SpeedDial> createState() => _SpeedDialState();
-}
-
-class _SpeedDialState extends State<_SpeedDial> with SingleTickerProviderStateMixin {
-  bool _expanded = false;
-  late final AnimationController _turns;
-
-  @override
-  void initState() {
-    super.initState();
-    _turns = AnimationController(vsync: this, duration: const Duration(milliseconds: 150));
-  }
-
-  @override
-  void dispose() {
-    _turns.dispose();
-    super.dispose();
-  }
-
-  void _toggle() {
-    setState(() => _expanded = !_expanded);
-    if (_expanded) {
-      _turns.forward();
-    } else {
-      _turns.reverse();
-    }
-  }
-
-  @override
-  Widget build(BuildContext context) => Positioned(
-        right: 16,
-        bottom: 88,
-        child: Column(mainAxisSize: MainAxisSize.min, crossAxisAlignment: CrossAxisAlignment.end, children: [
-          SizeTransition(
-            sizeFactor: CurvedAnimation(parent: _turns, curve: Curves.easeOut),
-            child: Column(mainAxisSize: MainAxisSize.min, crossAxisAlignment: CrossAxisAlignment.end, children: [
-              _DialOption(
-                label: 'Anecdotal',
-                icon: Icons.note_outlined,
-                onTap: () {
-                  _toggle();
-                  widget.onAnecdotal();
-                },
-              ),
-              const SizedBox(height: 8),
-              _DialOption(
-                label: 'Grade flag',
-                icon: Icons.flag_outlined,
-                onTap: () {
-                  _toggle();
-                  widget.onGradeFlag();
-                },
-              ),
-              const SizedBox(height: 8),
-            ]),
-          ),
-          FloatingActionButton(
-            tooltip: _expanded ? 'Close' : 'New chat',
-            onPressed: _toggle,
-            child: RotationTransition(
-              turns: Tween(begin: 0.0, end: 0.125).animate(_turns),
-              child: Icon(_expanded ? Icons.close : Icons.add),
-            ),
-          ),
-        ]),
-      );
-}
-
-class _DialOption extends StatelessWidget {
-  final String label;
-  final IconData icon;
-  final VoidCallback onTap;
-  const _DialOption({required this.label, required this.icon, required this.onTap});
-
-  @override
-  Widget build(BuildContext context) => Row(mainAxisSize: MainAxisSize.min, children: [
-        Container(
-          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
-          decoration: BoxDecoration(
-            borderRadius: BorderRadius.circular(6),
-            color: Theme.of(context).colorScheme.surfaceContainerLow,
-            border: Border.all(color: Theme.of(context).colorScheme.outline),
-          ),
-          child: Text(label, style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w600)),
-        ),
-        const SizedBox(width: 8),
-        FloatingActionButton.small(
-          heroTag: 'bama-dial-$label',
-          tooltip: label,
-          onPressed: onTap,
-          child: Icon(icon, size: 18),
-        ),
-      ]);
-}
-
 // --- thread ---
 
 class _ThreadView extends StatelessWidget {
   final BamaConversation active;
   final bool sending;
+  final int? writingMessageId;
   final bool filing;
   final FlowSnapshot? flow;
   final String? flowError;
@@ -1199,6 +1243,7 @@ class _ThreadView extends StatelessWidget {
     super.key,
     required this.active,
     required this.sending,
+    required this.writingMessageId,
     required this.filing,
     required this.flow,
     required this.flowError,
@@ -1234,9 +1279,10 @@ class _ThreadView extends StatelessWidget {
       controller: scroll,
       padding: const EdgeInsets.fromLTRB(16, 12, 16, 8),
       children: [
-        for (final m in active.messages) _Bubble(message: m),
-        if (sending || filing) _typingRow(theme),
-        if (anecOpen) ...[
+         for (final m in active.messages)
+           if (m.id != writingMessageId) _Bubble(message: m),
+         if (sending || filing) const BamaWritingIndicator(),
+         if (anecOpen && !sending && !filing) ...[
           const SizedBox(height: 4),
           if (f.studentId.isEmpty)
             _StudentPicker(
@@ -1299,14 +1345,6 @@ class _ThreadView extends StatelessWidget {
     return null;
   }
 
-  Widget _typingRow(ThemeData theme) => Padding(
-        padding: const EdgeInsets.only(bottom: 8),
-        child: Row(children: [
-          const BamaAvatar(radius: 14),
-          const SizedBox(width: 8),
-          const Text('Bama is typing…', style: TextStyle(fontSize: 13)),
-        ]),
-      );
 }
 
 class _Bubble extends StatelessWidget {
@@ -1666,7 +1704,7 @@ class _Composer extends StatelessWidget {
         placeholder = 'Pick a student to begin';
       }
     } else {
-      placeholder = 'Ask Bama about this grade flag…';
+      placeholder = 'Type your answer…';
     }
     final q0 = f?.textQuestion;
     final String label = (anecMode && q0 != null) ? textQuestionLabels[q0]! : 'Ask Bama';
@@ -1684,14 +1722,14 @@ class _Composer extends StatelessWidget {
       padding: const EdgeInsets.fromLTRB(12, 8, 12, 12),
       decoration: BoxDecoration(border: Border(top: BorderSide(color: theme.colorScheme.outline))),
       child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-        Text(label, style: theme.textTheme.labelSmall),
+        Text(sending ? 'Please wait' : label, style: theme.textTheme.labelSmall),
         const SizedBox(height: 4),
         Row(crossAxisAlignment: CrossAxisAlignment.end, children: [
           Expanded(
             child: TextField(
               controller: draft,
               enabled: !disabled,
-              decoration: InputDecoration(hintText: placeholder),
+              decoration: InputDecoration(hintText: sending ? 'Working on it…' : placeholder),
               minLines: 1,
               maxLines: 4,
               maxLength: 2000,

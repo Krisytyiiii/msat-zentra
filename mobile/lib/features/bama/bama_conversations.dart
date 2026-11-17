@@ -1,25 +1,18 @@
 // Bama conversations store — Dart port of
 // frontend/src/app/teacher/chat/components/bama-conversations.ts.
-// Multi-thread chats (anecdotal filing wizard + grade-flag free-chat stub),
+// Anecdotal filing threads (legacy types still deserialize without data loss),
 // persisted in Hive (zentra.bama box): conversations + activeId + id counter.
 
 import 'dart:math';
 
-const bamaChatTypes = ['anecdotal', 'grade-flag'];
+const bamaChatTypes = ['anecdotal'];
 
 const bamaTypeLabels = {
   'anecdotal': 'Anecdotal Record',
-  'grade-flag': 'Grade Flag',
 };
 
 const bamaGreetings = {
   'anecdotal': 'Hi, I\'m Bama. Tell me what happened and I\'ll help you write the anecdotal record.\nWhich student is this anecdotal report for? Pick one below.',
-  'grade-flag': 'Hi, I\'m Bama. Tell me about the grade concern and I\'ll help you put the flag together.',
-};
-
-const bamaFreeFollowups = {
-  'anecdotal': 'Noted — I\'ve kept that with this chat. Pick the student above and I\'ll walk you through the report.',
-  'grade-flag': 'Got it — I\'ve kept that with this chat. Full grade-flag help is still learning, so please raise the actual flag from Grade Flags for now.',
 };
 
 class BamaQuestionOption {

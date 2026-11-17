@@ -101,7 +101,7 @@ void main() {
           '/adviser/bama/history',
           Uri.parse('/adviser/bama/history?type=grade-flag'),
         ).title,
-        'Grade flag logs',
+        'Anecdotal logs',
       );
       expect(
         screenSearchSpecFor(

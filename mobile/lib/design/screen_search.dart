@@ -54,9 +54,7 @@ ScreenSearchSpec screenSearchSpecFor(String location, [Uri? uri]) {
       return const ScreenSearchSpec.pages('Chat with Bama');
     case '/adviser/bama/history':
       return ScreenSearchSpec.filter(
-        uri?.queryParameters['type'] == 'grade-flag'
-            ? 'Grade flag logs'
-            : 'Anecdotal logs',
+        'Anecdotal logs',
         'Search chats…',
       );
     case '/adviser/referrals':

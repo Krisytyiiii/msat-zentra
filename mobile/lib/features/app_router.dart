@@ -104,16 +104,25 @@ final routerProvider = Provider<GoRouter>((ref) {
       ),
       GoRoute(path: '/adviser/referrals', builder: (context, _) => const AdviserShell(selected: AdviserRoute.referrals, child: ReferralPage())),
       GoRoute(
+        path: '/adviser/bama/conversation/:conversationId',
+        builder: (context, state) => BamaChatPage(
+          key: ValueKey(state.pathParameters['conversationId']),
+          conversationId: state.pathParameters['conversationId']!,
+          newConversation: state.uri.queryParameters['new'] == '1',
+        ),
+      ),
+      GoRoute(
         path: '/adviser/bama/history',
         builder: (context, state) {
-          final type = state.uri.queryParameters['type'] ?? 'anecdotal';
+          // Legacy grade-flag deep links must not reopen unsupported chats.
+          const type = 'anecdotal';
           final extra = state.extra;
           List<BamaConversation> convos = const [];
-          ValueChanged<String> onResume = (_) {};
+          Future<void> Function(String) onResume = (_) async {};
           ValueChanged<BamaConversation> onDelete = (_) {};
           if (extra is Map) {
             if (extra['conversations'] is List) convos = (extra['conversations'] as List).whereType<BamaConversation>().toList();
-            if (extra['onResume'] is ValueChanged<String>) onResume = extra['onResume'] as ValueChanged<String>;
+            if (extra['onResume'] is Future<void> Function(String)) onResume = extra['onResume'] as Future<void> Function(String);
             if (extra['onDelete'] is ValueChanged<BamaConversation>) onDelete = extra['onDelete'] as ValueChanged<BamaConversation>;
           }
           return AdviserShell(
