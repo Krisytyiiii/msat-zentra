@@ -3,6 +3,7 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:go_router/go_router.dart';
 import 'package:zentra_mobile/core/api_client.dart';
 import 'package:zentra_mobile/core/session.dart';
 import 'package:zentra_mobile/features/auth/login_background.dart';
@@ -17,19 +18,22 @@ class _TestAuth extends AuthNotifier {
   _TestAuth() : super(_NoSessionApi());
 
   int calls = 0;
-  String? submittedPortal;
+  String? submittedEmail;
+  String? successfulRole;
   final pending = Completer<bool>();
 
   @override
-  Future<bool> login({
-    required String email,
-    required String password,
-    String portal = 'staff',
-  }) async {
+  Future<bool> login({required String email, required String password}) async {
     calls++;
-    submittedPortal = portal;
+    submittedEmail = email;
     final result = await pending.future;
-    state = const AuthState(error: 'Check your credentials.');
+    state = result
+        ? AuthState(
+            loggedIn: true,
+            role: successfulRole,
+            portal: mobilePortalForRole(successfulRole),
+          )
+        : const AuthState(error: 'Check your credentials.');
     return result;
   }
 }
@@ -39,16 +43,35 @@ Future<_TestAuth> _mount(
   Size size = const Size(390, 844),
   double textScale = 1,
   double keyboard = 0,
+  String? successfulRole,
 }) async {
   tester.view.physicalSize = size;
   tester.view.devicePixelRatio = 1;
   addTearDown(tester.view.resetPhysicalSize);
   addTearDown(tester.view.resetDevicePixelRatio);
   final auth = _TestAuth();
+  auth.successfulRole = successfulRole;
+  final router = GoRouter(
+    routes: [
+      GoRoute(path: '/', builder: (_, _) => const LoginPage()),
+      for (final path in [
+        '/student/home',
+        '/parent/home',
+        '/coordinator/overview',
+        '/term',
+      ])
+        GoRoute(
+          path: path,
+          builder: (_, _) => Scaffold(body: Text('Opened $path')),
+        ),
+    ],
+  );
+  addTearDown(router.dispose);
   await tester.pumpWidget(
     ProviderScope(
       overrides: [authProvider.overrideWith((ref) => auth)],
-      child: MaterialApp(
+      child: MaterialApp.router(
+        routerConfig: router,
         builder: (context, child) => MediaQuery(
           data: MediaQuery.of(context).copyWith(
             disableAnimations: true,
@@ -57,7 +80,6 @@ Future<_TestAuth> _mount(
           ),
           child: child!,
         ),
-        home: const LoginPage(),
       ),
     ),
   );
@@ -125,7 +147,7 @@ void main() {
     expect(auth.calls, 0);
   });
 
-  testWidgets('portal and palette changes retain email and hide password', (
+  testWidgets('unified form has no role picker; palette retains credentials', (
     tester,
   ) async {
     await _mount(tester);
@@ -135,16 +157,18 @@ void main() {
     );
     await tester.enterText(find.byKey(const Key('login-password')), 'secret');
     await tester.tap(find.byTooltip('Show password'));
-    await tester.tap(find.text('Student'));
     await tester.pump();
-    expect(find.text('Student sign in'), findsOneWidget);
-    expect(find.byTooltip('Show password'), findsOneWidget);
+    expect(find.text('Student'), findsNothing);
+    expect(find.text('Parent'), findsNothing);
+    expect(find.text('Staff'), findsNothing);
+    expect(find.text('Welcome back'), findsOneWidget);
+    expect(find.byTooltip('Hide password'), findsOneWidget);
     expect(
       tester
           .widget<TextFormField>(find.byKey(const Key('login-password')))
           .controller!
           .text,
-      isEmpty,
+      'secret',
     );
     expect(
       tester
@@ -159,7 +183,7 @@ void main() {
       tester.widget<LoginBackground>(find.byType(LoginBackground)).amber,
       isTrue,
     );
-    expect(find.text('Student sign in'), findsOneWidget);
+    expect(find.text('Welcome back'), findsOneWidget);
     expect(tester.takeException(), isNull);
   });
 
@@ -167,8 +191,6 @@ void main() {
     tester,
   ) async {
     final auth = await _mount(tester);
-    await tester.tap(find.text('Parent'));
-    await tester.pump();
     await tester.enterText(
       find.byKey(const Key('login-email')),
       'parent@msat.edu',
@@ -178,7 +200,7 @@ void main() {
     await tester.tap(find.widgetWithText(FilledButton, 'Sign in'));
     await tester.pump();
     expect(auth.calls, 1);
-    expect(auth.submittedPortal, 'parent');
+    expect(auth.submittedEmail, 'parent@msat.edu');
     expect(find.text('Signing in…'), findsOneWidget);
     expect(
       tester.widget<FilledButton>(find.byType(FilledButton)).onPressed,
@@ -199,7 +221,48 @@ void main() {
     auth.pending.complete(false);
     await tester.pump();
     expect(find.text('Check your credentials.'), findsOneWidget);
-    expect(find.text('Sign in'), findsOneWidget);
+    expect(find.widgetWithText(FilledButton, 'Sign in'), findsOneWidget);
+  });
+
+  for (final role in [
+    'student',
+    'parent',
+    'adviser',
+    'subject_teacher',
+    'adm_coordinator',
+  ]) {
+    testWidgets('sign-in opens the verified $role destination', (tester) async {
+      final auth = await _mount(tester, successfulRole: role);
+      await tester.enterText(
+        find.byKey(const Key('login-email')),
+        '$role@zentra.test',
+      );
+      await tester.enterText(find.byKey(const Key('login-password')), 'secret');
+      await tester.ensureVisible(find.widgetWithText(FilledButton, 'Sign in'));
+      await tester.tap(find.widgetWithText(FilledButton, 'Sign in'));
+      await tester.pump();
+      auth.pending.complete(true);
+      await tester.pumpAndSettle();
+      expect(
+        find.text('Opened ${mobileLoginDestination(role)}'),
+        findsOneWidget,
+      );
+    });
+  }
+
+  testWidgets('Google explains that mobile OAuth is unavailable', (
+    tester,
+  ) async {
+    await _mount(tester);
+    await tester.ensureVisible(find.text('Sign in with Google'));
+    await tester.tap(find.text('Sign in with Google'));
+    await tester.pump();
+    expect(
+      find.text(
+        'Google sign-in is not available in the mobile app yet. Use your email and password.',
+      ),
+      findsOneWidget,
+    );
   });
 
   for (final size in [
@@ -214,9 +277,9 @@ void main() {
         textScale: 1.3,
         keyboard: size.width < 600 ? 280 : 0,
       );
-      expect(find.text('Staff sign in'), findsOneWidget);
+      expect(find.text('Welcome back'), findsOneWidget);
       expect(
-        find.text('Your staff workspace'),
+        find.text('Your school workspace'),
         size.width >= 840 ? findsOneWidget : findsNothing,
       );
       await tester.ensureVisible(find.text('Sign in with Google'));

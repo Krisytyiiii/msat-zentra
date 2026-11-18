@@ -2,6 +2,9 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+
+import '../../design/adviser_navigation.dart';
+
 import 'package:hive_flutter/hive_flutter.dart';
 
 import '../../core/api_client.dart';
@@ -253,34 +256,36 @@ class _State extends ConsumerState<GradebookPage> {
               ),
             ],
           ),
-          body: Stack(
-            children: [
-              if (_busy)
-                const LoadingView()
-              else if (_error != null)
-                ErrorView(message: _error, onRetry: _load)
-              else if (data != null)
-                _record(data),
-              if (_expanded)
-                Positioned.fill(
-                  child: GestureDetector(
-                    behavior: HitTestBehavior.opaque,
-                    onTap: () => setState(() => _expanded = false),
-                    child: const ColoredBox(color: Colors.transparent),
+          body: AdviserBamaAccess(
+            child: Stack(
+              children: [
+                if (_busy)
+                  const LoadingView()
+                else if (_error != null)
+                  ErrorView(message: _error, onRetry: _load)
+                else if (data != null)
+                  _record(data),
+                if (_expanded)
+                  Positioned.fill(
+                    child: GestureDetector(
+                      behavior: HitTestBehavior.opaque,
+                      onTap: () => setState(() => _expanded = false),
+                      child: const ColoredBox(color: Colors.transparent),
+                    ),
                   ),
-                ),
-              if (!_busy && _error == null && data != null)
-                Positioned(
-                  key: const ValueKey('assessment-dial-anchor'),
-                  right: 16,
-                  bottom: 88,
-                  child: AssessmentActions(
-                    expanded: _expanded,
-                    onToggle: () => setState(() => _expanded = !_expanded),
-                    onAdd: _add,
+                if (!_busy && _error == null && data != null)
+                  Positioned(
+                    key: const ValueKey('assessment-dial-anchor'),
+                    right: 16,
+                    bottom: 88,
+                    child: AssessmentActions(
+                      expanded: _expanded,
+                      onToggle: () => setState(() => _expanded = !_expanded),
+                      onAdd: _add,
+                    ),
                   ),
-                ),
-            ],
+              ],
+            ),
           ),
         ),
       ),

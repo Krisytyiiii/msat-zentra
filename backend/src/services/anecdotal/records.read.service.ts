@@ -2,6 +2,7 @@ import { prisma } from "../../lib/prisma.js";
 import { writeAudit } from "../../lib/audit.js";
 import { buildOcForm01Buffer, CATEGORY_KEYS, CATEGORY_META, loadOcForm01Data } from "../../modules/anecdotal/anecdotal.repository.js";
 import { gradeLabel } from "../../lib/grades.js";
+import { buildOcForm01Pdf, ocForm01PdfFilename } from "../../modules/anecdotal/ocform01.pdf.js";
 import {
   archivedAdvisoryLearnerIds,
   excludeArchivedLearnerRows,
@@ -247,6 +248,25 @@ export async function exportRecord(ctx: AnecdotalContext, recordId: string) {
     sourceTable: "anecdotal_records",
     sourceId: resolvedId,
     reason: "OCForm-01 exported",
+  });
+  return { buffer, filename };
+}
+
+/** Mobile print preview uses the same authorized data and signature as web. */
+export async function exportRecordPdf(ctx: AnecdotalContext, recordId: string) {
+  const { data, observationDatetime, recordId: resolvedId } = await loadOcForm01Data(
+    recordId,
+    ctx.userId,
+    ctx.role,
+  );
+  const buffer = Buffer.from(await buildOcForm01Pdf(data));
+  const filename = ocForm01PdfFilename(data.studentName, new Date(observationDatetime));
+  await writeAudit({
+    userId: ctx.userId,
+    actionType: "anecdotal_edit",
+    sourceTable: "anecdotal_records",
+    sourceId: resolvedId,
+    reason: "OCForm-01 PDF exported",
   });
   return { buffer, filename };
 }

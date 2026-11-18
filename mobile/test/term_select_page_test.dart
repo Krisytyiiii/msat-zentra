@@ -224,14 +224,18 @@ void main() {
     expect(find.text('Term 2'), findsOneWidget);
     expect(find.text('Term 3'), findsOneWidget);
     expect(find.text('Selected'), findsOneWidget);
-    expect(find.text('Mar 1, 2027 – Jun 1, 2027'), findsOneWidget);
+    expect(
+      tester.getTopLeft(find.byKey(const ValueKey('term-t1'))).dy,
+      tester.getTopLeft(find.byKey(const ValueKey('term-t3'))).dy,
+    );
     await tester.ensureVisible(find.byKey(const ValueKey('term-t3')));
     await tester.tap(find.byKey(const ValueKey('term-t3')));
     await tester.pump();
+    expect(find.text('Mar 1, 2027 – Jun 1, 2027'), findsOneWidget);
     expect(store.calls, 0);
     expect(Hive.box(AppConfig.termScopeBox).get('termId'), isNull);
-    await tester.ensureVisible(find.text('Continue to workspace'));
-    await tester.tap(find.text('Continue to workspace'));
+    await tester.ensureVisible(find.text('Continue'));
+    await tester.tap(find.text('Continue'));
     await tester.pumpAndSettle();
     expect(store.calls, 1);
     expect(store.selected?.id, 't3');
@@ -248,7 +252,7 @@ void main() {
               .put('scope', fixture().first.terms.first.toJson()),
     );
     await mount(tester);
-    final card = find.byKey(const ValueKey('term-t3'));
+    final card = find.byKey(const ValueKey('selected-term-details'));
     expect(
       find.descendant(of: card, matching: find.text('Selected')),
       findsOneWidget,
@@ -304,7 +308,7 @@ void main() {
   ) async {
     await mount(tester, years: []);
     expect(find.text('No school years yet'), findsOneWidget);
-    expect(find.text('Continue to workspace'), findsNothing);
+    expect(find.text('Continue'), findsNothing);
     await tester.pumpWidget(const SizedBox());
     await mount(
       tester,
@@ -316,7 +320,7 @@ void main() {
     expect(
       tester
           .widget<FilledButton>(
-            find.widgetWithText(FilledButton, 'Continue to workspace'),
+            find.widgetWithText(FilledButton, 'Continue'),
           )
           .onPressed,
       isNull,
@@ -330,8 +334,8 @@ void main() {
       ..pending = Completer<void>()
       ..fail = true;
     await mount(tester, notifier: store);
-    await tester.ensureVisible(find.text('Continue to workspace'));
-    await tester.tap(find.text('Continue to workspace'));
+    await tester.ensureVisible(find.text('Continue'));
+    await tester.tap(find.text('Continue'));
     await tester.pump();
     expect(store.calls, 1);
     expect(find.text('Opening workspace…'), findsOneWidget);
@@ -347,7 +351,7 @@ void main() {
     );
     expect(find.textContaining('private storage'), findsNothing);
     store.fail = false;
-    await tester.tap(find.text('Continue to workspace'));
+    await tester.tap(find.text('Continue'));
     await tester.pumpAndSettle();
     expect(find.text('Workspace gate'), findsOneWidget);
     expect(store.calls, 2);
@@ -358,8 +362,8 @@ void main() {
   ) async {
     final store = await mount(tester, reducedMotion: false);
     await tester.pump(const Duration(milliseconds: 600));
-    await tester.ensureVisible(find.text('Continue to workspace'));
-    await tester.tap(find.text('Continue to workspace'));
+    await tester.ensureVisible(find.text('Continue'));
+    await tester.tap(find.text('Continue'));
     await tester.pump(const Duration(milliseconds: 100));
     expect(store.calls, 0);
     await tester.pump(const Duration(milliseconds: 350));
@@ -371,7 +375,7 @@ void main() {
   for (final width in [320.0, 700.0, 1200.0]) {
     testWidgets('term cards fit $width with larger text', (tester) async {
       await mount(tester, size: Size(width, 900), textScale: 1.5);
-      await tester.ensureVisible(find.text('Continue to workspace'));
+      await tester.ensureVisible(find.text('Continue'));
       await tester.pump();
       expect(find.text('Term 1'), findsOneWidget);
       expect(tester.takeException(), isNull);
@@ -387,7 +391,10 @@ void main() {
     tester.view.physicalSize = const Size(1200, 900);
     await tester.pump();
     expect(
-      find.descendant(of: card, matching: find.text('Selected')),
+      find.descendant(
+        of: find.byKey(const ValueKey('selected-term-details')),
+        matching: find.text('Selected term · 3'),
+      ),
       findsOneWidget,
     );
     expect(tester.takeException(), isNull);

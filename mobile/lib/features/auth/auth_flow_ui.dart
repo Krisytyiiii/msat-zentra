@@ -26,7 +26,7 @@ class AuthFlowScaffold extends StatelessWidget {
   final bool centerContent;
 
   Widget _fitContent(Widget content) =>
-      centerContent ? IntrinsicHeight(child: content) : content;
+      IntrinsicHeight(child: content);
 
   @override
   Widget build(BuildContext context) {
@@ -122,6 +122,7 @@ class AuthFlowScaffold extends StatelessWidget {
                                   ),
                                   child: child,
                                 ),
+                              if (!centerContent) const Spacer(),
                               const SizedBox(height: 32),
                               const Text(
                                 'Mati School of Arts and Trades',

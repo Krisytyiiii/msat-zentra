@@ -15,12 +15,23 @@ class LoadingView extends StatelessWidget {
   const LoadingView({super.key, this.label = 'Loading…'});
   @override
   Widget build(BuildContext context) => Center(
-        child: Semantics(liveRegion: true, label: label, child: ExcludeSemantics(child: Row(mainAxisSize: MainAxisSize.min, children: [
-          const ZSpinner(),
-          const SizedBox(width: 12),
-          Flexible(child: Text(label, style: Theme.of(context).textTheme.bodySmall)),
-        ]))),
-      );
+    child: Semantics(
+      liveRegion: true,
+      label: label,
+      child: ExcludeSemantics(
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            const ZSpinner(),
+            const SizedBox(width: 12),
+            Flexible(
+              child: Text(label, style: Theme.of(context).textTheme.bodySmall),
+            ),
+          ],
+        ),
+      ),
+    ),
+  );
 }
 
 class ErrorView extends StatelessWidget {
@@ -33,19 +44,32 @@ class ErrorView extends StatelessWidget {
     return Center(
       child: Padding(
         padding: const EdgeInsets.all(24),
-        child: Column(mainAxisSize: MainAxisSize.min, children: [
-          Container(
-            padding: const EdgeInsets.all(12),
-            decoration: BoxDecoration(shape: BoxShape.circle, color: theme.colorScheme.surfaceContainerLow),
-            child: const Icon(Icons.error_outline, size: 20),
-          ),
-          const SizedBox(height: 8),
-          Semantics(liveRegion: true, child: Text(userMessage(message), textAlign: TextAlign.center, style: theme.textTheme.bodySmall)),
-          if (onRetry != null) ...[
-            const SizedBox(height: 12),
-            FilledButton(onPressed: onRetry, child: const Text('Try again')),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Container(
+              padding: const EdgeInsets.all(12),
+              decoration: BoxDecoration(
+                shape: BoxShape.circle,
+                color: theme.colorScheme.surfaceContainerLow,
+              ),
+              child: const Icon(Icons.error_outline, size: 20),
+            ),
+            const SizedBox(height: 8),
+            Semantics(
+              liveRegion: true,
+              child: Text(
+                userMessage(message),
+                textAlign: TextAlign.center,
+                style: theme.textTheme.bodySmall,
+              ),
+            ),
+            if (onRetry != null) ...[
+              const SizedBox(height: 12),
+              FilledButton(onPressed: onRetry, child: const Text('Try again')),
+            ],
           ],
-        ]),
+        ),
       ),
     );
   }
@@ -55,40 +79,111 @@ class RiskBadge extends StatelessWidget {
   final String level;
   const RiskBadge({super.key, required this.level});
   @override
-  Widget build(BuildContext context) => ZStatusPill(text: level, tone: riskTone(level), badge: true);
+  Widget build(BuildContext context) =>
+      ZStatusPill(text: level, tone: riskTone(level), badge: true);
 }
 
-class ZStatusPill extends StatelessWidget {
-  const ZStatusPill({super.key, required this.text, this.tone = StatusTone.neutral, this.badge = false});
-  final String text;
+/// Mobile port of the web shared `Pill` (`frontend/src/components/ui/pill.tsx`):
+/// one rectangle chip for compact metadata (LRN, section, risk level, term, …).
+/// Shape, padding, type size and tone families match the web chip so a value
+/// reads the same on both clients; `tone` only changes the colour family.
+///
+/// A `label` names the field: it becomes the screen-reader label and shows in a
+/// long-press tooltip (the web chip's hover tooltip).
+class ZPill extends StatelessWidget {
+  const ZPill({
+    super.key,
+    required this.child,
+    this.tone = StatusTone.neutral,
+    this.label,
+    this.badge = false,
+    this.padding = const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+  });
+
+  final Widget child;
   final StatusTone tone;
+
+  /// Field name (e.g. "School year", "Section"), not the value on the chip.
+  final String? label;
+
+  /// Rounded-full legacy chip (web `Badge`) instead of the shared rectangle.
   final bool badge;
+
+  final EdgeInsetsGeometry padding;
 
   @override
   Widget build(BuildContext context) {
     final colors = statusColors(tone, Theme.of(context), badge: badge);
-    return Container(
+    final pill = Container(
       constraints: const BoxConstraints(minHeight: 20),
-      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+      padding: padding,
       decoration: BoxDecoration(
         color: colors.background,
-        borderRadius: BorderRadius.circular(badge ? ZTokens.radiusPill : ZTokens.radiusMd),
+        borderRadius: BorderRadius.circular(
+          badge ? ZTokens.radiusPill : ZTokens.radiusMd,
+        ),
       ),
-      child: Text(text, style: TextStyle(color: colors.foreground, fontSize: 11, fontWeight: FontWeight.w600, height: 1.2)),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Flexible(
+            child: DefaultTextStyle.merge(
+              style: TextStyle(
+                color: colors.foreground,
+                fontSize: 11,
+                fontWeight: FontWeight.w600,
+                height: 1.2,
+              ),
+              child: IconTheme.merge(
+                data: IconThemeData(color: colors.foreground, size: 12),
+                child: child,
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+    if (label == null) return pill;
+    return Tooltip(
+      message: label!,
+      triggerMode: TooltipTriggerMode.longPress,
+      waitDuration: const Duration(milliseconds: 100),
+      child: pill,
     );
   }
+}
+
+class ZStatusPill extends StatelessWidget {
+  const ZStatusPill({
+    super.key,
+    required this.text,
+    this.tone = StatusTone.neutral,
+    this.badge = false,
+    this.label,
+  });
+  final String text;
+  final StatusTone tone;
+  final bool badge;
+  final String? label;
+
+  @override
+  Widget build(BuildContext context) =>
+      ZPill(tone: tone, label: label, badge: badge, child: Text(text));
 }
 
 class FlagChip extends StatelessWidget {
   final String flag; // academic | attendance | behavioral
   const FlagChip({super.key, required this.flag});
   @override
-  Widget build(BuildContext context) => ZStatusPill(text: flag.replaceAll('_', ' '), tone: switch (flag.toLowerCase()) {
-    'academic' => StatusTone.amber,
-    'attendance' => StatusTone.green,
-    'behavioral' => StatusTone.blue,
-    _ => statusTone(flag),
-  });
+  Widget build(BuildContext context) => ZStatusPill(
+    text: flag.replaceAll('_', ' '),
+    tone: switch (flag.toLowerCase()) {
+      'academic' => StatusTone.amber,
+      'attendance' => StatusTone.green,
+      'behavioral' => StatusTone.blue,
+      _ => statusTone(flag),
+    },
+  );
 }
 
 class PendingChip extends StatelessWidget {
@@ -111,17 +206,33 @@ class ZCard extends StatelessWidget {
   final Widget child;
   final EdgeInsetsGeometry padding;
   final VoidCallback? onTap;
-  const ZCard({super.key, required this.child, this.padding = const EdgeInsets.all(16), this.onTap});
+  const ZCard({
+    super.key,
+    required this.child,
+    this.padding = const EdgeInsets.all(16),
+    this.onTap,
+  });
   @override
   Widget build(BuildContext context) {
     final content = Padding(padding: padding, child: child);
     return Card(
-      margin: EdgeInsets.zero, clipBehavior: Clip.antiAlias,
-      child: onTap == null ? content : Semantics(button: true, child: InkWell(
-        customBorder: Theme.of(context).cardTheme.shape,
-        onTap: onTap,
-        child: ConstrainedBox(constraints: const BoxConstraints(minHeight: ZTokens.controlH), child: content),
-      )),
+      margin: EdgeInsets.zero,
+      clipBehavior: Clip.antiAlias,
+      child: onTap == null
+          ? content
+          : Semantics(
+              button: true,
+              child: InkWell(
+                customBorder: Theme.of(context).cardTheme.shape,
+                onTap: onTap,
+                child: ConstrainedBox(
+                  constraints: const BoxConstraints(
+                    minHeight: ZTokens.controlH,
+                  ),
+                  child: content,
+                ),
+              ),
+            ),
     );
   }
 }
@@ -131,24 +242,48 @@ class ZKpi extends StatelessWidget {
   final String label;
   final String? desc;
   final IconData icon;
-  const ZKpi({super.key, required this.value, required this.label, this.desc, required this.icon});
+  const ZKpi({
+    super.key,
+    required this.value,
+    required this.label,
+    this.desc,
+    required this.icon,
+  });
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     return ZCard(
       padding: const EdgeInsets.all(16),
-      child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-        Container(
-          width: 36,
-          height: 36,
-          decoration: BoxDecoration(borderRadius: BorderRadius.circular(ZTokens.radiusMd), color: theme.colorScheme.surfaceContainerLow),
-          child: Icon(icon, size: 18),
-        ),
-        const SizedBox(height: 8),
-        Text(value, style: theme.textTheme.headlineSmall?.copyWith(fontWeight: FontWeight.w700, fontFeatures: const [FontFeature.tabularFigures()])),
-        Text(label.toUpperCase(), style: theme.textTheme.labelSmall?.copyWith(letterSpacing: 0.4, color: theme.colorScheme.onSurfaceVariant)),
-        if (desc != null) Text(desc!, style: theme.textTheme.bodySmall),
-      ]),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Container(
+            width: 36,
+            height: 36,
+            decoration: BoxDecoration(
+              borderRadius: BorderRadius.circular(ZTokens.radiusMd),
+              color: theme.colorScheme.surfaceContainerLow,
+            ),
+            child: Icon(icon, size: 18),
+          ),
+          const SizedBox(height: 8),
+          Text(
+            value,
+            style: theme.textTheme.headlineSmall?.copyWith(
+              fontWeight: FontWeight.w700,
+              fontFeatures: const [FontFeature.tabularFigures()],
+            ),
+          ),
+          Text(
+            label.toUpperCase(),
+            style: theme.textTheme.labelSmall?.copyWith(
+              letterSpacing: 0.4,
+              color: theme.colorScheme.onSurfaceVariant,
+            ),
+          ),
+          if (desc != null) Text(desc!, style: theme.textTheme.bodySmall),
+        ],
+      ),
     );
   }
 }
@@ -156,12 +291,19 @@ class ZKpi extends StatelessWidget {
 class ZSearchField extends StatelessWidget {
   final String hint;
   final ValueChanged<String> onChanged;
-  const ZSearchField({super.key, this.hint = 'Search…', required this.onChanged});
+  const ZSearchField({
+    super.key,
+    this.hint = 'Search…',
+    required this.onChanged,
+  });
   @override
   Widget build(BuildContext context) => TextField(
-        decoration: InputDecoration(prefixIcon: const Icon(Icons.search, size: 18), hintText: hint),
-        onChanged: onChanged,
-      );
+    decoration: InputDecoration(
+      prefixIcon: const Icon(Icons.search, size: 18),
+      hintText: hint,
+    ),
+    onChanged: onChanged,
+  );
 }
 
 /// Soft amber "nothing here yet" callout. Renders inline inside a section
@@ -206,30 +348,45 @@ class ZEmpty extends StatelessWidget {
             borderRadius: BorderRadius.circular(ZTokens.radiusLg),
             border: Border.all(color: accent.withValues(alpha: 0.35)),
           ),
-          child: Column(mainAxisSize: MainAxisSize.min, children: [
-            Container(
-              padding: EdgeInsets.all(compact ? 8 : 11),
-              decoration: BoxDecoration(
-                shape: BoxShape.circle,
-                color: accent.withValues(alpha: 0.16),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Container(
+                padding: EdgeInsets.all(compact ? 8 : 11),
+                decoration: BoxDecoration(
+                  shape: BoxShape.circle,
+                  color: accent.withValues(alpha: 0.16),
+                ),
+                child: Icon(
+                  icon,
+                  size: compact ? 18 : 22,
+                  color: dark ? accent : const Color(0xFFB45309),
+                ),
               ),
-              child: Icon(
-                icon,
-                size: compact ? 18 : 22,
-                color: dark ? accent : const Color(0xFFB45309),
+              SizedBox(height: compact ? 8 : 12),
+              Text(
+                title,
+                textAlign: TextAlign.center,
+                style: theme.textTheme.bodyMedium?.copyWith(
+                  fontWeight: FontWeight.w600,
+                ),
               ),
-            ),
-            SizedBox(height: compact ? 8 : 12),
-            Text(title, textAlign: TextAlign.center, style: theme.textTheme.bodyMedium?.copyWith(fontWeight: FontWeight.w600)),
-            if (subtitle != null) ...[
-              const SizedBox(height: 4),
-              Text(subtitle!, textAlign: TextAlign.center, style: theme.textTheme.bodySmall?.copyWith(color: theme.colorScheme.onSurfaceVariant)),
+              if (subtitle != null) ...[
+                const SizedBox(height: 4),
+                Text(
+                  subtitle!,
+                  textAlign: TextAlign.center,
+                  style: theme.textTheme.bodySmall?.copyWith(
+                    color: theme.colorScheme.onSurfaceVariant,
+                  ),
+                ),
+              ],
+              if (actionLabel != null) ...[
+                const SizedBox(height: 12),
+                FilledButton(onPressed: onAction, child: Text(actionLabel!)),
+              ],
             ],
-            if (actionLabel != null) ...[
-              const SizedBox(height: 12),
-              FilledButton(onPressed: onAction, child: Text(actionLabel!)),
-            ],
-          ]),
+          ),
         ),
       ),
     );
@@ -265,10 +422,16 @@ class ZEmptyPage extends StatelessWidget {
       builder: (context, constraints) {
         // Inside an unbounded parent (a plain ListView) there is nothing to
         // centre against, so the callout keeps its natural height.
-        final viewport = constraints.maxHeight.isFinite ? constraints.maxHeight : 0.0;
-        final minHeight = viewport > _padding.vertical ? viewport - _padding.vertical : 0.0;
+        final viewport = constraints.maxHeight.isFinite
+            ? constraints.maxHeight
+            : 0.0;
+        final minHeight = viewport > _padding.vertical
+            ? viewport - _padding.vertical
+            : 0.0;
         return SingleChildScrollView(
-          physics: onRefresh == null ? const ClampingScrollPhysics() : const AlwaysScrollableScrollPhysics(),
+          physics: onRefresh == null
+              ? const ClampingScrollPhysics()
+              : const AlwaysScrollableScrollPhysics(),
           padding: _padding,
           child: ConstrainedBox(
             constraints: BoxConstraints(minHeight: minHeight),
@@ -301,7 +464,10 @@ class ZSkeletonRow extends StatelessWidget {
     final c = Theme.of(context).colorScheme.surfaceContainerLow;
     return Container(
       height: 64,
-      decoration: BoxDecoration(borderRadius: BorderRadius.circular(ZTokens.radiusLg), color: c),
+      decoration: BoxDecoration(
+        borderRadius: BorderRadius.circular(ZTokens.radiusLg),
+        color: c,
+      ),
     );
   }
 }
@@ -311,12 +477,12 @@ class ZSkeletonList extends StatelessWidget {
   const ZSkeletonList({super.key, this.count = 5});
   @override
   Widget build(BuildContext context) => ListView.separated(
-        shrinkWrap: true,
-        physics: const NeverScrollableScrollPhysics(),
-        itemCount: count,
-        separatorBuilder: (context, _) => const SizedBox(height: 8),
-        itemBuilder: (context, _) => const ZSkeletonRow(),
-      );
+    shrinkWrap: true,
+    physics: const NeverScrollableScrollPhysics(),
+    itemCount: count,
+    separatorBuilder: (context, _) => const SizedBox(height: 8),
+    itemBuilder: (context, _) => const ZSkeletonRow(),
+  );
 }
 
 class SegTabs<T> extends StatelessWidget {
@@ -324,29 +490,51 @@ class SegTabs<T> extends StatelessWidget {
   final List<String> labels;
   final T selected;
   final ValueChanged<T> onChanged;
-  const SegTabs({super.key, required this.values, required this.labels, required this.selected, required this.onChanged});
+  const SegTabs({
+    super.key,
+    required this.values,
+    required this.labels,
+    required this.selected,
+    required this.onChanged,
+  });
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     return Container(
       padding: const EdgeInsets.all(2),
-      decoration: BoxDecoration(borderRadius: BorderRadius.circular(ZTokens.radiusLg), color: theme.colorScheme.surfaceContainerLow),
+      decoration: BoxDecoration(
+        borderRadius: BorderRadius.circular(ZTokens.radiusLg),
+        color: theme.colorScheme.surfaceContainerLow,
+      ),
       child: Wrap(
         crossAxisAlignment: WrapCrossAlignment.center,
         children: [
           for (var i = 0; i < values.length; i++)
             Semantics(
-              checked: values[i] == selected, inMutuallyExclusiveGroup: true,
+              checked: values[i] == selected,
+              inMutuallyExclusiveGroup: true,
               child: TextButton(
                 onPressed: () => onChanged(values[i]),
                 style: TextButton.styleFrom(
                   minimumSize: const Size(48, ZTokens.controlH),
                   foregroundColor: theme.colorScheme.onSurface,
-                  backgroundColor: values[i] == selected ? theme.colorScheme.surface : Colors.transparent,
-                  side: values[i] == selected ? BorderSide(color: theme.colorScheme.outline) : BorderSide.none,
-                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(ZTokens.radiusMd)),
+                  backgroundColor: values[i] == selected
+                      ? theme.colorScheme.surface
+                      : Colors.transparent,
+                  side: values[i] == selected
+                      ? BorderSide(color: theme.colorScheme.outline)
+                      : BorderSide.none,
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(ZTokens.radiusMd),
+                  ),
                 ),
-                child: Text(labels[i], style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w600)),
+                child: Text(
+                  labels[i],
+                  style: const TextStyle(
+                    fontSize: 12,
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
               ),
             ),
         ],

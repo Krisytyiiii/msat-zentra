@@ -8,6 +8,7 @@
 // standalone page previews and widget tests keep their local search fields.
 
 import 'package:flutter/material.dart';
+import 'package:lucide_icons_flutter/lucide_icons.dart';
 
 enum ScreenSearchMode { filter, pages }
 
@@ -33,16 +34,30 @@ class ScreenSearchSpec {
 /// desks here and in [screenSearchCatalog] instead of inside the shell.
 ScreenSearchSpec screenSearchSpecFor(String location, [Uri? uri]) {
   switch (location) {
+    case '/adviser/interventions':
+      return const ScreenSearchSpec.filter(
+        'Interventions',
+        'Search name, LRN or section',
+      );
     case '/coordinator/overview':
       return const ScreenSearchSpec.pages('Overview');
     case '/coordinator/referrals':
-      return const ScreenSearchSpec.filter('ADM Cases', 'Search learner or LRN');
+      return const ScreenSearchSpec.filter(
+        'ADM Cases',
+        'Search learner or LRN',
+      );
     case '/coordinator/enrolled':
       return const ScreenSearchSpec.filter('Enrolled', 'Search learner or LRN');
     case '/coordinator/certifications':
-      return const ScreenSearchSpec.filter('Certifications', 'Search learner or LRN');
+      return const ScreenSearchSpec.filter(
+        'Certifications',
+        'Search learner or LRN',
+      );
     case '/coordinator/devices':
-      return const ScreenSearchSpec.filter('Devices', 'Search learner, LRN or serial');
+      return const ScreenSearchSpec.filter(
+        'Devices',
+        'Search learner, LRN or serial',
+      );
     case '/coordinator/settings':
       return const ScreenSearchSpec.pages('Settings');
     case '/adviser/advisory':
@@ -70,10 +85,7 @@ ScreenSearchSpec screenSearchSpecFor(String location, [Uri? uri]) {
     case '/adviser/bama':
       return const ScreenSearchSpec.pages('Chat with Bama');
     case '/adviser/bama/history':
-      return ScreenSearchSpec.filter(
-        'Anecdotal logs',
-        'Search chats…',
-      );
+      return const ScreenSearchSpec.pages('Anecdotal logs');
     case '/adviser/referrals':
       return const ScreenSearchSpec.filter(
         'Referrals',
@@ -122,6 +134,11 @@ List<ScreenSearchDestination> screenSearchCatalog({required bool isAdviser}) {
       Icons.dashboard_outlined,
     ),
     if (isAdviser) ...[
+      const ScreenSearchDestination(
+        'Interventions',
+        '/adviser/interventions',
+        LucideIcons.heartHandshake,
+      ),
       const ScreenSearchDestination(
         'Advisory list',
         '/adviser/advisory',

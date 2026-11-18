@@ -2,7 +2,18 @@ import 'package:flutter/material.dart';
 
 // Web Pill/Badge tone families, converted from installed Tailwind v4 OKLCH.
 // Risk/factor chart dots keep their separately defined, explicit web hex values.
-enum StatusTone { neutral, amber, red, green, blue, violet }
+enum StatusTone {
+  neutral,
+  amber,
+  red,
+  green,
+  blue,
+  violet,
+  teal,
+  indigo,
+  rose,
+  sky,
+}
 
 ({Color background, Color foreground}) statusColors(
   StatusTone tone,
@@ -41,6 +52,26 @@ enum StatusTone { neutral, amber, red, green, blue, violet }
       const Color(0xFF8E51FF),
       const Color(0xFF7008E7),
       const Color(0xFFA684FF),
+    ),
+    StatusTone.teal => (
+      const Color(0xFF00BBA7),
+      const Color(0xFF00786F),
+      const Color(0xFF00D5BE),
+    ),
+    StatusTone.indigo => (
+      const Color(0xFF615FFF),
+      const Color(0xFF432DD7),
+      const Color(0xFF7C86FF),
+    ),
+    StatusTone.rose => (
+      const Color(0xFFFF2056),
+      const Color(0xFFC70036),
+      const Color(0xFFFF637E),
+    ),
+    StatusTone.sky => (
+      const Color(0xFF00A6F4),
+      const Color(0xFF0069A8),
+      const Color(0xFF00BCFF),
     ),
     StatusTone.neutral => throw StateError('Neutral handled above'),
   };

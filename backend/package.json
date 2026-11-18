@@ -12,6 +12,7 @@
     "prisma:deploy": "prisma migrate deploy",
     "prisma:seed": "tsx prisma/seed.ts",
     "prisma:seed:admin": "tsx prisma/seed-admin.ts",
+    "prisma:seed:student-parent": "tsx prisma/seed-student-parent.ts",
     "prisma:topup50": "tsx prisma/seed-topup-50.ts",
     "prisma:count": "tsx prisma/count-transactions.ts",
     "prisma:section20": "tsx prisma/seed-section-20.ts",

@@ -8,6 +8,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
+import '../../design/adviser_navigation.dart';
 import '../../core/api_client.dart';
 import '../../design/tokens.dart';
 import '../../shared/models.dart';
@@ -363,12 +364,14 @@ class _StudentDetailState extends ConsumerState<StudentDetailPage> {
                   ),
             title: Text(name, maxLines: 1, overflow: TextOverflow.ellipsis),
           ),
-          body: data == null
-              ? const Padding(
-                  padding: EdgeInsets.all(16),
-                  child: ZSkeletonList(count: 4),
-                )
-              : _loaded(context, data),
+          body: AdviserBamaAccess(
+            child: data == null
+                ? const Padding(
+                    padding: EdgeInsets.all(16),
+                    child: ZSkeletonList(count: 4),
+                  )
+                : _loaded(context, data),
+          ),
         );
       },
     );

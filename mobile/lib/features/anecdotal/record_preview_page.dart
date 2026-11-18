@@ -19,6 +19,7 @@ import 'package:share_plus/share_plus.dart';
 import '../../shared/models.dart';
 import '../../shared/widgets.dart';
 import '../../design/status_palette.dart';
+import '../../design/adviser_navigation.dart';
 import '../../shared/user_messages.dart';
 import 'anecdotal_data.dart';
 import 'signature_block.dart';
@@ -60,7 +61,9 @@ class _PreviewState extends ConsumerState<RecordPreviewPage> {
       backgroundColor: Theme.of(context).colorScheme.surfaceContainerLow,
       margin: 16,
       pageDropShadow: const BoxShadow(
-        color: Color(0x47000000), blurRadius: 18, offset: Offset(0, 6),
+        color: Color(0x47000000),
+        blurRadius: 18,
+        offset: Offset(0, 6),
       ),
       sizeDelegateProvider: const PdfViewerSizeDelegateProviderSmart(),
       onViewerReady: (document, controller) {
@@ -76,7 +79,9 @@ class _PreviewState extends ConsumerState<RecordPreviewPage> {
       },
       onGeneralTap: (_, controller, details) {
         if (details.type != PdfViewerGeneralTapType.doubleTap) return false;
-        final fit = controller.calcMatrixFitWidthForPage(pageNumber: _pageNumber);
+        final fit = controller.calcMatrixFitWidthForPage(
+          pageNumber: _pageNumber,
+        );
         if (fit != null && controller.currentZoom > fit.storage[0] * 1.1) {
           controller.goTo(fit);
         } else {
@@ -93,7 +98,9 @@ class _PreviewState extends ConsumerState<RecordPreviewPage> {
   }
 
   void _syncZoom() {
-    if (mounted && _pdfController.isReady) _zoom.value = _pdfController.currentZoom;
+    if (mounted && _pdfController.isReady) {
+      _zoom.value = _pdfController.currentZoom;
+    }
   }
 
   @override
@@ -109,7 +116,9 @@ class _PreviewState extends ConsumerState<RecordPreviewPage> {
   /// a new key, so a cached unsigned PDF can never shadow a signed one.
   String _cacheKey(Map<String, dynamic> detail) {
     final at = recordSignatureOf(detail)?.at.trim() ?? '';
-    final stamp = at.isEmpty ? 'unsigned' : at.replaceAll(RegExp(r'[^A-Za-z0-9]+'), '-');
+    final stamp = at.isEmpty
+        ? 'unsigned'
+        : at.replaceAll(RegExp(r'[^A-Za-z0-9]+'), '-');
     return 'OCForm-01_${widget.record.id}_$stamp.pdf';
   }
 
@@ -150,7 +159,10 @@ class _PreviewState extends ConsumerState<RecordPreviewPage> {
     } on DioException catch (e) {
       if (mounted) {
         setState(() {
-          _error = anecdotalError(e, 'The official form could not be loaded. Check your connection and try again.');
+          _error = anecdotalError(
+            e,
+            'The official form could not be loaded. Check your connection and try again.',
+          );
           _busy = false;
         });
       }
@@ -181,22 +193,39 @@ class _PreviewState extends ConsumerState<RecordPreviewPage> {
     try {
       final bytes = await downloadRecordExport(ref, widget.record.id);
       final dir = await getTemporaryDirectory();
-      final path = '${dir.path}/OCForm-01_${_safeName}_${widget.record.date}.xlsx';
+      final path =
+          '${dir.path}/OCForm-01_${_safeName}_${widget.record.date}.xlsx';
       await File(path).writeAsBytes(Uint8List.fromList(bytes), flush: true);
       if (mounted) {
         await SharePlus.instance.share(
           ShareParams(
-            files: [XFile(path, mimeType: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet')],
+            files: [
+              XFile(
+                path,
+                mimeType: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+              ),
+            ],
             text: 'GCForm-01 ${widget.record.studentName}',
           ),
         );
       }
     } on DioException catch (e) {
-      if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(anecdotalError(e, 'Could not export.'))));
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text(anecdotalError(e, 'Could not export.'))),
+        );
+      }
     } on ApiException catch (e) {
-      if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(userMessage(e))));
+      if (mounted) {
+        ScaffoldMessenger.of(context)
+            .showSnackBar(SnackBar(content: Text(userMessage(e))));
+      }
     } catch (_) {
-      if (mounted) ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Could not share the file.')));
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Could not share the file.')),
+        );
+      }
     } finally {
       if (mounted) setState(() => _exportingXlsx = false);
     }
@@ -208,7 +237,8 @@ class _PreviewState extends ConsumerState<RecordPreviewPage> {
     setState(() => _exportingPdf = true);
     try {
       final dir = await getTemporaryDirectory();
-      final path = '${dir.path}/OCForm-01_${_safeName}_${widget.record.date}.pdf';
+      final path =
+          '${dir.path}/OCForm-01_${_safeName}_${widget.record.date}.pdf';
       await File(path).writeAsBytes(bytes, flush: true);
       if (mounted) {
         await SharePlus.instance.share(
@@ -219,7 +249,11 @@ class _PreviewState extends ConsumerState<RecordPreviewPage> {
         );
       }
     } catch (_) {
-      if (mounted) ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Could not share the file.')));
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Could not share the file.')),
+        );
+      }
     } finally {
       if (mounted) setState(() => _exportingPdf = false);
     }
@@ -284,19 +318,26 @@ class _PreviewState extends ConsumerState<RecordPreviewPage> {
   @override
   Widget build(BuildContext context) {
     final sig = _detail == null ? null : recordSignatureOf(_detail!);
-    final loaded = !_busy && _error == null && _detail != null && _pdfBytes != null;
+    final loaded =
+        !_busy && _error == null && _detail != null && _pdfBytes != null;
     return Scaffold(
       appBar: AppBar(
         toolbarHeight: 80,
         title: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            const Text('GCForm-01 — Anecdotal Report',
-                maxLines: 1, overflow: TextOverflow.ellipsis,
-                style: TextStyle(fontSize: 15, fontWeight: FontWeight.w600)),
-            Text('${widget.record.studentName} · ${widget.record.date}',
-                maxLines: 1, overflow: TextOverflow.ellipsis,
-                style: Theme.of(context).textTheme.bodySmall),
+            const Text(
+              'GCForm-01 — Anecdotal Report',
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+              style: TextStyle(fontSize: 15, fontWeight: FontWeight.w600),
+            ),
+            Text(
+              '${widget.record.studentName} · ${widget.record.date}',
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+              style: Theme.of(context).textTheme.bodySmall,
+            ),
           ],
         ),
         actions: [
@@ -318,66 +359,80 @@ class _PreviewState extends ConsumerState<RecordPreviewPage> {
               pdfBusy: _exportingPdf,
             )
           : null,
-      body: ColoredBox(
-        color: Theme.of(context).colorScheme.surfaceContainerLow,
-        child: _busy
-            ? const Padding(
-                padding: EdgeInsets.all(16), child: ZSkeletonList(count: 6))
-            : !loaded
-                ? ErrorView(
-                    message: _error ?? 'The official form could not be loaded.',
-                    onRetry: _load)
-                : Stack(
-                    children: [
-                      Positioned.fill(
-                        child: PdfViewer.data(
-                          _pdfBytes!,
-                          sourceName: 'ocform01_${widget.record.id}',
-                          controller: _pdfController,
-                          params: _params!,
-                        ),
+      body: AdviserBamaAccess(
+        busy: _exportingXlsx || _exportingPdf,
+        child: ColoredBox(
+          color: Theme.of(context).colorScheme.surfaceContainerLow,
+          child: _busy
+              ? const Padding(
+                  padding: EdgeInsets.all(16),
+                  child: ZSkeletonList(count: 6),
+                )
+              : !loaded
+              ? ErrorView(
+                  message: _error ?? 'The official form could not be loaded.',
+                  onRetry: _load,
+                )
+              : Stack(
+                  children: [
+                    Positioned.fill(
+                      child: PdfViewer.data(
+                        _pdfBytes!,
+                        sourceName: 'ocform01_${widget.record.id}',
+                        controller: _pdfController,
+                        params: _params!,
                       ),
-                      if (_viewerReady)
-                        Positioned(
-                          left: 12, right: 12, bottom: 12,
-                          child: SafeArea(
-                            top: false,
-                            child: Row(
-                              children: [
-                                if (_pageCount > 1)
-                                  Chip(label: Text('$_pageNumber of $_pageCount')),
-                                const Spacer(),
-                                Material(
-                                  elevation: 4,
-                                  borderRadius: BorderRadius.circular(8),
-                                  child: Row(
-                                    mainAxisSize: MainAxisSize.min,
-                                    children: [
-                                      IconButton(
-                                        tooltip: 'Zoom out',
-                                        onPressed: () => _pdfController.zoomDown(),
-                                        icon: const Icon(Icons.remove),
-                                      ),
-                                      ValueListenableBuilder<double>(
-                                        valueListenable: _zoom,
-                                        builder: (_, zoom, _) => Text(
-                                          '${(zoom * 100).round()}%',
-                                          style: Theme.of(context).textTheme.bodySmall),
-                                      ),
-                                      IconButton(
-                                        tooltip: 'Zoom in',
-                                        onPressed: () => _pdfController.zoomUp(),
-                                        icon: const Icon(Icons.add),
-                                      ),
-                                    ],
-                                  ),
+                    ),
+                    if (_viewerReady)
+                      Positioned(
+                        left: 12,
+                        right: 12,
+                        bottom: 12,
+                        child: SafeArea(
+                          top: false,
+                          child: Row(
+                            children: [
+                              if (_pageCount > 1)
+                                Chip(
+                                  label: Text('$_pageNumber of $_pageCount'),
                                 ),
-                              ],
-                            ),
+                              const Spacer(),
+                              Material(
+                                elevation: 4,
+                                borderRadius: BorderRadius.circular(8),
+                                child: Row(
+                                  mainAxisSize: MainAxisSize.min,
+                                  children: [
+                                    IconButton(
+                                      tooltip: 'Zoom out',
+                                      onPressed: () =>
+                                          _pdfController.zoomDown(),
+                                      icon: const Icon(Icons.remove),
+                                    ),
+                                    ValueListenableBuilder<double>(
+                                      valueListenable: _zoom,
+                                      builder: (_, zoom, _) => Text(
+                                        '${(zoom * 100).round()}%',
+                                        style: Theme.of(context)
+                                            .textTheme
+                                            .bodySmall,
+                                      ),
+                                    ),
+                                    IconButton(
+                                      tooltip: 'Zoom in',
+                                      onPressed: () => _pdfController.zoomUp(),
+                                      icon: const Icon(Icons.add),
+                                    ),
+                                  ],
+                                ),
+                              ),
+                            ],
                           ),
                         ),
-                    ],
-                  ),
+                      ),
+                  ],
+                ),
+        ),
       ),
     );
   }

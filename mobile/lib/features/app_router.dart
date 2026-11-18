@@ -12,12 +12,14 @@ import 'package:hive_flutter/hive_flutter.dart';
 import '../core/api_client.dart';
 import '../core/config.dart';
 import '../design/portal_shell.dart';
+import '../design/shell.dart';
 import 'student/student_pages.dart';
 import 'parent/parent_pages.dart';
 import 'portal/portal_views.dart';
 import '../shared/models.dart';
 import 'adviser/academic_overview_page.dart';
 import 'adviser/adm_cases_page.dart';
+import 'adviser/interventions_page.dart';
 import 'adviser/advisory_list_page.dart';
 import 'adviser/advisory_attendance_detail_page.dart';
 import 'adviser/advisory_attendance_page.dart';
@@ -38,7 +40,7 @@ import 'teacher/gradebook_dashboard_page.dart';
 import 'teacher/gradebook_page.dart';
 import 'teacher/assessment_score_page.dart';
 import 'workspace/workspace_attendance_page.dart';
-import '../core/session.dart' show authProvider, sessionRoleHint;
+import '../core/session.dart' show authProvider, sessionRoleHint, mobilePortalForRole;
 import '../design/theme.dart' show zWorkspaceTheme;
 import 'coordinator/coordinator_shell.dart';
 import 'coordinator/coordinator_pages.dart';
@@ -60,6 +62,54 @@ String? coordinatorRedirect(String? role, String location, bool hasTerm) {
 
 Widget _coordinatorView(Widget child) => Theme(data: zWorkspaceTheme(), child: child);
 
+// Only these list/workspace destinations share chrome. Full-screen details,
+// conversations and authentication remain on the root navigator.
+const _staffShellPaths = {
+  '/workspace/overview',
+  '/workspace/schedule',
+  '/workspace/classes',
+  '/workspace/gradebook',
+  '/workspace/attendance',
+  '/teacher/more',
+  '/adviser/advisory',
+  '/adviser/advisory/attendance',
+  '/adviser/academic',
+  '/adviser/adm-cases',
+  '/adviser/interventions',
+  '/adviser/anecdotal',
+  '/adviser/schedule',
+  '/adviser/referrals',
+  '/adviser/bama',
+  '/adviser/bama/history',
+};
+
+List<RouteBase> _persistentStaffRoutes(List<RouteBase> routes) {
+  final staff = <RouteBase>[];
+  final root = <RouteBase>[];
+  for (final route in routes) {
+    if (route is GoRoute && _staffShellPaths.contains(route.path)) {
+      staff.add(GoRoute(
+        path: route.path,
+        pageBuilder: (context, state) => NoTransitionPage<void>(
+          key: state.pageKey,
+          child: route.builder!(context, state),
+        ),
+      ));
+    } else {
+      root.add(route);
+    }
+  }
+  return [
+    ...root,
+    ShellRoute(
+      builder: (context, state, child) => StaffShellScope(
+        child: ZentraShell(selectedPath: state.uri.path, child: child),
+      ),
+      routes: staff,
+    ),
+  ];
+}
+
 final routerProvider = Provider<GoRouter>((ref) {
   final authChanges = ValueNotifier<int>(0);
   ref.listen(authProvider, (_, _) => authChanges.value++);
@@ -79,7 +129,7 @@ final routerProvider = Provider<GoRouter>((ref) {
         final coordinator = coordinatorRedirect(role, loc, hasTerm);
         if (coordinator != null) return coordinator;
         if (role == 'adm_coordinator') return null;
-        final portal = container.read(authProvider).portal ??
+        final portal = mobilePortalForRole(role) ?? container.read(authProvider).portal ??
             Hive.box(AppConfig.portalBox).get('portal') as String? ?? 'staff';
         if (portal == 'student' || portal == 'parent') {
           if (loc == '/portal/notifications' || loc.startsWith('/$portal/')) return null;
@@ -99,7 +149,7 @@ final routerProvider = Provider<GoRouter>((ref) {
       if (loc == '/teacher') return '/workspace/overview';
       return null;
     },
-    routes: [
+    routes: _persistentStaffRoutes([
       GoRoute(path: '/login', builder: (context, _) => const LoginPage()),
       GoRoute(path: '/coordinator', redirect: (_, _) => '/coordinator/overview'),
       GoRoute(path: '/coordinator/overview', builder: (_, _) => _coordinatorView(
@@ -138,6 +188,8 @@ final routerProvider = Provider<GoRouter>((ref) {
       GoRoute(path: '/term', builder: (context, _) => const TermSelectPage()),
       GoRoute(path: '/gate', builder: (context, _) => const FirstTimeGate()),
       // Adviser section (drawer replace-targets)
+      GoRoute(path: '/adviser/interventions', builder: (context, _) =>
+          const AdviserShell(selected: AdviserRoute.interventions, child: InterventionsPage())),
       GoRoute(path: '/adviser/advisory', builder: (context, _) => const AdviserShell(selected: AdviserRoute.advisory, child: AdvisoryListPage())),
       GoRoute(
         path: '/adviser/advisory/attendance',
@@ -260,7 +312,7 @@ final routerProvider = Provider<GoRouter>((ref) {
           return '/workspace/classes/$id${title == null ? '' : '?title=${Uri.encodeComponent(title)}'}';
         },
       ),
-    ],
+    ]),
     errorBuilder: (context, _) => const Scaffold(body: Center(child: Text('Page not found'))),
   );
   ref.onDispose(() { router.dispose(); authChanges.dispose(); });

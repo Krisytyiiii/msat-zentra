@@ -878,7 +878,7 @@ class _State extends ConsumerState<BamaChatPage> {
         ]),
         if (active == null)
            Positioned(
-             right: 16, bottom: 24,
+              right: 16, bottom: 24 + MediaQuery.paddingOf(context).bottom,
              child: FloatingActionButton(
                tooltip: 'New anecdotal chat',
                onPressed: _startAnecdotalChat,

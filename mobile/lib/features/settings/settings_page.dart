@@ -13,6 +13,7 @@ import 'package:image_picker/image_picker.dart';
 import '../../core/session.dart';
 import '../../design/brand.dart';
 import '../../design/screen_search.dart';
+import '../../design/settings_theme.dart';
 import '../../design/theme_picker.dart';
 import '../../shared/widgets.dart';
 import '../../shared/spinner.dart';
@@ -233,178 +234,188 @@ class _State extends ConsumerState<SettingsPage> {
 
   @override
   Widget build(BuildContext context) {
-    final theme = Theme.of(context);
+    final theme = settingsScreenTheme(Theme.of(context));
     final profile = ref.watch(teacherProfileProvider);
     final inShell = ScreenSearchScope.maybeOf(context) != null;
-    return ListView(
-      padding: const EdgeInsets.fromLTRB(16, 12, 16, 80),
-      children: [
-        if (!inShell) Text('Settings', style: theme.textTheme.headlineSmall),
-        Text(
-          'Your profile, appearance, and account security.',
-          style: theme.textTheme.bodySmall,
-        ),
-        const SizedBox(height: 12),
-        profile.when(
-          loading: () => const ZSkeletonList(count: 2),
-          error: (e, _) => ErrorView(
-            message: e,
-            onRetry: () => ref.invalidate(teacherProfileProvider),
-          ),
-          data: (p) {
-            if (!_nameInit) {
-              _name.text = p.fullName;
-              _nameInit = true;
-            }
-            return Column(
-              children: [
-                _section(
-                  context,
-                  title: 'Profile',
-                  subtitle: 'Your display name and photo.',
-                  child: Column(
-                    children: [
-                      Row(
+    return Theme(
+      data: theme,
+      child: ColoredBox(
+        color: Colors.white,
+        child: ListView(
+          padding: const EdgeInsets.fromLTRB(16, 12, 16, 32),
+          children: [
+            if (!inShell)
+              Text('Settings', style: theme.textTheme.headlineSmall),
+            Text(
+              'Your profile, appearance, and account security.',
+              style: theme.textTheme.bodySmall,
+            ),
+            const SizedBox(height: 12),
+            profile.when(
+              loading: () => const ZSkeletonList(count: 2),
+              error: (e, _) => ErrorView(
+                message: e,
+                onRetry: () => ref.invalidate(teacherProfileProvider),
+              ),
+              data: (p) {
+                if (!_nameInit) {
+                  _name.text = p.fullName;
+                  _nameInit = true;
+                }
+                return Column(
+                  children: [
+                    _section(
+                      context,
+                      title: 'Profile',
+                      subtitle: 'Your display name and photo.',
+                      child: Column(
                         children: [
-                          TeacherAvatar(photoUrl: p.photoUrl, radius: 28),
-                          const SizedBox(width: 12),
-                          Expanded(
-                            child: OutlinedButton.icon(
-                              icon: _photoBusy
-                                  ? const ZSpinner(size: 14)
-                                  : const Icon(
-                                      Icons.photo_camera_outlined,
-                                      size: 16,
-                                    ),
-                              label: Text(
-                                _photoBusy ? 'Uploading…' : 'Change photo',
+                          Row(
+                            children: [
+                              TeacherAvatar(photoUrl: p.photoUrl, radius: 28),
+                              const SizedBox(width: 12),
+                              Expanded(
+                                child: OutlinedButton.icon(
+                                  icon: _photoBusy
+                                      ? const ZSpinner(size: 14)
+                                      : const Icon(
+                                          Icons.photo_camera_outlined,
+                                          size: 16,
+                                        ),
+                                  label: Text(
+                                    _photoBusy ? 'Uploading…' : 'Change photo',
+                                  ),
+                                  onPressed: _photoBusy
+                                      ? null
+                                      : _choosePhotoSource,
+                                ),
                               ),
-                              onPressed: _photoBusy ? null : _choosePhotoSource,
+                            ],
+                          ),
+                          const SizedBox(height: 12),
+                          TextField(
+                            controller: _name,
+                            decoration: const InputDecoration(
+                              labelText: 'Full name',
+                            ),
+                            maxLength: 100,
+                          ),
+                          const SizedBox(height: 8),
+                          Align(
+                            alignment: Alignment.centerRight,
+                            child: FilledButton(
+                              onPressed: _saveName,
+                              child: const Text('Save profile'),
                             ),
                           ),
                         ],
                       ),
-                      const SizedBox(height: 12),
-                      TextField(
-                        controller: _name,
-                        decoration: const InputDecoration(
-                          labelText: 'Full name',
-                        ),
-                        maxLength: 100,
-                      ),
-                      const SizedBox(height: 8),
-                      Align(
-                        alignment: Alignment.centerRight,
-                        child: FilledButton(
-                          onPressed: _saveName,
-                          child: const Text('Save profile'),
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-                const SizedBox(height: 8),
-                _AdviserCard(
-                  picking: _pickingSection,
-                  selected: _selectedSection,
-                  onPicking: (v) => setState(() {
-                    _pickingSection = v;
-                    if (!v) _selectedSection = null;
-                  }),
-                  onSelect: (id) => setState(() => _selectedSection = id),
-                ),
-                const SizedBox(height: 8),
-                _MasterTeacherCard(
-                  busy: _mtBusy,
-                  onToggle: (next, {required takenByOther, holderName}) =>
-                      _toggleMaster(
-                        next,
-                        takenByOther: takenByOther,
-                        holderName: holderName,
-                      ),
-                ),
-                const SizedBox(height: 8),
-                _section(
-                  context,
-                  title: 'Appearance',
-                  subtitle: 'The same dark mint and violet design as sign-in.',
-                  child: _ThemePicker(),
-                ),
-                const SizedBox(height: 8),
-                _section(
-                  context,
-                  title: 'Password',
-                  subtitle: 'Choose a new password at least 8 characters long.',
-                  child: Column(
-                    children: [
-                      TextField(
-                        controller: _current,
-                        decoration: const InputDecoration(
-                          labelText: 'Current password',
-                        ),
-                        obscureText: true,
-                      ),
-                      const SizedBox(height: 8),
-                      TextField(
-                        controller: _next,
-                        decoration: const InputDecoration(
-                          labelText: 'New password',
-                        ),
-                        obscureText: true,
-                      ),
-                      const SizedBox(height: 8),
-                      TextField(
-                        controller: _confirm,
-                        decoration: const InputDecoration(
-                          labelText: 'Confirm new password',
-                        ),
-                        obscureText: true,
-                      ),
-                      if (_passError != null) ...[
-                        const SizedBox(height: 4),
-                        Text(
-                          _passError!,
-                          style: TextStyle(
-                            color: theme.colorScheme.error,
-                            fontSize: 13,
+                    ),
+                    const SizedBox(height: 8),
+                    _AdviserCard(
+                      picking: _pickingSection,
+                      selected: _selectedSection,
+                      onPicking: (v) => setState(() {
+                        _pickingSection = v;
+                        if (!v) _selectedSection = null;
+                      }),
+                      onSelect: (id) => setState(() => _selectedSection = id),
+                    ),
+                    const SizedBox(height: 8),
+                    _MasterTeacherCard(
+                      busy: _mtBusy,
+                      onToggle: (next, {required takenByOther, holderName}) =>
+                          _toggleMaster(
+                            next,
+                            takenByOther: takenByOther,
+                            holderName: holderName,
                           ),
-                        ),
-                      ],
-                      const SizedBox(height: 8),
-                      Align(
-                        alignment: Alignment.centerRight,
-                        child: FilledButton(
-                          onPressed: _passBusy ? null : _savePassword,
-                          child: Text(
-                            _passBusy ? 'Saving…' : 'Update password',
+                    ),
+                    const SizedBox(height: 8),
+                    _section(
+                      context,
+                      title: 'Appearance',
+                      subtitle: 'Choose how the app appears on your device.',
+                      child: _ThemePicker(),
+                    ),
+                    const SizedBox(height: 8),
+                    _section(
+                      context,
+                      title: 'Password',
+                      subtitle:
+                          'Choose a new password at least 8 characters long.',
+                      child: Column(
+                        children: [
+                          TextField(
+                            controller: _current,
+                            decoration: const InputDecoration(
+                              labelText: 'Current password',
+                            ),
+                            obscureText: true,
                           ),
-                        ),
+                          const SizedBox(height: 8),
+                          TextField(
+                            controller: _next,
+                            decoration: const InputDecoration(
+                              labelText: 'New password',
+                            ),
+                            obscureText: true,
+                          ),
+                          const SizedBox(height: 8),
+                          TextField(
+                            controller: _confirm,
+                            decoration: const InputDecoration(
+                              labelText: 'Confirm new password',
+                            ),
+                            obscureText: true,
+                          ),
+                          if (_passError != null) ...[
+                            const SizedBox(height: 4),
+                            Text(
+                              _passError!,
+                              style: TextStyle(
+                                color: theme.colorScheme.error,
+                                fontSize: 13,
+                              ),
+                            ),
+                          ],
+                          const SizedBox(height: 8),
+                          Align(
+                            alignment: Alignment.centerRight,
+                            child: FilledButton(
+                              onPressed: _passBusy ? null : _savePassword,
+                              child: Text(
+                                _passBusy ? 'Saving…' : 'Change password',
+                              ),
+                            ),
+                          ),
+                        ],
                       ),
-                    ],
+                    ),
+                  ],
+                );
+              },
+            ),
+            const SizedBox(height: 8),
+            const ZCard(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    'Grade flags',
+                    style: TextStyle(fontSize: 15, fontWeight: FontWeight.w600),
                   ),
-                ),
-              ],
-            );
-          },
-        ),
-        const SizedBox(height: 8),
-        const ZCard(
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text(
-                'Grade flags',
-                style: TextStyle(fontSize: 15, fontWeight: FontWeight.w600),
+                  SizedBox(height: 4),
+                  Text(
+                    'Raise and resolve flags inside each class workspace. Overdue flags escalate to the Principal.',
+                    style: TextStyle(fontSize: 13),
+                  ),
+                ],
               ),
-              SizedBox(height: 4),
-              Text(
-                'Raise and resolve flags inside each class workspace. Overdue flags escalate to the Principal.',
-                style: TextStyle(fontSize: 13),
-              ),
-            ],
-          ),
+            ),
+          ],
         ),
-      ],
+      ),
     );
   }
 
@@ -414,6 +425,7 @@ class _State extends ConsumerState<SettingsPage> {
     required String subtitle,
     required Widget child,
   }) => ZCard(
+    padding: const EdgeInsets.all(12),
     child: Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -422,7 +434,10 @@ class _State extends ConsumerState<SettingsPage> {
           style: const TextStyle(fontSize: 15, fontWeight: FontWeight.w600),
         ),
         const SizedBox(height: 2),
-        Text(subtitle, style: Theme.of(context).textTheme.bodySmall),
+        Text(
+          subtitle,
+          style: settingsScreenTheme(Theme.of(context)).textTheme.bodySmall,
+        ),
         const SizedBox(height: 12),
         child,
       ],

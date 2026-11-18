@@ -13,6 +13,9 @@ import 'package:zentra_mobile/features/anecdotal/record_preview_page.dart';
 import 'package:zentra_mobile/shared/widgets.dart';
 
 class _FailingApi extends ApiClient {
+  @override
+  Future<String?> accessToken() async => null;
+
   _FailingApi({this.failPdf = false}) {
     dio.interceptors.clear();
     dio.interceptors.add(

@@ -10,6 +10,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
+import '../../design/adviser_navigation.dart';
 import '../../shared/widgets.dart';
 import 'advisory_attendance_board.dart';
 import 'advisory_attendance_data.dart';
@@ -81,19 +82,20 @@ class AdvisoryAttendanceDetailPage extends ConsumerWidget {
       if (matrix.hasError) {
         return Scaffold(
           appBar: _bar(context, canPop, 'Advisory attendance'),
-          body: ErrorView(
-            message: matrix.error,
-            onRetry: () =>
-                ref.invalidate(sectionAttendanceMatrixProvider(section)),
+          body: AdviserBamaAccess(
+            child: ErrorView(
+              message: matrix.error,
+              onRetry: () =>
+                  ref.invalidate(sectionAttendanceMatrixProvider(section)),
+            ),
           ),
         );
       }
       if (data != null) return _unavailable(context, canPop);
       return Scaffold(
         appBar: _bar(context, canPop, 'Advisory attendance'),
-        body: const Padding(
-          padding: EdgeInsets.all(16),
-          child: ZSkeletonList(),
+        body: const AdviserBamaAccess(
+          child: Padding(padding: EdgeInsets.all(16), child: ZSkeletonList()),
         ),
       );
     }
@@ -119,27 +121,29 @@ class AdvisoryAttendanceDetailPage extends ConsumerWidget {
     final list = ListView(
       physics: const AlwaysScrollableScrollPhysics(),
       padding: const EdgeInsets.fromLTRB(16, 12, 16, 24),
-      children: [
-        AdvisoryAttendanceBoard(student: student, subjects: subjects),
-      ],
+      children: [AdvisoryAttendanceBoard(student: student, subjects: subjects)],
     );
     return Scaffold(
       appBar: _bar(context, canPop, student.name),
-      body: section == null || section.isEmpty
-          ? list
-          : RefreshIndicator(
-              onRefresh: () async {
-                try {
-                  await ref
-                      .refresh(sectionAttendanceMatrixProvider(section).future)
-                      .then<void>((_) {});
-                } catch (_) {
-                  // The board keeps the last good snapshot; the error is
-                  // already surfaced by the provider when there is none.
-                }
-              },
-              child: list,
-            ),
+      body: AdviserBamaAccess(
+        child: section == null || section.isEmpty
+            ? list
+            : RefreshIndicator(
+                onRefresh: () async {
+                  try {
+                    await ref
+                        .refresh(
+                          sectionAttendanceMatrixProvider(section).future,
+                        )
+                        .then<void>((_) {});
+                  } catch (_) {
+                    // The board keeps the last good snapshot; the error is
+                    // already surfaced by the provider when there is none.
+                  }
+                },
+                child: list,
+              ),
+      ),
     );
   }
 
@@ -156,11 +160,12 @@ class AdvisoryAttendanceDetailPage extends ConsumerWidget {
 
   Widget _unavailable(BuildContext context, bool canPop) => Scaffold(
     appBar: _bar(context, canPop, 'Advisory attendance'),
-    body: const ZEmptyPage(
-      icon: Icons.person_off_outlined,
-      title: 'Learner not available',
-      subtitle:
-          'This learner is not on the advisory attendance board for the selected section.',
+    body: const AdviserBamaAccess(
+      child: ZEmptyPage(
+        icon: Icons.person_off_outlined,
+        title: 'Learner not available',
+        subtitle: 'This learner is not on the advisory attendance board for the selected section.',
+      ),
     ),
   );
 }

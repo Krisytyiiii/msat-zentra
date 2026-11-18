@@ -77,6 +77,24 @@ Future<void> mountShell(
 }
 
 void main() {
+  testWidgets('settings keeps the light header without bottom navigation', (
+    tester,
+  ) async {
+    await mountShell(
+      tester,
+      child: const _Probe(),
+      selectedPath: '/teacher/more',
+    );
+    final scaffold = tester.widget<Scaffold>(find.byType(Scaffold).first);
+    expect(scaffold.bottomNavigationBar, isNull);
+    expect(scaffold.extendBody, isFalse);
+    expect(find.byKey(const ValueKey('adviser-nav-Bama')), findsNothing);
+    expect(find.byKey(const ValueKey('screen-search-field')), findsOneWidget);
+    final theme = Theme.of(tester.element(find.byType(Scaffold).first));
+    expect(theme.brightness, Brightness.light);
+    expect(tester.takeException(), isNull);
+  });
+
   group('spec resolver', () {
     test('names each screen and picks its search behaviour', () {
       expect(screenSearchSpecFor('/adviser/advisory').title, 'Advisory list');
@@ -156,30 +174,29 @@ void main() {
     });
   });
 
-  testWidgets('header replaces branding with the screen title', (tester) async {
+  testWidgets('header is menu + search field + profile only', (tester) async {
     await mountShell(
       tester,
       child: const SizedBox.shrink(),
       selectedPath: '/adviser/academic',
       width: 1024,
     );
-    expect(find.text('Academic'), findsOneWidget);
+    expect(find.byTooltip('Menu'), findsOneWidget);
+    expect(find.byKey(const ValueKey('screen-search-field')), findsOneWidget);
+    expect(find.byKey(const ValueKey('profile-avatar')), findsOneWidget);
+    // The screen title and the old bell/compact search icons are gone.
+    expect(find.text('Academic'), findsNothing);
     expect(find.text('Zentra'), findsNothing);
+    expect(find.byTooltip('Notifications'), findsNothing);
+    expect(find.byKey(const ValueKey('screen-search-open')), findsNothing);
   });
 
-  testWidgets('compact header expands search on tap and filters the desk', (
-    tester,
-  ) async {
+  testWidgets('header search always filters the desk', (tester) async {
     await mountShell(
       tester,
       child: const _Probe(),
       spec: const ScreenSearchSpec.filter('Academic', 'Search name or LRN'),
     );
-    expect(find.text('Academic'), findsOneWidget);
-    expect(find.byKey(const ValueKey('screen-search-field')), findsNothing);
-
-    await tester.tap(find.byKey(const ValueKey('screen-search-open')));
-    await tester.pumpAndSettle();
     final field = find.byKey(const ValueKey('screen-search-field'));
     expect(field, findsOneWidget);
 
@@ -193,7 +210,9 @@ void main() {
     expect(field, findsOneWidget);
   });
 
-  testWidgets('wide header keeps the field beside the title', (tester) async {
+  testWidgets('wide header keeps the search field in the middle lane', (
+    tester,
+  ) async {
     await mountShell(
       tester,
       child: const _Probe(),
@@ -205,10 +224,9 @@ void main() {
     );
     final field = find.byKey(const ValueKey('screen-search-field'));
     expect(field, findsOneWidget);
-    expect(find.byKey(const ValueKey('screen-search-open')), findsNothing);
     expect(
-      tester.getRect(find.text('Advisory list')).right,
-      lessThan(tester.getRect(field).left),
+      tester.getRect(find.byKey(const ValueKey('profile-avatar'))).left,
+      greaterThanOrEqualTo(tester.getRect(field).right),
     );
 
     await tester.enterText(field, 'juan');
@@ -233,7 +251,13 @@ void main() {
     await tester.pumpAndSettle();
     expect(find.text('PAGES'), findsOneWidget);
     expect(find.text('Academic'), findsOneWidget);
-    expect(find.text('Attendance'), findsNothing);
+    expect(
+      find.descendant(
+        of: find.byKey(const ValueKey('screen-search-results')),
+        matching: find.text('Attendance'),
+      ),
+      findsNothing,
+    );
     expect(find.byKey(const ValueKey('screen-search-results')), findsOneWidget);
 
     await tester.enterText(field, 'zzz');
@@ -285,10 +309,7 @@ void main() {
     await tester.pumpAndSettle();
     expect(find.text('Maria Santos'), findsOneWidget);
     expect(find.text('Juan Cruz'), findsOneWidget);
-    expect(find.byType(TextField), findsNothing);
-
-    await tester.tap(find.byKey(const ValueKey('screen-search-open')));
-    await tester.pumpAndSettle();
+    // Only the header field remains; the desk's inline search is hidden.
     expect(find.byType(TextField), findsOneWidget);
 
     await tester.enterText(
@@ -315,9 +336,34 @@ void main() {
       scale: 2,
     );
     expect(tester.takeException(), isNull);
-    await tester.tap(find.byKey(const ValueKey('screen-search-open')));
+    expect(find.byKey(const ValueKey('screen-search-field')), findsOneWidget);
+    await tester.enterText(
+      find.byKey(const ValueKey('screen-search-field')),
+      'juan',
+    );
     await tester.pumpAndSettle();
     expect(tester.takeException(), isNull);
+  });
+
+  testWidgets('profile avatar opens the full-screen account panel', (
+    tester,
+  ) async {
+    await mountShell(tester, child: const _Probe());
+    await tester.tap(find.byKey(const ValueKey('profile-avatar')));
+    await tester.pumpAndSettle();
+
+    expect(find.text('Profile'), findsOneWidget);
+    expect(find.byKey(const ValueKey('profile-close')), findsOneWidget);
+    expect(find.text('Notification'), findsOneWidget);
+    expect(find.byKey(const ValueKey('profile-see-all')), findsOneWidget);
+    expect(find.text('Appearance'), findsOneWidget);
+    expect(find.text('Settings'), findsOneWidget);
+    expect(find.text('Logout'), findsOneWidget);
+    // The panel replaces the shell instead of floating over it.
+    expect(find.byKey(const ValueKey('screen-search-field')), findsNothing);
+
+    await tester.tap(find.byKey(const ValueKey('profile-close')));
+    await tester.pumpAndSettle();
     expect(find.byKey(const ValueKey('screen-search-field')), findsOneWidget);
   });
 }

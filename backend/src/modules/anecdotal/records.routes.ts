@@ -17,6 +17,7 @@ import {
   createRecord,
   deleteRecord,
   exportRecord,
+  exportRecordPdf,
   fileIntoFolder,
   getRecordDetail,
   getRecordsHeatmap,
@@ -295,6 +296,23 @@ router.get(
   async (req, res, next) => {
     try {
       res.json(await getRecordDetail(ctxOf(req), String(req.params.id)));
+    } catch (e) {
+      next(e);
+    }
+  }
+);
+
+router.get(
+  "/:id/pdf",
+  requireAuth,
+  requireRole(...OCFORM01_ROLES),
+  async (req, res, next) => {
+    try {
+      const { buffer, filename } = await exportRecordPdf(ctxOf(req), String(req.params.id));
+      res.setHeader("Content-Type", "application/pdf");
+      res.setHeader("Content-Disposition", `inline; filename="${filename}"`);
+      res.setHeader("Content-Length", String(buffer.length));
+      res.send(buffer);
     } catch (e) {
       next(e);
     }

@@ -5,9 +5,7 @@ import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_svg/flutter_svg.dart';
 import 'package:go_router/go_router.dart';
-import 'package:url_launcher/url_launcher.dart';
 
-import '../../core/config.dart';
 import '../../core/session.dart';
 import '../../design/brand.dart';
 import 'login_background.dart';
@@ -25,13 +23,11 @@ class _LoginPageState extends ConsumerState<LoginPage> {
   final _form = GlobalKey<FormState>();
   final _passwordFocus = FocusNode();
   bool _busy = false;
-  bool _googleBusy = false;
   bool _showPassword = false;
   bool _amber = false;
   String? _error;
-  String _portal = 'staff';
 
-  bool get _working => _busy || _googleBusy;
+  bool get _working => _busy;
 
   @override
   void dispose() {
@@ -51,17 +47,11 @@ class _LoginPageState extends ConsumerState<LoginPage> {
     try {
       final ok = await ref
           .read(authProvider.notifier)
-          .login(
-            email: _email.text.trim(),
-            password: _pass.text,
-            portal: _portal,
-          );
+          .login(email: _email.text.trim(), password: _pass.text);
       if (!mounted) return;
       if (ok) {
         TextInput.finishAutofillContext();
-        context.go(ref.read(authProvider).role == 'adm_coordinator'
-            ? '/coordinator/overview'
-            : _portal == 'staff' ? '/term' : '/$_portal/home');
+        context.go(mobileLoginDestination(ref.read(authProvider).role));
       } else {
         setState(() => _error = ref.read(authProvider).error);
       }
@@ -74,34 +64,15 @@ class _LoginPageState extends ConsumerState<LoginPage> {
     }
   }
 
-  Future<void> _googleSignIn() async {
+  void _googleSignIn() {
     if (_working) return;
-    setState(() => _googleBusy = true);
-    try {
-      final ok = await launchUrl(
-        Uri.parse('${AppConfig.apiBaseUrl}/api/auth/google?role=$_portal'),
-        mode: LaunchMode.externalApplication,
-      );
-      if (!mounted || ok) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text(
-            'We couldn’t open Google sign-in. Try again, or sign in with your email and password.',
-          ),
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(
+        content: Text(
+          'Google sign-in is not available in the mobile app yet. Use your email and password.',
         ),
-      );
-    } catch (_) {
-      if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text(
-            'We couldn’t open Google sign-in. Try again, or sign in with your email and password.',
-          ),
-        ),
-      );
-    } finally {
-      if (mounted) setState(() => _googleBusy = false);
-    }
+      ),
+    );
   }
 
   @override
@@ -160,17 +131,9 @@ class _LoginPageState extends ConsumerState<LoginPage> {
         ),
       ),
     );
-    final title = switch (_portal) {
-      'student' => 'Student sign in',
-      'parent' => 'Parent sign in',
-      _ => 'Staff sign in',
-    };
-    final description = switch (_portal) {
-      'student' =>
-        'Your grades, attendance, schedule, and modules in one place.',
-      'parent' => 'Stay close to your child’s progress and school updates.',
-      _ => 'Your workspace for teaching, advising, and supporting learners.',
-    };
+    const title = 'Welcome back';
+    const description =
+        'Sign in to open your account’s workspace automatically.';
     return Theme(
       data: theme,
       child: Scaffold(
@@ -293,8 +256,6 @@ class _LoginPageState extends ConsumerState<LoginPage> {
                                                   height: 1.6,
                                                 ),
                                               ),
-                                              const SizedBox(height: 24),
-                                              _portalPicker(accent, border),
                                               const SizedBox(height: 24),
                                               const Text(
                                                 'School email',
@@ -484,19 +445,13 @@ class _LoginPageState extends ConsumerState<LoginPage> {
                                                 onPressed: _working
                                                     ? null
                                                     : _googleSignIn,
-                                                icon: _googleBusy
-                                                    ? const AuthSpinner(
-                                                        size: 16,
-                                                      )
-                                                    : SvgPicture.string(
-                                                        _googleLogoSvg,
-                                                        width: 18,
-                                                        height: 18,
-                                                      ),
-                                                label: Text(
-                                                  _googleBusy
-                                                      ? 'Opening Google…'
-                                                      : 'Sign in with Google',
+                                                icon: SvgPicture.string(
+                                                  _googleLogoSvg,
+                                                  width: 18,
+                                                  height: 18,
+                                                ),
+                                                label: const Text(
+                                                  'Sign in with Google',
                                                 ),
                                               ),
                                               const SizedBox(height: 24),
@@ -567,85 +522,13 @@ class _LoginPageState extends ConsumerState<LoginPage> {
     ),
   );
 
-  Widget _portalPicker(Color accent, Color border) => Container(
-    padding: const EdgeInsets.all(4),
-    decoration: BoxDecoration(
-      border: Border.all(color: border),
-      borderRadius: BorderRadius.circular(8),
-    ),
-    child: Row(
-      children: [
-        for (final entry in const {
-          'staff': 'Staff',
-          'student': 'Student',
-          'parent': 'Parent',
-        }.entries)
-          Expanded(
-            child: Semantics(
-              selected: _portal == entry.key,
-              child: TextButton(
-                style: TextButton.styleFrom(
-                  padding: const EdgeInsets.symmetric(horizontal: 4),
-                  minimumSize: const Size(0, 48),
-                  foregroundColor: _portal == entry.key
-                      ? accent
-                      : const Color(0xff99aaa3),
-                  backgroundColor: _portal == entry.key
-                      ? accent.withValues(alpha: 0.1)
-                      : Colors.transparent,
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(5),
-                  ),
-                ),
-                onPressed: _working
-                    ? null
-                    : () {
-                        if (_portal == entry.key) return;
-                        setState(() {
-                          _portal = entry.key;
-                          _error = null;
-                          _showPassword = false;
-                          final email = _email.text;
-                          _form.currentState?.reset();
-                          _email.text = email;
-                          _pass.clear();
-                        });
-                      },
-                child: Text(entry.value, style: const TextStyle(fontSize: 12)),
-              ),
-            ),
-          ),
-      ],
-    ),
-  );
-
   Widget _workspacePreview(Color accent, Color border, Color panel) {
-    final (title, lines) = switch (_portal) {
-      'student' => (
-        'Your learner workspace',
-        [
-          'View your grades each term.',
-          'Track attendance and your schedule.',
-          'Keep up with learning modules.',
-        ],
-      ),
-      'parent' => (
-        'Stay close to your child',
-        [
-          'Follow grades and attendance.',
-          'Stay informed about school updates.',
-          'Support every step of their progress.',
-        ],
-      ),
-      _ => (
-        'Your staff workspace',
-        [
-          'Encode grades and manage your classes.',
-          'Take attendance and write anecdotal records.',
-          'Support advisees and track their progress.',
-        ],
-      ),
-    };
+    const title = 'Your school workspace';
+    const lines = [
+      'One sign-in for students, parents, and supported staff.',
+      'Open the workspace linked to your account.',
+      'Stay connected to learning and school updates.',
+    ];
     return Container(
       decoration: BoxDecoration(
         color: panel.withValues(alpha: 0.85),
@@ -684,15 +567,7 @@ class _LoginPageState extends ConsumerState<LoginPage> {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Icon(
-                  switch (_portal) {
-                    'student' => Icons.school_outlined,
-                    'parent' => Icons.people_outline,
-                    _ => Icons.work_outline,
-                  },
-                  color: accent,
-                  size: 28,
-                ),
+                Icon(Icons.school_outlined, color: accent, size: 28),
                 const SizedBox(height: 20),
                 Text(
                   title,

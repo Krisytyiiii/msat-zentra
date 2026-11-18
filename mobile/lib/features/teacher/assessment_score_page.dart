@@ -6,6 +6,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:hive_flutter/hive_flutter.dart';
 
+import '../../design/adviser_navigation.dart';
 import '../../core/api_client.dart';
 import '../../core/config.dart';
 import '../../core/session.dart';
@@ -367,14 +368,17 @@ class _ScoreState extends ConsumerState<AssessmentScorePage> {
             ],
           ),
         ),
-        body: _busy
-            ? const LoadingView()
-            : assessment == null
-            ? ErrorView(
-                message: _error ?? 'This assessment is unavailable.',
-                onRetry: _load,
-              )
-            : _body(assessment),
+        body: AdviserBamaAccess(
+          busy: _saving,
+          child: _busy
+              ? const LoadingView()
+              : assessment == null
+              ? ErrorView(
+                  message: _error ?? 'This assessment is unavailable.',
+                  onRetry: _load,
+                )
+              : _body(assessment),
+        ),
         bottomNavigationBar: _busy || assessment == null
             ? null
             : Padding(

@@ -363,7 +363,8 @@ void main() {
         );
       }
       expect(find.text('Welcome back, Maria Santos.'), findsOneWidget);
-      expect(find.textContaining('2026–2027 · Term 2'), findsOneWidget);
+      expect(find.text('2026–2027'), findsOneWidget);
+      expect(find.text('Term 2'), findsOneWidget);
       expect(find.textContaining('Grade 8 – Arts'), findsOneWidget);
       expect(find.text('2 assessments with missing scores'), findsOneWidget);
       expect(find.text('3 learners may need support'), findsOneWidget);
@@ -681,7 +682,8 @@ void main() {
         );
     await tester.pumpAndSettle();
     expect([calls, secondaryCalls, scheduleCalls], [2, 2, 2]);
-    expect(find.textContaining('2027–2028 · Term 3'), findsOneWidget);
+    expect(find.text('2027–2028'), findsOneWidget);
+    expect(find.text('Term 3'), findsOneWidget);
     await tester.ensureVisible(find.text('At a glance'));
     expect(find.text('22'), findsOneWidget);
     expect(find.text('40'), findsNothing);
@@ -703,9 +705,8 @@ void main() {
           expect(thrown, isNull);
           expect(find.text('Chat with Bama'), findsOneWidget);
           expect(
-            Theme.of(
-              tester.element(find.byType(OverviewPage)),
-            ).scaffoldBackgroundColor,
+            Theme.of(tester.element(find.byType(OverviewPage)))
+                .scaffoldBackgroundColor,
             ZWorkspace.background,
           );
         },
@@ -720,7 +721,8 @@ void main() {
     expect(theme.brightness, Brightness.light);
     expect(theme.scaffoldBackgroundColor, ZLight.background);
     expect(find.text('Welcome back, Maria Santos.'), findsOneWidget);
-    expect(find.textContaining('2026–2027 · Term 2'), findsOneWidget);
+    expect(find.text('2026–2027'), findsOneWidget);
+    expect(find.text('Term 2'), findsOneWidget);
     expect(find.text('2 assessments with missing scores'), findsOneWidget);
     await tester.ensureVisible(find.text('At a glance'));
     await tester.pumpAndSettle();
@@ -819,7 +821,9 @@ void main() {
       expect(tester.takeException(), isNull);
     });
   }
-  testWidgets('drawer retains Overview as first destination', (tester) async {
+  testWidgets('adviser drawer keeps secondary desks, not bottom destinations', (
+    tester,
+  ) async {
     final api = TestApi();
     addTearDown(api.dio.close);
     await tester.pumpWidget(
@@ -839,11 +843,13 @@ void main() {
       ),
     );
     await tester.pumpAndSettle();
-    final tile = find.widgetWithText(ListTile, 'Overview');
-    expect(tester.widget<ListTile>(tile).selected, isTrue);
+    for (final label in ['Overview', 'Class', 'Gradebook', 'Attendance']) {
+      expect(find.widgetWithText(ListTile, label), findsNothing);
+    }
+    expect(find.widgetWithText(ListTile, 'Advisory list'), findsOneWidget);
     expect(
-      tester.getTopLeft(tile).dy,
-      lessThan(tester.getTopLeft(find.text('Advisory list')).dy),
+      find.widgetWithText(ListTile, 'Advisory attendance'),
+      findsOneWidget,
     );
   });
   for (final adviser in [true, false]) {

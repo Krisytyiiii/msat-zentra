@@ -8,6 +8,7 @@ import 'package:intl/intl.dart';
 
 import '../../core/session.dart';
 import '../../design/screen_search.dart';
+import '../../design/status_palette.dart';
 import '../../design/theme.dart';
 import '../../design/tokens.dart';
 import '../../shared/models.dart' show Term;
@@ -15,6 +16,7 @@ import '../../shared/user_messages.dart';
 import '../../shared/widgets.dart';
 import '../adviser/adviser_schedule_page.dart';
 import 'overview_data.dart';
+import 'overview_insights.dart';
 
 /// A compact staff landing page, not a second reporting dashboard.
 ///
@@ -74,6 +76,7 @@ class _OverviewPageState extends ConsumerState<OverviewPage>
       ref.refresh(overviewProvider.future),
       ref.refresh(overviewSecondaryProvider.future),
       ref.refresh(overviewScheduleProvider.future),
+      ref.refresh(overviewInsightsProvider.future),
     ];
     // Each section owns its error; keep the refresh indicator until all settle.
     await Future.wait(
@@ -94,6 +97,7 @@ class _OverviewPageState extends ConsumerState<OverviewPage>
     final summary = ref.watch(overviewSummaryProvider);
     final attention = ref.watch(overviewAttentionProvider);
     final schedule = ref.watch(overviewScheduleProvider);
+    final insights = ref.watch(overviewInsightsProvider);
     final term = ref.watch(termProvider);
     final adviser =
         summary.asData?.value.isAdviser ??
@@ -111,7 +115,12 @@ class _OverviewPageState extends ConsumerState<OverviewPage>
       onRefresh: _refresh,
       child: SingleChildScrollView(
         physics: const AlwaysScrollableScrollPhysics(),
-        padding: const EdgeInsets.fromLTRB(16, 20, 16, 32),
+        padding: EdgeInsets.fromLTRB(
+          16,
+          20,
+          16,
+          32 + MediaQuery.paddingOf(context).bottom,
+        ),
         child: Center(
           child: ConstrainedBox(
             constraints: const BoxConstraints(maxWidth: 760),
@@ -124,16 +133,13 @@ class _OverviewPageState extends ConsumerState<OverviewPage>
                 ],
                 _welcome(summary, term, section),
                 const SizedBox(height: 22),
-                const _SectionLabel('Quick actions'),
-                const SizedBox(height: 10),
-                OverviewQuickActions(isAdviser: adviser, onOpen: _open),
-                const SizedBox(height: 22),
                 _Board(
                   icon: Icons.schedule_outlined,
                   title: 'Up next',
                   action: 'View schedule',
-                  onAction: () =>
-                      _open(adviser ? '/adviser/schedule' : '/workspace/schedule'),
+                  onAction: () => _open(
+                    adviser ? '/adviser/schedule' : '/workspace/schedule',
+                  ),
                   child: schedule.when(
                     loading: () => const ZSkeletonRow(),
                     error: (error, _) => _InlineError(
@@ -168,6 +174,32 @@ class _OverviewPageState extends ConsumerState<OverviewPage>
                     data: (data) => OverviewStats(summary: data, onOpen: _open),
                   ),
                 ),
+                const SizedBox(height: 16),
+                _Board(
+                  icon: Icons.donut_small_outlined,
+                  title: 'Risk mix',
+                  child: insights.when(
+                    loading: () => const ZSkeletonRow(),
+                    error: (error, _) => _InlineError(
+                      error: error,
+                      retry: () => ref.invalidate(overviewInsightsProvider),
+                    ),
+                    data: (data) => OverviewRiskMix(insights: data),
+                  ),
+                ),
+                const SizedBox(height: 16),
+                _Board(
+                  icon: Icons.bar_chart_outlined,
+                  title: 'Attendance, day by day',
+                  child: insights.when(
+                    loading: () => const ZSkeletonRow(),
+                    error: (error, _) => _InlineError(
+                      error: error,
+                      retry: () => ref.invalidate(overviewInsightsProvider),
+                    ),
+                    data: (data) => OverviewDailyAttendance(insights: data),
+                  ),
+                ),
               ],
             ),
           ),
@@ -182,11 +214,11 @@ class _OverviewPageState extends ConsumerState<OverviewPage>
     String? section,
   ) {
     final theme = Theme.of(context);
-    final meta = [
-      if (term != null)
-        '${term.schoolYearName.isEmpty ? 'Selected school year' : term.schoolYearName} · Term ${term.termNumber}',
-      if (section != null && section.isNotEmpty) section,
-    ].join(' · ');
+    final schoolYear = term == null
+        ? null
+        : term.schoolYearName.isEmpty
+        ? 'Selected school year'
+        : term.schoolYearName;
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -214,12 +246,31 @@ class _OverviewPageState extends ConsumerState<OverviewPage>
             retry: () => ref.invalidate(overviewProvider),
           ),
         ),
-        const SizedBox(height: 4),
-        Text(
-          meta,
-          style: theme.textTheme.bodySmall?.copyWith(
-            color: theme.colorScheme.onSurfaceVariant,
-          ),
+        const SizedBox(height: 6),
+        Wrap(
+          spacing: 6,
+          runSpacing: 6,
+          crossAxisAlignment: WrapCrossAlignment.center,
+          children: [
+            if (schoolYear != null)
+              ZPill(
+                tone: StatusTone.blue,
+                label: 'School year',
+                child: Text(schoolYear),
+              ),
+            if (term != null)
+              ZPill(
+                tone: StatusTone.amber,
+                label: 'Term',
+                child: Text('Term ${term.termNumber}'),
+              ),
+            if (section != null && section.isNotEmpty)
+              ZPill(
+                tone: StatusTone.violet,
+                label: 'Section',
+                child: Text(section),
+              ),
+          ],
         ),
       ],
     );
@@ -229,7 +280,9 @@ class _OverviewPageState extends ConsumerState<OverviewPage>
     final notice = schedule.scopeNotice(_now);
     final next = schedule.nextClass(_now);
     if (notice != null || next == null) {
-      return _BoardNote(notice ?? 'No upcoming confirmed classes in this term.');
+      return _BoardNote(
+        notice ?? 'No upcoming confirmed classes in this term.',
+      );
     }
     final theme = Theme.of(context);
     final accent = ZDesk.dataAccent(context);
@@ -380,22 +433,6 @@ class _OverviewPageState extends ConsumerState<OverviewPage>
   }
 }
 
-/// Uppercase micro-label, the same rhythm the web rail uses ("My day").
-class _SectionLabel extends StatelessWidget {
-  const _SectionLabel(this.text);
-  final String text;
-  @override
-  Widget build(BuildContext context) => Text(
-    text.toUpperCase(),
-    style: Theme.of(context).textTheme.labelSmall?.copyWith(
-      fontSize: 10.5,
-      fontWeight: FontWeight.w700,
-      letterSpacing: 0.9,
-      color: Theme.of(context).colorScheme.onSurfaceVariant,
-    ),
-  );
-}
-
 /// Web `KanbanBoard` chrome: amber icon + title + counts/action slot, a
 /// hairline under the title, and the body on the card surface.
 class _Board extends StatelessWidget {
@@ -510,9 +547,8 @@ class _BoardNote extends StatelessWidget {
   @override
   Widget build(BuildContext context) => Text(
     text,
-    style: Theme.of(context).textTheme.bodySmall?.copyWith(
-      color: Theme.of(context).colorScheme.onSurfaceVariant,
-    ),
+    style: Theme.of(context).textTheme.bodySmall
+        ?.copyWith(color: Theme.of(context).colorScheme.onSurfaceVariant),
   );
 }
 
@@ -910,9 +946,7 @@ class _OverviewActionTile extends StatelessWidget {
               states.contains(WidgetState.hovered)) {
             return BorderSide(color: accent.withValues(alpha: 0.65));
           }
-          return BorderSide(
-            color: accent.withValues(alpha: 0.30),
-          );
+          return BorderSide(color: accent.withValues(alpha: 0.30));
         }),
         overlayColor: WidgetStateProperty.resolveWith((states) {
           if (states.contains(WidgetState.focused) ||
@@ -942,11 +976,7 @@ class _OverviewActionTile extends StatelessWidget {
           : Column(
               mainAxisSize: MainAxisSize.min,
               crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                chip,
-                const SizedBox(height: 8),
-                copy,
-              ],
+              children: [chip, const SizedBox(height: 8), copy],
             ),
     );
   }
@@ -964,9 +994,8 @@ class _InlineError extends StatelessWidget {
       children: [
         Text(
           userMessage(error),
-          style: Theme.of(context).textTheme.bodySmall?.copyWith(
-            color: Theme.of(context).colorScheme.onSurfaceVariant,
-          ),
+          style: Theme.of(context).textTheme.bodySmall
+              ?.copyWith(color: Theme.of(context).colorScheme.onSurfaceVariant),
         ),
         TextButton(onPressed: retry, child: const Text('Try again')),
       ],

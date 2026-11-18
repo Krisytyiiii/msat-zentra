@@ -93,7 +93,7 @@ router.post("/login", validate("body", loginSchema), async (req, res, next) => {
     const { email, password, role } = req.body as {
       email: string;
       password: string;
-      role: "student" | "staff" | "parent" | "admin";
+      role?: "student" | "staff" | "parent" | "admin";
     };
     const { accessToken, refreshToken, role: userRole } = await login({
       email,

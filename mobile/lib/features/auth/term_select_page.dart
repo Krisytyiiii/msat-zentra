@@ -280,38 +280,71 @@ class _TermSelectPageState extends ConsumerState<TermSelectPage>
               subtitle: 'Choose another school year, or ask the school office to add its terms.',
             )
           else
-            LayoutBuilder(
-              builder: (context, constraints) {
-                final columns = constraints.maxWidth >= 780
-                    ? 3
-                    : constraints.maxWidth >= 540
-                    ? 2
-                    : 1;
-                final width =
-                    (constraints.maxWidth - (columns - 1) * 16) / columns;
-                return Wrap(
-                  spacing: 16,
-                  runSpacing: 16,
+            Column(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                Row(
                   children: [
                     for (final term in terms)
-                      SizedBox(
-                        width: width,
-                        child: _TermCard(
-                          term: term,
-                          yearName: year.name,
-                          selected: picked?.id == term.id,
-                          status: termStatus(term, now),
-                          reduceMotion: reduceMotion,
-                          onTap: () => setState(() {
-                            _yearId = year.id;
-                            _termId = term.id;
-                            _error = null;
-                          }),
+                      Expanded(
+                        child: Padding(
+                          padding: EdgeInsets.only(
+                            right: term == terms.last ? 0 : 8,
+                          ),
+                          child: Semantics(
+                            selected: picked?.id == term.id,
+                            inMutuallyExclusiveGroup: true,
+                            child: OutlinedButton(
+                              key: ValueKey('term-${term.id}'),
+                              style: OutlinedButton.styleFrom(
+                                minimumSize: const Size(48, 48),
+                                padding: const EdgeInsets.symmetric(
+                                  horizontal: 4,
+                                  vertical: 12,
+                                ),
+                                foregroundColor: picked?.id == term.id
+                                    ? authMint
+                                    : authMuted,
+                                backgroundColor: picked?.id == term.id
+                                    ? authMint.withValues(alpha: 0.12)
+                                    : authPanel,
+                                side: BorderSide(
+                                  color: picked?.id == term.id
+                                      ? authMint
+                                      : authBorder,
+                                ),
+                              ),
+                              onPressed: () => setState(() {
+                                _yearId = year.id;
+                                _termId = term.id;
+                                _error = null;
+                              }),
+                              child: Text(
+                                'Term ${term.termNumber}',
+                                maxLines: 1,
+                                style: const TextStyle(
+                                  fontSize: 12,
+                                  fontWeight: FontWeight.w600,
+                                ),
+                              ),
+                            ),
+                          ),
                         ),
                       ),
                   ],
-                );
-              },
+                ),
+                if (picked != null) ...[
+                  const SizedBox(height: 16),
+                  _TermCard(
+                    term: picked,
+                    yearName: year.name,
+                    selected: true,
+                    status: termStatus(picked, now),
+                    reduceMotion: reduceMotion,
+                    onTap: () {},
+                  ),
+                ],
+              ],
             ),
           if (_error != null) ...[
             const SizedBox(height: 20),
@@ -347,14 +380,10 @@ class _TermSelectPageState extends ConsumerState<TermSelectPage>
                           child: Text(
                             _saving
                                 ? 'Opening workspace…'
-                                : 'Continue to workspace',
+                                : 'Continue',
                             textAlign: TextAlign.center,
                           ),
                         ),
-                        if (!_saving) ...[
-                          const SizedBox(width: 10),
-                          const Icon(Icons.arrow_forward, size: 16),
-                        ],
                       ],
                     ),
                   ),
@@ -431,7 +460,7 @@ class _TermCard extends StatelessWidget {
           color: Colors.transparent,
           borderRadius: BorderRadius.circular(12),
           child: InkWell(
-            key: ValueKey('term-${term.id}'),
+            key: const ValueKey('selected-term-details'),
             onTap: onTap,
             borderRadius: BorderRadius.circular(12),
             child: Padding(
@@ -445,7 +474,7 @@ class _TermCard extends StatelessWidget {
                     runSpacing: 8,
                     children: [
                       Text(
-                        'Term ${term.termNumber}',
+                        'Selected term · ${term.termNumber}',
                         style: const TextStyle(
                           fontSize: 17,
                           fontWeight: FontWeight.w600,

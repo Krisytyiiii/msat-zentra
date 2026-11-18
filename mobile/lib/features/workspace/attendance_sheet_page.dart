@@ -7,6 +7,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:hive_flutter/hive_flutter.dart';
 import 'package:intl/intl.dart';
 
+import '../../design/adviser_navigation.dart';
 import '../../core/api_client.dart';
 import '../../core/config.dart';
 import '../../core/session.dart';
@@ -587,25 +588,28 @@ class _SheetState extends ConsumerState<AttendanceSheetPage>
             ),
           ],
         ),
-        body: _stale && sheet == null
-            ? const ZEmptyPage(
-                icon: Icons.lock_outline,
-                title: 'Selected term changed',
-                subtitle: 'Return to Attendance to open the selected term.',
-              )
-            : _loading
-            ? const LoadingView()
-            : sheet == null
-            ? ErrorView(
-                message: _loadError ?? 'Attendance unavailable.',
-                onRetry: _load,
-              )
-            : Center(
-                child: ConstrainedBox(
-                  constraints: const BoxConstraints(maxWidth: 760),
-                  child: _body(sheet, lock),
+        body: AdviserBamaAccess(
+          busy: _saving,
+          child: _stale && sheet == null
+              ? const ZEmptyPage(
+                  icon: Icons.lock_outline,
+                  title: 'Selected term changed',
+                  subtitle: 'Return to Attendance to open the selected term.',
+                )
+              : _loading
+              ? const LoadingView()
+              : sheet == null
+              ? ErrorView(
+                  message: _loadError ?? 'Attendance unavailable.',
+                  onRetry: _load,
+                )
+              : Center(
+                  child: ConstrainedBox(
+                    constraints: const BoxConstraints(maxWidth: 760),
+                    child: _body(sheet, lock),
+                  ),
                 ),
-              ),
+        ),
         bottomNavigationBar: sheet == null
             ? null
             : Padding(
@@ -828,8 +832,10 @@ class _SheetState extends ConsumerState<AttendanceSheetPage>
                                         style: OutlinedButton.styleFrom(
                                           minimumSize: const Size(64, 48),
                                           backgroundColor: value == entry.key
-                                              ? _color(context, entry.key)
-                                                    .withValues(alpha: .15)
+                                              ? _color(
+                                                  context,
+                                                  entry.key,
+                                                ).withValues(alpha: .15)
                                               : null,
                                           side: BorderSide(
                                             color: value == entry.key
@@ -861,15 +867,13 @@ class _SheetState extends ConsumerState<AttendanceSheetPage>
     );
   }
 
-  Color _color(BuildContext context, String value) => statusColors(
-    switch (value) {
-      'absent' => StatusTone.red,
-      'late' => StatusTone.amber,
-      'excused' => StatusTone.blue,
-      _ => StatusTone.green,
-    },
-    Theme.of(context),
-  ).foreground;
+  Color _color(BuildContext context, String value) =>
+      statusColors(switch (value) {
+        'absent' => StatusTone.red,
+        'late' => StatusTone.amber,
+        'excused' => StatusTone.blue,
+        _ => StatusTone.green,
+      }, Theme.of(context)).foreground;
 }
 
 class _AttendanceCodeDialog extends StatefulWidget {

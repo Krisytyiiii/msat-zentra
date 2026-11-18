@@ -148,7 +148,8 @@ export async function notifyPendingSignup(user: {
 export interface LoginInput {
   email: string;
   password: string;
-  role: "student" | "staff" | "parent" | "admin";
+  /** Omit for automatic detection; administrators must use their own portal. */
+  role?: "student" | "staff" | "parent" | "admin";
   /** Public caller IP, when known — feeds the administrator presence globe. */
   ip?: string | null;
 }
@@ -158,7 +159,11 @@ export async function login(input: LoginInput) {
   const user = await prisma.user.findUnique({ where: { email } });
   if (!user || user.status !== "active") throw new AppError(401, "INVALID_CREDENTIALS", "Invalid credentials");
 
-  const allowedRoles = roleKindToRoles[role] ?? [];
+  // Web portals still enforce their requested role. Unified mobile sign-in
+  // accepts any known non-admin account, never the dedicated admin portal.
+  const allowedRoles = role === undefined
+    ? KNOWN_ROLES.filter((known) => known !== "admin")
+    : roleKindToRoles[role] ?? [];
   if (!KNOWN_ROLES.includes(user.role) || !allowedRoles.includes(user.role)) {
     throw new AppError(403, "ROLE_MISMATCH", "This account cannot sign in through this portal.");
   }
