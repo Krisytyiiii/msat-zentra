@@ -34,7 +34,7 @@ const FACTORS: {
 }[] = [
   { key: "academic", label: "Academic", tone: "amber" },
   { key: "attendance", label: "Attendance", tone: "sky" },
-  { key: "behavioral", label: "Behavioral", tone: "rose" },
+  { key: "behavioral", label: "Anecdotal", tone: "rose" },
 ];
 
 function SectionCard({
@@ -80,7 +80,7 @@ function Fact({
 }) {
   return (
     <div className={cn("flex min-w-0 flex-col gap-0.5", className)}>
-      <dt className="text-[10px] font-semibold uppercase tracking-[0.06em] text-muted-foreground">
+      <dt className="text-[12px] font-semibold uppercase tracking-[0.06em] text-muted-foreground">
         {label}
       </dt>
       <dd className="m-0 text-xs font-medium break-words text-foreground">{children}</dd>
@@ -91,7 +91,7 @@ function Fact({
 function NoteBlock({ label, children }: { label: string; children: React.ReactNode }) {
   return (
     <div className="rounded-md border-l-2 border-primary/40 bg-muted/40 px-2.5 py-2">
-      <p className="m-0 text-[10px] font-semibold uppercase tracking-[0.06em] text-muted-foreground">
+      <p className="m-0 text-[12px] font-semibold uppercase tracking-[0.06em] text-muted-foreground">
         {label}
       </p>
       <p className="m-0 mt-0.5 text-xs leading-relaxed whitespace-pre-wrap text-foreground">
@@ -111,7 +111,7 @@ function SessionItem({
   return (
     <li className="flex min-w-0 flex-col gap-1.5 rounded-md border border-border bg-muted/20 p-2.5">
       <div className="flex flex-wrap items-center gap-1.5">
-        <span className="inline-flex size-5 shrink-0 items-center justify-center rounded-full bg-primary/10 text-[10px] font-semibold text-primary tabular-nums">
+        <span className="inline-flex size-5 shrink-0 items-center justify-center rounded-full bg-primary/10 text-[12px] font-semibold text-primary tabular-nums">
           {index + 1}
         </span>
         <span className="text-xs font-semibold text-foreground">
@@ -126,13 +126,13 @@ function SessionItem({
             {session.attachmentsCount}
           </Pill>
         ) : null}
-        <span className="ml-auto shrink-0 text-[11px] tabular-nums text-muted-foreground">
+        <span className="ml-auto shrink-0 text-[12px] tabular-nums text-muted-foreground">
           {formatDateTime(session.scheduledAt)}
         </span>
       </div>
 
       {session.venue ? (
-        <p className="m-0 inline-flex items-center gap-1 text-[11px] text-muted-foreground">
+        <p className="m-0 inline-flex items-center gap-1 text-[12px] text-muted-foreground">
           <MapPin size={11} aria-hidden />
           {session.venue}
         </p>
@@ -143,17 +143,17 @@ function SessionItem({
         </p>
       ) : null}
       {session.outcome ? (
-        <p className="m-0 text-[11px] text-muted-foreground">
+        <p className="m-0 text-[12px] text-muted-foreground">
           <span className="font-semibold text-foreground">Outcome:</span> {session.outcome}
         </p>
       ) : null}
       {session.cancelReason ? (
-        <p className="m-0 text-[11px] text-red-600 dark:text-red-400">
+        <p className="m-0 text-[12px] text-red-600 dark:text-red-400">
           <span className="font-semibold">Cancelled:</span> {session.cancelReason}
         </p>
       ) : null}
       {session.completedAt ? (
-        <p className="m-0 text-[11px] text-muted-foreground">
+        <p className="m-0 text-[12px] text-muted-foreground">
           Completed {formatDate(session.completedAt)}
         </p>
       ) : null}
@@ -231,7 +231,7 @@ export function InterventionDetailOverlay({
 
           {/* Risk factors */}
           <div className="flex flex-wrap items-center gap-1.5 px-0.5">
-            <span className="text-[10px] font-semibold uppercase tracking-[0.06em] text-muted-foreground">
+            <span className="text-[12px] font-semibold uppercase tracking-[0.06em] text-muted-foreground">
               Risk factors
             </span>
             {activeFactors.length > 0 ? (
@@ -245,7 +245,7 @@ export function InterventionDetailOverlay({
                 None active
               </Pill>
             )}
-            <span className="ml-auto text-[11px] tabular-nums text-muted-foreground">
+            <span className="ml-auto text-[12px] tabular-nums text-muted-foreground">
               {row.riskCount} flag{row.riskCount === 1 ? "" : "s"}
             </span>
           </div>
@@ -315,7 +315,7 @@ export function InterventionDetailOverlay({
                     <p className="m-0 mt-1 text-xs font-semibold text-foreground">
                       No sessions booked yet
                     </p>
-                    <p className="m-0 text-[11px] text-muted-foreground">
+                    <p className="m-0 text-[12px] text-muted-foreground">
                       The guidance desk books the first counseling session.
                     </p>
                   </div>
@@ -332,7 +332,7 @@ export function InterventionDetailOverlay({
                 />
                 <div className="min-w-0">
                   <p className="m-0 text-xs font-semibold text-foreground">No plan yet</p>
-                  <p className="m-0 mt-1 text-[11px] leading-relaxed text-muted-foreground">
+                  <p className="m-0 mt-1 text-[12px] leading-relaxed text-muted-foreground">
                     Guidance has flagged or been notified about this learner but has not opened
                     an intervention for the current term yet.
                   </p>

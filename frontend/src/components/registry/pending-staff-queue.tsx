@@ -131,7 +131,7 @@ export function PendingStaffQueue({ desk }: { desk: "registrar" | "record_keeper
         status: { label: "Pending", tone: "amber" },
         title: r.name,
         idLabel: ROLE_LABEL[r.role ?? ""] ?? "Teacher",
-        idLabelClassName: "text-[11px] font-medium",
+        idLabelClassName: "text-[12px] font-medium",
         meta: [
           { label: r.department ?? r.email, tone: "muted", dot: false, title: r.department ? `${r.department} — ${r.email}` : r.email },
           ...(r.employeeId
@@ -148,7 +148,7 @@ export function PendingStaffQueue({ desk }: { desk: "registrar" | "record_keeper
             <Button
               type="button"
               size="sm"
-              className="h-6 gap-1 border border-transparent bg-emerald-600 px-2 text-[11px] font-medium text-white shadow-none hover:bg-emerald-700"
+              className="h-6 gap-1 border border-transparent bg-emerald-600 px-2 text-[12px] font-medium text-white shadow-none hover:bg-emerald-700"
               disabled={act.isPending}
               onClick={() => act.mutate({ id: r.id, approve: true, name: r.name })}
               aria-label={`Approve ${r.name}`}
@@ -164,7 +164,7 @@ export function PendingStaffQueue({ desk }: { desk: "registrar" | "record_keeper
               type="button"
               size="sm"
               variant="outline"
-              className="h-6 gap-1 px-2 text-[11px] font-medium shadow-none"
+              className="h-6 gap-1 px-2 text-[12px] font-medium shadow-none"
               disabled={act.isPending}
               onClick={() => {
                 setRejectReason("");
@@ -192,7 +192,7 @@ export function PendingStaffQueue({ desk }: { desk: "registrar" | "record_keeper
           <div className="relative">
             <Search className="pointer-events-none absolute top-1/2 left-2 size-3.5 -translate-y-1/2 text-muted-foreground" aria-hidden />
             <Input
-              className="h-8 w-56 pl-7 text-sm"
+              className="h-8 w-60 rounded-[16px] pl-7 text-sm"
               placeholder="Search name or email…"
               value={queryInput}
               onChange={(e) => setQueryInput(e.target.value)}

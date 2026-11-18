@@ -27,7 +27,6 @@ const FINDING_META: Record<string, { icon: LucideIcon; accent: string }> = {
 };
 
 const STAT_PILL_MAX = "max-w-full";
-const STUDENT_PILL = "max-w-[10rem] truncate";
 const SECTION_PILL = "max-w-[7rem] truncate";
 
 function typeTone(kind: string | null | undefined): "blue" | "violet" | "neutral" {
@@ -142,14 +141,12 @@ function Bottlenecks({ data }: { data: GuidanceAdmInsightsData }) {
                     <span className="shrink-0" aria-hidden>
                       <StudentMascot name={b.student} seed={b.student} size={28} />
                     </span>
-                    <Pill
-                      tone="amber"
-                      label="Student"
-                      className={STUDENT_PILL}
+                    <span
+                      className="min-w-0 max-w-[10rem] truncate text-[13px] font-semibold text-foreground"
                       title={b.student}
                     >
                       {b.student}
-                    </Pill>
+                    </span>
                     {b.section ? (
                       <Pill
                         tone="neutral"

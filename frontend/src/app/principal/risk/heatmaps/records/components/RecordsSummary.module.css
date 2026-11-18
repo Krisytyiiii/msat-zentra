@@ -1,0 +1,495 @@
+.wrap {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+  min-width: 0;
+}
+
+/* ---- Stat strip (same language as the academics overview deck) ---- */
+.deck {
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  background-color: var(--card);
+}
+
+.deckHead {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.375rem 0.75rem;
+  padding: 0.5rem 0.875rem;
+  border-bottom: 1px solid var(--border);
+  background-color: color-mix(in oklch, var(--muted) 45%, transparent);
+}
+
+.deckTitle {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.375rem;
+  font-size: 0.8125rem;
+  font-weight: 600;
+  color: var(--foreground);
+}
+
+.deckTitle > svg {
+  width: 0.875rem;
+  height: 0.875rem;
+  color: var(--muted-foreground);
+}
+
+.tiles {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+}
+
+.tile {
+  display: flex;
+  flex-direction: column;
+  gap: 0.4375rem;
+  min-width: 0;
+  padding: 0.6875rem 0.875rem 0.75rem;
+  border-right: 1px solid var(--border);
+}
+
+.tiles > .tile:last-child {
+  border-right: 0;
+}
+
+.tileTop {
+  display: flex;
+  align-items: center;
+  gap: 0.4375rem;
+  min-width: 0;
+}
+
+.tileIcon {
+  display: inline-flex;
+  flex-shrink: 0;
+  align-items: center;
+  justify-content: center;
+  width: 1.375rem;
+  height: 1.375rem;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  background-color: color-mix(in oklch, var(--muted) 55%, transparent);
+  color: var(--muted-foreground);
+}
+
+.tileLabel {
+  overflow: hidden;
+  font-size: 0.75rem;
+  font-weight: 600;
+  color: var(--muted-foreground);
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.tileValue {
+  display: flex;
+  align-items: baseline;
+  gap: 0.3125rem;
+  min-width: 0;
+}
+
+.tileNumber {
+  font-size: 1.75rem;
+  font-weight: 700;
+  line-height: 1;
+  letter-spacing: -0.02em;
+  color: var(--foreground);
+  font-variant-numeric: tabular-nums;
+}
+
+.tileNumberZero {
+  font-weight: 600;
+  color: var(--muted-foreground);
+}
+
+.tileSkeleton {
+  width: 3rem;
+  height: 1.75rem;
+  border-radius: var(--radius-sm);
+}
+
+.tileUnit {
+  font-size: 0.75rem;
+  font-weight: 600;
+  letter-spacing: 0.07em;
+  text-transform: uppercase;
+  color: var(--muted-foreground);
+  white-space: nowrap;
+}
+
+.tileHint {
+  overflow: hidden;
+  font-size: 0.75rem;
+  color: var(--muted-foreground);
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* High-severity tile — red tint and type only, no colored border rail. */
+.tileRed {
+  background-color: color-mix(in oklch, #dc2626 5%, transparent);
+}
+
+.tileRed .tileIcon {
+  border-color: var(--border);
+  background-color: color-mix(in oklch, #dc2626 12%, transparent);
+  color: #b91c1c;
+}
+
+.tileRed .tileLabel {
+  color: #b91c1c;
+}
+
+.tileRed .tileNumber {
+  color: #b91c1c;
+}
+
+:global(.dark) .tileRed .tileIcon {
+  border-color: var(--border);
+  background-color: color-mix(in oklch, #f87171 16%, transparent);
+  color: #fca5a5;
+}
+
+:global(.dark) .tileRed .tileLabel,
+:global(.dark) .tileRed .tileNumber {
+  color: #fca5a5;
+}
+
+/* ---- Follow-up panels ---- */
+.panels {
+  display: grid;
+  grid-template-columns: minmax(0, 1.1fr) minmax(0, 1fr);
+  gap: 1rem;
+  min-width: 0;
+}
+
+.panel {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  overflow: hidden;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  background-color: var(--card);
+}
+
+.panelHead {
+  display: flex;
+  align-items: baseline;
+  flex-wrap: wrap;
+  gap: 0.375rem 0.75rem;
+  padding: 0.6875rem 0.875rem;
+  border-bottom: 1px solid var(--border);
+  background-color: color-mix(in oklch, var(--muted) 32%, transparent);
+}
+
+.panelTitle {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.375rem;
+  font-size: 0.8125rem;
+  font-weight: 700;
+  color: var(--foreground);
+}
+
+.panelTitle > svg {
+  width: 0.875rem;
+  height: 0.875rem;
+  color: var(--muted-foreground);
+}
+
+.panelDesc {
+  margin-left: auto;
+  font-size: 0.75rem;
+  color: var(--muted-foreground);
+  text-align: right;
+}
+
+.rail,
+.row {
+  display: grid;
+  align-items: center;
+  column-gap: 0.875rem;
+  padding-inline: 0.875rem;
+}
+
+.rail {
+  padding-block: 0.375rem;
+  border-bottom: 1px solid var(--border);
+  font-size: 0.75rem;
+  font-weight: 600;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+  color: var(--muted-foreground);
+}
+
+.railNum {
+  text-align: right;
+}
+
+.body {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+
+/* Category row: label | load meter | count | share */
+.rail {
+  grid-template-columns: minmax(0, 1fr) 8rem 4rem 3.5rem;
+}
+
+.row {
+  grid-template-columns: minmax(0, 1fr) 8rem 4rem 3.5rem;
+  width: 100%;
+  padding-block: 0.5625rem;
+  border: 0;
+  border-bottom: 1px solid var(--border);
+  border-radius: 0;
+  background-color: transparent;
+  color: inherit;
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+  transition: background-color 140ms ease-out;
+}
+
+.body .row:last-child {
+  border-bottom: 0;
+}
+
+.row:hover {
+  background-color: color-mix(in oklch, var(--muted) 46%, transparent);
+}
+
+.row:focus-visible {
+  outline: none;
+  box-shadow: inset 0 0 0 2px var(--ring);
+}
+
+.rowActive {
+  background-color: color-mix(in oklch, #f59e0b 8%, var(--card));
+  box-shadow: inset 3px 0 0 #d97706;
+}
+
+.rowActive:hover {
+  background-color: color-mix(in oklch, #f59e0b 12%, var(--card));
+}
+
+.rowLabel {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  min-width: 0;
+  font-size: 0.8125rem;
+  font-weight: 600;
+  color: var(--foreground);
+  white-space: nowrap;
+}
+
+.swatch {
+  flex-shrink: 0;
+  width: 0.5rem;
+  height: 0.5rem;
+  border-radius: 2px;
+}
+
+.meter {
+  display: block;
+  width: 100%;
+  height: 6px;
+  overflow: hidden;
+  border-radius: 9999px;
+  background-color: color-mix(in oklch, var(--muted-foreground) 14%, transparent);
+}
+
+.meterFill {
+  display: block;
+  height: 100%;
+  border-radius: 9999px;
+}
+
+.rowCount,
+.rowShare {
+  font-size: 0.75rem;
+  font-weight: 600;
+  color: var(--foreground);
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+}
+
+.rowShare {
+  color: var(--muted-foreground);
+}
+
+/* Attention row: rank | learner | records | high */
+.railAttention,
+.rowAttention {
+  grid-template-columns: 2rem minmax(0, 1fr) 4rem 3rem;
+}
+
+.rank {
+  font-size: 0.75rem;
+  font-weight: 700;
+  color: var(--muted-foreground);
+  font-variant-numeric: tabular-nums;
+}
+
+.rankTop {
+  color: #b91c1c;
+}
+
+:global(.dark) .rankTop {
+  color: #fca5a5;
+}
+
+.who {
+  display: flex;
+  flex-direction: column;
+  gap: 0.0625rem;
+  min-width: 0;
+}
+
+.name {
+  overflow: hidden;
+  font-size: 0.8125rem;
+  font-weight: 600;
+  color: var(--foreground);
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.where {
+  overflow: hidden;
+  font-size: 0.75rem;
+  color: var(--muted-foreground);
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.rowShareHot {
+  color: #b91c1c;
+}
+
+:global(.dark) .rowShareHot {
+  color: #fca5a5;
+}
+
+.rowSkeleton {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 8rem 4rem 3.5rem;
+  align-items: center;
+  column-gap: 0.875rem;
+  padding: 0.75rem 0.875rem;
+  border-bottom: 1px solid var(--border);
+}
+
+.rowSkeleton:last-child {
+  border-bottom: 0;
+}
+
+.rowSkeletonAttention {
+  grid-template-columns: 2rem minmax(0, 1fr) 4rem 3rem;
+}
+
+@media (max-width: 1180px) {
+  .panels {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
+
+@media (max-width: 900px) {
+  .tiles {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .tiles > .tile:nth-child(2n) {
+    border-right: 0;
+  }
+
+  .tiles > .tile:nth-child(-n + 2) {
+    border-bottom: 1px solid var(--border);
+  }
+
+  .panelDesc {
+    display: none;
+  }
+
+  .rail {
+    display: none;
+  }
+
+  .rail,
+  .row,
+  .rowSkeleton {
+    grid-template-columns: 2rem minmax(0, 1fr) 3rem 3rem;
+  }
+
+  .row:not(.rowAttention):not(.rowSkeleton) {
+    grid-template-columns: minmax(0, 1fr) 3rem 3rem;
+  }
+
+  .row:not(.rowAttention) .meter {
+    display: none;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .row {
+    transition: none;
+  }
+}
+
+/* ---- Dark mode: faded surfaces, dimmed accents ------------------------- */
+:global(.dark) .deck,
+:global(.dark) .panel {
+  background-color: color-mix(in oklch, var(--card) 58%, transparent);
+}
+
+:global(.dark) .deckHead {
+  background-color: color-mix(in oklch, var(--muted) 20%, transparent);
+}
+
+:global(.dark) .panelHead {
+  background-color: color-mix(in oklch, var(--muted) 16%, transparent);
+}
+
+:global(.dark) .tileIcon {
+  background-color: color-mix(in oklch, var(--muted) 30%, transparent);
+}
+
+:global(.dark) .tileRed {
+  background-color: color-mix(in oklch, #f87171 5%, transparent);
+}
+
+:global(.dark) .tileRed .tileIcon {
+  background-color: color-mix(in oklch, #f87171 12%, transparent);
+}
+
+:global(.dark) .row:hover {
+  background-color: color-mix(in oklch, var(--muted) 22%, transparent);
+}
+
+:global(.dark) .rowActive {
+  background-color: color-mix(in oklch, #f59e0b 6%, transparent);
+  box-shadow: none;
+}
+
+:global(.dark) .rowActive:hover {
+  background-color: color-mix(in oklch, #f59e0b 9%, transparent);
+}
+
+:global(.dark) .meter {
+  background-color: color-mix(in oklch, var(--muted-foreground) 20%, transparent);
+}
+
+:global(.dark) .rankTop,
+:global(.dark) .rowShareHot {
+  color: color-mix(in oklch, #fca5a5 82%, var(--muted-foreground));
+}

@@ -95,7 +95,7 @@ function ActionCard({ action }: { action: EmptyKanbanAction }) {
   const body = (
     <>
       <span className="flex items-center justify-between gap-2">
-        <span className="truncate font-mono text-[11px] font-medium text-muted-foreground" title={action.href}>
+        <span className="truncate font-mono text-[12px] font-medium text-muted-foreground" title={action.href}>
           {action.href}
         </span>
         <span
@@ -174,7 +174,7 @@ export function AnecdotalEmptyKanban({
               title={actionItem.title}
               action={
                 actionItem.key === "chat" ? (
-                  <Button asChild variant="outline" className="h-6 px-2 text-[11px]">
+                  <Button asChild variant="outline" className="h-6 px-2 text-[12px]">
                     <Link href="/teacher/chat?standalone=1" target="_blank" rel="noopener noreferrer">
                       Chat now
                     </Link>
@@ -183,7 +183,7 @@ export function AnecdotalEmptyKanban({
                   <Button
                     type="button"
                     variant="outline"
-                    className="h-6 gap-1 px-2 text-[11px]"
+                    className="h-6 gap-1 px-2 text-[12px]"
                     onClick={onOpenArchive}
                     disabled={!onOpenArchive}
                   >
@@ -191,7 +191,7 @@ export function AnecdotalEmptyKanban({
                     Open
                   </Button>
                 ) : (
-                  <Button asChild variant="outline" className="h-6 px-2 text-[11px]">
+                  <Button asChild variant="outline" className="h-6 px-2 text-[12px]">
                     <Link href="/teacher/anecdotal/folders">See all</Link>
                   </Button>
                 )

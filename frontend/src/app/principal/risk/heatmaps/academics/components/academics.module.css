@@ -89,45 +89,6 @@
   margin-bottom: 0.25rem;
 }
 
-/* Grade filter — shared pill tabs, centered in the board header. */
-.filterRow {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  gap: 0.25rem;
-  height: 1.5rem;
-  white-space: nowrap;
-  /* Header's padding box carries 8px bottom padding — nudge 4px so the tabs
-     share the center line with any pill on the right. */
-  position: relative;
-  top: -0.25rem;
-}
-
-.filterButton {
-  display: inline-flex;
-  align-items: center;
-  padding: 0;
-  border: 0;
-  background: none;
-  cursor: pointer;
-  border-radius: var(--radius-md);
-}
-
-.filterButton:focus-visible {
-  outline: 2px solid var(--ring);
-  outline-offset: 2px;
-}
-
-/* Exactly 24px tall — the shared Pill is shorter at its default padding. */
-.filterPill {
-  display: inline-flex;
-  align-items: center;
-  height: 1.5rem;
-  padding-block: 0;
-  padding-inline: 0.625rem;
-  line-height: 1;
-}
-
 .trendEmptyFilter {
   display: flex;
   align-items: center;
@@ -135,35 +96,293 @@
   gap: 0.5rem;
 }
 
-/* ---- KPI strip (one kanban board per stat) ---- */
-.kpiGrid {
-  display: grid;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
-  gap: 0.75rem;
-  align-items: stretch;
+/* ---- Top stat deck ------------------------------------------------------ */
+/* Same stat language as the principal overview: one bordered strip, divided
+   tiles, icon + label, number + unit, hint underneath. Sticky to the top of
+   the page so the numbers read before the boards. */
+.deck {
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-xl);
+  background-color: var(--card);
+  animation: stat-in 0.9s cubic-bezier(0.22, 1, 0.36, 1) backwards;
 }
 
-.kpiGrid > * {
+.deckHead {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.375rem 0.75rem;
+  padding: 0.5rem 0.875rem;
+  border-bottom: 1px solid var(--border);
+  background-color: color-mix(in oklch, var(--muted) 45%, transparent);
+}
+
+.deckTitle {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.375rem;
+  font-size: 0.8125rem;
+  font-weight: 600;
+}
+
+.deckTitle > svg {
+  width: 0.875rem;
+  height: 0.875rem;
+  color: var(--muted-foreground);
+}
+
+.tiles {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+}
+
+.tile {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  gap: 0.4375rem;
+  min-width: 0;
+  padding: 0.6875rem 0.875rem 0.75rem;
+  border-right: 1px solid var(--border);
+  border-bottom: 1px solid var(--border);
+  border-top: 0;
+  border-left: 0;
+  border-radius: 0;
+  background: transparent;
+  color: inherit;
+  font: inherit;
+  text-align: left;
+  text-decoration: none;
+  outline: none;
+  cursor: pointer;
+  transition: background-color 140ms ease-out;
+}
+
+.tiles > .tile:nth-child(3n) {
+  border-right: 0;
+}
+
+/* All three tiles sit in the last row and close the strip. */
+.tiles > .tile:nth-last-child(-n + 3) {
+  border-bottom: 0;
+}
+
+.tile:hover {
+  background-color: color-mix(in oklch, var(--muted) 55%, transparent);
+}
+
+.tile:disabled {
+  cursor: default;
+}
+
+.tile:disabled:hover {
+  background-color: transparent;
+}
+
+.tile:disabled:hover .tileIcon {
+  color: var(--muted-foreground);
+}
+
+.tile:focus-visible {
+  box-shadow: inset 0 0 0 2px var(--ring);
+}
+
+.tileTop {
+  display: flex;
+  align-items: center;
+  gap: 0.4375rem;
   min-width: 0;
 }
 
-/* Gray board surface — same framing as the attendance overview strip. */
-.board {
-  background-color: color-mix(in oklch, var(--muted) 60%, transparent);
+.tileIcon {
+  display: inline-flex;
+  flex-shrink: 0;
+  align-items: center;
+  justify-content: center;
+  width: 1.375rem;
+  height: 1.375rem;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  background-color: color-mix(in oklch, var(--muted) 55%, transparent);
+  color: var(--muted-foreground);
+  transition: color 140ms ease-out;
+}
+
+.tile:hover .tileIcon {
+  color: #b45309;
+}
+
+:global(.dark) .tile:hover .tileIcon {
+  color: #fbbf24;
+}
+
+.tileLabel {
+  min-width: 0;
+  overflow: hidden;
+  font-size: 0.75rem;
+  font-weight: 600;
+  color: var(--muted-foreground);
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.tileArrow {
+  flex-shrink: 0;
+  width: 0.875rem;
+  height: 0.875rem;
+  margin-left: auto;
+  color: var(--muted-foreground);
+  opacity: 0;
+  transform: translate(-2px, 2px);
   transition:
-    transform 170ms cubic-bezier(0.22, 1, 0.36, 1),
-    border-color 170ms ease,
-    box-shadow 170ms ease;
+    opacity 140ms ease-out,
+    transform 140ms ease-out;
 }
 
-.board:hover {
-  transform: translateY(-2px);
-  border-color: color-mix(in oklch, #f59e0b 32%, var(--border));
-  box-shadow: 0 8px 20px -16px color-mix(in oklch, #f59e0b 55%, transparent);
+.tile:hover .tileArrow,
+.tile:focus-visible .tileArrow {
+  opacity: 1;
+  transform: none;
 }
 
-:global(.dark) .board {
-  background-color: color-mix(in oklch, var(--muted) 20%, transparent);
+/* The "Awaiting grades" tile is an expander, so its chevron stays visible and
+   flips while the learner list is open. */
+.tileArrowOpen {
+  opacity: 1;
+  transform: rotate(180deg);
+}
+
+.tile:hover .tileArrowOpen,
+.tile:focus-visible .tileArrowOpen {
+  transform: rotate(180deg);
+}
+
+.tileValue {
+  display: flex;
+  align-items: baseline;
+  gap: 0.3125rem;
+  min-width: 0;
+}
+
+.tileNumber {
+  font-size: 1.75rem;
+  font-weight: 700;
+  line-height: 1;
+  letter-spacing: -0.02em;
+  font-variant-numeric: tabular-nums;
+}
+
+.tileNumberZero {
+  font-weight: 600;
+  color: var(--muted-foreground);
+}
+
+.tileUnit {
+  font-size: 0.75rem;
+  font-weight: 600;
+  letter-spacing: 0.07em;
+  text-transform: uppercase;
+  color: var(--muted-foreground);
+  white-space: nowrap;
+}
+
+.tileHint {
+  overflow: hidden;
+  font-size: 0.75rem;
+  color: var(--muted-foreground);
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* Amber tone — the tile that flags work still needing action. Tint + type only;
+   no colored border (the deck keeps its neutral 1px rules). */
+.tileAmber {
+  background-color: color-mix(in oklch, #f59e0b 7%, transparent);
+}
+
+.tileAmber:hover {
+  background-color: color-mix(in oklch, #f59e0b 13%, transparent);
+}
+
+.tileAmber .tileIcon {
+  border-color: var(--border);
+  background-color: color-mix(in oklch, #f59e0b 16%, transparent);
+  color: #b45309;
+}
+
+.tileAmber:hover .tileIcon {
+  color: #92400e;
+}
+
+.tileAmber .tileLabel {
+  color: #92400e;
+}
+
+.tileAmber .tileNumber {
+  color: #b45309;
+}
+
+.tileAmber .tileUnit {
+  color: color-mix(in oklch, #b45309 78%, var(--muted-foreground));
+}
+
+.tileAmber .tileHint {
+  color: color-mix(in oklch, #b45309 62%, var(--muted-foreground));
+}
+
+.tileAmber .tileArrow {
+  color: #b45309;
+}
+
+:global(.dark) .tileAmber .tileIcon {
+  border-color: var(--border);
+  background-color: color-mix(in oklch, #f59e0b 20%, transparent);
+  color: #fbbf24;
+}
+
+:global(.dark) .tileAmber:hover .tileIcon {
+  color: #fcd34d;
+}
+
+:global(.dark) .tileAmber .tileLabel {
+  color: #fbbf24;
+}
+
+:global(.dark) .tileAmber .tileNumber {
+  color: #fcd34d;
+}
+
+:global(.dark) .tileAmber .tileUnit,
+:global(.dark) .tileAmber .tileHint,
+:global(.dark) .tileAmber .tileArrow {
+  color: color-mix(in oklch, #fbbf24 72%, var(--muted-foreground));
+}
+
+.skelIcon {
+  width: 1.375rem;
+  height: 1.375rem;
+  flex-shrink: 0;
+  border-radius: var(--radius-sm);
+}
+
+.deckFoot {
+  margin: 0;
+  padding: 0.5rem 0.875rem 0.625rem;
+  border-top: 1px dashed var(--border);
+  font-size: 0.75rem;
+  line-height: 1.4;
+  color: var(--muted-foreground);
+}
+
+/* Learner list opened from the "Awaiting grades" tile. */
+.deckPanel {
+  padding: 0.75rem 0.875rem 0.875rem;
+  border-top: 1px solid var(--border);
+  background-color: color-mix(in oklch, var(--muted) 22%, transparent);
 }
 
 /* Data-table board: same gray surface, no hover lift — the rows are the
@@ -180,121 +399,6 @@
 .icon {
   display: inline-flex;
   color: #f59e0b;
-}
-
-/* Inner value card: number + mascot + hint, pills underneath. */
-.stat {
-  position: relative;
-  overflow: hidden;
-  display: flex;
-  flex-direction: column;
-  gap: 0.375rem;
-  min-width: 0;
-  padding: 0.75rem;
-  border: 1px solid var(--border);
-  border-radius: var(--radius-lg);
-  background-color: var(--card);
-  box-shadow: 0 1px 2px 0 color-mix(in oklch, var(--foreground), transparent 95%);
-}
-
-/* One light sweep as the strip settles — the board powering on, not a loop. */
-.stat::after {
-  content: "";
-  position: absolute;
-  inset: 0;
-  pointer-events: none;
-  background: linear-gradient(
-    105deg,
-    transparent 28%,
-    color-mix(in oklch, #f59e0b 14%, transparent) 50%,
-    transparent 72%
-  );
-  transform: translateX(-140%);
-  animation: stat-sheen 1.5s cubic-bezier(0.22, 1, 0.36, 1) 0.35s both;
-}
-
-@keyframes stat-sheen {
-  from {
-    transform: translateX(-140%);
-  }
-  to {
-    transform: translateX(140%);
-  }
-}
-
-.statTop {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 0.5rem;
-  min-width: 0;
-}
-
-.statMascot {
-  display: inline-flex;
-  flex-shrink: 0;
-  overflow: hidden;
-  border: 1px solid var(--border);
-  border-radius: 9999px;
-  background-color: color-mix(in oklch, var(--muted) 40%, transparent);
-}
-
-.statNumber {
-  display: inline-block;
-  font-size: 1.75rem;
-  font-weight: 700;
-  line-height: 1;
-  color: #b45309;
-  font-variant-numeric: tabular-nums;
-  white-space: nowrap;
-  animation: stat-number-in 0.6s cubic-bezier(0.22, 1, 0.36, 1) 0.18s backwards;
-}
-
-@keyframes stat-number-in {
-  from {
-    opacity: 0;
-    transform: translateY(9px);
-    filter: blur(3px);
-  }
-  to {
-    opacity: 1;
-    transform: translateY(0);
-    filter: blur(0);
-  }
-}
-
-:global(.dark) .statNumber {
-  color: #f59e0b;
-}
-
-.statHint {
-  font-size: 0.6875rem;
-  color: var(--muted-foreground);
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
-/* Tappable stat card — the "Awaiting grades" board opens its student list. */
-.statButton {
-  width: 100%;
-  font: inherit;
-  text-align: left;
-  color: inherit;
-  cursor: pointer;
-  transition:
-    border-color 160ms ease,
-    box-shadow 160ms ease;
-}
-
-.statButton:hover {
-  border-color: color-mix(in oklch, #f59e0b 45%, var(--border));
-  box-shadow: 0 6px 16px -14px color-mix(in oklch, #f59e0b 60%, transparent);
-}
-
-.statButton:focus-visible {
-  outline: 2px solid var(--ring);
-  outline-offset: 2px;
 }
 
 /* ---- Awaiting-grades kanban grid ---- */
@@ -391,14 +495,7 @@
   }
 }
 
-.kpiPills {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 0.25rem;
-  margin-top: 0.125rem;
-}
-
-/* Boards cascade in so the strip settles instead of popping. */
+/* Deck settles in once instead of popping. */
 @keyframes stat-in {
   from {
     opacity: 0;
@@ -410,59 +507,57 @@
   }
 }
 
-.kpiGrid > * {
-  animation: stat-in 0.9s cubic-bezier(0.22, 1, 0.36, 1) backwards;
-}
-
-.kpiGrid > *:nth-child(2) {
-  animation-delay: 0.1s;
-}
-
-.kpiGrid > *:nth-child(3) {
-  animation-delay: 0.2s;
-}
-
-.kpiGrid > *:nth-child(2) .stat::after {
-  animation-delay: 0.5s;
-}
-
-.kpiGrid > *:nth-child(3) .stat::after {
-  animation-delay: 0.65s;
-}
-
-.kpiGrid > *:nth-child(2) .statNumber {
-  animation-delay: 0.3s;
-}
-
-.kpiGrid > *:nth-child(3) .statNumber {
-  animation-delay: 0.42s;
-}
-
-@media (max-width: 1023px) {
-  .kpiGrid {
+@media (max-width: 1024px) {
+  .tiles {
     grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .tiles > .tile:nth-child(3n) {
+    border-right: 1px solid var(--border);
+  }
+
+  .tiles > .tile:nth-child(2n) {
+    border-right: 0;
+  }
+
+  .tiles > .tile:nth-last-child(-n + 3) {
+    border-bottom: 1px solid var(--border);
+  }
+
+  .tiles > .tile:nth-last-child(-n + 2) {
+    border-bottom: 0;
   }
 }
 
-@media (max-width: 640px) {
-  .kpiGrid {
+@media (max-width: 560px) {
+  .tiles {
     grid-template-columns: minmax(0, 1fr);
+  }
+
+  .tiles > .tile,
+  .tiles > .tile:nth-child(2n),
+  .tiles > .tile:nth-child(3n) {
+    border-right: 0;
+  }
+
+  .tiles > .tile:nth-last-child(-n + 2) {
+    border-bottom: 1px solid var(--border);
+  }
+
+  .tiles > .tile:last-child {
+    border-bottom: 0;
   }
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .kpiGrid > *,
-  .stat::after,
-  .statNumber {
+  .deck {
     animation: none;
   }
 
-  .board {
+  .tile,
+  .tileIcon,
+  .tileArrow {
     transition: none;
-  }
-
-  .board:hover {
-    transform: none;
   }
 }
 
@@ -503,7 +598,7 @@
 }
 
 .colHead {
-  font-size: 0.6875rem;
+  font-size: 0.75rem;
   font-weight: 600;
   color: var(--muted-foreground);
   text-align: center;
@@ -556,7 +651,7 @@
 }
 
 .legendLabel {
-  font-size: 0.6875rem;
+  font-size: 0.75rem;
   font-weight: 600;
   color: var(--muted-foreground);
 }
@@ -575,7 +670,7 @@
 
 .legendNote {
   margin-left: auto;
-  font-size: 0.6875rem;
+  font-size: 0.75rem;
   font-style: italic;
   color: var(--muted-foreground);
 }
@@ -593,24 +688,28 @@
   gap: 0.25rem;
 }
 
-/* ---- Needs attention (kanban card grid, no parent board) ---- */
-.attentionSection {
+/* ---- Needs attention (ranked row ledger) ---- */
+.attnPanel {
   display: flex;
   flex-direction: column;
-  gap: 0.75rem;
   min-width: 0;
+  overflow: hidden;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  background-color: var(--card);
 }
 
-.attentionSectionHead {
+.attnHead {
   display: flex;
   align-items: baseline;
-  gap: 0.5rem;
   flex-wrap: wrap;
-  padding-bottom: 0.5rem;
+  gap: 0.5rem;
+  padding: 0.75rem 1rem;
   border-bottom: 1px solid var(--border);
+  background-color: color-mix(in oklch, var(--muted) 26%, var(--card));
 }
 
-.attentionTitle {
+.attnTitle {
   display: inline-flex;
   align-items: center;
   gap: 0.375rem;
@@ -619,70 +718,261 @@
   color: var(--foreground);
 }
 
-.attentionCount {
-  font-size: 0.75rem;
-  font-weight: 600;
-  color: var(--muted-foreground);
-}
-
-.attentionDesc {
+.attnDesc {
   margin-left: auto;
   font-size: 0.75rem;
   color: var(--muted-foreground);
 }
 
-.attentionGrid {
+.attnRail,
+.attnRow {
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
-  gap: 0.875rem;
+  grid-template-columns:
+    2.5rem minmax(0, 1fr) 5rem minmax(9rem, 16rem) 8.5rem
+    1.25rem;
+  align-items: center;
+  column-gap: 1rem;
 }
 
-.attentionCard {
+.attnRail {
+  padding: 0.5rem 1rem;
+  border-bottom: 1px solid var(--border);
+  font-size: 0.75rem;
+  font-weight: 600;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--muted-foreground);
+}
+
+.attnBody {
   display: flex;
   flex-direction: column;
-  gap: 0.625rem;
-  padding: 1rem 1.125rem;
-  border: 1px solid var(--border);
-  border-radius: var(--radius-md);
-  background-color: var(--card);
   min-width: 0;
-  transition: border-color 160ms ease, background-color 160ms ease;
 }
 
-.attentionCard:hover {
-  border-color: color-mix(in oklch, var(--primary), transparent 55%);
-  background-color: color-mix(in oklch, var(--muted), transparent 75%);
+.attnRow {
+  width: 100%;
+  padding: 0.6875rem 1rem;
+  border: 0;
+  border-bottom: 1px solid var(--border);
+  background-color: transparent;
+  color: inherit;
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+  transition: background-color 150ms ease-out;
 }
 
-.attentionHead {
+.attnBody .attnRow:last-child {
+  border-bottom: 0;
+}
+
+.attnRow:hover {
+  background-color: color-mix(in oklch, var(--muted) 46%, transparent);
+}
+
+.attnRow:focus-visible {
+  outline: none;
+  box-shadow: inset 0 0 0 2px var(--ring);
+}
+
+/* The subject already open in the breakdown board. */
+.attnRowSelected {
+  background-color: color-mix(in oklch, #f59e0b 8%, var(--card));
+  box-shadow: inset 3px 0 0 #d97706;
+}
+
+.attnRank {
+  font-size: 0.75rem;
+  font-weight: 700;
+  color: var(--muted-foreground);
+  font-variant-numeric: tabular-nums;
+}
+
+.attnRankWorst {
+  color: #b91c1c;
+}
+
+:global(.dark) .attnRankWorst {
+  color: #fca5a5;
+}
+
+.attnWho {
   display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 0.5rem;
+  flex-direction: column;
+  gap: 0.0625rem;
   min-width: 0;
 }
 
-.attentionSectionName {
-  font-size: 0.9375rem;
+.attnSectionName {
+  overflow: hidden;
+  font-size: 0.8125rem;
   font-weight: 600;
   color: var(--foreground);
-  overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
 }
 
-.attentionSubject {
-  font-size: 0.8125rem;
+.attnSubject {
+  overflow: hidden;
+  font-size: 0.75rem;
   color: var(--muted-foreground);
-  overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
 }
 
-.attentionMeta {
+.attnAvg {
+  justify-self: start;
+}
+
+/* Average meter — bar length is the average out of 100, tick marks 75. */
+.attnMeterCol {
   display: flex;
-  flex-wrap: wrap;
+  flex-direction: column;
   gap: 0.25rem;
+  min-width: 0;
+}
+
+.attnMeter {
+  position: relative;
+  display: block;
+  width: 100%;
+  height: 6px;
+  border-radius: 9999px;
+  background-color: color-mix(in oklch, var(--muted-foreground) 16%, transparent);
+}
+
+.attnMeterFill {
+  display: block;
+  height: 100%;
+  border-radius: 9999px;
+  background-color: #d97706;
+}
+
+.attnMeterCritical {
+  background-color: #dc2626;
+}
+
+.attnPassMark {
+  position: absolute;
+  top: -2px;
+  bottom: -2px;
+  width: 1px;
+  background-color: color-mix(in oklch, var(--destructive) 65%, transparent);
+}
+
+.attnScale {
+  display: flex;
+  justify-content: space-between;
+  font-size: 0.75rem;
+  line-height: 1;
+  color: var(--muted-foreground);
+  font-variant-numeric: tabular-nums;
+}
+
+.attnMeta {
+  font-size: 0.75rem;
+  line-height: 1.25;
+  color: var(--muted-foreground);
+  font-variant-numeric: tabular-nums;
+}
+
+.attnMeta strong {
+  font-weight: 700;
+  color: var(--foreground);
+}
+
+.attnGo {
+  justify-self: end;
+  color: var(--muted-foreground);
+  opacity: 0.45;
+  transition:
+    opacity 140ms ease-out,
+    color 140ms ease-out,
+    transform 140ms ease-out;
+}
+
+.attnRow:hover .attnGo,
+.attnRowSelected .attnGo {
+  opacity: 1;
+  color: #b45309;
+  transform: translate(1px, -1px);
+}
+
+:global(.dark) .attnRow:hover .attnGo,
+:global(.dark) .attnRowSelected .attnGo {
+  color: #fbbf24;
+}
+
+.attnSkelRow {
+  display: grid;
+  grid-template-columns: 1.5rem minmax(0, 1fr) 2.5rem minmax(9rem, 16rem) 6rem;
+  align-items: center;
+  gap: 1rem;
+  padding: 0.75rem 1rem;
+  border-bottom: 1px solid var(--border);
+}
+
+.attnSkelWho {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+  min-width: 0;
+}
+
+/* ---- Needs attention responsive ---------------------------------------- */
+@media (max-width: 1100px) {
+  .attnRail,
+  .attnRow {
+    grid-template-columns:
+      2.25rem minmax(0, 1fr) 4.5rem minmax(7rem, 12rem) 7rem
+      1.25rem;
+    column-gap: 0.75rem;
+  }
+}
+
+@media (max-width: 900px) {
+  .attnRail {
+    display: none;
+  }
+
+  .attnRow {
+    grid-template-columns: 2rem minmax(0, 1fr) auto;
+    row-gap: 0.375rem;
+    column-gap: 0.75rem;
+    padding: 0.75rem 1rem;
+  }
+
+  .attnRank {
+    grid-column: 1;
+    grid-row: 1;
+  }
+
+  .attnWho {
+    grid-column: 2;
+    grid-row: 1;
+  }
+
+  .attnAvg {
+    grid-column: 3;
+    grid-row: 1;
+    justify-self: end;
+  }
+
+  .attnMeterCol {
+    grid-column: 1 / -1;
+    grid-row: 2;
+  }
+
+  .attnMeta {
+    grid-column: 2;
+    grid-row: 3;
+  }
+
+  .attnGo {
+    grid-column: 3;
+    grid-row: 3;
+  }
 }
 
 /* ---- Shared table (section–subject breakdown) ---- */
@@ -700,7 +990,7 @@
   padding: 0.5rem 0.625rem;
   text-align: left;
   font-weight: 600;
-  font-size: 0.6875rem;
+  font-size: 0.75rem;
   text-transform: uppercase;
   letter-spacing: 0.04em;
   color: var(--muted-foreground);
@@ -738,10 +1028,6 @@
 }
 
 @media (max-width: 640px) {
-  .kpiGrid {
-    grid-template-columns: minmax(0, 1fr);
-  }
-
   .legendNote {
     margin-left: 0;
     width: 100%;
@@ -885,7 +1171,7 @@
   display: inline-flex;
   align-items: center;
   gap: 0.375rem;
-  font-size: 0.6875rem;
+  font-size: 0.75rem;
   font-weight: 600;
   color: var(--muted-foreground);
 }
@@ -901,14 +1187,14 @@
 
 .dotLegendHint {
   margin-left: auto;
-  font-size: 0.6875rem;
+  font-size: 0.75rem;
   font-style: italic;
   color: var(--muted-foreground);
 }
 
 .dotLegendSelected {
   margin-left: auto;
-  font-size: 0.6875rem;
+  font-size: 0.75rem;
   font-weight: 700;
   color: var(--primary);
 }
@@ -922,9 +1208,61 @@
 }
 
 .rankCell {
-  font-variant-numeric: tabular-nums;
+  width: 2.25rem;
+}
+
+.rankPill {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 1.5rem;
+  height: 1.5rem;
+  border: 1px solid var(--border);
+  border-radius: 9999px;
+  background-color: color-mix(in oklch, var(--muted) 60%, transparent);
+  font-size: 0.75rem;
+  font-weight: 600;
   color: var(--muted-foreground);
-  width: 2rem;
+  font-variant-numeric: tabular-nums;
+}
+
+.rankPillWorst {
+  border-color: color-mix(in oklch, var(--destructive) 40%, var(--border));
+  background-color: color-mix(in oklch, var(--destructive) 12%, transparent);
+  color: var(--destructive);
+  font-weight: 700;
+}
+
+.sectionCell {
+  font-weight: 600;
+}
+
+/* Average + a bar out of 100 — the number and the shape agree at a glance. */
+.avgCell {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  min-width: 6rem;
+}
+
+.avgMeter {
+  display: block;
+  width: 4.5rem;
+  height: 4px;
+  overflow: hidden;
+  border-radius: 9999px;
+  background-color: color-mix(in oklch, var(--muted-foreground) 16%, transparent);
+}
+
+.avgMeterFill {
+  display: block;
+  height: 100%;
+  border-radius: 9999px;
+  background-color: #16a34a;
+}
+
+.avgMeterBad {
+  background-color: #dc2626;
 }
 
 .avgGood {
@@ -935,5 +1273,61 @@
 
 .worstRow {
   background-color: color-mix(in oklch, var(--destructive), transparent 94%);
+  box-shadow: inset 3px 0 0 var(--destructive);
 }
 
+
+/* ---- Dark mode: faded surfaces, dimmed accent tint ---------------------- */
+:global(.dark) .deck,
+:global(.dark) .attnPanel {
+  background-color: color-mix(in oklch, var(--card) 58%, transparent);
+}
+
+:global(.dark) .deckHead {
+  background-color: color-mix(in oklch, var(--muted) 20%, transparent);
+}
+
+:global(.dark) .attnHead {
+  background-color: color-mix(in oklch, var(--muted) 16%, transparent);
+}
+
+:global(.dark) .tile {
+  border-color: color-mix(in oklch, var(--border) 70%, transparent);
+}
+
+:global(.dark) .tileAmber {
+  background-color: color-mix(in oklch, #f59e0b 5%, transparent);
+}
+
+:global(.dark) .tileAmber:hover {
+  background-color: color-mix(in oklch, #f59e0b 8%, transparent);
+}
+
+:global(.dark) .tileAmber .tileIcon {
+  background-color: color-mix(in oklch, #f59e0b 14%, transparent);
+}
+
+:global(.dark) .attnRow:hover {
+  background-color: color-mix(in oklch, var(--muted) 22%, transparent);
+}
+
+:global(.dark) .attnRowSelected {
+  background-color: color-mix(in oklch, #f59e0b 6%, transparent);
+  box-shadow: none;
+}
+
+:global(.dark) .attnMeter {
+  background-color: color-mix(in oklch, var(--muted-foreground) 20%, transparent);
+}
+
+:global(.dark) .attnMeterFill {
+  background-color: color-mix(in oklch, #d97706 82%, transparent);
+}
+
+:global(.dark) .attnMeterCritical {
+  background-color: color-mix(in oklch, #dc2626 82%, transparent);
+}
+
+:global(.dark) .attnPassMark {
+  background-color: color-mix(in oklch, var(--destructive) 50%, transparent);
+}

@@ -58,6 +58,8 @@ export interface SectionSummaryDTO {
   sectionId: string;
   section: string;
   grade: string;
+  /** Section adviser, used to count distinct advisers sharing student data. */
+  adviserId: string | null;
   /** Adviser has switched student-data sharing ON; metrics are hidden otherwise. */
   shared: boolean;
   avgTransmuted: number;
@@ -421,6 +423,7 @@ export async function getAcademicsSummary(
       sectionId: section.id,
       section: section.name,
       grade,
+      adviserId: section.adviserId ?? null,
       shared,
       avgTransmuted,
       passPct,

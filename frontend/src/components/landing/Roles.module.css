@@ -49,7 +49,7 @@
 
 .index {
   font-family: var(--font-mono);
-  font-size: 0.62rem;
+  font-size: 0.75rem;
   letter-spacing: 0.14em;
   color: rgba(228, 241, 236, 0.34);
 }

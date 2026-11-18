@@ -10,12 +10,18 @@ import BranchedMenu from "./nav/BranchedMenu";
 import { NAV_ICONS } from "./nav/sidebar-icons";
 import { SidebarIconRail } from "./nav/SidebarIconRail";
 import { ScrollDownHint } from "@/components/ui/scroll-down-hint";
+import {
+  useRecordKeeperNavDotInvalidation,
+  useRecordKeeperNavDots,
+  type RecordKeeperNavDots,
+} from "@/services/record-keeper/navCounts.service";
 
 type NavItem = {
   title: string;
   href: string;
   icon: LucideIcon;
   badge?: string;
+  dot?: boolean;
 };
 
 type NavGroup = {
@@ -58,7 +64,26 @@ export const NAV: NavGroup[] = [
   },
 ];
 
-const TABS: NavItem[] = NAV.flatMap((group) => group.items);
+/* Which live queue each nav entry watches. The dot comes from
+   `/api/record-keeper/nav-counts`; a page with nothing unseen shows no dot. */
+const QUEUE_FOR_HREF: Record<string, keyof RecordKeeperNavDots> = {
+  "/record-keeper/overview": "overview",
+  "/record-keeper/final-grades": "finalGrades",
+  "/record-keeper/accounts": "accounts",
+  "/record-keeper/adviser-access": "adviserAccess",
+  "/record-keeper/sf10": "sf10",
+  "/record-keeper/academics": "subjects",
+};
+
+function withDots(groups: NavGroup[], dots: RecordKeeperNavDots): NavGroup[] {
+  return groups.map((group) => ({
+    ...group,
+    items: group.items.map((item) => ({
+      ...item,
+      dot: Boolean(QUEUE_FOR_HREF[item.href] && dots[QUEUE_FOR_HREF[item.href]]),
+    })),
+  }));
+}
 
 function matches(href: string, pathname: string, exactRoot: string) {
   if (href === exactRoot) return pathname === href;
@@ -99,6 +124,8 @@ function RecordKeeperNavbar({ tabs }: { tabs: NavItem[] }) {
               >
                 <item.icon className={styles.tabIcon} aria-hidden="true" />
                 <span className={styles.tabLabel}>{item.title}</span>
+                {item.dot ? <span className={styles.dot} aria-hidden="true" /> : null}
+                {item.dot ? <span className="sr-only">New activity</span> : null}
                 {item.badge ? <span className={styles.badge}>{item.badge}</span> : null}
               </Link>
             </li>
@@ -123,6 +150,7 @@ function RecordKeeperRail({ groups }: { groups: NavGroup[] }) {
           value: t.href,
           label: t.title,
           href: t.href,
+          dot: t.dot,
           icon: <t.icon size={16} strokeWidth={1.8} aria-hidden="true" />,
         })),
       }))}
@@ -144,7 +172,11 @@ export function RecordKeeperSidebar({
 } = {}) {
   const pathname = usePathname();
   const railScrollRef = React.useRef<HTMLDivElement | null>(null);
-  const activeHref = findActiveHref(TABS, pathname);
+  const dots = useRecordKeeperNavDots();
+  useRecordKeeperNavDotInvalidation(dots);
+  const nav = React.useMemo(() => withDots(NAV, dots), [dots]);
+  const tabs = React.useMemo(() => nav.flatMap((group) => group.items), [nav]);
+  const activeHref = findActiveHref(tabs, pathname);
 
   return (
     <>
@@ -154,14 +186,14 @@ export function RecordKeeperSidebar({
       >
         {collapsed ? (
           <SidebarIconRail
-            groups={NAV}
+            groups={nav}
             ariaLabel="Record Keeper sections, icon only"
             activeHref={activeHref}
           />
         ) : (
           <>
             <div ref={railScrollRef} className={styles.railScroll}>
-              <RecordKeeperRail groups={NAV} />
+              <RecordKeeperRail groups={nav} />
             </div>
             <div className={styles.railHintWrap}>
               <ScrollDownHint
@@ -175,7 +207,7 @@ export function RecordKeeperSidebar({
         )}
       </aside>
       <div className={styles.tabsMobile}>
-        <RecordKeeperNavbar tabs={TABS} />
+        <RecordKeeperNavbar tabs={tabs} />
       </div>
     </>
   );

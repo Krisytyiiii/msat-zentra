@@ -21,7 +21,7 @@
 }
 
 .menuLabel {
-  font-size: 0.625rem;
+  font-size: 0.75rem;
   font-weight: 700;
   text-transform: uppercase;
   letter-spacing: 0.08em;
@@ -85,7 +85,7 @@
 
 .gradeHead {
   margin: 0;
-  font-size: 0.6875rem;
+  font-size: 0.75rem;
   font-weight: 700;
   color: var(--foreground);
 }
@@ -116,7 +116,7 @@
   border: 1px solid var(--border);
   background-color: var(--background);
   color: var(--muted-foreground);
-  font-size: 0.625rem;
+  font-size: 0.75rem;
   font-weight: 600;
   font-variant-numeric: tabular-nums;
   padding: 0.1875rem 0.4375rem;
@@ -155,7 +155,7 @@
 }
 
 .gradeCardTitle {
-  font-size: 0.625rem;
+  font-size: 0.75rem;
   font-weight: 700;
   text-transform: uppercase;
   letter-spacing: 0.08em;
@@ -167,7 +167,7 @@
   display: flex;
   align-items: center;
   gap: 0.375rem;
-  font-size: 0.625rem;
+  font-size: 0.75rem;
   font-weight: 700;
   text-transform: uppercase;
   letter-spacing: 0.08em;
@@ -180,7 +180,7 @@
   display: flex;
   align-items: center;
   gap: 0.5625rem;
-  font-size: 0.6875rem;
+  font-size: 0.75rem;
   font-weight: 600;
   color: var(--foreground);
   width: 100%;

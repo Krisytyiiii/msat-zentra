@@ -198,7 +198,7 @@ export function SessionPlanCard<T extends PlanSessionItem>({
                     {isScheduled && hasTarget ? (
                       <div className="flex flex-col gap-1 rounded-lg bg-muted px-3 py-2">
                         <p className="m-0 flex items-baseline justify-between gap-2">
-                          <span className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">
+                          <span className="text-[12px] font-semibold uppercase tracking-wider text-muted-foreground">
                             {started ? "Session time" : "Starts in"}
                           </span>
                           <span
@@ -213,7 +213,7 @@ export function SessionPlanCard<T extends PlanSessionItem>({
                             {started ? "Now" : formatCountdown(targetMs, now)}
                           </span>
                         </p>
-                        <p className="m-0 flex items-start gap-1.5 text-[11px] leading-4 text-muted-foreground">
+                        <p className="m-0 flex items-start gap-1.5 text-[12px] leading-4 text-muted-foreground">
                           {started ? (
                             <LockOpen className="mt-px size-3.5 shrink-0" aria-hidden="true" />
                           ) : (

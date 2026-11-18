@@ -219,7 +219,7 @@ function DetailField({ label, value }: { label: string; value: string | null | u
   if (!value) return null;
   return (
     <div className="space-y-0.5">
-      <dt className="text-[11px] font-medium uppercase tracking-[0.05em] text-muted-foreground">
+      <dt className="text-[12px] font-medium uppercase tracking-[0.05em] text-muted-foreground">
         {label}
       </dt>
       <dd className="text-[13px] leading-5 text-foreground">{value}</dd>
@@ -381,7 +381,7 @@ export function GuidanceCaseDetailDialog({
             <div className="flex items-start gap-3 rounded-xl bg-muted/60 px-4 py-3">
               <FileText className="mt-px size-[18px] shrink-0 text-muted-foreground" aria-hidden />
               <div className="min-w-0 flex-1">
-                <p className="text-[11px] font-medium uppercase tracking-[0.05em] text-muted-foreground">
+                <p className="text-[12px] font-medium uppercase tracking-[0.05em] text-muted-foreground">
                   Note
                 </p>
                 <p className="mt-0.5 text-[13px] leading-5 text-foreground">{note}</p>

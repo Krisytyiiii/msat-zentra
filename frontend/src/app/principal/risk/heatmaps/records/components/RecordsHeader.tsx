@@ -22,7 +22,7 @@ type Slide = {
 const SLIDES: Slide[] = [
   {
     icon: FileText,
-    title: "Behavioral Records",
+    title: "Anecdotal Records",
     body: "Per-student anecdotal records filed during the active term.",
   },
   {
@@ -43,7 +43,7 @@ const SLIDES: Slide[] = [
   {
     icon: CircleDot,
     title: "Drill into a Student",
-    body: "Select any block to open that learner's full behavioral timeline.",
+    body: "Select any block to open that learner's full anecdotal timeline.",
   },
   {
     icon: TriangleAlert,
@@ -105,7 +105,7 @@ export function RecordsHeader() {
       <div className={`${styles.heroPanel} ${styles.heroPanelTitle}`}>
         <h1 className={styles.heroTitle}>Records Heatmap</h1>
         <p className={styles.heroSubtitle}>
-          A school-wide view of behavioral records across every grade and
+          A school-wide view of anecdotal records across every grade and
           section — with category heatblocks, severity flags, follow-ups, and a
           drill-down into each learner&rsquo;s incident timeline.
         </p>

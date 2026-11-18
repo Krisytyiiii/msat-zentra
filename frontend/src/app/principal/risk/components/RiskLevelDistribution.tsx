@@ -2,12 +2,14 @@
 
 import * as React from "react";
 import { useQuery } from "@tanstack/react-query";
-import { Bar, BarChart, CartesianGrid, XAxis, YAxis } from "recharts";
-import { Users } from "lucide-react";
+import { Bar, BarChart, CartesianGrid, Cell, XAxis, YAxis } from "recharts";
+import { Layers } from "lucide-react";
 import { apiClient } from "@/lib/api/client";
 import { useTerm } from "@/lib/term/TermContext";
+import { usePersistentState } from "@/lib/hooks/usePersistentState";
 import type { RiskBoardData, RiskLevelKey } from "@/services/principal/risk.types";
 import { KanbanBoard } from "@/components/ui/kanban-board";
+import { FilterTabs } from "@/components/ui/filter-tabs";
 import { PrincipalEmptyState } from "../../components/PrincipalEmptyCard";
 import { Pill } from "@/components/ui/pill";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -19,33 +21,51 @@ import {
   ChartLegendContent,
   type ChartConfig,
 } from "@/components/ui/chart";
+import { useRiskFocus } from "./risk-focus";
 import styles from "./RiskLevelDistribution.module.css";
 
-// Amber scale for the whole chart family — deep amber for the levels that
-// need attention, light amber for the calm end of the scale.
-const RISK_AMBER: Record<RiskLevelKey, string> = {
-  High: "#b45309",
+// Red / amber / green scale for the whole chart family — High reads as an
+// alarm, Moderate as a caution, Low as healthy.
+const RISK_LEVELS: Record<RiskLevelKey, string> = {
+  High: "#dc2626",
   Moderate: "#f59e0b",
-  Low: "#fcd34d",
+  Low: "#16a34a",
 };
 
 const LEVELS: RiskLevelKey[] = ["High", "Moderate", "Low"];
 
 const chartConfig = {
-  High: { label: "High risk", color: RISK_AMBER.High },
-  Moderate: { label: "Moderate", color: RISK_AMBER.Moderate },
-  Low: { label: "Low risk", color: RISK_AMBER.Low },
+  High: { label: "High risk", color: RISK_LEVELS.High },
+  Moderate: { label: "Moderate risk", color: RISK_LEVELS.Moderate },
+  Low: { label: "Low risk", color: RISK_LEVELS.Low },
 } satisfies ChartConfig;
 
 const gradeNum = (name: string) => {
-  const m = String(name).match(/(\d+)/);
-  if (!m) return 0;
-  const n = parseInt(m[1], 10);
-  return Number.isNaN(n) ? 0 : n;
+  const match = String(name).match(/(\d+)/);
+  if (!match) return 0;
+  const value = parseInt(match[1], 10);
+  return Number.isNaN(value) ? 0 : value;
 };
+
+type ViewMode = "section" | "grade";
+
+interface Row {
+  key: string;
+  label: string;
+  detail: string;
+  High: number;
+  Moderate: number;
+  Low: number;
+  total: number;
+}
 
 export function RiskLevelDistribution() {
   const { activeTerm } = useTerm();
+  const focus = useRiskFocus();
+  const [view, setView] = usePersistentState<ViewMode>(
+    "zentra.risk.distribution.view",
+    "section",
+  );
 
   const { data, isPending } = useQuery({
     queryKey: ["risk-board", activeTerm?.termId ?? null, activeTerm?.schoolYearId ?? null],
@@ -57,57 +77,107 @@ export function RiskLevelDistribution() {
     refetchOnWindowFocus: false,
   });
 
-  // One group of three bars per section, placed strictly Grade 7 → Grade 12.
-  // Only sections whose adviser has connected/shared student data are served.
-  const bySections = React.useMemo(() => {
+  // Section rows keep the G7 → G12 order the board serves; grade rows are one
+  // bar per grade level so leadership can scan the whole school at once.
+  const rows = React.useMemo<Row[]>(() => {
+    if (view === "grade") {
+      return [...(data?.byGrade ?? [])]
+        .sort((a, b) => gradeNum(a.grade) - gradeNum(b.grade))
+        .map((row) => ({
+          key: row.grade,
+          label: row.grade,
+          detail: `${row.total} learner${row.total === 1 ? "" : "s"}`,
+          High: row.High,
+          Moderate: row.Moderate,
+          Low: row.Low,
+          total: row.total,
+        }));
+    }
     return [...(data?.bySection ?? [])]
       .sort((a, b) => {
         const gradeDiff = gradeNum(a.gradeLevel) - gradeNum(b.gradeLevel);
         if (gradeDiff !== 0) return gradeDiff;
         return a.section.localeCompare(b.section, undefined, { numeric: true });
       })
-      .map((s) => ({
-        section: s.section,
-        gradeLevel: s.gradeLevel,
-        High: s.High,
-        Moderate: s.Moderate,
-        Low: s.Low,
-        total: s.total,
+      .map((row) => ({
+        key: row.section,
+        label: row.section,
+        detail: row.gradeLevel,
+        High: row.High,
+        Moderate: row.Moderate,
+        Low: row.Low,
+        total: row.total,
       }));
-  }, [data]);
+  }, [data, view]);
 
-  const totals = React.useMemo(() => {
-    return bySections.reduce(
-      (acc, g) => {
-        acc.High += g.High;
-        acc.Moderate += g.Moderate;
-        acc.Low += g.Low;
-        acc.total += g.total;
-        return acc;
-      },
-      { High: 0, Moderate: 0, Low: 0, total: 0 }
-    );
-  }, [bySections]);
+  const totals = React.useMemo(
+    () =>
+      rows.reduce(
+        (acc, row) => {
+          acc.High += row.High;
+          acc.Moderate += row.Moderate;
+          acc.Low += row.Low;
+          acc.total += row.total;
+          return acc;
+        },
+        { High: 0, Moderate: 0, Low: 0, total: 0 },
+      ),
+    [rows],
+  );
 
-  const isEmpty = !isPending && bySections.length === 0;
+  const isEmpty = !isPending && rows.every((row) => row.total === 0);
 
   const peak = React.useMemo(() => {
-    if (bySections.length === 0) return null;
-    return [...bySections].sort(
-      (a, b) => b.High + b.Moderate - (a.High + a.Moderate)
+    if (rows.length === 0) return null;
+    return [...rows].sort(
+      (a, b) => b.High + b.Moderate - (a.High + a.Moderate),
     )[0] ?? null;
-  }, [bySections]);
+  }, [rows]);
+
+  const handleBarClick = (entry: { payload?: Row }) => {
+    if (view !== "section" || !entry?.payload) return;
+    focus.toggleSection(entry.payload.key);
+    requestAnimationFrame(() => {
+      const reduced = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+      document
+        .getElementById("risk-learners")
+        ?.scrollIntoView({ behavior: reduced ? "auto" : "smooth", block: "start" });
+    });
+  };
+
+  const fill = (level: RiskLevelKey) =>
+    focus.level && focus.level !== level
+      ? `color-mix(in oklch, ${RISK_LEVELS[level]} 22%, var(--card))`
+      : RISK_LEVELS[level];
+
+  const viewToggle = (
+    <FilterTabs
+      label="Break down risk by"
+      options={[
+        { value: "section", label: "Sections", count: data?.bySection?.length ?? 0 },
+        { value: "grade", label: "Grade levels", count: data?.byGrade?.length ?? 0 },
+      ]}
+      value={view}
+      onChange={(next) => setView(next as ViewMode)}
+    />
+  );
 
   return (
     <KanbanBoard
-      title="Risk Level Distribution"
-      icon={<Users size={14} aria-hidden="true" />}
-      count={isPending ? undefined : totals.total}
-      description="Three bars per section — High, Moderate and Low, ordered G7 to G12. Only adviser-connected learners are shown."
+      title={view === "section" ? "Risk by Section" : "Risk by Grade Level"}
+      icon={<Layers size={14} aria-hidden="true" />}
+      description={
+        view === "section"
+          ? "Three bars per section — High, Moderate and Low. Click a bar to focus that section on the learner board."
+          : "Three bars per grade level, G7 to G12. Adviser-shared learners only."
+      }
       actions={
-        <Pill tone="green" label="Data source">
-          Adviser-shared
-        </Pill>
+        <>
+          <Pill tone="green" label="Data source">
+            Adviser-shared
+          </Pill>
+          {viewToggle}
+        </>
       }
     >
       {isPending ? (
@@ -116,7 +186,7 @@ export function RiskLevelDistribution() {
         </div>
       ) : isEmpty ? (
         <PrincipalEmptyState
-          icon={Users}
+          icon={Layers}
           title="No connected learner data"
           hint="No sections with adviser-shared learners were found for the active term."
         />
@@ -129,39 +199,57 @@ export function RiskLevelDistribution() {
           >
             <BarChart
               accessibilityLayer
-              data={bySections}
+              data={rows}
               barCategoryGap={18}
               barGap={2}
               margin={{ top: 8, right: 8, bottom: 4, left: 0 }}
             >
               <CartesianGrid vertical={false} stroke="var(--border)" />
               <XAxis
-                dataKey="section"
+                dataKey="label"
                 tickLine={false}
                 axisLine={false}
                 tickMargin={8}
                 minTickGap={8}
+                interval={view === "grade" ? 0 : "equidistantPreserveStart"}
+                tick={{ fontSize: 12 }}
               />
               <YAxis
                 allowDecimals={false}
                 tickLine={false}
                 axisLine={false}
-                width={28}
+                width={32}
+                tick={{ fontSize: 12 }}
               />
-              <ChartTooltip content={<ChartTooltipContent />} />
+              <ChartTooltip
+                cursor={{ fill: "color-mix(in oklch, #f59e0b, transparent 93%)" }}
+                content={<ChartTooltipContent />}
+              />
               {LEVELS.map((level, index) => (
                 <Bar
                   key={level}
                   dataKey={level}
                   name={chartConfig[level].label as string}
-                  fill={`var(--color-${level})`}
+                  fill={fill(level)}
                   radius={[3, 3, 0, 0]}
                   maxBarSize={20}
                   isAnimationActive
-                  animationBegin={index * 140}
-                  animationDuration={1100}
+                  animationBegin={index * 120}
+                  animationDuration={900}
                   animationEasing="ease-out"
-                />
+                  onClick={handleBarClick}
+                  className={view === "section" ? styles.clickableBar : undefined}
+                >
+                  {rows.map((row) => (
+                    <Cell
+                      key={row.key}
+                      fill={fill(level)}
+                      opacity={
+                        focus.section && focus.section !== row.key ? 0.3 : 1
+                      }
+                    />
+                  ))}
+                </Bar>
               ))}
               <ChartLegend
                 verticalAlign="top"
@@ -172,19 +260,27 @@ export function RiskLevelDistribution() {
           </ChartContainer>
 
           <p className={styles.insight}>
-            {peak && peak.High + peak.Moderate > 0 ? (
+            {focus.section ? (
               <>
-                <strong>{peak.section}</strong> carries the most at-risk learners —{" "}
-                <strong>{peak.High}</strong> high and <strong>{peak.Moderate}</strong>{" "}
-                moderate. School-wide: <strong>{totals.High}</strong> high,{" "}
-                <strong>{totals.Moderate}</strong> moderate,{" "}
-                <strong>{totals.Low}</strong> low across{" "}
-                <strong>{bySections.length}</strong> connected section
-                {bySections.length === 1 ? "" : "s"}.
+                Focused on <strong>{focus.section}</strong> — the learner board
+                below now lists only that section. Click the bar again to clear.
+              </>
+            ) : peak && peak.High + peak.Moderate > 0 ? (
+              <>
+                <strong>{peak.label}</strong>{" "}
+                {view === "section" ? "carries" : "has"} the most at-risk learners
+                — <strong>{peak.High}</strong> high and{" "}
+                <strong>{peak.Moderate}</strong> moderate. School-wide:{" "}
+                <strong>{totals.High}</strong> high, <strong>{totals.Moderate}</strong>{" "}
+                moderate, <strong>{totals.Low}</strong> low across{" "}
+                <strong>{rows.length}</strong>{" "}
+                {view === "section" ? "connected section" : "grade level"}
+                {rows.length === 1 ? "" : "s"}.
               </>
             ) : (
               <>
-                No at-risk learners in connected sections this term —{" "}
+                No at-risk learners in adviser-shared{" "}
+                {view === "section" ? "sections" : "grade levels"} this term —{" "}
                 <strong>{totals.Low}</strong> learner
                 {totals.Low === 1 ? "" : "s"} currently on track.
               </>

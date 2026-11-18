@@ -279,7 +279,7 @@ export function FinalGradeDetail({ desk }: { desk: RegistryDesk }) {
                         <TableCell>
                           <Badge
                             variant={sub.remarks === "Failed" ? "destructive" : "outline"}
-                            className="text-[11px] font-semibold px-2 py-0.5"
+                            className="text-[12px] font-semibold px-2 py-0.5"
                           >
                             {sub.remarks}
                           </Badge>

@@ -5,6 +5,7 @@ import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/comp
 import { X } from "lucide-react";
 import { useRiskHeatmap, fetchSectionFactorStudents } from "@/services/principal/risk.service";
 import type { HeatmapStudent, RiskFactor } from "@/services/principal/risk.types";
+import { FACTOR_LABELS } from "@/services/principal/riskStudents.types";
 import styles from "./risk-factor-heatmap.module.css";
 
 const FACTORS: RiskFactor[] = ["Academic", "Attendance", "Behavioral"];
@@ -107,7 +108,7 @@ export function RiskFactorHeatmap() {
                     <th className={styles.rowHead}>Section</th>
                     {FACTORS.map((f) => (
                       <th key={f} className={styles.colHead}>
-                        <span>{f}</span>
+                        <span>{FACTOR_LABELS[f]}</span>
                         <span className={styles.factorTotal}>
                           {loading || !factorTotals ? "—" : factorTotals[f]}
                         </span>
@@ -135,7 +136,7 @@ export function RiskFactorHeatmap() {
                                   type="button"
                                   className={`${styles.cellBtn} ${isActive ? styles.cellActive : ""}`}
                                   style={{ background: cellColor(count) }}
-                                  aria-label={`${row.section} ${f}: ${count} students`}
+                                  aria-label={`${row.section} ${FACTOR_LABELS[f]}: ${count} students`}
                                   aria-pressed={isActive}
                                   disabled={loading}
                                   onClick={() =>
@@ -155,7 +156,7 @@ export function RiskFactorHeatmap() {
                               </TooltipTrigger>
                               <TooltipContent>
                                 <span className={styles.tip}>
-                                  {row.section} · {f}
+                                  {row.section} · {FACTOR_LABELS[f]}
                                 </span>
                                 <span className={styles.tipSub}>
                                   {count} student{count === 1 ? "" : "s"}
@@ -192,7 +193,7 @@ export function RiskFactorHeatmap() {
         <div
           className={`${styles.floating} ${visible ? "" : styles.floatingClosed}`}
           role="dialog"
-          aria-label={`At-risk students in ${selected.section} · ${selected.factor}`}
+          aria-label={`At-risk students in ${selected.section} · ${FACTOR_LABELS[selected.factor]}`}
           onTransitionEnd={() => {
             if (!visible) setSelected(null);
           }}
@@ -201,7 +202,7 @@ export function RiskFactorHeatmap() {
             <div>
               <p className={styles.floatingTitle}>{selected.section}</p>
               <p className={styles.floatingSub}>
-                {selected.factor} · {selectedCount} flagged
+                {FACTOR_LABELS[selected.factor]} · {selectedCount} flagged
               </p>
             </div>
             <button

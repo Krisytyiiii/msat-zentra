@@ -83,7 +83,7 @@ export function AddAssessmentSaveDock({
                 </span>
               ) : null}
             </span>
-            <span className="shrink-0 text-[11px] text-muted-foreground">
+            <span className="shrink-0 text-[12px] text-muted-foreground">
               {rowStatus}
             </span>
           </li>

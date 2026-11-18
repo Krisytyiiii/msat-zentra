@@ -2,10 +2,19 @@ import { prisma } from "../../lib/prisma.js";
 import type { Prisma } from "../../generated/prisma/client.js";
 import type { AdmStage } from "../adm.js";
 import { ELIGIBILITY_LABEL, ENROLLED_STAGES, GRADE_LABEL, RECENT_APPROVAL_DAYS, REFERRAL_STAGES } from "../../modules/adm/adm.repository.js";
+import {
+  archivedAdvisoryLearnerIds,
+  excludeArchivedLearnerRows,
+} from "../../lib/learnerVisibility.js";
 import type { AdmContext } from "./adm.types.js";
 
 export async function listReferrals(ctx: AdmContext) {
+  const archivedLearners = await archivedAdvisoryLearnerIds();
   const profiles = await prisma.admLearnerProfile.findMany({
+    where:
+      archivedLearners.studentIds.length > 0
+        ? { studentId: { notIn: archivedLearners.studentIds } }
+        : {},
     include: {
       student: { include: { user: true } },
       preparedByUser: true,
@@ -40,6 +49,14 @@ export interface AllReferralsQuery {
 export async function listAllReferrals(ctx: AdmContext, query: AllReferralsQuery) {
   const { page, limit, q, stageParam, eligibilityParam } = query;
   const skip = (page - 1) * limit;
+  // Archived (adviser soft-deleted) learners are hidden everywhere until the
+  // adviser restores them — cases, pre-profile referrals and counts alike.
+  const archivedLearners = await archivedAdvisoryLearnerIds();
+  const archivedRows = excludeArchivedLearnerRows(archivedLearners);
+  const notArchivedProfile: Prisma.AdmLearnerProfileWhereInput =
+    archivedLearners.studentIds.length > 0
+      ? { studentId: { notIn: archivedLearners.studentIds } }
+      : {};
   const ACTIVE_STAGES: AdmStage[] = [...REFERRAL_STAGES, "consultation", ...ENROLLED_STAGES];
   const stageFilter: AdmStage | "" =
     stageParam && (ACTIVE_STAGES as string[]).includes(stageParam)
@@ -113,6 +130,7 @@ export async function listAllReferrals(ctx: AdmContext, query: AllReferralsQuery
     ? {
         stage: coordinatorStageWhere,
         referral: endorsedReferralWhere,
+        ...notArchivedProfile,
         ...(eligibilityFilter ? { eligibilityStatus: eligibilityFilter } : {}),
         ...(qProfileWhere ? { OR: qProfileWhere } : {}),
       }
@@ -124,6 +142,7 @@ export async function listAllReferrals(ctx: AdmContext, query: AllReferralsQuery
             : stageFilter === ""
               ? { OR: [{ stage: { in: REFERRAL_STAGES } }, recentApprovalWhere] }
               : { OR: [recentApprovalWhere] }),
+        ...notArchivedProfile,
         ...(eligibilityFilter ? { eligibilityStatus: eligibilityFilter } : {}),
         ...(qProfileWhere ? { OR: qProfileWhere } : {}),
       };
@@ -147,6 +166,7 @@ export async function listAllReferrals(ctx: AdmContext, query: AllReferralsQuery
         referredToRole: "adm_coordinator",
         admProfiles: { none: {} },
         ...endorsedReferralWhere,
+        ...archivedRows,
         status: { not: "pending" },
         ...(qReferralWhere ? { OR: qReferralWhere } : {}),
       }
@@ -157,12 +177,13 @@ export async function listAllReferrals(ctx: AdmContext, query: AllReferralsQuery
           status: "pending",
           consultReviewer: { in: ["nurse", "guidance_counselor"] },
         },
+        ...archivedRows,
         ...(qReferralWhere ? { OR: qReferralWhere } : {}),
       };
 
   const referredWhere: Prisma.AdmLearnerProfileWhereInput = coordinatorIntake
-    ? { stage: { in: REFERRAL_STAGES }, referral: endorsedReferralWhere }
-    : { stage: { in: REFERRAL_STAGES } };
+    ? { stage: { in: REFERRAL_STAGES }, referral: endorsedReferralWhere, ...notArchivedProfile }
+    : { stage: { in: REFERRAL_STAGES }, ...notArchivedProfile };
 
   const useDbPaging = !includeEarly;
   const [profileItems, stageGroups, totalReferredProfiles, earlyItems, totalProfiles] = await Promise.all([
@@ -303,6 +324,15 @@ export async function listAllReferrals(ctx: AdmContext, query: AllReferralsQuery
   countsByStage.consultation = (countsByStage.consultation ?? 0) + earlyItems.length;
 
   const totalReferred = totalReferredProfiles + earlyItems.length;
+
+  // "Need review by ADM" = endorsed hand-offs still waiting for intake. The
+  // consultation bucket above also holds withdrawn (dismissed/resolved)
+  // referrals, so it cannot be used as the desk's actionable count.
+  const needsReview = coordinatorIntake
+    ? earlyItems.filter(
+        (r) => r.status !== "resolved" && r.status !== "dismissed",
+      ).length
+    : 0;
 
   const profileRows = profileItems.map((p) => {
     const stage = p.stage;
@@ -445,15 +475,24 @@ export async function listAllReferrals(ctx: AdmContext, query: AllReferralsQuery
     return ctx.role === "principal" ? base : { ...base, studentId: "" };
   });
 
-  const sortKey = (row: {
+  const sortTime = (row: {
     datePrepared: string | null;
     endorsedAt?: string | null;
     approvalDate?: string | null;
-  }) =>
-    row.approvalDate ??
-    (row.endorsedAt ? String(row.endorsedAt).slice(0, 10) : (row.datePrepared ?? ""));
-  const merged = [...profileRows, ...earlyRows].sort((a, b) =>
-    sortKey(b).localeCompare(sortKey(a)),
+  }) => {
+    const preferred =
+      row.approvalDate ?? row.endorsedAt ?? row.datePrepared ?? null;
+    if (!preferred) return 0;
+    // Dates are day-scoped; endorsement timestamps are full ISO strings. Normalise
+    // both so same-day hand-offs still sort newest-first.
+    const iso = /^\d{4}-\d{2}-\d{2}$/.test(preferred)
+      ? `${preferred}T00:00:00`
+      : preferred;
+    const t = Date.parse(iso);
+    return Number.isFinite(t) ? t : 0;
+  };
+  const merged = [...profileRows, ...earlyRows].sort(
+    (a, b) => sortTime(b) - sortTime(a),
   );
 
   const total = useDbPaging ? totalProfiles : merged.length;
@@ -537,6 +576,7 @@ export async function listAllReferrals(ctx: AdmContext, query: AllReferralsQuery
     complete: totalReferred,
     totalReferred,
     stageCounts: countsByStage,
+    needsReview,
     page: clampedPage,
     totalPages,
     limit,

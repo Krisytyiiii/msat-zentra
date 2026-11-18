@@ -891,7 +891,7 @@ export default function TeacherAdvisoryListPage() {
 
                 {selectionMode ? (
                   <div className="flex min-w-0 flex-wrap items-center justify-between gap-2 rounded-md border border-destructive/40 bg-destructive/5 px-2.5 py-1.5">
-                    <span className="text-[11px] font-medium text-muted-foreground">
+                    <span className="text-[12px] font-medium text-muted-foreground">
                       {selectionCount === 0
                         ? removeArmed
                           ? "Tick the students to remove."
@@ -1277,7 +1277,7 @@ export default function TeacherAdvisoryListPage() {
                     }`}
                   >
                     <span className="text-xs font-semibold">{option.label}</span>
-                    <span className="text-[11px] leading-tight">{option.hint}</span>
+                    <span className="text-[12px] leading-tight">{option.hint}</span>
                   </button>
                 );
               })}

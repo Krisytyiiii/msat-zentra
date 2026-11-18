@@ -216,7 +216,7 @@ export function TermSelectOverlay() {
                       <span className="text-base font-semibold">Term {t.termNumber}</span>
                       {status ? (
                         <span
-                          className={`rounded-full px-2.5 py-0.5 text-[11px] font-medium ${
+                          className={`rounded-full px-2.5 py-0.5 text-[12px] font-medium ${
                             status === "Ongoing"
                               ? "bg-primary/15 text-primary"
                               : "bg-muted text-muted-foreground"

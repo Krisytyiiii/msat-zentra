@@ -169,14 +169,12 @@ export function HealthRecordKanbanCard({
 
       <div className="flex min-w-0 flex-1 flex-col gap-2 rounded-lg border bg-white p-2.5 shadow-sm dark:bg-card">
         <span className="flex min-w-0 flex-wrap items-center gap-1.5">
-          <Pill
-            tone="amber"
-            label="Student"
+          <span
+            className="min-w-0 max-w-full truncate text-[13px] font-semibold text-foreground"
             title={entry.row.student}
-            className="max-w-full overflow-hidden"
           >
-            <span className="truncate">{entry.row.student}</span>
-          </Pill>
+            {entry.row.student}
+          </span>
           <Pill label="Grade level" title={meta} className="max-w-full overflow-hidden">
             <span className="truncate">{meta}</span>
           </Pill>
@@ -212,7 +210,7 @@ export function HealthRecordKanbanCard({
           {isFollowUp ? (
             <Link
               href={followUpHref}
-              className="inline-flex h-7 shrink-0 items-center gap-1 rounded-md border border-amber-500/40 bg-amber-500/10 px-2 text-[11px] font-semibold text-amber-700 transition-colors hover:bg-amber-500/15 dark:text-amber-400"
+              className="inline-flex h-7 shrink-0 items-center gap-1 rounded-md border border-amber-500/40 bg-amber-500/10 px-2 text-[12px] font-semibold text-amber-700 transition-colors hover:bg-amber-500/15 dark:text-amber-400"
             >
               Follow up
               <ArrowRight size={12} aria-hidden />
@@ -262,7 +260,7 @@ export function HealthRecordKanbanCard({
                       <button
                         type="button"
                         onClick={() => onOpenViewer(entry, i)}
-                        className="flex w-full items-center gap-2 rounded-md border border-border bg-background px-2 py-1.5 text-left text-[11px] transition-colors hover:border-primary/60 hover:bg-muted"
+                        className="flex w-full items-center gap-2 rounded-md border border-border bg-background px-2 py-1.5 text-left text-[12px] transition-colors hover:border-primary/60 hover:bg-muted"
                         title={size ? `${f.fileName} · ${size}` : f.fileName}
                       >
                         <Images

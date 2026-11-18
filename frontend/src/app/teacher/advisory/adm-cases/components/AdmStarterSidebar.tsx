@@ -140,7 +140,7 @@ export function AdmStarterSidebar({ onReferAdm }: { onReferAdm?: () => void }) {
                   <Button
                     type="button"
                     variant="outline"
-                    className="h-6 px-2 text-[11px]"
+                    className="h-6 px-2 text-[12px]"
                     onClick={onReferAdm}
                   >
                     Refer now
@@ -154,7 +154,7 @@ export function AdmStarterSidebar({ onReferAdm }: { onReferAdm?: () => void }) {
                   className="flex min-w-0 flex-1 cursor-pointer flex-col gap-1.5 rounded-lg border bg-white p-3 text-left shadow-sm transition-colors [font-family:var(--font-inter)] hover:border-primary/60 hover:shadow dark:bg-card"
                 >
                   <span className="flex items-center justify-between gap-2">
-                    <span className="truncate text-[11px] font-medium text-muted-foreground" title="action/new-adm-referral">
+                    <span className="truncate text-[12px] font-medium text-muted-foreground" title="action/new-adm-referral">
                       action/new-adm-referral
                     </span>
                     <span
@@ -203,7 +203,7 @@ export function AdmStarterSidebar({ onReferAdm }: { onReferAdm?: () => void }) {
                 ariaLabel="Anecdotal Records"
                 className="border-0 [font-family:var(--font-inter)]"
                 actions={
-                  <Button asChild variant="outline" className="h-6 px-2 text-[11px]">
+                  <Button asChild variant="outline" className="h-6 px-2 text-[12px]">
                     <Link href="/teacher/anecdotal">See all</Link>
                   </Button>
                 }
@@ -214,7 +214,7 @@ export function AdmStarterSidebar({ onReferAdm }: { onReferAdm?: () => void }) {
                   className="flex min-w-0 cursor-pointer flex-col gap-1.5 rounded-lg border bg-white p-3 shadow-sm transition-colors [font-family:var(--font-inter)] hover:border-primary/60 hover:shadow dark:bg-card"
                 >
                   <span className="flex items-center justify-between gap-2">
-                    <span className="truncate text-[11px] font-medium text-muted-foreground" title="/teacher/anecdotal">
+                    <span className="truncate text-[12px] font-medium text-muted-foreground" title="/teacher/anecdotal">
                       /teacher/anecdotal
                     </span>
                     <span
@@ -263,7 +263,7 @@ export function AdmStarterSidebar({ onReferAdm }: { onReferAdm?: () => void }) {
                 ariaLabel="My Referrals"
                 className="border-0 [font-family:var(--font-inter)]"
                 actions={
-                  <Button asChild variant="outline" className="h-6 px-2 text-[11px]">
+                  <Button asChild variant="outline" className="h-6 px-2 text-[12px]">
                     <Link href="/teacher/advisory/referrals">Track</Link>
                   </Button>
                 }
@@ -274,7 +274,7 @@ export function AdmStarterSidebar({ onReferAdm }: { onReferAdm?: () => void }) {
                   className="flex min-w-0 cursor-pointer flex-col gap-1.5 rounded-lg border bg-white p-3 shadow-sm transition-colors [font-family:var(--font-inter)] hover:border-primary/60 hover:shadow dark:bg-card"
                 >
                   <span className="flex items-center justify-between gap-2">
-                    <span className="truncate text-[11px] font-medium text-muted-foreground" title="/teacher/advisory/referrals">
+                    <span className="truncate text-[12px] font-medium text-muted-foreground" title="/teacher/advisory/referrals">
                       /teacher/advisory/referrals
                     </span>
                     <span
@@ -307,7 +307,7 @@ export function AdmStarterSidebar({ onReferAdm }: { onReferAdm?: () => void }) {
                     <Info size={16} />
                   </span>
                   <span
-                    className="absolute -top-1 -right-1 flex h-4 min-w-4 items-center justify-center rounded-full bg-amber-500 px-1 text-[10px] font-bold text-black"
+                    className="absolute -top-1 -right-1 flex h-4 min-w-4 items-center justify-center rounded-full bg-amber-500 px-1 text-[12px] font-bold text-black"
                     aria-hidden="true"
                   >
                     {ADM_STAGE_ENTRIES.length}

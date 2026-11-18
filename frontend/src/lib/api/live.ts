@@ -23,7 +23,7 @@ import {
  * and `refetchOnWindowFocus` overrides the app default (off) so coming back to
  * the tab re-reads immediately.
  */
-export const LIVE_REFETCH_MS = 20_000;
+export const LIVE_REFETCH_MS = 60_000;
 
 export const liveQueryOptions = {
   refetchInterval: LIVE_REFETCH_MS,
@@ -43,19 +43,21 @@ export const liveQueryOptions = {
 /**
  * Guidance desk boards (alerts + interventions) must move even while the
  * counselor is on another page, another tab, or another site — new at-risk
- * learners and referrals land without anyone touching the desk. Unlike the
- * teacher desks these keep polling while the tab is hidden, because the alert
- * sound and the tab-title badge are driven by the same refresh.
+ * learners and referrals land without anyone touching the desk.
  *
- * The realtime channel is still the fast path (it invalidates in well under a
- * second); this poll only has to cover the case where the socket is down or an
- * event that emits no notification reached the database.
+ * The realtime channel is the fast path (it invalidates in well under a
+ * second). This poll is only the fallback for a socket that is down or an event
+ * that emits no notification — 60s, not 15s, because every poll is a Postgres
+ * round trip and Supabase bills pooler traffic as organization egress. The
+ * away-from-page alert sound is driven by GuidanceRiskAlertMonitor's own
+ * background counts poll, not by this one, so gating this to the visible tab
+ * costs nothing audible.
  */
-export const GUIDANCE_REFETCH_MS = 15_000;
+export const GUIDANCE_REFETCH_MS = 60_000;
 
 export const guidanceLiveQueryOptions = {
   refetchInterval: GUIDANCE_REFETCH_MS,
-  refetchIntervalInBackground: true,
+  refetchIntervalInBackground: false,
   refetchOnWindowFocus: true,
   // Shorter than the poll window so a focus/return always re-reads.
   staleTime: 5_000,

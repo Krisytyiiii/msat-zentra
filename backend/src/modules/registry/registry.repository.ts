@@ -1,4 +1,5 @@
 import { prisma } from "../../lib/prisma.js";
+import { invalidateTermScopeCache } from "../../lib/termScope.js";
 import { AppError } from "../../lib/errors.js";
 import type { GradeLevel } from "../../generated/prisma/client.js";
 import {
@@ -115,5 +116,7 @@ export async function resolveSchoolYear(requested?: string) {
     data: [1, 2, 3].map((termNumber) => ({ schoolYearId: created.id, termNumber })),
     skipDuplicates: true,
   });
+  // A new year (or its terms) can become the active scope — drop the memoized one.
+  invalidateTermScopeCache();
   return created;
 }

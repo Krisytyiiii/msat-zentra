@@ -12,6 +12,7 @@ import {
 } from "recharts";
 import type { AdminLoginActivityEvent } from "@/services/admin/admin.service";
 import { roleLabel } from "@/lib/auth/roles";
+import { FilterTabs } from "@/components/ui/filter-tabs";
 import { Pill } from "@/components/ui/pill";
 import { StudentMascot } from "@/components/student-mascot/StudentMascot";
 import { roleColor } from "./role-colors";
@@ -171,14 +172,14 @@ export default function LoginActivityChart({
                   tickLine={false}
                   axisLine={false}
                   interval="preserveStartEnd"
-                  tick={{ fontSize: 9 }}
+                  tick={{ fontSize: 12 }}
                   height={18}
                 />
                 <YAxis
                   tickLine={false}
                   axisLine={false}
                   allowDecimals={false}
-                  fontSize={9}
+                  fontSize={12}
                   width={30}
                 />
                 <Tooltip
@@ -257,30 +258,15 @@ function LatestAccess({ events }: { events: AdminLoginActivityEvent[] }) {
 
   return (
     <div className={styles.latest}>
-      <div className={styles.filterTabs} role="tablist" aria-label="Latest activity">
-        <button
-          type="button"
-          role="tab"
-          aria-selected={tab === "login"}
-          onClick={() => setTab("login")}
-          className={styles.filterTab}
-        >
-          <Pill tone={tab === "login" ? "amber" : "neutral"} className="h-6 px-2.5">
-            Latest logins
-          </Pill>
-        </button>
-        <button
-          type="button"
-          role="tab"
-          aria-selected={tab === "logout"}
-          onClick={() => setTab("logout")}
-          className={styles.filterTab}
-        >
-          <Pill tone={tab === "logout" ? "amber" : "neutral"} className="h-6 px-2.5">
-            Latest sign-outs
-          </Pill>
-        </button>
-      </div>
+      <FilterTabs
+        label="Latest activity"
+        options={[
+          { value: "login", label: "Latest logins" },
+          { value: "logout", label: "Latest sign-outs" },
+        ]}
+        value={tab}
+        onChange={setTab}
+      />
 
       {rows.length === 0 ? (
         <p className={styles.latestEmpty}>

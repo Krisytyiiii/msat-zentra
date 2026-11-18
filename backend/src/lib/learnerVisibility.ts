@@ -133,6 +133,33 @@ export function excludeArchivedProfiles(
   return ids.studentIds.length > 0 ? { userId: { notIn: ids.studentIds } } : {};
 }
 
+/**
+ * LRNs of archived (adviser-removed) learners. The SF10 store is keyed by LRN
+ * with no account relation, so hiding archived learners there is an LRN
+ * comparison (`lrn: { notIn: [...] }`) rather than a relation filter.
+ */
+export async function archivedAdvisoryLrns(
+  ids?: ArchivedLearnerIds,
+): Promise<string[]> {
+  const archived = ids ?? (await archivedAdvisoryLearnerIds());
+  if (archived.studentIds.length === 0 && archived.rosterIds.length === 0) return [];
+  const [profiles, rosters] = await Promise.all([
+    archived.studentIds.length > 0
+      ? prisma.studentProfile.findMany({
+          where: { userId: { in: archived.studentIds } },
+          select: { lrn: true },
+        })
+      : Promise.resolve([]),
+    archived.rosterIds.length > 0
+      ? prisma.studentRoster.findMany({
+          where: { id: { in: archived.rosterIds } },
+          select: { lrn: true },
+        })
+      : Promise.resolve([]),
+  ]);
+  return [...new Set([...profiles, ...rosters].map((r) => r.lrn))];
+}
+
 /** Prisma fragment for `StudentRoster` queries. */
 export function excludeArchivedRosters(
   ids: ArchivedLearnerIds,
@@ -156,9 +183,19 @@ export function excludeArchivedRostersSql(
 /** Prisma fragment matching grade/attendance rows (dual identity). */
 export function excludeArchivedLearnerRows(
   ids: ArchivedLearnerIds,
-): { NOT?: { OR: ({ studentId: { in: string[] } } | { rosterId: { in: string[] } })[] } } {
-  const branches: ({ studentId: { in: string[] } } | { rosterId: { in: string[] } })[] = [];
-  if (ids.studentIds.length > 0) branches.push({ studentId: { in: ids.studentIds } });
-  if (ids.rosterIds.length > 0) branches.push({ rosterId: { in: ids.rosterIds } });
-  return branches.length > 0 ? { NOT: { OR: branches } } : {};
+): { AND?: Record<string, unknown>[] } {
+  // Dual identity is studentId XOR rosterId, so a plain `NOT: { OR: [...] }`
+  // silently drops every row whose *other* column is NULL (SQL three-valued
+  // logic: `NULL NOT IN (...)` is NULL, not true). That hid every registered
+  // learner's grades from the registry overview feeds whenever any roster-only
+  // learner was archived. Negate each side only when that side is archived and
+  // let NULL rows on the other side through.
+  const clauses: Record<string, unknown>[] = [];
+  if (ids.studentIds.length > 0) {
+    clauses.push({ OR: [{ studentId: null }, { studentId: { notIn: ids.studentIds } }] });
+  }
+  if (ids.rosterIds.length > 0) {
+    clauses.push({ OR: [{ rosterId: null }, { rosterId: { notIn: ids.rosterIds } }] });
+  }
+  return clauses.length > 0 ? { AND: clauses } : {};
 }

@@ -39,7 +39,7 @@ function toRowListItem(s: ClassStudentRow): RowListItem {
       ...(s.flags ?? [])
         .filter((f) => f in FACTOR_TONE)
         .map((f) => ({ label: FACTOR_LABEL[f] ?? f, tone: FACTOR_TONE[f], icon: FACTOR_ICON[f] })),
-      { label: s.section, tone: "muted" as RowTone, title: s.subjects.join(" · ") || s.section },
+      { label: s.section, field: "section" as const, title: s.subjects.join(" · ") || s.section },
     ],
     detectedLabel: formatApproveDate(s.snapshotDate) ?? undefined,
     detectedTitle: s.snapshotDate

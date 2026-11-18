@@ -31,8 +31,8 @@ export async function fetchRiskStudents(
 }
 
 /**
- * Whole at-risk roster (High + Moderate) in one request. The principal risk
- * desks filter and paginate it in memory so search is instant and never
+ * Whole risk roster (every level, Low included) in one request. The principal
+ * risk desks filter and paginate it in memory so search is instant and never
  * re-fetches while typing.
  */
 export async function fetchAllRiskStudents(): Promise<BackendStudent[]> {

@@ -4,10 +4,10 @@ import {
   BellRing,
   Search,
 } from "lucide-react";
+import { FilterTabs } from "@/components/ui/filter-tabs";
 import { Input } from "@/components/ui/input";
 import { InsightCallout } from "@/components/ui/insight-callout";
 import { KanbanBoard } from "@/components/ui/kanban-board";
-import { Pill } from "@/components/ui/pill";
 import type { GuidanceRiskLevel } from "@/services/guidance/guidance.types";
 import type {
   AlertCaseType,
@@ -44,40 +44,7 @@ const RISK_OPTIONS: { value: RiskFilter; label: string }[] = [
   { value: "Moderate", label: "Moderate risk" },
 ];
 
-/** Pill tab group — same pattern as the record-keeper academics grade tabs. */
-function FilterTabs<T extends string>({
-  label,
-  options,
-  value,
-  onChange,
-  tone,
-}: {
-  label: string;
-  options: { value: T; label: string }[];
-  value: T;
-  onChange: (next: T) => void;
-  tone: "amber" | "blue";
-}) {
-  return (
-    <div className="flex flex-wrap items-center gap-1" role="tablist" aria-label={label}>
-      {options.map((option) => {
-        const active = value === option.value;
-        return (
-          <button
-            key={option.label}
-            type="button"
-            role="tab"
-            aria-selected={active}
-            onClick={() => onChange(option.value)}
-            className="inline-flex cursor-pointer rounded-md p-0 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring"
-          >
-            <Pill tone={active ? tone : "neutral"}>{option.label}</Pill>
-          </button>
-        );
-      })}
-    </div>
-  );
-}
+/** Pill tab group — the shared segmented filter tabs. */
 
 /**
  * Client-side board: the page loads the whole alerts desk once and hands every
@@ -167,7 +134,6 @@ export function GuidanceAlertsTable({
                 options={TYPE_OPTIONS}
                 value={type}
                 onChange={(next) => changeType(next as AlertCaseType)}
-                tone="amber"
               />
               <span className={styles.tabDivider} aria-hidden />
               <FilterTabs
@@ -175,7 +141,6 @@ export function GuidanceAlertsTable({
                 options={RISK_OPTIONS}
                 value={activeRisk}
                 onChange={changeRisk}
-                tone="blue"
               />
             </div>
           ) : null

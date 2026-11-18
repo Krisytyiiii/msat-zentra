@@ -382,22 +382,22 @@ export function AdviserPicker({ ordered, loading, loadError, effectiveSelected, 
                 <span className="text-sm font-semibold">{s.name}</span>
                 <span className="flex items-center gap-1">
                   {needsCode && selectable ? (
-                    <span className="rounded-full bg-amber-500/15 px-2 py-0.5 text-[10px] font-medium text-amber-700 dark:text-amber-400">
+                    <span className="rounded-full bg-amber-500/15 px-2 py-0.5 text-[12px] font-medium text-amber-700 dark:text-amber-400">
                       Code required
                     </span>
                   ) : null}
                   {s.inMasterSchedule ? (
-                    <span className="rounded-full bg-primary/15 px-2 py-0.5 text-[10px] font-medium text-primary">
+                    <span className="rounded-full bg-primary/15 px-2 py-0.5 text-[12px] font-medium text-primary">
                       Master schedule
                     </span>
                   ) : null}
                 </span>
               </span>
-              <span className="mt-1 text-[11px] font-medium text-muted-foreground">
+              <span className="mt-1 text-[12px] font-medium text-muted-foreground">
                 Grade {s.gradeNumber}
                 {s.adviserLabel ? ` · Listed as "${s.adviserLabel}"` : ""}
               </span>
-              <span className={`mt-auto pt-2 text-[11px] font-semibold ${selected ? "text-primary" : "text-muted-foreground"}`}>
+              <span className={`mt-auto pt-2 text-[12px] font-semibold ${selected ? "text-primary" : "text-muted-foreground"}`}>
                 {!selectable && s.holderName
                   ? `Advised by ${s.holderName}`
                   : !selectable

@@ -42,6 +42,8 @@ const LEVEL_RANK: Record<string, number> = { High: 3, Moderate: 2, Low: 1 };
 export interface RiskStudentFilters {
   riskLevel?: "High" | "Moderate" | "Low";
   factor?: RiskFactor;
+  /** Internal-only: keep every level (Low included) instead of the default High + Moderate preview. */
+  allLevels?: boolean;
 }
 
 // Real-time unified: gradeMode is ignored (kept for backwards compat).
@@ -73,7 +75,9 @@ export async function getAllRiskStudents(
     undefined,
     scope,
     undefined,
-    undefined,
+    // The principal risk board lists Low-risk learners too, so the full roster
+    // must not be narrowed to the High + Moderate preview.
+    { allLevels: true },
   );
   return students;
 }
@@ -297,11 +301,15 @@ async function getRiskStudentsLive(
     (a, b) => LEVEL_RANK[b.riskLevel] - LEVEL_RANK[a.riskLevel] || a.lrn.localeCompare(b.lrn),
   );
 
-  // Default to true at-risk only (High + Moderate). Explicit ?riskLevel=Low still works.
-  // Default to true at-risk only (High + Moderate). Explicit filter overrides.
+  // Default to true at-risk only (High + Moderate); `allLevels` keeps Low too.
+  // An explicit ?riskLevel= always wins over both.
   const scoped = students.filter(
     (s) =>
-      (extra?.riskLevel ? s.riskLevel === extra.riskLevel : s.riskLevel !== "Low") &&
+      (extra?.riskLevel
+        ? s.riskLevel === extra.riskLevel
+        : extra?.allLevels
+          ? true
+          : s.riskLevel !== "Low") &&
       (!extra?.factor || s.factors[extra.factor] === true),
   );
 

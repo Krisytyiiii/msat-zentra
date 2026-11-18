@@ -25,6 +25,13 @@ interface Sf10RecordFan {
   versions: Array<{ dataSnapshot: unknown; changeReason: string }>;
 }
 
+type Sf10RecordRow = Sf10RecordFan & {
+  id: string;
+  lrn: string;
+  desk: string;
+  currentVersion: number;
+};
+
 interface Sf10Payload {
   subjects?: Array<{ norm: string; gradeLevel?: string | null }>;
   [key: string]: unknown;
@@ -88,21 +95,35 @@ async function main() {
       gradeLevel: true,
       sectionId: true,
       user: { select: { fullName: true } },
-      sf10Records: {
-        select: {
-          id: true,
-          desk: true,
-          currentVersion: true,
-          ocrExtractedData: true,
-          versions: {
-            orderBy: { versionNumber: "desc" },
-            take: 1,
-            select: { versionNumber: true, changeReason: true, dataSnapshot: true },
-          },
-        },
-      },
     },
   });
+
+  // SF10 records are LRN-keyed storage — they are matched by the LRN written
+  // on the file, never through a profile relation.
+  const sf10ByLrn = new Map<string, Sf10RecordRow[]>();
+  {
+    const lrns = profiles.map((p) => p.lrn);
+    const rows = await prisma.sf10Record.findMany({
+      where: { lrn: { in: lrns } },
+      select: {
+        id: true,
+        lrn: true,
+        desk: true,
+        currentVersion: true,
+        ocrExtractedData: true,
+        versions: {
+          orderBy: { versionNumber: "desc" },
+          take: 1,
+          select: { versionNumber: true, changeReason: true, dataSnapshot: true },
+        },
+      },
+    });
+    for (const r of rows) {
+      const list = sf10ByLrn.get(r.lrn) ?? [];
+      list.push(r);
+      sf10ByLrn.set(r.lrn, list);
+    }
+  }
 
   const mismatched = profiles.filter(
     (p) => p.sectionId && sectionById.get(p.sectionId)?.gradeLevel !== p.gradeLevel,
@@ -122,7 +143,8 @@ async function main() {
       `${APPLY ? "" : "[dry] "}${p.user.fullName} (${p.lrn}) profile=${p.gradeLevel} → ${section.gradeLevel}` +
         ` · section ${section.name}`,
     );
-    for (const rec of p.sf10Records) {
+    const pRecords = sf10ByLrn.get(p.lrn) ?? [];
+    for (const rec of pRecords) {
       const move = rec.desk !== targetDesk ? ` · desk ${rec.desk} → ${targetDesk}` : "";
       const prunable = prunableRows(rec, p.gradeLevel, section.gradeLevel);
       const pruneNote =
@@ -141,10 +163,10 @@ async function main() {
         where: { userId: p.userId },
         data: { gradeLevel: section.gradeLevel as never },
       });
-      for (const rec of p.sf10Records) {
+      for (const rec of pRecords) {
         if (rec.desk !== targetDesk) {
           const conflict = await tx.sf10Record.findUnique({
-            where: { studentId_desk: { studentId: p.userId, desk: targetDesk as never } },
+            where: { lrn_desk: { lrn: p.lrn, desk: targetDesk as never } },
             select: { id: true },
           });
           if (conflict) {

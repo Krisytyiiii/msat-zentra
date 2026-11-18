@@ -60,3 +60,23 @@ export function displaySubjectName(name: string): string {
     .trim();
   return stripped || name;
 }
+
+/**
+ * Human label for a stored extractor id — the desks say what read the file,
+ * never the raw engine key ("local-ocr-tesseract-v1" → "Tesseract OCR").
+ */
+export function engineLabel(engine: string | null | undefined): string {
+  const key = (engine ?? "").trim();
+  if (!key) return "No extraction yet";
+  const known: Record<string, string> = {
+    "local-ocr-tesseract-v1": "Tesseract OCR",
+    "local-pdf-text-v1": "PDF text layer",
+    "local-xlsx-v1": "Spreadsheet cells",
+    "manual-correction": "Manual correction",
+    "grading-auto-fill-v1": "Grading auto-fill",
+    "local-ocr-queued": "OCR queued",
+    "local-ocr-failed": "OCR failed",
+    "none-image-needs-worker": "Image — not read",
+  };
+  return known[key] ?? key;
+}

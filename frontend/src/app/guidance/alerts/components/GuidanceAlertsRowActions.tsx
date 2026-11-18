@@ -167,7 +167,7 @@ export function GuidanceBookedSessionButton({
       type="button"
       size="xs"
       variant="default"
-      className="h-6 shrink-0 gap-1 px-2 text-[0.6875rem] font-semibold"
+      className="h-6 shrink-0 gap-1 px-2 text-[12px] font-semibold"
       onClick={(event) => {
         event.stopPropagation();
         if (!keepOverlayOnOpen) onBeforeOpen?.();

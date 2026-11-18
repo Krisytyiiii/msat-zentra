@@ -77,21 +77,21 @@
 }
 
 .tooltipRole {
-  font-size: 0.6875rem;
+  font-size: 0.75rem;
   font-weight: 500;
   color: var(--muted-foreground);
   text-transform: capitalize;
 }
 
 .tooltipMeta {
-  font-size: 0.6875rem;
+  font-size: 0.75rem;
   color: var(--muted-foreground);
   line-height: 1.35;
 }
 
 .tooltipTime {
   margin-top: 0.125rem;
-  font-size: 0.6875rem;
+  font-size: 0.75rem;
   font-weight: 500;
   color: color-mix(in oklch, var(--primary) 75%, var(--foreground));
 }

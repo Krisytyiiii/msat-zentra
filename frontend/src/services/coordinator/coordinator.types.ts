@@ -79,6 +79,8 @@ export interface AdmReferralsPage {
   complete?: number;
   totalReferred: number;
   stageCounts: Record<string, number>;
+  /** Endorsed hand-offs still waiting for coordinator intake review. */
+  needsReview?: number;
   page: number;
   totalPages: number;
   limit: number;

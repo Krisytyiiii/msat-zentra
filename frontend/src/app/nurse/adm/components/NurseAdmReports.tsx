@@ -240,14 +240,14 @@ function ReferralTrend({ data }: { data: NurseAdmReferralsData }) {
               <CartesianGrid strokeDasharray="3 3" stroke="var(--border)" />
               <XAxis
                 dataKey="label"
-                tick={{ fontSize: 11, fill: "var(--muted-foreground)" }}
+                tick={{ fontSize: 12, fill: "var(--muted-foreground)" }}
                 tickLine={false}
                 axisLine={{ stroke: "var(--border)" }}
                 interval="preserveStartEnd"
               />
               <YAxis
                 allowDecimals={false}
-                tick={{ fontSize: 11, fill: "var(--muted-foreground)" }}
+                tick={{ fontSize: 12, fill: "var(--muted-foreground)" }}
                 tickLine={false}
                 axisLine={false}
                 width={32}

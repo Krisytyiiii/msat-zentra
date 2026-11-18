@@ -28,6 +28,8 @@ export interface SectionSummary {
   sectionId: string;
   section: string;
   grade: string;
+  /** Section adviser, used to count distinct advisers sharing student data. */
+  adviserId?: string | null;
   /** Adviser shares student data; metrics are withheld when false. */
   shared?: boolean;
   avgTransmuted: number;

@@ -5,7 +5,7 @@ import { Button } from "@/components/ui/button";
 import { KanbanBoard } from "@/components/ui/kanban-board";
 
 const PILL_BASE =
-  "inline-flex items-center rounded-md border px-1.5 py-0.5 text-[11px] font-medium";
+  "inline-flex items-center rounded-md border px-1.5 py-0.5 text-[12px] font-medium";
 
 const STATUS_PILL: Record<"present" | "absent" | "late" | "excused", string> = {
   present: "border-green-500 bg-green-500/10 text-green-600 dark:text-green-400",

@@ -84,7 +84,7 @@ export function NurseDocumentariesList({ alerts }: { alerts: NurseAlertItem[] })
   return (
     <section aria-label="Student health records" className="flex flex-col gap-4">
       <div className="flex flex-wrap items-center justify-end gap-2">
-        <InputGroup className="w-56 max-w-full shrink-0 rounded-[16px]">
+        <InputGroup className="w-60 max-w-full shrink-0 rounded-[16px]">
           <InputGroupInput
             placeholder="Search student, LRN, section…"
             value={query}

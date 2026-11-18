@@ -17,6 +17,9 @@ import { ModulesPanel } from "@/app/teacher/advisory/adm-cases/[slug]/components
 import { MonitoringReport } from "@/app/teacher/advisory/adm-cases/[slug]/components/monitoring-report";
 import { ModuleStatus } from "@/app/teacher/advisory/adm-cases/[slug]/components/module-status";
 import { MonitoringSkeleton } from "@/app/teacher/advisory/adm-cases/[slug]/components/MonitoringSkeleton";
+import { CaseJourney } from "@/app/teacher/advisory/adm-cases/[slug]/components/case-journey";
+import { CaseSupport } from "@/app/teacher/advisory/adm-cases/[slug]/components/case-support";
+import { CaseNextStep } from "@/app/teacher/advisory/adm-cases/[slug]/components/case-next-step";
 import styles from "./monitoring.module.css";
 
 const BACK_HREF = "/coordinator/enrolled";
@@ -78,22 +81,27 @@ export default function CoordinatorAdmMonitoringPage() {
   const { header, progress, modules } = data;
 
   return (
-    <div className={`${styles.page} flex w-full flex-col gap-4`}>
+    <div className={`${styles.page} flex w-full flex-col gap-5`}>
       <MonitoringHeader
         header={header}
         backHref={BACK_HREF}
         backLabel="Back to enrolled students"
-        backVariant="primary"
       />
 
-      {/* Progress + report + module status: three flat cards in one band. */}
-      <div className={`${styles.band} grid min-w-0 items-start gap-4 lg:grid-cols-3`}>
-        <MonitoringProgress progress={progress} />
-        <MonitoringReport data={data} />
-        <ModuleStatus data={data} />
-      </div>
+      <CaseNextStep data={data} reader="coordinator" />
 
-      <ModulesPanel modules={modules} />
+      <MonitoringProgress progress={progress} />
+
+      <div className="grid min-w-0 items-start gap-5 lg:grid-cols-[minmax(0,1fr)_19rem] xl:grid-cols-[minmax(0,1fr)_21rem]">
+        <ModulesPanel modules={modules} />
+
+        <aside className="flex min-w-0 flex-col gap-5" aria-label="Case context">
+          <ModuleStatus data={data} />
+          <CaseSupport data={data} />
+          <MonitoringReport data={data} />
+          <CaseJourney timeline={data.timeline} />
+        </aside>
+      </div>
     </div>
   );
 }

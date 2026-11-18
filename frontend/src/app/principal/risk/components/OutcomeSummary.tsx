@@ -15,7 +15,7 @@ type OutcomeKey = keyof RiskBoardData["interventionOutcome"];
 const FACTORS: { key: keyof RiskBoardData["factorTotals"]; label: string }[] = [
   { key: "Academic", label: "Academic" },
   { key: "Attendance", label: "Attendance" },
-  { key: "Behavioral", label: "Behavioral" },
+  { key: "Behavioral", label: "Anecdotal" },
 ];
 
 export function OutcomeSummary({

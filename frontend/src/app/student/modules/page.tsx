@@ -13,13 +13,13 @@ import {
   Users,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { FilterTabs } from "@/components/ui/filter-tabs";
 import { useDock } from "@/components/dock/dock-store";
 import { Pagination } from "@/components/shared/pagination";
 import { Pill, type PillTone } from "@/components/ui/pill";
 import { Skeleton } from "@/components/ui/skeleton";
 import { StudentMascot } from "@/components/student-mascot/StudentMascot";
 import { toast } from "@/components/ui/sonner";
-import { cn } from "@/lib/utils";
 import {
   studentModulesExtras,
   useStudentModules,
@@ -106,7 +106,7 @@ function ModuleCard({
         </div>
 
         {module.description ? (
-          <p className="m-0 line-clamp-3 break-words text-[11px] leading-relaxed text-muted-foreground">
+          <p className="m-0 line-clamp-3 break-words text-[12px] leading-relaxed text-muted-foreground">
             {module.description}
           </p>
         ) : null}
@@ -116,19 +116,19 @@ function ModuleCard({
             href={module.moduleUrl}
             target="_blank"
             rel="noreferrer noopener"
-            className="inline-flex min-w-0 items-center gap-1 text-[11px] font-medium text-primary hover:underline"
+            className="inline-flex min-w-0 items-center gap-1 text-[12px] font-medium text-primary hover:underline"
             title={module.moduleUrl}
           >
             <ExternalLink size={12} className="shrink-0" aria-hidden />
             <span className="truncate">Open module</span>
           </a>
         ) : (
-          <span className="text-[11px] text-muted-foreground">No module link posted</span>
+          <span className="text-[12px] text-muted-foreground">No module link posted</span>
         )}
 
         {trackable ? (
           <div className="flex min-w-0 flex-col gap-0.5 border-t border-border/60 pt-2">
-            <span className="text-[10px] font-semibold tracking-wide text-muted-foreground uppercase">
+            <span className="text-[12px] font-semibold tracking-wide text-muted-foreground uppercase">
               Your answer
             </span>
             {module.submitted && module.submissionKind === "link" && module.submissionUrl ? (
@@ -136,7 +136,7 @@ function ModuleCard({
                 href={module.submissionUrl}
                 target="_blank"
                 rel="noreferrer noopener"
-                className="inline-flex min-w-0 items-center gap-1 text-[11px] font-medium text-primary hover:underline"
+                className="inline-flex min-w-0 items-center gap-1 text-[12px] font-medium text-primary hover:underline"
                 title={module.submissionUrl}
               >
                 <ExternalLink size={12} className="shrink-0" aria-hidden />
@@ -147,14 +147,14 @@ function ModuleCard({
                 href={module.fileUrl}
                 target="_blank"
                 rel="noreferrer noopener"
-                className="inline-flex min-w-0 items-center gap-1 text-[11px] font-medium text-primary hover:underline"
+                className="inline-flex min-w-0 items-center gap-1 text-[12px] font-medium text-primary hover:underline"
                 title={module.fileUrl}
               >
                 <ExternalLink size={12} className="shrink-0" aria-hidden />
                 <span className="truncate">{module.fileName ?? "Submitted file"}</span>
               </a>
             ) : module.submitted && module.submissionKind === "physical" ? (
-              <span className="inline-flex min-w-0 flex-wrap items-center gap-1 text-[11px] text-foreground">
+              <span className="inline-flex min-w-0 flex-wrap items-center gap-1 text-[12px] text-foreground">
                 <Users size={11} aria-hidden /> Passed in person
                 {module.fileUrl ? (
                   <a
@@ -168,16 +168,16 @@ function ModuleCard({
                 ) : null}
               </span>
             ) : (
-              <span className="text-[11px] text-muted-foreground">Nothing handed in yet</span>
+              <span className="text-[12px] text-muted-foreground">Nothing handed in yet</span>
             )}
-            <span className="text-[10px] text-muted-foreground">
+            <span className="text-[12px] text-muted-foreground">
               {module.submitted
                 ? `Submitted ${dateLabel(module.submittedAt)}`
                 : `Released ${dateLabel(module.releaseDate)}`}
             </span>
           </div>
         ) : (
-          <p className="m-0 border-t border-border/60 pt-2 text-[11px] text-muted-foreground">
+          <p className="m-0 border-t border-border/60 pt-2 text-[12px] text-muted-foreground">
             Post-only module — nothing to hand in.
           </p>
         )}
@@ -188,7 +188,7 @@ function ModuleCard({
           <Button
             type="button"
             variant={module.submitted ? "outline" : "default"}
-            className="h-6 px-2.5 text-[11px]"
+            className="h-6 px-2.5 text-[12px]"
             onClick={() => onSubmit(module)}
             aria-label={`Submit ${module.moduleName}`}
           >
@@ -321,7 +321,7 @@ export default function StudentModulesPage() {
               <span className="truncate text-[13px] font-semibold text-foreground">
                 {extras.learner.name}
               </span>
-              <span className="truncate text-[11px] text-muted-foreground tabular-nums">
+              <span className="truncate text-[12px] text-muted-foreground tabular-nums">
                 LRN {extras.learner.lrn}
               </span>
             </span>
@@ -329,33 +329,19 @@ export default function StudentModulesPage() {
         ) : null}
 
         {counts.all > 0 ? (
-          <div role="tablist" aria-label="Filter modules by status" className="flex flex-wrap items-center gap-1.5">
-            {FILTERS.map(({ key, label }) => {
-              const active = filter === key;
-              const value = key === "all" ? counts.all : counts[key];
-              return (
-                <button
-                  key={key}
-                  type="button"
-                  role="tab"
-                  aria-selected={active}
-                  onClick={() => {
-                    setFilter(key);
-                    setPage(1);
-                  }}
-                  className={cn(
-                    "inline-flex items-center gap-1 rounded-md border px-2 py-0.5 text-[11px] font-semibold transition-colors",
-                    active
-                      ? "border-primary/40 bg-primary/10 text-primary"
-                      : "border-transparent bg-muted text-muted-foreground hover:bg-muted/70 hover:text-foreground",
-                  )}
-                >
-                  {label}
-                  <span className={active ? "text-primary/80" : "text-muted-foreground/80"}>{value}</span>
-                </button>
-              );
-            })}
-          </div>
+          <FilterTabs
+            label="Filter modules by status"
+            options={FILTERS.map(({ key, label }) => ({
+              value: key,
+              label,
+              count: key === "all" ? counts.all : counts[key],
+            }))}
+            value={filter}
+            onChange={(next) => {
+              setFilter(next);
+              setPage(1);
+            }}
+          />
         ) : null}
 
         {!section ? (

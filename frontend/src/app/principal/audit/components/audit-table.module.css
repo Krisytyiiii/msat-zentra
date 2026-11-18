@@ -18,7 +18,7 @@
 }
 
 .roleBadge {
-  font-size: 11px;
+  font-size: 0.75rem;
   font-weight: 500;
 }
 
@@ -72,7 +72,7 @@
 
 .diffLabel {
   display: block;
-  font-size: 11px;
+  font-size: 0.75rem;
   font-weight: 600;
   letter-spacing: 0.04em;
   text-transform: uppercase;

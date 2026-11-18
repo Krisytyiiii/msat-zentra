@@ -99,7 +99,7 @@ export function ModuleFormDialog({
             maxLength={120}
             autoFocus
           />
-          <p className="m-0 text-[11px] text-muted-foreground">
+          <p className="m-0 text-[12px] text-muted-foreground">
             {releasedOn
               ? `Released ${format(releasedOn, "MMM d, yyyy")} — set automatically on upload.`
               : "Release date is set automatically once the module is uploaded."}
@@ -152,7 +152,7 @@ export function ModuleFormDialog({
               ) : null}
             </PopoverContent>
           </Popover>
-          <p className="m-0 text-[11px] text-muted-foreground">
+          <p className="m-0 text-[12px] text-muted-foreground">
             Optional — leave empty when the module has no deadline.
           </p>
         </div>
@@ -167,7 +167,7 @@ export function ModuleFormDialog({
             onChange={(e) => setSubmissionUrl(e.target.value)}
             placeholder="https://drive.google.com/…"
           />
-          <p className="m-0 text-[11px] text-muted-foreground">
+          <p className="m-0 text-[12px] text-muted-foreground">
             Where the module is posted for the learner. Saving a link releases the module today.
           </p>
         </div>

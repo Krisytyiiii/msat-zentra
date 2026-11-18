@@ -149,7 +149,7 @@ export function AdmRisk() {
   const factors = [
     { key: "Academic", label: "Academic", count: data.factorTotals.Academic },
     { key: "Attendance", label: "Attendance", count: data.factorTotals.Attendance },
-    { key: "Behavioral", label: "Behavioral", count: data.factorTotals.Behavioral },
+    { key: "Behavioral", label: "Anecdotal", count: data.factorTotals.Behavioral },
   ];
   const factorTotal = factors.reduce((sum, f) => sum + f.count, 0);
 
@@ -276,7 +276,7 @@ export function AdmRisk() {
                     width={88}
                     tickLine={false}
                     axisLine={false}
-                    tick={{ fontSize: 11, fill: "var(--muted-foreground)" }}
+                    tick={{ fontSize: 12, fill: "var(--muted-foreground)" }}
                   />
                   <Tooltip
                     cursor={false}
@@ -290,7 +290,7 @@ export function AdmRisk() {
                     <LabelList
                       dataKey="count"
                       position="right"
-                      fontSize={10}
+                      fontSize={12}
                       fontWeight={600}
                       fill={AMBER_STEPS[0]}
                     />

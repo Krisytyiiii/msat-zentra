@@ -8,6 +8,12 @@ export interface InterventionSession {
   scheduledAt: string;
   createdAt: string;
   completedAt: string | null;
+  sessionType?: string | null;
+  venue?: string | null;
+  sessionNotes?: string | null;
+  outcome?: string | null;
+  cancelReason?: string | null;
+  attachmentsCount?: number;
 }
 
 export interface InterventionLink {
@@ -19,6 +25,9 @@ export interface InterventionLink {
   outcomeStatus: OutcomeStatus;
   sessions: InterventionSession[];
   createdAt: string | null;
+  outcomeNotes?: string | null;
+  priority?: string | null;
+  intakeNotes?: string | null;
 }
 
 export interface SubjectGrade {

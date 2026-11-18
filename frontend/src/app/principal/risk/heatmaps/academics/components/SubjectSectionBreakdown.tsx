@@ -4,6 +4,7 @@ import { BookOpen, X } from "lucide-react";
 import { KanbanBoard } from "@/components/ui/kanban-board";
 import { PrincipalEmptyState } from "../../../../components/PrincipalEmptyCard";
 import { Button } from "@/components/ui/button";
+import { Pill } from "@/components/ui/pill";
 import { ALL_GRADES, type AttentionItem } from "./types";
 import styles from "./academics.module.css";
 
@@ -77,22 +78,51 @@ export function SubjectSectionBreakdown({
             </tr>
           </thead>
           <tbody>
-            {items.map((item, i) => (
-              <tr
-                key={item.sectionId}
-                className={i === 0 && item.avg < 75 ? styles.worstRow : ""}
-              >
-                <td className={styles.rankCell}>{i + 1}</td>
-                <td>{item.section}</td>
-                <td
-                  className={item.avg < 75 ? styles.avgBad : styles.avgGood}
+            {items.map((item, i) => {
+              const below = item.avg < 75;
+              const meter = Math.max(0, Math.min(100, item.avg));
+              return (
+                <tr
+                  key={item.sectionId}
+                  className={i === 0 && below ? styles.worstRow : ""}
                 >
-                  {item.avg}
-                </td>
-                <td>{item.graded}</td>
-                <td>{item.below}</td>
-              </tr>
-            ))}
+                  <td className={styles.rankCell}>
+                    <span
+                      className={`${styles.rankPill} ${
+                        i === 0 && below ? styles.rankPillWorst : ""
+                      }`}
+                    >
+                      {i + 1}
+                    </span>
+                  </td>
+                  <td className={styles.sectionCell}>{item.section}</td>
+                  <td>
+                    <span className={styles.avgCell}>
+                      <span className={below ? styles.avgBad : styles.avgGood}>
+                        {item.avg}
+                      </span>
+                      <span className={styles.avgMeter} aria-hidden>
+                        <span
+                          className={`${styles.avgMeterFill} ${
+                            below ? styles.avgMeterBad : ""
+                          }`}
+                          style={{ width: `${meter}%` }}
+                        />
+                      </span>
+                    </span>
+                  </td>
+                  <td>{item.graded}</td>
+                  <td>
+                    <Pill
+                      tone={item.below > 0 ? "red" : "green"}
+                      label="Below 75"
+                    >
+                      {item.below}
+                    </Pill>
+                  </td>
+                </tr>
+              );
+            })}
           </tbody>
         </table>
       </div>

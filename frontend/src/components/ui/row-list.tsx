@@ -4,7 +4,7 @@ import { AnimatePresence, motion, useReducedMotion } from "motion/react";
 import { Calendar, type LucideIcon } from "lucide-react";
 import type { CSSProperties, ReactNode } from "react";
 import { StudentMascot } from "@/components/student-mascot/StudentMascot";
-import { Pill, type PillTone } from "./pill";
+import { Pill, type IdentityField, type PillTone } from "./pill";
 import styles from "./row-list.module.css";
 
 export type RowTone = "red" | "amber" | "green" | "blue" | "muted";
@@ -17,6 +17,8 @@ export interface RowListMetaPill {
   label: string;
   tone?: RowTone;
   title?: string;
+  /** Identity field — forces LRN amber / grade level blue / section green. */
+  field?: IdentityField;
   /** Icon rendered in place of the dot (e.g. factor icons). */
   icon?: LucideIcon;
   /** Rich rendering for the label (e.g. two-tone numerator/denominator).
@@ -38,7 +40,7 @@ export interface RowListItem {
   idLabel?: string;
   /** Field name shown in the id pill's tooltip (defaults to "LRN"). */
   idLabelTitle?: string;
-  /** Override for the id pill's size/weight (defaults to `text-[11px] font-medium`). */
+  /** Override for the id pill's size/weight (defaults to `text-[12px] font-medium`). */
   idLabelClassName?: string;
   /** Optional rectangle pill rendered before the status pill (e.g. a term
       chip). Renders in a meta tone with no dot; defaults to amber. */
@@ -194,7 +196,7 @@ function RowListRow({
             tone="neutral"
             label={item.idLabelTitle ?? "LRN"}
             title={item.idLabel}
-            className={item.idLabelClassName ?? "text-[11px] font-medium"}
+            className={item.idLabelClassName ?? "text-[12px] font-medium"}
           >
             {item.idLabel}
           </Pill>
@@ -206,6 +208,7 @@ function RowListRow({
             key={`${pill.label}-${i}`}
             tone={STATUS_TONE[pill.tone ?? "muted"]}
             label={pill.title ?? pill.label}
+            field={pill.field}
             title={pill.title ?? pill.label}
             className="gap-1"
           >
@@ -230,7 +233,7 @@ function RowListRow({
         ) : null}
         {item.avatarMascot ? null : (
           <span
-            className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-muted text-[10px] font-bold text-muted-foreground"
+            className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-muted text-[12px] font-bold text-muted-foreground"
             aria-hidden
             title={item.avatarSource ?? item.title}
           >

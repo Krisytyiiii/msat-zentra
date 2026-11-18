@@ -140,7 +140,7 @@
 }
 
 .statLabel {
-  font-size: 0.6875rem;
+  font-size: 0.75rem;
   font-weight: 600;
   text-transform: uppercase;
   letter-spacing: 0.04em;
@@ -236,7 +236,7 @@
 }
 
 .riskCenter small {
-  font-size: 0.625rem;
+  font-size: 0.75rem;
   color: var(--muted-foreground);
   margin-top: 0.125rem;
 }
@@ -296,7 +296,7 @@
 
 .riskLegendCount {
   margin: 0;
-  font-size: 0.6875rem;
+  font-size: 0.75rem;
   color: var(--muted-foreground);
 }
 
@@ -364,7 +364,7 @@
 }
 
 .rail .statLabel {
-  font-size: 0.625rem;
+  font-size: 0.75rem;
 }
 
 .rail .statDivider {

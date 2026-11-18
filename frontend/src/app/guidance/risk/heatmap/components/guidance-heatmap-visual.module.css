@@ -53,7 +53,7 @@
 
 thead .rowHead {
   color: var(--muted-foreground);
-  font-size: 0.6875rem;
+  font-size: 0.75rem;
   text-transform: uppercase;
   letter-spacing: 0.05em;
 }
@@ -73,7 +73,7 @@ thead .rowHead {
 
 .colTotal {
   display: block;
-  font-size: 0.625rem;
+  font-size: 0.75rem;
   font-weight: 500;
   opacity: 0.7;
   font-variant-numeric: tabular-nums;
@@ -114,7 +114,7 @@ thead .rowHead {
 }
 
 .legendLabel {
-  font-size: 0.6875rem;
+  font-size: 0.75rem;
   color: var(--muted-foreground);
 }
 
@@ -132,7 +132,7 @@ thead .rowHead {
 
 .confidential {
   margin: 0;
-  font-size: 0.6875rem;
+  font-size: 0.75rem;
   color: var(--muted-foreground);
   font-style: italic;
 }
@@ -145,6 +145,6 @@ thead .rowHead {
 
 .tipSub {
   display: block;
-  font-size: 0.6875rem;
+  font-size: 0.75rem;
   opacity: 0.8;
 }

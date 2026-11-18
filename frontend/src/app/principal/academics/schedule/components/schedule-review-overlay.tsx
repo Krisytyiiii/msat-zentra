@@ -46,13 +46,8 @@ export function ScheduleReviewOverlay({
   const [note, setNote] = React.useState("");
   const [formError, setFormError] = React.useState<string | null>(null);
 
-  const sectionId = section?.id ?? null;
   const dockIdRef = React.useRef<string | null>(null);
   const pendingNameRef = React.useRef<string | null>(null);
-  React.useEffect(() => {
-    setNote("");
-    setFormError(null);
-  }, [sectionId]);
 
   const review = useMutation({
     mutationFn: async (vars: {

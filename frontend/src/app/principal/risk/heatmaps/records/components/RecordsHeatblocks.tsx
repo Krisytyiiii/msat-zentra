@@ -2,7 +2,7 @@
 
 import * as React from "react";
 import { useQuery } from "@tanstack/react-query";
-import { CircleDot, FileText, Search } from "lucide-react";
+import { CircleDot, FileText, Search, X } from "lucide-react";
 import { PrincipalEmptyState } from "../../../../components/PrincipalEmptyCard";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Input } from "@/components/ui/input";
@@ -15,12 +15,23 @@ import {
 } from "@/components/anecdotal/anecdotal-record-kanban-card";
 import styles from "./RecordsHeatblocks.module.css";
 import { CATEGORY_META, fetchRecords } from "@/services/principal/records.service";
+import type { BehavioralCategory } from "../types";
 import { liveQueryOptions } from "@/lib/api/live";
 import { Pagination } from "@/components/shared/pagination";
 
 const RECORDS_PAGE_SIZE = 16;
 
-export function RecordsHeatblocks() {
+export function RecordsHeatblocks({
+  category = null,
+  onClearCategory,
+  focus = null,
+}: {
+  /** Category picked in the summary panel — filters the list. */
+  category?: BehavioralCategory | null;
+  onClearCategory?: () => void;
+  /** Learner picked in "Needs attention" — seeds the search once per pick. */
+  focus?: { lrn: string; nonce: number } | null;
+}) {
   const [query, setQuery] = React.useState("");
   const [page, setPage] = React.useState(1);
 
@@ -32,6 +43,16 @@ export function RecordsHeatblocks() {
     queryFn: fetchRecords,
   });
 
+  // A learner picked in the summary panel drops their LRN into the search so
+  // their records are the only thing in the list. Derived during render (not
+  // in an effect) so the list is filtered on the same commit as the pick.
+  const [seenNonce, setSeenNonce] = React.useState<number | null>(null);
+  if (focus && focus.nonce !== seenNonce) {
+    setSeenNonce(focus.nonce);
+    setQuery(focus.lrn);
+    setPage(1);
+  }
+
   const sections = React.useMemo(() => data?.sections ?? [], [data]);
 
   const shownReports = React.useMemo(() => {
@@ -39,13 +60,14 @@ export function RecordsHeatblocks() {
     return sections
       .flatMap((s) => s.students)
       .flatMap((st) => st.behavioral.map((rec) => ({ student: st, rec })))
+      .filter(({ rec }) => (category ? rec.category === category : true))
       .filter(({ student }) =>
         q
           ? student.lrn.toLowerCase().includes(q) ||
             student.name.toLowerCase().includes(q)
           : true
       );
-  }, [sections, query]);
+  }, [sections, query, category]);
 
   const totalPages = Math.max(1, Math.ceil(shownReports.length / RECORDS_PAGE_SIZE));
   const safePage = Math.min(page, totalPages);
@@ -59,21 +81,44 @@ export function RecordsHeatblocks() {
       <KanbanBoard
         title="Anecdotal Records"
         icon={<FileText size={14} aria-hidden="true" />}
+        description={
+          category
+            ? `Showing ${CATEGORY_META[category].label} records only — clear the filter to see every record.`
+            : "Every anecdotal record filed this term. Search by name or LRN, or open a record to read it."
+        }
         actions={
-          <div className={styles.search}>
-            <Search className={styles.searchIcon} aria-hidden />
-            <Input
-              type="search"
-              placeholder="Search LRN or name"
-              value={query}
-              onChange={(e) => {
-                setQuery(e.target.value);
-                setPage(1);
-              }}
-              aria-label="Search students"
-              className={`${styles.searchInput} rounded-[16px]`}
-              style={{ height: "2rem" }}
-            />
+          <div className={styles.actions}>
+            {category ? (
+              <button
+                type="button"
+                className={styles.filterChip}
+                onClick={() => onClearCategory?.()}
+                aria-label={`Clear ${CATEGORY_META[category].label} filter`}
+              >
+                <span
+                  className={styles.filterSwatch}
+                  style={{ background: CATEGORY_META[category].color }}
+                  aria-hidden
+                />
+                {CATEGORY_META[category].label}
+                <X size={12} aria-hidden />
+              </button>
+            ) : null}
+            <div className={styles.search}>
+              <Search className={styles.searchIcon} aria-hidden />
+              <Input
+                type="search"
+                placeholder="Search LRN or name"
+                value={query}
+                onChange={(e) => {
+                  setQuery(e.target.value);
+                  setPage(1);
+                }}
+                aria-label="Search students"
+                className={`${styles.searchInput} rounded-[16px]`}
+                style={{ height: "2rem" }}
+              />
+            </div>
           </div>
         }
         ariaLabel="Anecdotal records"
@@ -133,7 +178,6 @@ export function RecordsHeatblocks() {
                     metaText={s.section}
                     metaLabel="Section"
                     metaTone="amber"
-                    layout="folder-left"
                     fileName={rec.date}
                     fileTag={`${humanizeCategory(rec.category)} • ${rec.severity}`}
                     openLabel={`${s.name}, LRN ${s.lrn}, ${CATEGORY_META[rec.category].label} report from ${rec.date}`}

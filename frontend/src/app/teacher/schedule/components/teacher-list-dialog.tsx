@@ -113,7 +113,7 @@ export function TeacherListDialog({
                   {t.name}
                 </span>
                 <span className={kanbanStyles.meta}>
-                  <span className="shrink-0 rounded-full border border-border bg-muted/40 px-1.5 font-mono text-[10px] text-muted-foreground">
+                  <span className="shrink-0 rounded-full border border-border bg-muted/40 px-1.5 font-mono text-[12px] text-muted-foreground">
                     {t.code ?? "—"}
                   </span>
                 </span>

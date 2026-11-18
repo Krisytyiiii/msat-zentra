@@ -82,7 +82,7 @@ export function ScheduleTemplateGrid({
             }
             return (
               <tr key={`period-${row.periodIndex}`}>
-                <th scope="row" className="border-t p-2 text-left text-[11px] font-medium whitespace-normal break-words text-muted-foreground">
+                <th scope="row" className="border-t p-2 text-left text-[12px] font-medium whitespace-normal break-words text-muted-foreground">
                   {formatRange(row.startMin, row.endMin)}
                 </th>
                 {DAYS.map((day) => {
@@ -132,7 +132,7 @@ export function ScheduleTemplateGrid({
                                 </Pill>
                               </span>
                               <span
-                                className="truncate text-[11px] text-muted-foreground"
+                                className="truncate text-[12px] text-muted-foreground"
                                 title={teacherName}
                               >
                                 {teacherName}
@@ -235,7 +235,7 @@ export function ScheduleTemplateGrid({
                                 type="button"
                                 onClick={() => onClear(day, row.periodIndex)}
                                 disabled={saving}
-                                className="self-end text-[11px] text-muted-foreground underline-offset-4 hover:underline disabled:opacity-50"
+                                className="self-end text-[12px] text-muted-foreground underline-offset-4 hover:underline disabled:opacity-50"
                               >
                                 Clear
                               </button>

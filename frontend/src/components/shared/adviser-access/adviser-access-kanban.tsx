@@ -23,7 +23,7 @@ function Dot({ className }: { className: string }) {
 
 function StatePill({ s }: { s: BoardStudent }) {
   const base =
-    "inline-flex items-center gap-1 rounded-md border px-1.5 py-0.5 text-[11px] font-medium";
+    "inline-flex items-center gap-1 rounded-md border px-1.5 py-0.5 text-[12px] font-medium";
   if (s.state === "approved")
     return (
       <span className={`${base} border-green-500/40 bg-green-500/15 text-green-700 dark:bg-green-500/20 dark:text-green-400`}>
@@ -95,7 +95,7 @@ function StudentCard({
             {s.name}
           </p>
           <span
-            className="inline-block w-fit min-w-0 max-w-full truncate rounded-md border border-border bg-secondary px-1.5 py-0.5 text-[10px] font-medium text-secondary-foreground"
+            className="inline-block w-fit min-w-0 max-w-full truncate rounded-md border border-border bg-secondary px-1.5 py-0.5 text-[12px] font-medium text-secondary-foreground"
             title={s.lrn}
           >
             {s.lrn}
@@ -107,7 +107,7 @@ function StudentCard({
         <StatePill s={s} />
         {s.state === "approved" && formatApproveDate(s.approvedAt) ? (
           <span
-            className="inline-flex items-center gap-1 rounded-md border border-amber-500/40 bg-amber-500/15 px-1.5 py-0.5 text-[11px] font-medium text-amber-700 dark:bg-amber-500/20 dark:text-amber-400"
+            className="inline-flex items-center gap-1 rounded-md border border-amber-500/40 bg-amber-500/15 px-1.5 py-0.5 text-[12px] font-medium text-amber-700 dark:bg-amber-500/20 dark:text-amber-400"
             title={`Approved ${new Date(s.approvedAt as string).toLocaleDateString("en-US", { month: "long", day: "numeric", year: "numeric" })}`}
           >
             <Calendar size={11} aria-hidden />
@@ -116,7 +116,7 @@ function StudentCard({
         ) : null}
         {showAdviser ? (
           <span
-            className="ml-auto min-w-0 truncate text-[11px] font-medium text-muted-foreground"
+            className="ml-auto min-w-0 truncate text-[12px] font-medium text-muted-foreground"
             title={`Requested by ${s.adviserName}`}
           >
             {s.adviserName}
@@ -129,7 +129,7 @@ function StudentCard({
 
 // Column bulk-action buttons — same solid tones as the per-card actions
 // they replace (emerald grant / red report), sized for the header row.
-const COL_BTN = "h-6 shrink-0 px-2 text-[11px] font-medium";
+const COL_BTN = "h-6 shrink-0 px-2 text-[12px] font-medium";
 const COL_GREEN_BTN = `${COL_BTN} border border-transparent bg-emerald-600 text-white hover:bg-emerald-700 focus-visible:ring-emerald-600/30 dark:bg-emerald-600 dark:text-white dark:hover:bg-emerald-700`;
 const COL_RED_BTN = `${COL_BTN} bg-red-600 text-white hover:bg-red-700 dark:bg-red-600 dark:hover:bg-red-700`;
 

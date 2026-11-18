@@ -43,7 +43,7 @@ export const LOCK_LABELS: Record<string, string> = {
 export const FLAG_LABELS: Record<string, string> = {
   academic: "Academic",
   attendance: "Attendance",
-  behavioral: "Behavioral",
+  behavioral: "Anecdotal",
 };
 
 export const REFERRAL_STATUS_LABELS: Record<string, string> = {

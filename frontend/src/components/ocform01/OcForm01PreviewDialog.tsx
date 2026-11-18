@@ -306,7 +306,7 @@ export function OcForm01PreviewDialog({
                     type="button"
                     variant="outline"
                     size="sm"
-                    className="h-6 px-2 text-[11px]"
+                    className="h-6 px-2 text-[12px]"
                     disabled={applying}
                     onClick={() => void handleApplySignature()}
                   >
@@ -328,7 +328,7 @@ export function OcForm01PreviewDialog({
                     type="button"
                     variant="ghost"
                     size="sm"
-                    className="h-6 px-2 text-[11px]"
+                    className="h-6 px-2 text-[12px]"
                     onClick={() => {
                       setSignError(null);
                       setSigning(true);
@@ -348,7 +348,7 @@ export function OcForm01PreviewDialog({
                   type="button"
                   variant="outline"
                   size="sm"
-                  className="h-6 px-2 text-[11px]"
+                  className="h-6 px-2 text-[12px]"
                   onClick={() => {
                     setSignError(null);
                     setSigning(true);
@@ -370,7 +370,7 @@ export function OcForm01PreviewDialog({
                   type="button"
                   variant="ghost"
                   size="sm"
-                  className={`h-6 px-2 text-[11px] ${confirmingRemove ? styles.dangerBtn : ""}`}
+                  className={`h-6 px-2 text-[12px] ${confirmingRemove ? styles.dangerBtn : ""}`}
                   onClick={() => void handleRemoveSignature()}
                   onBlur={() => setConfirmingRemove(false)}
                 >
@@ -392,7 +392,7 @@ export function OcForm01PreviewDialog({
                   type="button"
                   variant="outline"
                   size="sm"
-                  className="h-6 px-2 text-[11px]"
+                  className="h-6 px-2 text-[12px]"
                   disabled={deleting}
                   onClick={() => {
                     if (recordId) onEdit(recordId);
@@ -412,7 +412,7 @@ export function OcForm01PreviewDialog({
                   type="button"
                   variant="ghost"
                   size="sm"
-                  className={`h-6 px-2 text-[11px] ${confirmingDelete ? styles.dangerBtn : ""}`}
+                  className={`h-6 px-2 text-[12px] ${confirmingDelete ? styles.dangerBtn : ""}`}
                   disabled={deleting}
                   onClick={() => void handleDelete()}
                   onBlur={() => setConfirmingDelete(false)}
@@ -438,7 +438,7 @@ export function OcForm01PreviewDialog({
                 type="button"
                 variant="outline"
                 size="sm"
-                className="h-6 px-2 text-[11px]"
+                className="h-6 px-2 text-[12px]"
                 disabled={!detail || exporting !== null}
                 onClick={() => void handleSaveImage("png")}
                 aria-busy={exporting === "png" || undefined}
@@ -461,7 +461,7 @@ export function OcForm01PreviewDialog({
                 type="button"
                 variant="outline"
                 size="sm"
-                className="h-6 px-2 text-[11px]"
+                className="h-6 px-2 text-[12px]"
                 disabled={!detail || exporting !== null}
                 onClick={() => void handleSaveImage("jpg")}
                 aria-busy={exporting === "jpg" || undefined}
@@ -484,7 +484,7 @@ export function OcForm01PreviewDialog({
                 type="button"
                 variant="default"
                 size="sm"
-                className="h-6 px-2 text-[11px]"
+                className="h-6 px-2 text-[12px]"
                 disabled={!detail || exporting !== null}
                 onClick={() => void handleSavePdf()}
                 aria-busy={exporting === "pdf" || undefined}

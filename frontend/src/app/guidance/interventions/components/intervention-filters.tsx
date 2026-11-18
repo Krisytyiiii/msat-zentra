@@ -26,7 +26,7 @@ const FACTOR_OPTIONS: { value: FactorFilter; label: string }[] = [
   { value: "", label: "All reasons" },
   { value: "Academic", label: "Low grades" },
   { value: "Attendance", label: "Absences" },
-  { value: "Behavioral", label: "Behavior reports" },
+  { value: "Behavioral", label: "Anecdotal reports" },
 ];
 
 const FOLLOW_UP_OPTIONS: { value: FollowUpStatusFilter; label: string }[] = [

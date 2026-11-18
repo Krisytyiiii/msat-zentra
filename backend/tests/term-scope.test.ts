@@ -29,11 +29,15 @@ vi.mock("../src/lib/jwt.js", () => ({
     if (token === "principal-token") {
       return { sub: "principal-1", role: "principal", type: "access" };
     }
+    if (token === "nurse-token") {
+      return { sub: "nurse-1", role: "nurse", type: "access" };
+    }
     throw new Error("invalid token");
   },
 }));
 
 import {
+  invalidateTermScopeCache,
   resolveTermScope,
   scopedSchoolYearId,
   scopedTermId,
@@ -59,6 +63,9 @@ function fakeReq(init: {
 
 beforeEach(() => {
   vi.clearAllMocks();
+  // The resolved scope is memoized in-process (30 s) so a request no longer pays
+  // one pooler round trip just to learn the active term.
+  invalidateTermScopeCache();
   mocks.schoolYearFindFirst.mockResolvedValue(ACTIVE_YEAR);
   mocks.schoolYearFindUnique.mockResolvedValue(null);
   mocks.termFindUnique.mockResolvedValue(null);
@@ -66,7 +73,7 @@ beforeEach(() => {
 });
 
 describe("resolveTermScope role gating", () => {
-  it("ignores a client-selected term for non-teacher roles", async () => {
+  it("ignores a client-selected term for roles that do not steer the term", async () => {
     const req = fakeReq({
       query: { termId: "teacher-picked-term", schoolYearId: "teacher-picked-year" },
       headers: {
@@ -75,12 +82,30 @@ describe("resolveTermScope role gating", () => {
       },
     });
 
-    const scope = await resolveTermScope(req, "principal");
+    const scope = await resolveTermScope(req, "nurse");
 
     expect(scope?.termId).toBe("server-term");
     expect(scope?.schoolYearId).toBe("y-active");
     expect(mocks.termFindUnique).not.toHaveBeenCalled();
     expect(mocks.schoolYearFindUnique).not.toHaveBeenCalled();
+  });
+
+  it("honors the picked term for the principal (steers term via Settings)", async () => {
+    mocks.termFindUnique.mockResolvedValue({
+      id: "t-picked",
+      termNumber: 2,
+      startDate: null,
+      endDate: null,
+      schoolYearId: "y-picked",
+      schoolYear: { id: "y-picked", name: "SY 2025-2026" },
+    });
+
+    const scope = await resolveTermScope(
+      fakeReq({ headers: { "x-term-id": "t-picked" } }),
+      "principal",
+    );
+
+    expect(scope?.termId).toBe("t-picked");
   });
 
   it("still honors a teacher-selected term", async () => {
@@ -154,6 +179,75 @@ describe("resolveTermScope role gating", () => {
   });
 });
 
+describe("resolveTermScope memoization", () => {
+  it("resolves the server scope once and reuses it", async () => {
+    await resolveTermScope(fakeReq({}), "principal");
+    await resolveTermScope(fakeReq({}), "nurse");
+    await resolveTermScope(fakeReq({}), null);
+
+    expect(mocks.schoolYearFindFirst).toHaveBeenCalledTimes(1);
+  });
+
+  it("also resolves an addressed term once, keyed per term", async () => {
+    mocks.termFindUnique.mockResolvedValue({
+      id: "t-picked",
+      termNumber: 2,
+      startDate: null,
+      endDate: null,
+      schoolYearId: "y-picked",
+      schoolYear: { id: "y-picked", name: "SY 2025-2026" },
+    });
+
+    const first = await resolveTermScope(
+      fakeReq({ headers: { "x-term-id": "t-picked" } }),
+      "subject_teacher",
+    );
+    const second = await resolveTermScope(
+      fakeReq({ headers: { "x-term-id": "t-picked" } }),
+      "subject_teacher",
+    );
+
+    expect(first?.termId).toBe("t-picked");
+    expect(second?.termId).toBe("t-picked");
+    expect(mocks.termFindUnique).toHaveBeenCalledTimes(1);
+  });
+
+  it("shared a single in-flight lookup between parallel requests", async () => {
+    let release: (value: unknown) => void = () => {};
+    mocks.schoolYearFindFirst.mockReturnValue(
+      new Promise((resolve) => {
+        release = resolve;
+      }),
+    );
+
+    const pending = [
+      resolveTermScope(fakeReq({}), "principal"),
+      resolveTermScope(fakeReq({}), "principal"),
+      resolveTermScope(fakeReq({}), "principal"),
+    ];
+    release(ACTIVE_YEAR);
+    const scopes = await Promise.all(pending);
+
+    expect(scopes.map((s) => s?.termId)).toEqual(["server-term", "server-term", "server-term"]);
+    expect(mocks.schoolYearFindFirst).toHaveBeenCalledTimes(1);
+  });
+
+  it("re-reads after the cache is invalidated (new year / new terms)", async () => {
+    await resolveTermScope(fakeReq({}), "principal");
+    invalidateTermScopeCache();
+    mocks.schoolYearFindFirst.mockResolvedValue({
+      id: "y-next",
+      name: "SY 2027-2028",
+      terms: [{ id: "next-term", termNumber: 1, startDate: null, endDate: null }],
+    });
+
+    const scope = await resolveTermScope(fakeReq({}), "principal");
+
+    expect(scope?.termId).toBe("next-term");
+    expect(mocks.schoolYearFindFirst).toHaveBeenCalledTimes(2);
+  });
+});
+
 describe("scoped term helpers", () => {
   it("uses the attached request scope without touching the database", async () => {
     const req = fakeReq({});
@@ -207,14 +301,30 @@ describe("attachTermScope middleware", () => {
     return req;
   }
 
-  it("does not leak a teacher term header into a principal request", async () => {
+  it("does not leak a teacher term header into a non-steering desk request", async () => {
     const req = await run({
-      authorization: "Bearer principal-token",
+      authorization: "Bearer nurse-token",
       "x-term-id": "teacher-picked-term",
       "x-school-year-id": "teacher-picked-year",
     });
     expect(req.termScope?.termId).toBe("server-term");
     expect(mocks.termFindUnique).not.toHaveBeenCalled();
+  });
+
+  it("honors the picked term for a principal token", async () => {
+    mocks.termFindUnique.mockResolvedValue({
+      id: "t-picked",
+      termNumber: 3,
+      startDate: null,
+      endDate: null,
+      schoolYearId: "y-picked",
+      schoolYear: { id: "y-picked", name: "SY 2025-2026" },
+    });
+    const req = await run({
+      authorization: "Bearer principal-token",
+      "x-term-id": "t-picked",
+    });
+    expect(req.termScope?.termId).toBe("t-picked");
   });
 
   it("honors the term header for a teacher token", async () => {

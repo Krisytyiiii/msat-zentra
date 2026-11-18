@@ -11,6 +11,7 @@ import {
   Share2,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { FilterTabs } from "@/components/ui/filter-tabs";
 import { Pill, type PillTone } from "@/components/ui/pill";
 import { KanbanBoard } from "@/components/ui/kanban-board";
 import { InsightCallout } from "@/components/ui/insight-callout";
@@ -45,7 +46,7 @@ import {
   BookedMeetingInfoContent,
   type BookedMeetingInfo,
 } from "@/components/session-booking/BookedMeetingInfoPanel";
-import { buildInterpretation, isBookableRow } from "./coordinator-referrals-interpretation";
+import { isBookableRow } from "./coordinator-referrals-interpretation";
 import styles from "./coordinator-referrals-board.module.css";
 
 type StatusTabKey = "all" | "booked" | "need_review" | "endorsed";
@@ -186,27 +187,16 @@ export function CoordinatorReferralsBoard({
   );
 
   const statusTabs = (
-    <div className={styles.filterRow} role="tablist" aria-label="Filter cases by status">
-      {STATUS_TABS.map((t) => {
-        const active = statusTab === t.key;
-        return (
-          <button
-            key={t.key}
-            type="button"
-            role="tab"
-            aria-selected={active}
-            aria-pressed={active}
-            className={styles.filterButton}
-            onClick={() => setStatusTab(t.key)}
-          >
-            <Pill tone={active ? "blue" : "neutral"}>
-              {t.label}
-              <span className={styles.statusTabCount}>{counts[t.key]}</span>
-            </Pill>
-          </button>
-        );
-      })}
-    </div>
+    <FilterTabs
+      label="Filter cases by status"
+      options={STATUS_TABS.map((t) => ({
+        value: t.key,
+        label: t.label,
+        count: counts[t.key],
+      }))}
+      value={statusTab}
+      onChange={setStatusTab}
+    />
   );
 
   if (isInitialLoading) {
@@ -269,14 +259,6 @@ export function CoordinatorReferralsBoard({
       ariaLabel="ADM referrals"
       actions={filters}
       headerCenter={statusTabs}
-      footer={
-        !isPageLoading && filteredRows.length > 0 ? (
-          <InsightCallout className={styles.interpretation}>
-            <span className={styles.interpretationLabel}>What it means · </span>
-            {buildInterpretation(filteredRows)}
-          </InsightCallout>
-        ) : null
-      }
     >
       {isPageLoading ? (
         <CoordinatorReferralsCardsSkeleton rows={9} />
@@ -414,28 +396,6 @@ export function CoordinatorReferralsBoard({
                     onClick={(e) => e.stopPropagation()}
                     onKeyDown={(e) => e.stopPropagation()}
                   >
-                    {meeting === null ? (
-                      <Button
-                        size="sm"
-                        className="h-6 px-2 text-xs"
-                        disabled={bookingThis || !bookable}
-                        title={
-                          bookable
-                            ? "Book a parent meeting for this case"
-                            : closedRow
-                              ? "This referral was cancelled/resolved — meetings can no longer be booked"
-                              : "Meetings can only be booked before certification"
-                        }
-                        onClick={() => onBook(r)}
-                      >
-                        {bookingThis ? (
-                          <Loader2 className={styles.spin} aria-hidden="true" />
-                        ) : (
-                          <CalendarPlus className="size-3.5" aria-hidden="true" />
-                        )}
-                        {bookingThis ? "Booking…" : "Book schedule"}
-                      </Button>
-                    ) : null}
                     {meetingInfo !== null ? (
                       <Popover>
                         <TooltipProvider delayDuration={100}>
@@ -462,24 +422,55 @@ export function CoordinatorReferralsBoard({
                         </PopoverContent>
                       </Popover>
                     ) : null}
-                    <TooltipProvider delayDuration={100}>
-                      <Tooltip>
-                        <TooltipTrigger asChild>
-                          <Button
-                            variant="ghost"
-                            size="sm"
-                            className={styles.cardMenuBtn}
-                            aria-label={`Track case for ${r.student}`}
-                            onClick={() => onHistory(historyTargetFor(r))}
-                          >
-                            <History aria-hidden />
-                          </Button>
-                        </TooltipTrigger>
-                        <TooltipContent side="top" sideOffset={6}>
-                          Track case
-                        </TooltipContent>
-                      </Tooltip>
-                    </TooltipProvider>
+                    {meeting === null ? (
+                      <Button
+                        size="sm"
+                        className="h-6 px-2 text-xs"
+                        disabled={bookingThis || !bookable}
+                        title={
+                          bookable
+                            ? "Book a parent meeting for this case"
+                            : closedRow
+                              ? "This referral was cancelled/resolved — meetings can no longer be booked"
+                              : "Meetings can only be booked before certification"
+                        }
+                        onClick={() => onBook(r)}
+                      >
+                        {bookingThis ? (
+                          <Loader2 className={styles.spin} aria-hidden="true" />
+                        ) : (
+                          <CalendarPlus className="size-3.5" aria-hidden="true" />
+                        )}
+                        {bookingThis ? "Booking…" : "Book schedule"}
+                      </Button>
+                    ) : null}
+                    {meeting !== null && !meeting.attended && bookable ? (
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        className="h-6 px-2 text-xs"
+                        disabled={bookingThis}
+                        title="Move the booked parent meeting to a new date, time, or venue"
+                        onClick={() => onBook(r)}
+                      >
+                        {bookingThis ? (
+                          <Loader2 className={styles.spin} aria-hidden="true" />
+                        ) : (
+                          <CalendarClock className="size-3.5" aria-hidden="true" />
+                        )}
+                        {bookingThis ? "Rescheduling…" : "Reschedule"}
+                      </Button>
+                    ) : null}
+                    <Button
+                      size="sm"
+                      className="h-6 px-2 text-xs"
+                      aria-label={`Track case for ${r.student}`}
+                      title="Track case"
+                      onClick={() => onHistory(historyTargetFor(r))}
+                    >
+                      <History className="size-3.5" aria-hidden="true" />
+                      Track case
+                    </Button>
                   </div>
                 </div>
               </li>

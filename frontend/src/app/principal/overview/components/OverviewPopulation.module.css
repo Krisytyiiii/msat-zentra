@@ -68,7 +68,7 @@
 }
 
 .groupTotal {
-  font-size: 0.6875rem;
+  font-size: 0.75rem;
   color: var(--muted-foreground);
   font-variant-numeric: tabular-nums;
 }
@@ -112,7 +112,7 @@
 }
 
 .donutLabel {
-  font-size: 0.5rem;
+  font-size: 0.75rem;
   color: var(--muted-foreground);
   text-transform: uppercase;
   letter-spacing: 0.05em;

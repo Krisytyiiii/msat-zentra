@@ -13,16 +13,19 @@ export function AssignSkeleton() {
       aria-label="Loading sections"
       aria-busy="true"
     >
-      <div className={styles.toolbar} aria-hidden="true">
-        <div className={styles.toolbarText}>
+      <div className={styles.header} aria-hidden="true">
+        <div className={styles.headerText}>
           <Skeleton className={styles.skelTitle} />
           <Skeleton className={styles.skelDescription} />
         </div>
-        <Skeleton className={styles.skelFilter} />
-        <div className={styles.toolbarEnd}>
-          <Skeleton className={styles.skelButton} />
-        </div>
+        <Skeleton className={styles.skelButton} />
       </div>
+
+      <div className={styles.toolbar} aria-hidden="true">
+        <Skeleton className={styles.skelFilter} />
+        <Skeleton className={styles.skelSearch} />
+      </div>
+
       <div className={styles.grid} aria-hidden="true">
         {Array.from({ length: SKELETON_CARDS }).map((_, i) => (
           <div key={i} className={styles.card}>

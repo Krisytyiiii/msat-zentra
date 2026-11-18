@@ -105,7 +105,7 @@ export function KanbanBoard({
   return (
     <section aria-label={sectionLabel} className="flex min-w-0 flex-col gap-3">
       <div
-        className={`flex min-w-0 flex-col gap-2 rounded-xl border border-border p-2.5 ${className ?? ""}`}
+        className={`board-surface flex min-w-0 flex-col gap-2 rounded-xl border border-border bg-card p-2.5 ${className ?? ""}`}
         aria-label={boardLabel}
         style={style}
       >

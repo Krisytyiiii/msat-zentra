@@ -154,7 +154,7 @@
   justify-content: space-between;
   gap: 0.25rem 0.5rem;
   margin: 0;
-  font-size: 0.6875rem;
+  font-size: 0.75rem;
   color: var(--muted-foreground);
   font-variant-numeric: tabular-nums;
 }
@@ -165,7 +165,7 @@
   -webkit-line-clamp: 2;
   overflow: hidden;
   margin: 0;
-  font-size: 0.6875rem;
+  font-size: 0.75rem;
   line-height: 1.4;
   color: var(--destructive);
 }
@@ -181,7 +181,7 @@
 }
 
 .noForms {
-  font-size: 0.6875rem;
+  font-size: 0.75rem;
   font-style: italic;
   color: var(--muted-foreground);
   white-space: nowrap;
@@ -375,7 +375,7 @@
 .previewLabel {
   display: block;
   margin-bottom: 0.25rem;
-  font-size: 0.625rem;
+  font-size: 0.75rem;
   font-weight: 600;
   text-transform: uppercase;
   letter-spacing: 0.06em;

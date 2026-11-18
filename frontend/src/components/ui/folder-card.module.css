@@ -129,7 +129,7 @@
   background-color: #171717;
   box-shadow: 0 10px 20px rgb(0 0 0 / 0.3), inset 0 1px 1px rgb(255 255 255 / 0.2);
   color: #fafafa;
-  font-size: 0.625rem;
+  font-size: 0.75rem;
   font-weight: 700;
   line-height: 1.4;
   white-space: nowrap;
@@ -150,7 +150,7 @@
 }
 
 .counterText {
-  font-size: 7px;
+  font-size: 0.75rem;
   font-weight: 800;
   color: #fff;
   text-transform: capitalize;
@@ -158,7 +158,7 @@
 }
 
 .counterNumber {
-  font-size: 10px;
+  font-size: 0.75rem;
   font-weight: 900;
   color: #fff;
   text-shadow: 0 0 10px rgb(255 255 255 / 0.5);
@@ -297,7 +297,7 @@
 }
 
 .fileText {
-  font-size: 8px;
+  font-size: 0.75rem;
   color: #fff;
   padding: 9px;
   padding-right: 22px;
@@ -317,7 +317,7 @@
   right: 8px;
   background: rgb(0 0 0 / 0.5);
   color: rgb(255 255 255 / 0.9);
-  font-size: 6px;
+  font-size: 0.75rem;
   font-weight: 700;
   padding: 2px 5px;
   border-radius: 3px;
@@ -386,7 +386,7 @@
 }
 
 .captionName {
-  font-size: 0.6875rem;
+  font-size: 0.75rem;
   font-weight: 600;
   color: var(--primary);
   white-space: nowrap;
@@ -396,7 +396,7 @@
 }
 
 .captionSub {
-  font-size: 0.6875rem;
+  font-size: 0.75rem;
   color: var(--muted-foreground);
   font-family: var(--font-mono, ui-monospace, monospace);
   font-variant-numeric: tabular-nums;

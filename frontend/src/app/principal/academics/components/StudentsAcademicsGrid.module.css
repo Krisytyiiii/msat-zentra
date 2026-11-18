@@ -1,64 +1,37 @@
-/* Orchestrator layout: either the full section board or one section's roster.
-   Views are keyed by React, so each one plays its own entrance on swap. */
+/* Orchestrator layout: header + summary + toolbar + section board, or one
+   section's roster. Views are keyed by React, so each one plays its own
+   entrance on swap. */
 
 .section {
   display: flex;
   flex-direction: column;
-  gap: 1.25rem;
+  gap: 1rem;
   min-width: 0;
 }
 
 .gridAnchor,
 .detail {
+  display: flex;
+  flex-direction: column;
+  gap: 0.875rem;
   min-width: 0;
   /* Leave room for the shell header when scrolling the swapped view in. */
   scroll-margin-top: 6rem;
 }
 
 .gridAnchor {
-  animation: view-in 0.45s cubic-bezier(0.16, 1, 0.3, 1) backwards;
+  animation: view-in 0.4s cubic-bezier(0.16, 1, 0.3, 1) backwards;
 }
 
 .detail {
-  display: flex;
-  flex-direction: column;
   gap: 1rem;
-  animation: view-in 0.5s cubic-bezier(0.16, 1, 0.3, 1) backwards;
+  animation: view-in 0.45s cubic-bezier(0.16, 1, 0.3, 1) backwards;
 }
 
 @keyframes view-in {
   from {
     opacity: 0;
-    transform: translateY(12px) scale(0.995);
-  }
-  to {
-    opacity: 1;
-    transform: translateY(0) scale(1);
-  }
-}
-
-/* ---- Detail toolbar: back to the board (left) + where you are (centered) */
-.detailBar {
-  display: grid;
-  grid-template-columns: 1fr auto 1fr;
-  align-items: center;
-  gap: 0.5rem 0.75rem;
-  min-width: 0;
-  padding-inline: 0.25rem;
-  animation: view-bar-in 0.45s cubic-bezier(0.16, 1, 0.3, 1) 0.06s backwards;
-}
-
-@media (max-width: 640px) {
-  .detailBar {
-    grid-template-columns: minmax(0, 1fr);
-    justify-items: start;
-  }
-}
-
-@keyframes view-bar-in {
-  from {
-    opacity: 0;
-    transform: translateY(-6px);
+    transform: translateY(8px);
   }
   to {
     opacity: 1;
@@ -66,9 +39,124 @@
   }
 }
 
+/* ---- Page actions: compact 24px UI buttons ----------------------------- */
+
+.headerAction {
+  height: 1.5rem;
+  min-height: 1.5rem;
+  padding: 0 0.5rem;
+  gap: 0.3125rem;
+  font-size: 0.75rem;
+  border-radius: 0.375rem;
+}
+
+.headerAction svg {
+  width: 0.75rem;
+  height: 0.75rem;
+}
+
+/* ---- Section toolbar: result count on the left, search on the right ----- */
+
+.toolbar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.5rem 0.75rem;
+  min-width: 0;
+  padding: 0 0.25rem;
+}
+
+.toolbarSearch {
+  width: 100%;
+  max-width: 20rem;
+  background-color: var(--background);
+}
+
+.clearSearch {
+  display: inline-flex;
+  order: 2;
+  flex-shrink: 0;
+  align-items: center;
+  justify-content: center;
+  width: 1.5rem;
+  height: 1.5rem;
+  margin-right: 0.25rem;
+  border: 0;
+  border-radius: 9999px;
+  background: transparent;
+  color: var(--muted-foreground);
+  cursor: pointer;
+  outline: none;
+  transition: background-color 120ms ease-out, color 120ms ease-out;
+}
+
+.clearSearch:hover {
+  background-color: color-mix(in oklch, var(--muted) 80%, transparent);
+  color: var(--foreground);
+}
+
+.clearSearch:focus-visible {
+  box-shadow: 0 0 0 2px var(--ring);
+}
+
+.clearSearch svg {
+  width: 0.8125rem;
+  height: 0.8125rem;
+}
+
+.resultCount {
+  font-size: 0.75rem;
+  color: var(--muted-foreground);
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+
+@media (max-width: 640px) {
+  .toolbarSearch {
+    max-width: none;
+  }
+
+  .resultCount {
+    flex-basis: 100%;
+  }
+}
+
+/* ---- Roster detail bar -------------------------------------------------- */
+
+.detailBar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 0.5rem 0.75rem;
+  min-width: 0;
+  padding: 0 0 0.25rem;
+  animation: view-bar-in 0.4s cubic-bezier(0.16, 1, 0.3, 1) 0.05s backwards;
+}
+
+@keyframes view-bar-in {
+  from {
+    opacity: 0;
+    transform: translateY(-4px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.detailHead {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.5rem;
+  min-width: 0;
+}
+
 .backBtn {
-  justify-self: start;
+  flex-shrink: 0;
   gap: 0.375rem;
+  margin-top: -0.125rem;
 }
 
 .backBtn svg {
@@ -79,34 +167,49 @@
   transform: translateX(-2px);
 }
 
-.detailHint {
-  display: inline-flex;
-  align-items: center;
-  justify-self: center;
-  gap: 0.375rem;
-  margin: 0;
+.detailIdentity {
+  display: flex;
+  flex-direction: column;
+  gap: 0.125rem;
   min-width: 0;
+  padding-left: 0.375rem;
+  border-left: 1px solid var(--border);
+}
+
+.detailTitle {
+  margin: 0;
+  overflow: hidden;
+  font-size: 1.0625rem;
+  font-weight: 700;
+  line-height: 1.25;
+  letter-spacing: -0.01em;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.detailMeta {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.25rem 0.375rem;
+  margin: 0;
   font-size: 0.75rem;
   color: var(--muted-foreground);
+  font-variant-numeric: tabular-nums;
 }
 
-@media (max-width: 640px) {
-  .detailHint {
-    justify-self: start;
-  }
-}
-
-/* Roster filter rides the same row as the breadcrumb pills, pinned right. */
+/* Learner filter rides the same bar, pinned right. */
 .detailSearch {
-  justify-self: end;
   width: 100%;
-  max-width: 13rem;
+  max-width: 18rem;
+  margin-left: auto;
+  background-color: var(--background);
 }
 
 @media (max-width: 640px) {
   .detailSearch {
-    justify-self: start;
     max-width: none;
+    margin-left: 0;
   }
 }
 

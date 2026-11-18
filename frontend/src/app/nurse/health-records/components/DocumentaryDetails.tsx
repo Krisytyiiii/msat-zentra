@@ -203,7 +203,7 @@ export function DocumentaryDetails({
                     key={f.label}
                     className="flex min-w-0 flex-col gap-1 rounded-md border border-border bg-muted/30 p-2"
                   >
-                    <dt className="text-[11px] font-medium text-muted-foreground">
+                    <dt className="text-[12px] font-medium text-muted-foreground">
                       {f.label}
                     </dt>
                     <dd className="m-0 min-w-0">{f.value}</dd>

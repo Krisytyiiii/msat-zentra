@@ -140,7 +140,7 @@ export function describeConfig(next: DayConfig): { items: ConfigSaveItem[]; summ
 }
 
 const inputClass = "rounded-md border border-input bg-transparent px-2 py-1 font-sans text-sm";
-const FOOTER_BUTTON = "h-6 gap-1 px-2 font-sans text-[11px]";
+const FOOTER_BUTTON = "h-6 gap-1 px-2 font-sans text-[12px]";
 const APPLY_BUTTON =
   "border-input bg-white text-black hover:bg-neutral-100 hover:text-black dark:border-transparent dark:bg-white dark:text-black dark:hover:bg-neutral-200 dark:hover:text-black";
 
@@ -262,14 +262,14 @@ export function ScheduleConfigKanban({ config, onClose, onApply, saving }: Props
               type="button"
               onClick={() => setStep(i)}
               aria-current={active ? "step" : undefined}
-              className={`flex items-center gap-1.5 rounded-md border px-2 py-1 font-sans text-[11px] transition-colors duration-150 ${
+              className={`flex items-center gap-1.5 rounded-md border px-2 py-1 font-sans text-[12px] transition-colors duration-150 ${
                 active
                   ? "border-amber-500/60 bg-amber-500/10 text-foreground"
                   : "border-border text-muted-foreground hover:bg-accent hover:text-foreground"
               }`}
             >
               <span
-                className={`flex h-4 w-4 items-center justify-center rounded-full text-[10px] font-semibold ${
+                className={`flex h-4 w-4 items-center justify-center rounded-full text-[12px] font-semibold ${
                   active || done ? "bg-amber-500 text-black" : "bg-muted text-muted-foreground"
                 }`}
                 aria-hidden
@@ -626,7 +626,7 @@ export function ConfigDockRows({
                 ))}
               </span>
             </span>
-            <span className="shrink-0 pt-0.5 font-sans text-[11px] text-muted-foreground">
+            <span className="shrink-0 pt-0.5 font-sans text-[12px] text-muted-foreground">
               {status === "saved" ? "Saved" : status === "failed" ? "Failed" : "Saving…"}
             </span>
           </li>

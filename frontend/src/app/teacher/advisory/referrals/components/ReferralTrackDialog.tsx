@@ -220,11 +220,12 @@ export function ReferralTrackDialog({
               Track referral
             </h2>
             <span className="mt-1 flex min-w-0 max-w-full flex-wrap items-center gap-1">
-              <Pill tone="amber" label="Student" className="max-w-full overflow-hidden">
-                <span className="truncate" title={referral.studentName}>
-                  {referral.studentName}
-                </span>
-              </Pill>
+              <span
+                className="min-w-0 max-w-full truncate text-[13px] font-semibold text-foreground"
+                title={referral.studentName}
+              >
+                {referral.studentName}
+              </span>
               <Pill className="tabular-nums" label="LRN">
                 {referral.lrn}
               </Pill>
@@ -253,11 +254,11 @@ export function ReferralTrackDialog({
               Session {formatSessionShort(referral.bookedSession.scheduledAt)}
             </Pill>
           ) : null}
-          <span className="text-[11px] text-muted-foreground">to {deskNow}</span>
+          <span className="text-[12px] text-muted-foreground">to {deskNow}</span>
         </div>
 
         <div className="flex min-w-0 flex-col gap-1.5 px-1">
-          <p className="flex items-center gap-1.5 text-[11px] font-medium tracking-wide text-muted-foreground uppercase">
+          <p className="flex items-center gap-1.5 text-[12px] font-medium tracking-wide text-muted-foreground uppercase">
             <History size={14} aria-hidden />
             {isAdmTrack ? "Pipeline tracking" : "Case history"}
           </p>
@@ -274,7 +275,7 @@ export function ReferralTrackDialog({
                   className="flex min-w-0 flex-col gap-2 overflow-hidden rounded-xl border border-border bg-muted/60 p-2.5 dark:bg-muted/20"
                 >
                   <div className="-mx-2.5 flex min-w-0 items-center gap-1.5 border-b border-border px-3.5 pb-2">
-                    <span className="min-w-0 flex-1 truncate text-[11px] font-semibold">
+                    <span className="min-w-0 flex-1 truncate text-[12px] font-semibold">
                       Update {index + 1}
                     </span>
                     <Pill label="Logged">{formatDateTime(step.at ?? step.date)}</Pill>
@@ -287,7 +288,7 @@ export function ReferralTrackDialog({
                       {step.label}
                     </span>
                     {step.detail ? (
-                      <span className="block min-w-0 break-all text-[11px] leading-snug text-muted-foreground">
+                      <span className="block min-w-0 break-all text-[12px] leading-snug text-muted-foreground">
                         {step.detail}
                       </span>
                     ) : null}

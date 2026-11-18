@@ -3,7 +3,6 @@
 import * as React from "react";
 import { Download, FileText, Loader2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { Pill } from "@/components/ui/pill";
 import type { AdmMonitoringCase } from "@/services/teacher/admMonitoring.service";
 
 const dateLabel = (iso: string | null) => {
@@ -203,67 +202,42 @@ export function MonitoringReport({ data }: { data: AdmMonitoringCase }) {
   };
 
   return (
-    <section className="flex min-w-0 flex-col gap-3" aria-label="Monitoring report">
-      <header className="flex items-center gap-2">
-        <span className="inline-flex min-w-0 flex-1 items-center gap-1.5 text-[13px] font-semibold text-muted-foreground">
-          <FileText size={13} aria-hidden />
-          <span className="truncate">Monitoring report</span>
-        </span>
-        <span className="flex shrink-0 items-center gap-2">
-          <Button
-            type="button"
-            variant="outline"
-            className="h-6 px-2 text-[11px]"
-            onClick={() => void handleDownload()}
-            disabled={downloading}
-            aria-busy={downloading || undefined}
-          >
-            {downloading ? (
-              <Loader2 size={12} className="animate-spin" aria-hidden />
-            ) : (
-              <Download size={12} aria-hidden />
-            )}
-            Download PDF
-          </Button>
-          <span className="text-xs font-semibold tabular-nums text-muted-foreground">
-            {progress.submitted}/{progress.total} submitted
-          </span>
-        </span>
+    <section
+      className="flex min-w-0 flex-col gap-3 rounded-md border bg-card p-4"
+      aria-label="Monitoring report"
+    >
+      <header className="flex min-w-0 items-center gap-1.5">
+        <FileText size={15} className="shrink-0 text-muted-foreground" aria-hidden />
+        <h2 className="m-0 truncate text-sm font-bold tracking-[-0.01em] text-foreground">
+          Monitoring report
+        </h2>
       </header>
 
-      <div className="grid grid-cols-2 gap-2">
-        {[
-          { label: "Learner", value: header.studentName },
-          {
-            label: "Section · Grade",
-            value: `${header.section} · ${header.gradeLevel.replace("G", "Grade ")}`,
-          },
-          { label: "Monitoring since", value: dateLabel(header.monitoringSince) ?? "—" },
-        ].map(({ label, value }) => (
-          <div
-            key={label}
-            className="flex min-w-0 flex-col items-center gap-1 rounded-md border bg-background px-3 py-2 text-center"
-          >
-            <p className="m-0 text-[11px] font-medium uppercase tracking-wide text-muted-foreground">
-              {label}
-            </p>
-            <p
-              className="m-0 w-full truncate text-xs font-bold text-foreground"
-              title={value}
-            >
-              {value}
-            </p>
-          </div>
-        ))}
-        <div className="flex min-w-0 flex-col items-center gap-1 rounded-md border bg-background px-3 py-2 text-center">
-          <p className="m-0 text-[11px] font-medium uppercase tracking-wide text-muted-foreground">
-            LRN
-          </p>
-          <Pill tone="neutral" label="LRN" className="tabular-nums">
-            {header.lrn}
-          </Pill>
-        </div>
-      </div>
+      <p className="m-0 text-[12px] text-muted-foreground">
+        A printable summary of this case: module progress, links, devices issued and parent
+        meetings held.
+      </p>
+
+      <Button
+        type="button"
+        variant="outline"
+        className="h-8 w-full justify-center px-2.5 text-xs"
+        onClick={() => void handleDownload()}
+        disabled={downloading}
+        aria-busy={downloading || undefined}
+      >
+        {downloading ? (
+          <Loader2 size={13} className="animate-spin" aria-hidden />
+        ) : (
+          <Download size={13} aria-hidden />
+        )}
+        {downloading ? "Preparing report…" : "Download PDF report"}
+      </Button>
+
+      <p className="m-0 text-center text-[12px] tabular-nums text-muted-foreground">
+        {progress.submitted}/{progress.total} modules in · updated{" "}
+        {dateLabel(progress.lastSubmittedAt ?? null)}
+      </p>
     </section>
   );
 }

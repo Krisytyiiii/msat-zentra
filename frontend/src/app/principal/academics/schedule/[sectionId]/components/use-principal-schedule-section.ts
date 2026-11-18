@@ -3,7 +3,7 @@ import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useRef } from "react";
-import { Check, Clock, Inbox, Pencil } from "lucide-react";
+import { Check, Clock, Inbox, Pencil, Undo2 } from "lucide-react";
 import { apiClient } from "@/lib/api/client";
 import { toast } from "@/components/ui/sonner";
 import { useDock } from "@/components/dock/dock-store";
@@ -20,6 +20,7 @@ interface SubmissionEntry {
   teacherName: { id: string; name: string } | null;
   submittedAt: string | null;
   submitter: { fullName: string } | null;
+  reviewNote?: string | null;
 }
 interface Submission {
   id: string;
@@ -115,7 +116,23 @@ export function usePrincipalScheduleSection(sectionRef: string) {
   const entryByKey = new Map(
     (submission?.timetableEntries ?? []).map((e) => [`${e.day}:${e.period}`, e]),
   );
-  const submittedCount = (submission?.timetableEntries ?? []).filter((e) => e.status === "SUBMITTED").length;
+  const entries = submission?.timetableEntries ?? [];
+  const submittedCount = entries.filter((e) => e.status === "SUBMITTED").length;
+  const counts = {
+    total: entries.length,
+    submitted: submittedCount,
+    approved: entries.filter((e) => e.status === "APPROVED").length,
+    draft: entries.filter((e) => e.status === "DRAFT").length,
+  };
+  // Every cell the master teacher could still fill: 5 weekdays × the number of
+  // period rows in the day config (break rows are not slots).
+  const capacity =
+    rows.filter((row) => row.kind === "period").length * 5;
+  const emptyCount = Math.max(0, capacity - counts.total);
+  // A draft slot carrying a review note is a timetable this desk sent back, so
+  // the summary says so instead of the generic "draft".
+  const returnedNote =
+    entries.find((e) => e.status === "DRAFT" && e.reviewNote?.trim())?.reviewNote?.trim() ?? null;
   const handleReview = (decision: "approve" | "reject") => {
     if (!submission || review.isPending) return;
     if (decision === "reject" && !note.trim()) {
@@ -139,11 +156,13 @@ export function usePrincipalScheduleSection(sectionRef: string) {
   const statusVariant =
     submittedCount > 0
       ? "blue"
-      : (submission?.timetableEntries.length ?? 0) === 0
-        ? "gray"
-        : (submission?.timetableEntries ?? []).every((e) => e.status === "APPROVED")
-          ? "green"
-          : "red";
+      : returnedNote
+        ? "amber"
+        : counts.total === 0
+          ? "gray"
+          : counts.approved === counts.total
+            ? "green"
+            : "red";
   const statusMeta = {
     blue: {
       title: "Submitted",
@@ -172,6 +191,15 @@ export function usePrincipalScheduleSection(sectionRef: string) {
       icon: "text-red-500",
       Icon: Pencil,
     },
+    amber: {
+      title: "Returned",
+      message: "Sent back to the master teacher with your note.",
+      from: "#f59e0b",
+      to: "#d97706",
+      chip: "bg-amber-500/15",
+      icon: "text-amber-500",
+      Icon: Undo2,
+    },
     gray: {
       title: "Empty",
       message: "No timetable yet.",
@@ -190,6 +218,10 @@ export function usePrincipalScheduleSection(sectionRef: string) {
     rows,
     entryByKey,
     submittedCount,
+    counts,
+    capacity,
+    emptyCount,
+    returnedNote,
     review,
     note,
     setNote,
@@ -206,3 +238,4 @@ export function usePrincipalScheduleSection(sectionRef: string) {
   };
 }
 export type { Submission, SubmissionEntry };
+export type SlotFilter = "all" | "submitted" | "approved" | "draft";

@@ -1,23 +1,26 @@
 "use client";
 
 import { useQuery } from "@tanstack/react-query";
-import { OverviewShortcuts } from "@/components/registry/overview/OverviewShortcuts";
-import { OverviewKpiRail } from "@/components/registry/overview/OverviewKpiRail";
 import { Sf10AttachFeed } from "@/components/registry/overview/Sf10AttachFeed";
 import { FinalGradeApprovals } from "@/components/registry/overview/FinalGradeApprovals";
-import { OverviewGradeChart } from "@/components/registry/overview/OverviewGradeChart";
-import { Sf10RequestsChart } from "@/components/registry/overview/Sf10RequestsChart";
-import { fetchRecordKeeperOverview } from "@/services/registry/overview.service";
+import { RegistryAttentionDeck } from "@/components/registry/overview/RegistryAttentionDeck";
+import { RegistryGradePanel } from "@/components/registry/overview/RegistryGradePanel";
+import { RegistryRequestsPanel } from "@/components/registry/overview/RegistryRequestsPanel";
+import { RegistryRecordsLedger } from "@/components/registry/overview/RegistryRecordsLedger";
+import { registryOverviewQuery } from "@/components/registry/overview/registryOverviewQuery";
 import { PageEmptyCallout } from "@/components/shared/page-empty-callout";
 import styles from "./components/overview.module.css";
 
 export default function RecordKeeperOverviewPage() {
-  // Same key OverviewShortcuts reads, so this only observes its cache.
-  const { data } = useQuery({
-    queryKey: ["record-keeper-overview"],
-    queryFn: fetchRecordKeeperOverview,
-    staleTime: 30_000,
-  });
+  // Same key every widget reads, so this only observes the shared cache.
+  const { data } = useQuery(registryOverviewQuery("record-keeper"));
+
+  // The daily request series is pre-seeded with a zero row per day for the
+  // chart axis, so emptiness must look at activity, not row count.
+  const hasRequestActivity =
+    data?.sf10RequestsDaily.some(
+      (row) => row.pending + row.approved + row.reported + row.denied > 0,
+    ) ?? false;
 
   const isEmpty =
     !!data &&
@@ -25,13 +28,14 @@ export default function RecordKeeperOverviewPage() {
     data.pendingAdviserAccess === 0 &&
     data.lockedFinalsAwaiting === 0 &&
     data.latestAttachments.length === 0 &&
+    data.missingSf10.length === 0 &&
     data.pendingStudents.length === 0 &&
     data.finals.total === 0 &&
     data.sf10.total === 0 &&
     data.sections === 0 &&
     data.subjects === 0 &&
     data.rosterByGrade.reduce((sum, row) => sum + row.count, 0) === 0 &&
-    data.sf10RequestsDaily.length === 0;
+    !hasRequestActivity;
 
   if (isEmpty) {
     return (
@@ -46,21 +50,21 @@ export default function RecordKeeperOverviewPage() {
 
   return (
     <section className={styles.page}>
-      <div className={styles.layout}>
-        <div className={styles.stack}>
-          <OverviewShortcuts desk="record-keeper" variant="stats" />
+      <div className={styles.stack}>
+        <RegistryAttentionDeck desk="record-keeper" />
 
-          <div className={styles.duo}>
-            <Sf10AttachFeed desk="record-keeper" variant="kanban" />
-            <FinalGradeApprovals desk="record-keeper" variant="kanban" />
-          </div>
-
-          <div className={styles.duo}>
-            <OverviewGradeChart desk="record-keeper" variant="kanban" />
-            <Sf10RequestsChart desk="record-keeper" />
-          </div>
+        {/* Analytics first — where the band stands, then what needs filing. */}
+        <div className={styles.duo}>
+          <RegistryGradePanel desk="record-keeper" />
+          <RegistryRequestsPanel desk="record-keeper" />
         </div>
-        <OverviewKpiRail desk="record-keeper" />
+
+        <div className={styles.duo}>
+          <Sf10AttachFeed desk="record-keeper" variant="kanban" />
+          <FinalGradeApprovals desk="record-keeper" variant="kanban" />
+        </div>
+
+        <RegistryRecordsLedger desk="record-keeper" />
       </div>
     </section>
   );

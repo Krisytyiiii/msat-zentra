@@ -29,8 +29,14 @@ export const CACHE_TAGS = {
 /** Short TTLs for live dashboards/counts; long for static lookups. */
 export const CACHE_TTLS = {
   dashboard: 15,
-  /** Sidebar "new activity" queues — polled every 5s by the desks. */
-  counts: 4,
+  /**
+   * Sidebar "new activity" queues. The desks now poll these every 60s on a
+   * visible tab (realtime is the fast path), so the TTL has to cover most of
+   * that window — the old 4s value was tuned for a 5s poll and, after the
+   * polling was relaxed, every single poll missed and the cache saved nothing.
+   * Correctness still comes from tags + `x-zentra-fresh`, not from expiry.
+   */
+  counts: 30,
   list: 30,
   semiStatic: 300,
   lookup: 3600,

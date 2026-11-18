@@ -251,12 +251,12 @@ export function AdviserClaimGate() {
                         <span className="text-base font-semibold">{s.name}</span>
                         <span className="flex items-center gap-1.5">
                           {needsCode ? (
-                            <span className="rounded-full bg-amber-500/15 px-2.5 py-0.5 text-[11px] font-medium text-amber-700 dark:text-amber-400">
+                            <span className="rounded-full bg-amber-500/15 px-2.5 py-0.5 text-[12px] font-medium text-amber-700 dark:text-amber-400">
                               Code required
                             </span>
                           ) : null}
                           {s.suggested ? (
-                            <span className="rounded-full bg-primary/15 px-2.5 py-0.5 text-[11px] font-medium text-primary">
+                            <span className="rounded-full bg-primary/15 px-2.5 py-0.5 text-[12px] font-medium text-primary">
                               Listed under you
                             </span>
                           ) : null}

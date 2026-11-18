@@ -114,7 +114,7 @@ export function InterventionOutcomeDialog({
         )}
 
         <div className="rounded-[14px] border border-slate-200 p-3.5 dark:border-[#2f2f35]">
-          <p className="text-[11px] font-medium uppercase leading-[14px] tracking-[0.06em] text-slate-500 dark:text-[#a1a1aa]">
+          <p className="text-[12px] font-medium uppercase leading-[14px] tracking-[0.06em] text-slate-500 dark:text-[#a1a1aa]">
             To close
           </p>
           <div className="mt-2.5 flex flex-col gap-2.5">

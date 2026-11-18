@@ -131,7 +131,7 @@ export function LockGradesAdviseeCard({ row }: { row: LockGradesAdviseeRow }) {
                 <span className="truncate text-xs font-semibold" title={subject.subject}>
                   {subject.subject}
                 </span>
-                <div className="flex items-center justify-between gap-2 text-[11px] text-muted-foreground">
+                <div className="flex items-center justify-between gap-2 text-[12px] text-muted-foreground">
                   <span>
                     Computed{" "}
                     <span className="font-semibold tabular-nums text-foreground">

@@ -1,234 +1,310 @@
 "use client";
 
 import * as React from "react";
-import {
-  Bar,
-  BarChart,
-  CartesianGrid,
-  ReferenceLine,
-  XAxis,
-  YAxis,
-} from "recharts";
-import {
-  ChartContainer,
-  ChartLegend,
-  ChartLegendContent,
-  ChartTooltip,
-  ChartTooltipContent,
-  type ChartConfig,
-} from "@/components/ui/chart";
-import { KanbanBoard } from "@/components/ui/kanban-board";
-import { useTheme } from "@/components/providers";
-import { Skeleton } from "@/components/ui/skeleton";
-import { Pill } from "@/components/ui/pill";
-import { InsightCallout } from "@/components/ui/insight-callout";
 import { BookOpen } from "lucide-react";
+import { KanbanBoard } from "@/components/ui/kanban-board";
+import { Pill } from "@/components/ui/pill";
+import { Skeleton } from "@/components/ui/skeleton";
 import { PrincipalEmptyState } from "../../../../components/PrincipalEmptyCard";
 import {
-  ALL_GRADES,
   gradeSortKey,
   round1,
   type BackendSectionRow,
-} from "./types";
-import styles from "./academics.module.css";
+} from "./types";import styles from "./grade-trends.module.css";
+import boardStyles from "./academics.module.css";
 
-/* Amber subject palette — same accent family as the attendance and risk
-   boards. Dark themes use the lighter end so bars stay legible. */
-const AMBER_SHADES_LIGHT = [
-  "#b45309",
-  "#d97706",
-  "#ea8a0a",
-  "#f59e0b",
-  "#f0a93b",
-  "#f6c667",
-];
-
-const AMBER_SHADES_DARK = [
-  "#fde68a",
-  "#fcd34d",
-  "#fbbf24",
-  "#f59e0b",
-  "#d97706",
-  "#b45309",
-];
-
-type TrendRow = {
+type SubjectAvg = {
   subject: string;
-  [key: string]: string | number | null;
+  avg: number;
+  graded: number;
+  below: number;
 };
 
-type CellStat = { avg: number; graded: number; below: number };
+type GradeModel = {
+  grade: string;
+  sectionCount: number;
+  learnerCount: number;
+  subjects: SubjectAvg[];
+  /** Mean of every subject mark in the grade. */
+  overall: number;
+  belowSubjects: number;
+  marks: number;
+};
 
-function GradePillTabs({
-  grades,
-  gradeFilter,
-  onGradeFilterChange,
+/** The trend axis runs 50 → 100 so a 74 vs 82 gap is actually visible. */
+const AXIS_MIN = 50;
+const AXIS_MAX = 100;
+const PASSING = 75;
+
+function barHeight(avg: number): string {
+  const pct = ((avg - AXIS_MIN) / (AXIS_MAX - AXIS_MIN)) * 100;
+  return `${Math.min(100, Math.max(0, pct))}%`;
+}
+
+/**
+ * One model per grade level. Sections in scope are folded together so the row
+ * answers "how is G7 doing, subject by subject?" — the same question the
+ * attendance trends board answers per section.
+ */
+function buildModels(sections: BackendSectionRow[]): GradeModel[] {
+  const byGrade = new Map<
+    string,
+    {
+      sectionIds: Set<string>;
+      learnerIds: Set<string>;
+      subjects: Map<string, { sum: number; count: number; below: number }>;
+    }
+  >();
+
+  for (const section of sections) {
+    let entry = byGrade.get(section.grade);
+    if (!entry) {
+      entry = { sectionIds: new Set(), learnerIds: new Set(), subjects: new Map() };
+      byGrade.set(section.grade, entry);
+    }
+    entry.sectionIds.add(section.sectionId);
+    for (const student of section.students) {
+      if (student.subjects.length === 0) continue;
+      entry.learnerIds.add(student.studentId);
+      for (const mark of student.subjects) {
+        const cell = entry.subjects.get(mark.subject) ?? {
+          sum: 0,
+          count: 0,
+          below: 0,
+        };
+        cell.sum += mark.transmutedGrade;
+        cell.count += 1;
+        if (mark.transmutedGrade < PASSING) cell.below += 1;
+        entry.subjects.set(mark.subject, cell);
+      }
+    }
+  }
+
+  return [...byGrade.entries()]
+    .map(([grade, entry]) => {
+      const subjects: SubjectAvg[] = [...entry.subjects.entries()]
+        .map(([subject, cell]) => ({
+          subject,
+          avg: round1(cell.sum / cell.count),
+          graded: cell.count,
+          below: cell.below,
+        }))
+        .sort((a, b) => a.subject.localeCompare(b.subject));
+
+      const marks = subjects.reduce((sum, s) => sum + s.graded, 0);
+      const total = subjects.reduce((sum, s) => sum + s.avg * s.graded, 0);
+
+      return {
+        grade,
+        sectionCount: entry.sectionIds.size,
+        learnerCount: entry.learnerIds.size,
+        subjects,
+        overall: marks > 0 ? round1(total / marks) : 0,
+        belowSubjects: subjects.filter((s) => s.avg < PASSING).length,
+        marks,
+      };
+    })
+    .sort((a, b) => gradeSortKey(a.grade) - gradeSortKey(b.grade));
+}
+
+function GradeTrendRow({
+  model,
+  selectedSubject,
+  onSelectSubject,
 }: {
-  grades: string[];
-  gradeFilter: string;
-  onGradeFilterChange: (grade: string) => void;
+  model: GradeModel;
+  selectedSubject: string | null;
+  onSelectSubject: (subject: string | null) => void;
 }) {
+  const [hover, setHover] = React.useState<number | null>(null);
+
+  const hoverSubject = hover !== null ? model.subjects[hover] : null;
+  const hoverX =
+    hover !== null && model.subjects.length > 0
+      ? ((hover + 0.5) / model.subjects.length) * 100
+      : 50;
+
+  const weakest = model.subjects.length
+    ? model.subjects.reduce((worst, subject) =>
+        subject.avg < worst.avg ? subject : worst
+      )
+    : null;
+  const alert = model.belowSubjects > 0;
+
   return (
-    <div className={styles.filterRow} role="group" aria-label="Filter by grade level">
-      {[
-        { value: ALL_GRADES, label: "All grades" },
-        ...[...grades]
-          .sort((a, b) => gradeSortKey(a) - gradeSortKey(b))
-          .map((g) => ({ value: g, label: g })),
-      ].map((option) => {
-        const active = gradeFilter === option.value;
-        return (
-          <button
-            key={option.value}
-            type="button"
-            onClick={() => onGradeFilterChange(option.value)}
-            aria-pressed={active}
-            className={styles.filterButton}
-          >
-            <Pill tone={active ? "blue" : "neutral"} className={styles.filterPill}>
-              {option.label}
-            </Pill>
-          </button>
-        );
-      })}
+    <div className={`${styles.row} ${alert ? styles.rowAlert : ""}`}>
+      <span className={styles.colId}>
+        <span className={styles.name}>{model.grade}</span>
+        <span className={styles.metaRow}>
+          <Pill label="Sections in this grade level">
+            {model.sectionCount} section{model.sectionCount === 1 ? "" : "s"}
+          </Pill>
+          <Pill label="Learners with at least one grade">
+            {model.learnerCount} graded
+          </Pill>
+          <Pill label="Subjects with marks">
+            {model.subjects.length} subject
+            {model.subjects.length === 1 ? "" : "s"}
+          </Pill>
+        </span>
+      </span>
+
+      <span className={styles.colChart}>
+        {model.subjects.length > 0 ? (
+          <>
+            <span className={styles.plot} onMouseLeave={() => setHover(null)}>
+              <span className={styles.grid} aria-hidden="true">
+                <span
+                  className={styles.gridLine}
+                  style={{ bottom: "50%", borderTopColor: "var(--destructive)" }}
+                />
+              </span>
+
+              <span className={styles.bars}>
+                {model.subjects.map((subject, index) => {
+                  const selected = selectedSubject === subject.subject;
+                  return (
+                    <button
+                      key={subject.subject}
+                      type="button"
+                      className={`${styles.barSlot} ${
+                        hover === index ? styles.barSlotHover : ""
+                      } ${selected ? styles.barSlotSelected : ""}`}
+                      onMouseEnter={() => setHover(index)}
+                      onMouseLeave={() => setHover(null)}
+                      onFocus={() => setHover(index)}
+                      onBlur={() => setHover(null)}
+                      onClick={() =>
+                        onSelectSubject(selected ? null : subject.subject)
+                      }
+                      aria-pressed={selected}
+                      aria-label={`${subject.subject}: ${subject.avg} average, ${subject.graded} graded, ${subject.below} below ${PASSING}`}
+                    >
+                      <span
+                        className={`${styles.bar} ${
+                          subject.avg < PASSING ? styles.barLow : styles.barOkay
+                        }`}
+                        style={{ height: barHeight(subject.avg) }}
+                      />
+                    </button>
+                  );
+                })}
+              </span>
+
+              {hoverSubject ? (
+                <span
+                  className={`${styles.tip} ${hoverX > 82 ? styles.tipEnd : ""} ${
+                    hoverX < 18 ? styles.tipStart : ""
+                  }`}
+                  style={{ left: `${hoverX}%` }}
+                >
+                  <span className={styles.tipSubject}>{hoverSubject.subject}</span>
+                  <span className={styles.tipRows}>
+                    <span>
+                      Average <strong>{hoverSubject.avg}</strong>
+                    </span>
+                    <span>
+                      Graded <strong>{hoverSubject.graded}</strong>
+                    </span>
+                    <span>
+                      Below {PASSING} <strong>{hoverSubject.below}</strong>
+                    </span>
+                  </span>
+                  {hoverSubject.avg < PASSING ? (
+                    <span className={styles.tipNote}>Below passing</span>
+                  ) : null}
+                </span>
+              ) : null}
+            </span>
+            <span className={styles.labels} aria-hidden="true">
+              {model.subjects.map((subject) => (
+                <span
+                  key={subject.subject}
+                  className={styles.label}
+                  title={subject.subject}
+                >
+                  {subject.subject}
+                </span>
+              ))}
+            </span>
+            <span className={styles.axis} aria-hidden="true">
+              <span>{AXIS_MIN}</span>
+              <span className={styles.axisPass}>{PASSING} passing</span>
+              <span>{AXIS_MAX}</span>
+            </span>
+          </>
+        ) : (
+          <span className={styles.noChart}>No graded records yet</span>
+        )}
+      </span>
+
+      <span className={styles.colWeak}>
+        <span className={styles.colLabel}>Weakest subject</span>
+        {weakest ? (
+          <>
+            <span className={styles.weakRow}>
+              <strong>{weakest.subject}</strong>
+              <span className={styles.weakRate}>{weakest.avg}</span>
+            </span>
+            <span className={styles.weakTrack} aria-hidden="true">
+              <span
+                className={`${styles.weakFill} ${
+                  weakest.avg < PASSING ? styles.weakFillLow : ""
+                }`}
+                style={{ width: `${Math.min(100, Math.max(0, weakest.avg))}%` }}
+              />
+            </span>
+          </>
+        ) : (
+          <span className={styles.muted}>No subject marks yet</span>
+        )}
+      </span>
+
+      <span className={styles.colRate}>
+        <Pill
+          tone={model.overall > 0 && model.overall < PASSING ? "red" : "green"}
+          label="Grade average"
+          className={styles.ratePill}
+        >
+          {model.overall}
+        </Pill>
+        <span className={styles.rateHint}>
+          {model.subjects.length === 0
+            ? "No graded records yet"
+            : `${model.belowSubjects} of ${model.subjects.length} subject${
+                model.subjects.length === 1 ? "" : "s"
+              } below ${PASSING}`}
+        </span>
+      </span>
     </div>
   );
 }
 
 export function SubjectTrendChart({
   sections,
-  subjects,
-  grades,
-  gradeFilter,
-  onGradeFilterChange,
   isPending,
   selectedSubject,
   onSelectSubject,
 }: {
   sections: BackendSectionRow[];
-  subjects: string[];
-  grades: string[];
-  gradeFilter: string;
-  onGradeFilterChange: (grade: string) => void;
   isPending: boolean;
   selectedSubject: string | null;
   onSelectSubject: (subject: string | null) => void;
 }) {
-  const { resolvedTheme } = useTheme();
+  const models = React.useMemo(() => buildModels(sections), [sections]);
 
-  const activeGrades = React.useMemo(() => {
-    const inScope =
-      gradeFilter === ALL_GRADES
-        ? sections
-        : sections.filter((s) => s.grade === gradeFilter);
-    return (
-      gradeFilter === ALL_GRADES
-        ? grades
-        : grades.filter((g) => g === gradeFilter)
-    ).filter((g) => inScope.some((s) => s.grade === g));
-  }, [sections, grades, gradeFilter]);
+  const isEmpty =
+    !isPending && (models.length === 0 || !models.some((m) => m.marks > 0));
 
-  const series = React.useMemo(() => {
-    const shades =
-      resolvedTheme === "dark" ? AMBER_SHADES_DARK : AMBER_SHADES_LIGHT;
-    return activeGrades.map((grade, i) => ({
-      key: `g${i}`,
-      grade,
-      color: shades[i % shades.length],
-    }));
-  }, [activeGrades, resolvedTheme]);
-
-  const { chartData, detailByKey } = React.useMemo(() => {
-    const inScope =
-      gradeFilter === ALL_GRADES
-        ? sections
-        : sections.filter((s) => s.grade === gradeFilter);
-
-    const acc = new Map<
-      string,
-      Map<string, { sum: number; count: number; below: number }>
-    >();
-    for (const s of inScope) {
-      for (const st of s.students) {
-        for (const subj of st.subjects) {
-          let byGrade = acc.get(subj.subject);
-          if (!byGrade) {
-            byGrade = new Map();
-            acc.set(subj.subject, byGrade);
-          }
-          const entry = byGrade.get(s.grade) ?? { sum: 0, count: 0, below: 0 };
-          entry.sum += subj.transmutedGrade;
-          entry.count += 1;
-          if (subj.transmutedGrade < 75) entry.below += 1;
-          byGrade.set(s.grade, entry);
-        }
-      }
-    }
-
-    const detail: Record<string, CellStat> = {};
-    const rows: TrendRow[] = subjects.map((subj) => {
-      const row: TrendRow = { subject: subj };
-      const byGrade = acc.get(subj);
-      series.forEach((item) => {
-        const entry = byGrade?.get(item.grade);
-        if (entry && entry.count > 0) {
-          const avg = round1(entry.sum / entry.count);
-          row[item.key] = avg;
-          detail[`${subj}::${item.grade}`] = {
-            avg,
-            graded: entry.count,
-            below: entry.below,
-          };
-        } else {
-          row[item.key] = null;
-        }
-      });
-      return row;
-    });
-    return { chartData: rows, detailByKey: detail };
-  }, [sections, subjects, gradeFilter, series]);
-
-  const belowCount = React.useMemo(
-    () => Object.values(detailByKey).filter((d) => d.avg < 75).length,
-    [detailByKey]
-  );
-  const lowest = React.useMemo(() => {
-    let min: { key: string; stat: CellStat } | null = null;
-    for (const [key, stat] of Object.entries(detailByKey)) {
-      if (!min || stat.avg < min.stat.avg) min = { key, stat };
-    }
-    return min;
-  }, [detailByKey]);
-
-  const chartConfig = React.useMemo(() => {
-    const config: ChartConfig = {};
-    series.forEach((item) => {
-      config[item.key] = { label: item.grade, color: item.color };
-    });
-    return config;
-  }, [series]);
-
-  const hasData = chartData.some((row) =>
-    series.some((item) => row[item.key] != null)
-  );
-
-  const isEmpty = !isPending && !hasData;
   if (isEmpty) {
     return (
       <KanbanBoard
-        className={styles.emptyBoard}
+        className={boardStyles.emptyBoard}
         title="Subject Trends"
         icon={<BookOpen size={14} aria-hidden="true" />}
-        headerCenter={
-          <GradePillTabs
-            grades={grades}
-            gradeFilter={gradeFilter}
-            onGradeFilterChange={onGradeFilterChange}
-          />
-        }
-        ariaLabel="Subject trends"
+        ariaLabel="Subject trends by grade level"
       >
-        <div className={styles.emptyInsight}>
+        <div className={boardStyles.emptyInsight}>
           <PrincipalEmptyState
             icon={BookOpen}
             title="No graded records"
@@ -244,127 +320,43 @@ export function SubjectTrendChart({
     <KanbanBoard
       title="Subject Trends"
       icon={<BookOpen size={14} aria-hidden="true" />}
-      count={isPending ? undefined : subjects.length}
-      description={
-        gradeFilter === ALL_GRADES
-          ? "Average transmuted grade per subject, one bar per grade level — click a bar to rank its sections."
-          : `Average transmuted grade per subject for ${gradeFilter} — click a bar to rank its sections.`
-      }
-      headerCenter={
-        <GradePillTabs
-          grades={grades}
-          gradeFilter={gradeFilter}
-          onGradeFilterChange={onGradeFilterChange}
-        />
-      }
-      ariaLabel="Subject trends"
+      description={`One row per grade level — a bar per subject's average transmuted grade (axis runs 50–100, dashed line at 75). Click a subject bar to rank its sections below.`}
+      ariaLabel="Subject trends by grade level"
     >
       {isPending ? (
-        <div className={styles.chartBody} aria-hidden>
-          <Skeleton className={styles.chartSkel} />
-          <div className={styles.dotLegend}>
-            <Skeleton className="h-3 w-40" />
-          </div>
-          <InsightCallout>
-            <span className="block h-3 w-2/3 animate-pulse rounded-md bg-muted" />
-          </InsightCallout>
+        <div className={styles.list} aria-hidden="true">
+          {Array.from({ length: 4 }).map((_, i) => (
+            <Skeleton key={i} className={styles.skelRow} />
+          ))}
         </div>
       ) : (
-        <div className={styles.chartBody}>
-          <div className={styles.chartScroll}>
-            <div className={styles.chartInner}>
-              <ChartContainer
-                config={chartConfig}
-                className={styles.chartContainer}
-                style={{ height: 320, width: "100%", aspectRatio: "auto" }}
-              >
-            <BarChart
-              accessibilityLayer
-              data={chartData}
-              margin={{ top: 8, right: 8, bottom: 4, left: 0 }}
-              className={styles.chartClickable}
-              onClick={(state) => {
-                const label =
-                  state && typeof state.activeLabel === "string"
-                    ? state.activeLabel
-                    : null;
-                if (!label) return;
-                onSelectSubject(label === selectedSubject ? null : label);
-              }}
-            >
-              <CartesianGrid vertical={false} stroke="var(--border)" />
-              <XAxis
-                dataKey="subject"
-                tickLine={false}
-                axisLine={false}
-                tickMargin={8}
-                interval={0}
-                angle={-18}
-                textAnchor="end"
-                height={72}
-                tick={{ fontSize: 11 }}
-              />
-              <YAxis
-                domain={[50, 100]}
-                ticks={[50, 60, 70, 75, 80, 90, 100]}
-                tickLine={false}
-                axisLine={false}
-                width={36}
-              />
-              <ChartTooltip content={<ChartTooltipContent />} />
-              {series.length > 1 ? (
-                <ChartLegend
-                  verticalAlign="top"
-                  align="right"
-                  content={<ChartLegendContent />}
-                />
-              ) : null}
-              <ReferenceLine
-                y={75}
-                stroke="var(--destructive)"
-                strokeDasharray="6 4"
-                label={{
-                  value: "Passing (75)",
-                  position: "insideTopRight",
-                  fontSize: 11,
-                  fill: "var(--destructive)",
-                }}
-              />
-              {series.map((item) => (
-                <Bar
-                  key={item.key}
-                  dataKey={item.key}
-                  name={item.grade}
-                  fill={`var(--color-${item.key})`}
-                  radius={[4, 4, 0, 0]}
-                  maxBarSize={28}
-                />
-              ))}
-            </BarChart>
-              </ChartContainer>
-            </div>
-          </div>
-
-          <div className={styles.dotLegend} aria-label="Chart actions">
-            {selectedSubject ? (
-              <span className={styles.dotLegendSelected}>
-                Selected: {selectedSubject} (click again to clear)
+        <div className={styles.list}>
+          <div className={styles.rail} aria-hidden="true">
+            <span>Grade level</span>
+            <span className={styles.railChart}>
+              Subject averages
+              <span className={styles.railLegend}>
+                <span>
+                  <span className={`${styles.dot} ${styles.dotOkay}`} />
+                  At or above {PASSING}
+                </span>
+                <span>
+                  <span className={`${styles.dot} ${styles.dotLow}`} />
+                  Below {PASSING}
+                </span>
               </span>
-            ) : (
-              <span className={styles.dotLegendHint}>
-                Click any bar to rank its sections
-              </span>
-            )}
+            </span>
+            <span>Weakest subject</span>
+            <span className={styles.railRate}>Grade average</span>
           </div>
-
-          <InsightCallout>
-            <strong>What it means · </strong>
-            {belowCount === 0
-              ? "Every subject trend sits at or above 75 — clear."
-              : lowest
-                ? `${belowCount} grade–subject point${belowCount === 1 ? "" : "s"} below 75. Lowest: ${lowest.key.replace("::", " · ")} at ${lowest.stat.avg}.`
-                : `${belowCount} grade–subject points below 75.`}
-          </InsightCallout>
+          {models.map((model) => (
+            <GradeTrendRow
+              key={model.grade}
+              model={model}
+              selectedSubject={selectedSubject}
+              onSelectSubject={onSelectSubject}
+            />
+          ))}
         </div>
       )}
     </KanbanBoard>

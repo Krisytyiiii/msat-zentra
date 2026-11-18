@@ -210,14 +210,14 @@ export function TeacherDeleteConfirm({ teachers, onCancel, onConfirm }: ConfirmP
               <Button
                 onClick={onCancel}
                 variant="outline"
-                className="h-6 gap-1 px-2 font-sans text-[11px]"
+                className="h-6 gap-1 px-2 font-sans text-[12px]"
               >
                 <Undo2 size={12} aria-hidden />
                 Keep them
               </Button>
               <Button
                 onClick={onConfirm}
-                className="h-6 gap-1 border-transparent bg-red-600 px-2 font-sans text-[11px] text-white hover:bg-red-700 hover:text-white dark:border-transparent dark:bg-red-600 dark:text-white dark:hover:bg-red-700 dark:hover:text-white"
+                className="h-6 gap-1 border-transparent bg-red-600 px-2 font-sans text-[12px] text-white hover:bg-red-700 hover:text-white dark:border-transparent dark:bg-red-600 dark:text-white dark:hover:bg-red-700 dark:hover:text-white"
               >
                 <Trash2 size={12} aria-hidden />
                 {`Confirm delete${teachers.length === 1 ? "" : ` (${teachers.length})`}`}
@@ -262,11 +262,11 @@ export function TeacherDeleteDockRows({ rows }: { rows: TeacherDeleteRowState[] 
             <span className="truncate font-sans text-xs font-medium" title={r.name}>
               {r.name}
             </span>
-            <span className="truncate font-sans text-[11px] text-muted-foreground" title={r.code ?? "—"}>
+            <span className="truncate font-sans text-[12px] text-muted-foreground" title={r.code ?? "—"}>
               {r.code ?? "—"}
             </span>
           </span>
-          <span className="shrink-0 font-sans text-[11px] text-muted-foreground">
+          <span className="shrink-0 font-sans text-[12px] text-muted-foreground">
             {r.status === "deleted" ? "Deleted" : r.status === "failed" ? (r.message ?? "Failed") : "Deleting…"}
           </span>
         </li>

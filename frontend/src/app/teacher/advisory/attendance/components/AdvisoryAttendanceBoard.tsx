@@ -225,7 +225,7 @@ export function AdvisoryAttendanceBoard({
                             />
                           </div>
                         )}
-                        <p className="m-0 text-[11px] tabular-nums text-muted-foreground">
+                        <p className="m-0 text-[12px] tabular-nums text-muted-foreground">
                           {meetups === 0
                             ? "No meetups elapsed yet"
                             : `${attended} of ${meetups} meetup${meetups === 1 ? "" : "s"} present`}

@@ -266,8 +266,8 @@ function AccountApprovalsPageInner() {
         idLabel: s.lrn,
         idLabelClassName: "text-xs font-medium",
         meta: [
-          { label: formatSection(s.section), tone: "amber" as const, dot: false },
-          { label: formatGrade(s.gradeLevel), tone: "amber" as const, dot: false },
+          { label: formatSection(s.section), field: "section" as const, dot: false },
+          { label: formatGrade(s.gradeLevel), field: "grade" as const, dot: false },
           {
             label: formatRelativeTime(s.requestedAt),
             tone: "muted" as const,

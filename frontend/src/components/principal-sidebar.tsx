@@ -62,7 +62,7 @@ export const NAV: NavGroup[] = [
         icon: NAV_ICONS.academicHeatmap,
       },
       {
-        title: "Behavioral Records",
+        title: "Anecdotal Records",
         href: "/principal/risk/heatmaps/records",
         icon: NAV_ICONS.behavioralRecords,
       },

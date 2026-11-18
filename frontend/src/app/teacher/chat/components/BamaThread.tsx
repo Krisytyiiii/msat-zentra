@@ -204,7 +204,7 @@ export function BamaThread({
                     <Button
                       type="button"
                       variant="outline"
-                      className="h-6 px-2 text-[11px]"
+                      className="h-6 px-2 text-[12px]"
                       onClick={() => onStartChat(s.key)}
                     >
                       Start
@@ -219,7 +219,7 @@ export function BamaThread({
                 >
                   <span className="flex items-center justify-between gap-2">
                     <span
-                      className="truncate font-mono text-[11px] font-medium text-muted-foreground"
+                      className="truncate font-mono text-[12px] font-medium text-muted-foreground"
                       title={s.path}
                     >
                       {s.path}
@@ -276,7 +276,7 @@ export function BamaThread({
                       }
                     />
                     <div className={`${PICK_CARD} cursor-default`}>
-                      <span className="text-[11px] font-semibold tracking-wide text-muted-foreground uppercase">
+                      <span className="text-[12px] font-semibold tracking-wide text-muted-foreground uppercase">
                         Student
                       </span>
                       <span className="flex flex-wrap items-center gap-1.5">
@@ -287,7 +287,7 @@ export function BamaThread({
                       </span>
                     </div>
                     <div className={`${PICK_CARD} cursor-default`}>
-                      <span className="text-[11px] font-semibold tracking-wide text-muted-foreground uppercase">
+                      <span className="text-[12px] font-semibold tracking-wide text-muted-foreground uppercase">
                         Details
                       </span>
                       <span className="flex flex-wrap gap-1.5">
@@ -298,14 +298,14 @@ export function BamaThread({
                       </span>
                     </div>
                     <div className={`${PICK_CARD} cursor-default`}>
-                      <span className="text-[11px] font-semibold tracking-wide text-muted-foreground uppercase">
+                      <span className="text-[12px] font-semibold tracking-wide text-muted-foreground uppercase">
                         Incident
                       </span>
                       <span className="text-sm text-foreground">{m.preview.incident}</span>
                     </div>
                     {m.preview.notes ? (
                       <div className={`${PICK_CARD} cursor-default`}>
-                        <span className="text-[11px] font-semibold tracking-wide text-muted-foreground uppercase">
+                        <span className="text-[12px] font-semibold tracking-wide text-muted-foreground uppercase">
                           Notes
                         </span>
                         <span className="text-sm text-foreground">{m.preview.notes}</span>
@@ -314,7 +314,7 @@ export function BamaThread({
                     <div className="flex justify-end gap-2">
                       <Button
                         type="button"
-                        className="h-6 px-3 text-[11px]"
+                        className="h-6 px-3 text-[12px]"
                         disabled={flow.filing || !flow.canFile}
                         onClick={() => void flow.fileRecord()}
                       >
@@ -375,7 +375,7 @@ export function BamaThread({
                               }
                             />
                             <div className={`${PICK_CARD} cursor-default`}>
-                              <span className="text-[11px] font-semibold tracking-wide text-muted-foreground uppercase">
+                              <span className="text-[12px] font-semibold tracking-wide text-muted-foreground uppercase">
                                 Students
                               </span>
                               <span className="text-sm font-medium text-foreground">
@@ -383,14 +383,18 @@ export function BamaThread({
                               </span>
                             </div>
                             <div className={`${PICK_CARD} cursor-default`}>
-                              <span className="text-[11px] font-semibold tracking-wide text-muted-foreground uppercase">
+                              <span className="text-[12px] font-semibold tracking-wide text-muted-foreground uppercase">
                                 Names
                               </span>
                               <span className="flex flex-wrap gap-1.5">
                                 {m.sf10Preview.studentNames.slice(0, 8).map((n, i) => (
-                                  <Pill key={`${n}-${i}`} label="Student name">
+                                  <span
+                                    key={`${n}-${i}`}
+                                    className="min-w-0 max-w-full truncate text-[13px] font-semibold text-foreground"
+                                    title={n}
+                                  >
                                     {n}
-                                  </Pill>
+                                  </span>
                                 ))}
                                 {m.sf10Preview.studentNames.length > 8 ? (
                                   <Pill label="More students">
@@ -400,7 +404,7 @@ export function BamaThread({
                               </span>
                             </div>
                             <div className={`${PICK_CARD} cursor-default`}>
-                              <span className="text-[11px] font-semibold tracking-wide text-muted-foreground uppercase">
+                              <span className="text-[12px] font-semibold tracking-wide text-muted-foreground uppercase">
                                 Reason
                               </span>
                               <span className="text-sm text-foreground">{m.sf10Preview.reason}</span>
@@ -409,7 +413,7 @@ export function BamaThread({
                               <Button
                                 type="button"
                                 variant="outline"
-                                className="h-6 px-3 text-[11px]"
+                                className="h-6 px-3 text-[12px]"
                                 disabled={sf10Flow.submitting || !!active.filed}
                                 onClick={() => sf10Flow.editReason()}
                               >
@@ -417,7 +421,7 @@ export function BamaThread({
                               </Button>
                               <Button
                                 type="button"
-                                className="h-6 px-3 text-[11px]"
+                                className="h-6 px-3 text-[12px]"
                                 disabled={sf10Flow.submitting || !sf10Flow.canSubmit || !!active.filed}
                                 onClick={() => sf10Flow.submitRequest()}
                               >
@@ -784,7 +788,7 @@ export function BamaThread({
               <Button
                 type="button"
                 variant="outline"
-                className="h-6 px-2 text-[11px]"
+                className="h-6 px-2 text-[12px]"
                 onClick={sf10Flow.selectAll}
               >
                 Select all
@@ -913,7 +917,7 @@ export function BamaThread({
               <Button
                 type="button"
                 variant="outline"
-                className="h-6 px-2 text-[11px]"
+                className="h-6 px-2 text-[12px]"
                 onClick={autofillFlow.selectAllReady}
               >
                 Select ready
@@ -921,7 +925,7 @@ export function BamaThread({
               <Button
                 type="button"
                 variant="outline"
-                className="h-6 px-2 text-[11px]"
+                className="h-6 px-2 text-[12px]"
                 onClick={autofillFlow.clearPicks}
               >
                 Clear
@@ -1041,7 +1045,7 @@ export function BamaThread({
                   <div key={s.lrn} className={`${PICK_CARD} cursor-default`}>
                     <span className="flex min-w-0 items-center justify-between gap-2">
                       <span className={dialogStyles.pickerName}>{s.name}</span>
-                      <span className="shrink-0 text-[11px] font-medium text-muted-foreground">
+                      <span className="shrink-0 text-[12px] font-medium text-muted-foreground">
                         {s.ready
                           ? `${s.rows.length} subject${s.rows.length === 1 ? "" : "s"}`
                           : s.reason}
@@ -1068,7 +1072,7 @@ export function BamaThread({
                       </span>
                     ) : null}
                     {s.skipped.length > 0 ? (
-                      <span className="text-[11px] text-muted-foreground">
+                      <span className="text-[12px] text-muted-foreground">
                         Skipped: {s.skipped.map((k) => `${k.subject} (${k.reason})`).join("; ")}
                       </span>
                     ) : null}
@@ -1080,7 +1084,7 @@ export function BamaThread({
               <Button
                 type="button"
                 variant="outline"
-                className="h-6 px-3 text-[11px]"
+                className="h-6 px-3 text-[12px]"
                 disabled={autofillFlow.submitting}
                 onClick={autofillFlow.backToStudents}
               >
@@ -1088,7 +1092,7 @@ export function BamaThread({
               </Button>
               <Button
                 type="button"
-                className="h-6 px-3 text-[11px]"
+                className="h-6 px-3 text-[12px]"
                 disabled={!autofillFlow.canSubmit}
                 onClick={() => void autofillFlow.submit()}
               >

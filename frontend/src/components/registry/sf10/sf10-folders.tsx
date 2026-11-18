@@ -2,6 +2,7 @@
 
 import { AnecdotalRecordKanbanCard } from "@/components/anecdotal/anecdotal-record-kanban-card";
 import { FolderCard } from "@/components/ui/FolderCard";
+import { GitBranch, Paperclip } from "lucide-react";
 import {
   GRADE_LABEL,
   SF10_STATUS_LABEL,
@@ -33,6 +34,9 @@ function fileNameFor(url: string | null): string {
   return ext ? `SF10.${ext}` : "SF10 file";
 }
 
+const gradeText = (gradeLevel: Sf10Record["gradeLevel"]): string =>
+  gradeLevel ? (GRADE_LABEL[gradeLevel] ?? gradeLevel) : "—";
+
 export function Sf10FolderGrid({
   records,
   onOpen,
@@ -52,7 +56,7 @@ export function Sf10FolderGrid({
         >
           <FolderCard
             label={r.fullName}
-            sublabel={`${GRADE_LABEL[r.gradeLevel] ?? r.gradeLevel} · ${r.section}`}
+            sublabel={`${gradeText(r.gradeLevel)} · ${r.section}`}
             cornerTag={
               r.adviserAccess
                 ? `${SF10_STATUS_LABEL[r.status]} · Adviser access`
@@ -99,10 +103,10 @@ export function Sf10RecordKanbanGrid({
           headerTitle="SF10 Record"
           studentName={r.fullName}
           metaText={r.lrn}
-          metaTitle={`${r.lrn} · ${GRADE_LABEL[r.gradeLevel] ?? r.gradeLevel} · ${r.section}`}
+          metaTitle={`${r.lrn} · ${gradeText(r.gradeLevel)} · ${r.section}`}
           stackIdentity
           fileName={fileNameFor(r.uploadedFileUrl)}
-          fileTag={`${GRADE_LABEL[r.gradeLevel] ?? r.gradeLevel} · ${r.section} · v${r.currentVersion}`}
+          fileTag={`${gradeText(r.gradeLevel)} · ${r.section} · v${r.currentVersion}`}
           headerRight={
             <div className="flex items-center gap-1.5">
               {r.adviserAccess ? <AdviserAccessBadge /> : null}
@@ -114,6 +118,25 @@ export function Sf10RecordKanbanGrid({
           tone={3}
           openLabel={`Open ${r.fullName}'s SF10 record`}
           onOpen={() => onOpen(r)}
+          actions={
+            /* Attach + version control side by side: the file the desk holds
+               and the revision it is on, one glance per card. */
+            <span className="flex w-full min-w-0 items-center justify-between gap-2 border-t border-border pt-1.5 text-[12px] text-muted-foreground">
+              <span className="flex min-w-0 items-center gap-1">
+                <Paperclip size={11} className="shrink-0" aria-hidden />
+                <span className="truncate" title={fileNameFor(r.uploadedFileUrl)}>
+                  {fileNameFor(r.uploadedFileUrl)}
+                </span>
+              </span>
+              <span
+                className="flex shrink-0 items-center gap-1 rounded-md border border-border bg-muted/40 px-1.5 py-0.5 font-medium text-foreground"
+                title={`Version control v${r.currentVersion}`}
+              >
+                <GitBranch size={11} aria-hidden />
+                v{r.currentVersion}
+              </span>
+            </span>
+          }
         />
       ))}
     </div>

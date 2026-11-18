@@ -116,7 +116,7 @@ export function useAdminPresence() {
   return useQuery({
     queryKey: ["admin", "presence"],
     queryFn: fetchAdminPresence,
-    refetchInterval: 8_000,
+    refetchInterval: 30_000,
     staleTime: 0,
     refetchOnWindowFocus: true,
     refetchOnReconnect: true,

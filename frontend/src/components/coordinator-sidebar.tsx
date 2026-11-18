@@ -11,12 +11,19 @@ import { NAV_ICONS } from "./nav/sidebar-icons";
 import { SidebarIconRail } from "./nav/SidebarIconRail";
 import { CoordinatorSidebarReminder } from "./coordinator-sidebar-reminder";
 import { CoordinatorSidebarDeviceReminder } from "./coordinator-sidebar-device-reminder";
+import {
+  useCoordinatorNavDotInvalidation,
+  useCoordinatorNavDots,
+  type CoordinatorNavDots,
+} from "@/services/coordinator/navCounts.service";
 
 type NavItem = {
   title: string;
   href: string;
   icon: LucideIcon;
   badge?: string;
+  /** Red "new activity" dot pinned to the icon / tab label. */
+  dot?: boolean;
 };
 
 type NavGroup = {
@@ -46,7 +53,7 @@ const NAV: NavGroup[] = [
   {
     label: "Records",
     items: [
-      { title: "Certifications", href: "/coordinator/certifications", icon: NAV_ICONS.certifications },
+      { title: "Files", href: "/coordinator/files", icon: NAV_ICONS.certifications },
       { title: "Devices", href: "/coordinator/devices", icon: NAV_ICONS.devices },
     ],
   },
@@ -62,7 +69,25 @@ const NAV: NavGroup[] = [
   },
 ];
 
-const TABS: NavItem[] = NAV.flatMap((group) => group.items);
+/* Which live queue each nav entry watches. The dot comes from
+   `/api/adm/nav-counts`; a page with nothing unseen shows no dot. */
+const QUEUE_FOR_HREF: Record<string, keyof CoordinatorNavDots> = {
+  "/coordinator/overview": "overview",
+  "/coordinator/referrals": "referrals",
+  "/coordinator/enrolled": "enrolled",
+  "/coordinator/files": "certifications",
+  "/coordinator/devices": "devices",
+};
+
+function withDots(groups: NavGroup[], dots: CoordinatorNavDots): NavGroup[] {
+  return groups.map((group) => ({
+    ...group,
+    items: group.items.map((item) => ({
+      ...item,
+      dot: Boolean(QUEUE_FOR_HREF[item.href] && dots[QUEUE_FOR_HREF[item.href]]),
+    })),
+  }));
+}
 
 function useIsActive() {
   const pathname = usePathname();
@@ -92,6 +117,8 @@ function CoordinatorNavbar({ tabs }: { tabs: NavItem[] }) {
               >
                 <item.icon className={styles.tabIcon} aria-hidden="true" />
                 <span className={styles.tabLabel}>{item.title}</span>
+                {item.dot ? <span className={styles.dot} aria-hidden="true" /> : null}
+                {item.dot ? <span className="sr-only">New activity</span> : null}
                 {item.badge ? <span className={styles.badge}>{item.badge}</span> : null}
               </Link>
             </li>
@@ -123,6 +150,7 @@ function CoordinatorRail({ groups }: { groups: NavGroup[] }) {
           value: t.href,
           label: t.title,
           href: t.href,
+          dot: t.dot,
           icon: <t.icon size={16} strokeWidth={1.8} aria-hidden="true" />,
         })),
       }))}
@@ -143,8 +171,12 @@ export function CoordinatorSidebar({
   collapsed?: boolean;
 } = {}) {
   const isActive = useIsActive();
+  const dots = useCoordinatorNavDots();
+  useCoordinatorNavDotInvalidation(dots);
+  const nav = React.useMemo(() => withDots(NAV, dots), [dots]);
+  const tabs = React.useMemo(() => nav.flatMap((group) => group.items), [nav]);
   const activeHref =
-    TABS.find((t) => isActive(t.href))?.href ?? "/coordinator/overview";
+    tabs.find((t) => isActive(t.href))?.href ?? "/coordinator/overview";
 
   return (
     <>
@@ -154,14 +186,14 @@ export function CoordinatorSidebar({
       >
         {collapsed ? (
           <SidebarIconRail
-            groups={NAV}
+            groups={nav}
             ariaLabel="Coordinator sections, icon only"
             activeHref={activeHref}
           />
         ) : (
           <>
             <div className={styles.railScroll}>
-              <CoordinatorRail groups={NAV} />
+              <CoordinatorRail groups={nav} />
             </div>
             <div className={styles.reminderWrap}>
               <CoordinatorSidebarReminder />
@@ -171,7 +203,7 @@ export function CoordinatorSidebar({
         )}
       </aside>
       <div className={styles.tabsMobile}>
-        <CoordinatorNavbar tabs={TABS} />
+        <CoordinatorNavbar tabs={tabs} />
       </div>
     </>
   );

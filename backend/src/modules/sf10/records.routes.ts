@@ -110,17 +110,12 @@ router.post(
   async (req, res, next) => {
     try {
       if (!req.file) throw new AppError(400, "BAD_REQUEST", "SF10 file is required");
-      const rawGrade = typeof req.body.gradeLevel === "string" ? req.body.gradeLevel.trim().toUpperCase() : null;
-      const gradeLevel = rawGrade && /^[G]?(7|8|9|10|11|12)$/.test(rawGrade)
-        ? rawGrade.startsWith("G") ? rawGrade : `G${rawGrade}`
-        : null;
       const result = await uploadAuto(ctxOf(req), {
         file: {
           buffer: req.file.buffer,
           originalname: req.file.originalname,
           mimetype: req.file.mimetype,
         },
-        gradeLevel,
       });
       await invalidateTags(["registrar", "registrar-sf10", "registrar-overview", "record-keeper", "overview", "principal"]);
       res.status(201).json(result);

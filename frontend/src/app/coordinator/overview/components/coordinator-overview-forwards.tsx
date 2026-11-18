@@ -4,6 +4,7 @@ import * as React from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import {
+  ArrowRight,
   CalendarPlus,
   Clock,
   History,
@@ -13,7 +14,6 @@ import {
 import { Button } from "@/components/ui/button";
 import { InsightCallout } from "@/components/ui/insight-callout";
 import { Pill, type PillTone } from "@/components/ui/pill";
-import { KanbanBoard } from "@/components/ui/kanban-board";
 import { StudentMascot } from "@/components/student-mascot/StudentMascot";
 import { Skeleton } from "@/components/ui/skeleton";
 import {
@@ -46,13 +46,15 @@ interface CoordinatorOverviewForwardsProps {
   isRefetching: boolean;
   now: number;
   bookPendingId: string | null;
+  /** Total waiting count from the dashboard, when known. */
+  pendingTotal?: number | null;
   onRetry: () => void;
   onHistory: (target: HistoryTarget) => void;
   onBook: (row: AdmCaseRow) => void;
 }
 
 // Forwarding-desk mascots — the reviewer that handed the case off wears a
-// fixed sprite so the board reads at a glance (nurse → the nurse sprite,
+// fixed sprite so the queue reads at a glance (nurse → the nurse sprite,
 // guidance → owl, LRPC → scout); anything else falls back to the generic
 // postbot. The adviser keeps a deterministic sprite seeded off their name.
 const REVIEWER_MASCOT: Record<string, string> = {
@@ -120,11 +122,10 @@ function buildInterpretation(rows: AdmCaseRow[], now: number): React.ReactNode {
 }
 
 /**
- * Recent forwards board — a kanban board shell (icon + title + count +
- * description) over a grid of case cards instead of a data table. Each card
- * shows the three people in the hand-off: the learner (own sprite), the desk
- * that forwarded the case (nurse / guidance sprite), and the adviser who
- * prepared it (name-seeded sprite), plus status, elapsed time and latest action.
+ * Priority queue — the command center's working surface. One surface, one
+ * vertical list (never a card grid): each row shows the learner, where the
+ * case came from, its status, and the two actions the desk actually uses
+ * (book a meeting, track the case).
  */
 export function CoordinatorOverviewForwards({
   rows,
@@ -133,6 +134,7 @@ export function CoordinatorOverviewForwards({
   isRefetching,
   now,
   bookPendingId,
+  pendingTotal,
   onRetry,
   onHistory,
   onBook,
@@ -144,55 +146,55 @@ export function CoordinatorOverviewForwards({
   const start = (safePage - 1) * PAGE_SIZE;
   const pageRows = rows.slice(start, start + PAGE_SIZE);
   const isEmpty = !isPending && !isError && rows.length === 0;
+  const waiting = pendingTotal ?? rows.length;
 
   return (
-    <KanbanBoard
-      title="Recent forwards from Nurse / Guidance"
-      icon={
-        <span className="text-primary" aria-hidden>
-          <Share2 size={14} />
-        </span>
-      }
-      description="The freshest consultation hand-offs waiting for your learner profile."
-      ariaLabel="Recent ADM forwards"
-      actions={
-        <Button asChild size="sm" className="h-6 px-2 text-xs">
-          <Link href="/coordinator/referrals">See all</Link>
-        </Button>
-      }
-      footer={
-        !isPending && !isError && !isEmpty ? (
-          <div className={styles.footerSlot}>
-            <InsightCallout className={styles.interpretation}>
-              <span className={styles.interpretationLabel}>
-                What it means ·{" "}
-              </span>
-              {buildInterpretation(rows, now)}
-            </InsightCallout>
+    <section className={styles.queue} aria-label="Priority case queue">
+      <header className={styles.queueHead}>
+        <div className={styles.queueHeading}>
+          <span className={styles.queueIcon} aria-hidden="true">
+            <Share2 size={15} />
+          </span>
+          <div className={styles.queueTitleBlock}>
+            <h2 className={styles.queueTitle}>Needs you next</h2>
+            <p className={styles.queueSub}>
+              Consultation hand-offs from Nurse and Guidance waiting for your
+              learner profile.
+            </p>
           </div>
-        ) : null
-      }
-    >
+        </div>
+        <div className={styles.queueActions}>
+          <span className={styles.queueCount}>
+            <strong>{waiting}</strong> waiting
+          </span>
+          <Button
+            asChild
+            size="sm"
+            variant="outline"
+            className="h-7 px-2.5 text-xs"
+          >
+            <Link href="/coordinator/referrals">See all</Link>
+          </Button>
+        </div>
+      </header>
+
       {isPending ? (
-        <div className={styles.caseGrid} aria-busy="true" aria-hidden="true">
-          {[0, 1, 2, 3, 4, 5].map((i) => (
-            <div key={i} className={styles.skelCard}>
-              <div className={styles.skelHead}>
-                <Skeleton className={styles.skelAvatar} />
-                <div className={styles.skelId}>
-                  <Skeleton className={styles.skelLine} />
-                  <Skeleton className={styles.skelLineSm} />
-                </div>
+        <div className={styles.list} aria-busy="true" aria-hidden="true">
+          {[0, 1, 2, 3, 4].map((i) => (
+            <div key={i} className={styles.skelRow}>
+              <Skeleton className={styles.skelAvatar} />
+              <div className={styles.skelLines}>
+                <Skeleton className={styles.skelLine} />
+                <Skeleton className={styles.skelLineSm} />
               </div>
               <Skeleton className={styles.skelPill} />
-              <Skeleton className={styles.skelBlock} />
             </div>
           ))}
         </div>
       ) : isError ? (
         <div className={styles.errorBlock} role="alert">
           <p className={styles.errorText}>
-            We couldn&apos;t load the latest forwards — your KPIs above are
+            We couldn&apos;t load the latest forwards — your summary above is
             still current.
           </p>
           <Button
@@ -207,7 +209,7 @@ export function CoordinatorOverviewForwards({
             {isRefetching ? "Loading…" : "Try again"}
           </Button>
         </div>
-      ) : rows.length === 0 ? (
+      ) : isEmpty ? (
         <CoordinatorEmptyState
           icon={History}
           title="No pending forwards"
@@ -215,7 +217,7 @@ export function CoordinatorOverviewForwards({
         />
       ) : (
         <>
-          <ul className={styles.caseGrid} aria-label="Recent ADM forwards">
+          <ul className={styles.list} aria-label="Pending ADM forwards">
             {pageRows.map((r) => {
               const elapsed = msSinceDate(r.endorsedAt ?? r.datePrepared, now);
               const caseStatus = deriveAdmCaseStatus(
@@ -231,180 +233,175 @@ export function CoordinatorOverviewForwards({
                 r.referralStatus === "dismissed" ||
                 r.referralStatus === "resolved";
               const detailsHref = `/coordinator/referrals/${encodeURIComponent(toSlug(r.student))}`;
+              const lastAction = r.lastActionType
+                ? {
+                    label: friendlyActionType(r.lastActionType),
+                    at: r.lastActionAt,
+                  }
+                : latestActionFallback(r);
+              const lastMs =
+                lastAction?.at != null ? msSinceDate(lastAction.at, now) : null;
+
               return (
-                <li
-                  key={r.id}
-                  className={styles.caseCard}
-                  role="link"
-                  tabIndex={0}
-                  aria-label={`Open details for ${r.student}`}
-                  onClick={() => router.push(detailsHref)}
-                  onKeyDown={(e) => {
-                    if (e.key === "Enter" || e.key === " ") {
-                      e.preventDefault();
-                      router.push(detailsHref);
-                    }
-                  }}
-                >
-                  <div className={styles.caseHead}>
-                    <StudentMascot name={r.student} seed={r.lrn} size={36} />
-                    <div className={styles.caseId}>
-                      <p className={styles.caseName} title={r.student}>
-                        {r.student}
-                      </p>
-                      <p className={styles.caseLrn}>{r.lrn}</p>
-                    </div>
-                    <Pill
-                      tone={STATUS_TONE[admCaseStatusVariant(caseStatus.key)]}
-                      className="shrink-0 rounded-md"
-                      label="Status"
-                    >
-                      {caseStatus.label}
-                    </Pill>
-                  </div>
+                <li key={r.id} className={styles.item}>
+                  <div
+                    className={styles.row}
+                    role="link"
+                    tabIndex={0}
+                    aria-label={`Open details for ${r.student}`}
+                    onClick={() => router.push(detailsHref)}
+                    onKeyDown={(e) => {
+                      if (e.key === "Enter" || e.key === " ") {
+                        e.preventDefault();
+                        router.push(detailsHref);
+                      }
+                    }}
+                  >
+                    <span className={styles.avatar} aria-hidden="true">
+                      <StudentMascot name={r.student} seed={r.lrn} size={38} />
+                    </span>
 
-                  <div className={styles.caseMeta}>
-                    <Pill tone="red" label="Time elapsed">
-                      <Clock size={11} aria-hidden />
-                      {elapsed === null
-                        ? "—"
-                        : `${formatElapsedShort(elapsed)} ago`}
-                    </Pill>
-                    <Pill tone="neutral" label="Date referred">
-                      {r.endorsedAt
-                        ? r.endorsedAt.slice(0, 10)
-                        : (r.datePrepared ?? "—")}
-                    </Pill>
-                  </div>
-
-                  <div className={styles.caseChain}>
-                    <span className={styles.person}>
-                      <span className={styles.personMascot} aria-hidden="true">
-                        <StudentMascot name={r.preparedBy} size={24} />
+                    <div className={styles.identity}>
+                      <span className={styles.nameRow}>
+                        <span className={styles.name} title={r.student}>
+                          {r.student}
+                        </span>
+                        <Pill
+                          tone={STATUS_TONE[admCaseStatusVariant(caseStatus.key)]}
+                          className="shrink-0 rounded-md"
+                          label="Status"
+                        >
+                          {caseStatus.label}
+                        </Pill>
                       </span>
-                      <span className={styles.personText}>
-                        <span className={styles.personRole}>Adviser</span>
-                        <span className={styles.personName} title={r.preparedBy}>
+                      <span className={styles.lrn}>LRN {r.lrn}</span>
+                    </div>
+
+                    <div className={styles.route}>
+                      <span className={styles.chain}>
+                        <span className={styles.chainMascot} aria-hidden="true">
+                          <StudentMascot name={r.preparedBy} size={20} />
+                        </span>
+                        <span className={styles.chainName} title={r.preparedBy}>
                           {r.preparedBy}
                         </span>
-                      </span>
-                    </span>
-                    <span className={styles.chainArrow} aria-hidden>
-                      →
-                    </span>
-                    <span className={styles.person}>
-                      <span className={styles.personMascot} aria-hidden="true">
-                        <StudentMascot
-                          name={reviewer}
-                          character={reviewerMascot(r.consultReviewer)}
-                          size={24}
+                        <ArrowRight
+                          size={12}
+                          className={styles.chainArrow}
+                          aria-label="forwarded to"
                         />
+                        <span className={styles.chainMascot} aria-hidden="true">
+                          <StudentMascot
+                            name={reviewer}
+                            character={reviewerMascot(r.consultReviewer)}
+                            size={20}
+                          />
+                        </span>
+                        <span className={styles.chainName}>{reviewer}</span>
                       </span>
-                      <span className={styles.personText}>
-                        <span className={styles.personRole}>Forwarded by</span>
-                        <span className={styles.personName}>{reviewer}</span>
-                      </span>
-                    </span>
-                  </div>
-
-                  <div className={styles.caseFoot}>
-                    <span className={styles.latestAction}>
-                      {r.lastActionType ? (
-                        <>
-                          <span className={styles.latestMain}>
-                            {friendlyActionType(r.lastActionType)}
-                          </span>
-                          <span className={styles.latestAt} aria-live="off">
-                            {(() => {
-                              const ms = r.lastActionAt
-                                ? msSinceDate(r.lastActionAt, now)
-                                : null;
-                              return ms === null
+                      <span className={styles.latest}>
+                        {lastAction ? (
+                          <>
+                            <span className={styles.latestLabel}>Latest</span>
+                            <span className={styles.latestValue}>
+                              {lastAction.label}
+                            </span>
+                            <span className={styles.latestAt}>
+                              {lastMs === null
                                 ? "—"
-                                : `${formatElapsedShort(ms)} ago`;
-                            })()}
-                          </span>
-                        </>
-                      ) : (
-                        (() => {
-                          const fb = latestActionFallback(r);
-                          if (!fb) {
-                            return <span className={styles.latestMain}>—</span>;
-                          }
-                          const ms = msSinceDate(fb.at, now);
-                          return (
-                            <>
-                              <span className={styles.latestMain}>
-                                {fb.label}
-                              </span>
-                              <span className={styles.latestAt} aria-live="off">
-                                {ms === null
-                                  ? "—"
-                                  : `${formatElapsedShort(ms)} ago`}
-                              </span>
-                            </>
-                          );
-                        })()
-                      )}
-                    </span>
+                                : `${formatElapsedShort(lastMs)} ago`}
+                            </span>
+                          </>
+                        ) : (
+                          <span className={styles.latestAt}>No activity yet</span>
+                        )}
+                      </span>
+                    </div>
+
                     <div
-                      className={styles.caseActions}
+                      className={styles.end}
                       onClick={(e) => e.stopPropagation()}
                       onKeyDown={(e) => e.stopPropagation()}
                     >
-                      {r.meeting == null ? (
-                        <Button
-                          size="sm"
-                          className="h-6 px-2 text-xs"
-                          disabled={bookingThis || !bookable}
-                          title={
-                            bookable
-                              ? "Book a parent meeting for this case"
-                              : closedRow
-                                ? "This referral was cancelled/resolved — meetings can no longer be booked"
-                                : "Meetings can only be booked before certification"
-                          }
-                          onClick={() => onBook(r)}
-                        >
-                          {bookingThis ? (
-                            <Loader2 className={styles.spin} aria-hidden="true" />
-                          ) : (
-                            <CalendarPlus className="size-3.5" aria-hidden="true" />
-                          )}
-                          {bookingThis ? "Booking…" : "Book schedule"}
-                        </Button>
-                      ) : null}
-                      <TooltipProvider delayDuration={100}>
-                        <Tooltip>
-                          <TooltipTrigger asChild>
-                            <Button
-                              variant="ghost"
-                              size="sm"
-                              className={styles.cardMenuBtn}
-                              aria-label={`Track case for ${r.student}`}
-                              onClick={() => onHistory(historyTargetFor(r))}
-                            >
-                              <History aria-hidden />
-                            </Button>
-                          </TooltipTrigger>
-                          <TooltipContent side="top" sideOffset={6}>
-                            Track case
-                          </TooltipContent>
-                        </Tooltip>
-                      </TooltipProvider>
+                      <span className={styles.elapsed}>
+                        <Clock size={11} aria-hidden="true" />
+                        {elapsed === null
+                          ? "—"
+                          : `${formatElapsedShort(elapsed)} ago`}
+                      </span>
+                      <span className={styles.endActions}>
+                        {r.meeting == null ? (
+                          <Button
+                            size="sm"
+                            className="h-7 px-2 text-xs"
+                            disabled={bookingThis || !bookable}
+                            title={
+                              bookable
+                                ? "Book a parent meeting for this case"
+                                : closedRow
+                                  ? "This referral was cancelled/resolved — meetings can no longer be booked"
+                                  : "Meetings can only be booked before certification"
+                            }
+                            onClick={() => onBook(r)}
+                          >
+                            {bookingThis ? (
+                              <Loader2
+                                className={styles.spin}
+                                aria-hidden="true"
+                              />
+                            ) : (
+                              <CalendarPlus
+                                className="size-3.5"
+                                aria-hidden="true"
+                              />
+                            )}
+                            {bookingThis ? "Booking…" : "Book"}
+                          </Button>
+                        ) : null}
+                        <TooltipProvider delayDuration={100}>
+                          <Tooltip>
+                            <TooltipTrigger asChild>
+                              <Button
+                                variant="ghost"
+                                size="sm"
+                                className={styles.cardMenuBtn}
+                                aria-label={`Track case for ${r.student}`}
+                                onClick={() => onHistory(historyTargetFor(r))}
+                              >
+                                <History aria-hidden />
+                              </Button>
+                            </TooltipTrigger>
+                            <TooltipContent side="top" sideOffset={6}>
+                              Track case
+                            </TooltipContent>
+                          </Tooltip>
+                        </TooltipProvider>
+                      </span>
                     </div>
                   </div>
                 </li>
               );
             })}
           </ul>
-          <Pagination
-            currentPage={safePage}
-            totalItems={rows.length}
-            onPageChange={setPage}
-          />
+
+          {rows.length > PAGE_SIZE ? (
+            <Pagination
+              currentPage={safePage}
+              totalItems={rows.length}
+              onPageChange={setPage}
+            />
+          ) : null}
+
+          <div className={styles.footerSlot}>
+            <InsightCallout className={styles.interpretation}>
+              <span className={styles.interpretationLabel}>
+                What it means ·{" "}
+              </span>
+              {buildInterpretation(rows, now)}
+            </InsightCallout>
+          </div>
         </>
       )}
-    </KanbanBoard>
+    </section>
   );
 }

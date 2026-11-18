@@ -1,23 +1,21 @@
 "use client";
 
 import * as React from "react";
+import Link from "next/link";
 import { useQuery } from "@tanstack/react-query";
 import {
+  ArrowRight,
+  Award,
   BookOpenCheck,
-  CalendarCheck,
+  CalendarX,
+  FileSignature,
   GraduationCap,
   School,
+  ShieldAlert,
   Users,
   type LucideIcon,
 } from "lucide-react";
-import { KanbanBoardHeader } from "@/components/ui/kanban-board";
 import { Skeleton } from "@/components/ui/skeleton";
-import { StudentMascot } from "@/components/student-mascot/StudentMascot";
-import {
-  Tooltip,
-  TooltipContent,
-  TooltipTrigger,
-} from "@/components/ui/tooltip";
 import { useTerm } from "@/lib/term/TermContext";
 import { fetchOverview } from "@/services/principal/overview.service";
 import { CountUpNumber } from "./CountUpNumber";
@@ -26,20 +24,24 @@ import styles from "./PrincipalOverviewStats.module.css";
 interface StatItem {
   key: string;
   icon: LucideIcon;
+  /** Tile label — the metric name only, never the raw value. */
   title: string;
-  /** Tooltip label — describes the metric, deliberately never the number. */
-  label: string;
+  /** Unit under the number, uppercase like the registry stat deck. */
+  unit: string;
   value: number;
   hint: string;
-  /** Decorative sprite shown beside the number — pinned per metric. */
-  mascot: string;
+  /** Where the tile takes you — every number opens its source list. */
+  href: string;
+  /** Queues that need a decision feed the header's open-work badge. */
+  attention?: boolean;
 }
 
 /**
- * Top kanban strip of the principal overview — one number-first column per
- * school-health metric, mirroring the registry desk KPI boards
- * (OverviewShortcuts "stats" variant). Amber is the desk accent; the hover
- * tooltip carries the metric label only, never the raw value.
+ * Top KPI deck of the principal overview — one bordered strip with a tile per
+ * school-health metric and follow-up queue, same structure and micro-motion as
+ * the registry overview attention deck (header strip, divided tiles, number +
+ * unit + hint). Each tile is a link, so a non-technical reader can click a
+ * number and land on the list it came from.
  */
 export function PrincipalOverviewStats() {
   const { activeTerm } = useTerm();
@@ -55,50 +57,96 @@ export function PrincipalOverviewStats() {
       key: "enrollment",
       icon: GraduationCap,
       title: "Enrolled",
-      label: "Learners enrolled this school year",
+      unit: "learners",
       value: data?.kpis.enrollment ?? 0,
       hint: "Learners on the roll",
-      mascot: "owl",
+      href: "/principal/risk/students",
     },
     {
       key: "sections",
       icon: School,
       title: "Sections",
-      label: "Active sections this school year",
+      unit: "sections",
       value: data?.kpis.activeSections ?? 0,
       hint: "Active class sections",
-      mascot: "knight",
+      href: "/principal/academics",
     },
     {
       key: "teachers",
       icon: Users,
       title: "Teachers",
-      label: "Teaching staff assigned this term",
+      unit: "staff",
       value: data?.kpis.teachers ?? 0,
       hint: "Assigned teaching staff",
-      mascot: "scientist",
+      href: "/principal/academics/assign",
     },
     {
       key: "anecdotals",
       icon: BookOpenCheck,
       title: "Anecdotals",
-      label: "Anecdotal records filed this term",
+      unit: "records",
       value: data?.kpis.anecdotals ?? 0,
       hint: "Records filed this term",
-      mascot: "postbot",
+      href: "/principal/risk/heatmaps/records",
+    },
+    {
+      key: "risk",
+      icon: ShieldAlert,
+      title: "At-risk learners",
+      unit: "flagged",
+      value: data?.atRisk.students ?? 0,
+      hint: `${data?.riskByLevel.high ?? 0} high · ${data?.riskByLevel.moderate ?? 0} moderate`,
+      href: "/principal/risk/students",
+      attention: true,
+    },
+    {
+      key: "adm",
+      icon: FileSignature,
+      title: "ADM referrals",
+      unit: "waiting",
+      value: data?.admPending ?? 0,
+      hint: "Waiting on a principal decision",
+      href: "/principal/adm/referrals/all",
+      attention: true,
+    },
+    {
+      key: "attendance",
+      icon: CalendarX,
+      title: "Attendance watch",
+      unit: "sections",
+      value: data?.attendanceWatch ?? 0,
+      hint: "Sections below 80% attendance",
+      href: "/principal/risk/heatmaps/attendance",
+      attention: true,
+    },
+    {
+      key: "honor",
+      icon: Award,
+      title: "Honor roll",
+      unit: "qualifiers",
+      value: data?.honorRoll ?? 0,
+      hint: "Qualifiers this term",
+      href: "/principal/honor-roll",
     },
   ];
 
   if (isPending) {
     return (
-      <section className={styles.board} aria-busy="true" aria-label="School health loading">
-        <div className={styles.grid} style={{ ["--cols" as string]: items.length }}>
+      <section className={styles.deck} aria-busy="true" aria-label="School health loading">
+        <div className={styles.deckHead}>
+          <span className={styles.deckTitle}>
+            <Skeleton className="h-3.5 w-32" />
+          </span>
+        </div>
+        <div className={styles.tiles}>
           {items.map((s) => (
-            <div key={s.key} className={styles.column} aria-hidden="true">
-              <div className={styles.headSkeleton}>
-                <Skeleton className={styles.skelTitle} />
-              </div>
-              <Skeleton className={styles.skelStat} />
+            <div key={s.key} className={styles.tile} aria-hidden="true">
+              <span className={styles.tileTop}>
+                <Skeleton className={styles.skelIcon} />
+                <Skeleton className="h-3 w-20" />
+              </span>
+              <Skeleton className="h-7 w-12" />
+              <Skeleton className="h-3 w-24" />
             </div>
           ))}
         </div>
@@ -108,60 +156,58 @@ export function PrincipalOverviewStats() {
 
   if (isError) {
     return (
-      <section className={styles.board} aria-label="School health">
+      <section className={styles.deck} aria-label="School health">
+        <div className={styles.deckHead}>
+          <span className={styles.deckTitle}>
+            <School aria-hidden /> School at a glance
+          </span>
+        </div>
         <p className={styles.empty}>Could not load school health figures.</p>
       </section>
     );
   }
 
   return (
-    <section className={styles.board} aria-label="School health">
-      <div className={styles.grid} style={{ ["--cols" as string]: items.length }}>
+    <section className={styles.deck} aria-label="School health">
+      <div className={styles.deckHead}>
+        <span className={styles.deckTitle}>
+          <School aria-hidden /> School at a glance
+        </span>
+      </div>
+      <div className={styles.tiles}>
         {items.map((s) => {
           const Icon = s.icon;
           return (
-            <div
+            <Link
               key={s.key}
-              className={styles.column}
-              aria-label={`${s.title}: ${s.value}`}
+              href={s.href}
+              className={styles.tile}
+              aria-label={`${s.title}: ${s.value} ${s.unit} — open list`}
             >
-              <KanbanBoardHeader
-                icon={
-                  <Tooltip>
-                    <TooltipTrigger asChild>
-                      <span className={styles.icon} aria-hidden>
-                        <Icon size={14} />
-                      </span>
-                    </TooltipTrigger>
-                    {/* Hover reveals the metric label, never the raw value. */}
-                    <TooltipContent side="top" sideOffset={8}>
-                      {s.label}
-                    </TooltipContent>
-                  </Tooltip>
-                }
-                title={s.title}
-              />
-              <div className={styles.stat}>
-                <span className={styles.statTop}>
-                  <CountUpNumber
-                    className={`${styles.statNumber} ${
-                      s.value === 0 ? styles.statNumberZero : ""
-                    }`}
-                    value={s.value}
-                  />
-                  <span className={styles.statMascot} aria-hidden="true">
-                    <StudentMascot name={s.title} character={s.mascot} size={36} />
-                  </span>
+              <span className={styles.tileTop}>
+                <span className={styles.tileIcon} aria-hidden>
+                  <Icon size={13} />
                 </span>
-                <span className={styles.statHint}>{s.hint}</span>
-              </div>
-            </div>
+                <span className={styles.tileLabel}>{s.title}</span>
+                <ArrowRight className={styles.tileArrow} aria-hidden />
+              </span>
+              <span className={styles.tileValue}>
+                <CountUpNumber
+                  className={`${styles.tileNumber} ${
+                    s.value === 0 ? styles.tileNumberZero : ""
+                  }`}
+                  value={s.value}
+                />
+                <span className={styles.tileUnit}>{s.unit}</span>
+              </span>
+              <span className={styles.tileHint}>{s.hint}</span>
+            </Link>
           );
         })}
       </div>
-      <p className={styles.footnote}>
-        <CalendarCheck className={styles.footnoteIcon} aria-hidden />
-        Live for the active term — hover a column to read what it measures.
+      <p className={styles.deckFoot}>
+        Only learners whose section adviser has turned on data sharing are
+        counted here.
       </p>
     </section>
   );

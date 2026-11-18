@@ -7,7 +7,7 @@ import styles from "./guidance-heatmap-visual.module.css";
 const FACTORS = [
   { key: "academic", label: "Academic" },
   { key: "attendance", label: "Attendance" },
-  { key: "behavioral", label: "Behavioral" },
+  { key: "behavioral", label: "Anecdotal" },
 ] as const;
 
 const LEVELS = [

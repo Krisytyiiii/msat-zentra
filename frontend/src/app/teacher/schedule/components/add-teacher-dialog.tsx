@@ -81,13 +81,13 @@ export function AddTeacherDialog({
                   <span className={kanbanStyles.name} title={t.name}>
                     {t.name}
                     {t.linked ? (
-                      <span className="ml-1 text-[11px] font-medium text-green-600 dark:text-green-500">
+                      <span className="ml-1 text-[12px] font-medium text-green-600 dark:text-green-500">
                         · Linked
                       </span>
                     ) : null}
                   </span>
                   <span className={kanbanStyles.meta}>
-                    <span className="shrink-0 rounded-full border border-border bg-muted/40 px-1.5 font-mono text-[10px] text-muted-foreground">
+                    <span className="shrink-0 rounded-full border border-border bg-muted/40 px-1.5 font-mono text-[12px] text-muted-foreground">
                       {t.code ?? "—"}
                     </span>
                   </span>

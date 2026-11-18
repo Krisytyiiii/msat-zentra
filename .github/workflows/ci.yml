@@ -26,21 +26,19 @@ jobs:
           cache-dependency-path: backend/package-lock.json
       - run: npm ci
       - run: npx prisma generate
-      # Applies pending migrations to the live database on main pushes only
-      # (never on PRs — unreviewed migrations must not touch prod). Requires
-      # a `DATABASE_URL` repository secret (Settings > Secrets and variables
-      # > Actions) holding the pooler connection string. Fails loudly when
-      # the secret is missing so setup is never silently skipped.
-      - name: Deploy database migrations (main pushes only)
-        if: github.event_name == 'push' && github.ref == 'refs/heads/main'
-        run: |
-          if [ -z "${DATABASE_URL}" ]; then
-            echo "::error::DATABASE_URL secret is not set. Add the pooler connection string under Settings > Secrets and variables > Actions."
-            exit 1
-          fi
-          npx prisma migrate deploy
-        env:
-          DATABASE_URL: ${{ secrets.DATABASE_URL }}
+      # NOTE: `prisma migrate deploy` was removed here on 2026-11-18.
+      #
+      # It cannot work against this database: no migration creates
+      # "StudentRoster" (only ALTER TABLE does), so a fresh DB dies at
+      # 20260911100000_attendance_roster_support with 42P01, and the live DB
+      # has no "_prisma_migrations" history at all (it was built with
+      # `prisma db push`). Auto-applying was also running unreviewed DDL
+      # against production on every push to main.
+      #
+      # Migrations are applied by hand, per PLANS/supabase-egress-recovery.md
+      # §4.2b: `prisma migrate diff --from-empty --to-schema` for a fresh
+      # bootstrap, or `--from-schema-datamodel`/`--to-schema` for a delta.
+      # See AGENTS.md (Gotchas) before re-enabling this step.
       - run: npm run typecheck
       - run: npm test --if-present
       - run: npm run build

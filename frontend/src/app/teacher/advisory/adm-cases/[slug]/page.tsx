@@ -23,6 +23,9 @@ import { ModulesPanel } from "./components/modules-panel";
 import { ModuleFormDialog } from "./components/module-form-dialog";
 import { MonitoringReport } from "./components/monitoring-report";
 import { ModuleStatus } from "./components/module-status";
+import { CaseJourney } from "./components/case-journey";
+import { CaseSupport } from "./components/case-support";
+import { CaseNextStep } from "./components/case-next-step";
 import { MonitoringSkeleton } from "./components/MonitoringSkeleton";
 
 export default function AdmMonitoringPage() {
@@ -112,17 +115,24 @@ export default function AdmMonitoringPage() {
   const { header, progress, modules } = data;
 
   return (
-    <div className="flex w-full flex-col gap-4">
+    <div className="flex w-full flex-col gap-5">
       <MonitoringHeader header={header} />
 
-      {/* Progress + report + module status: three flat cards in one band. */}
-      <div className="grid min-w-0 items-start gap-4 lg:grid-cols-3">
-        <MonitoringProgress progress={progress} />
-        <MonitoringReport data={data} />
-        <ModuleStatus data={data} />
-      </div>
+      <CaseNextStep data={data} />
 
-      <ModulesPanel modules={modules} onEdit={(module) => setDialog(module)} />
+      <MonitoringProgress progress={progress} />
+
+      {/* Tracker on the left; the read-only context rail on the right. */}
+      <div className="grid min-w-0 items-start gap-5 lg:grid-cols-[minmax(0,1fr)_19rem] xl:grid-cols-[minmax(0,1fr)_21rem]">
+        <ModulesPanel modules={modules} onEdit={(module) => setDialog(module)} />
+
+        <aside className="flex min-w-0 flex-col gap-5" aria-label="Case context">
+          <ModuleStatus data={data} />
+          <CaseSupport data={data} />
+          <MonitoringReport data={data} />
+          <CaseJourney timeline={data.timeline} />
+        </aside>
+      </div>
 
       {dialog ? (
         <ModuleFormDialog

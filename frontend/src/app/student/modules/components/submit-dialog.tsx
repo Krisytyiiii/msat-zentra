@@ -119,7 +119,7 @@ export function StudentSubmitDialog({
                   <span className="inline-flex items-center gap-1 text-xs font-semibold">
                     <Icon size={12} aria-hidden /> {label}
                   </span>
-                  <span className="text-[11px] leading-tight">{hint}</span>
+                  <span className="text-[12px] leading-tight">{hint}</span>
                 </button>
               );
             })}
@@ -138,7 +138,7 @@ export function StudentSubmitDialog({
               placeholder="https://drive.google.com/…"
               autoFocus
             />
-            <p className="m-0 text-[11px] text-muted-foreground">
+            <p className="m-0 text-[12px] text-muted-foreground">
               Saving the link submits your answer right away.
             </p>
           </div>
@@ -154,7 +154,7 @@ export function StudentSubmitDialog({
               onChange={(e) => setFile(e.target.files?.[0] ?? null)}
               disabled={pending}
             />
-            <p className="m-0 text-[11px] text-muted-foreground">
+            <p className="m-0 text-[12px] text-muted-foreground">
               {file
                 ? `${file.name} · ${(file.size / 1024 / 1024).toFixed(2)} MB`
                 : "Max 10 MB. Uploading submits your answer right away."}
@@ -178,7 +178,7 @@ export function StudentSubmitDialog({
                 disabled={pending}
               />
               {file ? (
-                <p className="m-0 text-[11px] text-muted-foreground">
+                <p className="m-0 text-[12px] text-muted-foreground">
                   {file.name} · {(file.size / 1024 / 1024).toFixed(2)} MB
                 </p>
               ) : null}

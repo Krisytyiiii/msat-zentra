@@ -46,13 +46,13 @@ export function RejectedRequestsCard({
             >
               <div className="flex items-center justify-between gap-2">
                 <span
-                  className="truncate text-[11px] font-medium text-muted-foreground"
+                  className="truncate text-[12px] font-medium text-muted-foreground"
                   title={`${r.section} · ${r.gradeLevel}`}
                 >
                   {r.section} · {r.gradeLevel}
                 </span>
                 <span
-                  className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-muted text-[10px] font-bold text-muted-foreground"
+                  className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-muted text-[12px] font-bold text-muted-foreground"
                   aria-hidden
                   title={r.section}
                 >
@@ -255,7 +255,7 @@ export function Sf10Sidebar({
                     <Ban size={16} />
                   </span>
                   <span
-                    className="absolute -top-1 -right-1 flex h-4 min-w-4 items-center justify-center rounded-full bg-amber-500 px-1 text-[10px] font-bold text-black"
+                    className="absolute -top-1 -right-1 flex h-4 min-w-4 items-center justify-center rounded-full bg-amber-500 px-1 text-[12px] font-bold text-black"
                     aria-hidden="true"
                   >
                     {requests.length}
@@ -283,7 +283,7 @@ export function Sf10Sidebar({
                     <FileX size={16} />
                   </span>
                   <span
-                    className="absolute -top-1 -right-1 flex h-4 min-w-4 items-center justify-center rounded-full bg-amber-500 px-1 text-[10px] font-bold text-black"
+                    className="absolute -top-1 -right-1 flex h-4 min-w-4 items-center justify-center rounded-full bg-amber-500 px-1 text-[12px] font-bold text-black"
                     aria-hidden="true"
                   >
                     {rows.length}

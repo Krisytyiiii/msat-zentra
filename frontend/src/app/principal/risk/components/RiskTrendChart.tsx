@@ -75,7 +75,7 @@ export function RiskTrendChart({
           >
             <XAxis
               dataKey="term"
-              tick={{ fontSize: 9, fill: "var(--muted-foreground)" }}
+              tick={{ fontSize: 12, fill: "var(--muted-foreground)" }}
               tickLine={false}
               axisLine={false}
               interval={1}
@@ -83,7 +83,7 @@ export function RiskTrendChart({
             <YAxis hide domain={[0, "dataMax + 10"]} />
             <Tooltip
               contentStyle={{
-                fontSize: 11,
+                fontSize: 12,
                 borderRadius: 6,
                 border: "1px solid var(--border)",
                 background: "var(--popover)",

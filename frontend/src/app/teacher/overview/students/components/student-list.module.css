@@ -328,7 +328,7 @@
 
 .sectionCardStatLabel {
   margin: 0;
-  font-size: 0.6875rem;
+  font-size: 0.75rem;
   font-weight: 500;
   color: var(--muted-foreground);
   white-space: nowrap;
@@ -447,7 +447,7 @@
 }
 
 .studentCardStatLabel {
-  font-size: 0.625rem;
+  font-size: 0.75rem;
   line-height: 1.3;
   color: var(--muted-foreground);
   white-space: nowrap;

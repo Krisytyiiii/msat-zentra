@@ -103,7 +103,7 @@ export function TeacherOverviewAnecdotes() {
             >
               <span className="flex items-center justify-between gap-2">
                 <span
-                  className="truncate text-[11px] font-medium text-muted-foreground"
+                  className="truncate text-[12px] font-medium text-muted-foreground"
                   title="/teacher/chat?standalone=1&new=anecdotal"
                 >
                   /teacher/chat?standalone=1&amp;new=anecdotal

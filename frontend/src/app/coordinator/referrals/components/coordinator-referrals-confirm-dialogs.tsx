@@ -7,6 +7,7 @@ import {
   KanbanPill,
 } from "@/components/ui/kanban-overlay";
 import { StudentMascot } from "@/components/student-mascot/StudentMascot";
+import { Pill } from "@/components/ui/pill";
 import type { AdmCaseRow } from "@/services/coordinator/coordinator.types";
 
 interface ConfirmDialogProps {
@@ -150,11 +151,11 @@ export function CoordinatorReferralsForwardDialog({
               {target.student}
             </KanbanPill>
             {target.lrn ? (
-              <KanbanPill className="tabular-nums" title={target.lrn}>
+              <Pill className="tabular-nums" label="LRN">
                 {target.lrn}
-              </KanbanPill>
+              </Pill>
             ) : null}
-            {target.grade ? <KanbanPill>{target.grade}</KanbanPill> : null}
+            {target.grade ? <Pill label="Grade level">{target.grade}</Pill> : null}
           </div>
           <p className="px-1 text-xs text-muted-foreground">
             You can no longer edit the recommendation until it is returned.

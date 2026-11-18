@@ -191,7 +191,6 @@ export function RecordsCharts() {
       <KanbanBoard
         title="Records by grade level"
         icon={<Layers size={14} aria-hidden="true" />}
-        count={isPending ? undefined : gradeRows.length}
         description="Anecdotal records per grade level, split by category for the active term."
         ariaLabel="Anecdotal records by grade level"
         className="h-full"
@@ -213,7 +212,8 @@ export function RecordsCharts() {
               <BarChart
                 accessibilityLayer
                 data={gradeRows}
-                barCategoryGap={22}
+                barCategoryGap={20}
+                barGap={2}
                 margin={{ top: 8, right: 8, bottom: 4, left: 0 }}
               >
                 <CartesianGrid vertical={false} stroke="var(--border)" />
@@ -242,8 +242,8 @@ export function RecordsCharts() {
                     dataKey={key}
                     name={categoryChartConfig[key].label as string}
                     fill={`var(--color-${key})`}
-                    stackId="records"
-                    maxBarSize={42}
+                    maxBarSize={22}
+                    radius={[3, 3, 0, 0]}
                   />
                 ))}
               </BarChart>
@@ -271,7 +271,6 @@ export function RecordsCharts() {
       <KanbanBoard
         title="Records filed over time"
         icon={<CalendarDays size={14} aria-hidden="true" />}
-        count={isPending ? undefined : total}
         description="Anecdotal records filed per day this term, split by category."
         ariaLabel="Anecdotal records filed over time"
         className="h-full"
@@ -302,7 +301,7 @@ export function RecordsCharts() {
                     dataKey="date"
                     tickLine={false}
                     axisLine={false}
-                    fontSize={11}
+                    fontSize={12}
                     minTickGap={24}
                     tickFormatter={(v) => {
                       if (!v || typeof v !== "string") return "";
@@ -314,7 +313,7 @@ export function RecordsCharts() {
                     type="number"
                     tickLine={false}
                     axisLine={false}
-                    fontSize={11}
+                    fontSize={12}
                     allowDecimals={false}
                   />
                   <Tooltip

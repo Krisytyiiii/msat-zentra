@@ -28,6 +28,7 @@ import {
 } from "./components/coordinator-devices-board";
 import { CoordinatorDevicesIssueDialog } from "./components/coordinator-devices-issue-dialog";
 import { CoordinatorDeviceReturnOverlay } from "./components/coordinator-device-return-overlay";
+import { InsightCallout } from "@/components/ui/insight-callout";
 import pageStyles from "../pages.module.css";
 import { PAGE_SIZE, Pagination } from "@/components/shared/pagination";
 import { useUrlPager } from "@/components/shared/pagination/useUrlPager";
@@ -237,6 +238,10 @@ function CoordinatorDevicesPageInner() {
         />
       ) : (
         <>
+          {showNeeds ? (
+            <InsightCallout role="status">{needsCountText}</InsightCallout>
+          ) : null}
+
           <CoordinatorDevicesBoard
             rows={rows}
             isPending={devicesQuery.isPending}
@@ -251,6 +256,8 @@ function CoordinatorDevicesPageInner() {
             }}
             onClear={clearFilters}
             returningId={returningId}
+            issuedCount={devicesQuery.data?.issued}
+            returnedCount={devicesQuery.data?.returned}
             onRetry={() => devicesQuery.refetch()}
             onRecordReturn={setReturnTarget}
             onIssueDevice={() => setIssueOpen(true)}

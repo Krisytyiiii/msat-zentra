@@ -80,12 +80,12 @@ export function AdmTrackingTimeline({
               }
             >
               <div className="-mx-2.5 flex min-w-0 items-center gap-1.5 border-b border-border px-3.5 pb-2">
-                <span className="min-w-0 flex-1 truncate text-[11px] font-semibold">
+                <span className="min-w-0 flex-1 truncate text-[12px] font-semibold">
                   Step {step.order}
                 </span>
                 {decision ? (
                   <span
-                    className="inline-flex h-6 shrink-0 items-center rounded-md border px-2 py-0.5 text-[10px] font-semibold leading-tight"
+                    className="inline-flex h-6 shrink-0 items-center rounded-md border px-2 py-0.5 text-[12px] font-semibold leading-tight"
                     style={{
                       color: decision.color,
                       borderColor: `color-mix(in srgb, ${decision.color} 40%, transparent)`,
@@ -96,7 +96,7 @@ export function AdmTrackingTimeline({
                   </span>
                 ) : done ? (
                   <span
-                    className="inline-flex h-6 shrink-0 items-center rounded-md border px-2 py-0.5 text-[10px] font-semibold leading-tight"
+                    className="inline-flex h-6 shrink-0 items-center rounded-md border px-2 py-0.5 text-[12px] font-semibold leading-tight"
                     style={{
                       color: "#22c55e",
                       borderColor: "color-mix(in srgb, #22c55e 40%, transparent)",
@@ -106,11 +106,11 @@ export function AdmTrackingTimeline({
                     Done
                   </span>
                 ) : isCurrent ? (
-                  <span className="inline-flex h-6 shrink-0 items-center rounded-md bg-primary px-2 py-0.5 text-[10px] font-semibold leading-tight text-primary-foreground">
+                  <span className="inline-flex h-6 shrink-0 items-center rounded-md bg-primary px-2 py-0.5 text-[12px] font-semibold leading-tight text-primary-foreground">
                     Current
                   </span>
                 ) : (
-                  <span className="inline-flex h-6 shrink-0 items-center rounded-md border border-border bg-secondary px-2 py-0.5 text-[10px] font-medium leading-tight text-secondary-foreground">
+                  <span className="inline-flex h-6 shrink-0 items-center rounded-md border border-border bg-secondary px-2 py-0.5 text-[12px] font-medium leading-tight text-secondary-foreground">
                     Upcoming
                   </span>
                 )}
@@ -124,13 +124,13 @@ export function AdmTrackingTimeline({
                 </span>
                 <span className="flex min-w-0 flex-wrap items-center gap-1.5">
                   <span
-                    className="inline-flex max-w-full items-center rounded-md border border-border bg-secondary px-2 py-0.5 text-[10px] font-medium leading-tight text-secondary-foreground"
+                    className="inline-flex max-w-full items-center rounded-md border border-border bg-secondary px-2 py-0.5 text-[12px] font-medium leading-tight text-secondary-foreground"
                     title={step.owner}
                   >
                     {step.owner}
                   </span>
                 </span>
-                <span className="text-[11px] leading-snug text-muted-foreground">
+                <span className="text-[12px] leading-snug text-muted-foreground">
                   {step.detail}
                 </span>
               </div>

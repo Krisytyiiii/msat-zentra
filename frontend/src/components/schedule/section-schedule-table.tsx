@@ -219,7 +219,7 @@ export function SectionScheduleTable({
                               type="button"
                               variant="secondary"
                               size="xs"
-                              className="h-6 px-1.5 text-[11px]"
+                              className="h-6 px-1.5 text-[12px]"
                               onClick={() => onReview(section)}
                               aria-label={`Review schedule for ${section.name}`}
                             >
@@ -231,7 +231,7 @@ export function SectionScheduleTable({
                             asChild
                             variant="default"
                             size="xs"
-                            className="h-6 px-1.5 text-[11px]"
+                            className="h-6 px-1.5 text-[12px]"
                           >
                             <Link
                               href={href}

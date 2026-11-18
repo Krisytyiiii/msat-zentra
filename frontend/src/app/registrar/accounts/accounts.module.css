@@ -38,6 +38,7 @@
 .pageEmpty.pageEmpty {
   display: flex;
   flex-direction: column;
+  align-items: center;
   justify-content: center;
   min-height: calc(100vh - 3rem - 2rem);
   min-height: calc(100dvh - 3rem - 2rem);
@@ -125,7 +126,7 @@
 }
 
 .kpiHint {
-  font-size: 0.6875rem;
+  font-size: 0.75rem;
   line-height: 1.5;
   color: var(--muted-foreground);
 }
@@ -173,7 +174,7 @@
 }
 
 .countBadge {
-  font-size: 0.6875rem;
+  font-size: 0.75rem;
   font-weight: 600;
   white-space: nowrap;
 }
@@ -221,7 +222,7 @@
 .content :global(thead th) {
   height: 2.75rem;
   padding: 0.5rem 0.75rem;
-  font-size: 0.6875rem;
+  font-size: 0.75rem;
   font-weight: 600;
   text-transform: uppercase;
   letter-spacing: 0.04em;

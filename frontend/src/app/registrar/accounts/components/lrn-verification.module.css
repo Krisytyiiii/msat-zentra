@@ -34,7 +34,7 @@
   padding: 0.5rem 0.875rem;
   border-bottom: 1px solid var(--border);
   background-color: color-mix(in oklch, var(--foreground), transparent 97%);
-  font-size: 0.6875rem;
+  font-size: 0.75rem;
   font-weight: 600;
   text-transform: uppercase;
   letter-spacing: 0.03em;
@@ -70,7 +70,7 @@
 }
 
 .cellLabel {
-  font-size: 0.625rem;
+  font-size: 0.75rem;
   font-weight: 600;
   letter-spacing: 0.04em;
   text-transform: uppercase;
@@ -85,7 +85,7 @@
 }
 
 .note {
-  font-size: 0.6875rem;
+  font-size: 0.75rem;
   color: var(--muted-foreground);
 }
 

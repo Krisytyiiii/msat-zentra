@@ -35,7 +35,7 @@ export function LrnVerifyButton({ student, onOpen }: Props) {
           <Button
             variant="default"
             size="sm"
-            className="h-6 shrink-0 gap-1 px-2 text-[11px] font-medium shadow-none"
+            className="h-6 shrink-0 gap-1 px-2 text-[12px] font-medium shadow-none"
             onClick={onOpen}
             aria-label={missing ? `Review ${student.name} — no LRN on record` : `Verify LRN for ${student.name}`}
           >

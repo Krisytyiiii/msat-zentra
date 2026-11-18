@@ -99,14 +99,14 @@ function GuidanceBehavioralPageInner() {
 
   if (isPending) {
     return (
-      <section className={styles.page} aria-busy="true" aria-label="Loading behavioral records">
+      <section className={styles.page} aria-busy="true" aria-label="Loading anecdotal records">
         <ZentraPageHeaderSkeleton withActions actionCount={1} />
 
         <KanbanBoard
           title={<Skeleton style={{ width: "14rem", height: "1rem" }} />}
           description={<Skeleton style={{ width: "22rem", maxWidth: "100%", height: "0.8rem" }} />}
           className={styles.card}
-          ariaLabel="Loading behavioral summary"
+          ariaLabel="Loading anecdotal summary"
         >
           <div className={donutStyles.chartRow}>
             <Skeleton style={{ width: "10.5rem", height: "10.5rem", borderRadius: "50%", flexShrink: 0 }} />
@@ -129,7 +129,7 @@ function GuidanceBehavioralPageInner() {
             </div>
           }
           className={styles.card}
-          ariaLabel="Loading behavioral feed"
+          ariaLabel="Loading anecdotal feed"
         >
           <ul className={cardsStyles.grid}>
             {[0, 1, 2, 3, 4, 5].map((i) => (
@@ -174,10 +174,10 @@ function GuidanceBehavioralPageInner() {
 
   if (isError || !data) {
     return (
-      <section className={styles.page} aria-label="Behavioral records">
-        <GuidancePageHeader title="Behavioral Records" />
+      <section className={styles.page} aria-label="Anecdotal records">
+        <GuidancePageHeader title="Anecdotal Records" />
         <KanbanBoard
-          title="We couldn&apos;t load the behavioral feed"
+          title="We couldn&apos;t load the anecdotal feed"
           icon={<FileText className="size-3.5" aria-hidden="true" />}
           description="Check your connection and try again."
           className={styles.card}
@@ -202,11 +202,11 @@ function GuidanceBehavioralPageInner() {
   const to = Math.min(safePage * data.pageSize, data.total);
 
   return (
-    <section className={styles.page} aria-label="Behavioral records">
+    <section className={styles.page} aria-label="Anecdotal records">
       {(data.unfilteredTotal ?? data.total) === 0 && query === "" && category === "all" ? null : (
         <GuidancePageHeader
-          title="Behavioral Records"
-          description="Live category flags and counts from filings referred to guidance — the signal behind the behavioral risk flag (≥ 1 report)."
+          title="Anecdotal Records"
+          description="Live category flags and counts from filings referred to guidance — the signal behind the anecdotal risk flag (≥ 1 report)."
           actions={
             <Badge variant="outline">
               Live · {data.total} referred
@@ -220,9 +220,9 @@ function GuidanceBehavioralPageInner() {
       {(data.unfilteredTotal ?? data.total) === 0 && query === "" && category === "all" ? (
         <GuidanceEmptyCard
           icon={FileText}
-          title="No behavioral records"
-          hint="Behavioral filings referred to guidance will appear here."
-          label="Behavioral records"
+          title="No anecdotal records"
+          hint="Anecdotal filings referred to guidance will appear here."
+          label="Anecdotal records"
           centered
         />
       ) : (
@@ -238,7 +238,7 @@ function GuidanceBehavioralPageInner() {
       </KanbanBoard>
 
       <KanbanBoard
-        title="Behavioral signal feed"
+        title="Anecdotal signal feed"
         icon={<FileText className="size-3.5" aria-hidden="true" />}
         description={`Category + tier rows, no clinical text. Showing ${from}–${to} of ${data.total}.`}
         actions={

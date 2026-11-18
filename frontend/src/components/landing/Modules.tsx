@@ -34,7 +34,7 @@ const modules = [
   {
     icon: ShieldAlert,
     title: "Early intervention",
-    body: "Low / Moderate / High risk detected live from grades, attendance, and behavioral signals.",
+    body: "Low / Moderate / High risk detected live from grades, attendance, and anecdotal signals.",
   },
   {
     icon: HeartHandshake,

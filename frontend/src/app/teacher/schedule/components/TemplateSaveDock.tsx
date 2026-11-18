@@ -111,7 +111,7 @@ export function TemplateSaveDock({ sectionName, progress, onDismiss }: Props) {
                   <span className="block truncate font-medium">
                     {row.subjectName} · {row.teacherName}
                   </span>
-                  <span className="block truncate text-[11px] text-muted-foreground">
+                  <span className="block truncate text-[12px] text-muted-foreground">
                     {WEEK_LABELS_SHORT[row.day - 1] ?? `Day ${row.day}`} · Period {row.period + 1}
                     {row.message ? ` — ${row.message}` : ""}
                   </span>
@@ -119,12 +119,12 @@ export function TemplateSaveDock({ sectionName, progress, onDismiss }: Props) {
                 <span
                   className={
                     row.status === "failed"
-                      ? "shrink-0 text-[11px] font-medium text-destructive"
+                      ? "shrink-0 text-[12px] font-medium text-destructive"
                       : row.status === "warned"
-                        ? "shrink-0 text-[11px] font-medium text-amber-600 dark:text-amber-500"
+                        ? "shrink-0 text-[12px] font-medium text-amber-600 dark:text-amber-500"
                         : row.status === "saved"
-                          ? "shrink-0 text-[11px] font-medium text-green-600 dark:text-green-500"
-                          : "shrink-0 text-[11px] text-muted-foreground"
+                          ? "shrink-0 text-[12px] font-medium text-green-600 dark:text-green-500"
+                          : "shrink-0 text-[12px] text-muted-foreground"
                   }
                 >
                   {rowStateLabel(row.status)}

@@ -43,7 +43,7 @@ export const ADM_PIPELINE: {
     owner: "Adviser",
     principalAction: false,
     description:
-      "Adviser files the anecdotal report documenting the learner's behavioral or academic concern.",
+      "Adviser files the anecdotal report documenting the learner's anecdotal or academic concern.",
   },
   {
     stage: "consultation",

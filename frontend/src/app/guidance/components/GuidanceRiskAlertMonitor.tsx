@@ -94,10 +94,10 @@ const REFERRAL_SOUND_SRC = "/sounds/referrals.mp3";
 /** A withdrawn referral rings its own clip — the case left the desk. */
 const CANCEL_SOUND_SRC = "/sounds/cancelled%20referral.mp3";
 const REFERRAL_REPLAY_MS = 8_000;
-const COUNT_POLL_MS = 10_000;
+const COUNT_POLL_MS = 30_000;
 /** Shares the sidebar dot's `/guidance/nav-counts` query — its 5s poll drives
  *  both the dot and this monitor's "something changed" detection. */
-const NAV_POLL_MS = 5_000;
+const NAV_POLL_MS = 30_000;
 /** One ring per burst — the hourly sweep can flag several learners at once. */
 const MIN_REPLAY_MS = 12_000;
 

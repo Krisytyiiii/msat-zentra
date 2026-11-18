@@ -1,8 +1,9 @@
 "use client";
 
 import * as React from "react";
+import Link from "next/link";
 import { useQuery } from "@tanstack/react-query";
-import { ShieldCheck, ShieldHalf, GraduationCap } from "lucide-react";
+import { ArrowRight, ShieldCheck, ShieldHalf, GraduationCap } from "lucide-react";
 import { Bar, BarChart, XAxis, YAxis, CartesianGrid, Cell, Pie, PieChart } from "recharts";
 import { PrincipalEmptyState } from "../../components/PrincipalEmptyCard";
 import { KanbanBoard } from "@/components/ui/kanban-board";
@@ -56,6 +57,21 @@ function useOverview() {
     staleTime: 60_000,
     refetchOnWindowFocus: false,
   });
+}
+
+/** One plain-language link at the bottom of each board — where to act next. */
+function BoardFooter({ href, label }: { href: string; label: string }) {
+  return (
+    <div className="flex justify-end px-1 pb-0.5">
+      <Link
+        href={href}
+        className="inline-flex items-center gap-1 rounded-md text-xs font-semibold text-primary outline-none hover:underline focus-visible:ring-2 focus-visible:ring-ring"
+      >
+        {label}
+        <ArrowRight size={13} aria-hidden />
+      </Link>
+    </div>
+  );
 }
 
 export function OverviewRisk() {
@@ -127,6 +143,7 @@ export function OverviewRisk() {
           </span>
         }
         description="Learners flagged by the live risk engine across adviser-shared sections this term."
+        footer={<BoardFooter href="/principal/risk/students" label="Review at-risk learners" />}
         actions={
           <Pill tone="green" label="Data source">
             Adviser-shared
@@ -154,10 +171,10 @@ export function OverviewRisk() {
                     tickLine={false}
                     axisLine={false}
                     tickMargin={6}
-                    tick={{ fontSize: 11 }}
+                    tick={{ fontSize: 12 }}
                     interval={0}
                   />
-                  <YAxis allowDecimals={false} tickLine={false} axisLine={false} width={28} tick={{ fontSize: 11 }} />
+                  <YAxis allowDecimals={false} tickLine={false} axisLine={false} width={28} tick={{ fontSize: 12 }} />
                   <ChartTooltip
                     cursor={{ fill: "color-mix(in oklch, #f59e0b, transparent 92%)" }}
                     content={<FriendlyTooltip unit="learners flagged" />}
@@ -190,6 +207,7 @@ export function OverviewRisk() {
           </span>
         }
         description="Live split of adviser-shared learners by risk level."
+        footer={<BoardFooter href="/principal/risk/interventions" label="Open interventions" />}
         actions={
           <Pill tone="green" label="Data source">
             Adviser-shared
@@ -267,6 +285,7 @@ export function OverviewRisk() {
           </span>
         }
         description="Where adviser-shared flagged learners sit across grade levels this term."
+        footer={<BoardFooter href="/principal/risk" label="Open risk insights" />}
         actions={
           <Pill tone="green" label="Data source">
             Adviser-shared
@@ -294,10 +313,10 @@ export function OverviewRisk() {
                     tickLine={false}
                     axisLine={false}
                     tickMargin={6}
-                    tick={{ fontSize: 11 }}
+                    tick={{ fontSize: 12 }}
                     interval={0}
                   />
-                  <YAxis allowDecimals={false} tickLine={false} axisLine={false} width={28} tick={{ fontSize: 11 }} />
+                  <YAxis allowDecimals={false} tickLine={false} axisLine={false} width={28} tick={{ fontSize: 12 }} />
                   <ChartTooltip
                     cursor={{ fill: "color-mix(in oklch, #f59e0b, transparent 92%)" }}
                     content={<FriendlyTooltip unit="learners flagged" />}

@@ -16,8 +16,7 @@
   border-top: 1px solid var(--border, #e5e5e5);
 }
 
-/* Queue-first stacked layout: KPI strip, full-width queue table, then
-   responsive two-column rows. */
+/* Single full-width stack: header, attention deck, paired panels, ledger. */
 .stack {
   display: flex;
   flex-direction: column;
@@ -25,32 +24,16 @@
   min-width: 0;
 }
 
-/* Main stack + icon-only KPI rail on the right (same interaction as the
-   teacher attendance / schedule gutters). */
-.layout {
-  display: grid;
-  grid-template-columns: minmax(0, 1fr) 2.75rem;
-  gap: 1rem;
-  align-items: start;
-  min-width: 0;
-}
-
-@media (max-width: 1023px) {
-  .layout {
-    grid-template-columns: 1fr;
-  }
-}
-
 .duo {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
   gap: 1rem;
-  /* Stretch so both cards in a row share the same height. */
+  /* Stretch so both panels in a row share the same height. */
   align-items: stretch;
 }
 
-/* Glow cards (assign.card sections) fill the row height. */
-.duo > section {
+.duo > * {
+  min-width: 0;
   height: 100%;
 }
 
@@ -61,12 +44,11 @@
 }
 
 /* ---- Entrance motion -------------------------------------------------------
-   The overview settles in on load: the KPI strip first, then each paired row
-   cascades left-to-right, and the icon rail trails. Opacity + transform only
-   (compositor-friendly), fill "backwards" so no transform lingers after the
-   run, and skipped entirely for reduced motion.
-   Slow-motion timing by request: ~1.1s glide per card with a wide stagger,
-   so the whole settle reads as one deliberate slow pan instead of a snap. */
+   The overview settles in on load: the attention deck first, then the
+   analytics row, the queue row and finally the ledger. Opacity + transform
+   only (compositor-friendly), fill "backwards" so no transform lingers after
+   the run, and skipped entirely for reduced motion. ~1.1s glide per card with
+   a wide stagger keeps the whole settle as one deliberate slow pan. */
 @keyframes overview-in {
   from {
     opacity: 0;
@@ -78,36 +60,33 @@
   }
 }
 
-.stack > *:not(.duo),
-.duo > *,
-.layout > aside {
+.stack > * {
   animation: overview-in 1.1s cubic-bezier(0.22, 1, 0.36, 1) backwards;
 }
 
-.stack > *:not(.duo) {
+.stack > *:nth-child(1) {
   animation-delay: 0.05s;
 }
 
-.duo > *:nth-child(2) {
+.stack > *:nth-child(2) {
   animation-delay: 0.15s;
 }
 
-.duo + .duo > *:nth-child(1) {
+.stack > *:nth-child(3) {
   animation-delay: 0.3s;
 }
 
-.duo + .duo > *:nth-child(2) {
+.stack > *:nth-child(4) {
   animation-delay: 0.45s;
 }
 
-.layout > aside {
-  animation-delay: 0.6s;
+.duo > *:nth-child(2) {
+  animation-delay: 0.28s;
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .stack > *:not(.duo),
-  .duo > *,
-  .layout > aside {
+  .stack > *,
+  .duo > * {
     animation: none;
   }
 }

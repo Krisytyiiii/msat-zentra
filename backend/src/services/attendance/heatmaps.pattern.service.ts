@@ -1,5 +1,9 @@
 import { prisma } from "../../lib/prisma.js";
 import {
+  archivedAdvisoryLearnerIds,
+  excludeArchivedRosters,
+} from "../../lib/learnerVisibility.js";
+import {
   buildSchoolDayAxis,
   countSchoolDays,
   dailyPresentPercent,
@@ -156,7 +160,8 @@ export async function getSectionSubjectHeatmap(query: SectionSubjectHeatmapQuery
 
   // Headcounts (3–4 serial round-trips) runs alongside the records/offerings
   // reads instead of ahead of them — see heatmaps.section-stats.service.ts.
-  const [records, offerings, headcounts] = await Promise.all([
+  const archived = await archivedAdvisoryLearnerIds();
+  const [rawRecords, offerings, headcounts, transferees] = await Promise.all([
     prisma.attendanceRecord.findMany({
       where: {
         termId,
@@ -164,7 +169,14 @@ export async function getSectionSubjectHeatmap(query: SectionSubjectHeatmapQuery
         NOT: { subjectId: null },
         ...(subjectFilter ? { subjectId: subjectFilter } : {}),
       },
-      select: { sectionId: true, subjectId: true, date: true, status: true },
+      select: {
+        sectionId: true,
+        subjectId: true,
+        date: true,
+        status: true,
+        studentId: true,
+        rosterId: true,
+      },
     }),
     prisma.teacherSubjectAssignment.findMany({
       where: {
@@ -179,7 +191,29 @@ export async function getSectionSubjectHeatmap(query: SectionSubjectHeatmapQuery
       },
     }),
     sectionHeadcounts(sectionIds),
+    // Transferee enlistment dates: a transferee is not counted absent for
+    // school days before (or on) the day they were enlisted — the same window
+    // the risk engine and the auto-absent sweep use.
+    prisma.studentRoster.findMany({
+      where: {
+        sectionId: { in: sectionIds },
+        learnerType: "transferee",
+        ...excludeArchivedRosters(archived),
+      },
+      select: { sectionId: true, createdAt: true },
+    }),
   ]);
+
+  // Learners their adviser removed from the advisory list are invisible to the
+  // headcounts above; their historical attendance rows must not leak back into
+  // the day counts, or a deleted learner keeps inflating present/absent.
+  const archivedStudents = new Set(archived.studentIds);
+  const archivedRosters = new Set(archived.rosterIds);
+  const records = rawRecords.filter(
+    (r) =>
+      !(r.studentId && archivedStudents.has(r.studentId)) &&
+      !(r.rosterId && archivedRosters.has(r.rosterId)),
+  );
 
   const subjectMeta = new Map<string, { subjectId: string; code: string; name: string }>();
   for (const o of offerings) {
@@ -233,6 +267,10 @@ export async function getSectionSubjectHeatmap(query: SectionSubjectHeatmapQuery
 
   type Cell = { present: number; late: number; excused: number; total: number };
   const agg = new Map<string, Map<string, Map<string, Cell>>>();
+  // Per learner per day: a learner holds several subject records that day;
+  // the daily view counts them once with the best status they earned.
+  type LearnerFlags = { present: boolean; late: boolean; excused: boolean; absent: boolean };
+  const learnerAgg = new Map<string, Map<string, Map<string, LearnerFlags>>>();
   for (const r of records) {
     const day = r.date.toISOString().slice(0, 10);
     const sid = r.subjectId as string;
@@ -246,10 +284,34 @@ export async function getSectionSubjectHeatmap(query: SectionSubjectHeatmapQuery
     if (r.status === "present") cell.present++;
     else if (r.status === "late") cell.late++;
     else if (r.status === "excused") cell.excused++;
+
+    const learnerKey = r.studentId ?? r.rosterId;
+    if (learnerKey) {
+      if (!learnerAgg.has(r.sectionId)) learnerAgg.set(r.sectionId, new Map());
+      const learnerDays = learnerAgg.get(r.sectionId)!;
+      if (!learnerDays.has(day)) learnerDays.set(day, new Map());
+      const learners = learnerDays.get(day)!;
+      if (!learners.has(learnerKey)) {
+        learners.set(learnerKey, { present: false, late: false, excused: false, absent: false });
+      }
+      const flags = learners.get(learnerKey)!;
+      if (r.status === "present") flags.present = true;
+      else if (r.status === "late") flags.late = true;
+      else if (r.status === "excused") flags.excused = true;
+      else flags.absent = true;
+    }
   }
 
   const result = sections.map((s) => {
     const enrolled = headcounts.get(s.id) ?? 0;
+    // A transferee enlisted mid-term is subtracted from every day up to and
+    // including their enlistment day (that day's meetups may already have
+    // been taken without them), mirroring `countMeetupsSince` in risk.ts.
+    const transfereeStarts = transferees
+      .filter((t) => t.sectionId === s.id)
+      .map((t) => t.createdAt.toISOString().slice(0, 10));
+    const enrolledAt = (key: string) =>
+      Math.max(0, enrolled - transfereeStarts.filter((start) => key <= start).length);
     const subjectIds = subjectFilter
       ? (offeredBySection.get(s.id) ?? []).filter((id) => id === subjectFilter)
       : (offeredBySection.get(s.id) ?? []);
@@ -262,21 +324,47 @@ export async function getSectionSubjectHeatmap(query: SectionSubjectHeatmapQuery
       subjects: subjectIds.map((id) => subjectMeta.get(id)!),
       days: dayKeys.map((key) => {
         const subs = sectionAgg?.get(key);
+        const eligible = enrolledAt(key);
+        const dayLearners = learnerAgg.get(s.id)?.get(key);
+
+        // Daily headcount view: one status per learner for the day.
+        // present > late > excused > absent (a learner marked present in any
+        // subject that day is not also counted absent).
+        let present = 0;
+        let late = 0;
+        let excused = 0;
+        let allAbsent = 0;
+        let seen = 0;
+        if (dayLearners) {
+          for (const flags of dayLearners.values()) {
+            seen += 1;
+            if (flags.present) present += 1;
+            else if (flags.late) late += 1;
+            else if (flags.excused) excused += 1;
+            else allAbsent += 1;
+          }
+        }
+        // Enrolled learners with no record that day are absent too.
+        const absent = allAbsent + Math.max(0, eligible - seen);
+
         return {
           date: formatDateKey(key),
           isoDate: key,
           isWeekend: isWeekendKey(key),
+          counts: { present, late, excused, absent, learners: eligible },
           cells: subjectIds.map((sid) => {
             const c = subs?.get(sid) ?? { present: 0, late: 0, excused: 0, total: 0 };
-            const absent = Math.max(0, enrolled - (c.present + c.late + c.excused));
+            // No record for a meetup means absent (the subject teacher did not
+            // take the sheet) — never "no data".
+            const cellAbsent = Math.max(0, eligible - (c.present + c.late + c.excused));
             return {
               subjectId: sid,
               present: c.present,
               late: c.late,
-              absent,
+              absent: cellAbsent,
               excused: c.excused,
               total: c.total,
-              ratio: dailyPresentPercent(c.present, enrolled),
+              ratio: dailyPresentPercent(c.present, eligible),
             };
           }),
         };

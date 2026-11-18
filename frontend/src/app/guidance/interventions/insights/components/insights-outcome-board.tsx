@@ -177,7 +177,7 @@ export function InsightsOutcomeBoard({
                 width={92}
                 tickLine={false}
                 axisLine={false}
-                tick={{ fontSize: 11 }}
+                tick={{ fontSize: 12 }}
               />
               <Tooltip
                 cursor={{ fill: "color-mix(in oklch, var(--primary), transparent 94%)" }}

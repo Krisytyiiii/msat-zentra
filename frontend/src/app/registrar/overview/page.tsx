@@ -1,26 +1,29 @@
 "use client";
 
 import { useQuery } from "@tanstack/react-query";
-import { OverviewShortcuts } from "@/components/registry/overview/OverviewShortcuts";
-import { OverviewKpiRail } from "@/components/registry/overview/OverviewKpiRail";
 import { Sf10AttachFeed } from "@/components/registry/overview/Sf10AttachFeed";
 import { FinalGradeApprovals } from "@/components/registry/overview/FinalGradeApprovals";
-import { OverviewGradeChart } from "@/components/registry/overview/OverviewGradeChart";
-import { Sf10RequestsChart } from "@/components/registry/overview/Sf10RequestsChart";
-import { fetchRegistrarOverview } from "@/services/registry/overview.service";
+import { RegistryAttentionDeck } from "@/components/registry/overview/RegistryAttentionDeck";
+import { RegistryGradePanel } from "@/components/registry/overview/RegistryGradePanel";
+import { RegistryRequestsPanel } from "@/components/registry/overview/RegistryRequestsPanel";
+import { RegistryRecordsLedger } from "@/components/registry/overview/RegistryRecordsLedger";
+import { registryOverviewQuery } from "@/components/registry/overview/registryOverviewQuery";
 import { PageEmptyCallout } from "@/components/shared/page-empty-callout";
 import styles from "./components/overview.module.css";
 
-// Mirror of /record-keeper/overview — same cards, rail, motion; every widget
-// is desk-scoped, so this page reads the G11–12 band while the record keeper
-// page reads G7–10.
+// Mirror of /record-keeper/overview — same layout, attention deck, panels and
+// motion. Every widget is desk-scoped, so this page reads the G11–12 band while
+// the record keeper page reads G7–10.
 export default function RegistrarOverviewPage() {
-  // Same key OverviewShortcuts reads, so this only observes its cache.
-  const { data } = useQuery({
-    queryKey: ["registrar-overview"],
-    queryFn: fetchRegistrarOverview,
-    staleTime: 30_000,
-  });
+  // Same key every widget reads, so this only observes the shared cache.
+  const { data } = useQuery(registryOverviewQuery("registrar"));
+
+  // The daily request series is pre-seeded with a zero row per day for the
+  // chart axis, so emptiness must look at activity, not row count.
+  const hasRequestActivity =
+    data?.sf10RequestsDaily.some(
+      (row) => row.pending + row.approved + row.reported + row.denied > 0,
+    ) ?? false;
 
   const isEmpty =
     !!data &&
@@ -28,13 +31,14 @@ export default function RegistrarOverviewPage() {
     data.pendingAdviserAccess === 0 &&
     data.lockedFinalsAwaiting === 0 &&
     data.latestAttachments.length === 0 &&
+    data.missingSf10.length === 0 &&
     data.pendingStudents.length === 0 &&
     data.finals.total === 0 &&
     data.sf10.total === 0 &&
     data.sections === 0 &&
     data.subjects === 0 &&
     data.rosterByGrade.reduce((sum, row) => sum + row.count, 0) === 0 &&
-    data.sf10RequestsDaily.length === 0;
+    !hasRequestActivity;
 
   if (isEmpty) {
     return (
@@ -49,21 +53,21 @@ export default function RegistrarOverviewPage() {
 
   return (
     <section className={styles.page}>
-      <div className={styles.layout}>
-        <div className={styles.stack}>
-          <OverviewShortcuts desk="registrar" variant="stats" />
+      <div className={styles.stack}>
+        <RegistryAttentionDeck desk="registrar" />
 
-          <div className={styles.duo}>
-            <Sf10AttachFeed desk="registrar" variant="kanban" />
-            <FinalGradeApprovals desk="registrar" variant="kanban" />
-          </div>
-
-          <div className={styles.duo}>
-            <OverviewGradeChart desk="registrar" variant="kanban" />
-            <Sf10RequestsChart desk="registrar" />
-          </div>
+        {/* Analytics first — where the band stands, then what needs filing. */}
+        <div className={styles.duo}>
+          <RegistryGradePanel desk="registrar" />
+          <RegistryRequestsPanel desk="registrar" />
         </div>
-        <OverviewKpiRail desk="registrar" />
+
+        <div className={styles.duo}>
+          <Sf10AttachFeed desk="registrar" variant="kanban" />
+          <FinalGradeApprovals desk="registrar" variant="kanban" />
+        </div>
+
+        <RegistryRecordsLedger desk="registrar" />
       </div>
     </section>
   );

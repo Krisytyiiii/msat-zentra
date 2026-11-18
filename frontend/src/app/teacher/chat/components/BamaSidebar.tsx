@@ -134,7 +134,7 @@ export function BamaSidebar({
                         >
                           <span className="flex items-center justify-between gap-2">
                             <span
-                              className="truncate font-mono text-[11px] font-medium text-muted-foreground"
+                              className="truncate font-mono text-[12px] font-medium text-muted-foreground"
                               title={meta.path}
                             >
                               {meta.path} · {c.messages.length} message

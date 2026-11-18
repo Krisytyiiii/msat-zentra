@@ -326,7 +326,7 @@ export function NurseCaseKanbanCard({
         </span>
 
         {statusHelp ? (
-          <p className="m-0 text-[11px] leading-snug text-muted-foreground">
+          <p className="m-0 text-[12px] leading-snug text-muted-foreground">
             {statusHelp}
           </p>
         ) : null}
@@ -449,10 +449,10 @@ export function NurseCaseKanbanCard({
                 className="shrink-0 text-muted-foreground"
                 aria-hidden
               />
-              <span className="min-w-0 flex-1 truncate text-[11px] font-semibold">
+              <span className="min-w-0 flex-1 truncate text-[12px] font-semibold">
                 Clinic sessions
               </span>
-              <span className="shrink-0 rounded-full bg-secondary px-1.5 text-[10px] font-semibold text-secondary-foreground">
+              <span className="shrink-0 rounded-full bg-secondary px-1.5 text-[12px] font-semibold text-secondary-foreground">
                 {row.sessions.length}
               </span>
               <ChevronRight
@@ -470,7 +470,7 @@ export function NurseCaseKanbanCard({
               type="button"
               size="xs"
               variant="secondary"
-              className="h-6 px-2 text-[11px]"
+              className="h-6 px-2 text-[12px]"
               onClick={() => {
                 const scheduled = row.sessions.find(
                   (s) => s.status === "scheduled",
@@ -486,7 +486,7 @@ export function NurseCaseKanbanCard({
               type="button"
               size="xs"
               variant="default"
-              className="h-6 px-2 text-[11px]"
+              className="h-6 px-2 text-[12px]"
               onClick={() =>
                 canReviewAdm ? setReviewOpen(true) : setClinicReviewOpen(true)
               }
@@ -501,7 +501,7 @@ export function NurseCaseKanbanCard({
               type="button"
               size="xs"
               variant="default"
-              className="h-6 px-2 text-[11px]"
+              className="h-6 px-2 text-[12px]"
               onClick={() => onSchedule(row)}
             >
               <CalendarPlus size={12} aria-hidden />

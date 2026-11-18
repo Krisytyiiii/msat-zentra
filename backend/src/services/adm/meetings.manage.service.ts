@@ -22,14 +22,29 @@ export async function rescheduleMeeting(ctx: AdmContext, meetingId: string, inpu
           id: true,
           approvedBy: true,
           stage: true,
-          student: { select: { user: { select: { fullName: true } } } },
+          student: {
+            select: {
+              user: { select: { fullName: true } },
+              section: { select: { adviserId: true } },
+            },
+          },
           referral: {
             select: {
               referredBy: true,
               status: true,
               consultReviewer: true,
-              student: { select: { user: { select: { fullName: true } } } },
-              roster: { select: { fullName: true } },
+              student: {
+                select: {
+                  user: { select: { fullName: true } },
+                  section: { select: { adviserId: true } },
+                },
+              },
+              roster: {
+                select: {
+                  fullName: true,
+                  section: { select: { adviserId: true } },
+                },
+              },
             },
           },
         },
@@ -41,8 +56,18 @@ export async function rescheduleMeeting(ctx: AdmContext, meetingId: string, inpu
           referredBy: true,
           status: true,
           consultReviewer: true,
-          student: { select: { user: { select: { fullName: true } } } },
-          roster: { select: { fullName: true } },
+          student: {
+            select: {
+              user: { select: { fullName: true } },
+              section: { select: { adviserId: true } },
+            },
+          },
+          roster: {
+            select: {
+              fullName: true,
+              section: { select: { adviserId: true } },
+            },
+          },
         },
       },
     },
@@ -132,10 +157,24 @@ export async function rescheduleMeeting(ctx: AdmContext, meetingId: string, inpu
   });
 
   const actorId = ctx.userId;
-  const adviserId =
-    meeting.referral?.referredBy ??
-    meeting.admLearnerProfile?.referral?.referredBy ??
-    null;
+  // The filing teacher and the learner's section adviser both sit on the
+  // adviser desk — notify both so the adviser still hears the move when someone
+  // else (guidance) filed the ADM referral.
+  const adviserIds = [
+    ...new Set(
+      [
+        meeting.referral?.referredBy,
+        meeting.admLearnerProfile?.referral?.referredBy,
+        meeting.referral?.student?.section?.adviserId,
+        meeting.referral?.roster?.section?.adviserId,
+        meeting.admLearnerProfile?.student?.section?.adviserId,
+        meeting.admLearnerProfile?.referral?.student?.section?.adviserId,
+        meeting.admLearnerProfile?.referral?.roster?.section?.adviserId,
+      ].filter(
+        (id): id is string => typeof id === "string" && id.length > 0,
+      ),
+    ),
+  ].filter((id) => id !== actorId);
   const studentName =
     meeting.referral?.student?.user?.fullName ??
     meeting.referral?.roster?.fullName ??
@@ -145,7 +184,7 @@ export async function rescheduleMeeting(ctx: AdmContext, meetingId: string, inpu
     "your student";
   const when = nextAt.toISOString().slice(0, 16).replace("T", " ");
   const actor = await actorName(actorId);
-  if (adviserId && adviserId !== actorId) {
+  for (const adviserId of adviserIds) {
     void fanoutNotification({
       userId: adviserId,
       sourceTable: "adm_parent_meetings",
@@ -174,7 +213,7 @@ export async function rescheduleMeeting(ctx: AdmContext, meetingId: string, inpu
         ).map((r) => ({ id: r.userId, fullName: r.user.fullName }));
     const venueLabel = input.venue === "home" ? "home visitation" : "in school";
     for (const inv of addedInvitees) {
-      if (inv.id === adviserId) continue;
+      if (adviserIds.includes(inv.id)) continue;
       void fanoutNotification({
         userId: inv.id,
         sourceTable: "adm_parent_meetings",
@@ -184,7 +223,7 @@ export async function rescheduleMeeting(ctx: AdmContext, meetingId: string, inpu
       });
     }
     for (const inv of keptInvitees) {
-      if (inv.id === adviserId) continue;
+      if (adviserIds.includes(inv.id)) continue;
       void fanoutNotification({
         userId: inv.id,
         sourceTable: "adm_parent_meetings",

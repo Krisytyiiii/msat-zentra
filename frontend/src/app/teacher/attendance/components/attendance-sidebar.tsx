@@ -213,7 +213,7 @@ export function AttendanceSidebar({
                   </span>
                   {slotCards.length > 0 ? (
                     <span
-                      className="absolute -top-1 -right-1 flex h-4 min-w-4 items-center justify-center rounded-full bg-amber-500 px-1 text-[10px] font-bold text-black"
+                      className="absolute -top-1 -right-1 flex h-4 min-w-4 items-center justify-center rounded-full bg-amber-500 px-1 text-[12px] font-bold text-black"
                       aria-hidden="true"
                     >
                       {slotCards.length}
@@ -267,7 +267,7 @@ export function AttendanceSidebar({
                   <ScrollList className="max-h-[50dvh] gap-1 px-1" ariaLabel="Subjects">
                     {groups.map((group) => (
                       <div key={group.id} className="flex min-w-0 flex-col gap-1">
-                        <p className="px-1 pt-2 text-[11px] font-semibold tracking-wider text-muted-foreground uppercase first:pt-0">
+                        <p className="px-1 pt-2 text-[12px] font-semibold tracking-wider text-muted-foreground uppercase first:pt-0">
                           {group.label}
                         </p>
                         {group.items.map((c) => {
@@ -294,7 +294,7 @@ export function AttendanceSidebar({
                               </span>
                               <span className={kanbanStyles.meta}>
                                 {c.live ? (
-                                  <span className="inline-flex shrink-0 items-center gap-1 rounded border border-emerald-600/45 bg-emerald-500/10 px-1.5 text-[11px] font-medium text-emerald-700 dark:border-emerald-500/45 dark:text-emerald-400">
+                                  <span className="inline-flex shrink-0 items-center gap-1 rounded border border-emerald-600/45 bg-emerald-500/10 px-1.5 text-[12px] font-medium text-emerald-700 dark:border-emerald-500/45 dark:text-emerald-400">
                                     <span className="relative flex h-1.5 w-1.5" aria-hidden="true">
                                       <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-emerald-500 opacity-75" />
                                       <span className="relative inline-flex h-1.5 w-1.5 rounded-full bg-emerald-500" />

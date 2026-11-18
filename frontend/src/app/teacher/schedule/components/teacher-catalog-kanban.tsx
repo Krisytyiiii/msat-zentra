@@ -107,14 +107,14 @@ export function TeacherCatalogKanban({
           <Button
             variant="secondary"
             onClick={handleDeleteCancel}
-            className="h-6 gap-1 px-2 font-sans text-[11px]"
+            className="h-6 gap-1 px-2 font-sans text-[12px]"
           >
             Cancel
           </Button>
           <Button
             onClick={() => setConfirmOpen(true)}
             disabled={selectedIds.length === 0}
-            className="h-6 gap-1 px-2 font-sans text-[11px]"
+            className="h-6 gap-1 px-2 font-sans text-[12px]"
           >
             <Trash2 size={12} aria-hidden />
             Delete{selectedIds.length > 0 ? ` (${selectedIds.length})` : ""}
@@ -133,14 +133,14 @@ export function TeacherCatalogKanban({
                   ? "Close the add-teacher form to delete"
                   : "Delete a teacher"
             }
-            className="ml-auto h-6 gap-1 px-2 font-sans text-[11px]"
+            className="ml-auto h-6 gap-1 px-2 font-sans text-[12px]"
           >
             <Trash2 size={12} aria-hidden />
             Delete teacher
           </Button>
           <Button
             onClick={() => onAddOpenChange(true)}
-            className="h-6 gap-1 px-2 font-sans text-[11px]"
+            className="h-6 gap-1 px-2 font-sans text-[12px]"
           >
             <UserPlus size={12} aria-hidden />
             Add teacher
@@ -187,13 +187,13 @@ export function TeacherCatalogKanban({
             className={`${styles.boardIn} flex min-h-80 flex-col gap-2 rounded-xl border border-border p-2.5`}
           >
             <div className="relative -mx-2.5 flex items-center justify-end gap-2 border-b border-border px-3 pb-2">
-              <div className="w-44 sm:w-56">
+              <div className="w-60 max-w-full">
                 <Input
                   placeholder="Search name…"
                   value={q}
                   onChange={(e) => setQ(e.target.value)}
                   aria-label="Search teachers"
-                  className="h-8 rounded-2xl px-3 font-sans text-[11px]"
+                  className="h-8 rounded-2xl px-3 font-sans text-[12px]"
                 />
               </div>
             </div>

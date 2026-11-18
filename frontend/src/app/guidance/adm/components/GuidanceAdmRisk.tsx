@@ -60,7 +60,6 @@ const LEVEL_COLORS: Record<RiskLevelBucket, string> = {
   Unassessed: AMBER_STEPS[3],
 };
 
-const STUDENT_PILL = "max-w-[10rem] truncate";
 const SECTION_PILL = "max-w-[7rem] truncate";
 
 function typeTone(kind: string | null | undefined): "blue" | "violet" | "neutral" {
@@ -222,7 +221,7 @@ function RiskCasesByCategory({
                 width={104}
                 tickLine={false}
                 axisLine={false}
-                tick={{ fontSize: 11, fill: "var(--muted-foreground)" }}
+                tick={{ fontSize: 12, fill: "var(--muted-foreground)" }}
               />
               <Tooltip
                 cursor={false}
@@ -256,7 +255,7 @@ function RiskCasesByCategory({
                 <LabelList
                   dataKey="count"
                   position="right"
-                  fontSize={10}
+                  fontSize={12}
                   fontWeight={600}
                   fill={AMBER_STEPS[0]}
                 />
@@ -307,14 +306,14 @@ function RiskTrend({
                 <CartesianGrid strokeDasharray="3 3" stroke="var(--border)" />
                 <XAxis
                   dataKey="week"
-                  tick={{ fontSize: 11, fill: "var(--muted-foreground)" }}
+                  tick={{ fontSize: 12, fill: "var(--muted-foreground)" }}
                   tickLine={false}
                   axisLine={{ stroke: "var(--border)" }}
                   interval="preserveStartEnd"
                 />
                 <YAxis
                   allowDecimals={false}
-                  tick={{ fontSize: 11, fill: "var(--muted-foreground)" }}
+                  tick={{ fontSize: 12, fill: "var(--muted-foreground)" }}
                   tickLine={false}
                   axisLine={false}
                   width={32}
@@ -446,14 +445,12 @@ function WhoNeedsAttention({ data }: { data: RiskWatchData }) {
                         size={28}
                       />
                     </span>
-                    <Pill
-                      tone="amber"
-                      label="Student"
-                      className={STUDENT_PILL}
+                    <span
+                      className="min-w-0 max-w-[10rem] truncate text-[13px] font-semibold text-foreground"
                       title={s.student}
                     >
                       {s.student}
-                    </Pill>
+                    </span>
                     {s.section ? (
                       <Pill
                         tone="neutral"

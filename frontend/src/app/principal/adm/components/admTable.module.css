@@ -12,7 +12,7 @@
   position: sticky;
   top: 0;
   text-align: left;
-  font-size: 0.6875rem;
+  font-size: 0.75rem;
   font-weight: 600;
   text-transform: uppercase;
   letter-spacing: 0.06em;
@@ -59,7 +59,7 @@
 }
 
 .lrn {
-  font-size: 0.6875rem;
+  font-size: 0.75rem;
   color: var(--muted-foreground);
 }
 
@@ -67,7 +67,7 @@
 .eligChip {
   display: inline-flex;
   align-items: center;
-  font-size: 0.6875rem;
+  font-size: 0.75rem;
   font-weight: 600;
   padding: 0.1875rem 0.5rem;
   border-radius: var(--radius-md);
@@ -160,7 +160,7 @@
   display: inline-flex;
   align-items: center;
   gap: 0.25rem;
-  font-size: 0.6875rem;
+  font-size: 0.75rem;
   font-weight: 600;
   color: var(--primary, #171717);
 }
@@ -171,7 +171,7 @@
 }
 
 .pendingSign {
-  font-size: 0.6875rem;
+  font-size: 0.75rem;
   font-weight: 600;
   color: #171717;
 }
@@ -251,7 +251,7 @@
 }
 
 .listMeta {
-  font-size: 0.6875rem;
+  font-size: 0.75rem;
   color: var(--muted-foreground);
 }
 
@@ -264,7 +264,7 @@
 }
 
 .listDate {
-  font-size: 0.6875rem;
+  font-size: 0.75rem;
   color: var(--muted-foreground);
 }
 
@@ -291,7 +291,7 @@
 
 .caseTable thead th {
   text-align: center;
-  font-size: 0.6875rem;
+  font-size: 0.75rem;
   font-weight: 600;
   text-transform: uppercase;
   letter-spacing: 0.06em;
@@ -328,7 +328,7 @@
 }
 
 .docNone {
-  font-size: 0.625rem;
+  font-size: 0.75rem;
   color: var(--muted-foreground);
   font-style: italic;
 }

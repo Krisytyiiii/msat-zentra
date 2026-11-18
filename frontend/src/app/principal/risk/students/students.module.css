@@ -2,31 +2,249 @@
   position: relative;
   display: flex;
   flex-direction: column;
-  gap: 1rem;
+  gap: 1.125rem;
   padding: 0;
   min-height: 100%;
   background-color: var(--background);
 }
 
-/* Same board entrance as the risk board page: lift 16px, settle from 0.97
-   scale, one beat between the heatmap and the students table. */
+/* Risk at a glance — the principal overview's stat deck: one bordered strip,
+   a head rail, then a 4-up grid of tiles (icon + label, number + unit, hint).
+   Same structure and micro-motion as the overview so the two desks read alike. */
+.statsDeck {
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-xl);
+  background-color: var(--card);
+}
+
+.statsHead {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.375rem 0.75rem;
+  padding: 0.5rem 0.875rem;
+  border-bottom: 1px solid var(--border);
+  background-color: color-mix(in oklch, var(--muted) 45%, transparent);
+}
+
+.statsTitle {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.375rem;
+  font-size: 0.8125rem;
+  font-weight: 600;
+}
+
+.statsTitle > svg {
+  width: 0.875rem;
+  height: 0.875rem;
+  color: var(--muted-foreground);
+}
+
+.statsTiles {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+}
+
+.statsTile {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  gap: 0.4375rem;
+  min-width: 0;
+  padding: 0.6875rem 0.875rem 0.75rem;
+  border-right: 1px solid var(--border);
+  border-bottom: 1px solid var(--border);
+}
+
+.statsTiles > .statsTile:nth-child(4n) {
+  border-right: 0;
+}
+
+.statsTiles > .statsTile:nth-last-child(-n + 4) {
+  border-bottom: 0;
+}
+
+/* At risk — the one tile that reads as an alert block: red surface and red
+   figure, while High/Moderate keep the neutral deck treatment. */
+.statsTileAlert {
+  background-color: color-mix(in srgb, #ef4444 8%, transparent);
+}
+
+.statsTileAlert .statsTileIcon {
+  border-color: var(--border);
+  background-color: color-mix(in srgb, #ef4444 14%, transparent);
+  color: #b91c1c;
+}
+
+.statsTileAlert .statsTileLabel {
+  color: color-mix(in srgb, #b91c1c 65%, var(--muted-foreground));
+}
+
+.statsTileAlert .statsTileNumber:not(.statsTileNumberZero) {
+  color: #b91c1c;
+}
+
+:global(.dark) .statsTileAlert .statsTileIcon {
+  color: #fca5a5;
+}
+
+:global(.dark) .statsTileAlert .statsTileLabel {
+  color: #fca5a5;
+}
+
+:global(.dark) .statsTileAlert .statsTileNumber:not(.statsTileNumberZero) {
+  color: #fca5a5;
+}
+
+.statsTileTop {
+  display: flex;
+  align-items: center;
+  gap: 0.4375rem;
+  min-width: 0;
+}
+
+.statsTileIcon {
+  display: inline-flex;
+  flex-shrink: 0;
+  align-items: center;
+  justify-content: center;
+  width: 1.375rem;
+  height: 1.375rem;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  background-color: color-mix(in oklch, var(--muted) 55%, transparent);
+  color: var(--muted-foreground);
+}
+
+.statsTileLabel {
+  min-width: 0;
+  overflow: hidden;
+  font-size: 0.75rem;
+  font-weight: 600;
+  color: var(--muted-foreground);
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.statsTileValue {
+  display: flex;
+  align-items: baseline;
+  gap: 0.3125rem;
+  min-width: 0;
+}
+
+.statsTileNumber {
+  font-size: 1.75rem;
+  font-weight: 700;
+  line-height: 1;
+  letter-spacing: -0.02em;
+  font-variant-numeric: tabular-nums;
+}
+
+.statsTileNumberZero {
+  font-weight: 600;
+  color: var(--muted-foreground);
+}
+
+.statsTileUnit {
+  font-size: 0.75rem;
+  font-weight: 600;
+  letter-spacing: 0.07em;
+  text-transform: uppercase;
+  color: var(--muted-foreground);
+  white-space: nowrap;
+}
+
+.statsTileHint {
+  overflow: hidden;
+  font-size: 0.75rem;
+  color: var(--muted-foreground);
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.statsFoot {
+  margin: 0;
+  padding: 0.5rem 0.875rem 0.625rem;
+  border-top: 1px dashed var(--border);
+  font-size: 0.75rem;
+  line-height: 1.4;
+  color: var(--muted-foreground);
+}
+
+/* Board entrance: lift 10px, no scale bounce — two boards, one beat apart. */
 @keyframes page-card-in {
   from {
     opacity: 0;
-    transform: translateY(16px) scale(0.97);
+    transform: translateY(10px);
   }
   to {
     opacity: 1;
-    transform: translateY(0) scale(1);
+    transform: translateY(0);
   }
 }
 
 .page > * {
-  animation: page-card-in 0.55s cubic-bezier(0.16, 1, 0.3, 1) backwards;
+  animation: page-card-in 0.4s cubic-bezier(0.16, 1, 0.3, 1) backwards;
 }
 
-.page > *:nth-child(2) {
-  animation-delay: 0.08s;
+.page > *:nth-child(3) {
+  animation-delay: 0.06s;
+}
+
+.page > *:nth-child(4) {
+  animation-delay: 0.12s;
+}
+
+.page > *:nth-child(5) {
+  animation-delay: 0.18s;
+}
+
+@media (max-width: 1024px) {
+  .statsTiles {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .statsTiles > .statsTile:nth-child(4n) {
+    border-right: 1px solid var(--border);
+  }
+
+  .statsTiles > .statsTile:nth-child(2n) {
+    border-right: 0;
+  }
+
+  .statsTiles > .statsTile:nth-last-child(-n + 4) {
+    border-bottom: 1px solid var(--border);
+  }
+
+  .statsTiles > .statsTile:nth-last-child(-n + 2) {
+    border-bottom: 0;
+  }
+}
+
+@media (max-width: 560px) {
+  .statsTiles {
+    grid-template-columns: 1fr;
+  }
+
+  .statsTiles > .statsTile,
+  .statsTiles > .statsTile:nth-child(2n),
+  .statsTiles > .statsTile:nth-child(4n) {
+    border-right: 0;
+  }
+
+  .statsTiles > .statsTile:nth-last-child(-n + 2) {
+    border-bottom: 1px solid var(--border);
+  }
+
+  .statsTiles > .statsTile:last-child {
+    border-bottom: 0;
+  }
 }
 
 @media (prefers-reduced-motion: reduce) {
@@ -35,20 +253,41 @@
   }
 }
 
-.divider {
-  margin: 0;
-  border: none;
-  border-top: 1px solid var(--border, #e5e5e5);
-}
-
-/* Offset for the fixed topbar + navbar when auto-scrolling to the table. */
+/* Offset for the fixed topbar when a panel's shortcut scrolls the learner
+   table into view. */
 .tableAnchor {
-  scroll-margin-top: 6.5rem;
   min-width: 0;
+  scroll-margin-top: 6.5rem;
 }
 
 /* Dark mode: let the aurora canvas painted by the shell show through the
    page surface instead of a flat --background fill. */
 :global(.dark) .page {
   background-color: transparent;
+}
+
+/* ---- Dark mode: faded deck + dimmed alert tint ------------------------- */
+:global(.dark) .statsDeck {
+  background-color: color-mix(in oklch, var(--card) 58%, transparent);
+}
+
+:global(.dark) .statsHead {
+  background-color: color-mix(in oklch, var(--muted) 20%, transparent);
+}
+
+:global(.dark) .statsTile {
+  border-color: color-mix(in oklch, var(--border) 68%, transparent);
+}
+
+:global(.dark) .statsTileIcon {
+  border-color: color-mix(in oklch, var(--border) 68%, transparent);
+  background-color: color-mix(in oklch, var(--muted) 30%, transparent);
+}
+
+:global(.dark) .statsTileAlert {
+  background-color: color-mix(in srgb, #f87171 5%, transparent);
+}
+
+:global(.dark) .statsTileAlert .statsTileIcon {
+  background-color: color-mix(in srgb, #f87171 12%, transparent);
 }

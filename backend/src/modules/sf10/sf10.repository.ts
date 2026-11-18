@@ -29,7 +29,7 @@ export const GRADE_LABEL = GRADE_LABELS;
 export async function assertDeskAccess(
   recordDesk: string,
   user: { userId: string; role: string },
-  studentGrade: string,
+  recordGrade: string | null,
 ) {
   const desk = deskForRole(user.role);
   if (desk) {
@@ -38,9 +38,12 @@ export async function assertDeskAccess(
     }
     return;
   }
+  // A stored file may not classify a grade (a partial/blank form). The band
+  // can then only be judged by the desk the file was filed under, so skip.
+  if (!recordGrade) return;
   const band = await resolveGradeBand(user.role, user.userId);
-  if (band.length > 0 && !band.includes(studentGrade)) {
-    throw new AppError(403, "GRADE_SCOPE", "You do not handle this student's grade level");
+  if (band.length > 0 && !band.includes(recordGrade)) {
+    throw new AppError(403, "GRADE_SCOPE", "You do not handle this record's grade level");
   }
 }
 
@@ -50,18 +53,19 @@ export async function assertRecordAccess(recordId: string, user: { userId: strin
     where: { id: recordId },
     select: {
       id: true,
-      studentId: true,
+      lrn: true,
+      learnerName: true,
+      gradeLevel: true,
       desk: true,
       status: true,
       verifiedBy: true,
       currentVersion: true,
       ocrExtractedData: true,
       uploadedFileUrl: true,
-      student: { select: { gradeLevel: true } },
     },
   });
   if (!record) throw new AppError(404, "NOT_FOUND", "SF10 record not found");
-  await assertDeskAccess(record.desk, user, record.student.gradeLevel);
+  await assertDeskAccess(record.desk, user, record.gradeLevel ? String(record.gradeLevel) : null);
   return record;
 }
 
@@ -76,11 +80,17 @@ export async function assertRecordAccess(recordId: string, user: { userId: strin
 export async function assertAdviserSf10Access(userId: string, recordId: string) {
   const record = await prisma.sf10Record.findUnique({
     where: { id: recordId },
-    select: { id: true, student: { select: { sectionId: true, lrn: true } } },
+    select: { id: true, lrn: true },
   });
   if (!record) throw new AppError(404, "NOT_FOUND", "SF10 record not found");
-  const sectionId = record.student.sectionId;
-  const lrn = record.student.lrn;
+  const lrn = record.lrn;
+  // The record is keyed by LRN; the owning account may or may not exist. When
+  // it does, its section still counts as covered by a whole-request approval.
+  const profile = await prisma.studentProfile.findUnique({
+    where: { lrn },
+    select: { sectionId: true },
+  });
+  const sectionId = profile?.sectionId ?? null;
   // A per-student "approve" keeps the request pending but writes the LRN into
   // approvedLrns — that is an explicit grant for this learner wherever the
   // record is filed. Whole-request approval covers every advisee on the

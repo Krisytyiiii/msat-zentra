@@ -1,7 +1,7 @@
 "use client";
 
 import * as React from "react";
-import { useLiveQuery } from "@/lib/api/live";
+import { useQuery } from "@tanstack/react-query";
 import { apiClient } from "@/lib/api/client";
 import { useSession } from "@/lib/auth/useSession";
 
@@ -50,13 +50,17 @@ export async function fetchProfileSettings(
   return data;
 }
 
-const SETTINGS_STALE_MS = 30_000;
-const SETTINGS_GC_MS = 5 * 60_000;
+// Deliberately NOT a live query: this runs in every desk layout on every page,
+// and the payload carries the avatar URL + branding. A 20s poll here was one of
+// the heaviest egress sources (each poll is a Postgres round trip). Settings
+// mutations invalidate the same key, so the shell still updates immediately.
+const SETTINGS_STALE_MS = 5 * 60_000;
+const SETTINGS_GC_MS = 15 * 60_000;
 
 export function useProfileSettings(desk: SettingsDesk) {
   const session = useSession();
   const userId = session?.sub ?? null;
-  return useLiveQuery({
+  return useQuery({
     queryKey: profileSettingsKey(desk, userId),
     queryFn: () => fetchProfileSettings(desk),
     enabled: !!userId,

@@ -439,18 +439,18 @@ function CompareRow({
     <div className={styles.compareRow}>
       <span className={styles.value}>
         {label}: <span className={showBadge || !ok ? (ok ? styles.ok : styles.bad) : styles.valueMuted}>{submitted}</span>
-        {note ? <span className={`block text-[11px] ${ok ? styles.ok : styles.bad}`}>{ok ? "✓ match" : `≈ ${note}`}</span> : null}
+        {note ? <span className={`block text-[12px] ${ok ? styles.ok : styles.bad}`}>{ok ? "✓ match" : `≈ ${note}`}</span> : null}
       </span>
       <span className={styles.value}>
         {record}
         <span className="block pt-0.5">
           {ok ? (
-            <Badge variant="outline" className="gap-1 border-primary bg-primary text-primary-foreground text-[10px] font-semibold">
+            <Badge variant="outline" className="gap-1 border-primary bg-primary text-primary-foreground text-[12px] font-semibold">
               <CircleCheck className="size-3" aria-hidden />
               Match
             </Badge>
           ) : (
-            <Badge variant="outline" className="gap-1 border-destructive/30 bg-destructive/10 text-destructive text-[10px] font-semibold">
+            <Badge variant="outline" className="gap-1 border-destructive/30 bg-destructive/10 text-destructive text-[12px] font-semibold">
               <CircleX className="size-3" aria-hidden />
               No match
             </Badge>

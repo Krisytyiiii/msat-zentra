@@ -320,7 +320,7 @@ export function NurseStartHandlingDialog({
                   <dt className={styles.intakeLabel}>Referred</dt>
                   <dd className={styles.intakeValue}>{row.date}</dd>
                   {waiting ? (
-                    <span className="ml-auto shrink-0 self-center whitespace-nowrap text-[10px] italic text-red-600 dark:text-red-400">
+                    <span className="ml-auto shrink-0 self-center whitespace-nowrap text-[12px] italic text-red-600 dark:text-red-400">
                       {waiting}
                     </span>
                   ) : null}

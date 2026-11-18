@@ -8,7 +8,7 @@ export type AnecdotalCategory =
 export type AnecdotalTier = "restricted" | "confidential";
 
 export const ANEC_CATEGORY_LABELS: Record<AnecdotalCategory, string> = {
-  behavioral: "Behavioral",
+  behavioral: "Anecdotal",
   bullying: "Bullying",
   academic: "Academic",
   attendance: "Attendance",

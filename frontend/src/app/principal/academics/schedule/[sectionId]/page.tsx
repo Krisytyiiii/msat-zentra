@@ -1,16 +1,20 @@
 "use client";
+
+import { useState } from "react";
 import Link from "next/link";
 import { useParams } from "next/navigation";
-import { ArrowLeft } from "lucide-react";
+import { ArrowLeft, CalendarDays } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { PrincipalEmptyCard } from "../../../components/PrincipalEmptyCard";
-import { CalendarDays } from "lucide-react";
-import { usePrincipalScheduleSection } from "./components/use-principal-schedule-section";
 import { ScheduleReadonlyGrid } from "./components/schedule-readonly-grid";
-import { SectionCard } from "./components/section-card";
-import { SectionRail } from "./components/section-rail";
+import { SectionReviewHero } from "./components/section-review-hero";
 import { ReviewDialog } from "./components/review-dialog";
 import { SectionScheduleSkeleton } from "./components/section-schedule-skeleton";
+import {
+  usePrincipalScheduleSection,
+  type SlotFilter,
+} from "./components/use-principal-schedule-section";
+
 export default function PrincipalSectionSchedulePage() {
   const params = useParams<{ sectionId: string }>();
   const sectionRef = params.sectionId;
@@ -21,7 +25,9 @@ export default function PrincipalSectionSchedulePage() {
     config,
     rows,
     entryByKey,
-    submittedCount,
+    counts,
+    emptyCount,
+    returnedNote,
     review,
     note,
     setNote,
@@ -34,13 +40,17 @@ export default function PrincipalSectionSchedulePage() {
     approving,
     statusMeta,
   } = usePrincipalScheduleSection(sectionRef);
+  const [slotFilter, setSlotFilter] = useState<SlotFilter>("all");
+
   if (sectionsQuery.isPending || configQuery.isPending) {
     return <SectionScheduleSkeleton />;
   }
   if (sectionsQuery.isError || !sectionsQuery.data) {
     return (
       <section className="mx-auto flex w-full max-w-3xl flex-col gap-5">
-        <p role="alert" className="text-sm text-destructive">Could not load schedule.</p>
+        <p role="alert" className="text-sm text-destructive">
+          Could not load schedule.
+        </p>
       </section>
     );
   }
@@ -60,34 +70,41 @@ export default function PrincipalSectionSchedulePage() {
       </section>
     );
   }
+
+  const openReview = () => {
+    setFormError(null);
+    setReviewOpen(true);
+  };
+
   return (
-    <section className="flex w-full flex-col gap-5">
-      <div className="flex min-w-0 items-center justify-between gap-2">
+    <section className="flex w-full flex-col gap-4">
+      <div className="flex min-w-0 flex-wrap items-center justify-between gap-2">
         <Button asChild variant="ghost" size="sm" className="-ml-2 h-6 px-2 text-xs">
           <Link href="/principal/academics/schedule">
             <ArrowLeft size={14} aria-hidden />
             Back to sections
           </Link>
         </Button>
-        <SectionRail
-          submission={submission}
-          submittedCount={submittedCount}
-          statusMeta={statusMeta}
-          note={note}
-          onOpenReview={() => {
-            setFormError(null);
-            setReviewOpen(true);
-          }}
-          onReview={handleReview}
-          rejecting={rejecting}
-          approving={approving}
-          reviewPending={review.isPending}
-        />
       </div>
-      <div className="flex min-w-0 flex-col gap-5">
-        <SectionCard submission={submission} statusTitle={statusMeta.title} />
-        <ScheduleReadonlyGrid config={config} rows={rows} entryByKey={entryByKey} />
-      </div>
+
+      <SectionReviewHero
+        submission={submission}
+        statusMeta={statusMeta}
+        counts={counts}
+        emptyCount={emptyCount}
+        returnedNote={returnedNote}
+        filter={slotFilter}
+        onFilterChange={setSlotFilter}
+        onOpenReview={openReview}
+      />
+
+      <ScheduleReadonlyGrid
+        config={config}
+        rows={rows}
+        entryByKey={entryByKey}
+        filter={slotFilter}
+      />
+
       <ReviewDialog
         open={reviewOpen}
         onClose={() => {

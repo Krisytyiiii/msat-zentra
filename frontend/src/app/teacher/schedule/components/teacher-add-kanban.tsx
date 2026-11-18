@@ -54,7 +54,7 @@ export function TeacherAddKanban({ onClose, onProgress }: Props) {
               onClick={handleCreate}
               disabled={createMany.isPending || filled.length === 0}
               aria-busy={createMany.isPending || undefined}
-              className="h-6 gap-1 px-2 text-[11px]"
+              className="h-6 gap-1 px-2 text-[12px]"
             >
               {createMany.isPending ? (
                 <>
@@ -82,7 +82,7 @@ export function TeacherAddKanban({ onClose, onProgress }: Props) {
                     variant="ghost"
                     onClick={() => setRows((prev) => prev.filter((_, j) => j !== i))}
                     aria-label={`Remove teacher row ${i + 1}`}
-                    className="h-6 gap-1 px-2 text-[11px]"
+                    className="h-6 gap-1 px-2 text-[12px]"
                   >
                     <Trash2 size={12} aria-hidden />
                   </Button>
@@ -103,7 +103,7 @@ export function TeacherAddKanban({ onClose, onProgress }: Props) {
             <Button
               variant="secondary"
               onClick={() => setRows((prev) => [...prev, { fullName: "" }])}
-              className="h-6 gap-1 px-2 text-[11px]"
+              className="h-6 gap-1 px-2 text-[12px]"
             >
               <Plus size={12} aria-hidden />
               Add another
@@ -139,7 +139,7 @@ export function TeacherCreateDockRows({ rows }: { rows: TeacherCreateProgress["r
               {r.name}
             </span>
           </span>
-          <span className="shrink-0 text-[11px] text-muted-foreground">
+          <span className="shrink-0 text-[12px] text-muted-foreground">
             {r.status === "created" ? "Added" : r.status === "failed" ? (r.message ?? "Failed") : "Creating…"}
           </span>
         </li>

@@ -356,7 +356,7 @@ function ClinicBookingControl({
         type="button"
         size="xs"
         variant="default"
-        className="h-6 shrink-0 gap-1 px-2 text-[0.6875rem] font-semibold"
+        className="h-6 shrink-0 gap-1 px-2 text-[12px] font-semibold"
         onClick={(event) => {
           event.stopPropagation();
           if (needsReview) setReviewOpen(true);
@@ -729,7 +729,7 @@ export function NurseAlertsBoard({
       }
       actions={
         <div className="flex max-w-[70vw] flex-wrap items-center justify-end gap-2">
-          <InputGroup className="max-w-40 shrink-0 rounded-[16px]">
+          <InputGroup className="w-60 max-w-full shrink-0 rounded-[16px]">
             <InputGroupInput
               placeholder="Search cases..."
               value={query}

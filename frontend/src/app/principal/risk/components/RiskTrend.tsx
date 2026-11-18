@@ -2,7 +2,13 @@
 
 import * as React from "react";
 import { useQuery } from "@tanstack/react-query";
-import { Bar, BarChart, CartesianGrid, XAxis, YAxis } from "recharts";
+import {
+  Area,
+  AreaChart,
+  CartesianGrid,
+  XAxis,
+  YAxis,
+} from "recharts";
 import { TrendingUp } from "lucide-react";
 import { PrincipalEmptyState } from "../../components/PrincipalEmptyCard";
 import {
@@ -17,31 +23,32 @@ import { apiClient } from "@/lib/api/client";
 import { usePersistentState } from "@/lib/hooks/usePersistentState";
 import { useTerm } from "@/lib/term/TermContext";
 import { KanbanBoard } from "@/components/ui/kanban-board";
+import { FilterTabs } from "@/components/ui/filter-tabs";
 import { Pill } from "@/components/ui/pill";
 import type { RiskTrendData } from "@/services/principal/risk.types";
 import styles from "./RiskTrend.module.css";
 
-const AMBER = {
-  high: "#b45309",
+const RISK_LEVELS = {
+  high: "#dc2626",
   moderate: "#f59e0b",
-  low: "#fcd34d",
+  low: "#16a34a",
 } as const;
 
 const chartConfig = {
-  high: { label: "High risk", color: AMBER.high },
-  moderate: { label: "Moderate", color: AMBER.moderate },
-  low: { label: "Low risk", color: AMBER.low },
+  high: { label: "High risk", color: RISK_LEVELS.high },
+  moderate: { label: "Moderate risk", color: RISK_LEVELS.moderate },
+  low: { label: "Low risk", color: RISK_LEVELS.low },
 } satisfies ChartConfig;
 
 const SERIES = [
-  { key: "low", label: "Low risk", color: AMBER.low },
-  { key: "moderate", label: "Moderate", color: AMBER.moderate },
-  { key: "high", label: "High risk", color: AMBER.high },
+  { key: "low", label: "Low risk", color: RISK_LEVELS.low },
+  { key: "moderate", label: "Moderate risk", color: RISK_LEVELS.moderate },
+  { key: "high", label: "High risk", color: RISK_LEVELS.high },
 ] as const;
 
 const RANGES = [
-  { value: "7", label: "Last 7 days" },
-  { value: "30", label: "Last 30 days" },
+  { value: "7", label: "7 days" },
+  { value: "30", label: "30 days" },
   { value: "all", label: "All" },
 ] as const;
 
@@ -54,7 +61,7 @@ export function RiskTrend() {
 
   const [range, setRange] = usePersistentState<RangeKey>(
     "zentra.risk.trend.range",
-    "all"
+    "all",
   );
 
   const { data, isPending } = useQuery({
@@ -68,51 +75,57 @@ export function RiskTrend() {
   });
 
   const trend = data?.trend ?? [];
-  const isDaily = trend.some((t) => Boolean(t.date));
-  let chartData = trend.map((t) => ({
-    date: t.date,
-    term: t.term,
-    high: isPending ? 0 : t.high,
-    moderate: isPending ? 0 : t.moderate,
-    low: isPending ? 0 : t.low,
+  const isDaily = trend.some((point) => Boolean(point.date));
+  let chartData = trend.map((point) => ({
+    date: point.date,
+    term: point.term,
+    high: isPending ? 0 : point.high,
+    moderate: isPending ? 0 : point.moderate,
+    low: isPending ? 0 : point.low,
   }));
 
   if (isDaily && range !== "all") {
-    const n = Number(range);
-    const dates = chartData.map((d) => d.date).filter(Boolean);
+    const count = Number(range);
+    const dates = chartData.map((point) => point.date).filter(Boolean);
     if (dates.length > 0) {
       const max = dates.reduce((a, b) => (a > b ? a : b));
       const maxDate = new Date(`${max}T00:00:00`);
-      maxDate.setDate(maxDate.getDate() - (n - 1));
+      maxDate.setDate(maxDate.getDate() - (count - 1));
       const cutoff = maxDate.getTime();
-      chartData = chartData.filter((d) => {
-        if (!d.date) return false;
-        return new Date(`${d.date}T00:00:00`).getTime() >= cutoff;
-      });
+      chartData = chartData.filter(
+        (point) =>
+          !!point.date && new Date(`${point.date}T00:00:00`).getTime() >= cutoff,
+      );
     }
   }
 
   const hasData = chartData.length > 0;
 
   const latest = chartData[chartData.length - 1];
+  const previous = chartData.length > 1 ? chartData[chartData.length - 2] : null;
   const latestTotal = latest ? latest.high + latest.moderate + latest.low : 0;
   const latestHighShare =
     latest && latestTotal > 0 ? Math.round((latest.high / latestTotal) * 100) : 0;
+  const deltaTotal = latest && previous
+    ? latest.high + latest.moderate + latest.low -
+      (previous.high + previous.moderate + previous.low)
+    : null;
+  const peak = chartData.reduce<{ label: string; total: number } | null>(
+    (best, point) => {
+      const total = point.high + point.moderate + point.low;
+      if (!best || total > best.total) return { label: point.term, total };
+      return best;
+    },
+    null,
+  );
 
   const rangeControl = isDaily ? (
-    <div className={styles.rangeGroup} role="group" aria-label="Trend range">
-      {RANGES.map((r) => (
-        <button
-          key={r.value}
-          type="button"
-          className={`${styles.rangeBtn} ${range === r.value ? styles.rangeActive : ""}`}
-          aria-pressed={range === r.value}
-          onClick={() => setRange(r.value)}
-        >
-          {r.label}
-        </button>
-      ))}
-    </div>
+    <FilterTabs
+      label="Trend range"
+      options={RANGES}
+      value={range}
+      onChange={setRange}
+    />
   ) : undefined;
 
   return (
@@ -143,16 +156,58 @@ export function RiskTrend() {
         <div className={styles.skeleton} aria-hidden="true" />
       ) : (
         <>
+          <div className={styles.stats}>
+            <div className={styles.stat}>
+              <span className={styles.statLabel}>Latest checkpoint</span>
+              <span className={styles.statValue}>{latestTotal.toLocaleString()}</span>
+              <span className={styles.statHint}>
+                {deltaTotal === null
+                  ? "first snapshot"
+                  : deltaTotal === 0
+                    ? "unchanged"
+                    : `${deltaTotal > 0 ? "+" : ""}${deltaTotal} vs previous`}
+              </span>
+            </div>
+            <div className={styles.stat}>
+              <span className={styles.statLabel}>High risk share</span>
+              <span className={styles.statValue}>{latestHighShare}%</span>
+              <span className={styles.statHint}>
+                {latest?.high.toLocaleString() ?? 0} of{" "}
+                {latestTotal.toLocaleString()} flagged
+              </span>
+            </div>
+            <div className={styles.stat}>
+              <span className={styles.statLabel}>Peak checkpoint</span>
+              <span className={styles.statValue}>{peak?.total.toLocaleString() ?? 0}</span>
+              <span className={styles.statHint}>{peak?.label ?? "—"}</span>
+            </div>
+          </div>
+
           <ChartContainer
             config={chartConfig}
             className={styles.chartContainer}
-            style={{ height: 300, width: "100%", aspectRatio: "auto" }}
+            style={{ height: 280, width: "100%", aspectRatio: "auto" }}
           >
-            <BarChart
+            <AreaChart
               accessibilityLayer
               data={chartData}
               margin={{ top: 8, right: 8, bottom: 4, left: 0 }}
             >
+              <defs>
+                {SERIES.map((series) => (
+                  <linearGradient
+                    key={series.key}
+                    id={`riskTrendFill-${series.key}`}
+                    x1="0"
+                    y1="0"
+                    x2="0"
+                    y2="1"
+                  >
+                    <stop offset="0%" stopColor={series.color} stopOpacity={0.55} />
+                    <stop offset="100%" stopColor={series.color} stopOpacity={0.06} />
+                  </linearGradient>
+                ))}
+              </defs>
               <CartesianGrid vertical={false} stroke="var(--border)" />
               <XAxis
                 dataKey="term"
@@ -160,27 +215,32 @@ export function RiskTrend() {
                 axisLine={false}
                 tickMargin={8}
                 minTickGap={isDaily ? 24 : 0}
+                tick={{ fontSize: 12 }}
                 interval={isDaily ? "preserveStartEnd" : 0}
               />
               <YAxis
                 allowDecimals={false}
                 tickLine={false}
                 axisLine={false}
-                width={28}
+                width={32}
+                tick={{ fontSize: 12 }}
               />
-              <ChartTooltip content={<ChartTooltipContent />} />
-              {SERIES.map((s, index) => (
-                <Bar
-                  key={s.key}
-                  dataKey={s.key}
-                  name={s.label}
+              <ChartTooltip content={<ChartTooltipContent indicator="line" />} />
+              {SERIES.map((series, index) => (
+                <Area
+                  key={series.key}
+                  type="monotone"
+                  dataKey={series.key}
+                  name={series.label}
                   stackId="risk"
-                  fill={`var(--color-${s.key})`}
-                  radius={s.key === "high" ? [4, 4, 0, 0] : undefined}
+                  stroke={series.color}
+                  strokeWidth={1.4}
+                  fill={`url(#riskTrendFill-${series.key})`}
                   isAnimationActive
-                  animationBegin={180 + index * 160}
-                  animationDuration={1000}
+                  animationBegin={120 + index * 140}
+                  animationDuration={900}
                   animationEasing="ease-out"
+                  activeDot={{ r: 3, strokeWidth: 1.5 }}
                 />
               ))}
               <ChartLegend
@@ -188,14 +248,19 @@ export function RiskTrend() {
                 align="right"
                 content={<ChartLegendContent />}
               />
-            </BarChart>
+            </AreaChart>
           </ChartContainer>
 
           {latest ? (
             <p className={styles.insight}>
-              Latest snapshot: <strong>{latestTotal}</strong> learners flagged,{" "}
-              <strong>{latest.high}</strong> high risk (
-              {latestHighShare}%).{" "}
+              Latest checkpoint: <strong>{latestTotal}</strong> learners flagged,{" "}
+              <strong>{latest.high}</strong> high risk ({latestHighShare}%).{" "}
+              {deltaTotal !== null && deltaTotal !== 0 ? (
+                <>
+                  That is <strong>{deltaTotal > 0 ? "+" : ""}{deltaTotal}</strong>{" "}
+                  against the previous checkpoint.{" "}
+                </>
+              ) : null}
               {activeSchoolYear ? `Scoped to ${activeSchoolYear.name}.` : ""}
             </p>
           ) : null}

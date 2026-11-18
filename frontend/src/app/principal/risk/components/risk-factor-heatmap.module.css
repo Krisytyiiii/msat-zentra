@@ -14,7 +14,7 @@
 }
 
 .subtitle {
-  font-size: 0.6875rem;
+  font-size: 0.75rem;
   color: var(--muted-foreground);
 }
 
@@ -93,7 +93,7 @@
 
 .factorTotal {
   display: block;
-  font-size: 0.625rem;
+  font-size: 0.75rem;
   font-weight: 500;
   color: var(--muted-foreground);
   opacity: 0.7;
@@ -170,7 +170,7 @@
 
 .floatingSub {
   margin: 0.125rem 0 0;
-  font-size: 0.6875rem;
+  font-size: 0.75rem;
   color: var(--muted-foreground);
 }
 
@@ -272,7 +272,7 @@
 }
 
 .legendLabel {
-  font-size: 0.6875rem;
+  font-size: 0.75rem;
   color: var(--muted-foreground);
 }
 
@@ -290,7 +290,7 @@
 
 .confidential {
   margin: 0;
-  font-size: 0.6875rem;
+  font-size: 0.75rem;
   color: var(--muted-foreground);
   font-style: italic;
   text-align: right;

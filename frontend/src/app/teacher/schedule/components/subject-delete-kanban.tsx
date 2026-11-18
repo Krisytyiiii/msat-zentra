@@ -218,7 +218,7 @@ export function SubjectDeleteConfirm({ subjects, pending, onCancel, onConfirm }:
                 onClick={onCancel}
                 disabled={pending}
                 variant="outline"
-                className="h-6 gap-1 px-2 text-[11px]"
+                className="h-6 gap-1 px-2 text-[12px]"
               >
                 <Undo2 size={12} aria-hidden />
                 Keep them
@@ -227,7 +227,7 @@ export function SubjectDeleteConfirm({ subjects, pending, onCancel, onConfirm }:
                 onClick={onConfirm}
                 disabled={pending}
                 aria-busy={pending || undefined}
-                className="h-6 gap-1 border-transparent bg-red-600 px-2 text-[11px] text-white hover:bg-red-700 hover:text-white dark:border-transparent dark:bg-red-600 dark:text-white dark:hover:bg-red-700 dark:hover:text-white"
+                className="h-6 gap-1 border-transparent bg-red-600 px-2 text-[12px] text-white hover:bg-red-700 hover:text-white dark:border-transparent dark:bg-red-600 dark:text-white dark:hover:bg-red-700 dark:hover:text-white"
               >
                 {pending ? (
                   <>
@@ -289,11 +289,11 @@ export function DeleteDockRows({ rows }: { rows: SubjectDeleteRowState[] }) {
             <span className="truncate text-xs font-medium" title={r.name}>
               {r.name}
             </span>
-            <span className="truncate font-mono text-[11px] text-muted-foreground" title={`${r.code} · ${gradeLabel(r.gradeLevel)}`}>
+            <span className="truncate font-mono text-[12px] text-muted-foreground" title={`${r.code} · ${gradeLabel(r.gradeLevel)}`}>
               {r.code} · {gradeLabel(r.gradeLevel)}
             </span>
           </span>
-          <span className="shrink-0 text-[11px] text-muted-foreground">
+          <span className="shrink-0 text-[12px] text-muted-foreground">
             {r.status === "deleted" ? "Deleted" : r.status === "failed" ? (r.message ?? "Failed") : "Deleting…"}
           </span>
         </li>

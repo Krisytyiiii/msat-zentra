@@ -3,6 +3,7 @@
 import * as React from "react";
 import { Download, SearchIcon, Trophy } from "lucide-react";
 import { PrincipalEmptyState } from "../../components/PrincipalEmptyCard";
+import { FilterTabs } from "@/components/ui/filter-tabs";
 import { Pill, type PillTone } from "@/components/ui/pill";
 import { Button } from "@/components/ui/button";
 import {
@@ -34,8 +35,6 @@ interface Props {
 }
 
 /** Grade-tab chips: 24px tall, blue when active (inactive stays neutral). */
-const TAB_PILL_CLASS = "h-6 px-2.5";
-
 const BAND_VARIANT: Record<string, PillTone> = {
   Advancing: "green",
   Benchmarking: "blue",
@@ -217,51 +216,18 @@ export function CandidateTable({
           </p>
         </div>
         <div className={styles.panelTools}>
-          <div
-            className={styles.tabs}
-            role="tablist"
-            aria-label="Filter by grade level"
-          >
-            <button
-              type="button"
-              role="tab"
-              aria-selected={activeGrade === "all"}
-              aria-label="All grades"
-              title="All grades"
-              className={styles.filterTab}
-              onClick={() => handleGradeSelect("all")}
-            >
-              <Pill
-                tone={activeGrade === "all" ? "blue" : "neutral"}
-                className={TAB_PILL_CLASS}
-              >
-                All grades
-              </Pill>
-            </button>
-            {grades.map((g) => {
-              const key = String(g);
-              const active = key === activeGrade;
-              return (
-                <button
-                  key={g}
-                  type="button"
-                  role="tab"
-                  aria-selected={active}
-                  aria-label={`Grade ${g}`}
-                  title={`Grade ${g}`}
-                  className={styles.filterTab}
-                  onClick={() => handleGradeSelect(key)}
-                >
-                  <Pill
-                    tone={active ? "blue" : "neutral"}
-                    className={TAB_PILL_CLASS}
-                  >
-                    Grade {g}
-                  </Pill>
-                </button>
-              );
-            })}
-          </div>
+          <FilterTabs
+            label="Filter by grade level"
+            options={[
+              { value: "all", label: "All grades" },
+              ...grades.map((g) => ({
+                value: String(g),
+                label: `Grade ${g}`,
+              })),
+            ]}
+            value={activeGrade}
+            onChange={handleGradeSelect}
+          />
           <InputGroup className="max-w-40 shrink-0" style={{ borderRadius: "1rem" }}>
             <InputGroupInput
               placeholder="Filter students..."

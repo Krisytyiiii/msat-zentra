@@ -161,9 +161,13 @@ export function useTeacherNavDots(): TeacherNavDots {
   const { data } = useQuery({
     queryKey: [...TEACHER_NAV_COUNTS_KEY],
     queryFn: ({ signal }) => fetchTeacherNavQueues(signal),
-    staleTime: 2_000,
-    refetchInterval: 5_000,
-    refetchIntervalInBackground: true,
+    // 60s, not 5s: every poll is a Postgres round trip on a raw-SQL aggregate,
+    // and Supabase bills that as organization egress. Realtime already
+    // invalidates this on any teacher-table change, so the poll is only the
+    // fallback for writes that emit nothing — and a hidden tab shows no dots.
+    staleTime: 15_000,
+    refetchInterval: 60_000,
+    refetchIntervalInBackground: false,
     refetchOnWindowFocus: true,
   });
 

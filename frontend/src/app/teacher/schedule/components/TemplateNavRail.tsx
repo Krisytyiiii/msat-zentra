@@ -80,7 +80,7 @@ export function TemplateNavRail({ view, onSelect }: Props) {
             aria-label="Find a template action"
             className="h-8 w-full rounded-md border bg-card pr-7 pl-7 text-xs outline-none transition-colors duration-150 placeholder:text-muted-foreground focus:border-amber-500/60"
           />
-          <kbd className="pointer-events-none absolute top-1/2 right-1.5 -translate-y-1/2 rounded border bg-muted px-1 text-[10px] leading-4 text-muted-foreground">
+          <kbd className="pointer-events-none absolute top-1/2 right-1.5 -translate-y-1/2 rounded border bg-muted px-1 text-[12px] leading-4 text-muted-foreground">
             F
           </kbd>
         </div>

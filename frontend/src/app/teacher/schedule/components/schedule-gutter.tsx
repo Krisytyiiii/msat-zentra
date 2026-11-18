@@ -355,7 +355,7 @@ export function ScheduleGutter() {
                 </span>
                 {totalDrafts > 0 ? (
                   <span
-                    className="absolute -top-1 -right-1 flex h-4 min-w-4 items-center justify-center rounded-full bg-amber-500 px-1 text-[10px] font-bold text-black"
+                    className="absolute -top-1 -right-1 flex h-4 min-w-4 items-center justify-center rounded-full bg-amber-500 px-1 text-[12px] font-bold text-black"
                     aria-hidden="true"
                   >
                     {totalDrafts}

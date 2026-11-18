@@ -3,3 +3,6 @@ qa-output/
 
 # Local seeded credentials (never commit)
 SEEDED_ACCOUNTS.md
+
+# Generated learner exports dropped into public assets by mistake (never commit)
+frontend/public/sounds/*.xlsx

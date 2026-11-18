@@ -101,13 +101,13 @@ export function ScoreSaveDock({
                   {r.name}
                 </span>
                 <span
-                  className="truncate text-[11px] text-muted-foreground"
+                  className="truncate text-[12px] text-muted-foreground"
                   title={r.meta}
                 >
                   {r.meta}
                 </span>
               </span>
-              <span className="shrink-0 text-[11px] text-muted-foreground">
+              <span className="shrink-0 text-[12px] text-muted-foreground">
                 {r.state === "saved"
                   ? "Saved"
                   : r.state === "failed"

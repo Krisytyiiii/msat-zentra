@@ -385,13 +385,13 @@ export function GuidanceSectionsLinePanel({
                   angle={-18}
                   textAnchor="end"
                   height={52}
-                  tick={{ fontSize: 11 }}
+                  tick={{ fontSize: 12 }}
                 />
                 <YAxis
                   tickLine={false}
                   axisLine={false}
                   allowDecimals={false}
-                  fontSize={11}
+                  fontSize={12}
                   width={34}
                 />
                 <Tooltip

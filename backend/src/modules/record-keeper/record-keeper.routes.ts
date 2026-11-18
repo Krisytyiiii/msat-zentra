@@ -41,8 +41,13 @@ import {
   updateProfilePhoto,
   updateProfileSettings,
 } from "../../services/registry/settings.service.js";
+import navCountsRoutes from "./navCounts.routes.js";
 
 const router = Router();
+
+// Sidebar "new activity" dots — tiny polled map, mounted first so `/nav-counts`
+// never falls through to a page route.
+router.use(navCountsRoutes);
 
 function ctxOf(req: { user?: { id: string; role: string } }) {
   return { userId: req.user!.id, role: req.user!.role, band: GRADE_BAND_7_10 };

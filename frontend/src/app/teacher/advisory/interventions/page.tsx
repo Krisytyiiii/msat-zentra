@@ -43,7 +43,7 @@ const FACTOR_LABELS: Record<FactorFilter, string> = {
   all: "All factors",
   academic: "Academic",
   attendance: "Attendance",
-  behavioral: "Behavioral",
+  behavioral: "Anecdotal",
 };
 const OUTCOME_LABELS: Record<OutcomeFilter, string> = {
   all: "All states",

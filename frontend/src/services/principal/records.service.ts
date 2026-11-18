@@ -8,7 +8,7 @@ import type {
 } from "@/app/principal/risk/heatmaps/records/types";
 
 export const CATEGORY_META: Record<BehavioralCategory, { label: string; color: string }> = {
-  behavioral: { label: "Behavioral", color: "#f59e0b" },
+  behavioral: { label: "Anecdotal", color: "#f59e0b" },
   bullying: { label: "Bullying", color: "#ef4444" },
   academic: { label: "Academic", color: "#3b82f6" },
   attendance: { label: "Attendance", color: "#22c55e" },

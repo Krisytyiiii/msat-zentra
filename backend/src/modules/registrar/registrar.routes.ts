@@ -39,8 +39,11 @@ import {
   updateProfilePhoto,
   updateProfileSettings,
 } from "../../services/registry/settings.service.js";
+import navCountsRoutes from "./navCounts.routes.js";
 
 const router = Router();
+
+router.use(navCountsRoutes);
 
 function ctxOf(req: { user?: { id: string; role: string } }) {
   return {

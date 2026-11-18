@@ -14,7 +14,7 @@ interface SectionStudentsTableProps {
 
 /** Plain roster for one section — each student is its own small kanban board. */
 export function SectionStudentsTable({ section, query }: SectionStudentsTableProps) {
-  const students = section.students ?? [];
+  const students = React.useMemo(() => section.students ?? [], [section.students]);
 
   const filtered = React.useMemo(() => {
     const needle = query.trim().toLowerCase();

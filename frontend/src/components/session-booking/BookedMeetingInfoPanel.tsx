@@ -49,7 +49,7 @@ export function BookedMeetingInfoContent({ info }: { info: BookedMeetingInfo }) 
           <span className={board.caseName}>{info.studentName}</span>
           <div className={board.casePills}>
             {info.lrn ? <Pill label="LRN">{info.lrn}</Pill> : null}
-            {info.grade ? <Pill label="Section" tone="amber">{info.grade}</Pill> : null}
+            {info.grade ? <Pill label="Grade level">{info.grade}</Pill> : null}
           </div>
         </div>
       </div>

@@ -76,7 +76,7 @@ export function DeleteAssessmentSaveDock({
                 </span>
               ) : null}
             </span>
-            <span className="shrink-0 text-[11px] text-muted-foreground">
+            <span className="shrink-0 text-[12px] text-muted-foreground">
               {phase === "deleted" ? "Deleted" : phase === "error" ? "Failed" : "Deleting…"}
             </span>
           </li>

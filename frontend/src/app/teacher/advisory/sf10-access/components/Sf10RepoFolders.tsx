@@ -2,6 +2,7 @@
 
 import * as React from "react";
 import { FileText, FolderOpen } from "lucide-react";
+import { FilterTabs } from "@/components/ui/filter-tabs";
 import { FolderCard } from "@/components/ui/FolderCard";
 import { Input } from "@/components/ui/input";
 import { InsightCallout } from "@/components/ui/insight-callout";
@@ -91,56 +92,24 @@ export function Sf10RepoFolders({
               : `Rendered from adviser-approved finals — ${autoFillRows.length} student(s). The original upload stays in the other tab.`}
           </p>
         </div>
-        <div
-          role="tablist"
-          aria-label="SF10 file source"
-          className="flex flex-wrap items-center justify-center gap-1.5 sm:justify-self-center"
-        >
-          <button
-            type="button"
-            role="tab"
-            aria-selected={source === "original"}
-            onClick={() => switchSource("original")}
-            className={
-              source === "original"
-                ? "inline-flex items-center gap-1 rounded-md bg-blue-500/15 px-2 py-0.5 text-[11px] font-semibold text-blue-700 dark:text-blue-400"
-                : "inline-flex items-center gap-1 rounded-md bg-muted px-2 py-0.5 text-[11px] font-semibold text-muted-foreground transition-colors hover:bg-muted/70 hover:text-foreground"
-            }
-          >
-            Original file
-            <span
-              className={
-                source === "original"
-                  ? "text-blue-700/80 dark:text-blue-400/80"
-                  : "text-muted-foreground/80"
-              }
-            >
-              {originalRows.length}
-            </span>
-          </button>
-          <button
-            type="button"
-            role="tab"
-            aria-selected={source === "autofill"}
-            onClick={() => switchSource("autofill")}
-            className={
-              source === "autofill"
-                ? "inline-flex items-center gap-1 rounded-md bg-blue-500/15 px-2 py-0.5 text-[11px] font-semibold text-blue-700 dark:text-blue-400"
-                : "inline-flex items-center gap-1 rounded-md bg-muted px-2 py-0.5 text-[11px] font-semibold text-muted-foreground transition-colors hover:bg-muted/70 hover:text-foreground"
-            }
-          >
-            Bama auto-fill
-            <span
-              className={
-                source === "autofill"
-                  ? "text-blue-700/80 dark:text-blue-400/80"
-                  : "text-muted-foreground/80"
-              }
-            >
-              {autoFillRows.length}
-            </span>
-          </button>
-        </div>
+        <FilterTabs
+          label="SF10 file source"
+          className="justify-self-center"
+          options={[
+            {
+              value: "original",
+              label: "Original file",
+              count: originalRows.length,
+            },
+            {
+              value: "autofill",
+              label: "Bama auto-fill",
+              count: autoFillRows.length,
+            },
+          ]}
+          value={source}
+          onChange={switchSource}
+        />
         <div className={`${styles.headerActions} sm:justify-self-end`}>
           <Input
             className={`${styles.search} h-8 rounded-[16px]`}

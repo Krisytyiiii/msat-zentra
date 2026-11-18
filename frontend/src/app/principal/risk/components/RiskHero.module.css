@@ -1,0 +1,581 @@
+/* Risk overview strip — the page's command deck. One bordered surface that
+   carries the headline count, the term sparkline, and every focus control, so
+   the boards below stay purely about their own chart or table. */
+
+.hero {
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-xl);
+  background-color: var(--card);
+  min-width: 0;
+}
+
+.head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.375rem 0.75rem;
+  padding: 0.5rem 0.875rem;
+  border-bottom: 1px solid var(--border);
+  background-color: color-mix(in oklch, var(--muted) 42%, transparent);
+}
+
+.headTitle {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4375rem;
+  font-size: 0.8125rem;
+  font-weight: 600;
+  color: var(--foreground);
+}
+
+.iconChip {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 1.375rem;
+  height: 1.375rem;
+  border: 1px solid color-mix(in srgb, #f59e0b 35%, var(--border));
+  border-radius: var(--radius-sm);
+  background-color: color-mix(in srgb, #f59e0b 12%, transparent);
+  color: #b45309;
+}
+
+:global(.dark) .iconChip {
+  color: #fbbf24;
+}
+
+.headMeta {
+  display: inline-flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.refresh {
+  display: grid;
+  place-items: center;
+  width: 1.75rem;
+  height: 1.75rem;
+  padding: 0;
+  border: 1px solid var(--border);
+  border-radius: calc(var(--radius) - 2px);
+  background: transparent;
+  color: var(--muted-foreground);
+  cursor: pointer;
+  transition:
+    background-color 140ms ease-out,
+    color 140ms ease-out,
+    border-color 140ms ease-out;
+}
+
+.refresh:hover {
+  border-color: color-mix(in srgb, #f59e0b 45%, var(--border));
+  background-color: color-mix(in oklch, var(--muted) 55%, transparent);
+  color: var(--foreground);
+}
+
+.refresh:focus-visible {
+  outline: none;
+  box-shadow: 0 0 0 2px var(--ring);
+}
+
+.spinning {
+  animation: spin 900ms linear infinite;
+}
+
+@keyframes spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+.body {
+  display: grid;
+  grid-template-columns: minmax(220px, 0.85fr) 1px minmax(0, 2.1fr);
+  align-items: stretch;
+  min-width: 0;
+}
+
+.lead {
+  display: flex;
+  flex-direction: column;
+  gap: 0.375rem;
+  min-width: 0;
+  padding: 1rem 1.125rem 1.125rem;
+}
+
+.eyebrow {
+  font-size: 0.75rem;
+  font-weight: 700;
+  letter-spacing: 0.09em;
+  text-transform: uppercase;
+  color: var(--muted-foreground);
+}
+
+.leadRow {
+  display: flex;
+  align-items: baseline;
+  gap: 0.625rem;
+  min-width: 0;
+}
+
+.leadValue {
+  font-size: 2.75rem;
+  font-weight: 700;
+  line-height: 0.95;
+  letter-spacing: -0.035em;
+  font-variant-numeric: tabular-nums;
+  color: var(--foreground);
+}
+
+.delta {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.1875rem;
+  height: 1.375rem;
+  padding: 0 0.5rem;
+  border: 1px solid transparent;
+  border-radius: 999px;
+  font-size: 0.75rem;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+
+.deltaUp {
+  border-color: color-mix(in srgb, #e11d48 30%, transparent);
+  background-color: color-mix(in srgb, #e11d48 12%, transparent);
+  color: #be123c;
+}
+
+.deltaDown {
+  border-color: color-mix(in srgb, #16a34a 30%, transparent);
+  background-color: color-mix(in srgb, #16a34a 12%, transparent);
+  color: #15803d;
+}
+
+.deltaFlat {
+  border-color: var(--border);
+  background-color: color-mix(in oklch, var(--muted) 60%, transparent);
+  color: var(--muted-foreground);
+}
+
+:global(.dark) .deltaUp {
+  color: #fb7185;
+}
+
+:global(.dark) .deltaDown {
+  color: #4ade80;
+}
+
+.leadSub {
+  margin: 0;
+  font-size: 0.75rem;
+  line-height: 1.5;
+  color: var(--muted-foreground);
+}
+
+.leadSub strong {
+  color: var(--foreground);
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+}
+
+.spark {
+  display: block;
+  width: 100%;
+  height: 54px;
+  margin-top: 0.375rem;
+}
+
+.sparkCaption {
+  margin: 0.125rem 0 0;
+  font-size: 0.75rem;
+  letter-spacing: 0.02em;
+  color: var(--muted-foreground);
+}
+
+.sparkEmpty {
+  margin-top: 0.5rem;
+  padding: 0.75rem 0.625rem;
+  border: 1px dashed var(--border);
+  border-radius: var(--radius-md);
+  font-size: 0.75rem;
+  line-height: 1.45;
+  color: var(--muted-foreground);
+}
+
+.sep {
+  width: 1px;
+  background-color: var(--border);
+}
+
+.right {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  min-width: 0;
+  padding: 1rem 1.125rem;
+}
+
+.blockHead {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 1rem;
+  font-size: 0.75rem;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--muted-foreground);
+}
+
+.blockHead:not(:first-child) {
+  margin-top: 0.375rem;
+}
+
+.blockHint {
+  font-size: 0.75rem;
+  font-weight: 500;
+  letter-spacing: 0;
+  text-transform: none;
+  color: var(--muted-foreground);
+  opacity: 0.85;
+  white-space: nowrap;
+}
+
+.levels {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 0.5rem;
+  min-width: 0;
+}
+
+.level {
+  display: flex;
+  flex-direction: column;
+  gap: 0.375rem;
+  min-width: 0;
+  padding: 0.625rem 0.6875rem;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  background: transparent;
+  color: inherit;
+  text-align: left;
+  cursor: pointer;
+  transition:
+    background-color 150ms ease-out,
+    border-color 150ms ease-out,
+    box-shadow 150ms ease-out;
+}
+
+.level:hover {
+  border-color: var(--border);
+  background-color: color-mix(in oklch, var(--muted) 45%, transparent);
+}
+
+.level:focus-visible {
+  outline: none;
+  box-shadow: 0 0 0 2px var(--ring);
+}
+
+.levelActive,
+.levelActive:hover {
+  border-color: var(--border);
+  background-color: color-mix(in srgb, var(--level-color) 12%, transparent);
+}
+
+.levelTop {
+  display: flex;
+  align-items: center;
+  gap: 0.375rem;
+  min-width: 0;
+}
+
+.dot {
+  width: 0.4375rem;
+  height: 0.4375rem;
+  flex-shrink: 0;
+  border-radius: 999px;
+}
+
+.levelLabel {
+  min-width: 0;
+  overflow: hidden;
+  font-size: 0.75rem;
+  font-weight: 600;
+  color: var(--foreground);
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.levelCount {
+  margin-left: auto;
+  font-size: 0.9375rem;
+  font-weight: 700;
+  line-height: 1;
+  font-variant-numeric: tabular-nums;
+  color: var(--foreground);
+}
+
+.levelTrack {
+  display: block;
+  height: 4px;
+  overflow: hidden;
+  border-radius: 999px;
+  background-color: color-mix(in oklch, var(--muted) 75%, transparent);
+}
+
+.levelFill {
+  display: block;
+  height: 100%;
+  border-radius: inherit;
+  transition: width 520ms cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+.levelFoot {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.375rem;
+  min-width: 0;
+  font-size: 0.75rem;
+  color: var(--muted-foreground);
+  white-space: nowrap;
+}
+
+.levelHint {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  opacity: 0.8;
+}
+
+.factors {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 0.5rem;
+  min-width: 0;
+}
+
+.factor {
+  display: flex;
+  flex-direction: column;
+  gap: 0.3125rem;
+  min-width: 0;
+  padding: 0.5rem 0.625rem;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  background: transparent;
+  color: inherit;
+  text-align: left;
+  cursor: pointer;
+  transition:
+    background-color 150ms ease-out,
+    border-color 150ms ease-out,
+    box-shadow 150ms ease-out;
+}
+
+.factor:hover {
+  border-color: var(--border);
+  background-color: color-mix(in oklch, var(--muted) 45%, transparent);
+}
+
+.factor:focus-visible {
+  outline: none;
+  box-shadow: 0 0 0 2px var(--ring);
+}
+
+.factorActive,
+.factorActive:hover {
+  border-color: var(--border);
+  background-color: color-mix(in srgb, var(--factor-color) 12%, transparent);
+}
+
+.factorTop {
+  display: flex;
+  align-items: center;
+  gap: 0.375rem;
+  min-width: 0;
+  font-size: 0.75rem;
+  font-weight: 600;
+  color: var(--foreground);
+  white-space: nowrap;
+}
+
+.factorCount {
+  margin-left: auto;
+  font-size: 0.75rem;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+  color: var(--muted-foreground);
+}
+
+.factorTrack {
+  display: block;
+  height: 3px;
+  overflow: hidden;
+  border-radius: 999px;
+  background-color: color-mix(in oklch, var(--muted) 75%, transparent);
+}
+
+.factorFill {
+  display: block;
+  height: 100%;
+  border-radius: inherit;
+  transition: width 520ms cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+.foot {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.5rem;
+  min-height: 2.25rem;
+  padding: 0.5rem 0.875rem;
+  border-top: 1px solid var(--border);
+  background-color: color-mix(in oklch, var(--muted) 26%, transparent);
+}
+
+.footLabel {
+  font-size: 0.75rem;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--muted-foreground);
+}
+
+.chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.25rem;
+  height: 1.375rem;
+  padding: 0 0.5rem;
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  background-color: var(--card);
+  font-size: 0.75rem;
+  font-weight: 600;
+  color: var(--foreground);
+  cursor: pointer;
+  transition:
+    border-color 140ms ease-out,
+    color 140ms ease-out;
+}
+
+.chip:hover {
+  border-color: color-mix(in srgb, #b45309 50%, var(--border));
+  color: #b45309;
+}
+
+:global(.dark) .chip:hover {
+  color: #fbbf24;
+}
+
+.chip:focus-visible {
+  outline: none;
+  box-shadow: 0 0 0 2px var(--ring);
+}
+
+.clear {
+  margin-left: auto;
+  padding: 0;
+  border: none;
+  background: none;
+  font-size: 0.75rem;
+  font-weight: 600;
+  color: var(--muted-foreground);
+  text-decoration: underline;
+  text-underline-offset: 3px;
+  cursor: pointer;
+}
+
+.clear:hover {
+  color: var(--foreground);
+}
+
+.footTip {
+  margin: 0;
+  font-size: 0.75rem;
+  color: var(--muted-foreground);
+}
+
+.levelSkeleton {
+  height: 4.25rem;
+  border-radius: var(--radius-lg);
+}
+
+.factorSkeleton {
+  height: 2.5rem;
+  border-radius: var(--radius-md);
+}
+
+@media (max-width: 1024px) {
+  .body {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .sep {
+    width: auto;
+    height: 1px;
+  }
+}
+
+@media (max-width: 560px) {
+  .levels,
+  .factors {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .leadValue {
+    font-size: 2.25rem;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .spinning {
+    animation: none;
+  }
+
+  .level,
+  .factor,
+  .levelFill,
+  .factorFill {
+    transition: none;
+  }
+}
+
+/* ---- Dark mode: faded hero + dimmed accents ---------------------------- */
+:global(.dark) .hero {
+  background-color: color-mix(in oklch, var(--card) 58%, transparent);
+}
+
+:global(.dark) .head {
+  background-color: color-mix(in oklch, var(--muted) 20%, transparent);
+}
+
+:global(.dark) .refresh:hover {
+  background-color: color-mix(in oklch, var(--muted) 24%, transparent);
+}
+
+:global(.dark) .chip {
+  border-color: color-mix(in oklch, var(--border) 68%, transparent);
+  background-color: color-mix(in oklch, var(--card) 58%, transparent);
+}
+
+:global(.dark) .foot {
+  background-color: color-mix(in oklch, var(--muted) 14%, transparent);
+}
+
+:global(.dark) .level:hover,
+:global(.dark) .factor:hover {
+  background-color: color-mix(in oklch, var(--muted) 22%, transparent);
+}
+
+:global(.dark) .levelTrack,
+:global(.dark) .factorTrack {
+  background-color: color-mix(in oklch, var(--muted-foreground) 22%, transparent);
+}

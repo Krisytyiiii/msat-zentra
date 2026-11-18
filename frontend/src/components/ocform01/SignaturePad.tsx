@@ -124,7 +124,7 @@ export function SignaturePad({ onSave, onCancel, saving, error }: SignaturePadPr
           type="button"
           variant="ghost"
           size="sm"
-          className="h-6 px-2 text-[11px]"
+          className="h-6 px-2 text-[12px]"
           onClick={onCancel}
           disabled={saving}
         >
@@ -134,7 +134,7 @@ export function SignaturePad({ onSave, onCancel, saving, error }: SignaturePadPr
           type="button"
           variant="outline"
           size="sm"
-          className="h-6 px-2 text-[11px]"
+          className="h-6 px-2 text-[12px]"
           onClick={handleClear}
           disabled={saving || empty}
         >
@@ -145,7 +145,7 @@ export function SignaturePad({ onSave, onCancel, saving, error }: SignaturePadPr
           type="button"
           variant="default"
           size="sm"
-          className="h-6 px-2 text-[11px]"
+          className="h-6 px-2 text-[12px]"
           onClick={handleSave}
           disabled={saving || empty}
         >

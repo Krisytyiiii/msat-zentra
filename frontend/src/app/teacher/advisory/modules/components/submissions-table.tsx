@@ -52,7 +52,7 @@ function AnswerLink({ row }: { row: AdvisorySubmissionRow }) {
         href={row.submissionUrl}
         target="_blank"
         rel="noreferrer noopener"
-        className="inline-flex min-w-0 items-center gap-1 text-[11px] font-medium text-primary hover:underline"
+        className="inline-flex min-w-0 items-center gap-1 text-[12px] font-medium text-primary hover:underline"
         title={row.submissionUrl}
       >
         <ExternalLink size={12} className="shrink-0" aria-hidden />
@@ -66,7 +66,7 @@ function AnswerLink({ row }: { row: AdvisorySubmissionRow }) {
         href={row.fileUrl}
         target="_blank"
         rel="noreferrer noopener"
-        className="inline-flex min-w-0 items-center gap-1 text-[11px] font-medium text-primary hover:underline"
+        className="inline-flex min-w-0 items-center gap-1 text-[12px] font-medium text-primary hover:underline"
         title={row.fileUrl}
       >
         <ExternalLink size={12} className="shrink-0" aria-hidden />
@@ -76,7 +76,7 @@ function AnswerLink({ row }: { row: AdvisorySubmissionRow }) {
   }
   if (row.submitted && row.submissionKind === "physical") {
     return (
-      <span className="inline-flex min-w-0 flex-wrap items-center gap-1 text-[11px] text-muted-foreground">
+      <span className="inline-flex min-w-0 flex-wrap items-center gap-1 text-[12px] text-muted-foreground">
         Passed in person
         {row.fileUrl ? (
           <a
@@ -91,7 +91,7 @@ function AnswerLink({ row }: { row: AdvisorySubmissionRow }) {
       </span>
     );
   }
-  return <span className="text-[11px] text-muted-foreground">No answer yet</span>;
+  return <span className="text-[12px] text-muted-foreground">No answer yet</span>;
 }
 
 function SubmissionCard({ row, index }: { row: AdvisorySubmissionRow; index: number }) {
@@ -117,7 +117,7 @@ function SubmissionCard({ row, index }: { row: AdvisorySubmissionRow; index: num
             <span className="truncate text-[13px] font-semibold text-foreground" title={row.name}>
               {row.name}
             </span>
-            <span className="truncate text-[10px] text-muted-foreground tabular-nums">
+            <span className="truncate text-[12px] text-muted-foreground tabular-nums">
               LRN {row.lrn}
             </span>
           </span>
@@ -144,24 +144,24 @@ function SubmissionCard({ row, index }: { row: AdvisorySubmissionRow; index: num
         </div>
 
         <div className="flex min-w-0 flex-col gap-0.5">
-          <span className="text-[10px] font-semibold tracking-wide text-muted-foreground uppercase">
+          <span className="text-[12px] font-semibold tracking-wide text-muted-foreground uppercase">
             Answer
           </span>
           <AnswerLink row={row} />
         </div>
 
         <div className="flex min-w-0 flex-col gap-0.5">
-          <span className="text-[10px] font-semibold tracking-wide text-muted-foreground uppercase">
+          <span className="text-[12px] font-semibold tracking-wide text-muted-foreground uppercase">
             Remarks
           </span>
-          <span className="line-clamp-2 text-[11px] text-foreground" title={row.remarks ?? undefined}>
+          <span className="line-clamp-2 text-[12px] text-foreground" title={row.remarks ?? undefined}>
             {row.remarks || "—"}
           </span>
         </div>
       </div>
 
       <div className="flex items-center justify-end px-0.5">
-        <Button asChild className="h-6 px-2 text-[11px]">
+        <Button asChild className="h-6 px-2 text-[12px]">
           <a
             href={`/teacher/advisory/adm-cases/${toSlug(row.name)}`}
             target="_blank"

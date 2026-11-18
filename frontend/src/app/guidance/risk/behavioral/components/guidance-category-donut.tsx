@@ -7,7 +7,7 @@ import styles from "./guidance-category-donut.module.css";
 const SHADES = ["#171717", "#525252", "#737373", "#a3a3a3", "#d4d4d4"];
 
 const CATEGORY_LABELS: { key: "behavioral" | "bullying" | "academic" | "attendance" | "health"; label: string }[] = [
-  { key: "behavioral", label: "Behavioral" },
+  { key: "behavioral", label: "Anecdotal" },
   { key: "bullying", label: "Bullying" },
   { key: "academic", label: "Academic" },
   { key: "attendance", label: "Attendance" },

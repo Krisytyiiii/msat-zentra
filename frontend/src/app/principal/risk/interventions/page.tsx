@@ -1,6 +1,6 @@
 "use client";
 
-import { InterventionsListTable } from "./components/InterventionsListTable";
+import { InterventionBriefing } from "./components/InterventionBriefing";
 import menu from "../heatmaps/components/heatmap.module.css";
 import styles from "./interventions.module.css";
 
@@ -9,7 +9,7 @@ export default function PrincipalInterventionsPage() {
     <div className={menu.shell}>
       <div className={menu.layout}>
         <section className={styles.page}>
-          <InterventionsListTable />
+          <InterventionBriefing />
         </section>
       </div>
     </div>

@@ -117,7 +117,7 @@
 }
 
 .search {
-  width: 16rem;
+  width: 240px;
   max-width: 40vw;
   /* Keeps the search trigger beside (not touching) the right icon cluster:
      8px topbar gap + 8px here = 16px breathing room. */
@@ -178,7 +178,7 @@
   background-color: var(--background);
   color: var(--muted-foreground);
   font-family: var(--font-sans), system-ui, sans-serif;
-  font-size: 0.625rem;
+  font-size: 0.75rem;
   font-weight: 600;
   letter-spacing: 0.02em;
 }

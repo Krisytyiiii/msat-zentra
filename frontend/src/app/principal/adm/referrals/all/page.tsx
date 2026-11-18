@@ -14,7 +14,7 @@ import { SignReturnConfirmDialog } from "./SignReturnConfirmDialog";
 import { ShieldCheck } from "lucide-react";
 import { PageEmptyCallout } from "@/components/shared/page-empty-callout";
 import { KanbanBoard } from "@/components/ui/kanban-board";
-import { Pill } from "@/components/ui/pill";
+import { FilterTabs } from "@/components/ui/filter-tabs";
 import { Pagination } from "@/components/shared/pagination";
 import { useDock } from "@/components/dock/dock-store";
 import { useAdmReferralsList } from "./components/use-adm-referrals-list";
@@ -218,35 +218,18 @@ function PrincipalAdmReferralsAllPageInner() {
                   : `${total} case${total === 1 ? "" : "s"} endorsed by the ADM Coordinator — signed cases stay on this list and are final.`
               }
               headerCenter={
-                <div
-                  className={styles.filterTabs}
-                  role="tablist"
-                  aria-label="Filter by approval state"
-                >
-                  {LANE_TABS.map((tab) => {
-                    const active = laneFilter === tab.key;
-                    return (
-                      <button
-                        key={tab.key}
-                        type="button"
-                        role="tab"
-                        aria-selected={active}
-                        onClick={() => setLaneFilter(tab.key)}
-                        className={styles.filterTab}
-                      >
-                        <Pill
-                          tone={active ? "blue" : "neutral"}
-                          className="h-6 px-2.5"
-                        >
-                          {tab.label}
-                        </Pill>
-                      </button>
-                    );
-                  })}
-                </div>
+                <FilterTabs
+                  label="Filter by approval state"
+                  options={LANE_TABS.map((tab) => ({
+                    value: tab.key,
+                    label: tab.label,
+                  }))}
+                  value={laneFilter}
+                  onChange={setLaneFilter}
+                />
               }
               actions={
-                <InputGroup className="max-w-40 shrink-0 rounded-[2rem]">
+                <InputGroup className="w-60 max-w-full shrink-0 rounded-[16px]">
                   <InputGroupInput
                     placeholder="Search name, LRN, or ID…"
                     value={searchInput}

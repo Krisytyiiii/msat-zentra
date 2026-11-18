@@ -4,6 +4,11 @@
   flex-direction: column;
   gap: 1rem;
   padding: 0;
+  background-color: var(--background);
+}
+
+:global(.dark) .page {
+  background-color: transparent;
 }
 
 .divider {
@@ -76,7 +81,7 @@
 
 .bannerBadge {
   align-self: flex-start;
-  font-size: 0.625rem;
+  font-size: 0.75rem;
   font-weight: 600;
   letter-spacing: 0.06em;
   text-transform: uppercase;
@@ -309,7 +314,7 @@
   display: inline-flex;
   align-items: center;
   gap: 0.3rem;
-  font-size: 0.6875rem;
+  font-size: 0.75rem;
   color: var(--muted-foreground);
 }
 
@@ -390,4 +395,25 @@
     width: auto;
     max-height: 40vh;
   }
+}
+
+/* ---- Dark mode: faded detail card + tabs ------------------------------- */
+:global(.dark) .detailCard {
+  border-color: color-mix(in oklch, var(--border) 68%, transparent);
+  background-color: color-mix(in oklch, var(--card) 58%, transparent);
+  box-shadow: 0 18px 44px -26px color-mix(in oklch, #000 60%, transparent);
+}
+
+:global(.dark) .cardHeader {
+  border-color: color-mix(in oklch, var(--border) 68%, transparent);
+  background-color: color-mix(in oklch, var(--muted) 18%, transparent);
+}
+
+:global(.dark) .cardBody {
+  background-color: transparent;
+}
+
+:global(.dark) .tab {
+  border-color: color-mix(in oklch, var(--border) 68%, transparent);
+  background-color: color-mix(in oklch, var(--card) 58%, transparent);
 }

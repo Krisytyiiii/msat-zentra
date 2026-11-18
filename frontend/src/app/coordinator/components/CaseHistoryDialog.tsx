@@ -212,7 +212,7 @@ export function CaseHistoryDialog({
             <h2 id="case-track-title" className="truncate text-[13px] font-semibold">
               {row.student} — tracking
             </h2>
-            <p className="truncate text-[11px] text-muted-foreground">
+            <p className="truncate text-[12px] text-muted-foreground">
               LRN {row.lrn} · {row.grade}
             </p>
           </div>
@@ -247,7 +247,7 @@ export function CaseHistoryDialog({
         </div>
 
         <div className="flex min-w-0 flex-col gap-1.5 px-1">
-          <p className="flex items-center gap-1.5 text-[11px] font-medium tracking-wide text-muted-foreground uppercase">
+          <p className="flex items-center gap-1.5 text-[12px] font-medium tracking-wide text-muted-foreground uppercase">
             <History size={14} aria-hidden />
             Pipeline tracking
           </p>

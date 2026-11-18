@@ -277,7 +277,7 @@
   display: inline-flex;
   align-items: center;
   gap: 0.25rem;
-  font-size: 0.7rem;
+  font-size: 0.75rem;
   color: var(--foreground);
   text-decoration: none;
   border: 1px solid var(--border);
@@ -336,7 +336,7 @@
 
 .dialogContent .eyebrow {
   margin: 0;
-  font-size: 0.6875rem;
+  font-size: 0.75rem;
   font-weight: 600;
   letter-spacing: 0.08em;
   text-transform: uppercase;
@@ -367,7 +367,7 @@
 
 .dialogContent .filesLabel {
   margin: 0;
-  font-size: 0.6875rem;
+  font-size: 0.75rem;
   font-weight: 600;
   letter-spacing: 0.06em;
   text-transform: uppercase;
@@ -413,7 +413,7 @@
 
 .fieldSection {
   margin: 0 0 0.5rem;
-  font-size: 0.6875rem;
+  font-size: 0.75rem;
   font-weight: 600;
   letter-spacing: 0.06em;
   text-transform: uppercase;
@@ -439,7 +439,7 @@
   gap: 0.375rem;
   flex-shrink: 0;
   min-width: 9.5rem;
-  font-size: 0.6875rem;
+  font-size: 0.75rem;
   font-weight: 600;
   text-transform: uppercase;
   letter-spacing: 0.04em;

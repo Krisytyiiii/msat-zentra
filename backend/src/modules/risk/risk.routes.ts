@@ -142,7 +142,7 @@ router.get(
           ? (req.query.factor as "Academic" | "Attendance" | "Behavioral")
           : undefined;
       // Internal aggregate for the instant-search desks: one full roster load
-      // (High + Moderate), then the client filters and pages in memory.
+      // (every level, Low included), then the client filters and pages in memory.
       if (req.query.all === "1") {
         const students = await getAllRiskStudents(req.termScope ?? undefined);
         return res.json({ students, total: students.length });

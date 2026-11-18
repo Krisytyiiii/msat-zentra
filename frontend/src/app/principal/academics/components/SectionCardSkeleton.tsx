@@ -2,30 +2,26 @@ import { Skeleton } from "@/components/ui/skeleton";
 import styles from "./SectionCardGrid.module.css";
 
 /**
- * Loading placeholder that mirrors a real section card: header row (name +
- * grade pill, data-source pill) over the inner metrics panel with three stat
- * columns. Kept structurally identical so the board doesn't jump when data
- * arrives.
+ * Loading placeholder that mirrors a real section card: a hairline head with
+ * the section name and sharing state, the three-figure row, and the foot
+ * affordance. Kept structurally identical so the board doesn't jump.
  */
 export function SectionCardSkeleton() {
   return (
     <div className={styles.cardSkeleton} aria-hidden>
-      <div className={styles.cardHead}>
-        <span className={styles.cardHeading}>
-          <Skeleton className={styles.skeletonName} />
-          <Skeleton className={styles.skeletonGrade} />
-        </span>
+      <div className={styles.skeletonHead}>
+        <Skeleton className={styles.skeletonName} />
         <Skeleton className={styles.skeletonSource} />
       </div>
-      <div className={styles.cardPanel}>
+      <div className={styles.skeletonMetrics}>
         {Array.from({ length: 3 }).map((_, i) => (
-          <span key={i} className={styles.stat}>
-            <Skeleton className={styles.skeletonStatIcon} />
-            <Skeleton className={styles.skeletonStatPill} />
-            <Skeleton className={styles.skeletonStatLabel} />
+          <span key={i} className={styles.skeletonMetric}>
+            <Skeleton className={styles.skeletonValue} />
+            <Skeleton className={styles.skeletonLabel} />
           </span>
         ))}
       </div>
+      <Skeleton className={styles.skeletonFoot} />
     </div>
   );
 }

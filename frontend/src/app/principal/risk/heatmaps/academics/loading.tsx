@@ -1,5 +1,6 @@
 "use client";
 
+import { Skeleton } from "@/components/ui/skeleton";
 import { KpiStrip } from "./components/KpiStrip";
 import { SubjectTrendChart } from "./components/SubjectTrendChart";
 import { NeedsAttentionList } from "./components/NeedsAttentionList";
@@ -9,9 +10,8 @@ const noop = () => {};
 
 /**
  * Route-level skeleton. It renders the page's own pending states so the
- * placeholder is byte-for-byte the same shape as the loaded layout: three KPI
- * boards, the Subject Trends board (chart + hint row + insight callout) and the
- * Needs Attention section head + card grid.
+ * placeholder is the same shape as the loaded layout: the page header, the
+ * stat deck, the Subject Trends board and the Needs Attention card grid.
  */
 export default function PrincipalAcademicsHeatmapLoading() {
   return (
@@ -22,6 +22,7 @@ export default function PrincipalAcademicsHeatmapLoading() {
           aria-label="Loading academic heatmap"
           aria-busy="true"
         >
+          <Skeleton className="h-8 w-64" aria-hidden="true" />
           <KpiStrip
             below={0}
             gradedTotal={0}
@@ -34,10 +35,6 @@ export default function PrincipalAcademicsHeatmapLoading() {
           />
           <SubjectTrendChart
             sections={[]}
-            subjects={[]}
-            grades={[]}
-            gradeFilter="Grade 7"
-            onGradeFilterChange={noop}
             isPending
             selectedSubject={null}
             onSelectSubject={noop}

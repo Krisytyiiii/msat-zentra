@@ -73,15 +73,24 @@ export async function analyzeSf10(file: File): Promise<Sf10AnalyzeResponse> {
 
 export async function uploadSf10Auto(
   file: File,
-  gradeLevel?: string | null,
   signal?: AbortSignal,
+  /** Bytes-upload progress, 0–100. 100 means the server is now reading the
+   * file — the upload itself is done and extraction is what remains. */
+  onUploadProgress?: (percent: number) => void,
 ): Promise<Sf10AutoUploadResult> {
   const form = new FormData();
   form.append("file", file);
-  if (gradeLevel) form.append("gradeLevel", gradeLevel);
   const res = await apiClient.post<Sf10AutoUploadResult>("/api/sf10/upload-auto", form, {
     headers: { "Content-Type": "multipart/form-data" },
     signal,
+    onUploadProgress: (e) => {
+      if (!onUploadProgress) return;
+      if (e.total && e.total > 0) {
+        onUploadProgress(Math.min(100, Math.round((e.loaded / e.total) * 100)));
+      } else if (e.loaded > 0) {
+        onUploadProgress(100);
+      }
+    },
   });
   return res.data;
 }

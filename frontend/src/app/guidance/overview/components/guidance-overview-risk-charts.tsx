@@ -32,7 +32,7 @@ export function GuidanceOverviewRiskCharts({
   const factorRows = [
     { key: "grades", label: "Academic", count: factorTotals.grades },
     { key: "attendance", label: "Attendance", count: factorTotals.attendance },
-    { key: "behavior", label: "Behavioral", count: factorTotals.behavior },
+    { key: "behavior", label: "Anecdotal", count: factorTotals.behavior },
   ];
 
   const gradeRows = riskByGrade.map((r) => ({
@@ -52,7 +52,7 @@ export function GuidanceOverviewRiskCharts({
   const factorsText =
     factorTotal === 0
       ? "No risk flags tripped this term — every student clears all three checks."
-      : `${factorTotals.grades} academic, ${factorTotals.attendance} attendance, and ${factorTotals.behavior} behavioral flags active. One student can trip several flags.`;
+      : `${factorTotals.grades} academic, ${factorTotals.attendance} attendance, and ${factorTotals.behavior} anecdotal flags active. One student can trip several flags.`;
 
   const topGrade = [...riskByGrade].sort((a, b) => b.count - a.count)[0];
   const gradeText =

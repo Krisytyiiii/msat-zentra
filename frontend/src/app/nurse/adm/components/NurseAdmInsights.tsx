@@ -126,9 +126,12 @@ function Bottlenecks({ data }: { data: NurseAdmInsightsData }) {
                         size={28}
                       />
                     </span>
-                    <Pill tone="amber" label="Student" title={b.student} className="min-w-0 max-w-full overflow-hidden">
-                      <span className="truncate">{b.student}</span>
-                    </Pill>
+                    <span
+                      className="min-w-0 max-w-full truncate text-[13px] font-semibold text-foreground"
+                      title={b.student}
+                    >
+                      {b.student}
+                    </span>
                     {b.section ? (
                       <Pill label="Section" title={b.section} className="min-w-0 max-w-full overflow-hidden">
                         <span className="truncate">{b.section}</span>

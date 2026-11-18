@@ -316,7 +316,7 @@ export function InterventionFinishDialog({
                               "border-blue-600 bg-blue-50 text-blue-800 ring-1 ring-blue-600 dark:border-blue-500 dark:bg-[#0f1a33] dark:text-[#bfdbfe] dark:ring-blue-500"
                           )}
                         >
-                          <span className="text-[11px] font-medium uppercase text-muted-foreground">
+                          <span className="text-[12px] font-medium uppercase text-muted-foreground">
                             {d.dow}
                           </span>
                           <span className="text-[13px] font-semibold">{d.label}</span>
@@ -334,7 +334,7 @@ export function InterventionFinishDialog({
                       )}
                     >
                       <CalendarIcon className="size-4" aria-hidden />
-                      <span className="px-1 text-[11px] font-medium leading-tight">
+                      <span className="px-1 text-[12px] font-medium leading-tight">
                         {customSelected && followDate ? formatChipSummary(followDate) : "Other date"}
                       </span>
                     </button>

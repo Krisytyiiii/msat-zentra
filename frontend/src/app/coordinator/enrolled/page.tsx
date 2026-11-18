@@ -10,6 +10,7 @@ import {
 } from "./components/coordinator-enrolled-board";
 import { CoordinatorEnrolledCompleteConfirm } from "./components/coordinator-enrolled-complete-confirm";
 import { Pagination } from "@/components/shared/pagination";
+import { PageEmptyCallout } from "@/components/shared/page-empty-callout";
 import styles from "./components/coordinator-enrolled.module.css";
 
 function CoordinatorEnrolledPageInner() {
@@ -39,7 +40,13 @@ function CoordinatorEnrolledPageInner() {
       aria-label="Enrolled students"
       aria-busy={r.enrolledPending || r.enrolledPageLoading || undefined}
     >
-      {!r.enrolledPending && !r.enrolledError && r.rows.length === 0 && !r.hasActiveFilters ? null : (
+      {!r.enrolledPending && !r.enrolledError && r.rows.length === 0 && !r.hasActiveFilters ? (
+        <PageEmptyCallout fit>
+          No enrolled learners yet. Learners appear here once their ADM case is
+          certified and they are placed in a section for the selected school
+          year.
+        </PageEmptyCallout>
+      ) : (
         <CoordinatorEnrolledBoard
           rows={r.rows}
           isPending={r.enrolledPending || r.enrolledPageLoading}

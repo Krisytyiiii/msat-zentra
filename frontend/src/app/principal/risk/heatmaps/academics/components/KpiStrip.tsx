@@ -1,18 +1,41 @@
 "use client";
 
 import * as React from "react";
-import { ChevronDown, Clock, TriangleAlert, Users } from "lucide-react";
-import { KanbanBoard } from "@/components/ui/kanban-board";
-import { Pill } from "@/components/ui/pill";
+import Link from "next/link";
+import {
+  ArrowRight,
+  ChevronDown,
+  Clock,
+  School,
+  TriangleAlert,
+  Users,
+  type LucideIcon,
+} from "lucide-react";
 import { Skeleton } from "@/components/ui/skeleton";
-import { StudentMascot } from "@/components/student-mascot/StudentMascot";
+import { CountUpNumber } from "../../../../overview/components/CountUpNumber";
 import { AwaitingGradesBoard } from "./AwaitingGradesBoard";
 import type { UngradedStudent } from "./types";
 import styles from "./academics.module.css";
 
-/** Decorative sprite pinned per metric — same treatment as the attendance strip. */
-const MASCOTS = ["owl", "knight", "clockwork"] as const;
+interface StatTile {
+  key: string;
+  icon: LucideIcon;
+  title: string;
+  unit: string;
+  value: number;
+  hint: string;
+  /** Where the tile takes you — every number opens its source list. */
+  href?: string;
+  /** Amber accent for the tile that flags work still needing action. */
+  tone?: "amber";
+}
 
+/**
+ * Top stat deck for the academic heatmap — same structure as the principal
+ * overview deck (one bordered strip, divided tiles, number + unit + hint), so
+ * the two desks read the same. The "Awaiting grades" tile is a button instead
+ * of a link: it opens the learner list underneath the strip.
+ */
 export function KpiStrip({
   below,
   gradedTotal,
@@ -42,174 +65,174 @@ export function KpiStrip({
   if (!isPending && sectionCount === 0 && gradedTotal === 0 && ungraded === 0)
     return null;
 
-  return (
-    <>
-      <div
-        className={styles.kpiGrid}
-        aria-busy={isPending || undefined}
-        aria-label="Academic overview"
+  const tiles: StatTile[] = [
+    {
+      key: "below",
+      icon: TriangleAlert,
+      title: "Students below 75",
+      unit: "learners",
+      value: below,
+      hint: `${belowPct}% of ${gradedTotal.toLocaleString()} graded learners`,
+      href: "/principal/risk/students",
+    },
+    {
+      key: "sections",
+      icon: Users,
+      title: "Sections at risk",
+      unit: "sections",
+      value: riskySections,
+      hint: `Of ${sectionCount.toLocaleString()} sections with grades`,
+      href: "/principal/academics",
+      tone: "amber",
+    },
+    {
+      key: "ungraded",
+      icon: Clock,
+      title: "Awaiting grades",
+      unit: "learners",
+      value: ungraded,
+      hint:
+        ungraded > 0
+          ? `Of ${sharedTotal.toLocaleString()} adviser-shared learners`
+          : "Every shared learner has a grade record",
+    },
+  ];
+
+  if (isPending) {
+    return (
+      <section
+        className={styles.deck}
+        aria-busy="true"
+        aria-label="Academic overview loading"
       >
-      {isPending ? (
-        Array.from({ length: 3 }).map((_, i) => (
-          <KanbanBoard
-            key={i}
-            className={styles.board}
-            title={<Skeleton className="h-3.5 w-28" />}
-            icon={
-              <span className={styles.icon} aria-hidden="true">
-                <Skeleton className="h-3.5 w-3.5 rounded-full" />
-              </span>
-            }
-            ariaLabel="Loading academic stat"
-          >
-            <div className={styles.stat}>
-              <div className={styles.statTop}>
-                <Skeleton className="h-8 w-16" />
-                <Skeleton className="h-9 w-9 rounded-full" />
-              </div>
-              <Skeleton className="h-3 w-40" />
-              <div className={styles.kpiPills}>
-                <Skeleton className="h-5 w-28 rounded-md" />
-                <Skeleton className="h-5 w-20 rounded-md" />
-              </div>
-            </div>
-          </KanbanBoard>
-        ))
-      ) : (
-        <>
-          <KanbanBoard
-            className={styles.board}
-            title="Students below 75"
-            icon={
-              <span className={styles.icon} aria-hidden="true">
-                <TriangleAlert size={14} />
-              </span>
-            }
-            ariaLabel="Students below 75"
-          >
-            <div className={styles.stat}>
-              <span className={styles.statTop}>
-                <span className={styles.statNumber}>
-                  {below.toLocaleString()}
-                </span>
-                <span className={styles.statMascot} aria-hidden="true">
-                  <StudentMascot
-                    name="Students below 75"
-                    character={MASCOTS[0]}
-                    size={36}
-                  />
-                </span>
-              </span>
-              <span className={styles.statHint}>Learners under the passing mark</span>
-              <div className={styles.kpiPills}>
-                <Pill tone="amber" label="Share of graded learners">
-                  {belowPct}% of {gradedTotal.toLocaleString()} graded
-                </Pill>
-                <Pill tone="amber" label="Scope">
-                  Live grades
-                </Pill>
-              </div>
-            </div>
-          </KanbanBoard>
-
-          <KanbanBoard
-            className={styles.board}
-            title="Sections at risk"
-            icon={
-              <span className={styles.icon} aria-hidden="true">
-                <Users size={14} />
-              </span>
-            }
-            ariaLabel="Sections at risk"
-          >
-            <div className={styles.stat}>
-              <span className={styles.statTop}>
-                <span className={styles.statNumber}>
-                  {riskySections.toLocaleString()}
-                </span>
-                <span className={styles.statMascot} aria-hidden="true">
-                  <StudentMascot
-                    name="Sections at risk"
-                    character={MASCOTS[1]}
-                    size={36}
-                  />
-                </span>
-              </span>
-              <span className={styles.statHint}>Sections averaging below 75</span>
-              <div className={styles.kpiPills}>
-                <Pill tone="amber" label="Sections in scope">
-                  Of {sectionCount.toLocaleString()} sections
-                </Pill>
-                <Pill tone="amber" label="Scope">
-                  Live grades
-                </Pill>
-              </div>
-            </div>
-          </KanbanBoard>
-
-          <KanbanBoard
-            className={styles.board}
-            title="Awaiting grades"
-            icon={
-              <span className={styles.icon} aria-hidden="true">
-                <Clock size={14} />
-              </span>
-            }
-            ariaLabel="Shared students without grade records"
-          >
-            <button
-              type="button"
-              className={`${styles.stat} ${styles.statButton}`}
-              onClick={() => setShowUngraded((open) => !open)}
-              aria-expanded={showUngraded}
-              aria-controls="awaiting-grades-table"
+        <div className={styles.deckHead}>
+          <span className={styles.deckTitle}>
+            <Skeleton className="h-3.5 w-36" />
+          </span>
+        </div>
+        <div className={styles.tiles}>
+          {tiles.map((tile) => (
+            <div
+              key={tile.key}
+              className={`${styles.tile} ${
+                tile.tone === "amber" ? styles.tileAmber : ""
+              }`}
+              aria-hidden="true"
             >
-              <span className={styles.statTop}>
-                <span className={styles.statNumber}>
-                  {ungraded.toLocaleString()}
-                </span>
-                <span className={styles.statMascot} aria-hidden="true">
-                  <StudentMascot
-                    name="Awaiting grades"
-                    character={MASCOTS[2]}
-                    size={36}
-                  />
-                </span>
+              <span className={styles.tileTop}>
+                <Skeleton className={styles.skelIcon} />
+                <Skeleton className="h-3 w-24" />
               </span>
-              <span className={styles.statHint}>Shared learners with no grade record</span>
-              <div className={styles.kpiPills}>
-                <Pill tone="amber" label="Shared learners in scope">
-                  Of {sharedTotal.toLocaleString()} shared
-                </Pill>
-                <Pill tone="green" label="Data source">
-                  Adviser-shared
-                </Pill>
-                <Pill tone="blue" label="Open the list">
-                  {showUngraded ? "Hide list" : "Tap to view"}
-                  <ChevronDown
-                    size={11}
-                    aria-hidden
-                    style={{
-                      transform: showUngraded ? "rotate(180deg)" : undefined,
-                      transition: "transform 160ms ease",
-                    }}
-                  />
-                </Pill>
-              </div>
-            </button>
-          </KanbanBoard>
-        </>
-      )}
-      </div>
+              <Skeleton className="h-7 w-12" />
+              <Skeleton className="h-3 w-28" />
+            </div>
+          ))}
+        </div>
+      </section>
+    );
+  }
 
-      {!isPending && showUngraded && ungradedStudents.length > 0 ? (
-        <div id="awaiting-grades-table">
+  return (
+    <section className={styles.deck} aria-label="Academic overview">
+      <div className={styles.deckHead}>
+        <span className={styles.deckTitle}>
+          <School aria-hidden /> Academics at a glance
+        </span>
+      </div>
+      <div className={styles.tiles}>
+        {tiles.map((tile) => {
+          const Icon = tile.icon;
+          const zero = tile.value === 0;
+          const tileClass = `${styles.tile} ${
+            tile.tone === "amber" ? styles.tileAmber : ""
+          }`;
+
+          if (tile.href) {
+            return (
+              <Link
+                key={tile.key}
+                href={tile.href}
+                className={tileClass}
+                aria-label={`${tile.title}: ${tile.value} ${tile.unit} — open list`}
+              >
+                <span className={styles.tileTop}>
+                  <span className={styles.tileIcon} aria-hidden>
+                    <Icon size={13} />
+                  </span>
+                  <span className={styles.tileLabel}>{tile.title}</span>
+                  <ArrowRight className={styles.tileArrow} aria-hidden />
+                </span>
+                <span className={styles.tileValue}>
+                  <CountUpNumber
+                    className={`${styles.tileNumber} ${
+                      zero ? styles.tileNumberZero : ""
+                    }`}
+                    value={tile.value}
+                  />
+                  <span className={styles.tileUnit}>{tile.unit}</span>
+                </span>
+                <span className={styles.tileHint}>{tile.hint}</span>
+              </Link>
+            );
+          }
+
+          return (
+            <button
+              key={tile.key}
+              type="button"
+              className={tileClass}
+              onClick={() => setShowUngraded((open) => !open)}
+              disabled={zero}
+              {...(zero
+                ? {}
+                : {
+                    "aria-expanded": showUngraded,
+                    "aria-controls": "awaiting-grades-table",
+                  })}
+              aria-label={`${tile.title}: ${tile.value} ${tile.unit} — ${
+                showUngraded ? "hide" : "open"
+              } list`}
+            >
+              <span className={styles.tileTop}>
+                <span className={styles.tileIcon} aria-hidden>
+                  <Icon size={13} />
+                </span>
+                <span className={styles.tileLabel}>{tile.title}</span>
+                <ChevronDown
+                  className={`${styles.tileArrow} ${
+                    showUngraded ? styles.tileArrowOpen : ""
+                  }`}
+                  aria-hidden
+                />
+              </span>
+              <span className={styles.tileValue}>
+                <CountUpNumber
+                  className={`${styles.tileNumber} ${
+                    zero ? styles.tileNumberZero : ""
+                  }`}
+                  value={tile.value}
+                />
+                <span className={styles.tileUnit}>{tile.unit}</span>
+              </span>
+              <span className={styles.tileHint}>{tile.hint}</span>
+            </button>
+          );
+        })}
+      </div>
+      <p className={styles.deckFoot}>
+        Only learners whose section adviser has turned on data sharing are
+        counted here. Tap “Awaiting grades” to list learners without a grade
+        record yet.
+      </p>
+
+      {showUngraded && ungradedStudents.length > 0 ? (
+        <div id="awaiting-grades-table" className={styles.deckPanel}>
           <AwaitingGradesBoard
             students={ungradedStudents}
             onClose={() => setShowUngraded(false)}
           />
         </div>
       ) : null}
-    </>
+    </section>
   );
 }

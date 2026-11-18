@@ -1,5 +1,3 @@
-import argon2 from "argon2";
-import crypto from "crypto";
 import { prisma } from "../../lib/prisma.js";
 import type { Prisma } from "../../generated/prisma/client.js";
 import { AppError } from "../../lib/errors.js";
@@ -8,6 +6,7 @@ import { fanoutNotification, fanoutToRole } from "../../lib/notify.js";
 import { uploadFile, sf10ObjectPath, getSf10Bucket } from "../../lib/storage.js";
 import {
   archivedAdvisoryLearnerIds,
+  archivedAdvisoryLrns,
   excludeArchivedProfiles,
   excludeArchivedRosters,
 } from "../../lib/learnerVisibility.js";
@@ -36,10 +35,8 @@ function withTimeout<T>(p: Promise<T>, ms: number, label: string): Promise<T> {
 import {
   extractIdentityFromCells,
   extractIdentityFromText,
-  formatLearnerName,
   type LearnerIdentity,
 } from "./learner-identity.service.js";
-import { detectGradeLevelFromText, maxGradeLevel, parseClassifiedGrade } from "./subject-aliases.js";
 import { matchLearnerCandidates } from "./learner-match.service.js";
 import { buildDeficiencyMap, buildSubjectMap } from "./subject-map.service.js";
 import {
@@ -50,8 +47,7 @@ import {
   assertRecordAccess,
   resolveGradeBand,
 } from "../../modules/sf10/sf10.repository.js";
-import { canUploadGradeLevel, deskForRole, deskForUpload, provisionGradeForUpload } from "../../lib/roles.js";
-import { mascotFor } from "../mascot.js";
+import { canUploadGradeLevel, deskForRole, deskForUpload } from "../../lib/roles.js";
 import type { Sf10Context } from "./sf10.types.js";
 import {
   renderAutoFillFile,
@@ -92,11 +88,59 @@ async function downloadOriginalSf10File(
 // Interactive-tx budget: hosted DB latency spikes past Prisma's 5s default.
 const SF10_TX_OPTS = { timeout: 30_000, maxWait: 15_000 };
 
+/**
+ * LRNs of learners the advisory desks have archived. SF10 records no longer
+ * join `StudentProfile`, so the archived-learner filter has to be expressed as
+ * an LRN set instead of a relation clause.
+ */
+async function archivedLearnerLrns(): Promise<Set<string>> {
+  const ids = await archivedAdvisoryLearnerIds();
+  return new Set(await archivedAdvisoryLrns(ids));
+}
+
+const GRADE_SEQUENCE = ["G7", "G8", "G9", "G10", "G11", "G12"] as const;
+
+/**
+ * Highest grade level the file itself classifies (its JHS/SHS blocks), or the
+ * grades its subject rows are tagged with. This is what keys the record's desk
+ * band and grade tables when no learner account exists to ask.
+ */
+function highestGradeFromSubjects(
+  subjects: Array<{ gradeLevel?: string | null }>,
+  learner?: LearnerIdentity | null,
+): string | null {
+  const found = new Set<string>();
+  for (const s of subjects) {
+    const g = typeof s.gradeLevel === "string" ? s.gradeLevel.toUpperCase() : "";
+    if ((GRADE_SEQUENCE as readonly string[]).includes(g)) found.add(g);
+  }
+  if (found.size === 0 && learner) {
+    // Fall through to nothing — the caller decides the fallback.
+  }
+  let best: string | null = null;
+  for (const g of found) {
+    if (best === null || GRADE_SEQUENCE.indexOf(g as never) > GRADE_SEQUENCE.indexOf(best as never)) {
+      best = g;
+    }
+  }
+  return best;
+}
+
+/** Grade level stored on the record, or the highest one its payload mentions. */
+function recordGradeOf(
+  record: { gradeLevel: string | null; ocrExtractedData: unknown },
+): string | null {
+  if (record.gradeLevel) return record.gradeLevel;
+  const payload = record.ocrExtractedData as unknown as OcrPayload | null;
+  if (!payload || typeof payload !== "object" || !Array.isArray(payload.subjects)) return null;
+  return highestGradeFromSubjects(payload.subjects);
+}
+
 export async function getSummary() {
-  const archivedLearners = await archivedAdvisoryLearnerIds();
+  const archivedLrns = await archivedLearnerLrns();
   const records = await prisma.sf10Record.findMany({
-    where: { student: excludeArchivedProfiles(archivedLearners) },
-    select: { student: { select: { gradeLevel: true } }, status: true },
+    where: archivedLrns.size > 0 ? { lrn: { notIn: [...archivedLrns] } } : {},
+    select: { lrn: true, gradeLevel: true, status: true },
   });
 
   const byGrade: Record<
@@ -105,37 +149,41 @@ export async function getSummary() {
   > = {};
   for (const g of GRADE_ORDER) byGrade[g] = { attach: 0, available: 0, missing: 0, released: 0 };
 
+  const filedLrns = new Set(records.map((r) => r.lrn));
   for (const r of records) {
-    const g = r.student.gradeLevel;
+    if (!r.gradeLevel) continue;
+    const g = String(r.gradeLevel);
     if (!byGrade[g]) byGrade[g] = { attach: 0, available: 0, missing: 0, released: 0 };
     byGrade[g][r.status] += 1;
   }
 
-  const [studentsWithoutRecord, rosterLrns, profileLrns] = await Promise.all([
-    prisma.studentProfile.groupBy({
-      by: ["gradeLevel"],
-      where: { sf10Records: { none: {} }, ...excludeArchivedProfiles(archivedLearners) },
-      _count: { _all: true },
+  // "Missing" = an enrolled learner (account or roster-only) whose LRN has no
+  // file on record. The store is keyed by LRN, so this is an LRN comparison.
+  const archivedLearners = await archivedAdvisoryLearnerIds();
+  const [profiles, rosterLrns] = await Promise.all([
+    prisma.studentProfile.findMany({
+      where: excludeArchivedProfiles(archivedLearners),
+      select: { lrn: true, gradeLevel: true },
     }),
     prisma.studentRoster.findMany({
       where: excludeArchivedRosters(archivedLearners),
       select: { lrn: true, gradeLevel: true },
     }),
-    prisma.studentProfile.findMany({
-      where: excludeArchivedProfiles(archivedLearners),
-      select: { lrn: true },
-    }),
   ]);
-  for (const s of studentsWithoutRecord) {
-    const g = s.gradeLevel;
+  const seen = new Set<string>();
+  for (const p of profiles) {
+    if (filedLrns.has(p.lrn) || seen.has(p.lrn)) continue;
+    seen.add(p.lrn);
+    const g = String(p.gradeLevel);
     if (!byGrade[g]) byGrade[g] = { attach: 0, available: 0, missing: 0, released: 0 };
-    byGrade[g].missing += s._count._all;
+    byGrade[g].missing += 1;
   }
-  const registeredLrns = new Set(profileLrns.map((p) => p.lrn));
   for (const r of rosterLrns) {
-    if (registeredLrns.has(r.lrn)) continue;
-    if (!byGrade[r.gradeLevel]) byGrade[r.gradeLevel] = { attach: 0, available: 0, missing: 0, released: 0 };
-    byGrade[r.gradeLevel].missing += 1;
+    if (filedLrns.has(r.lrn) || seen.has(r.lrn)) continue;
+    seen.add(r.lrn);
+    const g = String(r.gradeLevel);
+    if (!byGrade[g]) byGrade[g] = { attach: 0, available: 0, missing: 0, released: 0 };
+    byGrade[g].missing += 1;
   }
 
   const levels = GRADE_ORDER.map((g) => ({ grade: GRADE_LABEL[g], ...byGrade[g] }));
@@ -152,24 +200,24 @@ export interface RecordsQuery {
 
 export async function listRecords(query: RecordsQuery) {
   const { desk, page, pageSize, q, status } = query;
-  const archivedLearners = await archivedAdvisoryLearnerIds();
+  const archivedLrns = await archivedLearnerLrns();
   // Each desk sees only the records it filed — never the other desk's.
   const deskWhere =
     desk != null
       ? ({ desk } as Prisma.Sf10RecordWhereInput)
       : ({} as Prisma.Sf10RecordWhereInput);
-  const studentClause = { student: excludeArchivedProfiles(archivedLearners) };
+  const archivedWhere: Prisma.Sf10RecordWhereInput =
+    archivedLrns.size > 0 ? { lrn: { notIn: [...archivedLrns] } } : {};
 
   const where: Prisma.Sf10RecordWhereInput = {
     ...deskWhere,
-    ...studentClause,
+    ...archivedWhere,
     ...(status ? { status } : {}),
     ...(q
       ? {
           OR: [
-            { student: { user: { fullName: { contains: q, mode: "insensitive" } } } },
-            { student: { lrn: { contains: q, mode: "insensitive" } } },
-            { student: { section: { name: { contains: q, mode: "insensitive" } } } },
+            { learnerName: { contains: q, mode: "insensitive" } },
+            { lrn: { contains: q, mode: "insensitive" } },
           ],
         }
       : {}),
@@ -179,7 +227,7 @@ export async function listRecords(query: RecordsQuery) {
     prisma.sf10Record.count({ where }),
     prisma.sf10Record.groupBy({
       by: ["status"],
-      where: { ...deskWhere, ...studentClause },
+      where: { ...deskWhere, ...archivedWhere },
       _count: { _all: true },
     }),
     prisma.sf10Record.findMany({
@@ -189,7 +237,9 @@ export async function listRecords(query: RecordsQuery) {
       take: pageSize,
       select: {
         id: true,
-        studentId: true,
+        lrn: true,
+        learnerName: true,
+        gradeLevel: true,
         desk: true,
         source: true,
         status: true,
@@ -203,14 +253,6 @@ export async function listRecords(query: RecordsQuery) {
         archivedAt: true,
         currentVersion: true,
         updatedAt: true,
-        student: {
-          select: {
-            lrn: true,
-            user: { select: { fullName: true } },
-            gradeLevel: true,
-            section: { select: { id: true, name: true } },
-          },
-        },
       },
     }),
   ]);
@@ -220,42 +262,54 @@ export async function listRecords(query: RecordsQuery) {
   // Adviser access is a separate grant (adviser-access desk), not an SF10
   // lifecycle step — surface it per record so the board never mistakes a
   // granted read-access for a cross-school release. A grant is either
-  // per-LRN (approvedLrns) or a whole-request approval for the section.
-  const pageLrns = records.map((r) => r.student.lrn);
-  const pageSectionIds = records
-    .map((r) => r.student.section?.id)
-    .filter((id): id is string => !!id);
+  // per-LRN (approvedLrns) or a whole-request approval, whose section roster
+  // contributes the covered LRNs.
+  const pageLrns = records.map((r) => r.lrn);
+  // Section is display-only context borrowed from the owning profile when the
+  // LRN has one; the record itself stays LRN-keyed and profile-independent.
+  const sectionRows =
+    pageLrns.length > 0
+      ? await prisma.studentProfile.findMany({
+          where: { lrn: { in: pageLrns } },
+          select: { lrn: true, section: { select: { name: true } } },
+        })
+      : [];
+  const sectionByLrn = new Map(
+    sectionRows.map((r) => [r.lrn, r.section?.name ?? "—"]),
+  );
   const accessRows =
     pageLrns.length > 0
       ? await prisma.adviserSf10AccessRequest.findMany({
-          where: {
-            OR: [
-              { approvedLrns: { hasSome: pageLrns } },
-              ...(pageSectionIds.length > 0
-                ? [{ status: "approved" as const, sectionId: { in: pageSectionIds } }]
-                : []),
-            ],
-          },
+          where: { OR: [{ approvedLrns: { hasSome: pageLrns } }, { status: "approved" }] },
           select: { approvedLrns: true, sectionId: true, status: true },
         })
       : [];
   const accessLrns = new Set(accessRows.flatMap((r) => r.approvedLrns ?? []));
-  const accessSectionIds = new Set(
-    accessRows.filter((r) => r.status === "approved").map((r) => r.sectionId),
-  );
-  const hasAdviserAccess = (r: (typeof records)[number]) =>
-    accessLrns.has(r.student.lrn) ||
-    (r.student.section ? accessSectionIds.has(r.student.section.id) : false);
+  const approvedSectionIds = [
+    ...new Set(accessRows.filter((r) => r.status === "approved").map((r) => r.sectionId)),
+  ];
+  if (approvedSectionIds.length > 0) {
+    const [secProfiles, secRoster] = await Promise.all([
+      prisma.studentProfile.findMany({
+        where: { sectionId: { in: approvedSectionIds } },
+        select: { lrn: true },
+      }),
+      prisma.studentRoster.findMany({
+        where: { sectionId: { in: approvedSectionIds } },
+        select: { lrn: true },
+      }),
+    ]);
+    for (const r of [...secProfiles, ...secRoster]) accessLrns.add(r.lrn);
+  }
 
   return {
     records: records.map((r) => ({
       id: r.id,
-      studentId: r.studentId,
       desk: r.desk,
-      lrn: r.student.lrn,
-      fullName: r.student.user.fullName,
-      gradeLevel: r.student.gradeLevel,
-      section: r.student.section?.name ?? "—",
+      lrn: r.lrn,
+      fullName: r.learnerName?.trim() ? r.learnerName : r.lrn,
+      gradeLevel: r.gradeLevel ? String(r.gradeLevel) : null,
+      section: sectionByLrn.get(r.lrn) ?? "—",
       source: r.source,
       status: r.status,
       uploadedFileUrl: r.uploadedFileUrl,
@@ -268,7 +322,7 @@ export async function listRecords(query: RecordsQuery) {
       archivedAt: r.archivedAt,
       currentVersion: r.currentVersion,
       updatedAt: r.updatedAt,
-      adviserAccess: hasAdviserAccess(r),
+      adviserAccess: accessLrns.has(r.lrn),
     })),
     total,
     page,
@@ -315,6 +369,30 @@ export interface OcrPayload {
   ocrStatus?: "ready" | "processing";
   /** File rendered from this payload (auto-fill), kept with the version. */
   generatedFileUrl?: string;
+}
+
+/**
+ * How long a "processing" payload may stay unresolved before it is treated as
+ * settled. Background OCR is capped at OCR_TIMEOUT_MS, so a payload older than
+ * that budget belongs to a job that will never finish (the process restarted,
+ * the worker died, the upload was replaced) — reporting "processing" forever
+ * would keep the desk spinning on a file that is already stored.
+ */
+const OCR_STALE_MS = OCR_TIMEOUT_MS + 60_000;
+
+/**
+ * Stored OCR state with a staleness guard. "ready" unless the payload says
+ * "processing" *and* that job is still inside its own time budget; an empty or
+ * unknown payload is ready (nothing was queued for it). `needsReview` stays
+ * true on an empty payload, so a failed read surfaces as "review this", not as
+ * an endless progress strip.
+ */
+function resolveOcrStatus(payload: OcrPayload | null | undefined): "ready" | "processing" {
+  if (!payload || typeof payload !== "object") return "ready";
+  if (payload.ocrStatus !== "processing") return "ready";
+  const ocrAt = typeof payload.ocrAt === "string" ? Date.parse(payload.ocrAt) : Number.NaN;
+  if (!Number.isFinite(ocrAt)) return "ready";
+  return Date.now() - ocrAt < OCR_STALE_MS ? "processing" : "ready";
 }
 
 async function storeOcrPayload(
@@ -371,6 +449,31 @@ export interface LocalExtraction {
   subjects: OcrSubjectPayload[];
   learner: LearnerIdentity;
   rawText: string;
+}
+
+/**
+ * Grades the registrar's desk owns. An SF10 covers every year, but the
+ * registrar only files the SHS (G11/G12) rows — JHS rows belong to the
+ * record keeper. Untagged rows stay: the reader could not prove they are out
+ * of scope, and dropping them would silently lose grades still on the form.
+ */
+const REGISTRAR_GRADE_SCOPE = new Set(["G11", "G12"]);
+
+function inUploadGradeScope(
+  subject: { gradeLevel?: string | null },
+  role: string,
+): boolean {
+  return role !== "registrar" || !subject.gradeLevel || REGISTRAR_GRADE_SCOPE.has(subject.gradeLevel);
+}
+
+/** Drop out-of-band subject rows from an extracted payload (registrar = G11/G12 only). */
+function scopePayloadSubjects(payload: OcrPayload, role: string): OcrPayload {
+  const subjects = payload.subjects.filter((s) => inUploadGradeScope(s, role));
+  return {
+    ...payload,
+    subjects,
+    needsReview: subjects.length === 0,
+  };
 }
 
 /**
@@ -484,6 +587,7 @@ export async function buildLocalPayload(file: {
 function runWorkerEnrichment(input: {
   recordId: string;
   userId: string;
+  role: string;
   buffer: Buffer;
   mimetype: string;
   originalname: string;
@@ -510,15 +614,18 @@ function runWorkerEnrichment(input: {
       await storeOcrPayload(
         input.recordId,
         input.userId,
-        {
-          subjects,
-          learner: prior && typeof prior === "object" ? (prior.learner ?? null) : null,
-          rawTextPreview: worker.rawText.slice(0, 2000),
-          confidence: worker.confidence,
-          engine: worker.engine,
-          ocrAt: new Date().toISOString(),
-          needsReview: subjects.length === 0,
-        },
+        scopePayloadSubjects(
+          {
+            subjects,
+            learner: prior && typeof prior === "object" ? (prior.learner ?? null) : null,
+            rawTextPreview: worker.rawText.slice(0, 2000),
+            confidence: worker.confidence,
+            engine: worker.engine,
+            ocrAt: new Date().toISOString(),
+            needsReview: subjects.length === 0,
+          },
+          input.role,
+        ),
         "SF10 worker OCR enrichment",
       );
     } catch (e) {
@@ -535,6 +642,7 @@ function runWorkerEnrichment(input: {
 function runLocalOcr(input: {
   recordId: string;
   userId: string;
+  role: string;
   buffer: Buffer;
   mimetype: string;
   originalname: string;
@@ -551,7 +659,20 @@ function runLocalOcr(input: {
         select: { ocrExtractedData: true },
       });
       const prior = record?.ocrExtractedData as unknown as OcrPayload | null;
-      if (prior && Array.isArray(prior.subjects) && prior.subjects.length > 0) return;
+      if (prior && Array.isArray(prior.subjects) && prior.subjects.length > 0) {
+        // Subjects are already on the record — only the flag can still be
+        // waiting. Settle it so the report stops showing a progress strip for
+        // a file that has already been read.
+        if (prior.ocrStatus === "processing") {
+          await prisma.sf10Record.update({
+            where: { id: input.recordId },
+            data: {
+              ocrExtractedData: { ...prior, ocrStatus: "ready" } as unknown as Prisma.InputJsonValue,
+            },
+          });
+        }
+        return;
+      }
       if (!result || (result.subjects.length === 0 && !result.learner.lrn)) {
         await storeOcrPayload(
           input.recordId,
@@ -572,23 +693,26 @@ function runLocalOcr(input: {
       await storeOcrPayload(
         input.recordId,
         input.userId,
-        {
-          subjects: result.subjects,
-          learner: {
-            lrn: result.learner.lrn,
-            lastName: result.learner.lastName,
-            firstName: result.learner.firstName,
-            middleName: result.learner.middleName,
-            suffix: result.learner.suffix,
-            fullName: result.learner.fullName,
+        scopePayloadSubjects(
+          {
+            subjects: result.subjects,
+            learner: {
+              lrn: result.learner.lrn,
+              lastName: result.learner.lastName,
+              firstName: result.learner.firstName,
+              middleName: result.learner.middleName,
+              suffix: result.learner.suffix,
+              fullName: result.learner.fullName,
+            },
+            rawTextPreview: result.rawText.slice(0, 2000),
+            confidence: result.confidence,
+            engine: "local-ocr-tesseract-v1",
+            ocrAt: new Date().toISOString(),
+            needsReview: result.subjects.length === 0,
+            ocrStatus: "ready",
           },
-          rawTextPreview: result.rawText.slice(0, 2000),
-          confidence: result.confidence,
-          engine: "local-ocr-tesseract-v1",
-          ocrAt: new Date().toISOString(),
-          needsReview: result.subjects.length === 0,
-          ocrStatus: "ready",
-        },
+          input.role,
+        ),
         "SF10 photo OCR",
       );
     } catch (e) {
@@ -652,7 +776,7 @@ export async function uploadRecord(ctx: Sf10Context, input: UploadInput) {
 
   const student = await prisma.studentProfile.findUnique({
     where: { userId: studentId },
-    select: { userId: true, gradeLevel: true },
+    select: { userId: true, lrn: true, gradeLevel: true, user: { select: { fullName: true } } },
   });
   if (!student) throw new AppError(404, "NOT_FOUND", "Student not found");
 
@@ -664,23 +788,32 @@ export async function uploadRecord(ctx: Sf10Context, input: UploadInput) {
   }
 
   const ext = file.originalname.split(".").pop() ?? "pdf";
-  const path = sf10ObjectPath(studentId, ext);
+  const path = sf10ObjectPath(student.lrn, ext);
 
   // Extraction first: read subjects + learner off the file before anything
   // is named or stored.
   const local = await buildLocalPayload(file);
   const fileUrl = await uploadFile(file.buffer, path, file.mimetype, getSf10Bucket());
+  // The owner picker wins: this path exists to correct a misread LRN. The
+  // record is still stored under the LRN (its identity), never an account id.
+  // Grade comes from the whole form; the stored subjects follow the desk
+  // scope (registrar reads only the SHS rows).
+  const fileGrade = highestGradeFromSubjects(local.subjects, local.learner);
+  local.payload = scopePayloadSubjects(local.payload, ctx.role);
+  local.subjects = local.payload.subjects;
 
   const source = isRegistrar ? "manual" : "ocr_upload";
   const changeReason = isRegistrar ? "Manual registrar upload" : "Initial OCR upload";
   const auditReason = isRegistrar ? "SF10 uploaded by registrar" : "SF10 OCR upload";
 
   // Atomic: record (with extracted payload) + version + audit in one tx.
-  // Filed under the uploader's own desk (one record per student per desk).
+  // Filed under the uploader's own desk (one record per LRN per desk).
   const record = await prisma.$transaction(async (tx) => {
     const row = await storeSf10UploadTx(tx, {
       userId: ctx.userId,
-      studentId,
+      lrn: student.lrn,
+      learnerName: local.learner?.fullName ?? student.user.fullName,
+      gradeLevel: (fileGrade ?? String(student.gradeLevel)) as never,
       desk: deskForUpload(ctx.role, String(student.gradeLevel)),
       fileUrl,
       source,
@@ -696,6 +829,7 @@ export async function uploadRecord(ctx: Sf10Context, input: UploadInput) {
     runLocalOcr({
       recordId: record.id,
       userId: ctx.userId,
+      role: ctx.role,
       buffer: file.buffer,
       mimetype: file.mimetype,
       originalname: file.originalname,
@@ -705,6 +839,7 @@ export async function uploadRecord(ctx: Sf10Context, input: UploadInput) {
     runWorkerEnrichment({
       recordId: record.id,
       userId: ctx.userId,
+      role: ctx.role,
       buffer: file.buffer,
       mimetype: file.mimetype,
       originalname: file.originalname,
@@ -726,7 +861,9 @@ async function storeSf10UploadTx(
   tx: Sf10TxClient,
   input: {
     userId: string;
-    studentId: string;
+    lrn: string;
+    learnerName: string | null;
+    gradeLevel: string | null;
     desk: "registrar" | "record_keeper";
     fileUrl: string;
     source: "manual" | "ocr_upload" | "auto_populated";
@@ -735,11 +872,14 @@ async function storeSf10UploadTx(
     payload?: OcrPayload | null;
   },
 ) {
-  // One record per (student, desk): each desk files and keeps its own.
+  // One record per (LRN, desk): each desk files and keeps its own file. The
+  // LRN is the record's identity — no learner account is referenced or made.
   const row = await tx.sf10Record.upsert({
-    where: { studentId_desk: { studentId: input.studentId, desk: input.desk } },
+    where: { lrn_desk: { lrn: input.lrn, desk: input.desk } },
     create: {
-      studentId: input.studentId,
+      lrn: input.lrn,
+      learnerName: input.learnerName,
+      gradeLevel: input.gradeLevel as never,
       desk: input.desk,
       source: input.source,
       // Storage model: an upload is stored as-is (attached). No approvals,
@@ -752,6 +892,8 @@ async function storeSf10UploadTx(
       ...(input.payload ? { ocrExtractedData: input.payload as unknown as Prisma.InputJsonValue } : {}),
     },
     update: {
+      learnerName: input.learnerName ?? undefined,
+      gradeLevel: (input.gradeLevel ?? undefined) as never,
       source: input.source,
       uploadedFileUrl: input.fileUrl,
       uploadedAt: new Date(),
@@ -796,28 +938,7 @@ async function storeSf10UploadTx(
   return row;
 }
 
-const AUTO_LINK_SCORE = 85;
 const PROVISION_GRADES = ["G7", "G8", "G9", "G10", "G11", "G12"];
-
-/** Highest grade seen anywhere in the file (subjects or section markers). */
-function fileGradeCeiling(
-  subjects: Array<{ gradeLevel?: string | null }>,
-  markerLines: string[],
-): string | null {
-  const fromSubjects = maxGradeLevel(subjects.map((s) => s.gradeLevel ?? null));
-  if (fromSubjects) return fromSubjects;
-  const markers: string[] = [];
-  for (const line of markerLines) {
-    const classified = parseClassifiedGrade(line);
-    if (classified) {
-      markers.push(classified);
-      continue;
-    }
-    const header = detectGradeLevelFromText(line);
-    if (header) markers.push(header);
-  }
-  return maxGradeLevel(markers);
-}
 
 async function summarizeDeficiencies(
   subjects: OcrSubjectPayload[],
@@ -854,25 +975,24 @@ async function summarizeDeficiencies(
 
 /**
  * No-picker upload. Extraction runs first: subjects + learner are read off
- * the file, the grade basis is the file's own "Classified as Grade" blocks,
- * and the report speaks in subjects — which grades the learner has not taken
- * each subject in. An unknown learner gets a student record from the file;
- * the grade is asked only when the file states none.
+ * the file, and the LRN written on it is the record's identity. Uploading is
+ * storage, never enrolment — no student/user rows are created or required.
+ * A file may be filed for a learner the school has never enrolled: the record
+ * waits under its LRN and is matched to an adviser's request by that LRN.
  */
 export async function uploadAuto(
   ctx: Sf10Context,
   input: {
     file: { buffer: Buffer; originalname: string; mimetype: string };
-    gradeLevel?: string | null;
   },
 ) {
   const { file } = input;
-  // 1) Extraction first — everything downstream (naming, grading, report)
-  // comes from the file, never from a picker.
+  // 1) Extraction first — the learner identity (LRN) and the subjects come
+  // from the file itself, never from a picker.
   const local = await buildLocalPayload(file);
   if (local.subjects.length === 0) {
-    // Scanned PDF or direct photo: read it now (slow) so learner, grade
-    // basis, and subjects all come from the file as usual.
+    // Scanned PDF or direct photo: read it now (slow) so the LRN and the
+    // subjects can still be read off the file.
     try {
       const ocr = await withTimeout(ocrFileToSubjects(file), OCR_TIMEOUT_MS, "photo OCR");
       if (ocr && (ocr.subjects.length > 0 || ocr.learner.lrn)) {
@@ -901,222 +1021,123 @@ export async function uploadAuto(
       logger.warn({ err: e }, "[sf10-ocr] upload photo OCR failed");
     }
   }
+  // Grade detection reads the whole form (a JHS-completer SF10 still opens the
+  // registrar's SHS record); the stored subjects follow the desk scope.
+  const detectedGrade = highestGradeFromSubjects(local.subjects, local.learner);
+  local.payload = scopePayloadSubjects(local.payload, ctx.role);
+  local.subjects = local.payload.subjects;
   const { learner } = local;
-  const markerLines = isXlsxUpload(file.mimetype, file.originalname)
-    ? (await extractXlsxGrid(file.buffer)).map((r) => r.join(" "))
-    : local.rawText.split(/\r?\n/);
 
-  const { candidates } = await matchLearnerCandidates(
-    { userId: ctx.userId, role: ctx.role },
-    learner,
-  );
-  const top = candidates[0] ?? null;
-  const confident = top && (top.matchKind === "lrn-exact" || top.score >= AUTO_LINK_SCORE);
+  // The LRN is the only key the store needs. Nothing is created from an
+  // upload and no account has to exist for the learner.
+  if (!learner.lrn) {
+    throw new AppError(
+      409,
+      "NEEDS_LRN",
+      "No LRN could be read from the file — an SF10 is stored under the LRN written on it.",
+    );
+  }
+  const lrn = learner.lrn;
+
+  // Optional context only: when the learner does have a row (account or
+  // roster) we can borrow its grade for the desk band. It never gates the
+  // upload and is never rewritten.
+  const [student, rosterRow] = await Promise.all([
+    prisma.studentProfile.findUnique({
+      where: { lrn },
+      select: { gradeLevel: true, user: { select: { fullName: true } } },
+    }),
+    prisma.studentRoster.findFirst({
+      where: { lrn },
+      select: { gradeLevel: true, fullName: true },
+      orderBy: { createdAt: "desc" },
+    }),
+  ]);
+  const fileGrade = detectedGrade;
+  const learnerName =
+    learner.fullName ?? student?.user.fullName ?? rosterRow?.fullName ?? null;
+  const gradeLevel = fileGrade ?? (student ? String(student.gradeLevel) : null);
 
   const isRegistrar = ctx.role === "registrar";
   const source = isRegistrar ? "manual" : "ocr_upload";
   const ext = file.originalname.split(".").pop() ?? "pdf";
   const band = await resolveGradeBand(ctx.role, ctx.userId);
-  const assertBand = (gradeLevel: string) => {
+  // Without a grade on the file the desk is simply the uploader's own — the
+  // band gate only applies when the file says which grade it belongs to.
+  if (gradeLevel) {
     if (!canUploadGradeLevel(ctx.role, band as string[], gradeLevel)) {
       throw new AppError(403, "GRADE_SCOPE", "This record's grade level is outside your grade band");
     }
-  };
-
-  if (confident && top) {
-    const student = await prisma.studentProfile.findUnique({
-      where: { userId: top.studentId },
-      select: { userId: true, gradeLevel: true },
-    });
-    if (!student) throw new AppError(404, "NOT_FOUND", "Matched student no longer exists");
-    assertBand(String(student.gradeLevel));
-    const fileUrl = await uploadFile(file.buffer, sf10ObjectPath(student.userId, ext), file.mimetype, getSf10Bucket());
-    const record = await prisma.$transaction(async (tx) => {
-      return storeSf10UploadTx(tx, {
-        userId: ctx.userId,
-        studentId: student.userId,
-        desk: deskForUpload(ctx.role, String(student.gradeLevel)),
-        fileUrl,
-        source,
-        changeReason: "SF10 upload (learner read from file)",
-        auditReason: `SF10 uploaded — ${learner.fullName ?? top.fullName} read from file (${top.matchKind})`,
-        payload: local.payload,
-      });
-    }, SF10_TX_OPTS);
-    if (local.payload.ocrStatus === "processing") {
-      runLocalOcr({
-        recordId: record.id,
-        userId: ctx.userId,
-        buffer: file.buffer,
-        mimetype: file.mimetype,
-        originalname: file.originalname,
-      });
-    }
-    if (getEnv().OCR_WORKER_URL?.trim() && local.subjects.length === 0) {
-      runWorkerEnrichment({
-        recordId: record.id,
-        userId: ctx.userId,
-        buffer: file.buffer,
-        mimetype: file.mimetype,
-        originalname: file.originalname,
-      });
-    }
-    const deficiencies = await summarizeDeficiencies(local.subjects, String(student.gradeLevel));
-    return {
-      id: record.id,
-      source: record.source,
-      uploadedFileUrl: fileUrl,
-      ocrStatus: local.payload.ocrStatus ?? "ready",
-      studentCreated: false,
-      learner,
-      matched: { kind: top.matchKind, score: top.score, fullName: top.fullName },
-      gradeLevel: String(student.gradeLevel),
-      deficiencies,
-    };
   }
+  const desk = gradeLevel
+    ? deskForUpload(ctx.role, gradeLevel)
+    : (deskForRole(ctx.role) ?? "record_keeper");
 
-  // No confident match: the student record is created from the file. The
-  // grade basis is the file's own "Classified as Grade" blocks (highest one
-  // wins); the caller-supplied grade is only a fallback for files that state
-  // none. Nothing here speaks of rosters — the report is about subjects.
-  const fileGrade = fileGradeCeiling(local.subjects, markerLines);
-  const fallback = input.gradeLevel?.toUpperCase() ?? null;
-  const readGrade =
-    fileGrade ?? (fallback && PROVISION_GRADES.includes(fallback) ? fallback : null);
-  if (!readGrade) {
-    throw new AppError(
-      409,
-      "NO_GRADE_IN_FILE",
-      "The record's grade level ('Classified as Grade') could not be read from the file — select the grade this record covers.",
-    );
-  }
-  // Registrar files a JHS completer as an incoming SHS learner (G11) so the
-  // upload lands in the registrar's scope instead of the record-keeper's.
-  const grade = provisionGradeForUpload(ctx.role, readGrade);
-  assertBand(grade);
-  if (!learner.lrn) {
-    throw new AppError(409, "NEEDS_LRN", "No LRN could be read from the file — the record cannot be saved without it.");
-  }
-
-  // Hash outside the transaction (slow); the tx re-checks LRN for races.
-  const passwordHash = await argon2.hash(crypto.randomBytes(32).toString("hex"));
-  const email = `${learner.lrn}@sf10-provisioned.local`;
-  const fullName = formatLearnerName(learner) ?? `LRN ${learner.lrn}`;
   const fileUrl = await uploadFile(
     file.buffer,
-    sf10ObjectPath(`provision-${learner.lrn}`, ext),
+    sf10ObjectPath(lrn, ext),
     file.mimetype,
     getSf10Bucket(),
   );
   const record = await prisma.$transaction(async (tx) => {
-    let studentId: string | null = null;
-    const existingProfile = await tx.studentProfile.findUnique({
-      where: { lrn: learner.lrn as string },
-      select: { userId: true, gradeLevel: true },
-    });
-    if (existingProfile) {
-      assertBand(String(existingProfile.gradeLevel));
-      // Same uploader-scope rule as new provisions: a registrar re-upload
-      // for a G10 learner moves them up to incoming SHS (G11), so the
-      // record lands in the registrar's table instead of staying invisible
-      // in the record-keeper's.
-      const scopedGrade = provisionGradeForUpload(ctx.role, String(existingProfile.gradeLevel));
-      if (scopedGrade !== String(existingProfile.gradeLevel)) {
-        await tx.studentProfile.update({
-          where: { userId: existingProfile.userId },
-          data: { gradeLevel: scopedGrade as never },
-        });
-      }
-      studentId = existingProfile.userId;
-    } else {
-      const stray = await tx.user.findUnique({ where: { email }, select: { id: true } });
-      let userId: string;
-      if (stray) {
-        userId = stray.id;
-      } else {
-        try {
-          const created = await tx.user.create({
-            data: {
-              email,
-              passwordHash,
-              role: "student",
-              status: "active",
-              fullName,
-              lrn: learner.lrn,
-            },
-            select: { id: true },
-          });
-          userId = created.id;
-        } catch (e) {
-          // Lost a race with a concurrent upload of the same file: reuse.
-          if ((e as { code?: string })?.code !== "P2002") throw e;
-          const raced = await tx.user.findUnique({ where: { email }, select: { id: true } });
-          if (!raced) throw e;
-          userId = raced.id;
-        }
-      }
-      try {
-        const profile = await tx.studentProfile.create({
-          data: {
-            userId,
-            lrn: learner.lrn as string,
-            mascot: mascotFor(fullName, learner.lrn as string),
-            gradeLevel: grade as never,
-          },
-          select: { userId: true },
-        });
-        studentId = profile.userId;
-      } catch (e) {
-        if ((e as { code?: string })?.code !== "P2002") throw e;
-        const raced = await tx.studentProfile.findUnique({
-          where: { lrn: learner.lrn as string },
-          select: { userId: true, gradeLevel: true },
-        });
-        if (!raced) throw e;
-        assertBand(String(raced.gradeLevel));
-        studentId = raced.userId;
-      }
-      await tx.auditLog.create({
-        data: {
-          userId: ctx.userId,
-          actionType: "create",
-          sourceTable: "users",
-          sourceId: userId,
-          reason: `Student record created from SF10 file (LRN ${learner.lrn}, ${grade}) — stored, no approval needed`,
-        },
-      });
-    }
     return storeSf10UploadTx(tx, {
       userId: ctx.userId,
-      studentId: studentId as string,
-      desk: deskForUpload(ctx.role, grade),
+      lrn,
+      learnerName,
+      gradeLevel,
+      desk,
       fileUrl,
       source,
-      changeReason: "SF10 upload (student record created from file)",
-      auditReason: `SF10 uploaded — ${fullName} read from file (Grade ${grade.slice(1)})`,
+      changeReason: "SF10 upload (filed by LRN)",
+      auditReason: `SF10 stored for LRN ${lrn}${learnerName ? ` (${learnerName})` : ""}`,
       payload: local.payload,
     });
   }, SF10_TX_OPTS);
-  if (getEnv().OCR_WORKER_URL?.trim() && local.subjects.length === 0) {
-    runWorkerEnrichment({
+  if (local.payload.ocrStatus === "processing") {
+    runLocalOcr({
       recordId: record.id,
       userId: ctx.userId,
+      role: ctx.role,
       buffer: file.buffer,
       mimetype: file.mimetype,
       originalname: file.originalname,
     });
   }
-  const deficiencies = await summarizeDeficiencies(local.subjects, grade);
+  if (getEnv().OCR_WORKER_URL?.trim() && local.subjects.length === 0) {
+    runWorkerEnrichment({
+      recordId: record.id,
+      userId: ctx.userId,
+      role: ctx.role,
+      buffer: file.buffer,
+      mimetype: file.mimetype,
+      originalname: file.originalname,
+    });
+  }
+  const deficiencies = gradeLevel ? await summarizeDeficiencies(local.subjects, gradeLevel) : [];
   return {
     id: record.id,
     source: record.source,
     uploadedFileUrl: fileUrl,
-    ocrStatus: "ready" as const,
-    studentCreated: true,
+    ocrStatus: local.payload.ocrStatus ?? "ready",
+    // Always false: an upload stores a file, it never adds a learner.
+    studentCreated: false,
     learner,
-    matched: null,
-    gradeLevel: grade,
+    lrn,
+    learnerName,
+    // Whether the LRN already belongs to a learner the school has on file —
+    // informational only; the file is stored either way.
+    matched: student
+      ? { kind: "lrn-exact", score: 100, fullName: student.user.fullName }
+      : rosterRow
+        ? { kind: "roster-lrn", score: 100, fullName: rosterRow.fullName }
+        : { kind: "no-account", score: 0, fullName: learnerName },
+    gradeLevel,
     deficiencies,
+    // Extraction summary for the upload desk: what the reader pulled out of
+    // the file, so the queue row can show real work instead of a spinner.
+    subjectsRead: local.subjects.length,
+    engine: local.payload.engine,
+    confidence: local.payload.confidence,
   };
 }
 
@@ -1144,21 +1165,19 @@ export async function getOcrResult(ctx: Sf10Context, recordId: string) {
       desk: true,
       ocrExtractedData: true,
       source: true,
-      student: { select: { gradeLevel: true } },
+      gradeLevel: true,
     },
   });
   if (!record) throw new AppError(404, "NOT_FOUND", "SF10 record not found");
-  await assertDeskAccess(record.desk, ctx, record.student.gradeLevel);
+  await assertDeskAccess(record.desk, ctx, recordGradeOf(record));
   if (ctx.role === "adviser") await assertAdviserSf10Access(ctx.userId, recordId);
   const payload = record.ocrExtractedData as unknown as OcrPayload | null;
-  const stored = payload && typeof payload === "object" ? payload.ocrStatus : undefined;
-  const ocrStatus =
-    stored === "processing"
-      ? "processing"
-      : payload && typeof payload === "object" && "subjects" in payload
-        ? "ready"
-        : "processing";
-  return { id: record.id, ocrExtractedData: record.ocrExtractedData, source: record.source, ocrStatus };
+  return {
+    id: record.id,
+    ocrExtractedData: record.ocrExtractedData,
+    source: record.source,
+    ocrStatus: resolveOcrStatus(payload),
+  };
 }
 
 export async function updateOcrSubjects(
@@ -1281,10 +1300,7 @@ export async function applyAutoFilledSubjects(
   }
   const added = rows.filter((r) => !priorNormsAtGrade.has(r.norm)).length;
 
-  const learner = await prisma.studentProfile.findUnique({
-    where: { userId: record.studentId },
-    select: { lrn: true, user: { select: { fullName: true } } },
-  });
+  const learnerName = record.learnerName ?? prior?.learner?.fullName ?? null;
 
   // Auto-fill leaves a real updated file in the original's format: a patched
   // copy of the registrar/record-keeper workbook, or a PDF when the upload was
@@ -1292,12 +1308,12 @@ export async function applyAutoFilledSubjects(
   const generatedAt = new Date();
   const mergedSubjects = [...kept, ...rows];
   let generatedFileUrl: string | undefined;
-  if (learner) {
+  {
     try {
       const original = await downloadOriginalSf10File(record.uploadedFileUrl);
       const rendered = await renderAutoFillFile({
-        learnerName: learner.user.fullName,
-        lrn: learner.lrn,
+        learnerName: learnerName ?? record.lrn,
+        lrn: record.lrn,
         gradeLevel,
         subjects: mergedSubjects,
         generatedAt,
@@ -1313,7 +1329,7 @@ export async function applyAutoFilledSubjects(
       });
       generatedFileUrl = await uploadFile(
         rendered.buffer,
-        sf10ObjectPath(record.studentId, rendered.ext),
+        sf10ObjectPath(record.lrn, rendered.ext),
         rendered.mimeType,
         getSf10Bucket(),
       );
@@ -1357,20 +1373,24 @@ export async function getSubjectMap(ctx: Sf10Context, recordId: string) {
     where: { id: recordId },
     select: {
       id: true,
+      lrn: true,
       desk: true,
       ocrExtractedData: true,
       source: true,
-      student: { select: { gradeLevel: true } },
+      gradeLevel: true,
     },
   });
   if (!record) throw new AppError(404, "NOT_FOUND", "SF10 record not found");
-  await assertDeskAccess(record.desk, ctx, record.student.gradeLevel);
+  const gradeLevel = recordGradeOf(record);
+  await assertDeskAccess(record.desk, ctx, gradeLevel);
   if (ctx.role === "adviser") await assertAdviserSf10Access(ctx.userId, recordId);
-  const schoolSubjects = await prisma.subject.findMany({
-    where: { gradeLevel: record.student.gradeLevel },
-    orderBy: [{ code: "asc" }],
-    select: { id: true, code: true, name: true },
-  });
+  const schoolSubjects = gradeLevel
+    ? await prisma.subject.findMany({
+        where: { gradeLevel: gradeLevel as never },
+        orderBy: [{ code: "asc" }],
+        select: { id: true, code: true, name: true },
+      })
+    : [];
   const payload = record.ocrExtractedData as unknown as OcrPayload | null;
   const ocrSubjects =
     payload && typeof payload === "object" && Array.isArray(payload.subjects)
@@ -1385,46 +1405,55 @@ export async function getSubjectMap(ctx: Sf10Context, recordId: string) {
           remarks: s.remarks ?? null,
         }))
       : [];
-  // Current-grade view only: rows tagged with the student's grade. Other
+  // Current-grade view only: rows tagged with the record's grade. Other
   // years belong to their grade sections; untagged rows are add-ons.
-  const currentGradeSubjects = ocrSubjects.filter(
-    (s) => s.gradeLevel === record.student.gradeLevel,
-  );
+  const currentGradeSubjects = gradeLevel
+    ? ocrSubjects.filter((s) => s.gradeLevel === gradeLevel)
+    : [];
   const map = buildSubjectMap(schoolSubjects, currentGradeSubjects);
-  // Per-year deficiency: catalog for every grade up to the student's current
-  // grade (strict per-grade match, no cross-grade credit; rating null/0 =
-  // not taken, any other score = taken).
+  // Per-year deficiency: catalog for every grade up to the record's grade
+  // (strict per-grade match, no cross-grade credit; rating null/0 = not
+  // taken, any other score = taken).
   const gradeOrder = ["G7", "G8", "G9", "G10", "G11", "G12"];
-  const currentIdx = gradeOrder.indexOf(record.student.gradeLevel);
-  const grades = currentIdx >= 0 ? gradeOrder.slice(0, currentIdx + 1) : [record.student.gradeLevel];
-  const fullCatalog = await prisma.subject.findMany({
-    where: { gradeLevel: { in: grades as never[] } },
-    orderBy: [{ gradeLevel: "asc" }, { code: "asc" }],
-    select: { id: true, code: true, name: true, gradeLevel: true, category: true },
-  });
-  const deficiency = buildDeficiencyMap(
-    fullCatalog.map((s) => ({
-      id: s.id,
-      code: s.code,
-      name: s.name,
-      gradeLevel: String(s.gradeLevel),
-      category: String(s.category),
-    })),
-    ocrSubjects,
-    record.student.gradeLevel,
-  );
-  const storedStatus = payload && typeof payload === "object" ? payload.ocrStatus : undefined;
+  const currentIdx = gradeLevel ? gradeOrder.indexOf(gradeLevel) : -1;
+  const grades = gradeLevel
+    ? currentIdx >= 0
+      ? gradeOrder.slice(0, currentIdx + 1)
+      : [gradeLevel]
+    : [];
+  const fullCatalog =
+    grades.length > 0
+      ? await prisma.subject.findMany({
+          where: { gradeLevel: { in: grades as never[] } },
+          orderBy: [{ gradeLevel: "asc" }, { code: "asc" }],
+          select: { id: true, code: true, name: true, gradeLevel: true, category: true },
+        })
+      : [];
+  const deficiency = gradeLevel
+    ? buildDeficiencyMap(
+        fullCatalog.map((s) => ({
+          id: s.id,
+          code: s.code,
+          name: s.name,
+          gradeLevel: String(s.gradeLevel),
+          category: String(s.category),
+        })),
+        ocrSubjects,
+        gradeLevel,
+      )
+    : { perGrade: {}, deficiencies: [], addons: [], coverage: { gradesDetected: [] } };
   return {
     id: record.id,
-    gradeLevel: record.student.gradeLevel,
-    ocrStatus:
-      storedStatus === "processing"
-        ? "processing"
-        : payload && typeof payload === "object" && "subjects" in payload
-          ? "ready"
-          : "processing",
+    lrn: record.lrn,
+    gradeLevel,
+    ocrStatus: resolveOcrStatus(payload),
     confidence: payload?.confidence ?? 0,
     learner: payload && typeof payload === "object" ? (payload.learner ?? null) : null,
+    // Extraction provenance: the desk shows what read the file, when, and the
+    // raw text it parsed, so a misread row can be traced to the source scan.
+    engine: payload?.engine ?? null,
+    ocrAt: payload?.ocrAt ?? null,
+    rawTextPreview: payload?.rawTextPreview ?? null,
     schoolSubjectCount: schoolSubjects.length,
     ocrSubjectCount: ocrSubjects.length,
     ...map,
@@ -1432,7 +1461,10 @@ export async function getSubjectMap(ctx: Sf10Context, recordId: string) {
     deficiencies: deficiency.deficiencies,
     addons: deficiency.addons,
     coverage: deficiency.coverage,
-    needsReview: map.needsReview || deficiency.deficiencies.length > 0 || (payload?.needsReview ?? true),
+    needsReview:
+      map.needsReview ||
+      deficiency.deficiencies.length > 0 ||
+      (payload?.needsReview ?? true),
   };
 }
 
@@ -1442,7 +1474,9 @@ export async function getRecordDetail(ctx: Sf10Context, recordId: string) {
     where: { id: recordId },
     select: {
       id: true,
-      studentId: true,
+      lrn: true,
+      learnerName: true,
+      gradeLevel: true,
       desk: true,
       source: true,
       status: true,
@@ -1458,19 +1492,19 @@ export async function getRecordDetail(ctx: Sf10Context, recordId: string) {
       archivedAt: true,
       currentVersion: true,
       updatedAt: true,
-      student: {
-        select: {
-          lrn: true,
-          user: { select: { fullName: true } },
-          gradeLevel: true,
-          section: { select: { id: true, name: true } },
-        },
-      },
+      ocrExtractedData: true,
     },
   });
   if (!record) throw new AppError(404, "NOT_FOUND", "SF10 record not found");
-  await assertDeskAccess(record.desk, ctx, record.student.gradeLevel);
+  const gradeLevel = recordGradeOf(record);
+  await assertDeskAccess(record.desk, ctx, gradeLevel);
   if (ctx.role === "adviser") await assertAdviserSf10Access(ctx.userId, recordId);
+  // The owning account is optional now: its section (when it exists) only
+  // widens the whole-request approval match below.
+  const owner = await prisma.studentProfile.findUnique({
+    where: { lrn: record.lrn },
+    select: { sectionId: true, section: { select: { name: true } } },
+  });
   const [versions, map, adviserAccessCount] = await Promise.all([
     listVersions(ctx, record.id),
     getSubjectMap(ctx, record.id),
@@ -1480,14 +1514,9 @@ export async function getRecordDetail(ctx: Sf10Context, recordId: string) {
     prisma.adviserSf10AccessRequest.count({
       where: {
         OR: [
-          { approvedLrns: { has: record.student.lrn } },
-          ...(record.student.section
-            ? [
-                {
-                  status: "approved" as const,
-                  sectionId: record.student.section.id,
-                },
-              ]
+          { approvedLrns: { has: record.lrn } },
+          ...(owner?.sectionId
+            ? [{ status: "approved" as const, sectionId: owner.sectionId }]
             : []),
         ],
       },
@@ -1496,12 +1525,11 @@ export async function getRecordDetail(ctx: Sf10Context, recordId: string) {
   return {
     record: {
       id: record.id,
-      studentId: record.studentId,
       desk: record.desk,
-      lrn: record.student.lrn,
-      fullName: record.student.user.fullName,
-      gradeLevel: record.student.gradeLevel,
-      section: record.student.section?.name ?? "—",
+      lrn: record.lrn,
+      fullName: record.learnerName?.trim() ? record.learnerName : record.lrn,
+      gradeLevel,
+      section: owner?.section?.name ?? "—",
       source: record.source,
       status: record.status,
       uploadedFileUrl: record.uploadedFileUrl,
@@ -1528,9 +1556,11 @@ export async function verifyRecord(ctx: Sf10Context, recordId: string) {
     where: { id: recordId },
     select: {
       id: true,
+      lrn: true,
+      learnerName: true,
+      gradeLevel: true,
       desk: true,
       status: true,
-      student: { select: { gradeLevel: true } },
     },
   });
   if (!record) throw new AppError(404, "NOT_FOUND", "SF10 record not found");
@@ -1540,24 +1570,21 @@ export async function verifyRecord(ctx: Sf10Context, recordId: string) {
   if (ctx.role === "adviser") await assertAdviserSf10Access(ctx.userId, recordId);
   // Desk roles stamp records too (record-keeper / registrar) — keep them
   // inside their own desk scope.
-  if (deskForRole(ctx.role)) await assertDeskAccess(record.desk, ctx, record.student.gradeLevel);
+  if (deskForRole(ctx.role))
+    await assertDeskAccess(record.desk, ctx, record.gradeLevel ? String(record.gradeLevel) : null);
   const updated = await prisma.sf10Record.update({ where: { id: record.id }, data: { verifiedBy: ctx.userId, verifiedAt: new Date() } });
 
   void (async () => {
     try {
-      const full = await prisma.sf10Record.findUnique({
-        where: { id: record.id },
+      const owner = await prisma.studentProfile.findUnique({
+        where: { lrn: record.lrn },
         select: {
-          student: {
-            select: {
-              user: { select: { fullName: true } },
-              section: { select: { name: true, adviserId: true } },
-            },
-          },
+          user: { select: { fullName: true } },
+          section: { select: { name: true, adviserId: true } },
         },
       });
-      const name = full?.student.user.fullName ?? "A student";
-      const section = full?.student.section?.name ?? "—";
+      const name = record.learnerName ?? owner?.user.fullName ?? record.lrn;
+      const section = owner?.section?.name ?? "—";
       await fanoutToRole(record.desk, {
         sourceTable: "sf10_records",
         action: "verified",
@@ -1565,7 +1592,7 @@ export async function verifyRecord(ctx: Sf10Context, recordId: string) {
         sourceId: record.id,
         excludeUserId: ctx.userId,
       });
-      const adviserId = full?.student.section?.adviserId ?? null;
+      const adviserId = owner?.section?.adviserId ?? null;
       if (adviserId && adviserId !== ctx.userId) {
         await fanoutNotification({
           userId: adviserId,
@@ -1592,13 +1619,15 @@ export async function validateRecord(ctx: Sf10Context, recordId: string) {
     where: { id: recordId },
     select: {
       id: true,
+      lrn: true,
+      learnerName: true,
+      gradeLevel: true,
       desk: true,
       status: true,
-      student: { select: { gradeLevel: true } },
     },
   });
   if (!record) throw new AppError(404, "NOT_FOUND", "SF10 record not found");
-  await assertDeskAccess(record.desk, ctx, record.student.gradeLevel);
+  await assertDeskAccess(record.desk, ctx, record.gradeLevel ? String(record.gradeLevel) : null);
   if (record.status === "released") {
     throw new AppError(409, "BAD_STATUS", "This record is released & archived — validation is closed");
   }
@@ -1616,20 +1645,16 @@ export async function validateRecord(ctx: Sf10Context, recordId: string) {
   });
   void (async () => {
     try {
-      const full = await prisma.sf10Record.findUnique({
-        where: { id: record.id },
+      const owner = await prisma.studentProfile.findUnique({
+        where: { lrn: record.lrn },
         select: {
-          student: {
-            select: {
-              user: { select: { fullName: true } },
-              section: { select: { name: true, adviserId: true } },
-            },
-          },
+          user: { select: { fullName: true } },
+          section: { select: { name: true, adviserId: true } },
         },
       });
-      const adviserId = full?.student.section?.adviserId ?? null;
-      const name = full?.student.user.fullName ?? "your advisee";
-      const section = full?.student.section?.name ?? "—";
+      const adviserId = owner?.section?.adviserId ?? null;
+      const name = record.learnerName ?? owner?.user.fullName ?? "your advisee";
+      const section = owner?.section?.name ?? "—";
       if (adviserId && adviserId !== ctx.userId) {
         await fanoutNotification({
           userId: adviserId,
@@ -1648,10 +1673,6 @@ export async function releaseRecord(ctx: Sf10Context, recordId: string) {
   const record = await assertRecordAccess(recordId, ctx);
   if (record.status !== "attach") throw new AppError(409, "BAD_STATUS", "Only attached records can be released");
   const now = new Date();
-  const studentSection = await prisma.sf10Record.findUnique({
-    where: { id: record.id },
-    select: { student: { select: { user: { select: { fullName: true } }, section: { select: { name: true, adviserId: true } } } } },
-  });
   const updated = await prisma.$transaction([
     prisma.sf10Record.update({
       where: { id: record.id },
@@ -1669,8 +1690,15 @@ export async function releaseRecord(ctx: Sf10Context, recordId: string) {
   });
   void (async () => {
     try {
-      const adviserId = studentSection?.student.section?.adviserId ?? null;
-      const name = studentSection?.student.user.fullName ?? "your advisee";
+      const owner = await prisma.studentProfile.findUnique({
+        where: { lrn: record.lrn },
+        select: {
+          user: { select: { fullName: true } },
+          section: { select: { adviserId: true } },
+        },
+      });
+      const adviserId = owner?.section?.adviserId ?? null;
+      const name = record.learnerName ?? owner?.user.fullName ?? "your advisee";
       if (adviserId && adviserId !== ctx.userId) {
         await fanoutNotification({
           userId: adviserId,

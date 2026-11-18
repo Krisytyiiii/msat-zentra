@@ -10,13 +10,12 @@
   background-color: var(--background);
 }
 
-/* Record boards fill the desk; the icon rail anchors the right edge and its
-   folder flyout opens leftwards as a kanban board. */
-.topRow {
-  display: grid;
-  grid-template-columns: minmax(0, 1fr) 2.75rem;
+/* Every board shares the desk column now that the icon rail is gone — the
+   page reads top-down: summary, trends, record list. */
+.mainColumn {
+  display: flex;
+  flex-direction: column;
   gap: 1rem;
-  align-items: start;
   min-width: 0;
   animation: page-in 0.9s cubic-bezier(0.22, 1, 0.36, 1) backwards;
 }
@@ -33,28 +32,8 @@
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .topRow {
+  .mainColumn {
     animation: none;
-  }
-}
-
-.topRow > * {
-  min-width: 0;
-}
-
-/* Charts + record grid share the desk column; the icon rail stays on the
-   right edge of the page. */
-.mainColumn {
-  display: flex;
-  flex-direction: column;
-  gap: 1rem;
-  min-width: 0;
-}
-
-
-@media (max-width: 1023px) {
-  .topRow {
-    grid-template-columns: minmax(0, 1fr);
   }
 }
 

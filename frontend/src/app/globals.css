@@ -211,6 +211,14 @@
   background-attachment: fixed;
 }
 
+/* Solid board surface for kanban panels. On the dark desk canvas the plain
+   --card fill (#171717) sits ~18/255 above the near-black background, so a
+   board reads as a see-through pane instead of a panel. Lifting it a touch
+   (still opaque, no alpha) keeps the board legible on every desk. */
+.dark .board-surface {
+  background-color: color-mix(in oklch, var(--card), var(--foreground) 8%);
+}
+
 [data-sileo-viewport] {
   /* Above every overlay: dialogs/sheets (z-50) and the image viewer (60),
      so success/error feedback is never hidden behind an open modal. */

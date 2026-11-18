@@ -55,8 +55,6 @@ export default function TeacherReportsPage() {
 
   return (
     <section className={styles.page} aria-label="Teacher term report">
-      <ReportsScopeBar data={data} />
-
       {data.classes.length === 0 ? (
         <PageEmptyCallout>
           <strong>No classes in this term.</strong> Your report appears once
@@ -64,6 +62,7 @@ export default function TeacherReportsPage() {
         </PageEmptyCallout>
       ) : (
         <>
+          <ReportsScopeBar data={data} />
           <ReportsKpiStrip summary={data.summary} />
 
           <div className={styles.panels}>

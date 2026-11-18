@@ -60,7 +60,11 @@
 }
 
 .search {
+  width: 240px;
+  max-width: 100%;
+  height: 2rem;
   padding-left: 2rem;
+  border-radius: 1rem;
 }
 
 .filterBtn {
@@ -158,7 +162,7 @@
   height: 1.25rem;
   padding: 0 0.5rem;
   border-radius: 999px;
-  font-size: 0.6875rem;
+  font-size: 0.75rem;
   font-weight: 500;
   white-space: nowrap;
   color: var(--foreground);

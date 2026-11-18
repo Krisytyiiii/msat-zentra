@@ -21,7 +21,7 @@ const ROUTE_BY_ID: Record<string, string> = {
 
 const ITEMS = [
   { id: "attendance-heatmap", label: "Attendance Heat Map", icon: Activity },
-  { id: "behavioral-count", label: "Behavioral Records", icon: Flame },
+  { id: "behavioral-count", label: "Anecdotal Records", icon: Flame },
   { id: "academic-heatmap", label: "Academic Heat Map", icon: GraduationCap },
 ] as const;
 

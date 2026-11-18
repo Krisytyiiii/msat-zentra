@@ -292,6 +292,8 @@ export function teacherNotificationTitle(n: {
   if (n.sourceTable === "adviser_sf10_access_requests") {
     if (/denied/i.test(n.message ?? "")) return "SF10 access denied";
     if (/approved/i.test(n.message ?? "")) return "SF10 access approved";
+    if (/No SF10 on file|reported missing/i.test(n.message ?? ""))
+      return "SF10 missing";
     return "SF10 access update";
   }
   if (n.sourceTable === "sf10_records" || n.type === "sf10_needs_validation")

@@ -2,6 +2,7 @@ import { Router } from "express";
 import { prisma } from "../../lib/prisma.js";
 import { requireAuth, requireRole } from "../../middleware/auth.js";
 import { cache, invalidateTags } from "../../lib/cache.js";
+import { invalidateTermScopeCache } from "../../lib/termScope.js";
 import { writeAudit } from "../../lib/audit.js";
 import { AppError } from "../../lib/errors.js";
 import { fanoutNotification } from "../../lib/notify.js";
@@ -213,6 +214,7 @@ router.get(
           skipDuplicates: true,
         });
         await invalidateTags(["academics", "principal"]);
+        invalidateTermScopeCache();
         terms = await prisma.term.findMany({
           where: { schoolYearId: targetYear.id },
           orderBy: { termNumber: "asc" },

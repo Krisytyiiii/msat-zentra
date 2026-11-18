@@ -3,6 +3,7 @@ import { gradeLabel, schoolYearClause } from "../../modules/registry/registry.re
 import { normalizeApprovedLrnAt } from "./access.service.js";
 import {
   archivedAdvisoryLearnerIds,
+  archivedAdvisoryLrns,
   excludeArchivedLearnerRows,
   excludeArchivedProfiles,
   excludeArchivedRosters,
@@ -90,6 +91,13 @@ function buildRequestDaily(
 export async function getOverview(ctx: RegistryContext, takes: OverviewTakes, schoolYearId: string | null) {
   const band = ctx.band;
   const archivedLearners = await archivedAdvisoryLearnerIds();
+  // SF10 records are LRN-keyed storage, so archived learners are excluded by
+  // LRN rather than by a `student` relation.
+  const archivedLrns = await archivedAdvisoryLrns(archivedLearners);
+  const sf10WhereBase = {
+    gradeLevel: { in: band },
+    ...(archivedLrns.length > 0 ? { lrn: { notIn: archivedLrns } } : {}),
+  };
 
   const pendingAdviserAccess = await prisma.staffProfile.count({
     where: { isAdviser: true, user: { status: "pending" } },
@@ -137,9 +145,7 @@ export async function getOverview(ctx: RegistryContext, takes: OverviewTakes, sc
     await Promise.all([
     prisma.sf10Record.groupBy({
       by: ["status"],
-      where: {
-        student: { gradeLevel: { in: band }, ...excludeArchivedProfiles(archivedLearners) },
-      },
+      where: sf10WhereBase,
       _count: { _all: true },
     }),
     prisma.section.groupBy({
@@ -196,10 +202,7 @@ export async function getOverview(ctx: RegistryContext, takes: OverviewTakes, sc
   const sf10Attach = sf10ByStatus.find((r) => r.status === "attach")?._count._all ?? 0;
 
   const latestAttachRows = await prisma.sf10Record.findMany({
-    where: {
-      status: "attach",
-      student: { gradeLevel: { in: band }, ...excludeArchivedProfiles(archivedLearners) },
-    },
+    where: { status: "attach", ...sf10WhereBase },
     orderBy: { validatedAt: "desc" },
     ...(takes.attachTake !== undefined ? { take: takes.attachTake } : {}),
     select: {
@@ -207,24 +210,33 @@ export async function getOverview(ctx: RegistryContext, takes: OverviewTakes, sc
       // feed rows must carry it alongside the display fields.
       id: true,
       validatedAt: true,
-      student: {
-        select: { lrn: true, gradeLevel: true, user: { select: { fullName: true } } },
-      },
+      lrn: true,
+      learnerName: true,
+      gradeLevel: true,
     },
   });
   const latestAttachments = latestAttachRows.map((r) => ({
     id: r.id,
-    student: r.student.user.fullName,
-    lrn: r.student.lrn,
-    grade: gradeLabel(r.student.gradeLevel),
+    student: r.learnerName?.trim() ? r.learnerName : `LRN ${r.lrn}`,
+    lrn: r.lrn,
+    grade: r.gradeLevel ? gradeLabel(r.gradeLevel) : "—",
 
     when: (r.validatedAt ?? new Date(0)).toISOString(),
   }));
 
+  // "Missing" = an enrolled learner whose LRN has no file on either desk.
+  const filedLrns = new Set(
+    (
+      await prisma.sf10Record.findMany({
+        where: sf10WhereBase,
+        select: { lrn: true },
+      })
+    ).map((r) => r.lrn),
+  );
   const missingRows = await prisma.studentProfile.findMany({
     where: {
       gradeLevel: { in: band },
-      sf10Records: { none: {} },
+      ...(filedLrns.size > 0 ? { lrn: { notIn: [...filedLrns] } } : {}),
       ...excludeArchivedProfiles(archivedLearners),
     },
     ...(takes.missingTake !== undefined ? { take: takes.missingTake } : {}),
@@ -308,19 +320,20 @@ export async function getOverview(ctx: RegistryContext, takes: OverviewTakes, sc
     })),
   ];
 
-  const sf10StudentRows = await prisma.studentProfile.findMany({
-    where: { gradeLevel: { in: band }, sf10Records: { some: {} } },
+  const sf10StudentRows = await prisma.sf10Record.findMany({
+    where: sf10WhereBase,
     take: 5,
+    orderBy: { uploadedAt: "desc" },
     select: {
       lrn: true,
+      learnerName: true,
       gradeLevel: true,
-      user: { select: { fullName: true } },
     },
   });
   const sf10Students = sf10StudentRows.map((s) => ({
-    name: s.user.fullName,
+    name: s.learnerName?.trim() ? s.learnerName : `LRN ${s.lrn}`,
     lrn: s.lrn,
-    grade: gradeLabel(s.gradeLevel),
+    grade: s.gradeLevel ? gradeLabel(s.gradeLevel) : "—",
   }));
 
   const pendingAccounts = pendingStudents.length + pendingAdviserAccess;

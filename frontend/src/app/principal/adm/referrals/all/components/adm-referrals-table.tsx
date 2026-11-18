@@ -237,7 +237,7 @@ export function AdmReferralsTable({
                       <Button
                         variant="outline"
                         size="sm"
-                        className="h-6 px-2 text-[11px] [&_svg]:size-3"
+                        className="h-6 px-2 text-[12px] [&_svg]:size-3"
                         aria-label={`View ${formCount} linked form${formCount === 1 ? "" : "s"} for ${row.student}`}
                         title={`${formCount} linked form${formCount === 1 ? "" : "s"}`}
                         onClick={() => onViewForms(row)}
@@ -264,7 +264,7 @@ export function AdmReferralsTable({
                         <Button
                           variant="outline"
                           size="sm"
-                          className="h-6 px-2 text-[11px] [&_svg]:size-3"
+                          className="h-6 px-2 text-[12px] [&_svg]:size-3"
                           aria-label={`Sign and approve case for ${row.student}`}
                           title="Sign & approve"
                           disabled={locked}
@@ -279,7 +279,7 @@ export function AdmReferralsTable({
                         <Button
                           variant="ghost"
                           size="sm"
-                          className="h-6 px-2 text-[11px] [&_svg]:size-3"
+                          className="h-6 px-2 text-[12px] [&_svg]:size-3"
                           aria-label={`Return case for ${row.student} for revision`}
                           title="Return for revision"
                           disabled={locked}

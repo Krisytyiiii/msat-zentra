@@ -145,7 +145,7 @@ export default function GuidanceHeatmapPage() {
         description={
           data.rows.length === 0
             ? "No sections enrolled for the active school year yet."
-            : `Academic ${data.totals.academic} · Attendance ${data.totals.attendance} · Behavioral ${data.totals.behavioral} flagged students across ${data.rows.length} section${data.rows.length === 1 ? "" : "s"}. Darker = more students.`
+            : `Academic ${data.totals.academic} · Attendance ${data.totals.attendance} · Anecdotal ${data.totals.behavioral} flagged students across ${data.rows.length} section${data.rows.length === 1 ? "" : "s"}. Darker = more students.`
         }
         className={styles.card}
       >

@@ -134,14 +134,23 @@ export async function listAccessRequests(query: AccessListQuery) {
   const allAdvisoryLrns = [
     ...new Set([...advisoryBySection.values()].flatMap((m) => [...m.keys()])),
   ];
-  const globalRecs =
+  // SF10 store is keyed by LRN, so matching never depends on an account link.
+  const [globalRecs, globalProfileLrns] =
     allAdvisoryLrns.length > 0
-      ? await prisma.studentProfile.findMany({
-          where: { lrn: { in: allAdvisoryLrns } },
-          select: { lrn: true, sf10Records: { select: { status: true } } },
-        })
-      : [];
-  const recByLrn = new Map(globalRecs.map((g) => [g.lrn, g.sf10Records[0] ?? null]));
+      ? await Promise.all([
+          prisma.sf10Record.findMany({
+            where: { lrn: { in: allAdvisoryLrns } },
+            select: { lrn: true, status: true },
+          }),
+          prisma.studentProfile.findMany({
+            where: { lrn: { in: allAdvisoryLrns } },
+            select: { lrn: true },
+          }),
+        ])
+      : [[], []];
+  const recByLrn = new Map<string, { status: string }>();
+  for (const r of globalRecs) if (!recByLrn.has(r.lrn)) recByLrn.set(r.lrn, { status: r.status });
+  const accountLrns = new Set(globalProfileLrns.map((p) => p.lrn));
 
   const requests = rows.map((r) => {
     const advisory = advisoryBySection.get(r.sectionId ?? "") ?? new Map();
@@ -158,7 +167,7 @@ export async function listAccessRequests(query: AccessListQuery) {
           mascot: ident.mascot ?? null,
           gradeLevel: r.gradeLevel,
           section: r.section.name,
-          hasAccount: recByLrn.has(lrn),
+          hasAccount: accountLrns.has(lrn),
           hasRecord: !!rec,
           sf10Status:
             sf10 === "released"
@@ -279,34 +288,36 @@ async function fetchAccessMatch(
   let lrns = [...identity.keys()];
   if (picked.size > 0) lrns = lrns.filter((l) => picked.has(l));
 
-  // SF10 lookup by LRN across ALL profiles — a record counts even when the
-  // profile sits in another section or none.
-  const global =
+  // SF10 lookup by LRN — the store is keyed by LRN, independent of accounts.
+  const [global, sf10Rows] =
     lrns.length > 0
-      ? await prisma.studentProfile.findMany({
-          where: { lrn: { in: lrns } },
-          select: {
-            lrn: true,
-            user: { select: { fullName: true } },
-            sf10Records: {
-              select: {
-                id: true,
-                source: true,
-                status: true,
-                uploadedFileUrl: true,
-                verifiedAt: true,
-                validatedAt: true,
-                currentVersion: true,
-              },
+      ? await Promise.all([
+          prisma.studentProfile.findMany({
+            where: { lrn: { in: lrns } },
+            select: { lrn: true, user: { select: { fullName: true } } },
+          }),
+          prisma.sf10Record.findMany({
+            where: { lrn: { in: lrns } },
+            select: {
+              lrn: true,
+              id: true,
+              source: true,
+              status: true,
+              uploadedFileUrl: true,
+              verifiedAt: true,
+              validatedAt: true,
+              currentVersion: true,
             },
-          },
-        })
-      : [];
+          }),
+        ])
+      : [[], []];
   const byGlobal = new Map(global.map((g) => [g.lrn, g]));
+  const recByLrn = new Map<string, (typeof sf10Rows)[number]>();
+  for (const rec of sf10Rows) if (!recByLrn.has(rec.lrn)) recByLrn.set(rec.lrn, rec);
 
   const rows = lrns.sort().map((lrn) => {
     const g = byGlobal.get(lrn);
-    const rec = g?.sf10Records[0];
+    const rec = recByLrn.get(lrn);
     return {
       lrn,
       name: identity.get(lrn) ?? g?.user.fullName ?? lrn,
@@ -517,6 +528,16 @@ export async function checkAccessRecordsStream(
   });
 }
 
+/**
+ * Human label for the registry desk that answered an access request. The
+ * adviser's desk rings different clips for the record keeper (G7–10) and the
+ * registrar (G11–12), so the fanout wording must name the acting desk — the
+ * notification is the adviser's only delivery path for these sounds.
+ */
+function deskLabelOf(role: string): string {
+  return role === "registrar" ? "registrar" : "record keeper";
+}
+
 export interface ReportMissingInput {
   requestId: string;
   lrn: string;
@@ -545,7 +566,7 @@ async function fetchSingleMatch(
   request: { sectionId: string; requestedLrns: string[] },
   lrn: string,
 ) {
-  const [profSec, rosSec, global] = await Promise.all([
+  const [profSec, rosSec, global, sf10Rec] = await Promise.all([
     prisma.studentProfile.findFirst({
       where: { lrn, sectionId: request.sectionId },
       select: { user: { select: { fullName: true } } },
@@ -556,23 +577,24 @@ async function fetchSingleMatch(
     }),
     prisma.studentProfile.findFirst({
       where: { lrn },
+      select: { user: { select: { fullName: true } } },
+    }),
+    // The SF10 store is keyed by LRN alone — a filed record counts even when
+    // no learner account exists for that LRN.
+    prisma.sf10Record.findFirst({
+      where: { lrn },
       select: {
-        user: { select: { fullName: true } },
-        sf10Records: {
-          select: {
-            id: true,
-            source: true,
-            status: true,
-            uploadedFileUrl: true,
-            verifiedAt: true,
-            validatedAt: true,
-            currentVersion: true,
-          },
-        },
+        id: true,
+        source: true,
+        status: true,
+        uploadedFileUrl: true,
+        verifiedAt: true,
+        validatedAt: true,
+        currentVersion: true,
       },
     }),
   ]);
-  return { profSec, rosSec, global };
+  return { profSec, rosSec, global, sf10Rec };
 }
 
 /**
@@ -613,6 +635,16 @@ export async function reportMissingAccessRecord(ctx: RegistryContext, input: Rep
     throw new AppError(400, "NOT_REQUESTED", "This LRN is not part of the access request");
   if (picked.size === 0 && !prof && !ros)
     throw new AppError(404, "LRN_NOT_FOUND", "This LRN is not in the advisory section");
+  // A mark must point at a learner who is still in the advisory section. A
+  // requested LRN that no longer resolves to an advisee has no row on the
+  // desk, so storing the mark made the "reported missing" KPI overshoot the
+  // list it was counting.
+  if (picked.size > 0 && !prof && !ros)
+    throw new AppError(
+      409,
+      "LRN_NOT_IN_SECTION",
+      "This learner is no longer in the advisory section",
+    );
   const learnerName = prof?.user.fullName ?? ros?.fullName ?? lrn;
   const sectionName = request.section?.name ?? "Unsectioned";
 
@@ -705,10 +737,10 @@ export async function approveAccessLrn(ctx: RegistryContext, input: ApproveLrnIn
     throw new AppError(400, "NOT_REQUESTED", "This LRN is not part of the access request");
 
   // Fast path: single-LRN indexed lookups, no full-section scan.
-  const { profSec, rosSec, global } = await fetchSingleMatch(request, lrn);
+  const { profSec, rosSec, global, sf10Rec } = await fetchSingleMatch(request, lrn);
   if (!profSec && !rosSec && picked.size === 0)
     throw new AppError(404, "LRN_NOT_FOUND", "This LRN is not in the advisory section");
-  const rec = global?.sf10Records[0];
+  const rec = sf10Rec;
   if (!rec)
     throw new AppError(409, "NOT_MATCHED", "Only students with a matched SF10 record can be approved");
   // Picked-but-not-in-section LRNs have no advisory identity — same NOT_MATCHED
@@ -745,7 +777,8 @@ export async function approveAccessLrn(ctx: RegistryContext, input: ApproveLrnIn
         action: "approve-lrn",
         message:
           `SF10 access approved for ${rowName} (${lrn}) in ` +
-          `${request.section?.name ?? "your section"}.`,
+          `${request.section?.name ?? "your section"} — granted by the ` +
+          `${deskLabelOf(ctx.role)} desk.`,
         sourceId: id,
       }),
     ],
@@ -820,7 +853,8 @@ export async function approveAllMatched(ctx: RegistryContext, input: ApproveAllI
         action: "approve-all",
         message:
           `SF10 access approved for ${granted.length} matched student${granted.length === 1 ? "" : "s"} in ` +
-          `${request.section?.name ?? "your section"}.`,
+          `${request.section?.name ?? "your section"} — granted by the ` +
+          `${deskLabelOf(ctx.role)} desk.`,
         sourceId: id,
       }),
     ],
@@ -883,7 +917,7 @@ export async function decideAccess(
     sourceTable: "adviser_sf10_access_requests",
     action: approved ? "approve" : "deny",
     message: approved
-      ? `Your request for SF10 read access (${updated.section.name}) was approved.`
+      ? `Your request for SF10 read access (${updated.section.name}) was approved by the ${deskLabelOf(ctx.role)} desk.`
       : `Your request for SF10 read access (${updated.section.name}) was denied.`,
     sourceId: updated.id,
   });

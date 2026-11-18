@@ -289,7 +289,7 @@ export function SessionDocumentKanbanCard({
           {isFollowUp ? (
             <Link
               href={followUpHref}
-              className="inline-flex h-7 shrink-0 items-center gap-1 rounded-md border border-amber-500/40 bg-amber-500/10 px-2 text-[11px] font-semibold text-amber-700 transition-colors hover:bg-amber-500/15 dark:text-amber-400"
+              className="inline-flex h-7 shrink-0 items-center gap-1 rounded-md border border-amber-500/40 bg-amber-500/10 px-2 text-[12px] font-semibold text-amber-700 transition-colors hover:bg-amber-500/15 dark:text-amber-400"
             >
               Follow up
               <ArrowRight size={12} aria-hidden />
@@ -309,7 +309,7 @@ export function SessionDocumentKanbanCard({
                     <button
                       type="button"
                       onClick={() => onOpenImage(record, index)}
-                      className="flex w-full items-center gap-2 rounded-md border border-border bg-background px-2 py-1.5 text-left text-[11px] transition-colors hover:border-primary/60 hover:bg-muted"
+                      className="flex w-full items-center gap-2 rounded-md border border-border bg-background px-2 py-1.5 text-left text-[12px] transition-colors hover:border-primary/60 hover:bg-muted"
                       title={`${doc.file.tag} · ${doc.image.fileName}`}
                     >
                       <Images
@@ -344,7 +344,7 @@ export function SessionDocumentKanbanCard({
                     <button
                       type="button"
                       onClick={() => onOpenImage(record, session.startIndex)}
-                      className="flex w-full items-center gap-2 rounded-md border border-border bg-background px-2 py-1.5 text-left text-[11px] transition-colors hover:border-primary/60 hover:bg-muted"
+                      className="flex w-full items-center gap-2 rounded-md border border-border bg-background px-2 py-1.5 text-left text-[12px] transition-colors hover:border-primary/60 hover:bg-muted"
                     >
                       <CalendarClock
                         size={12}

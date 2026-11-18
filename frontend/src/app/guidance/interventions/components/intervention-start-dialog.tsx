@@ -173,7 +173,7 @@ export function InterventionStartDialog({
         <span className="flex items-center gap-1.5 text-sm">
           <span
             aria-hidden
-            className="flex size-5 shrink-0 items-center justify-center rounded-full bg-blue-100 text-[10px] font-semibold text-blue-800 dark:bg-blue-500/20 dark:text-blue-200"
+            className="flex size-5 shrink-0 items-center justify-center rounded-full bg-blue-100 text-[12px] font-semibold text-blue-800 dark:bg-blue-500/20 dark:text-blue-200"
           >
             {initialsOf(activeStudent)}
           </span>
@@ -336,7 +336,7 @@ export function InterventionStartDialog({
                             "border-blue-600 bg-blue-50 text-blue-800 ring-1 ring-blue-600 dark:border-blue-500 dark:bg-[#0f1a33] dark:text-[#bfdbfe] dark:ring-blue-500"
                         )}
                       >
-                        <span className="text-[11px] font-medium uppercase text-slate-500 dark:text-[#a1a1aa]">
+                        <span className="text-[12px] font-medium uppercase text-slate-500 dark:text-[#a1a1aa]">
                           {d.dow}
                         </span>
                         <span className="text-[13px] font-semibold">{d.label}</span>
@@ -354,7 +354,7 @@ export function InterventionStartDialog({
                     )}
                   >
                     <CalendarIcon className="size-4" aria-hidden />
-                    <span className="px-1 text-[11px] font-medium leading-tight">
+                    <span className="px-1 text-[12px] font-medium leading-tight">
                       {customSelected && sessDate ? formatChipSummary(sessDate) : "Other date"}
                     </span>
                   </button>

@@ -69,7 +69,7 @@ function CaseLoadLine({ trend }: { trend: NurseTrendPoint[] }) {
             dataKey="date"
             tickLine={false}
             axisLine={false}
-            fontSize={11}
+            fontSize={12}
             minTickGap={24}
             tickFormatter={(v) => {
               if (!v || typeof v !== "string") return "";
@@ -81,7 +81,7 @@ function CaseLoadLine({ trend }: { trend: NurseTrendPoint[] }) {
             type="number"
             tickLine={false}
             axisLine={false}
-            fontSize={11}
+            fontSize={12}
             allowDecimals={false}
           />
           <Tooltip
@@ -173,7 +173,7 @@ function WaitingTimeLine({ rows }: { rows: NurseQueueRow[] }) {
               type="number"
               tickLine={false}
               axisLine={false}
-              fontSize={11}
+              fontSize={12}
               tickFormatter={(v) => (typeof v === "number" ? `${v}h` : v)}
             />
             <Tooltip

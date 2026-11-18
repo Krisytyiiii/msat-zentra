@@ -21,7 +21,7 @@ import {
 } from "./guidance-referrals-format";
 
 const PILL =
-  "inline-flex h-7 cursor-pointer items-center gap-1.5 rounded-full border px-2.5 text-[11px] font-semibold transition-colors duration-150";
+  "inline-flex h-7 cursor-pointer items-center gap-1.5 rounded-full border px-2.5 text-[12px] font-semibold transition-colors duration-150";
 const PILL_ACTIVE = "border-amber-500/60 bg-amber-500/10 text-foreground";
 const PILL_IDLE =
   "border-border bg-card text-muted-foreground hover:border-amber-500/60 hover:bg-amber-500/10 hover:text-foreground";
@@ -121,7 +121,7 @@ export function GuidanceActionTabs({
             {item.label}
             {count > 0 ? (
               <span
-                className={`inline-flex h-4 min-w-4 items-center justify-center rounded-full px-1 text-[10px] font-bold tabular-nums ${
+                className={`inline-flex h-4 min-w-4 items-center justify-center rounded-full px-1 text-[12px] font-bold tabular-nums ${
                   active
                     ? "bg-amber-500/25 text-amber-900 dark:text-amber-200"
                     : "bg-secondary text-secondary-foreground"

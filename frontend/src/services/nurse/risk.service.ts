@@ -17,7 +17,7 @@ export const RISK_LEVEL_WORDS: Record<NurseRiskLevel, string> = {
 export const RISK_FACTOR_WORDS: Record<keyof NurseRiskFactors, string> = {
   Academic: "low grades",
   Attendance: "missing classes",
-  Behavioral: "behavior notes",
+  Behavioral: "anecdotal notes",
 };
 
 export async function fetchNurseRiskFactors(

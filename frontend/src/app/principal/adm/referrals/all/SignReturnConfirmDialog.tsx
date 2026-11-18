@@ -201,13 +201,9 @@ function SignReturnConfirmSheet({
               size={32}
             />
             <div className="flex min-w-0 flex-col items-start gap-1">
-              <Pill
-                tone="amber"
-                label="Student"
-                className="min-w-0 max-w-full overflow-hidden"
-              >
-                <span className="truncate">{pendingRow.student}</span>
-              </Pill>
+              <span className="min-w-0 max-w-full truncate text-[13px] font-semibold text-foreground">
+                {pendingRow.student}
+              </span>
               <span className="flex min-w-0 max-w-full flex-wrap items-center gap-1">
                 <Pill label="LRN" className="tabular-nums">
                   {pendingRow.lrn}

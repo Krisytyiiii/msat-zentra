@@ -177,8 +177,12 @@ export function getStudentListStats(requests: AdviserAccessRequest[]): StudentLi
     const n = r.affectedAdvisees.length;
     totalRequested += n;
     if (!r.checkedAt) pendingChecking += n;
-    approved += r.approvedLrns?.length ?? 0;
-    reportedMissing += r.reportedMissingLrns?.length ?? 0;
+    // Count only marks that resolve to a visible advisee row, so the KPI can
+    // never exceed the workbench list (an LRN stored on the request but no
+    // longer in the section has no row to show).
+    const rowLrns = new Set(r.affectedAdvisees.map((a) => a.lrn));
+    approved += (r.approvedLrns ?? []).filter((lrn) => rowLrns.has(lrn)).length;
+    reportedMissing += (r.reportedMissingLrns ?? []).filter((lrn) => rowLrns.has(lrn)).length;
   }
   return { pendingChecking, approved, reportedMissing, totalRequested };
 }

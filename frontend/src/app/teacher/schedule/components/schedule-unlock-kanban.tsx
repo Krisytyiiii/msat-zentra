@@ -58,12 +58,12 @@ export function ScheduleUnlockConfirm({ section, onCancel, onConfirm }: Props) {
               <Button
                 onClick={onCancel}
                 variant="outline"
-                className="h-6 gap-1 px-2 font-sans text-[11px]"
+                className="h-6 gap-1 px-2 font-sans text-[12px]"
               >
                 <Undo2 size={12} aria-hidden />
                 Keep approved
               </Button>
-              <Button onClick={onConfirm} className="h-6 gap-1 px-2 font-sans text-[11px]">
+              <Button onClick={onConfirm} className="h-6 gap-1 px-2 font-sans text-[12px]">
                 <Pencil size={12} aria-hidden />
                 Start editing
               </Button>
@@ -84,7 +84,7 @@ export function ScheduleUnlockConfirm({ section, onCancel, onConfirm }: Props) {
                   >
                     {entry.subject.name}
                   </span>
-                  <span className="truncate font-sans text-[11px] text-muted-foreground">
+                  <span className="truncate font-sans text-[12px] text-muted-foreground">
                     {entry.teacherName?.name ?? "No teacher"}
                   </span>
                 </span>

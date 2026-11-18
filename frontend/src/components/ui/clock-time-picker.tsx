@@ -174,7 +174,7 @@ export function ClockTimePicker({
               role="tab"
               aria-selected={mode === m}
               onClick={() => setMode(m)}
-              className={`h-6 flex-1 rounded-[4px] px-2 text-[11px] font-semibold capitalize transition-colors outline-none focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring ${
+              className={`h-6 flex-1 rounded-[4px] px-2 text-[12px] font-semibold capitalize transition-colors outline-none focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring ${
                 mode === m
                   ? "bg-primary text-primary-foreground shadow-sm"
                   : "text-muted-foreground hover:text-foreground"
@@ -247,7 +247,7 @@ export function ClockTimePicker({
               aria-pressed={ampm === m}
               disabled={ampmBlocked(m)}
               onClick={() => pickAmpm(m)}
-              className={`h-6 flex-1 rounded-[4px] text-[11px] font-semibold transition-colors outline-none focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring ${
+              className={`h-6 flex-1 rounded-[4px] text-[12px] font-semibold transition-colors outline-none focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring ${
                 ampmBlocked(m)
                   ? "cursor-not-allowed text-muted-foreground/40"
                   : ampm === m

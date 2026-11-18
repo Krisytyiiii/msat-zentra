@@ -61,6 +61,11 @@
 /* Let the wrapper canvas show through the content + rail. */
 :global(.dark) .main {
   background-color: transparent;
+  /* Boards/cards inside the desk inherit an opaque --card fill from the
+     theme, which paints a flat block over the aurora canvas and hides the
+     board's content against the dark background. Scoped to .main so portaled
+     surfaces (dialogs, menus, tooltips) keep their own solid card. */
+  --card: transparent;
 }
 
 /* Same translucent bar as the landing nav so the hero glow reads through. */
@@ -114,7 +119,7 @@
 }
 
 .search {
-  width: 16rem;
+  width: 240px;
   max-width: 40vw;
   /* Keeps the search trigger beside (not touching) the right icon cluster:
      8px topbar gap + 8px here = 16px breathing room. */
@@ -175,7 +180,7 @@
   background-color: var(--background);
   color: var(--muted-foreground);
   font-family: var(--font-sans), system-ui, sans-serif;
-  font-size: 0.625rem;
+  font-size: 0.75rem;
   font-weight: 600;
   letter-spacing: 0.02em;
 }

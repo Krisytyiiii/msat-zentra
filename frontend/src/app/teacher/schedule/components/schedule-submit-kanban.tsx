@@ -136,7 +136,7 @@ export function SubmitDockRows({ rows }: { rows: SubmitRowState[] }) {
               {r.count} slot{r.count === 1 ? "" : "s"}
             </Pill>
           </span>
-          <span className="flex shrink-0 items-center gap-1 font-sans text-[11px] text-muted-foreground">
+          <span className="flex shrink-0 items-center gap-1 font-sans text-[12px] text-muted-foreground">
             {r.status === "submitted" ? (
               <>
                 <Send size={11} aria-hidden />

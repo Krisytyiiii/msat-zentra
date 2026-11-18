@@ -325,7 +325,7 @@ export function AdviseeRecordOverlay({
                             ) : (
                               <span />
                             )}
-                            <span className="text-[11px] text-muted-foreground">
+                            <span className="text-[12px] text-muted-foreground">
                               Opens in a new tab
                             </span>
                           </div>
@@ -396,11 +396,11 @@ export function AdviseeRecordOverlay({
                             </div>
                           </div>
                           <div className="flex flex-wrap items-center justify-between gap-1">
-                            <span className="text-[11px] text-muted-foreground">
+                            <span className="text-[12px] text-muted-foreground">
                               Opens the filed record
                             </span>
                             {records.length > 5 ? (
-                              <span className="text-[11px] text-muted-foreground">
+                              <span className="text-[12px] text-muted-foreground">
                                 +{records.length - 5} more
                               </span>
                             ) : null}
@@ -441,7 +441,7 @@ export function AdviseeRecordOverlay({
                           </span>
                           <span className="text-[22px] font-extrabold leading-none tabular-nums">
                             {generalAverage === null ? "—" : generalAverage.toFixed(1)}
-                            <span className="ml-1 text-[10px] font-medium text-muted-foreground">
+                            <span className="ml-1 text-[12px] font-medium text-muted-foreground">
                               avg
                             </span>
                           </span>
@@ -449,7 +449,7 @@ export function AdviseeRecordOverlay({
                       </span>
 
                       {liveGrades.length === 0 ? (
-                        <span className="text-[11px] text-muted-foreground">
+                        <span className="text-[12px] text-muted-foreground">
                           No live scores shared by subject teachers yet.
                         </span>
                       ) : (
@@ -468,7 +468,7 @@ export function AdviseeRecordOverlay({
                             </span>
                           ))}
                           {liveGrades.length > 3 ? (
-                            <span className="text-[11px] text-muted-foreground">
+                            <span className="text-[12px] text-muted-foreground">
                               +{liveGrades.length - 3} more subject
                               {liveGrades.length - 3 === 1 ? "" : "s"}
                             </span>
@@ -476,7 +476,7 @@ export function AdviseeRecordOverlay({
                         </span>
                       )}
 
-                      <span className="text-[11px] text-muted-foreground">
+                      <span className="text-[12px] text-muted-foreground">
                         Open the academic board
                       </span>
                     </span>

@@ -110,13 +110,9 @@ function Bottlenecks({ dashboard }: { dashboard: AdmDashboard }) {
                       <span className="shrink-0" aria-hidden>
                         <StudentMascot name={row.student} seed={row.student} size={28} />
                       </span>
-                      <Pill
-                        tone="amber"
-                        label="Student"
-                        className="max-w-[10rem] truncate"
-                      >
+                      <span className="min-w-0 max-w-[10rem] truncate text-[13px] font-semibold text-foreground">
                         {row.student}
-                      </Pill>
+                      </span>
                       <Pill tone="neutral" label="Prepared by">
                         {row.preparedBy}
                       </Pill>

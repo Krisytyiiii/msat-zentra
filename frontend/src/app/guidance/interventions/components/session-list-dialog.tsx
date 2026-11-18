@@ -180,7 +180,7 @@ export function SessionListDialog({
                               {sessionTypeLabel(s.sessionType)}
                             </p>
                             {rel ? (
-                              <span className="rounded-md bg-muted px-1.5 py-px text-[10px] font-medium text-muted-foreground">
+                              <span className="rounded-md bg-muted px-1.5 py-px text-[12px] font-medium text-muted-foreground">
                                 {rel}
                               </span>
                             ) : null}

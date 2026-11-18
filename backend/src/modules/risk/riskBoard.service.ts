@@ -111,6 +111,12 @@ export async function getRiskBoard(
     rosterId: string | null;
   }[] = [];
   let interventionGroups: { outcomeStatus: OutcomeStatus; _count: { _all: number } }[] = [];
+  // Learner keys that survived the live adviser-sharing gate. The trend below
+  // is built from historical snapshots, which carry no section context — it
+  // has to reuse this set or the history (and the hero's delta badge) counts a
+  // different cohort than the headline number. Null on the ADM desk, which is
+  // exempt from sharing and already scoped by admStudentIds.
+  let sharedLearnerKeys: Set<string> | null = null;
 
   {
     // Real-time unified live computation (EITHER avg < 75). The ADM desk uses
@@ -307,6 +313,13 @@ export async function getRiskBoard(
       gradeByKey.set(`roster:${r.id}`, gradeLabel(r.gradeLevel));
       if (r.sectionId) sectionByKey.set(`roster:${r.id}`, r.sectionId);
     }
+    if (!admOnly) {
+      sharedLearnerKeys = new Set(
+        [...sectionByKey.entries()]
+          .filter(([, sectionId]) => connectedSectionIds.has(sectionId))
+          .map(([key]) => key),
+      );
+    }
     const rawAvgMap = new Map<string, number>([
       ...avgBy(gradeAvgsP, (g) => g.studentId, (g) => g._avg.computedAverage),
       ...avgBy(gradeAvgsR, (g) => (g.rosterId ? `roster:${g.rosterId}` : null), (g) => g._avg.computedAverage),
@@ -401,10 +414,13 @@ export async function getRiskBoard(
       );
 
       for (const snap of snapshots) {
-        const idx = Math.floor((snap.snapshotDate.getTime() - startMs) / WEEK_MS);
-        if (idx < 0 || idx >= bucketCount) continue;
         const key = snap.studentId ?? (snap.rosterId ? `roster:${snap.rosterId}` : null);
         if (!key) continue;
+        // Only learners the live board would count today: a learner swept
+        // before their adviser switched sharing on must not inflate a bucket.
+        if (sharedLearnerKeys && !sharedLearnerKeys.has(key)) continue;
+        const idx = Math.floor((snap.snapshotDate.getTime() - startMs) / WEEK_MS);
+        if (idx < 0 || idx >= bucketCount) continue;
         buckets[idx].set(key, snap.riskLevel);
       }
 
@@ -435,7 +451,12 @@ export async function getRiskBoard(
   // The engine writes RiskSnapshot rows on its hourly sweep; before its first
   // run in a term there is no time series. Fall back to the live computed
   // levels so the ADM desk still shows its learners instead of an empty board.
-  if (visibleTrend.length === 0 && high + moderate + low > 0) {
+  // Same fallback when every bucket was gated out (no shared learner has been
+  // swept yet) — an all-zero history would read as "nobody at risk".
+  if (
+    !visibleTrend.some((point) => point.high + point.moderate + point.low > 0) &&
+    high + moderate + low > 0
+  ) {
     visibleTrend = [{ term: "Now", high, moderate, low }];
   }
 

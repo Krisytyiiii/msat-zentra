@@ -40,7 +40,7 @@ export const TARGET_ROLE_LABELS: Record<string, string> = {
   principal: "Principal",
 };
 export const CATEGORY_LABELS: Record<string, string> = {
-  behavioral: "Behavioral",
+  behavioral: "Anecdotal",
   bullying: "Bullying",
   academic: "Academic",
   attendance: "Attendance",

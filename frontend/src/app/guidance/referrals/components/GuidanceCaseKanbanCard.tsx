@@ -313,7 +313,7 @@ export function GuidanceCaseKanbanCard({
         </span>
 
         {statusHelp ? (
-          <p className="m-0 text-[11px] leading-snug text-muted-foreground">
+          <p className="m-0 text-[12px] leading-snug text-muted-foreground">
             {statusHelp}
           </p>
         ) : null}
@@ -420,10 +420,10 @@ export function GuidanceCaseKanbanCard({
                 className="shrink-0 text-muted-foreground"
                 aria-hidden
               />
-              <span className="min-w-0 flex-1 truncate text-[11px] font-semibold">
+              <span className="min-w-0 flex-1 truncate text-[12px] font-semibold">
                 Counseling sessions
               </span>
-              <span className="shrink-0 rounded-full bg-secondary px-1.5 text-[10px] font-semibold text-secondary-foreground">
+              <span className="shrink-0 rounded-full bg-secondary px-1.5 text-[12px] font-semibold text-secondary-foreground">
                 {row.sessions.length}
               </span>
               <ChevronRight
@@ -441,7 +441,7 @@ export function GuidanceCaseKanbanCard({
               type="button"
               size="xs"
               variant="secondary"
-              className="h-6 px-2 text-[11px]"
+              className="h-6 px-2 text-[12px]"
               disabled={actionPending}
               onClick={() => onOpenSession(row.id, scheduledSession, "move")}
             >
@@ -453,7 +453,7 @@ export function GuidanceCaseKanbanCard({
               type="button"
               size="xs"
               variant="default"
-              className="h-6 px-2 text-[11px]"
+              className="h-6 px-2 text-[12px]"
               disabled={actionPending}
               onClick={() => onReviewAdm(row)}
             >
@@ -465,7 +465,7 @@ export function GuidanceCaseKanbanCard({
               type="button"
               size="xs"
               variant="default"
-              className="h-6 px-2 text-[11px]"
+              className="h-6 px-2 text-[12px]"
               disabled={actionPending}
               onClick={() => onReviewCounseling(row)}
             >
@@ -477,7 +477,7 @@ export function GuidanceCaseKanbanCard({
               type="button"
               size="xs"
               variant="default"
-              className="h-6 px-2 text-[11px]"
+              className="h-6 px-2 text-[12px]"
               disabled={actionPending}
               onClick={() => onBookSession(row)}
             >

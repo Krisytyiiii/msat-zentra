@@ -8,23 +8,24 @@ import { useDock } from "@/components/dock/dock-store";
 import { apiErrorMessage } from "@/lib/api/errors";
 import { uploadSf10Auto } from "@/services/registry/sf10.service";
 
-export type Sf10QueueStatus = "queued" | "uploading" | "done" | "error" | "needs-grade";
+export type Sf10QueueStatus = "queued" | "uploading" | "done" | "error";
 
 export interface Sf10QueueItem {
   key: string;
   file: File;
   status: Sf10QueueStatus;
-  gradeLevel: string;
+  /** Upload stage: bytes still moving vs. the server reading the file. */
+  phase?: "uploading" | "extracting" | null;
+  /** Real byte-upload progress, 0–100 (null until the request starts). */
+  uploadPercent?: number | null;
   recordId?: string | null;
   learnerName?: string | null;
   lrn?: string | null;
+  /** Extraction summary — what the reader actually pulled out of the file. */
+  subjectsRead?: number | null;
+  engine?: string | null;
+  confidence?: number | null;
   error?: string | null;
-}
-
-function apiErrorCode(e: unknown): string | null {
-  const code = (e as { response?: { data?: { error?: { code?: unknown } } } })
-    ?.response?.data?.error?.code;
-  return typeof code === "string" ? code : null;
 }
 
 function isCancelError(e: unknown): boolean {
@@ -62,7 +63,6 @@ interface Sf10BulkUploadValue {
   removeItem: (key: string) => void;
   clearDone: () => void;
   clearAll: () => void;
-  setItemGrade: (key: string, gradeLevel: string) => void;
   startUpload: () => void;
   cancelItem: (key: string) => void;
   dismissDock: () => void;
@@ -161,7 +161,7 @@ export function Sf10BulkUploadProvider({ children }: { children: React.ReactNode
           newcomers.some((p) => p.file.name === file.name && p.file.size === file.size && p.file.lastModified === file.lastModified);
         if (dupe) continue;
         salt.current += 1;
-        newcomers.push({ key: itemKey(file, salt.current), file, status: "queued", gradeLevel: "" });
+        newcomers.push({ key: itemKey(file, salt.current), file, status: "queued" });
       }
       if (newcomers.length === 0) return;
       for (const n of newcomers) {
@@ -233,10 +233,6 @@ export function Sf10BulkUploadProvider({ children }: { children: React.ReactNode
     }
   }, [uploading]);
 
-  const setItemGrade = React.useCallback((key: string, gradeLevel: string) => {
-    setItems((prev) => prev.map((p) => (p.key === key ? { ...p, gradeLevel } : p)));
-  }, []);
-
   const dismissDock = React.useCallback(() => {
     setFiledFlash(false);
     try {
@@ -272,7 +268,7 @@ export function Sf10BulkUploadProvider({ children }: { children: React.ReactNode
   const startUpload = React.useCallback(() => {
     if (uploading) return;
     const actionable = itemsRef.current.filter(
-      (i) => i.status === "queued" || i.status === "error" || (i.status === "needs-grade" && i.gradeLevel),
+      (i) => i.status === "queued" || i.status === "error",
     );
     if (actionable.length === 0) return;
     setFiledFlash(false);
@@ -299,25 +295,72 @@ export function Sf10BulkUploadProvider({ children }: { children: React.ReactNode
               /* ignore */
             }
           }
-          setItems((prev) => prev.map((p) => (p.key === item.key ? { ...p, status: "uploading", error: null } : p)));
+          setItems((prev) => prev.map((p) => (p.key === item.key ? { ...p, status: "uploading", phase: "uploading", uploadPercent: 0, error: null } : p)));
           const controller = new AbortController();
           abortRef.current = controller;
           try {
-            const result = await uploadSf10Auto(item.file, item.gradeLevel || null, controller.signal);
+            const result = await uploadSf10Auto(item.file, controller.signal, (percent) => {
+              const extracting = percent >= 100;
+              setItems((prev) =>
+                prev.map((p) =>
+                  p.key === item.key
+                    ? {
+                        ...p,
+                        phase: extracting ? "extracting" : "uploading",
+                        uploadPercent: percent,
+                      }
+                    : p,
+                ),
+              );
+              // The dock mirrors the same two stages, so the panel and the
+              // bottom-right task never disagree.
+              if (extracting && taskId) {
+                try {
+                  dockRef.current.updateTask(taskId, {
+                    description: "Extracting the contents (OCR)…",
+                    progress: { done: idx, total: actionable.length },
+                  });
+                } catch {
+                  /* ignore */
+                }
+              } else if (taskId) {
+                try {
+                  dockRef.current.updateTask(taskId, {
+                    description: `Uploading… ${percent}%`,
+                    progress: { done: idx, total: actionable.length },
+                  });
+                } catch {
+                  /* ignore */
+                }
+              }
+            });
             ok += 1;
             setDoneCount(ok);
             setItems((prev) =>
               prev.map((p) =>
                 p.key === item.key
-                  ? { ...p, status: "done", recordId: result.id, learnerName: result.learner?.fullName ?? null, lrn: result.learner?.lrn ?? null, error: null }
+                  ? {
+                      ...p,
+                      status: "done",
+                      phase: null,
+                      uploadPercent: 100,
+                      recordId: result.id,
+                      learnerName: result.learnerName ?? result.learner?.fullName ?? null,
+                      lrn: result.lrn ?? result.learner?.lrn ?? null,
+                      subjectsRead: result.subjectsRead ?? null,
+                      engine: result.engine ?? null,
+                      confidence: result.confidence ?? null,
+                      error: null,
+                    }
                   : p,
               ),
             );
             setFiledIds((prev) => [...prev, result.id]);
             if (taskId) {
               try {
-                const label = result.learner?.fullName ?? "Filed";
-                dockRef.current.updateTask(taskId, { description: result.learner?.lrn ? `${label} · LRN ${result.learner.lrn}` : label, progress: { done: idx + 1, total: actionable.length } });
+                const label = result.learnerName ?? result.learner?.fullName ?? "Filed";
+                const filedLrn = result.lrn ?? result.learner?.lrn ?? null;
+                dockRef.current.updateTask(taskId, { description: filedLrn ? `${label} · LRN ${filedLrn}` : label, progress: { done: idx + 1, total: actionable.length } });
                 dockRef.current.completeTask(taskId);
               } catch {
                 /* ignore */
@@ -333,17 +376,12 @@ export function Sf10BulkUploadProvider({ children }: { children: React.ReactNode
               taskIdsRef.current.delete(item.key);
             } else {
               fail += 1;
-              if (apiErrorCode(e) === "NO_GRADE_IN_FILE") {
-                const msg = apiErrorMessage(e, "The record's grade level could not be read from the file.");
-                setItems((prev) =>
-                  prev.map((p) => (p.key === item.key ? { ...p, status: "needs-grade", error: msg } : p)),
-                );
-                settleDockTask(item.key, (id) => dockRef.current.failTask(id, "Needs grade — pick grade and upload again."));
-              } else {
-                const msg = apiErrorMessage(e, "Could not attach the SF10 file.");
-                setItems((prev) => prev.map((p) => (p.key === item.key ? { ...p, status: "error", error: msg } : p)));
-                settleDockTask(item.key, (id) => dockRef.current.failTask(id, msg));
-              }
+              // The LRN written on the file is the record's identity: an
+              // unreadable LRN rejects the file, but a readable one is stored
+              // whether or not the school has that learner on file.
+              const msg = apiErrorMessage(e, "Could not attach the SF10 file.");
+              setItems((prev) => prev.map((p) => (p.key === item.key ? { ...p, status: "error", phase: null, error: msg } : p)));
+              settleDockTask(item.key, (id) => dockRef.current.failTask(id, msg));
             }
           } finally {
             if (abortRef.current === controller) abortRef.current = null;
@@ -387,12 +425,11 @@ export function Sf10BulkUploadProvider({ children }: { children: React.ReactNode
       removeItem,
       clearDone,
       clearAll,
-      setItemGrade,
       startUpload,
       cancelItem,
       dismissDock,
     }),
-    [items, filedIds, uploading, progress, currentName, doneCount, filedFlash, minimized, enqueueFiles, removeItem, clearDone, clearAll, setItemGrade, startUpload, cancelItem, dismissDock],
+    [items, filedIds, uploading, progress, currentName, doneCount, filedFlash, minimized, enqueueFiles, removeItem, clearDone, clearAll, startUpload, cancelItem, dismissDock],
   );
 
   return <Sf10BulkUploadContext.Provider value={value}>{children}</Sf10BulkUploadContext.Provider>;

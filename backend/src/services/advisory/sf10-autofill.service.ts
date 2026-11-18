@@ -111,7 +111,7 @@ interface Sf10RecordLite {
   desk: string;
   status: string;
   currentVersion: number;
-  studentId: string;
+  lrn: string;
 }
 
 interface SectionContext {
@@ -119,7 +119,7 @@ interface SectionContext {
   schoolYear: { id: string; name: string };
   requiredTermNumbers: number[];
   learners: SectionLearner[];
-  recordsByStudent: Map<string, Sf10RecordLite[]>;
+  recordsByLrn: Map<string, Sf10RecordLite[]>;
   grants: Array<{ sectionId: string; status: string; approvedLrns: string[] }>;
   factsByLrn: Map<string, GradeFact[]>;
 }
@@ -324,15 +324,15 @@ async function loadContext(
   const rosterIds = learners.flatMap((l) => l.rosterIds);
 
   const [records, finals] = await Promise.all([
-    profileIds.length > 0
+    learners.length > 0
       ? prisma.sf10Record.findMany({
-          where: { studentId: { in: profileIds } },
+          where: { lrn: { in: learners.map((l) => l.lrn) } },
           select: {
             id: true,
             desk: true,
             status: true,
             currentVersion: true,
-            studentId: true,
+            lrn: true,
           },
         })
       : Promise.resolve([] as Sf10RecordLite[]),
@@ -357,11 +357,11 @@ async function loadContext(
     }),
   ]);
 
-  const recordsByStudent = new Map<string, Sf10RecordLite[]>();
+  const recordsByLrn = new Map<string, Sf10RecordLite[]>();
   for (const r of records) {
-    const list = recordsByStudent.get(r.studentId) ?? [];
+    const list = recordsByLrn.get(r.lrn) ?? [];
     list.push(r);
-    recordsByStudent.set(r.studentId, list);
+    recordsByLrn.set(r.lrn, list);
   }
 
   const lrnByProfile = new Map(learners.filter((l) => l.profileId).map((l) => [l.profileId as string, l.lrn]));
@@ -394,7 +394,7 @@ async function loadContext(
     schoolYear: section.schoolYear,
     requiredTermNumbers,
     learners,
-    recordsByStudent,
+    recordsByLrn,
     grants,
     factsByLrn,
   };
@@ -408,11 +408,8 @@ function buildStudent(
   // adviser-approved finals are filed under. `profile.gradeLevel` can be stale
   // (e.g. registered as G8 but sitting in a G7 section), so never use it here.
   const grade: GradeLevel = ctx.section.gradeLevel;
-  const record = learner.profileId
-    ? recordFor(ctx.recordsByStudent.get(learner.profileId) ?? [], grade)
-    : null;
-  // A learner with no account cannot own an SF10 record (records key on the
-  // profile), so there is simply nothing to fill — never an error.
+  // The store is LRN-keyed: a roster-only advisee can still have a filed SF10.
+  const record = recordFor(ctx.recordsByLrn.get(learner.lrn) ?? [], grade);
   // Access is granted per learner by LRN: a per-student approval follows the
   // LRN wherever the SF10 record is filed, and a whole-request approval covers
   // the advisory section. The profile's section/grade never gates the fill.
@@ -424,8 +421,7 @@ function buildStudent(
   );
 
   let reason: string | null = null;
-  if (!learner.profileId) reason = "No SF10 record yet (no learner profile)";
-  else if (!record) reason = "No SF10 record yet";
+  if (!record) reason = "No SF10 record yet";
   else if (record.status === "released") reason = "SF10 already released";
   else if (!grant) reason = "SF10 access not approved";
   else if (rows.length === 0) {

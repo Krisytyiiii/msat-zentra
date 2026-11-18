@@ -1,13 +1,7 @@
 "use client";
 
 import * as React from "react";
-import {
-  CalendarDays,
-  ClipboardList,
-  Gauge,
-  ShieldAlert,
-  ShieldCheck,
-} from "lucide-react";
+import { ShieldAlert, ShieldCheck } from "lucide-react";
 import { HoverCard, HoverCardContent, HoverCardTrigger } from "@/components/ui/hover-card";
 import { Pill } from "@/components/ui/pill";
 import { StudentMascot } from "@/components/student-mascot/StudentMascot";
@@ -16,32 +10,91 @@ import { useStudentHoverStats } from "@/services/principal/studentStats.service"
 import type { StudentRow } from "@/services/principal/academics";
 import styles from "./SectionStudentsTable.module.css";
 
+function gradeTone(value: number | null | undefined): string {
+  if (value === null || value === undefined || !Number.isFinite(value)) return "";
+  if (value < 75) return styles.toneWarn;
+  if (value < 80) return styles.toneCaution;
+  return "";
+}
+
+function attendanceTone(value: number | null | undefined): string {
+  if (value === null || value === undefined || !Number.isFinite(value)) return "";
+  if (value < 80) return styles.toneWarn;
+  if (value < 90) return styles.toneCaution;
+  return "";
+}
+
 /**
- * One student as its own mini kanban board. Hovering (or focusing) it opens a
- * live-stats board for the active term; when the adviser has not connected
- * data sharing the card says so instead of showing numbers.
+ * One learner on the section roster. The card shows the two figures a
+ * principal scans for — general average and attendance — instead of hiding
+ * them behind a hover; the hover/focus card adds the live term detail and the
+ * risk level. When the adviser has not connected data sharing the live card
+ * explains why the numbers are missing.
  */
 export function StudentCard({ student }: { student: StudentRow }) {
+  const flagged = student.riskLevel === "High" || student.riskLevel === "Moderate";
+  const average = Number(student.overallAverage);
+  const attendance = Number(student.attendanceRatePct);
+
   return (
     <HoverCard openDelay={140} closeDelay={90}>
       <HoverCardTrigger asChild>
-        <article className={styles.board} tabIndex={0}>
+        <article
+          className={styles.board}
+          tabIndex={0}
+          aria-label={`${student.name}. Average ${
+            Number.isFinite(average) ? average.toFixed(1) : "not available"
+          }, attendance ${
+            Number.isFinite(attendance) ? `${Math.round(attendance)} percent` : "not available"
+          }.`}
+        >
           <header className={styles.boardHead}>
             <StudentMascot
               name={student.name}
               seed={student.lrn}
               character={student.mascot ?? undefined}
-              size={40}
+              size={36}
             />
-            <p className={styles.cellMain}>{student.name}</p>
+            <span className={styles.boardName}>
+              <span className={styles.cellMain}>{student.name}</span>
+              <Pill field="lrn" className="self-start">
+                {student.lrn}
+              </Pill>
+            </span>
           </header>
-          <div className={styles.boardBody}>
-            <Pill tone="neutral" label="LRN" className={`${styles.lrnPill} tabular-nums`}>
-              {student.lrn}
-            </Pill>
+
+          <div className={styles.boardStats}>
+            <span className={styles.boardStat}>
+              <span className={`${styles.boardStatValue} ${gradeTone(average)}`}>
+                {Number.isFinite(average) ? average.toFixed(1) : "—"}
+              </span>
+              <span className={styles.boardStatLabel}>Average</span>
+            </span>
+            <span className={styles.boardStat}>
+              <span className={`${styles.boardStatValue} ${attendanceTone(attendance)}`}>
+                {Number.isFinite(attendance) ? `${Math.round(attendance)}%` : "—"}
+              </span>
+              <span className={styles.boardStatLabel}>Attendance</span>
+            </span>
           </div>
+
+          {flagged ? (
+            <Pill
+              tone={student.riskLevel === "High" ? "red" : "amber"}
+              label="Risk level"
+              className="mt-auto self-start"
+            >
+              <ShieldAlert size={11} aria-hidden />
+              {student.riskLevel}
+            </Pill>
+          ) : (
+            <Pill tone="green" label="Risk level" className="mt-auto self-start">
+              {student.riskLevel}
+            </Pill>
+          )}
         </article>
       </HoverCardTrigger>
+
       <HoverCardContent align="start" side="bottom" className={`${styles.hoverContent} w-80 p-0`}>
         <StudentStatsBoard student={student} />
       </HoverCardContent>
@@ -56,9 +109,7 @@ function StudentStatsBoard({ student }: { student: StudentRow }) {
 
   const connection = data?.connected ?? false;
   const avg = data?.generalAverage ?? null;
-  const avgTone = avg === null ? "neutral" : avg < 75 ? "red" : avg < 80 ? "amber" : "green";
   const pct = data?.attendance.pct ?? null;
-  const attendanceTone = pct === null ? "neutral" : pct < 80 ? "red" : pct < 90 ? "amber" : "green";
 
   return (
     <div className={styles.hoverBoard} aria-live="polite">
@@ -71,12 +122,14 @@ function StudentStatsBoard({ student }: { student: StudentRow }) {
         />
         <div className={styles.hoverTitleBlock}>
           <p className={styles.hoverName}>{student.name}</p>
-          <p className={styles.hoverLrn}>{student.lrn}</p>
+          <Pill field="lrn" className="mt-0.5 self-start">
+            {student.lrn}
+          </Pill>
         </div>
       </header>
 
       <div className={styles.hoverMeta}>
-        <Pill tone="amber" label="Term">
+        <Pill tone="neutral" label="Term">
           {data?.termLabel ?? "Active term"}
         </Pill>
         {data ? (
@@ -84,6 +137,18 @@ function StudentStatsBoard({ student }: { student: StudentRow }) {
             {data.schoolYear}
           </Pill>
         ) : null}
+        <Pill
+          tone={
+            student.riskLevel === "High"
+              ? "red"
+              : student.riskLevel === "Moderate"
+                ? "amber"
+                : "green"
+          }
+          label="Risk level"
+        >
+          {student.riskLevel}
+        </Pill>
       </div>
 
       {isPending ? (
@@ -112,38 +177,27 @@ function StudentStatsBoard({ student }: { student: StudentRow }) {
           </span>
           <div className={styles.hoverStats}>
             <div className={styles.hoverStat}>
-              <span className={`${styles.statIconChip} ${styles.statIconChipStudents}`}>
-                <CalendarDays className={styles.statIcon} aria-hidden />
-              </span>
-              <Pill tone={attendanceTone} className="tabular-nums">
+              <span className={`${styles.hoverStatValue} ${attendanceTone(pct)}`}>
                 {pct === null ? "—" : `${pct}%`}
-              </Pill>
+              </span>
               <span className={styles.hoverStatLabel}>
                 {data.attendance.total > 0
-                  ? `${data.attendance.present}/${data.attendance.total} present`
-                  : "No attendance yet"}
+                  ? `Attendance · ${data.attendance.present}/${data.attendance.total} present`
+                  : "Attendance · none yet"}
               </span>
             </div>
             <div className={styles.hoverStat}>
-              <span className={`${styles.statIconChip} ${styles.statIconChipRisk}`}>
-                <ClipboardList className={styles.statIcon} aria-hidden />
-              </span>
-              <Pill tone="neutral" className="tabular-nums">
-                {data.anecdoteCount}
-              </Pill>
+              <span className={styles.hoverStatValue}>{data.anecdoteCount}</span>
               <span className={styles.hoverStatLabel}>Anecdotal records</span>
             </div>
             <div className={styles.hoverStat}>
-              <span className={`${styles.statIconChip} ${styles.statIconChipAvg}`}>
-                <Gauge className={styles.statIcon} aria-hidden />
-              </span>
-              <Pill tone={avgTone} className="tabular-nums">
+              <span className={`${styles.hoverStatValue} ${gradeTone(avg)}`}>
                 {avg === null ? "—" : avg.toFixed(1)}
-              </Pill>
+              </span>
               <span className={styles.hoverStatLabel}>
                 {data.gradedSubjects > 0
                   ? `Average · ${data.gradedSubjects} subject${data.gradedSubjects === 1 ? "" : "s"}`
-                  : "No grades yet"}
+                  : "Average · no grades yet"}
               </span>
             </div>
           </div>

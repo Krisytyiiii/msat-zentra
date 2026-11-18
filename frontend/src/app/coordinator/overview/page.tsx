@@ -10,7 +10,6 @@ import { useCoordinatorOverview } from "./components/use-coordinator-overview";
 import { useCoordinatorBooking } from "../referrals/components/use-coordinator-booking";
 import { CoordinatorReferralsBookDialog } from "../referrals/components/coordinator-referrals-book-dialog";
 import { CoordinatorOverviewKpis } from "./components/coordinator-overview-kpis";
-import { CoordinatorOverviewAttentionDialog } from "./components/coordinator-overview-attention-dialog";
 import { CoordinatorOverviewForwards } from "./components/coordinator-overview-forwards";
 import { CoordinatorOverviewBoards } from "./components/coordinator-overview-boards";
 import {
@@ -23,7 +22,6 @@ import styles from "./components/coordinator-overview.module.css";
 export default function CoordinatorOverviewPage() {
   const [historyTarget, setHistoryTarget] =
     React.useState<HistoryTarget | null>(null);
-  const [attentionOpen, setAttentionOpen] = React.useState(false);
   const overview = useCoordinatorOverview();
   const queryClient = useQueryClient();
   const invalidateReferrals = React.useCallback(() => {
@@ -69,30 +67,17 @@ export default function CoordinatorOverviewPage() {
 
   return (
     <section className={styles.page}>
-      <div className={styles.mainCol}>
-        <CoordinatorOverviewKpis
-          attentionTotal={overview.attentionTotal}
-          attentionReady={overview.attentionReady}
-          attentionError={overview.attentionError}
-          allClear={overview.allClear}
-          referredToMe={overview.referredToMe}
-          certificationsIssued={overview.certificationsIssued}
-          awaitingPrincipal={overview.awaitingPrincipal}
-          activeEnrolled={overview.activeEnrolled}
-          onReview={() => setAttentionOpen(true)}
-        />
+      <CoordinatorOverviewKpis
+        needsReviewTotal={overview.needsReview}
+        needsReviewReady={overview.needsReviewReady}
+        referredToMe={overview.referredToMe}
+        certificationsIssued={overview.certificationsIssued}
+        awaitingPrincipal={overview.awaitingPrincipal}
+        activeEnrolled={overview.activeEnrolled}
+        stageDonut={overview.stageDonut}
+      />
 
-        <CoordinatorOverviewBoards
-          stageDonut={overview.stageDonut}
-          devicesIssued={overview.devices.data?.issued ?? null}
-          devicesReturned={overview.devices.data?.returned ?? null}
-          devicesPending={overview.devices.isPending}
-          oldestOut={overview.devices.oldestOut}
-          bookedMeetings={overview.booked.rows}
-          bookedPending={overview.booked.isPending}
-          now={overview.now}
-        />
-
+      <div className={styles.workGrid}>
         <CoordinatorOverviewForwards
           rows={overview.forwards.rows}
           isPending={overview.forwards.isPending}
@@ -100,20 +85,24 @@ export default function CoordinatorOverviewPage() {
           isRefetching={overview.forwards.isRefetching}
           now={overview.now}
           bookPendingId={booking.bookPendingId}
+          pendingTotal={overview.needsReview}
           onRetry={overview.forwards.refetch}
           onHistory={setHistoryTarget}
           onBook={booking.bookForRow}
         />
-      </div>
 
-      <CoordinatorOverviewAttentionDialog
-        open={attentionOpen}
-        onClose={() => setAttentionOpen(false)}
-        attention={overview.attention}
-        attentionError={overview.attentionError}
-        isRetrying={overview.devices.isRefetching}
-        onRetry={overview.devices.refetch}
-      />
+        <aside className={styles.rail} aria-label="Live watchlist">
+          <CoordinatorOverviewBoards
+            devicesIssued={overview.devices.data?.issued ?? null}
+            devicesReturned={overview.devices.data?.returned ?? null}
+            devicesPending={overview.devices.isPending}
+            oldestOut={overview.devices.oldestOut}
+            bookedMeetings={overview.booked.rows}
+            bookedPending={overview.booked.isPending}
+            now={overview.now}
+          />
+        </aside>
+      </div>
 
       <CaseHistoryDialog
         target={historyTarget}

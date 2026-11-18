@@ -23,7 +23,7 @@ const FACTOR_TONE: Record<string, RowTone> = {
 const FACTOR_LABEL: Record<string, string> = {
   academic: "Academic",
   attendance: "Attendance",
-  behavioral: "Behavioral",
+  behavioral: "Anecdotal",
 };
 
 const FACTOR_ICON: Record<string, LucideIcon> = {

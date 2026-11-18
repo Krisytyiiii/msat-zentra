@@ -71,7 +71,7 @@
 }
 
 .hint {
-  font-size: 0.6875rem;
+  font-size: 0.75rem;
   color: var(--muted-foreground);
 }
 
@@ -96,4 +96,10 @@
   height: 0.6875rem;
   width: 7rem;
   margin-top: 0.25rem;
+}
+
+/* ---- Dark mode: faded stat surface ------------------------------------- */
+:global(.dark) .card {
+  border-color: color-mix(in oklch, var(--border) 68%, transparent);
+  background-color: color-mix(in oklch, var(--card) 58%, transparent);
 }

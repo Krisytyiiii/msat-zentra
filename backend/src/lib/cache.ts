@@ -1,5 +1,5 @@
 import type { NextFunction, Request, Response } from "express";
-import { getRedis } from "./redis.js";
+import { getRedis, redisOp } from "./redis.js";
 import { getEnv } from "../config/env.js";
 import { logger } from "./pino.js";
 import { weakEtag } from "./etag.js";
@@ -65,7 +65,7 @@ export function cache(options: CacheOptions = {}) {
     const key = buildKey(req);
     try {
       if (!bypass) {
-        const hit = await redis.get<string>(key);
+        const hit = await redisOp(redis.get<string>(key));
         if (hit) {
           const payload = typeof hit === "string" ? hit : JSON.stringify(hit);
           res.setHeader("x-cache", "HIT");
@@ -90,16 +90,21 @@ export function cache(options: CacheOptions = {}) {
       if (res.statusCode >= 200 && res.statusCode < 300) {
         const ttl = options.ttl ?? getEnv().CACHE_TTL_SECONDS;
         const payload = typeof body === "string" ? body : JSON.stringify(body);
-        redis
-          .set(key, payload, { ex: ttl })
-          .then(() => {
-            if (options.tags?.length) {
-              return Promise.all(
-                options.tags.map((t) => redis.sadd(tagKey(t), key).then(() => redis.expire(tagKey(t), ttl * 4))),
-              );
-            }
-          })
-          .catch((err) => logger.warn({ err, key }, "cache write failed"));
+        // Fire-and-forget: the response must not wait on the cache write. The
+        // timeout keeps a stalled Upstash from pinning a socket until the
+        // request's keep-alive expires.
+        redisOp(
+          redis
+            .set(key, payload, { ex: ttl })
+            .then(() => {
+              if (options.tags?.length) {
+                return Promise.all(
+                  options.tags.map((t) => redis.sadd(tagKey(t), key).then(() => redis.expire(tagKey(t), ttl * 4))),
+                );
+              }
+            }),
+          3_000,
+        ).catch((err) => logger.warn({ err, key }, "cache write failed"));
       }
       return originalJson(body);
     } as Response["json"];
@@ -115,7 +120,10 @@ export async function invalidateTags(tags: string[]): Promise<void> {
     // Fan the membership reads out in parallel. The old sequential loop
     // paid up to 3 Upstash REST roundtrips per tag, awaited before the
     // response — e.g. ~13 tags on refer ≈ 13s of send latency from PH.
-    const members = await Promise.all(tags.map((tag) => redis.smembers(tagKey(tag))));
+    // Bounded by `redisOp`: a dead cache must not stall the write either.
+    const members = await redisOp(
+      Promise.all(tags.map((tag) => redis.smembers(tagKey(tag)))),
+    );
     const doomed: string[] = [];
     for (const [i, tag] of tags.entries()) {
       const keys = members[i] ?? [];
@@ -124,7 +132,7 @@ export async function invalidateTags(tags: string[]): Promise<void> {
     // Batched DELs keep REST payloads small; skipped entirely when empty.
     for (let i = 0; i < doomed.length; i += 500) {
       const slice = doomed.slice(i, i + 500);
-      if (slice.length > 0) await redis.del(...slice);
+      if (slice.length > 0) await redisOp(redis.del(...slice));
     }
   } catch (err) {
     logger.warn({ err, tags }, "cache invalidation failed");

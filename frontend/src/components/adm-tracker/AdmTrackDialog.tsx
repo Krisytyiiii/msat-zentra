@@ -116,11 +116,12 @@ export function AdmTrackDialog({
               Track ADM referral
             </h2>
             <span className="mt-1 flex min-w-0 max-w-full flex-wrap items-center gap-1">
-              <Pill tone="amber" label="Student" className="max-w-full overflow-hidden">
-                <span className="truncate" title={caseInfo.student}>
-                  {caseInfo.student}
-                </span>
-              </Pill>
+              <span
+                className="min-w-0 max-w-full truncate text-[13px] font-semibold text-foreground"
+                title={caseInfo.student}
+              >
+                {caseInfo.student}
+              </span>
               <Pill className="tabular-nums" label="LRN">
                 {caseInfo.lrn}
               </Pill>
@@ -145,10 +146,10 @@ export function AdmTrackDialog({
           <Pill tone="amber" label="Referral type">
             ADM case
           </Pill>
-          <span className="text-[11px] text-muted-foreground">to {holder}</span>
+          <span className="text-[12px] text-muted-foreground">to {holder}</span>
         </div>
         <div className="flex min-w-0 flex-col gap-1.5 px-1">
-          <p className="flex items-center gap-1.5 text-[11px] font-medium tracking-wide text-muted-foreground uppercase">
+          <p className="flex items-center gap-1.5 text-[12px] font-medium tracking-wide text-muted-foreground uppercase">
             <History size={14} aria-hidden />
             Pipeline tracking
           </p>

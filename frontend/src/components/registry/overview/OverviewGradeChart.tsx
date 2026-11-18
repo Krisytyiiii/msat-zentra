@@ -156,7 +156,7 @@ export function OverviewGradeChart({
                 allowDecimals={false}
                 tickLine={false}
                 axisLine={false}
-                tick={{ fontSize: 11, fill: "var(--muted-foreground)" }}
+                tick={{ fontSize: 12, fill: "var(--muted-foreground)" }}
               />
               <YAxis
                 type="category"
@@ -204,7 +204,7 @@ export function OverviewGradeChart({
                 tickLine={false}
                 axisLine={false}
                 width={32}
-                tick={{ fontSize: 11, fill: "var(--muted-foreground)" }}
+                tick={{ fontSize: 12, fill: "var(--muted-foreground)" }}
               />
               <Tooltip
                 cursor={{

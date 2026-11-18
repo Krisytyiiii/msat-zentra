@@ -367,7 +367,6 @@ model StudentProfile {
   admProfiles       AdmLearnerProfile[]
   parentLinks       ParentStudentLink[] @relation("PSL_student")
   riskSnapshots     RiskSnapshot[]
-  sf10Records       Sf10Record[]
   gradeFlags        GradeFlag[]
   advisoryModuleSubmissions AdvisoryModuleSubmission[]
 }
@@ -1402,7 +1401,16 @@ model AdvisoryModuleSubmission {
 // ---------------------------------------------------------------------------
 model Sf10Record {
   id                String      @id @default(uuid())
-  studentId         String
+  /**
+   * Learner Reference Number read from the filed SF10 — the record's identity.
+   * An SF10 is storage, not enrolment: it exists whether or not the learner has
+   * an account, and it is never linked to `StudentProfile`/`StudentRoster`.
+   */
+  lrn               String
+  /** Learner name as written on the file (display only — never an account). */
+  learnerName       String?
+  /** Highest grade level classified on the file: desk band + grade tables. */
+  gradeLevel        GradeLevel?
   desk              Sf10Desk
   source            Sf10Source
   status            Sf10Status  @default(attach)
@@ -1417,12 +1425,12 @@ model Sf10Record {
   uploadedAt        DateTime?
   updatedAt         DateTime    @updatedAt
   currentVersion    Int         @default(1)
-  student           StudentProfile @relation(fields: [studentId], references: [userId], onDelete: Cascade)
   verifiedByUser    User?          @relation("Sf10VerifiedBy", fields: [verifiedBy], references: [id])
   validatedByUser   User?          @relation("Sf10ValidatedBy", fields: [validatedBy], references: [id])
   versions          Sf10RecordVersion[]
 
-  @@unique([studentId, desk])
+  @@unique([lrn, desk])
+  @@index([lrn])
 }
 
 model Sf10RecordVersion {

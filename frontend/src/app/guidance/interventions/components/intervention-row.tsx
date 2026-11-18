@@ -256,7 +256,7 @@ export function InterventionTableRow({
                 type="button"
                 size="xs"
                 variant="default"
-                className="h-6 gap-1 px-2 text-[0.6875rem] font-semibold"
+                className="h-6 gap-1 px-2 text-[12px] font-semibold"
                 disabled={
                   locked ||
                   isActionPending ||
@@ -284,7 +284,7 @@ export function InterventionTableRow({
                 type="button"
                 size="xs"
                 variant="outline"
-                className="h-6 px-2 text-[0.6875rem] font-medium"
+                className="h-6 px-2 text-[12px] font-medium"
                 disabled={!canMarkDone || isBusy("outcome")}
                 title={markDoneHint ?? "Record the outcome as resolved"}
                 aria-label={

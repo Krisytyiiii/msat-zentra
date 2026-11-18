@@ -53,7 +53,7 @@ const NAV: NavGroup[] = [
           { title: "Students", href: "/principal/risk/students" },
           { title: "Attendance Heatmap", href: "/principal/risk/heatmaps/attendance" },
           { title: "Academic Heatmap", href: "/principal/risk/heatmaps/academics" },
-          { title: "Behavioral Records", href: "/principal/risk/heatmaps/records" },
+          { title: "Anecdotal Records", href: "/principal/risk/heatmaps/records" },
           { title: "Interventions", href: "/principal/risk/interventions" },
         ],
       },

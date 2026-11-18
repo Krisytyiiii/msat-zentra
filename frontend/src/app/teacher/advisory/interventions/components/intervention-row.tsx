@@ -24,7 +24,7 @@ const dateFmt = new Intl.DateTimeFormat(undefined, {
 const FACTORS = [
   { key: "academic", label: "Academic", tone: "amber" },
   { key: "attendance", label: "Attendance", tone: "sky" },
-  { key: "behavioral", label: "Behavioral", tone: "rose" },
+  { key: "behavioral", label: "Anecdotal", tone: "rose" },
 ] as const;
 
 export function formatDate(iso: string | null): string {

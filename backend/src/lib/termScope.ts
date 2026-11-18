@@ -33,6 +33,61 @@ function header(req: Request, name: string): string | undefined {
   return single(req.headers[name]);
 }
 
+/**
+ * `attachTermScope` runs before routing, so this resolution happens on **every**
+ * `/api` request — including unauthenticated ones and 404s. Un-memoized that was
+ * one extra pooler round trip per request (measured 465 ms → 925 ms for an
+ * unmatched `/api/*` path on a 2026-11-18 run, at ~460 ms RTT), and it made a
+ * Redis cache HIT cost as much as a cache BYPASS.
+ *
+ * The rows involved (active school year + its terms, or one addressed term/year)
+ * change a handful of times a year, so a short in-process TTL is enough; the
+ * write paths that create terms/years also call `invalidateTermScopeCache()` so a
+ * freshly created year is visible immediately.
+ */
+const SCOPE_TTL_MS = 30_000;
+/** Cache keys are ids, so this is really an OOM guard for a misbehaving caller. */
+const SCOPE_CACHE_MAX = 200;
+
+const scopeCache = new Map<string, { value: TermScope | null; expiresAt: number }>();
+const scopeInflight = new Map<string, Promise<TermScope | null>>();
+
+/** Drop every memoized scope — call after creating/activating terms or school years. */
+export function invalidateTermScopeCache(): void {
+  scopeCache.clear();
+  scopeInflight.clear();
+}
+
+function memoScope(
+  key: string,
+  load: () => Promise<TermScope | null>,
+): Promise<TermScope | null> {
+  const now = Date.now();
+  const hit = scopeCache.get(key);
+  if (hit && hit.expiresAt > now) return Promise.resolve(hit.value);
+
+  // Single-flight: a burst of parallel requests (a desk mounting 6 queries)
+  // must not each pay the same round trip.
+  const pending = scopeInflight.get(key);
+  if (pending) return pending;
+
+  const load$ = load()
+    .then((value) => {
+      if (scopeCache.size >= SCOPE_CACHE_MAX) {
+        const oldest = scopeCache.keys().next().value;
+        if (oldest !== undefined) scopeCache.delete(oldest);
+      }
+      scopeCache.set(key, { value, expiresAt: Date.now() + SCOPE_TTL_MS });
+      return value;
+    })
+    .finally(() => {
+      scopeInflight.delete(key);
+    });
+
+  scopeInflight.set(key, load$);
+  return load$;
+}
+
 export async function resolveTermScope(
   req: Request,
   role?: string | null,
@@ -61,18 +116,19 @@ export async function resolveTermScope(
   const yearId = qYear ?? hYear;
 
   if (termId) {
-    const term = await prisma.term.findUnique({
-      where: { id: termId },
-      select: {
-        id: true,
-        termNumber: true,
-        startDate: true,
-        endDate: true,
-        schoolYearId: true,
-        schoolYear: { select: { id: true, name: true } },
-      },
-    });
-    if (term?.schoolYear) {
+    const scoped = await memoScope(`term:${termId}`, async () => {
+      const term = await prisma.term.findUnique({
+        where: { id: termId },
+        select: {
+          id: true,
+          termNumber: true,
+          startDate: true,
+          endDate: true,
+          schoolYearId: true,
+          schoolYear: { select: { id: true, name: true } },
+        },
+      });
+      if (!term?.schoolYear) return null;
       return {
         schoolYearId: term.schoolYear.id,
         schoolYearName: term.schoolYear.name,
@@ -81,12 +137,40 @@ export async function resolveTermScope(
         startDate: term.startDate?.toISOString() ?? null,
         endDate: term.endDate?.toISOString() ?? null,
       };
-    }
+    });
+    if (scoped) return scoped;
   }
 
   if (yearId) {
-    const year = await prisma.schoolYear.findUnique({
-      where: { id: yearId },
+    const scoped = await memoScope(`year:${yearId}`, async () => {
+      const year = await prisma.schoolYear.findUnique({
+        where: { id: yearId },
+        select: {
+          id: true,
+          name: true,
+          terms: {
+            orderBy: { termNumber: "asc" },
+            select: { id: true, termNumber: true, startDate: true, endDate: true },
+          },
+        },
+      });
+      const first = year ? pickCurrentTerm(year.terms) : null;
+      if (!year || !first) return null;
+      return {
+        schoolYearId: year.id,
+        schoolYearName: year.name,
+        termId: first.id,
+        termNumber: first.termNumber,
+        startDate: first.startDate?.toISOString() ?? null,
+        endDate: first.endDate?.toISOString() ?? null,
+      };
+    });
+    if (scoped) return scoped;
+  }
+
+  return memoScope("active", async () => {
+    const activeYear = await prisma.schoolYear.findFirst({
+      where: { isActive: true },
       select: {
         id: true,
         name: true,
@@ -96,32 +180,8 @@ export async function resolveTermScope(
         },
       },
     });
-    const first = year ? pickCurrentTerm(year.terms) : null;
-    if (year && first) {
-      return {
-        schoolYearId: year.id,
-        schoolYearName: year.name,
-        termId: first.id,
-        termNumber: first.termNumber,
-        startDate: first.startDate?.toISOString() ?? null,
-        endDate: first.endDate?.toISOString() ?? null,
-      };
-    }
-  }
-
-  const activeYear = await prisma.schoolYear.findFirst({
-    where: { isActive: true },
-    select: {
-      id: true,
-      name: true,
-      terms: {
-        orderBy: { termNumber: "asc" },
-        select: { id: true, termNumber: true, startDate: true, endDate: true },
-      },
-    },
-  });
-  const fallback = activeYear ? pickCurrentTerm(activeYear.terms) : null;
-  if (activeYear && fallback) {
+    const fallback = activeYear ? pickCurrentTerm(activeYear.terms) : null;
+    if (!activeYear || !fallback) return null;
     return {
       schoolYearId: activeYear.id,
       schoolYearName: activeYear.name,
@@ -130,9 +190,7 @@ export async function resolveTermScope(
       startDate: fallback.startDate?.toISOString() ?? null,
       endDate: fallback.endDate?.toISOString() ?? null,
     };
-  }
-
-  return null;
+  });
 }
 
 export function getTermScope(req: Request): TermScope | null {

@@ -973,7 +973,7 @@ export function AdviserAccessCheckProvider({ children }: { children: React.React
               ) : null}
               {phase === "done" && run ? (
                 <div className="flex flex-col gap-1">
-                  <p className="text-center text-[11px] text-muted-foreground">
+                  <p className="text-center text-[12px] text-muted-foreground">
                     Decide per student below — one by one.
                   </p>
                   {matchedCount > 0 ? (
@@ -1019,7 +1019,7 @@ export function AdviserAccessCheckProvider({ children }: { children: React.React
                           <span className="truncate text-xs font-medium" title={r.name}>
                             {r.name}
                           </span>
-                          <span className="truncate font-mono text-[11px] text-muted-foreground" title={r.lrn}>
+                          <span className="truncate font-mono text-[12px] text-muted-foreground" title={r.lrn}>
                             {r.lrn}
                           </span>
                         </span>
@@ -1057,7 +1057,7 @@ export function AdviserAccessCheckProvider({ children }: { children: React.React
                             {reportingLrns.includes(r.lrn) ? "Reporting…" : "Report"}
                           </Button>
                         ) : (
-                          <span className="shrink-0 text-[11px] text-muted-foreground">
+                          <span className="shrink-0 text-[12px] text-muted-foreground">
                             {r.state === "reported" ? "Reported" : rowLabel(r, phase === "checking")}
                           </span>
                         )}

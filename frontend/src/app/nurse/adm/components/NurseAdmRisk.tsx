@@ -192,7 +192,7 @@ function RiskCasesByCategory({
                 width={104}
                 tickLine={false}
                 axisLine={false}
-                tick={{ fontSize: 11, fill: "var(--muted-foreground)" }}
+                tick={{ fontSize: 12, fill: "var(--muted-foreground)" }}
               />
               <Tooltip
                 cursor={false}
@@ -215,7 +215,7 @@ function RiskCasesByCategory({
                 <LabelList
                   dataKey="count"
                   position="right"
-                  fontSize={10}
+                  fontSize={12}
                   fontWeight={600}
                   fill={AMBER_STEPS[0]}
                 />
@@ -266,14 +266,14 @@ function RiskTrend({
                 <CartesianGrid strokeDasharray="3 3" stroke="var(--border)" />
                 <XAxis
                   dataKey="week"
-                  tick={{ fontSize: 11, fill: "var(--muted-foreground)" }}
+                  tick={{ fontSize: 12, fill: "var(--muted-foreground)" }}
                   tickLine={false}
                   axisLine={{ stroke: "var(--border)" }}
                   interval="preserveStartEnd"
                 />
                 <YAxis
                   allowDecimals={false}
-                  tick={{ fontSize: 11, fill: "var(--muted-foreground)" }}
+                  tick={{ fontSize: 12, fill: "var(--muted-foreground)" }}
                   tickLine={false}
                   axisLine={false}
                   width={32}
@@ -375,9 +375,12 @@ function WhoNeedsAttention({ data }: { data: RiskWatchData }) {
                     <span className="shrink-0" aria-hidden>
                       <StudentMascot name={s.student} seed={s.student} size={28} />
                     </span>
-                    <Pill tone="amber" label="Student" title={s.student} className="min-w-0 max-w-full overflow-hidden">
-                      <span className="truncate">{s.student}</span>
-                    </Pill>
+                    <span
+                      className="min-w-0 max-w-full truncate text-[13px] font-semibold text-foreground"
+                      title={s.student}
+                    >
+                      {s.student}
+                    </span>
                     {s.section ? (
                       <Pill label="Section" title={s.section} className="min-w-0 max-w-full overflow-hidden">
                         <span className="truncate">{s.section}</span>

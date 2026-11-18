@@ -38,12 +38,12 @@ export function DockRow({ task }: { task: DockTask }) {
         <span className="truncate text-xs font-medium" title={task.title}>
           {task.title}
         </span>
-        <span className="truncate text-[11px] text-muted-foreground" title={task.error ?? task.description}>
+        <span className="truncate text-[12px] text-muted-foreground" title={task.error ?? task.description}>
           {task.status === "failed" && task.error ? task.error : task.description}
         </span>
       </span>
       <span
-        className={`w-[72px] shrink-0 truncate text-right text-[11px] font-medium tabular-nums ${statusToneClass(task.status)}`}
+        className={`w-[72px] shrink-0 truncate text-right text-[12px] font-medium tabular-nums ${statusToneClass(task.status)}`}
         title={rightText}
       >
         {rightText}

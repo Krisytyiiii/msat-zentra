@@ -77,11 +77,15 @@ export async function resolveSourceLabels(
         } else if (table === "sf10_records") {
           const rows = await prisma.sf10Record.findMany({
             where: { id: { in: ids } },
-            select: { id: true, studentId: true },
+            select: { id: true, lrn: true, learnerName: true },
           });
           for (const r of rows) {
-            sourceStudent.set(key(table, r.id), r.studentId ?? null);
-            if (r.studentId) collectStudentIds.push(r.studentId);
+            // SF10 rows are LRN-keyed storage — they name the learner on the
+            // file, not an account, so the audit label uses the LRN.
+            sourceRoster.set(
+              key(table, r.id),
+              r.learnerName?.trim() ? `${r.learnerName} (LRN ${r.lrn})` : `LRN ${r.lrn}`,
+            );
           }
         } else if (table === "student_profiles" || table === "studentprofile") {
           const rows = await prisma.studentProfile.findMany({

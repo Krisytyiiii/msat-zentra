@@ -4,6 +4,7 @@ import Link from "next/link";
 import { keepPreviousData, useQuery } from "@tanstack/react-query";
 import {
   Archive,
+  ArrowUpRight,
   FileCheck,
   Files,
   FolderOpen,
@@ -13,14 +14,13 @@ import {
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Pill } from "@/components/ui/pill";
+import { FilterTabs } from "@/components/ui/filter-tabs";
 import { InsightCallout } from "@/components/ui/insight-callout";
 import { Skeleton } from "@/components/ui/skeleton";
-import { KanbanBoard, KanbanBoardHeader } from "@/components/ui/kanban-board";
-import { StudentMascot } from "@/components/student-mascot/StudentMascot";
-import { RecordKeeperEmptyState } from "@/app/record-keeper/components/RecordKeeperEmptyCard";
+import { KanbanBoard } from "@/components/ui/kanban-board";
 import { useDebouncedValue } from "@/lib/useDebouncedValue";
 import { Pagination } from "@/components/shared/pagination";
+import { PageEmptyCallout } from "@/components/shared/page-empty-callout";
 import { useUrlPager } from "@/components/shared/pagination/useUrlPager";
 import { useSearchParams } from "next/navigation";
 import { fetchSf10Records } from "@/services/registry/sf10.service";
@@ -35,6 +35,7 @@ import styles from "@/components/registry/sf10/sf10.module.css";
 const STATUS_FILTERS: { key: Sf10Status | "all"; label: string }[] = [
   { key: "all", label: "All" },
   { key: "attach", label: "Attached" },
+  { key: "available", label: "Available" },
   { key: "released", label: "Released" },
 ];
 export function Sf10Page({
@@ -76,7 +77,6 @@ export function Sf10Page({
   const openRecord = (r: Sf10Record) => {
     setOpenRecordId(r.id);
   };
-  const EmptyState = RecordKeeperEmptyState;
   const { data, isPending, isError, isPlaceholderData } = useQuery({
     queryKey: [`${desk}-sf10`, page, query, status],
     queryFn: ({ signal }) =>
@@ -95,49 +95,48 @@ export function Sf10Page({
     () => data?.counts ?? { attach: 0, available: 0, released: 0, total: 0 },
     [data],
   );
-  // KPI strip (record-keeper) — kanban columns mirroring the desk overview
-  // stats board (KanbanBoardHeader + number-first stat card with mascot
-  // chip). Mascots are deliberately distinct from the other desk boards'
-  // cast (overview owl/scout/knight/postbot, final-grades scientist/rocket/
-  // cap, adviser-access glasses/panda/raccoon/robot).
-  const kpiColumns = [
+  // Stats deck — one clickable tile per shelf, same number-first tile the
+  // adviser-access desk uses (icon + label, big count, share meter, hint).
+  // Clicking a tile scopes the records board to that status.
+  const kpiTiles = [
     {
       key: "attach",
       icon: Paperclip,
-      accent: "text-amber-500",
-      title: "Attached",
+      label: "Attached",
+      unit: "files",
       value: counts.attach,
       hint: "Uploaded files, stored as-is",
-      mascot: "hamster",
+      status: "attach" as const,
     },
     {
       key: "available",
       icon: FileCheck,
-      accent: "text-sky-500",
-      title: "Available",
+      label: "Available",
+      unit: "ready",
       value: counts.available,
       hint: "Validated and ready to release",
-      mascot: "otter",
+      status: "available" as const,
     },
     {
       key: "released",
       icon: Archive,
-      accent: "text-emerald-600 dark:text-emerald-400",
-      title: "Released",
+      label: "Released",
+      unit: "sent",
       value: counts.released,
       hint: "Released to another school",
-      mascot: "drone",
+      status: "released" as const,
     },
     {
       key: "total",
       icon: Files,
-      accent: "text-blue-500",
-      title: "Total records",
+      label: "Total records",
+      unit: "filed",
       value: counts.total,
-      hint: "SF10 files filed by this desk",
-      mascot: "lantern",
+      hint: "Every SF10 file on this desk",
+      status: "all" as const,
     },
   ];
+  const shareBase = Math.max(1, counts.total);
   const filteredTotal = data?.total ?? pageRows.length;
   const totalPages = Math.max(1, Math.ceil(filteredTotal / pageSize));
   const safePage = Math.min(page, totalPages);
@@ -147,31 +146,40 @@ export function Sf10Page({
   // backend per desk; the UI is identical.
   const recordKeeper = true;
   const deskLabel = desk === "registrar" ? "registrar" : "record keeper";
+  // Filter the loaded page instantly as the clerk types (same feel as the
+  // coordinator referrals desk); the debounced server query then swaps in
+  // matches from the rest of the desk. Declared BEFORE the empty-state early
+  // return below — a hook after an early return changes the hook count between
+  // renders and crashes the page ("Rendered fewer hooks than expected").
+  const searchTerm = queryInput.trim().toLowerCase();
+  const visibleRows = React.useMemo(() => {
+    if (searchTerm === "") return pageRows;
+    return pageRows.filter((r) =>
+      `${r.fullName} ${r.lrn} ${r.section}`.toLowerCase().includes(searchTerm),
+    );
+  }, [pageRows, searchTerm]);
   if (!isPending && !isError && counts.total === 0) {
     return (
       <section className={styles.page}>
-        <div className={styles.emptyWrap}>
-          <div className={styles.emptyStack}>
-            <section className={`${assign.card} ${styles.emptyCard}`} aria-label="No SF10 records">
-              <span className={assign.glowClip} aria-hidden="true">
-                <span className={assign.cardGlow} />
-              </span>
-              <EmptyState
-                icon={FolderOpen}
-                title="No SF10 records yet"
-                hint={`Upload a file to attach the first SF10 record filed by the ${deskLabel}.`}
-              />
-              <div className="relative mt-3 flex justify-center">
-                <Button asChild size="sm">
-                  <Link href={`/${desk}/sf10/upload`}>
-                    <Upload aria-hidden />
-                    Upload SF10
-                  </Link>
-                </Button>
-              </div>
-            </section>
+        <header className={styles.hero}>
+          <div className={styles.heroMain}>
+            <h1 className={styles.heroTitle}>SF10 records</h1>
+            <p className={styles.heroSubtitle}>
+              Every learner SF10 file fielded by the {deskLabel} desk — search a name,
+              LRN or section, open a folder, or attach a new record.
+            </p>
           </div>
-        </div>
+          <Button asChild size="sm" className="h-7 shrink-0 px-2.5 text-[12px] font-medium">
+            <Link href={`/${desk}/sf10/upload`}>
+              <Upload size={13} aria-hidden />
+              Upload SF10
+            </Link>
+          </Button>
+        </header>
+        <PageEmptyCallout fit>
+          No SF10 records yet. Upload a file to attach the first SF10 record filed by
+          the {deskLabel}.
+        </PageEmptyCallout>
       </section>
     );
   }
@@ -209,112 +217,103 @@ export function Sf10Page({
     );
   };
   const recordsFilters = (
-    <div className={styles.filterRow} role="tablist" aria-label="Filter by status">
-      {STATUS_FILTERS.map((f) => {
-        const active = status === f.key;
-        const count =
+    <FilterTabs
+      label="Filter by status"
+      options={STATUS_FILTERS.map((f) => ({
+        value: f.key,
+        label: f.label,
+        count:
           f.key === "all"
             ? counts.total
             : f.key === "attach"
               ? counts.attach
-              : counts.released;
-        return (
-          <button
-            key={f.key}
-            type="button"
-            role="tab"
-            aria-selected={active}
-            aria-pressed={active}
-            className={styles.filterButton}
-            onClick={() => {
-              setStatus(f.key);
-            }}
-          >
-            <Pill tone={active ? "blue" : "neutral"}>
-              {f.label}
-              <span className={styles.statusTabCount}>{count}</span>
-            </Pill>
-          </button>
-        );
-      })}
-    </div>
+              : f.key === "available"
+                ? counts.available
+                : counts.released,
+      }))}
+      value={status}
+      onChange={setStatus}
+    />
   );
-  // Filter the loaded page instantly as the clerk types (same feel as the
-  // coordinator referrals desk); the debounced server query then swaps in
-  // matches from the rest of the desk.
-  const searchTerm = queryInput.trim().toLowerCase();
-  const visibleRows = React.useMemo(() => {
-    if (searchTerm === "") return pageRows;
-    return pageRows.filter((r) =>
-      `${r.fullName} ${r.lrn} ${r.section}`.toLowerCase().includes(searchTerm),
-    );
-  }, [pageRows, searchTerm]);
   return (
     <section className={styles.page}>
       <div className={styles.stack}>
+        <header className={styles.hero}>
+          <div className={styles.heroMain}>
+            <h1 className={styles.heroTitle}>SF10 records</h1>
+            <p className={styles.heroSubtitle}>
+              Every learner SF10 file fielded by the {deskLabel} desk — search a name,
+              LRN or section, open a folder, or attach a new record.
+            </p>
+          </div>
+          <Button asChild size="sm" className="h-7 shrink-0 px-2.5 text-[12px] font-medium">
+            <Link href={`/${desk}/sf10/upload`}>
+              <Upload size={13} aria-hidden />
+              Upload SF10
+            </Link>
+          </Button>
+        </header>
+
         {recordKeeper ? (
           <section
-            className={styles.kpiBoard}
+            className={styles.deck}
             aria-label="SF10 summary"
             aria-busy={isPending || undefined}
           >
-            <div className={styles.kpiGrid}>
+            <div className={styles.deckHead}>
+              <span className={styles.deckTitle}>
+                <Files size={14} aria-hidden />
+                Records at a glance
+              </span>
+            </div>
+            <div className={styles.deckTiles}>
               {isPending
-                ? Array.from({ length: kpiColumns.length }).map((_, i) => (
-                    <div key={i} className={styles.kpiColumn} aria-hidden="true">
-                      <div className={styles.kpiHeadSkeleton}>
-                        <Skeleton className={styles.kpiSkelTitle} />
-                      </div>
-                      <Skeleton className={styles.kpiSkelCard} />
+                ? Array.from({ length: kpiTiles.length }).map((_, i) => (
+                    <div key={i} className={styles.deckTile} aria-hidden="true">
+                      <span className={styles.deckTileTop}>
+                        <Skeleton className="size-3.5 rounded-full" />
+                        <Skeleton className="h-3 w-24" />
+                      </span>
+                      <span className={styles.deckTileValue}>
+                        <Skeleton className="h-6 w-12" />
+                      </span>
+                      <Skeleton className="h-1 w-full rounded-full" />
+                      <Skeleton className="h-2.5 w-2/3" />
                     </div>
                   ))
-                : kpiColumns.map((column) => {
-                    const Icon = column.icon;
+                : kpiTiles.map((tile) => {
+                    const Icon = tile.icon;
+                    const active = status === tile.status;
                     return (
-                      <div
-                        key={column.key}
-                        className={styles.kpiColumn}
-                        aria-label={`${column.title}, ${column.value}`}
+                      <button
+                        key={tile.key}
+                        type="button"
+                        className={`${styles.deckTile} ${active ? styles.deckTileActive : ""}`}
+                        aria-pressed={active}
+                        onClick={() => setStatus(tile.status)}
+                        title={`${tile.hint} — click to filter the records board`}
                       >
-                        <KanbanBoardHeader
-                          icon={<Icon size={14} className={column.accent} aria-hidden />}
-                          title={column.title}
-                        />
-                        <div className={styles.kpiStat}>
-                          <span className={styles.kpiStatTop}>
-                            <span
-                              className={`${styles.kpiNumber} ${
-                                column.value === 0 ? styles.kpiNumberZero : ""
-                              }`}
-                            >
-                              {column.value}
-                            </span>
-                            <span className={styles.kpiMascot} aria-hidden="true">
-                              <StudentMascot
-                                name={column.title}
-                                character={column.mascot}
-                                size={36}
-                              />
-                            </span>
+                        <span className={styles.deckTileTop}>
+                          <span className={styles.deckTileIcon}>
+                            <Icon size={13} aria-hidden />
                           </span>
-                          <span className={styles.kpiHint}>{column.hint}</span>
-                        </div>
-                      </div>
+                          <span className={styles.deckTileLabel}>{tile.label}</span>
+                          <ArrowUpRight className={styles.deckTileArrow} aria-hidden />
+                        </span>
+                        <span className={styles.deckTileValue}>
+                          <span className={styles.deckTileNumber}>{tile.value}</span>
+                          <span className={styles.deckTileUnit}>{tile.unit}</span>
+                        </span>
+                        <span className={styles.deckTileMeter} aria-hidden>
+                          <span
+                            className={styles.deckTileMeterFill}
+                            style={{ width: `${Math.round((tile.value / shareBase) * 100)}%` }}
+                          />
+                        </span>
+                        <span className={styles.deckTileHint}>{tile.hint}</span>
+                      </button>
                     );
                   })}
-              <Link
-                href={`/${desk}/sf10/upload`}
-                className={styles.kpiUpload}
-                aria-label="Upload SF10 — attach a new record"
-              >
-                <span className={styles.kpiUploadIcon} aria-hidden="true">
-                  <Upload size={18} />
-                </span>
-                <span className={styles.kpiUploadText}>
-                  <span className={styles.kpiUploadTitle}>Upload SF10</span>
-                  <span className={styles.kpiUploadHint}>Attach a new record</span>
-                </span>
-              </Link>
             </div>
           </section>
         ) : (
@@ -372,7 +371,8 @@ export function Sf10Page({
           >
             {isPending || isPlaceholderData ? (
               <div className={styles.folderKanbanGrid} aria-hidden="true">
-                {Array.from({ length: 6 }).map((_, i) => (
+                {/* One placeholder folder per card a full page renders. */}
+                {Array.from({ length: pageSize }).map((_, i) => (
                   <Skeleton key={i} className={styles.folderKanbanSkel} />
                 ))}
               </div>

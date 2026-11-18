@@ -4,6 +4,7 @@ import { useMemo, useState } from "react";
 import { BookPlus, Trash2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
+import { FilterTabs } from "@/components/ui/filter-tabs";
 import { InsightCallout } from "@/components/ui/insight-callout";
 import { Pill } from "@/components/ui/pill";
 import {
@@ -129,14 +130,14 @@ export function SubjectCatalogKanban({
             variant="secondary"
             onClick={handleDeleteCancel}
             disabled={deleting}
-            className="h-6 gap-1 px-2 text-[11px]"
+            className="h-6 gap-1 px-2 text-[12px]"
           >
             Cancel
           </Button>
           <Button
             onClick={() => setConfirmOpen(true)}
             disabled={selectedIds.length === 0 || deleting}
-            className="h-6 gap-1 px-2 text-[11px]"
+            className="h-6 gap-1 px-2 text-[12px]"
           >
             <Trash2 size={12} aria-hidden />
             Delete{selectedIds.length > 0 ? ` (${selectedIds.length})` : ""}
@@ -155,14 +156,14 @@ export function SubjectCatalogKanban({
                   ? "Close the add-subject form to delete"
                   : "Delete a subject"
             }
-            className="ml-auto h-6 gap-1 px-2 text-[11px]"
+            className="ml-auto h-6 gap-1 px-2 text-[12px]"
           >
             <Trash2 size={12} aria-hidden />
             Delete subject
           </Button>
           <Button
             onClick={() => onAddOpenChange(true)}
-            className="h-6 gap-1 px-2 text-[11px]"
+            className="h-6 gap-1 px-2 text-[12px]"
           >
             <BookPlus size={12} aria-hidden />
             Add subject
@@ -216,28 +217,16 @@ export function SubjectCatalogKanban({
               </span>
               <div
                 className="absolute top-1/2 left-1/2 flex max-w-full -translate-x-1/2 -translate-y-1/2 flex-wrap items-center justify-center gap-1"
-                role="tablist"
-                aria-label="Filter subjects by grade"
               >
-                {[null, ...GRADES.map((g) => g.key)].map((key) => {
-                  const active = activeGrade === key;
-                  const label =
-                    key === null
-                      ? "All"
-                      : (GRADES.find((g) => g.key === key)?.label ?? key);
-                  return (
-                    <button
-                      key={key ?? "all"}
-                      type="button"
-                      role="tab"
-                      aria-selected={active}
-                      onClick={() => setActiveGrade(key)}
-                      className="inline-flex cursor-pointer rounded-md p-0 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring"
-                    >
-                      <Pill tone={active ? "blue" : "neutral"}>{label}</Pill>
-                    </button>
-                  );
-                })}
+                <FilterTabs
+                  label="Filter subjects by grade"
+                  options={[
+                    { value: "all", label: "All" },
+                    ...GRADES.map((g) => ({ value: g.key, label: g.label })),
+                  ]}
+                  value={activeGrade ?? "all"}
+                  onChange={(next) => setActiveGrade(next === "all" ? null : next)}
+                />
               </div>
             </div>
 

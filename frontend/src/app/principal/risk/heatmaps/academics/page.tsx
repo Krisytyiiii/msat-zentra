@@ -1,11 +1,14 @@
 "use client";
 
 import * as React from "react";
+import Link from "next/link";
 import { useQuery } from "@tanstack/react-query";
+import { ListFilter, ShieldAlert } from "lucide-react";
 import { apiClient } from "@/lib/api/client";
 import { useTerm } from "@/lib/term/TermContext";
-import { usePersistentState } from "@/lib/hooks/usePersistentState";
 import { PageEmptyCallout } from "@/components/shared/page-empty-callout";
+import { Button } from "@/components/ui/button";
+import { PrincipalPageHeader } from "../../../components/PrincipalPageHeader";
 import { KpiStrip } from "./components/KpiStrip";
 import { SubjectTrendChart } from "./components/SubjectTrendChart";
 import { SubjectSectionBreakdown } from "./components/SubjectSectionBreakdown";
@@ -26,10 +29,8 @@ function isBelow75(avg: number, subjectCount: number): boolean {
 }
 
 export default function PrincipalAcademicHeatmapsPage() {
-  const [gradeFilter, setGradeFilter] = usePersistentState<string>(
-    "academic-heatmap:grade",
-    "Grade 7"
-  );
+  // Subject Trends always lists every grade level — no grade filter tabs.
+  const gradeFilter = ALL_GRADES;
 
   const { activeTerm, termReady } = useTerm();
   const termId = activeTerm?.termId ?? null;
@@ -178,33 +179,48 @@ export default function PrincipalAcademicHeatmapsPage() {
     return items.sort((a, b) => a.avg - b.avg).slice(0, 8);
   }, [sections, subjects, cellByKey]);
 
-  const grades = React.useMemo(() => {
-    const set = new Set(sections.map((s) => s.grade));
-    return Array.from(set).sort((a, b) => gradeSortKey(a) - gradeSortKey(b));
-  }, [sections]);
-
   // No sections in scope → one page-level insight callout (same shape as the
   // schedule board's empty state) instead of "no data" rows inside the boards.
   const isEmpty = !isPending && sections.length === 0;
 
-  // Keep the trend filter on a grade that exists in the current data — but
-  // the "All grades" sentinel is a valid choice and must survive the sweep.
-  React.useEffect(() => {
-    if (grades.length === 0) return;
-    if (gradeFilter === ALL_GRADES) return;
-    if (!grades.includes(gradeFilter)) {
-      setGradeFilter(grades.includes("Grade 7") ? "Grade 7" : grades[0]);
-    }
-  }, [grades, gradeFilter, setGradeFilter]);
-
   const [selectedSubject, setSelectedSubject] = React.useState<string | null>(null);
-  const [prevGradeFilter, setPrevGradeFilter] = React.useState(gradeFilter);
-  if (prevGradeFilter !== gradeFilter) {
-    setPrevGradeFilter(gradeFilter);
+  // The section-ranking board opens for a chart bar click; a Needs Attention
+  // row only highlights the subject in Subject Trends.
+  const [breakdownOpen, setBreakdownOpen] = React.useState(false);
+  if (selectedSubject && !subjects.includes(selectedSubject)) {
     setSelectedSubject(null);
-  } else if (selectedSubject && !subjects.includes(selectedSubject)) {
-    setSelectedSubject(null);
+    setBreakdownOpen(false);
   }
+
+  const selectFromChart = React.useCallback((subject: string | null) => {
+    setSelectedSubject(subject);
+    setBreakdownOpen(subject !== null);
+  }, []);
+
+  // A "Needs Attention" row scrolls up to the trend board and highlights that
+  // subject's bars — it never opens the section-ranking board.
+  const trendsRef = React.useRef<HTMLDivElement>(null);
+  const scrollToTrends = React.useRef(false);
+
+  const selectFromAttention = React.useCallback((subject: string) => {
+    scrollToTrends.current = true;
+    setSelectedSubject((current) => (current === subject ? null : subject));
+    setBreakdownOpen(false);
+  }, []);
+
+  React.useEffect(() => {
+    if (!scrollToTrends.current) return;
+    scrollToTrends.current = false;
+    const node = trendsRef.current;
+    if (!node) return;
+    const reduce =
+      typeof window !== "undefined" &&
+      window.matchMedia?.("(prefers-reduced-motion: reduce)").matches;
+    node.scrollIntoView({
+      behavior: reduce ? "auto" : "smooth",
+      block: "start",
+    });
+  }, [selectedSubject]);
 
   const breakdown = React.useMemo<AttentionItem[]>(() => {
     if (!selectedSubject) return [];
@@ -228,48 +244,76 @@ export default function PrincipalAcademicHeatmapsPage() {
   return (
     <div className={shell.shell}>
       <div className={shell.layout}>
-        {isEmpty ? (
-          <PageEmptyCallout>
-            No graded records for the active term yet. Section averages and
-            subject trends will appear here once grades are finalized.
-          </PageEmptyCallout>
-        ) : (
-          <section className={shell.page} aria-busy={isPending || undefined}>
-            <KpiStrip
-              below={below}
-              gradedTotal={gradedStudents.length}
-              riskySections={riskySections}
-              sectionCount={sections.length}
-              ungraded={ungraded}
-              ungradedStudents={ungradedStudents}
-              sharedTotal={sharedStudents}
-              isPending={isPending}
-            />
-            <SubjectTrendChart
-              sections={sections}
-              subjects={subjects}
-              grades={grades}
-              gradeFilter={gradeFilter}
-              onGradeFilterChange={setGradeFilter}
-              isPending={isPending}
-              selectedSubject={selectedSubject}
-              onSelectSubject={setSelectedSubject}
-            />
-            {selectedSubject ? (
-              <SubjectSectionBreakdown
-                subject={selectedSubject}
-                gradeFilter={gradeFilter}
-                items={breakdown}
-                onClear={() => setSelectedSubject(null)}
+        <section className={shell.page} aria-busy={isPending || undefined}>
+          <PrincipalPageHeader
+            title="Academic Heatmap"
+            description="Adviser-shared sections for the active term. See who is below 75, which sections are slipping, and where grades are still missing — pick a subject in the trend chart to rank its sections, or a needs-attention row below to highlight it."
+            actions={
+              <>
+                <Button size="sm" className="h-6 px-2 text-[12px]" asChild>
+                  <Link href="/principal/risk/students">
+                    <ShieldAlert aria-hidden="true" />
+                    At-risk learners
+                  </Link>
+                </Button>
+                <Button
+                  variant="secondary"
+                  size="sm"
+                  className="h-6 px-2 text-[12px]"
+                  asChild
+                >
+                  <Link href="/principal/risk">
+                    <ListFilter aria-hidden="true" />
+                    Risk board
+                  </Link>
+                </Button>
+              </>
+            }
+          />
+
+          {isEmpty ? (
+            <PageEmptyCallout>
+              No graded records for the active term yet. Section averages and
+              subject trends will appear here once grades are finalized.
+            </PageEmptyCallout>
+          ) : (
+            <>
+              <KpiStrip
+                below={below}
+                gradedTotal={gradedStudents.length}
+                riskySections={riskySections}
+                sectionCount={sections.length}
+                ungraded={ungraded}
+                ungradedStudents={ungradedStudents}
+                sharedTotal={sharedStudents}
+                isPending={isPending}
               />
-            ) : null}
-            <NeedsAttentionList
-              items={attention}
-              isPending={isPending}
-              isNoData={sections.length === 0}
-            />
-          </section>
-        )}
+              <div ref={trendsRef} style={{ scrollMarginTop: "5rem" }}>
+                <SubjectTrendChart
+                  sections={sections}
+                  isPending={isPending}
+                  selectedSubject={selectedSubject}
+                  onSelectSubject={selectFromChart}
+                />
+              </div>
+              {selectedSubject && breakdownOpen ? (
+                <SubjectSectionBreakdown
+                  subject={selectedSubject}
+                  gradeFilter={gradeFilter}
+                  items={breakdown}
+                  onClear={() => selectFromChart(null)}
+                />
+              ) : null}
+              <NeedsAttentionList
+                items={attention}
+                isPending={isPending}
+                isNoData={sections.length === 0}
+                onSelectSubject={selectFromAttention}
+                selectedSubject={selectedSubject}
+              />
+            </>
+          )}
+        </section>
       </div>
     </div>
   );

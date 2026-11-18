@@ -74,7 +74,7 @@
   right: 0.5rem;
   transform: translateY(-50%);
   text-align: right;
-  font-size: 0.6875rem;
+  font-size: 0.75rem;
   color: var(--muted-foreground);
   font-variant-numeric: tabular-nums;
   white-space: nowrap;
@@ -107,7 +107,7 @@
 }
 
 .dayName {
-  font-size: 0.6875rem;
+  font-size: 0.75rem;
   font-weight: 600;
   color: var(--muted-foreground);
   text-transform: uppercase;
@@ -115,7 +115,7 @@
 }
 
 .dayShort {
-  font-size: 0.6875rem;
+  font-size: 0.75rem;
   font-weight: 700;
   color: var(--foreground);
 }
@@ -159,7 +159,7 @@
   align-items: center;
   justify-content: center;
   gap: 0.25rem;
-  font-size: 0.625rem;
+  font-size: 0.75rem;
   font-weight: 600;
   color: var(--muted-foreground);
   background-color: color-mix(in oklch, var(--muted), transparent 55%);
@@ -246,7 +246,7 @@
 }
 
 .eventMeta {
-  font-size: 0.6875rem;
+  font-size: 0.75rem;
   font-weight: 500;
   color: color-mix(in oklch, var(--event-ink), var(--foreground) 30%);
   line-height: 1.2;
@@ -256,7 +256,7 @@
 }
 
 .eventTime {
-  font-size: 0.625rem;
+  font-size: 0.75rem;
   color: color-mix(in oklch, var(--event-ink), var(--foreground) 45%);
   line-height: 1.2;
   white-space: nowrap;

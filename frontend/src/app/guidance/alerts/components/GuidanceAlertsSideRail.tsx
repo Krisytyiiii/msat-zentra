@@ -147,7 +147,7 @@ function RailCaseRow({
         <StudentMascot name={name} seed={seed} character={character ?? undefined} size={28} />
         <span className="min-w-0 flex-1">
           <span className="block truncate text-xs font-semibold">{name}</span>
-          <span className="block truncate text-[11px] text-muted-foreground">{meta}</span>
+          <span className="block truncate text-[12px] text-muted-foreground">{meta}</span>
         </span>
         {badge}
       </Link>
@@ -241,7 +241,7 @@ function RiskWatchPanel({
         </ul>
       )}
       {urgent > names.length ? (
-        <p className="px-1 text-[11px] text-muted-foreground">
+        <p className="px-1 text-[12px] text-muted-foreground">
           and {urgent - names.length} more on the desk.
         </p>
       ) : null}
@@ -461,7 +461,7 @@ export function GuidanceAlertsSideRail({
                       </span>
                       {a.count > 0 ? (
                         <span
-                          className="absolute -top-1 -right-1 flex h-4 min-w-4 items-center justify-center rounded-full bg-amber-500 px-1 text-[10px] font-bold text-black"
+                          className="absolute -top-1 -right-1 flex h-4 min-w-4 items-center justify-center rounded-full bg-amber-500 px-1 text-[12px] font-bold text-black"
                           aria-hidden="true"
                         >
                           {a.count}

@@ -142,7 +142,7 @@ export function AddAssessmentForm({
             </button>
           ))}
         </div>
-        <p className="text-[11px] leading-snug text-muted-foreground">
+        <p className="text-[12px] leading-snug text-muted-foreground">
           Regular counts toward regular learners; ADM counts toward signed ADM
           learners.
         </p>

@@ -288,7 +288,7 @@
 }
 
 .sideFieldLabel {
-  font-size: 0.6875rem;
+  font-size: 0.75rem;
   font-weight: 600;
   text-transform: uppercase;
   letter-spacing: 0.04em;
@@ -488,7 +488,7 @@
 
 .instructKicker {
   margin: 0 0 0.5rem;
-  font-size: 0.625rem;
+  font-size: 0.75rem;
   font-weight: 700;
   text-transform: uppercase;
   letter-spacing: 0.05em;
@@ -627,7 +627,7 @@
   border: 1px solid var(--border);
   background-color: var(--muted);
   color: var(--foreground);
-  font-size: 0.625rem;
+  font-size: 0.75rem;
   font-weight: 700;
   line-height: 1;
   white-space: nowrap;
@@ -902,7 +902,7 @@
   border: 1px solid var(--border);
   background-color: var(--muted);
   color: var(--foreground);
-  font-size: 0.625rem;
+  font-size: 0.75rem;
   font-weight: 600;
   line-height: 1;
   white-space: nowrap;
@@ -1357,7 +1357,7 @@
 
 .inviteesTitle {
   margin: 0 0 0.25rem;
-  font-size: 0.6875rem;
+  font-size: 0.75rem;
   font-weight: 700;
   text-transform: uppercase;
   letter-spacing: 0.04em;

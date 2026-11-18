@@ -123,8 +123,10 @@ async function countAdvisees(
   const wanted =
     onlyLrns && onlyLrns.size > 0 ? all.filter((l) => onlyLrns.has(l)) : all;
   if (wanted.length === 0) return { total: 0, has: 0, missing: 0 };
-  const withRecords = await prisma.studentProfile.findMany({
-    where: { lrn: { in: wanted }, sf10Records: { some: {} } },
+  // The SF10 store is keyed by LRN, not by a profile relation — a filed record
+  // counts for an advisee whether or not that learner has an account.
+  const withRecords = await prisma.sf10Record.findMany({
+    where: { lrn: { in: wanted } },
     select: { lrn: true },
   });
   const has = new Set(withRecords.map((r) => r.lrn)).size;
@@ -193,34 +195,43 @@ async function matchAdvisoryLrns(
   if (onlyLrns.size > 0) lrns = lrns.filter((l) => onlyLrns.has(l));
   if (lrns.length === 0) return [];
 
-  const global = await prisma.studentProfile.findMany({
-    where: { lrn: { in: lrns } },
-    select: {
-      lrn: true,
-      gradeLevel: true,
-      user: { select: { fullName: true } },
-      sf10Records: {
-        select: {
-          id: true,
-          source: true,
-          status: true,
-          uploadedFileUrl: true,
-          verifiedAt: true,
-          validatedAt: true,
-          currentVersion: true,
-          versions: {
-            orderBy: { versionNumber: "desc" },
-            select: { versionNumber: true, dataSnapshot: true, changedAt: true },
-          },
+  const [global, records] = await Promise.all([
+    prisma.studentProfile.findMany({
+      where: { lrn: { in: lrns } },
+      select: {
+        lrn: true,
+        gradeLevel: true,
+        user: { select: { fullName: true } },
+      },
+    }),
+    prisma.sf10Record.findMany({
+      where: { lrn: { in: lrns } },
+      select: {
+        lrn: true,
+        id: true,
+        source: true,
+        status: true,
+        uploadedFileUrl: true,
+        verifiedAt: true,
+        validatedAt: true,
+        currentVersion: true,
+        versions: {
+          orderBy: { versionNumber: "desc" },
+          select: { versionNumber: true, dataSnapshot: true, changedAt: true },
         },
       },
-    },
-  });
+    }),
+  ]);
   const byGlobal = new Map(global.map((g) => [g.lrn, g]));
+  const recByLrn = new Map<string, (typeof records)[number]>();
+  for (const rec of records) {
+    if (!recByLrn.has(rec.lrn)) recByLrn.set(rec.lrn, rec);
+  }
 
   return lrns.sort().map((lrn) => {
     const ident = identity.get(lrn)!;
     const g = byGlobal.get(lrn);
+    const rec = recByLrn.get(lrn) ?? null;
     return {
       lrn,
       name: ident.name ?? g?.user.fullName ?? lrn,
@@ -228,7 +239,18 @@ async function matchAdvisoryLrns(
       hasAccount: !!g,
       gradeLevel: ident.gradeLevel ?? (g ? String(g.gradeLevel) : "—"),
       section: sectionName,
-      rec: g?.sf10Records[0] ?? null,
+      rec: rec
+        ? {
+            id: rec.id,
+            source: rec.source,
+            status: rec.status,
+            uploadedFileUrl: rec.uploadedFileUrl,
+            verifiedAt: rec.verifiedAt,
+            validatedAt: rec.validatedAt,
+            currentVersion: rec.currentVersion,
+            versions: rec.versions,
+          }
+        : null,
     };
   });
 }

@@ -1,9 +1,8 @@
-/* Enrolled learners board — a single KanbanBoard shell wrapping a data table
-   (one row per learner, status as a column). The board shell + header come
-   from the shared KanbanBoard UI; only the row cells are bespoke so the table
-   reads compact yet scannable. All accents ride --primary / --card / --muted
-   tokens so the coordinator's saved palette repaints the board in light + dark
-   mode. */
+/* Enrolled learners — a monitoring roster of interactive cards, not a table.
+   One card per learner: identity, module-progress ring, quick document
+   shortcuts and the monitoring entry point. Everything rides the shared
+   --primary / --card / --border / --muted tokens so the coordinator's saved
+   palette repaints it in light and dark mode. */
 
 .boardIcon {
   display: inline-flex;
@@ -12,31 +11,33 @@
   color: var(--primary);
 }
 
-/* Search sits in the board header, right of the title. 16px radius, compact. */
+/* Search sits in the board header, right of the segmented filter. */
 .searchWrap {
   position: relative;
-  width: 10.5rem;
+  display: flex;
+  align-items: center;
+  width: 240px;
   max-width: 100%;
   flex-shrink: 0;
 }
 
 .searchIcon {
   position: absolute;
-  left: 0.5rem;
+  left: 0.625rem;
   top: 50%;
   transform: translateY(-50%);
-  width: 0.8125rem;
-  height: 0.8125rem;
+  width: 1rem;
+  height: 1rem;
   color: var(--muted-foreground);
   pointer-events: none;
 }
 
 .searchInput {
   width: 100%;
-  height: 1.75rem;
-  padding: 0 0.625rem 0 1.75rem;
+  height: 2rem;
+  padding: 0 0.625rem 0 2rem;
   border: 1px solid var(--border);
-  border-radius: 16px;
+  border-radius: 1rem;
   background-color: var(--background);
   color: var(--foreground);
   font: inherit;
@@ -61,61 +62,145 @@
   appearance: none;
 }
 
-/* Table sits flush inside the board card; the shared Table wrapper already
-   handles horizontal overflow on narrow screens. */
-.table {
-  font-size: 0.75rem;
+/* Page-level roster — no parent card; the learner cards are the surface. */
+.boardShell {
+  display: flex;
+  min-width: 0;
+  flex-direction: column;
+  gap: 0.75rem;
 }
 
-/* The shared Table wrapper is the scroll container — hide its bar (the
-   principal's schedule approval does the same on its table wrap) so the board
-   never shows a scrollbar. Horizontal panning still works. */
-.boardIn :global([data-slot="table-container"]) {
-  scrollbar-width: none;
-  -ms-overflow-style: none;
-}
-
-.boardIn :global([data-slot="table-container"])::-webkit-scrollbar {
-  display: none;
-}
-
-.table thead tr {
+.boardHeader {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.5rem;
+  padding-bottom: 0.5rem;
   border-bottom: 1px solid var(--border);
 }
 
-.table th {
-  padding: 0.375rem 0.5rem;
-  font-size: 0.6875rem;
-  font-weight: 700;
-  letter-spacing: 0.01em;
-  text-transform: uppercase;
+.boardTitle {
+  display: inline-flex;
+  min-width: 0;
+  align-items: center;
+  gap: 0.375rem;
+  font-size: 0.8125rem;
+  font-weight: 600;
   color: var(--muted-foreground);
 }
 
-.row td {
-  padding: 0.5rem;
-  vertical-align: middle;
-  border-bottom: 1px solid color-mix(in oklch, var(--border) 70%, transparent);
+/* Segmented status filter + search share the header row and wrap when tight. */
+.toolbar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 0.5rem;
+  min-width: 0;
+  margin-left: auto;
 }
 
-.row:last-child td {
-  border-bottom: 0;
+/* Segmented status filter — counts double as the board's summary. */
+.segmented {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.125rem;
+  padding: 0.125rem;
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  background-color: var(--muted);
 }
 
-/* Board entrance + row cascade — mirrors the principal's schedule approval
-   table so both desks share the same motion. */
+.segment {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.375rem;
+  height: 1.5rem;
+  padding: 0 0.5rem;
+  border: 0;
+  border-radius: 999px;
+  background-color: transparent;
+  color: var(--muted-foreground);
+  font: inherit;
+  font-size: 0.75rem;
+  font-weight: 600;
+  white-space: nowrap;
+  cursor: pointer;
+  transition: background-color 140ms ease-out, color 140ms ease-out;
+}
+
+.segment:hover {
+  color: var(--foreground);
+}
+
+.segment:focus-visible {
+  outline: 2px solid var(--ring);
+  outline-offset: 1px;
+}
+
+.segmentActive {
+  background-color: var(--background);
+  color: var(--foreground);
+  box-shadow: 0 1px 2px color-mix(in oklch, var(--foreground), transparent 88%);
+}
+
+/* Active tab takes the lane's colour: all amber, in progress blue,
+   complete green, not released neutral. */
+.segmentActive[data-lane="all"] {
+  background-color: color-mix(in oklch, #f59e0b 18%, var(--background));
+  color: #b45309;
+}
+
+.segmentActive[data-lane="in_progress"] {
+  background-color: color-mix(in oklch, #3b82f6 16%, var(--background));
+  color: #1d4ed8;
+}
+
+.segmentActive[data-lane="complete"] {
+  background-color: color-mix(in oklch, #22c55e 16%, var(--background));
+  color: #15803d;
+}
+
+.segmentActive[data-lane="not_released"] {
+  background-color: color-mix(in oklch, var(--muted-foreground) 14%, var(--background));
+  color: var(--foreground);
+}
+
+:global(.dark) .segmentActive[data-lane="all"] {
+  color: #fbbf24;
+}
+
+:global(.dark) .segmentActive[data-lane="in_progress"] {
+  color: #93c5fd;
+}
+
+:global(.dark) .segmentActive[data-lane="complete"] {
+  color: #4ade80;
+}
+
+.segmentCount {
+  display: inline-flex;
+  min-width: 1.125rem;
+  justify-content: center;
+  font-size: 0.75rem;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+  color: var(--muted-foreground);
+}
+
+.segmentActive .segmentCount {
+  color: inherit;
+}
+
+/* Entrance: the shell fades in once, cards stagger after it. */
 .boardIn {
-  animation: board-in 0.9s cubic-bezier(0.22, 1, 0.36, 1) backwards;
-}
-
-.table tbody tr {
-  animation: row-in 1s cubic-bezier(0.22, 1, 0.36, 1) backwards;
+  animation: board-in 0.5s cubic-bezier(0.22, 1, 0.36, 1) backwards;
 }
 
 @keyframes board-in {
   from {
     opacity: 0;
-    transform: translateY(14px) scale(0.985);
+    transform: translateY(10px) scale(0.99);
   }
   to {
     opacity: 1;
@@ -123,10 +208,40 @@
   }
 }
 
-@keyframes row-in {
+.grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(19.5rem, 1fr));
+  gap: 0.75rem;
+  margin: 0;
+  padding: 0.125rem 0;
+  list-style: none;
+}
+
+.gridItem {
+  min-width: 0;
+  display: flex;
+}
+
+/* One learner card. */
+.card {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+  width: 100%;
+  min-width: 0;
+  padding: 0.75rem;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  background-color: var(--card);
+  animation: card-in 0.45s cubic-bezier(0.22, 1, 0.36, 1) backwards;
+  transition: border-color 160ms ease-out, box-shadow 160ms ease-out,
+    transform 160ms ease-out;
+}
+
+@keyframes card-in {
   from {
     opacity: 0;
-    transform: translateY(8px);
+    transform: translateY(10px);
   }
   to {
     opacity: 1;
@@ -134,45 +249,50 @@
   }
 }
 
-/* Rows open the read-only monitoring desk; the actions cell stops propagation. */
-.rowClickable {
+.cardClickable {
   cursor: pointer;
 }
 
-.rowClickable:focus-visible {
-  outline: 2px solid var(--ring);
-  outline-offset: -2px;
+.cardClickable:hover {
+  border-color: color-mix(in oklch, var(--primary), transparent 55%);
+  box-shadow: 0 8px 20px -16px color-mix(in oklch, var(--foreground), transparent 55%);
+  transform: translateY(-2px);
 }
 
-/* Learner identity cell — mascot + name, approval context underneath. */
-.learnerCell {
+.cardClickable:focus-visible {
+  outline: 2px solid var(--ring);
+  outline-offset: 2px;
+}
+
+.cardHead {
   display: flex;
   align-items: center;
   gap: 0.5rem;
-  min-width: 12rem;
+  min-width: 0;
 }
 
-.mascot {
+.avatar {
   display: inline-flex;
   align-items: center;
   justify-content: center;
   flex-shrink: 0;
-  width: 2rem;
-  height: 2rem;
+  width: 2.5rem;
+  height: 2.5rem;
   overflow: hidden;
   border: 1px solid var(--border);
   border-radius: 999px;
   background-color: color-mix(in oklch, var(--muted) 60%, transparent);
 }
 
-.learnerText {
+.identity {
   display: flex;
   flex-direction: column;
   gap: 0.0625rem;
   min-width: 0;
+  flex: 1;
 }
 
-.learnerName {
+.name {
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
@@ -181,64 +301,150 @@
   color: var(--foreground);
 }
 
-.learnerMeta {
+.meta {
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
-  font-size: 0.6563rem;
+  font-size: 0.75rem;
   color: var(--muted-foreground);
 }
 
-/* Module progress cell — thin track + caption, keeps rows one line tall. */
-.progressCell {
-  min-width: 11rem;
+.lanePill {
+  flex-shrink: 0;
 }
 
-.progress {
+.cardBody {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  min-width: 0;
+}
+
+.ring {
+  flex-shrink: 0;
+}
+
+.ringTrack {
+  stroke: color-mix(in oklch, var(--muted-foreground), transparent 78%);
+}
+
+.ringFill {
+  stroke: #f59e0b;
+  transition: stroke-dashoffset 320ms cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+.ringText {
+  fill: var(--foreground);
+  font-family: var(--font-sans), system-ui, sans-serif;
+  font-size: 0.8125rem;
+  font-weight: 700;
+}
+
+.numbers {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+  min-width: 0;
+  flex: 1;
+}
+
+.progressText {
+  font-size: 0.75rem;
+  font-weight: 600;
+  line-height: 1.25;
+  color: var(--foreground);
+}
+
+.progressHint {
+  display: flex;
+  align-items: center;
+  gap: 0.375rem;
+  min-width: 0;
+}
+
+.progressAux {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: 0.75rem;
+  color: var(--muted-foreground);
+}
+
+.track {
   display: block;
-  height: 0.3125rem;
+  height: 0.25rem;
   border-radius: 999px;
   background-color: var(--muted);
   overflow: hidden;
 }
 
-.progressFill {
+.trackFill {
   display: block;
   height: 100%;
   border-radius: inherit;
-  background-color: var(--primary);
-  transition: width 0.3s ease-in-out;
+  background-color: #f59e0b;
+  transition: width 320ms cubic-bezier(0.22, 1, 0.36, 1);
 }
 
-.progressNote {
-  display: block;
-  margin-top: 0.1875rem;
-  font-size: 0.6563rem;
-  line-height: 1.3;
-  color: var(--muted-foreground);
-  white-space: nowrap;
-}
-
-/* Actions cell — document shortcuts then the two CTAs, right aligned. */
-.actionsCell {
-  text-align: right;
-}
-
-.actionsHead {
-  text-align: right;
-}
-
-.actions {
+/* Footer: the monitoring entry point plus the document/status shortcuts. */
+.cardFooter {
   display: flex;
   align-items: center;
-  justify-content: flex-end;
+  justify-content: space-between;
   gap: 0.375rem;
+  padding-top: 0.625rem;
+  border-top: 1px solid color-mix(in oklch, var(--border) 75%, transparent);
 }
 
-.docActions {
-  display: flex;
+.openBtn {
+  display: inline-flex;
   align-items: center;
   gap: 0.25rem;
+  height: 1.625rem;
+  padding: 0 0.625rem;
+  border: 1px solid transparent;
+  border-radius: var(--radius-md);
+  background-color: var(--primary);
+  color: var(--primary-foreground);
+  font: inherit;
+  font-size: 0.75rem;
+  font-weight: 700;
+  cursor: pointer;
+  transition: opacity 140ms ease-out, transform 140ms ease-out;
+}
+
+.openBtn svg {
+  transition: transform 140ms ease-out;
+}
+
+.openBtn:hover:not(:disabled) {
+  opacity: 0.92;
+}
+
+.openBtn:hover:not(:disabled) svg {
+  transform: translateX(2px);
+}
+
+.openBtn:active:not(:disabled) {
+  transform: scale(0.98);
+}
+
+.openBtn:focus-visible {
+  outline: 2px solid var(--ring);
+  outline-offset: 2px;
+}
+
+.openBtn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.quickActions {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.25rem;
+  /* Icons lead the footer; the Monitoring entry point sits on the right. */
+  order: -1;
 }
 
 /* Tooltip trigger wrapper — keeps the tooltip working on disabled buttons. */
@@ -250,8 +456,8 @@
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  width: 1.5rem;
-  height: 1.5rem;
+  width: 1.625rem;
+  height: 1.625rem;
   padding: 0;
   border: 1px solid var(--border);
   border-radius: var(--radius-md);
@@ -281,69 +487,23 @@
   cursor: not-allowed;
 }
 
-.cta {
-  flex: 0 0 auto;
-  height: 1.5rem;
-  padding-inline: 0.625rem;
+.iconBtnAccent:hover:not(:disabled) {
+  color: var(--primary);
+  border-color: color-mix(in oklch, var(--primary), transparent 45%);
+  background-color: color-mix(in oklch, var(--primary), transparent 92%);
+}
+
+.doneChip {
   display: inline-flex;
   align-items: center;
-  justify-content: center;
-  gap: 0.3125rem;
+  gap: 0.25rem;
+  height: 1.625rem;
+  padding: 0 0.5rem;
   border-radius: var(--radius-md);
-  border: 1px solid transparent;
-  background-color: var(--primary);
-  color: var(--primary-foreground);
-  font-size: 0.6875rem;
+  background-color: color-mix(in oklch, var(--primary), transparent 92%);
+  color: var(--primary);
+  font-size: 0.75rem;
   font-weight: 700;
-  cursor: pointer;
-  white-space: nowrap;
-  transition: opacity 140ms ease-out, transform 140ms ease-out;
-}
-
-.cta:hover {
-  opacity: 0.9;
-}
-
-.cta:active {
-  transform: scale(0.98);
-}
-
-.cta:focus-visible {
-  outline: 2px solid var(--ring);
-  outline-offset: 2px;
-}
-
-.ctaSecondary {
-  flex: 0 0 auto;
-  height: 1.5rem;
-  padding-inline: 0.625rem;
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  gap: 0.3125rem;
-  border-radius: var(--radius-md);
-  border: 1px solid var(--border);
-  background-color: transparent;
-  color: var(--foreground);
-  font-size: 0.6875rem;
-  font-weight: 600;
-  cursor: pointer;
-  white-space: nowrap;
-  transition: opacity 140ms ease-out, transform 140ms ease-out;
-}
-
-.ctaSecondary:hover:not(:disabled) {
-  opacity: 0.85;
-}
-
-.ctaSecondary:disabled {
-  cursor: not-allowed;
-  opacity: 0.55;
-}
-
-.ctaSecondary:focus-visible {
-  outline: 2px solid var(--ring);
-  outline-offset: 2px;
 }
 
 /* Empty/search-miss callout sits centred inside the board card. */
@@ -381,68 +541,97 @@
   }
 }
 
-/* Loading mirror — table-shaped rows inside the single board shell. */
-.skelTable {
+/* Loading mirror — card-shaped placeholders in the same grid. */
+.skelCard {
   display: flex;
   flex-direction: column;
-  gap: 0.5rem;
-  padding: 0.25rem 0;
+  gap: 0.75rem;
+  padding: 0.75rem;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  background-color: var(--card);
 }
 
-.skelRow {
+.skelHead {
   display: flex;
   align-items: center;
-  gap: 0.625rem;
-  padding: 0.375rem 0.25rem;
-  border-bottom: 1px solid color-mix(in oklch, var(--border) 70%, transparent);
+  gap: 0.5rem;
 }
 
-.skelRow:last-child {
-  border-bottom: 0;
-}
-
-.skelMascot {
-  width: 2rem;
-  height: 2rem;
+.skelAvatar {
+  width: 2.5rem;
+  height: 2.5rem;
   border-radius: 999px;
   flex-shrink: 0;
 }
 
+.skelLines {
+  display: flex;
+  flex-direction: column;
+  gap: 0.375rem;
+  flex: 1;
+  min-width: 0;
+}
+
 .skelName {
-  width: 8rem;
+  width: 60%;
   height: 0.8125rem;
 }
 
 .skelMeta {
-  width: 5rem;
-  height: 0.6875rem;
+  width: 40%;
+  height: 0.625rem;
+}
+
+.skelBody {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+}
+
+.skelRing {
+  width: 3.625rem;
+  height: 3.625rem;
+  border-radius: 999px;
+  flex-shrink: 0;
+}
+
+.skelText {
+  width: 80%;
+  height: 0.75rem;
 }
 
 .skelTrack {
-  flex: 1;
-  height: 0.3125rem;
+  height: 0.25rem;
   border-radius: 999px;
 }
 
-.skelCta {
-  width: 5.5rem;
-  height: 1.5rem;
-  border-radius: var(--radius-md);
-  margin-left: auto;
+@media (max-width: 639px) {
+  .grid {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .searchWrap {
+    width: 100%;
+  }
 }
 
 @media (prefers-reduced-motion: reduce) {
   .boardIn,
-  .table tbody tr {
+  .card {
     animation: none;
   }
 
-  .progressFill {
+  .cardClickable:hover {
+    transform: none;
+  }
+
+  .ringFill,
+  .trackFill {
     transition: none;
   }
 
-  .cta:active,
-  .ctaSecondary:active,
+  .openBtn:active:not(:disabled),
   .iconBtn:active:not(:disabled) {
     transform: none;
   }

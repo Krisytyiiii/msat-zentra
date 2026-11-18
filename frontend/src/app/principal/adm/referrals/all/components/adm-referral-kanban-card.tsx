@@ -131,13 +131,9 @@ export function AdmReferralKanbanCard({
         <div className={styles.studentRow}>
           <StudentMascot name={row.student} seed={row.lrn} size={28} />
           <div className="flex min-w-0 flex-col items-start gap-1">
-            <Pill
-              tone="amber"
-              label="Student"
-              className="min-w-0 max-w-full overflow-hidden"
-            >
-              <span className="truncate">{row.student}</span>
-            </Pill>
+            <span className="min-w-0 max-w-full truncate text-[13px] font-semibold text-foreground">
+              {row.student}
+            </span>
             <span className="flex min-w-0 max-w-full flex-wrap items-center gap-1">
               <Pill label="LRN" className="tabular-nums">
                 {row.lrn}
@@ -196,7 +192,7 @@ export function AdmReferralKanbanCard({
             <Button
               variant="outline"
               size="sm"
-              className="h-6 px-2 text-[11px] [&_svg]:size-3"
+              className="h-6 px-2 text-[12px] [&_svg]:size-3"
               aria-label={`Sign and approve case for ${row.student}`}
               title="Sign & approve"
               disabled={locked}
@@ -211,7 +207,7 @@ export function AdmReferralKanbanCard({
             <Button
               variant="ghost"
               size="sm"
-              className="h-6 px-2 text-[11px] [&_svg]:size-3"
+              className="h-6 px-2 text-[12px] [&_svg]:size-3"
               aria-label={`Return case for ${row.student} for revision`}
               title="Return for revision"
               disabled={locked}
@@ -226,7 +222,7 @@ export function AdmReferralKanbanCard({
             <Button
               variant="outline"
               size="sm"
-              className="ml-auto h-6 px-2 text-[11px] [&_svg]:size-3"
+              className="ml-auto h-6 px-2 text-[12px] [&_svg]:size-3"
               aria-label={`View ${formCount} linked form${formCount === 1 ? "" : "s"} for ${row.student}`}
               title={`${formCount} linked form${formCount === 1 ? "" : "s"}`}
               onClick={() => onViewForms(row)}

@@ -60,7 +60,7 @@ export function ScheduleGridCell({
               <span className="flex min-w-0 max-w-full flex-col items-center leading-tight">
                 <span className="w-full truncate font-medium">{subjectName}</span>
                 {teacherName ? (
-                  <span className="w-full truncate text-[11px] font-normal text-muted-foreground">
+                  <span className="w-full truncate text-[12px] font-normal text-muted-foreground">
                     {teacherName}
                   </span>
                 ) : null}
@@ -79,7 +79,7 @@ export function ScheduleGridCell({
               <span className="flex min-w-0 max-w-full flex-col items-center leading-tight">
                 <span className="w-full truncate font-medium">{subjectName}</span>
                 {teacherName ? (
-                  <span className="w-full truncate text-[11px] font-normal text-muted-foreground">
+                  <span className="w-full truncate text-[12px] font-normal text-muted-foreground">
                     {teacherName}
                   </span>
                 ) : null}

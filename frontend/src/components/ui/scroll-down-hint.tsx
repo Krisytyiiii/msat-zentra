@@ -54,7 +54,7 @@ export function ScrollDownHint({
       onClick={scrollDown}
       aria-label={`${label} — scroll list down`}
       className={cn(
-        "mx-auto flex items-center gap-1 text-[11px] text-muted-foreground transition-colors hover:text-foreground",
+        "mx-auto flex items-center gap-1 text-[12px] text-muted-foreground transition-colors hover:text-foreground",
         className,
       )}
     >

@@ -90,9 +90,22 @@
   border-radius: var(--radius-md);
   background-color: var(--sidebar-primary);
   color: var(--sidebar-primary-foreground);
-  font-size: 0.6875rem;
+  font-size: 0.75rem;
   font-weight: 600;
   font-variant-numeric: tabular-nums;
+}
+
+/* Red "new or updated since you last looked" marker (same as the guidance,
+   nurse, coordinator and adviser desks). */
+.dot {
+  display: inline-block;
+  width: 0.5rem;
+  height: 0.5rem;
+  flex: none;
+  margin-left: 0.25rem;
+  border-radius: 9999px;
+  background-color: #dc2626;
+  box-shadow: 0 0 0 2px color-mix(in oklch, #dc2626 22%, transparent);
 }
 
 @media (prefers-reduced-motion: reduce) {

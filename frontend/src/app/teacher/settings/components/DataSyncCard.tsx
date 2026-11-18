@@ -177,11 +177,11 @@ export function DataSyncCard() {
                   </>
                 ) : null}
                 {updatedAt ? (
-                  <p className="mt-1 text-[11px] text-muted-foreground">
+                  <p className="mt-1 text-[12px] text-muted-foreground">
                     Last changed: {new Date(updatedAt).toLocaleString()}
                   </p>
                 ) : null}
-                <p className="mt-1 text-[11px] text-muted-foreground">
+                <p className="mt-1 text-[12px] text-muted-foreground">
                   Principal, registrar, and record keeper always see official records.
                 </p>
               </div>

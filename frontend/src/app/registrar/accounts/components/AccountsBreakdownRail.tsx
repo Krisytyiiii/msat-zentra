@@ -56,7 +56,7 @@ function GutterIconButton({
 // Kanban chip — rectangle pill matching the app's meta pills (amber tone,
 // same framing as the final-grades lead pills).
 const PILL =
-  "inline-flex max-w-full items-center rounded-md border border-amber-500/40 bg-amber-500/15 px-1.5 py-0.5 text-[11px] font-medium text-amber-700 dark:bg-amber-500/20 dark:text-amber-400";
+  "inline-flex max-w-full items-center rounded-md border border-amber-500/40 bg-amber-500/15 px-1.5 py-0.5 text-[12px] font-medium text-amber-700 dark:bg-amber-500/20 dark:text-amber-400";
 
 /** "Grade 11 · Mendel" → separate grade / section parts (no dot separator). */
 function labelParts(label: string): { grade: string; section: string } {
@@ -178,7 +178,7 @@ export function AccountsBreakdownRail({
                       </span>
                       {item.pending > 0 ? (
                         <span
-                          className="absolute -top-1 -right-1 flex h-4 min-w-4 items-center justify-center rounded-full bg-amber-500 px-1 text-[10px] font-bold text-black"
+                          className="absolute -top-1 -right-1 flex h-4 min-w-4 items-center justify-center rounded-full bg-amber-500 px-1 text-[12px] font-bold text-black"
                           aria-hidden="true"
                         >
                           {item.pending}

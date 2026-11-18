@@ -81,10 +81,10 @@ export function WorkspaceRail({
           aria-hidden="true"
         />
         <div className="relative flex items-center justify-between">
-          <span className="text-[11px] font-semibold tracking-[0.25em] text-white/70">
+          <span className="text-[12px] font-semibold tracking-[0.25em] text-white/70">
             ZENTRA GRADEBOOK
           </span>
-          <span className="rounded-full border border-white/25 px-2.5 py-0.5 text-[11px] font-semibold tracking-wider text-white uppercase">
+          <span className="rounded-full border border-white/25 px-2.5 py-0.5 text-[12px] font-semibold tracking-wider text-white uppercase">
             {assignment.subjectCategory === "ELECTIVE" ? "Elective" : "Core"}
           </span>
         </div>
@@ -94,7 +94,7 @@ export function WorkspaceRail({
         <p className="relative text-sm font-medium tracking-[0.3em] text-white/80">
           {assignment.subjectCode}
         </p>
-        <div className="relative mt-4 flex items-end justify-between gap-2 text-[11px] tracking-wider text-white/70 uppercase">
+        <div className="relative mt-4 flex items-end justify-between gap-2 text-[12px] tracking-wider text-white/70 uppercase">
           <span className="min-w-0">
             <span className="block text-white/50">Section</span>
             <span className="block truncate font-semibold text-white">

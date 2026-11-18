@@ -10,12 +10,18 @@ import BranchedMenu from "./nav/BranchedMenu";
 import { NAV_ICONS } from "./nav/sidebar-icons";
 import { SidebarIconRail } from "./nav/SidebarIconRail";
 import { ScrollDownHint } from "@/components/ui/scroll-down-hint";
+import {
+  useRegistrarNavDotInvalidation,
+  useRegistrarNavDots,
+  type RegistrarNavDots,
+} from "@/services/registrar/navCounts.service";
 
 type NavItem = {
   title: string;
   href: string;
   icon: LucideIcon;
   badge?: string;
+  dot?: boolean;
 };
 
 type NavGroup = {
@@ -58,6 +64,27 @@ export const NAV: NavGroup[] = [
   },
 ];
 
+/* Which live queue each nav entry watches. The dot comes from
+   `/api/registrar/nav-counts`; a page with nothing unseen shows no dot. */
+const QUEUE_FOR_HREF: Record<string, keyof RegistrarNavDots> = {
+  "/registrar/overview": "overview",
+  "/registrar/final-grades": "finalGrades",
+  "/registrar/accounts": "accounts",
+  "/registrar/adviser-access": "adviserAccess",
+  "/registrar/sf10": "sf10",
+  "/registrar/academics": "subjects",
+};
+
+function withDots(groups: NavGroup[], dots: RegistrarNavDots): NavGroup[] {
+  return groups.map((group) => ({
+    ...group,
+    items: group.items.map((item) => ({
+      ...item,
+      dot: Boolean(QUEUE_FOR_HREF[item.href] && dots[QUEUE_FOR_HREF[item.href]]),
+    })),
+  }));
+}
+
 const TABS: NavItem[] = NAV.flatMap((group) => group.items);
 
 function matches(href: string, pathname: string, exactRoot: string) {
@@ -99,6 +126,8 @@ function RegistrarNavbar({ tabs }: { tabs: NavItem[] }) {
               >
                 <item.icon className={styles.tabIcon} aria-hidden="true" />
                 <span className={styles.tabLabel}>{item.title}</span>
+                {item.dot ? <span className={styles.dot} aria-hidden="true" /> : null}
+                {item.dot ? <span className="sr-only">New activity</span> : null}
                 {item.badge ? <span className={styles.badge}>{item.badge}</span> : null}
               </Link>
             </li>
@@ -123,6 +152,7 @@ function RegistrarRail({ groups }: { groups: NavGroup[] }) {
           value: t.href,
           label: t.title,
           href: t.href,
+          dot: t.dot,
           icon: <t.icon size={16} strokeWidth={1.8} aria-hidden="true" />,
         })),
       }))}
@@ -144,7 +174,11 @@ export function RegistrarSidebar({
 } = {}) {
   const pathname = usePathname();
   const railScrollRef = React.useRef<HTMLDivElement | null>(null);
-  const activeHref = findActiveHref(TABS, pathname);
+  const dots = useRegistrarNavDots();
+  useRegistrarNavDotInvalidation(dots);
+  const nav = React.useMemo(() => withDots(NAV, dots), [dots]);
+  const tabs = React.useMemo(() => nav.flatMap((group) => group.items), [nav]);
+  const activeHref = findActiveHref(tabs, pathname);
 
   return (
     <>
@@ -154,14 +188,14 @@ export function RegistrarSidebar({
       >
         {collapsed ? (
           <SidebarIconRail
-            groups={NAV}
+            groups={nav}
             ariaLabel="Registrar sections, icon only"
             activeHref={activeHref}
           />
         ) : (
           <>
             <div ref={railScrollRef} className={styles.railScroll}>
-              <RegistrarRail groups={NAV} />
+              <RegistrarRail groups={nav} />
             </div>
             <div className={styles.railHintWrap}>
               <ScrollDownHint
@@ -175,7 +209,7 @@ export function RegistrarSidebar({
         )}
       </aside>
       <div className={styles.tabsMobile}>
-        <RegistrarNavbar tabs={TABS} />
+        <RegistrarNavbar tabs={tabs} />
       </div>
     </>
   );

@@ -128,7 +128,11 @@
 }
 
 .search {
+  width: 240px;
+  max-width: 100%;
+  height: 2rem;
   padding-left: 2rem;
+  border-radius: 1rem;
 }
 
 /* Queue table — same plain bordered list as the alerts table. */
@@ -317,7 +321,7 @@
 }
 
 .chipLabel {
-  font-size: 0.625rem;
+  font-size: 0.75rem;
   font-weight: 600;
   letter-spacing: 0.05em;
   text-transform: uppercase;
@@ -347,7 +351,7 @@
 
 .noteLabel {
   margin: 0;
-  font-size: 0.6875rem;
+  font-size: 0.75rem;
   font-weight: 600;
   letter-spacing: 0.04em;
   text-transform: uppercase;
@@ -578,7 +582,7 @@
 
 .docName {
   margin: 0;
-  font-size: 0.6875rem;
+  font-size: 0.75rem;
   color: var(--muted-foreground);
   white-space: nowrap;
   overflow: hidden;

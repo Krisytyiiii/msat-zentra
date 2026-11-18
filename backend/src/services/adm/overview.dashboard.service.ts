@@ -2,6 +2,10 @@ import { prisma } from "../../lib/prisma.js";
 import type { Prisma } from "../../generated/prisma/client.js";
 import { ADM_STAGE_FLOW, type AdmStage } from "../adm.js";
 import { GRADE_LABEL } from "../../modules/adm/adm.repository.js";
+import {
+  archivedAdvisoryLearnerIds,
+  excludeArchivedLearnerRows,
+} from "../../lib/learnerVisibility.js";
 
 export async function getDashboard(role?: string) {
   const ACTIVE_STAGES: AdmStage[] = [
@@ -16,6 +20,16 @@ export async function getDashboard(role?: string) {
   // active pipeline stages.
   const latestReferredWhere: Prisma.AdmLearnerProfileWhereInput =
     role === "principal" ? {} : { stage: { in: ACTIVE_STAGES } };
+
+  // Learners the section adviser soft-deleted are hidden from every desk
+  // (and come back on restore), so the ADM dashboard must not count or list
+  // their cases, referrals or devices either.
+  const archivedLearners = await archivedAdvisoryLearnerIds();
+  const excludeArchivedRows = excludeArchivedLearnerRows(archivedLearners);
+  const notArchivedProfile: Prisma.AdmLearnerProfileWhereInput =
+    archivedLearners.studentIds.length > 0
+      ? { studentId: { notIn: archivedLearners.studentIds } }
+      : {};
 
   const [
     stageGroups,
@@ -33,6 +47,7 @@ export async function getDashboard(role?: string) {
   ] = await Promise.all([
     prisma.admLearnerProfile.groupBy({
       by: ["stage"],
+      where: notArchivedProfile,
       _count: { _all: true },
     }),
 
@@ -44,34 +59,41 @@ export async function getDashboard(role?: string) {
           status: "pending",
           consultReviewer: { in: ["nurse", "guidance_counselor"] },
         },
+        ...excludeArchivedRows,
       },
     }),
 
     prisma.admLearnerProfile.count({
       where: {
+        ...notArchivedProfile,
         stage: "principal_approval",
         approvedBy: null,
         eligibilityStatus: "eligible",
       },
     }),
     prisma.admLearnerProfile.count({
-      where: { approvedBy: { not: null } },
+      where: { ...notArchivedProfile, approvedBy: { not: null } },
     }),
-    prisma.admLearnerProfile.count(),
+    prisma.admLearnerProfile.count({ where: notArchivedProfile }),
     prisma.admLearnerProfile.count({
       where: {
+        ...notArchivedProfile,
         stage: "principal_approval",
         approvedBy: null,
         eligibilityStatus: { not: "eligible" },
       },
     }),
     prisma.admLearnerProfile.count({
-      where: { stage: { in: ACTIVE_STAGES } },
+      where: { ...notArchivedProfile, stage: { in: ACTIVE_STAGES } },
     }),
-    prisma.admDevice.count({ where: { returnedDate: null } }),
-    prisma.admDevice.count({ where: { returnedDate: { not: null } } }),
+    prisma.admDevice.count({
+      where: { returnedDate: null, admLearnerProfile: notArchivedProfile },
+    }),
+    prisma.admDevice.count({
+      where: { returnedDate: { not: null }, admLearnerProfile: notArchivedProfile },
+    }),
     prisma.admLearnerProfile.findMany({
-      where: latestReferredWhere,
+      where: { ...latestReferredWhere, ...notArchivedProfile },
       include: {
         student: {
           select: {
@@ -89,6 +111,7 @@ export async function getDashboard(role?: string) {
     }),
 
     prisma.admLearnerProfile.findMany({
+      where: notArchivedProfile,
       select: { createdAt: true },
     }),
 
@@ -97,6 +120,7 @@ export async function getDashboard(role?: string) {
     // skipped (they aren't a school section), and each learner counts once even
     // when they have cases filed across several terms.
     prisma.admLearnerProfile.findMany({
+      where: notArchivedProfile,
       select: {
         studentId: true,
         student: { select: { section: { select: { name: true } } } },

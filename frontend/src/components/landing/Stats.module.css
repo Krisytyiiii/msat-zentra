@@ -52,7 +52,7 @@
 
 .label {
   font-family: var(--font-mono);
-  font-size: 0.64rem;
+  font-size: 0.75rem;
   letter-spacing: 0.13em;
   text-transform: uppercase;
   color: rgba(228, 241, 236, 0.42);

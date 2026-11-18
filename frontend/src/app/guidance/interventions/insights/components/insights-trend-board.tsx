@@ -68,14 +68,14 @@ export function InsightsTrendBoard({
                   tickLine={false}
                   axisLine={false}
                   interval={0}
-                  tick={{ fontSize: 11 }}
+                  tick={{ fontSize: 12 }}
                 />
                 <YAxis
                   tickLine={false}
                   axisLine={false}
                   allowDecimals={false}
                   width={30}
-                  tick={{ fontSize: 11 }}
+                  tick={{ fontSize: 12 }}
                 />
                 <Tooltip
                   cursor={{ fill: "color-mix(in oklch, var(--primary), transparent 94%)" }}

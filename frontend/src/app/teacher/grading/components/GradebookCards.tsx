@@ -113,13 +113,13 @@ export function GradebookCards({ classes, assessments, standings }: Props) {
                 <span className="text-base font-semibold tabular-nums text-foreground">
                   {c.studentCount}
                 </span>
-                <span className="text-[11px] text-muted-foreground">Students</span>
+                <span className="text-[12px] text-muted-foreground">Students</span>
               </span>
               <span className="flex flex-col gap-0.5">
                 <span className="text-base font-semibold tabular-nums text-foreground">
                   {assessmentCount}
                 </span>
-                <span className="text-[11px] text-muted-foreground">Added assessments</span>
+                <span className="text-[12px] text-muted-foreground">Added assessments</span>
               </span>
             </div>
             <div className="flex flex-col gap-1 px-1">

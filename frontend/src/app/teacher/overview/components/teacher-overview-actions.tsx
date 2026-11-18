@@ -48,7 +48,7 @@ function ActionCard({ action }: { action: QuickAction }) {
         className="flex min-w-0 cursor-pointer flex-col gap-1.5 rounded-lg border bg-white p-3 shadow-sm transition-colors hover:border-primary/60 hover:shadow dark:bg-card"
       >
         <span className="flex items-center justify-between gap-2">
-          <span className="truncate font-mono text-[11px] font-medium text-muted-foreground" title={action.href}>
+          <span className="truncate font-mono text-[12px] font-medium text-muted-foreground" title={action.href}>
             {action.href}
           </span>
           <span

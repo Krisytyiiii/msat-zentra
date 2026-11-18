@@ -2,7 +2,7 @@
 
 import * as React from "react";
 import { createPortal } from "react-dom";
-import { CalendarDays, CalendarPlus, ClipboardList, Clock, Loader2, MapPin, X } from "lucide-react";
+import { CalendarDays, CalendarPlus, Check, ClipboardList, Clock, Loader2, MapPin, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { CardModal } from "@/components/ui/CardModal";
@@ -763,10 +763,13 @@ export function BookSessionDialog({
                           aria-busy="true"
                           aria-label="Loading invitable staff"
                         >
-                          <span className="block h-3 w-28 animate-pulse rounded bg-muted" />
-                          <div className={`${board.invitePills} pt-1`}>
-                            <span className="block h-7 w-28 animate-pulse rounded-md bg-muted" />
-                            <span className="block h-7 w-32 animate-pulse rounded-md bg-muted" />
+                          <div
+                            className={board.inviteBanners}
+                            aria-busy="true"
+                            aria-label="Loading invitable staff"
+                          >
+                            <span className="block h-12 w-full animate-pulse rounded-md bg-muted" />
+                            <span className="block h-12 w-full animate-pulse rounded-md bg-muted" />
                           </div>
                         </div>
                       ) : (
@@ -781,7 +784,7 @@ export function BookSessionDialog({
                                   {inviteRoleLabel(role)}
                                 </p>
                                 <div
-                                  className={board.invitePills}
+                                  className={board.inviteBanners}
                                   role="group"
                                   aria-label="Invite staff"
                                 >
@@ -791,12 +794,31 @@ export function BookSessionDialog({
                                       <button
                                         key={s.id}
                                         type="button"
-                                        className={`${board.invitePill}${checked ? ` ${board.invitePillSelected}` : ""}`}
+                                        className={`${board.inviteBanner}${checked ? ` ${board.inviteBannerSelected}` : ""}`}
                                         aria-pressed={checked}
                                         onClick={() => toggleInvite(s.id)}
                                         title={s.fullName}
                                       >
-                                        {s.fullName}
+                                        <span
+                                          className={board.inviteAvatar}
+                                          aria-hidden="true"
+                                        >
+                                          {initialsOf(s.fullName)}
+                                        </span>
+                                        <span className={board.inviteText}>
+                                          <span className={board.inviteName}>
+                                            {s.fullName}
+                                          </span>
+                                          <span className={board.inviteMeta}>
+                                            {inviteRoleLabel(s.role)}
+                                          </span>
+                                        </span>
+                                        <span
+                                          className={board.inviteMark}
+                                          aria-hidden="true"
+                                        >
+                                          {checked ? <Check /> : null}
+                                        </span>
                                       </button>
                                     );
                                   })}

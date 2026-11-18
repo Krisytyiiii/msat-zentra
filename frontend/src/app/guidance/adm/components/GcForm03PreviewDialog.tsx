@@ -210,7 +210,7 @@ export function GcForm03PreviewDialog({
                   type="button"
                   variant="outline"
                   size="sm"
-                  className="h-6 px-2 text-[11px]"
+                  className="h-6 px-2 text-[12px]"
                   onClick={() => window.print()}
                   disabled={!data || !sheetHtml}
                 >
@@ -228,7 +228,7 @@ export function GcForm03PreviewDialog({
                   type="button"
                   variant="outline"
                   size="sm"
-                  className="h-6 px-2 text-[11px]"
+                  className="h-6 px-2 text-[12px]"
                   disabled={!data || !sheetHtml || exporting !== null}
                   onClick={() => void handleSaveImage("png")}
                   aria-busy={exporting === "png" || undefined}
@@ -251,7 +251,7 @@ export function GcForm03PreviewDialog({
                   type="button"
                   variant="outline"
                   size="sm"
-                  className="h-6 px-2 text-[11px]"
+                  className="h-6 px-2 text-[12px]"
                   disabled={!data || !sheetHtml || exporting !== null}
                   onClick={() => void handleSaveImage("jpg")}
                   aria-busy={exporting === "jpg" || undefined}
@@ -274,7 +274,7 @@ export function GcForm03PreviewDialog({
                   type="button"
                   variant="outline"
                   size="sm"
-                  className="h-6 px-2 text-[11px]"
+                  className="h-6 px-2 text-[12px]"
                   disabled={!data || !sheetHtml || exporting !== null}
                   onClick={() => void handleSavePdf()}
                   aria-busy={exporting === "pdf" || undefined}
@@ -297,7 +297,7 @@ export function GcForm03PreviewDialog({
                   <Button
                     type="button"
                     size="sm"
-                    className="h-6 px-2 text-[11px]"
+                    className="h-6 px-2 text-[12px]"
                     disabled={!data || confirming}
                     onClick={onConfirm}
                     aria-busy={confirming || undefined}

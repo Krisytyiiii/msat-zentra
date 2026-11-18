@@ -253,7 +253,7 @@ function ChoiceCard({
         <span className="text-xs font-semibold text-foreground">{title}</span>
         <span
           aria-hidden
-          className={`text-[11px] font-semibold ${selected ? "text-primary" : "text-muted-foreground"}`}
+          className={`text-[12px] font-semibold ${selected ? "text-primary" : "text-muted-foreground"}`}
         >
           {selected ? "● Selected" : "○ Select"}
         </span>
@@ -266,7 +266,7 @@ function ChoiceCard({
 
 function Chip({ icon, children }: { icon?: React.ReactNode; children: React.ReactNode }) {
   return (
-    <span className="inline-flex items-center gap-1 rounded-md border border-border bg-muted/50 px-2 py-0.5 text-[11px] font-medium text-foreground">
+    <span className="inline-flex items-center gap-1 rounded-md border border-border bg-muted/50 px-2 py-0.5 text-[12px] font-medium text-foreground">
       {icon}
       {children}
     </span>

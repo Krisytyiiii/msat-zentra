@@ -16,7 +16,7 @@ const steps = [
   },
   {
     title: "Detect",
-    body: "The risk engine scores academic, attendance, and behavioral signals across each term and raises Low / Moderate / High flags before drift becomes failure.",
+    body: "The risk engine scores academic, attendance, and anecdotal signals across each term and raises Low / Moderate / High flags before drift becomes failure.",
     meta: "Early warning",
     rows: [
       { key: "Academic", value: "High", tone: "high" },

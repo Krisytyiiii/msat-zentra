@@ -1,0 +1,886 @@
+/* Registry finals workspace — shared record-keeper / registrar page.
+   The page is a review surface, not a table: a coverage strip, a selectable
+   index of complete grade sets, and the chosen learner's term rendered with
+   per-subject marks. 1px borders, one accent, 120–180ms micro-motion. */
+
+/* Main stack — one column: coverage deck, grade-set index, learner sheet. */
+.page {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+  padding: 0;
+  min-width: 0;
+  min-height: 100%;
+}
+
+.stack {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+  min-width: 0;
+}
+
+/* True-empty state: one centered callout, no rail column. */
+.pageEmpty.pageEmpty {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  min-height: calc(100vh - 3rem - 2rem);
+  min-height: calc(100dvh - 3rem - 2rem);
+  padding: 0;
+  overflow: clip;
+}
+
+@media (max-width: 1023px) {
+  .pageEmpty.pageEmpty {
+    min-height: calc(100vh - 6rem - 2rem);
+    min-height: calc(100dvh - 6rem - 2rem);
+  }
+}
+
+/* ------------------------------------------------------------- title bar -- */
+
+.bar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.5rem 1rem;
+}
+
+.barText {
+  display: flex;
+  flex-direction: column;
+  gap: 0.125rem;
+  min-width: 0;
+}
+
+.title {
+  margin: 0;
+  font-size: 1rem;
+  font-weight: 700;
+  letter-spacing: -0.015em;
+  line-height: 1.3;
+}
+
+.searchWrap {
+  position: relative;
+  display: flex;
+  align-items: center;
+}
+
+.searchIcon {
+  position: absolute;
+  left: 0.625rem;
+  width: 0.9375rem;
+  height: 0.9375rem;
+  color: var(--muted-foreground);
+  pointer-events: none;
+}
+
+/* Board-header search inside the Grade sets column — full width of the
+   index, 16px radius like the other registry board searches. */
+.search {
+  width: 240px;
+  max-width: 100%;
+  height: 2rem;
+  padding-left: 2rem;
+  border-radius: 1rem;
+}
+
+/* ----------------------------------------------------------- stat deck -- */
+
+/* Same anatomy as the overview's attention deck: one bordered strip with a
+   muted header row and a divided tile per stat (icon + label, big number,
+   3px meter, hint). Amber is the registry accent, so the meter carries it. */
+.stats {
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-xl);
+  background-color: var(--card);
+}
+
+.statsHead {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.375rem 0.75rem;
+  padding: 0.5rem 0.875rem;
+  border-bottom: 1px solid var(--border);
+  background-color: color-mix(in oklch, var(--muted) 45%, transparent);
+}
+
+.statsTitle {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.375rem;
+  font-size: 0.8125rem;
+  font-weight: 600;
+}
+
+.statsTitle > svg {
+  width: 0.875rem;
+  height: 0.875rem;
+  color: var(--muted-foreground);
+}
+
+.statTiles {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+}
+
+.statTile {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  gap: 0.4375rem;
+  min-width: 0;
+  padding: 0.6875rem 0.875rem 0.75rem;
+  border-right: 1px solid var(--border);
+}
+
+.statTile:last-child {
+  border-right: 0;
+}
+
+.statTop {
+  display: flex;
+  align-items: center;
+  gap: 0.4375rem;
+  min-width: 0;
+}
+
+.statIcon {
+  display: inline-flex;
+  flex-shrink: 0;
+  align-items: center;
+  justify-content: center;
+  width: 1.375rem;
+  height: 1.375rem;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  background-color: color-mix(in oklch, var(--muted) 55%, transparent);
+  color: var(--muted-foreground);
+}
+
+.statIcon > svg {
+  width: 0.8125rem;
+  height: 0.8125rem;
+}
+
+.statLabel {
+  min-width: 0;
+  overflow: hidden;
+  font-size: 0.75rem;
+  font-weight: 600;
+  color: var(--muted-foreground);
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.statValue {
+  display: flex;
+  align-items: baseline;
+  gap: 0.3125rem;
+  min-width: 0;
+}
+
+.statNumber {
+  font-size: 1.75rem;
+  font-weight: 700;
+  line-height: 1;
+  letter-spacing: -0.02em;
+  font-variant-numeric: tabular-nums;
+}
+
+.statTileClear .statNumber {
+  font-weight: 600;
+  color: var(--muted-foreground);
+}
+
+.statUnit {
+  font-size: 0.75rem;
+  font-weight: 600;
+  letter-spacing: 0.07em;
+  text-transform: uppercase;
+  color: var(--muted-foreground);
+  white-space: nowrap;
+}
+
+.statMeter {
+  position: relative;
+  height: 3px;
+  overflow: hidden;
+  border-radius: 9999px;
+  background-color: color-mix(in oklch, var(--foreground), transparent 92%);
+}
+
+.statMeterFill {
+  display: block;
+  height: 100%;
+  border-radius: inherit;
+  background-color: #f59e0b;
+  transition: width 640ms cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+.statTileClear .statMeterFill {
+  background-color: color-mix(in oklch, var(--foreground), transparent 72%);
+}
+
+.statHint {
+  overflow: hidden;
+  font-size: 0.75rem;
+  color: var(--muted-foreground);
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* ------------------------------------------------------------- workspace -- */
+
+.workspace {
+  display: grid;
+  grid-template-columns: minmax(17rem, 20rem) minmax(0, 1fr);
+  align-items: start;
+  gap: 0.75rem;
+  min-width: 0;
+}
+
+@media (max-width: 1120px) {
+  .workspace {
+    grid-template-columns: 1fr;
+  }
+}
+
+/* ------------------------------------------------------------------ index -- */
+
+.index {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  background-color: var(--card);
+  overflow: hidden;
+}
+
+/* Index header: title + count row, then the search field that scopes the
+   board (the page title bar no longer carries it). */
+.indexHead {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  padding: 0.5rem 0.75rem;
+  border-bottom: 1px solid var(--border);
+}
+
+.indexHeadTop {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.5rem;
+  min-width: 0;
+}
+
+.indexTitle {
+  font-size: 0.75rem;
+  font-weight: 600;
+  letter-spacing: 0.01em;
+}
+
+.indexList {
+  display: flex;
+  flex-direction: column;
+  max-height: clamp(16rem, 50vh, 30rem);
+  overflow-y: auto;
+  outline: none;
+  scrollbar-width: thin;
+}
+
+.indexItem {
+  position: relative;
+  display: flex;
+  align-items: center;
+  gap: 0.5625rem;
+  width: 100%;
+  min-width: 0;
+  padding: 0.5rem 0.75rem;
+  border: 0;
+  border-bottom: 1px solid color-mix(in oklch, var(--border) 60%, transparent);
+  background-color: transparent;
+  color: inherit;
+  text-align: left;
+  cursor: pointer;
+  transition:
+    background-color 140ms ease-out,
+    box-shadow 140ms ease-out;
+}
+
+.indexItem:last-child {
+  border-bottom: 0;
+}
+
+.indexItem:hover {
+  background-color: color-mix(in oklch, var(--muted) 55%, transparent);
+}
+
+.indexItem:focus-visible {
+  box-shadow: inset 0 0 0 2px var(--ring);
+  outline: none;
+}
+
+/* Selected learner: one accent inset bar + tinted row. */
+.indexItem[data-selected="true"] {
+  background-color: color-mix(in oklch, var(--primary) 7%, transparent);
+  box-shadow: inset 2px 0 0 var(--primary);
+}
+
+.indexItem[data-selected="true"]:hover {
+  background-color: color-mix(in oklch, var(--primary) 10%, transparent);
+}
+
+.indexText {
+  display: flex;
+  flex-direction: column;
+  gap: 0.0625rem;
+  min-width: 0;
+  flex: 1;
+}
+
+.indexName {
+  font-size: 0.8125rem;
+  font-weight: 600;
+  line-height: 1.3;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+/* LRN + term chips on an index row — shared pills, so only the row gap and
+   clipping live here. */
+.indexMeta {
+  display: flex;
+  align-items: center;
+  gap: 0.25rem;
+  min-width: 0;
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+  overflow: hidden;
+}
+
+.indexNote {
+  margin: 0;
+  padding: 1.5rem 0.875rem;
+  text-align: center;
+  font-size: 0.75rem;
+  color: var(--muted-foreground);
+}
+
+/* No-match state — the shared amber insight callout, centered in the index. */
+.indexCallout {
+  display: flex;
+  justify-content: center;
+  padding: 1.25rem 0.75rem;
+}
+
+.indexFoot {
+  border-top: 1px solid var(--border);
+  padding: 0.375rem 0.5rem;
+}
+
+/* Index skeletons — heights mirror the real row (name line + 17px pills). */
+.skelAvatar {
+  width: 1.875rem;
+  height: 1.875rem;
+  border-radius: 9999px;
+  flex-shrink: 0;
+}
+
+.skelName {
+  height: 1.0625rem;
+  width: 65%;
+}
+
+/* Placeholder chips stand in for the shared LRN / term pills. */
+.skelPillLrn {
+  width: 5.5rem;
+  height: 1.0625rem;
+  border-radius: var(--radius-md);
+}
+
+.skelPillTerm {
+  width: 4.25rem;
+  height: 1.0625rem;
+  border-radius: var(--radius-md);
+}
+
+.skelRing {
+  width: 2rem;
+  height: 2rem;
+  border-radius: 9999px;
+  flex-shrink: 0;
+}
+
+/* ------------------------------------------------------------------ rings -- */
+
+.ring {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  animation: ring-in 260ms cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+
+@keyframes ring-in {
+  from {
+    opacity: 0;
+    transform: scale(0.94);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+
+.ring svg {
+  position: absolute;
+  inset: 0;
+  transform: rotate(-90deg);
+}
+
+.ringTrack {
+  fill: none;
+  stroke: color-mix(in oklch, var(--muted-foreground) 22%, transparent);
+}
+
+.ringFill {
+  fill: none;
+  stroke-linecap: round;
+  transition: stroke-dashoffset 480ms cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+.ring[data-tone="green"] .ringFill {
+  stroke: #10b981;
+}
+
+.ring[data-tone="amber"] .ringFill {
+  stroke: #f59e0b;
+}
+
+.ring[data-tone="red"] .ringFill {
+  stroke: #ef4444;
+}
+
+.ringValue {
+  position: relative;
+  font-weight: 700;
+  line-height: 1;
+  font-variant-numeric: tabular-nums;
+  letter-spacing: -0.02em;
+}
+
+.ring[data-tone="green"] .ringValue {
+  color: #047857;
+}
+
+:global(.dark) .ring[data-tone="green"] .ringValue {
+  color: #34d399;
+}
+
+.ring[data-tone="amber"] .ringValue {
+  color: #b45309;
+}
+
+:global(.dark) .ring[data-tone="amber"] .ringValue {
+  color: #fbbf24;
+}
+
+.ring[data-tone="red"] .ringValue {
+  color: #b91c1c;
+}
+
+:global(.dark) .ring[data-tone="red"] .ringValue {
+  color: #f87171;
+}
+
+/* ----------------------------------------------------------------- detail -- */
+
+.detail {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  background-color: var(--card);
+  overflow: hidden;
+}
+
+.detailHead {
+  display: flex;
+  align-items: center;
+  gap: 0.6875rem;
+  padding: 0.75rem 0.875rem;
+  border-bottom: 1px solid var(--border);
+}
+
+.detailIdentity {
+  display: flex;
+  flex-direction: column;
+  gap: 0.3125rem;
+  min-width: 0;
+  flex: 1;
+}
+
+.detailName {
+  margin: 0;
+  font-size: 0.9375rem;
+  font-weight: 650;
+  letter-spacing: -0.01em;
+  line-height: 1.25;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.detailPills {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.3125rem;
+}
+
+.detailScore {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.25rem;
+  flex-shrink: 0;
+}
+
+.detailScoreLabel {
+  font-size: 0.75rem;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--muted-foreground);
+  white-space: nowrap;
+}
+
+.detailNav {
+  display: flex;
+  align-items: center;
+  gap: 0.125rem;
+  flex-shrink: 0;
+}
+
+.detailStatus {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.375rem 0.875rem;
+  padding: 0.4375rem 0.875rem;
+  border-bottom: 1px solid var(--border);
+  background-color: color-mix(in oklch, var(--muted) 35%, transparent);
+  font-size: 0.75rem;
+  color: var(--muted-foreground);
+}
+
+.detailStatusItem {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.3125rem;
+  white-space: nowrap;
+}
+
+.detailStatusWarn {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.3125rem;
+  font-weight: 600;
+  color: #b91c1c;
+}
+
+:global(.dark) .detailStatusWarn {
+  color: #f87171;
+}
+
+/* Subject tiles — the sheet's centrepiece. Each subject gets its own card so
+   the subject name, its teacher and the final grade read at a glance instead
+   of competing for space in a table row. */
+.subjectGrid {
+  list-style: none;
+  margin: 0;
+  padding: 0.75rem;
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(15.5rem, 1fr));
+  align-content: start;
+  gap: 0.5rem;
+  flex: 1;
+  max-height: clamp(14rem, 46vh, 30rem);
+  overflow-y: auto;
+  scrollbar-width: thin;
+}
+
+.subjectCard {
+  display: flex;
+  flex-direction: column;
+  gap: 0.4375rem;
+  min-width: 0;
+  padding: 0.625rem 0.6875rem 0.5625rem;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  background-color: color-mix(in oklch, var(--muted) 25%, transparent);
+  transition:
+    border-color 140ms ease-out,
+    background-color 140ms ease-out;
+}
+
+.subjectCard:hover {
+  border-color: color-mix(in oklch, var(--foreground), transparent 78%);
+  background-color: color-mix(in oklch, var(--muted) 45%, transparent);
+}
+
+.subjectTop {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 0.5rem;
+  min-width: 0;
+}
+
+.subjectHeading {
+  display: flex;
+  flex-direction: column;
+  gap: 0.125rem;
+  min-width: 0;
+}
+
+.subjectName {
+  font-size: 0.875rem;
+  font-weight: 650;
+  letter-spacing: -0.01em;
+  line-height: 1.3;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+
+.subjectCode {
+  font-size: 0.75rem;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--muted-foreground);
+}
+
+.subjectGradeWrap {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 0.0625rem;
+  flex-shrink: 0;
+}
+
+.subjectGradeLabel {
+  font-size: 0.75rem;
+  font-weight: 600;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--muted-foreground);
+}
+
+.subjectGrade {
+  font-size: 1.25rem;
+  font-weight: 700;
+  line-height: 1;
+  letter-spacing: -0.02em;
+  font-variant-numeric: tabular-nums;
+}
+
+/* Teacher line — the field the desk uses to chase a grade, so it carries the
+   strongest text after the subject name. */
+.subjectTeacher {
+  display: flex;
+  align-items: center;
+  gap: 0.3125rem;
+  margin: 0;
+  min-width: 0;
+  font-size: 0.75rem;
+  color: var(--muted-foreground);
+}
+
+.subjectTeacher > svg {
+  flex-shrink: 0;
+  opacity: 0.75;
+}
+
+.teacherLabel {
+  font-size: 0.75rem;
+  font-weight: 600;
+  letter-spacing: 0.07em;
+  text-transform: uppercase;
+  color: var(--muted-foreground);
+}
+
+.teacherName {
+  font-size: 0.75rem;
+  font-weight: 600;
+  color: var(--foreground);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.subjectTeacher[data-empty="true"] .teacherName {
+  font-weight: 500;
+  font-style: italic;
+  color: var(--muted-foreground);
+}
+
+.subjectTrack {
+  position: relative;
+  height: 5px;
+  margin-top: auto;
+  border-radius: 9999px;
+  background-color: color-mix(in oklch, var(--muted-foreground) 18%, transparent);
+  overflow: hidden;
+}
+
+.subjectFoot {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.5rem;
+}
+
+.subjectComputed {
+  font-size: 0.75rem;
+  color: var(--muted-foreground);
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+
+.subjectFill {
+  position: absolute;
+  inset-block: 0;
+  left: 0;
+  border-radius: inherit;
+  transform-origin: left center;
+  animation: subject-fill-in 520ms cubic-bezier(0.22, 1, 0.36, 1) both;
+  transition: width 480ms cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+@keyframes subject-fill-in {
+  from {
+    transform: scaleX(0);
+  }
+  to {
+    transform: scaleX(1);
+  }
+}
+
+.subjectFill[data-tone="green"] {
+  background-color: #10b981;
+}
+
+.subjectFill[data-tone="red"] {
+  background-color: #ef4444;
+}
+
+.subjectGrade[data-tone="green"] {
+  color: #047857;
+}
+
+:global(.dark) .subjectGrade[data-tone="green"] {
+  color: #34d399;
+}
+
+.subjectGrade[data-tone="red"] {
+  color: #b91c1c;
+}
+
+:global(.dark) .subjectGrade[data-tone="red"] {
+  color: #f87171;
+}
+
+.detailFoot {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.5rem;
+  padding: 0.5rem 0.875rem;
+  border-top: 1px solid var(--border);
+  background-color: color-mix(in oklch, var(--muted) 30%, transparent);
+}
+
+.detailFootNote {
+  font-size: 0.75rem;
+  color: var(--muted-foreground);
+}
+
+/* No learner picked — the shared amber insight callout, centered in the
+   detail sheet. */
+.detailEmpty {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 3rem 1rem;
+}
+
+/* -------------------------------------------------------------- responsive -- */
+
+@media (max-width: 900px) {
+  .statTiles {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .statTile:nth-child(2) {
+    border-right: 0;
+  }
+
+  .statTile:nth-child(-n + 2) {
+    border-bottom: 1px solid var(--border);
+  }
+}
+
+@media (max-width: 520px) {
+  .statTiles {
+    grid-template-columns: 1fr;
+  }
+
+  .statTile {
+    border-right: 0;
+    border-bottom: 1px solid var(--border);
+  }
+
+  .statTile:last-child {
+    border-bottom: 0;
+  }
+}
+
+@media (max-width: 720px) {
+  .subjectGrid {
+    grid-template-columns: minmax(0, 1fr);
+    padding: 0.625rem;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .ringFill,
+  .subjectFill,
+  .statMeterFill,
+  .indexItem {
+    transition: none;
+  }
+
+  .ring,
+  .subjectFill {
+    animation: none;
+  }
+}

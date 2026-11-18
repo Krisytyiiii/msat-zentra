@@ -1,8 +1,8 @@
 "use client";
 import { HeartHandshake, Search } from "lucide-react";
+import { FilterTabs } from "@/components/ui/filter-tabs";
 import { Input } from "@/components/ui/input";
 import { InsightCallout } from "@/components/ui/insight-callout";
-import { Pill } from "@/components/ui/pill";
 import { KanbanBoard } from "@/components/ui/kanban-board";
 import type {
   AtRiskStudentItem,
@@ -25,40 +25,7 @@ const STATUS_OPTIONS: { value: InterventionStatusFilter; label: string }[] = [
   { value: "risk_cleared", label: "No longer at risk" },
 ];
 
-/** Pill tab group — same markup/behaviour as the alerts desk FilterTabs. */
-function FilterTabs<T extends string>({
-  label,
-  options,
-  value,
-  onChange,
-  tone,
-}: {
-  label: string;
-  options: { value: T; label: string }[];
-  value: T;
-  onChange: (next: T) => void;
-  tone: "amber" | "blue";
-}) {
-  return (
-    <div className="flex flex-wrap items-center gap-1" role="tablist" aria-label={label}>
-      {options.map((option) => {
-        const active = value === option.value;
-        return (
-          <button
-            key={option.label}
-            type="button"
-            role="tab"
-            aria-selected={active}
-            onClick={() => onChange(option.value)}
-            className="inline-flex cursor-pointer rounded-md p-0 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring"
-          >
-            <Pill tone={active ? tone : "neutral"}>{option.label}</Pill>
-          </button>
-        );
-      })}
-    </div>
-  );
-}
+/** Pill tab group — the shared segmented filter tabs. */
 export interface InterventionTableViewProps {
   summary: GuidanceInterventionsSummary;
   students: AtRiskStudentItem[];
@@ -138,7 +105,6 @@ export function InterventionTableView({
             options={STATUS_OPTIONS}
             value={status}
             onChange={onStatusChange}
-            tone="amber"
           />
         </div>
       }

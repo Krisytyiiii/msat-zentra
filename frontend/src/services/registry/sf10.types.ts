@@ -11,12 +11,13 @@ export type Sf10Version = {
 
 export type Sf10Record = {
   id: string;
-  studentId: string;
-  /** Desk that filed this record — each desk keeps its own per student. */
+  /** Desk that filed this record — each desk keeps its own file per LRN. */
   desk: Sf10Desk;
+  /** The record's identity: the LRN written on the filed SF10. */
   lrn: string;
   fullName: string;
-  gradeLevel: "G7" | "G8" | "G9" | "G10" | "G11" | "G12";
+  /** Highest grade the file classifies; null when the form says nothing. */
+  gradeLevel: "G7" | "G8" | "G9" | "G10" | "G11" | "G12" | null;
   section: string;
   status: Sf10Status;
   source: Sf10Source;
@@ -107,11 +108,19 @@ export type Sf10PerGradeMap = {
 
 export type Sf10SubjectMapResponse = {
   id: string;
-  gradeLevel: string;
+  lrn?: string;
+  /** Null when the filed form classifies no grade level. */
+  gradeLevel: string | null;
   ocrStatus: "ready" | "processing";
   confidence: number;
   /** Learner name read from the uploaded file itself. */
   learner: Sf10LearnerIdentity | null;
+  /** Extractor that read the file (e.g. "local-ocr-tesseract-v1"). */
+  engine?: string | null;
+  /** ISO timestamp of the extraction run. */
+  ocrAt?: string | null;
+  /** First ~2k chars of the raw text read from the file, for traceability. */
+  rawTextPreview?: string | null;
   needsReview: boolean;
   schoolSubjectCount: number;
   ocrSubjectCount: number;
@@ -141,9 +150,20 @@ export type Sf10UploadResult = {
 export type Sf10AutoUploadResult = Sf10UploadResult & {
   studentCreated: boolean;
   learner: Sf10LearnerIdentity | null;
+  /** The record's identity: the LRN read off the file. */
+  lrn: string;
+  /** Learner name as written on the file (display only). */
+  learnerName: string | null;
   matched: { kind: string; score: number; fullName: string } | null;
-  gradeLevel: string;
+  /** Null when the file classifies no grade level. */
+  gradeLevel: string | null;
   deficiencies: Array<{ code: string; name: string; norm: string; gradeLevel: string; category: string }>;
+  /** Subjects the extractor read out of the file (0 when nothing was read). */
+  subjectsRead: number;
+  /** Extractor that read the file (e.g. "local-ocr-tesseract-v1"). */
+  engine: string;
+  /** Extractor confidence, 0–1. */
+  confidence: number;
 };
 
 export type Sf10LearnerIdentity = {

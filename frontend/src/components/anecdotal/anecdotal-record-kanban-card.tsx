@@ -113,6 +113,12 @@ export function AnecdotalRecordKanbanCard({
   const iconColor =
     categoryColor ?? ANECDOTAL_CATEGORY_COLORS[category] ?? "var(--muted-foreground)";
   const spriteSize = mascotSize ?? (folderLeft ? 44 : 28);
+  const identityColumnClass =
+    mascotSeed || stackIdentity
+      ? `flex min-w-0 flex-col items-start gap-1${
+          folderLeft ? " flex-1" : " max-w-full"
+        }`
+      : "flex min-w-0 flex-wrap items-center gap-1.5";
   const folderNode = (
     <span
       className={
@@ -138,7 +144,7 @@ export function AnecdotalRecordKanbanCard({
     </span>
   );
   return (
-    <div className="flex min-w-0 flex-1 flex-col gap-2 rounded-xl border border-border bg-muted/60 p-2.5 text-left transition-colors [font-family:var(--font-inter)] hover:border-primary/60 hover:shadow dark:bg-muted/20">
+    <div className="flex min-w-0 flex-1 flex-col gap-2 overflow-hidden rounded-xl border border-border bg-muted/60 p-2.5 text-left transition-colors [font-family:var(--font-inter)] hover:border-primary/60 hover:shadow dark:bg-muted/20">
       <button
         type="button"
         onClick={onOpen}
@@ -178,24 +184,16 @@ export function AnecdotalRecordKanbanCard({
             />
           ) : null}
           <span
-            className={
-              mascotSeed || stackIdentity
-                ? "flex min-w-0 flex-col items-start gap-1"
-                : "flex min-w-0 flex-wrap items-center gap-1.5"
-            }
+            className={identityColumnClass}
           >
             {plainName ? (
-              <span className="min-w-0 truncate text-[14px] font-semibold leading-tight">
+              <span className="min-w-0 max-w-full truncate text-[14px] font-semibold leading-tight">
                 {studentName}
               </span>
             ) : (
-              <Pill
-                tone="amber"
-                label="Student"
-                className="min-w-0 max-w-full overflow-hidden"
-              >
-                <span className="truncate">{studentName}</span>
-              </Pill>
+              <span className="min-w-0 max-w-full truncate text-[13px] font-semibold text-foreground">
+                {studentName}
+              </span>
             )}
             <span
               className={

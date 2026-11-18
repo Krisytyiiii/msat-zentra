@@ -4,6 +4,8 @@ import * as React from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import {
   ADVISER_ADM_BOOKED_EVENT,
+  ADVISER_ADM_MEETING_BOOKED_EVENT,
+  ADVISER_ADM_MEETING_RESCHEDULED_EVENT,
   ADVISER_ADM_REJECTED_EVENT,
   ADVISER_ADM_RESCHEDULED_EVENT,
   ADVISER_COUNSELING_BOOKED_EVENT,
@@ -18,6 +20,10 @@ import {
   ADVISER_SESSION_ALERT_EVENT,
   ADVISER_SESSION_CANCELLED_EVENT,
   ADVISER_SESSION_RESCHED_EVENT,
+  ADVISER_SF10_GRANTED_EVENT,
+  ADVISER_SF10_GRANTED_REGISTRAR_EVENT,
+  ADVISER_SF10_MISSING_EVENT,
+  ADVISER_SF10_MISSING_REGISTRAR_EVENT,
 } from "@/lib/realtime/teacherChannel";
 import {
   playDeskSound,
@@ -25,6 +31,8 @@ import {
   isAdviserAdmBooked,
   isAdviserAdmBookedClinic,
   isAdviserAdmEndorsedClinic,
+  isAdviserAdmMeetingBooked,
+  isAdviserAdmMeetingRescheduled,
   isAdviserAdmRejected,
   isAdviserAdmRejectedClinic,
   isAdviserAdmRescheduled,
@@ -43,6 +51,10 @@ import {
   isAdviserSessionBooked,
   isAdviserSessionCancelled,
   isAdviserSessionRescheduled,
+  isAdviserSf10Granted,
+  isAdviserSf10GrantedRegistrar,
+  isAdviserSf10Missing,
+  isAdviserSf10MissingRegistrar,
 } from "@/lib/notify/deskSounds";
 import { useDeskCatchUp } from "@/lib/notify/deskCatchUp";
 import { useDeskSoundTitle } from "@/lib/notify/useDeskSoundTitle";
@@ -82,7 +94,7 @@ import {
  * detected while the adviser was signed out still rings once on arrival.
  */
 
-const BOARD_POLL_MS = 15_000;
+const BOARD_POLL_MS = 60_000;
 /** Learners this desk already rang for, per adviser + term. */
 const RUNG_KEY_PREFIX = "zentra.adviser.risk.rung";
 
@@ -140,6 +152,8 @@ export function AdviserRiskAlertMonitor() {
       "adviserAdmRejected",
       "adviserAdmBooked",
       "adviserAdmRescheduled",
+      "adviserAdmMeetingBooked",
+      "adviserAdmMeetingRescheduled",
       "adviserAdmRejectedClinic",
       "adviserAdmBookedClinic",
       "adviserAdmRescheduledClinic",
@@ -150,6 +164,10 @@ export function AdviserRiskAlertMonitor() {
       "adviserClinicBooked",
       "adviserClinicRejected",
       "adviserClinicRescheduled",
+      "adviserSf10Granted",
+      "adviserSf10Missing",
+      "adviserSf10GrantedRegistrar",
+      "adviserSf10MissingRegistrar",
     ]);
   }, []);
 
@@ -176,6 +194,9 @@ export function AdviserRiskAlertMonitor() {
       playDeskSound(
         isClinic(event) ? "adviserAdmRescheduledClinic" : "adviserAdmRescheduled",
       );
+    const onAdmMeetingBooked = () => playDeskSound("adviserAdmMeetingBooked");
+    const onAdmMeetingRescheduled = () =>
+      playDeskSound("adviserAdmMeetingRescheduled");
     const onCounselingBooked = () => playDeskSound("adviserCounselingBooked");
     const onCounselingRejected = () => playDeskSound("adviserCounselingRejected");
     const onCounselingRescheduled = () =>
@@ -191,6 +212,14 @@ export function AdviserRiskAlertMonitor() {
     window.addEventListener(ADVISER_ADM_REJECTED_EVENT, onAdmRejected);
     window.addEventListener(ADVISER_ADM_BOOKED_EVENT, onAdmBooked);
     window.addEventListener(ADVISER_ADM_RESCHEDULED_EVENT, onAdmRescheduled);
+    window.addEventListener(
+      ADVISER_ADM_MEETING_BOOKED_EVENT,
+      onAdmMeetingBooked,
+    );
+    window.addEventListener(
+      ADVISER_ADM_MEETING_RESCHEDULED_EVENT,
+      onAdmMeetingRescheduled,
+    );
     window.addEventListener(ADVISER_COUNSELING_BOOKED_EVENT, onCounselingBooked);
     window.addEventListener(
       ADVISER_COUNSELING_REJECTED_EVENT,
@@ -216,6 +245,14 @@ export function AdviserRiskAlertMonitor() {
       window.removeEventListener(ADVISER_ADM_BOOKED_EVENT, onAdmBooked);
       window.removeEventListener(ADVISER_ADM_RESCHEDULED_EVENT, onAdmRescheduled);
       window.removeEventListener(
+        ADVISER_ADM_MEETING_BOOKED_EVENT,
+        onAdmMeetingBooked,
+      );
+      window.removeEventListener(
+        ADVISER_ADM_MEETING_RESCHEDULED_EVENT,
+        onAdmMeetingRescheduled,
+      );
+      window.removeEventListener(
         ADVISER_COUNSELING_BOOKED_EVENT,
         onCounselingBooked,
       );
@@ -236,6 +273,42 @@ export function AdviserRiskAlertMonitor() {
     };
   }, [isAdviser]);
 
+  // Registry-desk answers to an SF10 access request this teacher filed: a grant
+  // rings the grant clip, a "missing" report its own clip. Registered without
+  // the `isAdviser` gate on purpose — these notification rows are only ever
+  // fanned out to the forwarding adviser, and the overview query (`isAdviser`)
+  // may not have resolved yet when the answer lands, which used to drop it.
+  React.useEffect(() => {
+    const onSf10Granted = () => playDeskSound("adviserSf10Granted");
+    const onSf10Missing = () => playDeskSound("adviserSf10Missing");
+    const onSf10GrantedRegistrar = () =>
+      playDeskSound("adviserSf10GrantedRegistrar");
+    const onSf10MissingRegistrar = () =>
+      playDeskSound("adviserSf10MissingRegistrar");
+    window.addEventListener(ADVISER_SF10_GRANTED_EVENT, onSf10Granted);
+    window.addEventListener(ADVISER_SF10_MISSING_EVENT, onSf10Missing);
+    window.addEventListener(
+      ADVISER_SF10_GRANTED_REGISTRAR_EVENT,
+      onSf10GrantedRegistrar,
+    );
+    window.addEventListener(
+      ADVISER_SF10_MISSING_REGISTRAR_EVENT,
+      onSf10MissingRegistrar,
+    );
+    return () => {
+      window.removeEventListener(ADVISER_SF10_GRANTED_EVENT, onSf10Granted);
+      window.removeEventListener(ADVISER_SF10_MISSING_EVENT, onSf10Missing);
+      window.removeEventListener(
+        ADVISER_SF10_GRANTED_REGISTRAR_EVENT,
+        onSf10GrantedRegistrar,
+      );
+      window.removeEventListener(
+        ADVISER_SF10_MISSING_REGISTRAR_EVENT,
+        onSf10MissingRegistrar,
+      );
+    };
+  }, []);
+
   // Login catch-up: if a "session booked"/"session moved"/"session cancelled"/
   // referral decision landed while the adviser was signed out (or on another
   // device), ring it once on arrival instead of staying silent until the next
@@ -246,6 +319,9 @@ export function AdviserRiskAlertMonitor() {
     enabled: isAdviser,
     title: "Updates for your advisees",
     clipFor: (row) => {
+      // Coordinator desk parent-meeting track (its own table fanout).
+      if (isAdviserAdmMeetingBooked(row)) return "adviserAdmMeetingBooked";
+      if (isAdviserAdmMeetingRescheduled(row)) return "adviserAdmMeetingRescheduled";
       if (isAdviserClinicBooked(row)) return "adviserClinicBooked";
       if (isAdviserClinicRejected(row)) return "adviserClinicRejected";
       if (isAdviserClinicRescheduled(row)) return "adviserClinicRescheduled";
@@ -270,6 +346,15 @@ export function AdviserRiskAlertMonitor() {
       if (isAdviserSessionBooked(row) || isAdviserReferralSessionBooked(row)) {
         return "adviserSession";
       }
+      // A registry desk answered an SF10 access request this adviser filed.
+      // Grants ring the confirmation clip; denials share the table and stay
+      // silent (the classifier only matches approved wording). The registrar
+      // desk has its own clips — checked first because its wording also
+      // matches the record keeper classifiers.
+      if (isAdviserSf10GrantedRegistrar(row)) return "adviserSf10GrantedRegistrar";
+      if (isAdviserSf10MissingRegistrar(row)) return "adviserSf10MissingRegistrar";
+      if (isAdviserSf10Granted(row)) return "adviserSf10Granted";
+      if (isAdviserSf10Missing(row)) return "adviserSf10Missing";
       return null;
     },
   });

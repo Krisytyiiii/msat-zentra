@@ -2,7 +2,7 @@ import { describe, it, expect, vi, afterAll } from "vitest";
 
 vi.mock("../src/lib/storage.js", () => ({
   uploadFile: async (_buffer: unknown, path: string) => `https://storage.test/${path}`,
-  sf10ObjectPath: (studentId: string, ext: string) => `sf10/${studentId}-test.${ext}`,
+  sf10ObjectPath: (lrn: string, ext: string) => `sf10/${lrn}-test.${ext}`,
   getSf10Bucket: () => "test-bucket",
 }));
 
@@ -24,6 +24,16 @@ async function staffCtx() {
   return { userId: keeper.id, role: "record_keeper" };
 }
 
+/** A learner that already exists in the record keeper's band (G7–G10). */
+async function existingLearner() {
+  const profile = await prisma.studentProfile.findFirst({
+    where: { gradeLevel: { in: ["G7", "G8", "G9", "G10"] } },
+    select: { userId: true, lrn: true, gradeLevel: true, user: { select: { fullName: true } } },
+  });
+  if (!profile?.lrn) throw new Error("No G7–G10 learner in test database");
+  return profile;
+}
+
 async function learnerFile(lrn: string, classifiedGrade: string | null = "7") {
   const Excel = (ExcelJS as unknown as { default?: typeof ExcelJS }).default ?? ExcelJS;
   const wb = new Excel.Workbook();
@@ -42,7 +52,7 @@ async function learnerFile(lrn: string, classifiedGrade: string | null = "7") {
   };
 }
 
-const created: { userId?: string; recordId?: string } = {};
+const created: { recordId?: string } = {};
 
 afterAll(async () => {
   try {
@@ -51,78 +61,94 @@ afterAll(async () => {
       await prisma.sf10RecordVersion.deleteMany({ where: { sf10RecordId: created.recordId } });
       await prisma.sf10Record.deleteMany({ where: { id: created.recordId } });
     }
-    if (created.userId) {
-      await prisma.auditLog.deleteMany({ where: { sourceId: created.userId } });
-      await prisma.studentProfile.deleteMany({ where: { userId: created.userId } });
-      await prisma.user.deleteMany({ where: { id: created.userId } });
-    }
   } catch {
     // Best-effort cleanup only.
   }
   await prisma.$disconnect();
-});
+}, 30_000);
 
-describe("SF10 upload-auto (no roster match → record created from file)", () => {
-  it("reports an unreadable record grade without writing (no roster talk)", async () => {
+describe("SF10 upload-auto (LRN-keyed storage — a file, never enrolment)", () => {
+  it("rejects a file with no readable LRN without writing anything", async () => {
     const ctx = await staffCtx();
-    const file = await learnerFile(novelLrn(), null);
+    const file = await learnerFile("");
     const err = await uploadAuto(ctx, { file }).catch((e: unknown) => e);
     expect(err).toBeInstanceOf(AppError);
-    expect((err as AppError).code).toBe("NO_GRADE_IN_FILE");
-    expect((err as AppError).message).not.toMatch(/roster/i);
+    expect((err as AppError).code).toBe("NEEDS_LRN");
   });
 
-  it("creates the student record at the file's classified grade and stores it as attached", async () => {
+  it("stores a file for an LRN the school has never enrolled — no account created", async () => {
     const ctx = await staffCtx();
     const lrn = novelLrn();
     const file = await learnerFile(lrn);
     const result = await uploadAuto(ctx, { file });
-    expect(result.studentCreated).toBe(true);
+    expect(result.studentCreated).toBe(false);
+    expect(result.lrn).toBe(lrn);
+    expect(result.matched?.kind).toBe("no-account");
+    expect(await prisma.studentProfile.findUnique({ where: { lrn } })).toBeNull();
+    expect(await prisma.user.findUnique({ where: { email: `${lrn}@sf10-provisioned.local` } })).toBeNull();
+
+    const record = await prisma.sf10Record.findUnique({
+      where: { id: result.id },
+      select: { lrn: true, learnerName: true, status: true },
+    });
+    expect(record?.lrn).toBe(lrn);
+    expect(record?.learnerName).toContain("AUTOPROV");
+    expect(record?.status).toBe("attach");
+
+    await prisma.auditLog.deleteMany({ where: { sourceId: result.id } });
+    await prisma.sf10RecordVersion.deleteMany({ where: { sf10RecordId: result.id } });
+    await prisma.sf10Record.deleteMany({ where: { id: result.id } });
+  }, 30_000);
+
+  it("files the record under the LRN written on the file (existing learner stays untouched)", async () => {
+    const ctx = await staffCtx();
+    const learner = await existingLearner();
+    const file = await learnerFile(learner.lrn as string);
+    const result = await uploadAuto(ctx, { file });
+    expect(result.studentCreated).toBe(false);
+    expect(result.lrn).toBe(learner.lrn);
+    // Grade comes from the filed form, not from the learner's profile.
     expect(result.gradeLevel).toBe("G7");
     expect(result.ocrStatus).toBe("ready");
-    expect(result.learner.lrn).toBe(lrn);
+    expect(result.learner.lrn).toBe(learner.lrn);
+    expect(result.matched?.kind).toBe("lrn-exact");
     expect(Array.isArray(result.deficiencies)).toBe(true);
-
-    const profile = await prisma.studentProfile.findUnique({
-      where: { lrn },
-      select: { userId: true, gradeLevel: true, user: { select: { fullName: true, status: true } } },
-    });
-    expect(profile?.gradeLevel).toBe("G7");
-    expect(profile?.user.fullName).toContain("AUTOPROV");
-    expect(profile?.user.status).toBe("active");
-    created.userId = profile?.userId;
     created.recordId = result.id;
 
     const record = await prisma.sf10Record.findUnique({
       where: { id: result.id },
-      select: { studentId: true, status: true, ocrExtractedData: true },
+      select: { lrn: true, gradeLevel: true, status: true, ocrExtractedData: true },
     });
-    expect(record?.studentId).toBe(profile?.userId);
+    expect(record?.lrn).toBe(learner.lrn);
+    expect(record?.gradeLevel).toBe("G7");
     expect(record?.status).toBe("attach");
     const stored = record?.ocrExtractedData as unknown as {
       subjects: Array<{ norm: string; rating: number | null; gradeLevel: string | null }>;
     } | null;
     const math = stored?.subjects.find((s) => s.norm === "mathematics");
-    expect(math?.gradeLevel).toBe("G7");
     expect(math?.rating).toBe(89);
-  });
 
-  it("re-uploading the same file links the enlisted learner (idempotent)", async () => {
-    const ctx = await staffCtx();
-    if (!created.userId) throw new Error("Provision test must run first");
+    // The upload must not rewrite learner info — grade included.
     const profile = await prisma.studentProfile.findUnique({
-      where: { userId: created.userId },
-      select: { lrn: true },
+      where: { userId: learner.userId },
+      select: { gradeLevel: true },
     });
-    const file = await learnerFile(profile?.lrn as string);
-    const result = await uploadAuto(ctx, { file, gradeLevel: "G7" });
+    expect(profile?.gradeLevel).toBe(learner.gradeLevel);
+  }, 30_000);
+
+  it("re-uploading the same file stays on the same record (idempotent)", async () => {
+    const ctx = await staffCtx();
+    if (!created.recordId) throw new Error("Filing test must run first");
+    const learner = await existingLearner();
+    const file = await learnerFile(learner.lrn as string);
+    const result = await uploadAuto(ctx, { file });
     expect(result.studentCreated).toBe(false);
     expect(result.id).toBe(created.recordId);
-  });
+  }, 30_000);
 
   it("detail endpoint returns record + versions + map, 404s unknown ids", async () => {
     const ctx = await staffCtx();
-    if (!created.recordId) throw new Error("Provision test must run first");
+    if (!created.recordId) throw new Error("Filing test must run first");
     const detail = await getRecordDetail(ctx, created.recordId);
     expect(detail.record.id).toBe(created.recordId);
     expect(Array.isArray(detail.versions)).toBe(true);
@@ -131,5 +157,5 @@ describe("SF10 upload-auto (no roster match → record created from file)", () =
     const err = await getRecordDetail(ctx, "00000000-0000-0000-0000-000000000000").catch((e: unknown) => e);
     expect(err).toBeInstanceOf(AppError);
     expect((err as AppError).code).toBe("NOT_FOUND");
-  });
+  }, 30_000);
 });

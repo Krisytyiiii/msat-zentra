@@ -27,7 +27,7 @@ export function AlertGuidanceDialog({
       title="Alert guidance"
       description={
         target
-          ? `${target.studentName} (${target.lrn}) has no intervention action yet. This notifies every active guidance counselor.`
+          ? `${target.studentName} (${target.lrn}) will be flagged to every active guidance counselor.`
           : "Notify every active guidance counselor."
       }
       dismissable={!pending}

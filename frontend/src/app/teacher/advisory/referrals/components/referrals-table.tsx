@@ -22,7 +22,7 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import { Pagination } from "@/components/shared/pagination";
+import { Pagination, PAGE_SIZE } from "@/components/shared/pagination";
 import assign from "@/app/principal/academics/assign/components/section-assignments.module.css";
 import listStyles from "../../list/components/advisory-list.module.css";
 import refStyles from "./referrals.module.css";
@@ -201,7 +201,13 @@ export function ReferralsTable({
   // Paging and searching hit the API, so the table holds the previous slice
   // under `placeholderData` while the new page lands. Swap the body rows for
   // skeletons during that fetch (a live poll of the same page never does).
+  // The skeleton count mirrors the outgoing slice (max one page of 15) so the
+  // table and its pager keep their height instead of collapsing mid-fetch.
   const isPageLoading = referralsQuery.isPlaceholderData;
+  const loadingRowCount = Math.min(
+    Math.max(referrals.length, 1),
+    PAGE_SIZE,
+  );
 
   const columns = React.useMemo<ColumnDef<ReferralRow>[]>(
     () => [
@@ -313,7 +319,7 @@ export function ReferralsTable({
                 type="button"
                 size="xs"
                 variant="default"
-                className="h-6 px-2 text-[11px]"
+                className="h-6 px-2 text-[12px]"
                 onClick={() => onTrack(r)}
               >
                 Track case
@@ -323,7 +329,7 @@ export function ReferralsTable({
                   type="button"
                   size="xs"
                   variant="outline"
-                  className="h-6 gap-1 px-2 text-[11px]"
+                  className="h-6 gap-1 px-2 text-[12px]"
                   title="A cancelled referral stays closed — file a new anecdotal record to start a fresh referral"
                   aria-label={`File a new anecdotal record to refer ${r.studentName} again`}
                   onClick={() =>
@@ -342,7 +348,7 @@ export function ReferralsTable({
                   type="button"
                   size="xs"
                   variant="outline"
-                  className="h-6 gap-1 px-2 text-[11px] text-red-600 hover:text-red-600 dark:text-red-400"
+                  className="h-6 gap-1 px-2 text-[12px] text-red-600 hover:text-red-600 dark:text-red-400"
                   disabled={!cancellable}
                   onClick={() => onRequestCancel(r)}
                 >
@@ -489,7 +495,7 @@ export function ReferralsTable({
           </TableHeader>
           <TableBody>
             {isPageLoading ? (
-              Array.from({ length: 6 }).map((_, i) => (
+              Array.from({ length: loadingRowCount }).map((_, i) => (
                 <ReferralRowSkeleton key={`page-skeleton-${i}`} />
               ))
             ) : table.getRowModel().rows.length ? (
@@ -543,6 +549,7 @@ export function ReferralsTable({
       <Pagination
         currentPage={page}
         totalItems={totalItems}
+        pageSize={PAGE_SIZE}
         onPageChange={onPageChange}
       />
 
@@ -563,7 +570,7 @@ export function ReferralsTable({
         width="md"
         footer={
           reasonFor ? (
-            <p className="m-0 px-1 pb-1 text-[11px] text-muted-foreground">
+            <p className="m-0 px-1 pb-1 text-[12px] text-muted-foreground">
               Filed {formatReferredDate(reasonFor.referredAt)}
             </p>
           ) : undefined
@@ -606,7 +613,7 @@ export function ReferralsTable({
                 </p>
                 {closedMeta.note ? (
                   <div className="flex min-w-0 flex-col gap-1 rounded-lg border border-border/70 bg-muted/40 p-2.5">
-                    <span className="text-[11px] font-semibold tracking-wide text-muted-foreground uppercase">
+                    <span className="text-[12px] font-semibold tracking-wide text-muted-foreground uppercase">
                       {isWithdrawnDismissal(reasonFor.dismissedByRole)
                         ? "Note from the filing teacher"
                         : "Note from the desk"}

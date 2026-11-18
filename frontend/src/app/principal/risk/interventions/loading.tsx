@@ -1,30 +1,28 @@
 import { Skeleton } from "@/components/ui/skeleton";
+import styles from "./components/InterventionBriefing.module.css";
 
 export default function PrincipalInterventionsLoading() {
   return (
-    <section aria-label="Loading interventions" aria-busy="true" className="flex flex-col gap-3">
-      <div className="rounded-md border p-4" aria-hidden="true">
-        <div className="flex flex-wrap items-start justify-between gap-3">
-          <div>
-            <Skeleton className="h-6 w-52" />
-            <Skeleton className="mt-2 h-4 w-72" />
-          </div>
-          <Skeleton className="h-9 w-48" />
-        </div>
-        <div className="mt-4 overflow-hidden rounded-md border">
-          {Array.from({ length: 10 }).map((_, i) => (
-            <div key={i} className="flex items-center gap-3 border-t px-3 py-2 first:border-t-0">
-              <div className="flex-1">
-                <Skeleton className="h-4 w-40" />
-                <Skeleton className="mt-1 h-3 w-24" />
-              </div>
-              <Skeleton className="h-5 w-20" />
-              <Skeleton className="h-5 w-28" />
-              <Skeleton className="h-8 w-8" />
-            </div>
+    <div
+      className={styles.page}
+      aria-label="Loading intervention briefing"
+      aria-busy="true"
+    >
+      <div className={styles.skeletonHero} aria-hidden="true">
+        <Skeleton className="h-3 w-36" />
+        <Skeleton className="mt-3 h-7 w-96 max-w-full" />
+        <Skeleton className="mt-3 h-4 w-[34rem] max-w-full" />
+        <div className={styles.skeletonLanes}>
+          {Array.from({ length: 4 }).map((_, i) => (
+            <Skeleton key={i} className="h-16 w-full" />
           ))}
         </div>
       </div>
-    </section>
+      <Skeleton className="h-8 w-full max-w-md" aria-hidden="true" />
+      <div className={styles.skeletonWorkspace} aria-hidden="true">
+        <Skeleton className="h-[34rem] w-full" />
+        <Skeleton className="h-[34rem] w-full" />
+      </div>
+    </div>
   );
 }

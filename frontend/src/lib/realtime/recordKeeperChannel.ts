@@ -7,6 +7,12 @@ import { apiClient } from "@/lib/api/client";
 import { markRealtimeUpdate } from "@/lib/api/fresh";
 import { toast } from "@/components/ui/sonner";
 import { recordKeeperNotificationTitle } from "@/lib/notifications/label";
+import { useDeskCatchUp } from "@/lib/notify/deskCatchUp";
+import {
+  isSf10AccessRequested,
+  playDeskSound,
+  primeDeskSounds,
+} from "@/lib/notify/deskSounds";
 
 const RECORD_KEEPER_KEYS = [
   ["record-keeper-overview"],
@@ -18,6 +24,7 @@ const RECORD_KEEPER_KEYS = [
   ["record-keeper-adviser-access"],
   ["record-keeper-subjects"],
   ["record-keeper-notifications"],
+  ["record-keeper-nav-counts"],
 ] as const;
 
 type KeyTuple = readonly [string, ...string[]];
@@ -96,11 +103,27 @@ export function useRecordKeeperRealtime(enabled = true) {
   const trailingTimer = React.useRef<number | null>(null);
   const seenIds = React.useRef<Set<string>>(new Set());
   const realtimeOk = React.useRef(false);
+  const userId = currentUserId();
+
+  // This desk owns exactly one alert clip: an adviser filed an SF10 access
+  // request (the grant confirmation belongs to the adviser's own desk).
+  React.useEffect(() => {
+    primeDeskSounds(["registrySf10Request"]);
+  }, []);
+
+  // Login catch-up: a request that arrived while the desk was signed out rings
+  // once on arrival instead of waiting for the next live submission.
+  useDeskCatchUp({
+    role: "record_keeper",
+    userId,
+    enabled,
+    title: "SF10 access requests",
+    clipFor: (row) => (isSf10AccessRequested(row) ? "registrySf10Request" : null),
+  });
 
   React.useEffect(() => {
     if (!enabled) return;
     if (!process.env.NEXT_PUBLIC_SUPABASE_URL || !process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY) return;
-    const userId = currentUserId();
     if (!userId) return;
     let channel: { unsubscribe: () => void } | null = null;
     let cancelled = false;
@@ -121,6 +144,9 @@ export function useRecordKeeperRealtime(enabled = true) {
           description: row.message,
         });
       }
+      // An adviser filed an SF10 access request for this desk — ring the
+      // request clip (login backlog is handled by `useDeskCatchUp`).
+      if (isSf10AccessRequested(row)) playDeskSound("registrySf10Request");
       void invalidate([row]);
     }
 
@@ -229,6 +255,10 @@ export function useRecordKeeperRealtime(enabled = true) {
       for (const key of targets) {
         void queryClient.invalidateQueries({ queryKey: [...key] });
       }
+      // Every notification row can move the sidebar dots (an account, a filed
+      // grade, an SF10 file or an access request), so the tiny nav-counts map
+      // is refreshed in the same tick instead of waiting for the 5s poll.
+      void queryClient.invalidateQueries({ queryKey: ["record-keeper-nav-counts"] });
     }
 
     return () => {

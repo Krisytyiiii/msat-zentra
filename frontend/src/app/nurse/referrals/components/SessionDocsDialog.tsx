@@ -263,7 +263,7 @@ export function SessionDocsDialog({
                       </a>
                       <figcaption className="flex items-center justify-between gap-1 border-t border-border px-2 py-1">
                         <span
-                          className="truncate text-[11px] text-muted-foreground"
+                          className="truncate text-[12px] text-muted-foreground"
                           title={d.fileName}
                         >
                           {d.fileName}

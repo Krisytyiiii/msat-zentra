@@ -1,0 +1,40 @@
+import { Router } from "express";
+import { requireAuth, requireRole } from "../../middleware/auth.js";
+import { cache } from "../../lib/cache.js";
+import { etag } from "../../lib/etag.js";
+import { CACHE_TAGS, CACHE_TTLS } from "../../lib/cacheTags.js";
+import { getCoordinatorNavQueues } from "../../services/adm/navCounts.service.js";
+
+const router = Router();
+
+/**
+ * Coordinator sidebar badge queues. Kept separate from every page payload so
+ * the rail can poll a tiny `{id, v}` map instead of the full board — the dot
+ * means "new or updated since you last opened that page".
+ */
+router.get(
+  "/nav-counts",
+  requireAuth,
+  requireRole("adm_coordinator"),
+  cache({
+    tags: [CACHE_TAGS.adm, CACHE_TAGS.referrals, CACHE_TAGS.notifications],
+    // Must not outlive one poll: a cached row would leave the dot dark for a
+    // whole interval after the case already changed. The realtime channel sets
+    // `x-zentra-fresh`, which bypasses the read in the same tick as the write.
+    ttl: CACHE_TTLS.counts,
+  }),
+  etag(),
+  async (req, res, next) => {
+    try {
+      res.json(
+        await getCoordinatorNavQueues({
+          userId: req.user!.id,
+        }),
+      );
+    } catch (e) {
+      next(e);
+    }
+  },
+);
+
+export default router;

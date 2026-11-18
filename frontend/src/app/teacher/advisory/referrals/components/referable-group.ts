@@ -49,7 +49,7 @@ export function studentLabel(s: Pick<StudentOption, "studentName" | "lrn">): str
   return `${s.studentName} · ${s.lrn}`;
 }
 const CATEGORY_LABELS: Record<string, string> = {
-  behavioral: "Behavioral",
+  behavioral: "Anecdotal",
   bullying: "Bullying",
   academic: "Academic",
   attendance: "Attendance",

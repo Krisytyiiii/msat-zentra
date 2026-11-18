@@ -16,7 +16,7 @@ export interface GuidanceRiskFactorFlags {
 const FACTOR_WORDS: Record<keyof GuidanceRiskFactorFlags, string> = {
   academic: "Academic",
   attendance: "Attendance",
-  behavioral: "Behavioral",
+  behavioral: "Anecdotal",
 };
 import { PAGE_SIZE } from "@/components/shared/pagination";
 

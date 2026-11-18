@@ -92,7 +92,7 @@
 }
 
 .centerLabel {
-  font-size: 0.625rem;
+  font-size: 0.75rem;
   color: var(--muted-foreground);
 }
 
@@ -168,7 +168,7 @@
 
 .chartTooltipLabel {
   margin: 0 0 0.375rem;
-  font-size: 0.6875rem;
+  font-size: 0.75rem;
   font-weight: 600;
   letter-spacing: 0.01em;
   color: var(--muted-foreground);
@@ -218,7 +218,7 @@
 
 .barChart text {
   fill: var(--muted-foreground);
-  font-size: 0.6875rem;
+  font-size: 0.75rem;
 }
 
 /* Line / composed charts — same theme-aware text, raised above neighbouring
@@ -231,7 +231,7 @@
 
 .lineChart text {
   fill: var(--muted-foreground);
-  font-size: 0.6875rem;
+  font-size: 0.75rem;
 }
 
 /* Bar value labels — amber figures in both themes. */

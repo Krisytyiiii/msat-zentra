@@ -48,7 +48,7 @@
 }
 
 .statLabel {
-  font-size: 0.625rem;
+  font-size: 0.75rem;
   font-weight: 600;
   letter-spacing: 0.04em;
   text-transform: uppercase;
@@ -167,7 +167,7 @@
 
 .weights {
   margin: 0;
-  font-size: 0.6875rem;
+  font-size: 0.75rem;
   color: var(--muted-foreground);
   text-align: right;
 }
@@ -181,7 +181,7 @@
 .th {
   padding: 0.5rem 0.625rem;
   text-align: left;
-  font-size: 0.6875rem;
+  font-size: 0.75rem;
   font-weight: 600;
   letter-spacing: 0.03em;
   text-transform: uppercase;
@@ -230,7 +230,7 @@
   display: inline-block;
   padding: 0.15rem 0.5rem;
   border-radius: 999px;
-  font-size: 0.6875rem;
+  font-size: 0.75rem;
   font-weight: 600;
   white-space: nowrap;
 }
@@ -247,7 +247,7 @@
 
 .weightCardTitle {
   margin: 0;
-  font-size: 0.6875rem;
+  font-size: 0.75rem;
   font-weight: 600;
   letter-spacing: 0.03em;
   text-transform: uppercase;
@@ -299,7 +299,7 @@
 
 .note {
   margin: 0;
-  font-size: 0.6875rem;
+  font-size: 0.75rem;
   color: var(--muted-foreground);
 }
 
@@ -381,7 +381,7 @@
 }
 
 .donutCenterTotal {
-  font-size: 11px;
+  font-size: 0.75rem;
   font-weight: 600;
   fill: var(--muted-foreground);
 }

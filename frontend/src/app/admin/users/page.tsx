@@ -203,7 +203,7 @@ function AdminUsersPageInner() {
         title: user.fullName,
         idLabel: user.email,
         idLabelTitle: "Email",
-        idLabelClassName: "text-[11px] font-medium",
+        idLabelClassName: "text-[12px] font-medium",
         leadPill: {
           label: roleLabel(user.role),
           tone: ROLE_TONE[user.role] ?? "muted",

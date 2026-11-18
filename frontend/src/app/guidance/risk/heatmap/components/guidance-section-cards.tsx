@@ -39,7 +39,7 @@ export function GuidanceSectionCards({ rows }: GuidanceSectionCardsProps) {
             </div>
             <div className={styles.stat}>
               <span className={styles.statValue}>{row.behavioral}</span>
-              <span className={styles.statLabel}>Behavioral</span>
+              <span className={styles.statLabel}>Anecdotal</span>
             </div>
           </div>
 

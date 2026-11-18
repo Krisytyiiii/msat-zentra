@@ -910,7 +910,9 @@
 
 .searchWrap {
   position: relative;
-  width: 16rem;
+  display: flex;
+  align-items: center;
+  width: 240px;
   max-width: 100%;
 }
 
@@ -926,7 +928,11 @@
 }
 
 .searchInput {
+  width: 240px;
+  max-width: 100%;
+  height: 2rem;
   padding-left: 2rem;
+  border-radius: 1rem;
 }
 
 .filterBtn {

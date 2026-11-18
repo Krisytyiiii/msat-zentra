@@ -25,7 +25,22 @@
  * `/sounds/guidance adm reschedule.mp3`,
  * `/sounds/guidance create referral.mp3`, `/sounds/guidance adm reject.mp3`)
  * belong to the **adviser's** desk only — the guidance desk stays silent on its
- * own ADM actions.
+ * own ADM actions. The registry desks (record keeper G7–10, registrar G11–12)
+ * also answer SF10 access requests: a grant rings
+ * `/sounds/record keeper granted request.mp3` on the requesting adviser's desk
+ * (`adviserSf10Granted`, notification-driven live and in the login catch-up;
+ * denials stay silent). A learner the registry desk could not match rings
+ * `/sounds/record keeper missing sf10.mp3` (`adviserSf10Missing`) on the same
+ * adviser desk — again live and in the login catch-up. The registrar (G11–12)
+ * answers the same two questions with its own clips
+ * (`/sounds/registrar granted access.mp3` → `adviserSf10GrantedRegistrar`,
+ * `/sounds/registrar missing sf10.mp3` → `adviserSf10MissingRegistrar`); the
+ * acting desk is named in the fanout wording, so an answer from the senior desk
+ * never sounds like the record keeper's. The mirror of that
+ * exchange belongs to the registry
+ * desks: an adviser filing an SF10 access request rings
+ * `/sounds/teacher access request sf10.mp3` (`registrySf10Request`) on the
+ * record keeper / registrar desk, live and in its login catch-up.
  * Everything
  * is module-level so several realtime channels (or a route change) share one
  * player per clip instead of stacking overlapping Audio elements.
@@ -59,6 +74,11 @@ const SOURCES = {
   adviserAdmBooked: "/sounds/guidance%20adm%20booked%20session.mp3",
   adviserAdmRejected: "/sounds/guidance%20adm%20reject.mp3",
   adviserAdmRescheduled: "/sounds/guidance%20adm%20reschedule.mp3",
+  // Coordinator (ADM) desk actions — the adviser hears the parent-meeting
+  // booking/move confirmations from their own dedicated clips, so a coordinator
+  // booking never sounds like a guidance consultation one.
+  adviserAdmMeetingBooked: "/sounds/adm%20book%20session.mp3",
+  adviserAdmMeetingRescheduled: "/sounds/adm%20reschedule%20session.mp3",
   // Clinic (nurse) desk actions on the same ADM track — the nurse desk reviews
   // the case before guidance, so the adviser hears the clinic variants of the
   // four ADM confirmations. Still adviser-only; the acting desk stays silent.
@@ -77,6 +97,24 @@ const SOURCES = {
   adviserClinicBooked: "/sounds/nurse_clinic_session.mp3",
   adviserClinicRejected: "/sounds/nurse_clinic_reject.mp3",
   adviserClinicRescheduled: "/sounds/nurse_clinic_reschedule.mp3",
+  // Registry desks answered an SF10 access request this adviser filed — the
+  // adviser hears the grant confirmation (its own clip, so a granted request
+  // never sounds like a referral or session update). The registrar desk
+  // (G11–12) has its own variant below; `adviserSf10Granted` is the record
+  // keeper (G7–10) clip and the fallback for older rows that name no desk.
+  adviserSf10Granted: "/sounds/record%20keeper%20granted%20request.mp3",
+  // Registry desk could not find a filed SF10 for one of the learners this
+  // adviser asked about — adviser-only, its own clip so a "missing" answer
+  // never sounds like a grant.
+  adviserSf10Missing: "/sounds/record%20keeper%20missing%20sf10.mp3",
+  // Registrar (G11–12) variants of the same two answers, so an answer from the
+  // senior desk never sounds like the record keeper's.
+  adviserSf10GrantedRegistrar: "/sounds/registrar%20granted%20access.mp3",
+  adviserSf10MissingRegistrar: "/sounds/registrar%20missing%20sf10.mp3",
+  // Registry desks (record keeper / registrar) own this one: an adviser just
+  // filed an SF10 access request for their section. The requesting adviser's
+  // desk never loads it — it hears the grant clip above instead.
+  registrySf10Request: "/sounds/teacher%20access%20request%20sf10.mp3",
 } as const;
 
 export type DeskSound = keyof typeof SOURCES;
@@ -95,6 +133,8 @@ const MIN_REPLAY_MS: Record<DeskSound, number> = {
   adviserAdmRejected: 8_000,
   adviserAdmBooked: 8_000,
   adviserAdmRescheduled: 8_000,
+  adviserAdmMeetingBooked: 8_000,
+  adviserAdmMeetingRescheduled: 8_000,
   adviserAdmRejectedClinic: 8_000,
   adviserAdmBookedClinic: 8_000,
   adviserAdmRescheduledClinic: 8_000,
@@ -105,6 +145,11 @@ const MIN_REPLAY_MS: Record<DeskSound, number> = {
   adviserClinicBooked: 8_000,
   adviserClinicRejected: 8_000,
   adviserClinicRescheduled: 8_000,
+  adviserSf10Granted: 12_000,
+  adviserSf10Missing: 12_000,
+  adviserSf10GrantedRegistrar: 12_000,
+  adviserSf10MissingRegistrar: 12_000,
+  registrySf10Request: 12_000,
 };
 
 const players = new Map<DeskSound, HTMLAudioElement>();
@@ -414,6 +459,91 @@ export function isAdviserReferralEndorsed(row: {
 }
 
 /**
+ * True when a notification row means "the registry desk granted the SF10 access
+ * this adviser requested". All three grant paths fan out to the adviser
+ * (`approve` for the whole request, `approve-lrn` per learner, `approve-all` for
+ * the matched batch), so the wording differs but the type always resolves to
+ * `sf10_access_decision` (or a `generic_` fallback for the two bulk actions).
+ *
+ * A denial shares the request/source table and must stay silent, and the
+ * record keeper's own echo ("You granted …") is not the adviser's row.
+ */
+export function isAdviserSf10Granted(row: {
+  sourceTable?: string | null;
+  type?: string | null;
+  message?: string | null;
+}): boolean {
+  if (row.sourceTable !== "adviser_sf10_access_requests") return false;
+  const message = row.message ?? "";
+  if (/^you\b/i.test(message)) return false;
+  return /\b(?:was approved|access approved for)\b/i.test(message);
+}
+
+/**
+ * True when a notification row means "the registry desk could not find a filed
+ * SF10 for a learner in the access request this adviser filed" (the
+ * `report-missing` fanout: "No SF10 on file for … — reported missing by the
+ * record keeper desk."). The adviser desk plays its own missing clip so a
+ * "missing" answer never sounds like the grant confirmation.
+ */
+export function isAdviserSf10Missing(row: {
+  sourceTable?: string | null;
+  type?: string | null;
+  message?: string | null;
+}): boolean {
+  if (row.sourceTable !== "adviser_sf10_access_requests") return false;
+  const message = row.message ?? "";
+  if (/^(you|your)\b/i.test(message)) return false;
+  // Wording guard: the fanout says "No SF10 on file for … — reported missing
+  // by the … desk." Match either half so a copy tweak cannot silence the clip.
+  return /^No SF10 on file for\b/i.test(message) || /\breported missing\b/i.test(message);
+}
+
+/**
+ * Registrar-desk (G11–12) variants of the two SF10 answers. Both registry desks
+ * write the same notification table, so the desk is named in the fanout wording
+ * (`granted by the registrar desk` / `reported missing by the registrar desk`).
+ * The adviser rings the registrar clips for these and the record keeper clips
+ * for everything else. Check these **before** their record keeper counterparts —
+ * the registrar rows also match the generic classifiers.
+ */
+export function isAdviserSf10GrantedRegistrar(row: {
+  sourceTable?: string | null;
+  type?: string | null;
+  message?: string | null;
+}): boolean {
+  return isAdviserSf10Granted(row) && /\bregistrar\b/i.test(row.message ?? "");
+}
+
+export function isAdviserSf10MissingRegistrar(row: {
+  sourceTable?: string | null;
+  type?: string | null;
+  message?: string | null;
+}): boolean {
+  return isAdviserSf10Missing(row) && /\bregistrar\b/i.test(row.message ?? "");
+}
+
+/**
+ * True when a notification row means "an adviser just filed an SF10 access
+ * request that landed on this registry desk" — the record keeper / registrar
+ * desks ring `/sounds/teacher access request sf10.mp3` for it.
+ *
+ * Only the `create` fanout (role fanout) uses the "SF10 access requested: …"
+ * wording; the requesting adviser's own "Your SF10 access request … was
+ * submitted" echo shares the type and stays silent.
+ */
+export function isSf10AccessRequested(row: {
+  sourceTable?: string | null;
+  type?: string | null;
+  message?: string | null;
+}): boolean {
+  if (row.sourceTable !== "adviser_sf10_access_requests") return false;
+  const message = row.message ?? "";
+  if (/^(you|your)\b/i.test(message)) return false;
+  return /^SF10 access requested\b/i.test(message);
+}
+
+/**
  * True when a notification row means "guidance rejected / dismissed the ADM
  * referral this teacher filed". ADM rejections have their own clip
  * (`adviserAdmRejected`); every other closure keeps the cancelled-referral clip.
@@ -463,6 +593,52 @@ export function isAdviserAdmRescheduled(row: {
   const message = row.message ?? "";
   if (/^you\b/i.test(message)) return false;
   return /\brescheduled an ADM consultation session for\b/i.test(message);
+}
+
+/**
+ * True when a notification row means "the ADM coordinator booked the parent
+ * meeting for one of this adviser's advisees" (`adm_parent_meetings` fanout).
+ * The coordinator desk owns the parent-meeting track, so it rings the dedicated
+ * `/sounds/adm book session.mp3` instead of the guidance consultation clip.
+ */
+export function isAdviserAdmMeetingBooked(row: {
+  sourceTable?: string | null;
+  type?: string | null;
+  message?: string | null;
+}): boolean {
+  if (row.sourceTable !== "adm_parent_meetings") return false;
+  const message = row.message ?? "";
+  if (/^(you|your)\b/i.test(message)) return false;
+  // Meeting-outcome / cancellation rows share the table — only a booking counts.
+  if (row.type && row.type !== "meeting_booked") return false;
+  return (
+    /\bbooked a parent meeting for\b/i.test(message) ||
+    /\bParent meeting booked for\b/i.test(message) ||
+    // The adviser can also be added as an invitee (not the filer) on a case
+    // another desk owns.
+    /\binvited you to a parent meeting for\b/i.test(message)
+  );
+}
+
+/**
+ * True when a notification row means "the ADM coordinator moved the parent
+ * meeting for one of this adviser's advisees" — rings the dedicated
+ * `/sounds/adm reschedule session.mp3` instead of the booking clip.
+ */
+export function isAdviserAdmMeetingRescheduled(row: {
+  sourceTable?: string | null;
+  type?: string | null;
+  message?: string | null;
+}): boolean {
+  if (row.sourceTable !== "adm_parent_meetings") return false;
+  const message = row.message ?? "";
+  if (/^(you|your)\b/i.test(message)) return false;
+  if (row.type && row.type !== "meeting_rescheduled") return false;
+  return (
+    /\bmoved the parent meeting for\b/i.test(message) ||
+    // A reschedule that adds the adviser as an invitee rides the same type.
+    /\binvited you to a parent meeting for\b/i.test(message)
+  );
 }
 
 /**
@@ -671,6 +847,26 @@ export function isAdviserReferralSessionCancelled(row: {
   const message = row.message ?? "";
   if (/^you\b/i.test(message)) return false;
   return /\bcancelled (?:a|an) (?:clinic |guidance )?session for\b/i.test(message);
+}
+
+/**
+ * True when a notification row means "the guidance counselor or nurse endorsed
+ * an ADM consultation to the coordinator" — the case moves onto the
+ * coordinator's desk, so it rings the same arrival clip as a new referral.
+ * The actor's own "You endorsed …" row is filtered out; only the receiving desk
+ * rings.
+ */
+export function isAdmConsultEndorsed(row: {
+  sourceTable?: string | null;
+  message?: string | null;
+}): boolean {
+  if (row.sourceTable !== "referrals") return false;
+  const message = row.message ?? "";
+  if (/^(you|your)\b/i.test(message)) return false;
+  return (
+    /\bADM consultation endorsed\b/i.test(message) ||
+    /\bendorsed the ADM consultation\b/i.test(message)
+  );
 }
 
 /**

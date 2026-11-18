@@ -171,7 +171,7 @@ export default function TeacherStudentListPage() {
         <div
           role="note"
           aria-label="How to view students"
-          className="fixed bottom-4 right-4 z-30 flex w-[min(260px,calc(100vw-2rem))] items-start gap-1.5 rounded-lg border border-blue-500/30 bg-blue-500/10 px-2.5 py-2 text-[11px] leading-snug text-blue-900 shadow-lg backdrop-blur-sm dark:text-blue-200"
+          className="fixed bottom-4 right-4 z-30 flex w-[min(260px,calc(100vw-2rem))] items-start gap-1.5 rounded-lg border border-blue-500/30 bg-blue-500/10 px-2.5 py-2 text-[12px] leading-snug text-blue-900 shadow-lg backdrop-blur-sm dark:text-blue-200"
         >
           <Info size={13} aria-hidden className="mt-px shrink-0 text-blue-500" />
           <p className="min-w-0">

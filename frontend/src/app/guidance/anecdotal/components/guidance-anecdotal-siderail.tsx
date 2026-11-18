@@ -111,7 +111,7 @@ const MENU_PANEL =
   "absolute top-0 right-12 z-50 max-h-[calc(100dvh-6rem)] w-72 overflow-y-auto rounded-xl bg-card text-card-foreground shadow-xl ring-1 ring-border sm:w-80";
 
 const CATEGORY_LEGEND: { label: string; hint: string; tone: PillTone }[] = [
-  { label: "Behavioral", hint: "Conduct and classroom behavior", tone: "amber" },
+  { label: "Anecdotal", hint: "Conduct and classroom behavior", tone: "amber" },
   { label: "Bullying", hint: "Peer conflict and bullying", tone: "red" },
   { label: "Academic", hint: "Learning and performance", tone: "blue" },
   { label: "Attendance", hint: "Absences and tardiness", tone: "green" },
@@ -224,7 +224,7 @@ export function GuidanceAnecdotalSidebar({
                   <Users size={16} className="text-amber-600" aria-hidden />
                   {top.length > 0 ? (
                     <span
-                      className="absolute -top-1 -right-1 flex h-4 min-w-4 items-center justify-center rounded-full bg-amber-500 px-1 text-[10px] font-bold text-black"
+                      className="absolute -top-1 -right-1 flex h-4 min-w-4 items-center justify-center rounded-full bg-amber-500 px-1 text-[12px] font-bold text-black"
                       aria-hidden="true"
                     >
                       {top.length}
@@ -297,7 +297,7 @@ export function GuidanceAnecdotalSidebar({
                 >
                   <Info size={16} className="text-amber-500" aria-hidden />
                   <span
-                    className="absolute -top-1 -right-1 flex h-4 min-w-4 items-center justify-center rounded-full bg-amber-500 px-1 text-[10px] font-bold text-black"
+                    className="absolute -top-1 -right-1 flex h-4 min-w-4 items-center justify-center rounded-full bg-amber-500 px-1 text-[12px] font-bold text-black"
                     aria-hidden="true"
                   >
                     {CATEGORY_LEGEND.length}

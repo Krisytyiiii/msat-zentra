@@ -35,7 +35,7 @@
   border-radius: 999px;
   background: color-mix(in oklch, var(--foreground) 10%, transparent);
   color: var(--muted-foreground, #737373);
-  font-size: 0.6875rem;
+  font-size: 0.75rem;
   font-weight: 600;
   line-height: 1;
 }

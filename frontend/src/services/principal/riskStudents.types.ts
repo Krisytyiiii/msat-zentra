@@ -10,7 +10,7 @@ export const FACTOR_CHIP: Record<RiskFactor, string> = {
 export const FACTOR_LABELS: Record<RiskFactor, string> = {
   Academic: "Academic",
   Attendance: "Attendance",
-  Behavioral: "Behavioral",
+  Behavioral: "Anecdotal",
 };
 
 export interface HeatmapSection {

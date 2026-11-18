@@ -74,7 +74,7 @@ function LevelPill({ level }: { level: Level }) {
 }
 
 const eyebrow =
-  "text-[11px] font-medium uppercase leading-[14px] tracking-[0.06em] text-slate-500 dark:text-slate-400";
+  "text-[12px] font-medium uppercase leading-[14px] tracking-[0.06em] text-slate-500 dark:text-slate-400";
 
 export function useInterventionEngine(studentKey: string, enabled = true) {
   return useQuery({
@@ -152,7 +152,7 @@ function SnapshotFallback({
       <ul className="mt-2 list-disc space-y-1 pl-5 text-sm text-slate-900 dark:text-slate-100">
         {factors.academic && <li>Low grades</li>}
         {factors.attendance && <li>Absences</li>}
-        {factors.behavioral && <li>Behavior report</li>}
+        {factors.behavioral && <li>Anecdotal report</li>}
       </ul>
       <ReferralContextLine openReferrals={openReferrals} closedReferrals={closedReferrals} highPriority={highPriority} />
     </div>

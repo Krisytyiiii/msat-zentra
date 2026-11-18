@@ -4968,7 +4968,9 @@ export type AdvisoryModuleSubmissionScalarFieldEnum = (typeof AdvisoryModuleSubm
 
 export const Sf10RecordScalarFieldEnum = {
   id: 'id',
-  studentId: 'studentId',
+  lrn: 'lrn',
+  learnerName: 'learnerName',
+  gradeLevel: 'gradeLevel',
   desk: 'desk',
   source: 'source',
   status: 'status',

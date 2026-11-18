@@ -2,7 +2,6 @@
 
 import { PieChart as PieChartIcon } from "lucide-react";
 import { Cell, Pie, PieChart, ResponsiveContainer, Tooltip } from "recharts";
-import { Pill } from "@/components/ui/pill";
 import type { AdmMonitoringCase } from "@/services/teacher/admMonitoring.service";
 
 const STATUS_FILL: Record<string, string> = {
@@ -59,10 +58,10 @@ function ModuleStatusTooltip({
 }
 
 export function ModuleStatus({ data }: { data: AdmMonitoringCase }) {
-  const { progress, modules, devices, meetings } = data;
+  const { progress, modules } = data;
 
-  // Status split drives the donut + proportion bar. Zero-count statuses stay
-  // out of the pie so the ring never renders invisible slices.
+  // Status split drives the donut. Zero-count statuses stay out of the pie so
+  // the ring never renders invisible slices.
   const statusCounts = STATUS_ORDER.map((key) => ({
     key,
     label: STATUS_LABEL[key]!,
@@ -77,13 +76,18 @@ export function ModuleStatus({ data }: { data: AdmMonitoringCase }) {
     .map((s) => ({ ...s, percent: share(s.value) }));
 
   return (
-    <section className="flex min-w-0 flex-col gap-3" aria-label="Module status">
-      <header className="flex items-center gap-2">
-        <span className="inline-flex min-w-0 flex-1 items-center gap-1.5 text-[13px] font-semibold text-muted-foreground">
-          <PieChartIcon size={13} aria-hidden />
-          <span className="truncate">Module status</span>
-        </span>
-        <span className="shrink-0 text-xs font-semibold tabular-nums text-muted-foreground">
+    <section
+      className="flex min-w-0 flex-col gap-3 rounded-md border bg-card p-4"
+      aria-label="Module status"
+    >
+      <header className="flex items-center justify-between gap-2">
+        <div className="flex min-w-0 items-center gap-1.5">
+          <PieChartIcon size={15} className="shrink-0 text-muted-foreground" aria-hidden />
+          <h2 className="m-0 truncate text-sm font-bold tracking-[-0.01em] text-foreground">
+            Module status
+          </h2>
+        </div>
+        <span className="shrink-0 text-[12px] font-semibold tabular-nums text-muted-foreground">
           {progress.percent}% complete
         </span>
       </header>
@@ -93,8 +97,8 @@ export function ModuleStatus({ data }: { data: AdmMonitoringCase }) {
           No modules released yet.
         </p>
       ) : (
-        <div className="flex min-w-0 flex-col gap-2 rounded-md border bg-background p-3">
-          <div className="relative mx-auto h-[148px] w-full max-w-[180px]">
+        <div className="flex min-w-0 flex-col gap-3">
+          <div className="relative mx-auto h-[140px] w-full max-w-[170px]">
             <ResponsiveContainer width="100%" height="100%">
               <PieChart>
                 <Pie
@@ -124,52 +128,30 @@ export function ModuleStatus({ data }: { data: AdmMonitoringCase }) {
               <span className="text-xl font-bold leading-none tabular-nums text-foreground">
                 {progress.percent}%
               </span>
-              <span className="mt-0.5 text-[10px] uppercase tracking-wide text-muted-foreground">
+              <span className="mt-0.5 text-[12px] uppercase tracking-wide text-muted-foreground">
                 complete
               </span>
             </div>
           </div>
 
-          {/* Proportion bar + legend: the count lives beside its colour. */}
-          <div
-            className="flex h-2 w-full overflow-hidden rounded-full bg-muted"
-            role="img"
-            aria-label={`Submitted ${statusCounts[0]!.value}, pending ${statusCounts[1]!.value}, overdue ${statusCounts[2]!.value}`}
-          >
-            {slices.map((s) => (
-              <span
-                key={s.key}
-                className="h-full"
-                style={{ width: `${(s.value / countedTotal) * 100}%`, backgroundColor: s.fill }}
-              />
-            ))}
-          </div>
-
-          <ul className="m-0 flex list-none flex-wrap items-center justify-center gap-x-3 gap-y-1 p-0">
+          <ul className="m-0 flex list-none flex-col gap-1.5 p-0">
             {statusCounts.map((s) => (
-              <li key={s.key} className="flex items-center gap-1.5 text-[11px]">
+              <li key={s.key} className="flex items-center gap-2 text-[12px]">
                 <span
                   className="h-2 w-2 shrink-0 rounded-full"
                   style={{ backgroundColor: s.fill }}
                   aria-hidden
                 />
-                <span className="text-muted-foreground">{s.label}</span>
+                <span className="min-w-0 flex-1 truncate text-muted-foreground">{s.label}</span>
                 <span className="font-semibold tabular-nums text-foreground">{s.value}</span>
-                <span className="text-muted-foreground/70 tabular-nums">{share(s.value)}%</span>
+                <span className="w-8 text-right text-muted-foreground/70 tabular-nums">
+                  {share(s.value)}%
+                </span>
               </li>
             ))}
           </ul>
         </div>
       )}
-
-      <div className="flex flex-wrap items-center justify-center gap-1.5 border-t pt-2">
-        <Pill tone="neutral" label="Devices issued">
-          Devices {devices.length}
-        </Pill>
-        <Pill tone="neutral" label="Parent meetings held">
-          Meetings {meetings.filter((m) => m.attended).length}/{meetings.length}
-        </Pill>
-      </div>
     </section>
   );
 }

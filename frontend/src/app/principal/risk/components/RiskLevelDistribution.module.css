@@ -1,184 +1,5 @@
-.section {
-  display: flex;
-  flex-direction: column;
-  gap: 1rem;
-  min-width: 0;
-}
-
-.sectionTitle {
-  margin: 0;
-  font-size: 1.125rem;
-  font-weight: 600;
-  color: var(--foreground);
-}
-
-.grid {
-  display: grid;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
-  gap: 1rem;
-}
-
-.cardHead {
-  display: flex;
-  align-items: baseline;
-  justify-content: space-between;
-  gap: 0.5rem;
-}
-
-.cardTitle {
-  margin: 0;
-  font-size: 0.9375rem;
-  font-weight: 600;
-  color: var(--foreground);
-}
-
-.cardTotal {
-  font-size: 0.6875rem;
-  color: var(--muted-foreground);
-  white-space: nowrap;
-}
-
-.chartWrap {
-  position: relative;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-}
-
-.center {
-  position: absolute;
-  inset: 0;
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  justify-content: center;
-  pointer-events: none;
-}
-
-.centerValue {
-  font-size: 1rem;
-  font-weight: 700;
-  line-height: 1;
-  color: var(--foreground);
-}
-
-.centerLabel {
-  margin-top: 0.125rem;
-  font-size: 0.625rem;
-  color: var(--muted-foreground);
-}
-
-.legend {
-  list-style: none;
-  margin: 0;
-  padding: 0;
-  display: flex;
-  flex-direction: column;
-  gap: 0.25rem;
-}
-
-.legendItem {
-  display: flex;
-  align-items: center;
-  gap: 0.375rem;
-}
-
-.swatch {
-  width: 0.5rem;
-  height: 0.5rem;
-  border-radius: 3px;
-  flex-shrink: 0;
-}
-
-.legendLabel {
-  font-size: 0.6875rem;
-  color: var(--muted-foreground);
-}
-
-.legendValue {
-  margin-left: auto;
-  font-size: 0.6875rem;
-  font-weight: 600;
-  color: var(--foreground);
-  font-variant-numeric: tabular-nums;
-  white-space: nowrap;
-}
-
-.empty {
-  margin: 0;
-  padding: 2rem;
-  text-align: center;
-  font-size: 0.875rem;
-  color: var(--muted-foreground);
-  border: 1px dashed var(--border);
-  border-radius: var(--radius-lg);
-}
-
-@media (max-width: 900px) {
-  .grid {
-    grid-template-columns: repeat(2, minmax(0, 1fr));
-  }
-}
-
-@media (max-width: 560px) {
-  .grid {
-    grid-template-columns: minmax(0, 1fr);
-  }
-}
-
-/* Interactive amber bar chart (one graph for all grade levels). */
-.levelToggle {
-  display: inline-flex;
-  align-items: center;
-  gap: 0.125rem;
-  padding: 0.125rem;
-  border: 1px solid var(--border);
-  border-radius: calc(var(--radius) - 2px);
-  background-color: color-mix(in oklch, var(--muted), transparent 60%);
-}
-
-.levelBtn {
-  display: inline-flex;
-  align-items: center;
-  gap: 0.375rem;
-  height: 1.625rem;
-  padding: 0 0.5rem;
-  border: none;
-  border-radius: calc(var(--radius) - 4px);
-  background: transparent;
-  color: var(--muted-foreground);
-  font-size: 0.6875rem;
-  font-weight: 600;
-  white-space: nowrap;
-  cursor: pointer;
-  transition: background-color 140ms ease, color 140ms ease;
-}
-
-.levelBtn:hover {
-  color: var(--foreground);
-}
-
-.levelActive {
-  background-color: var(--card);
-  color: var(--foreground);
-  box-shadow: 0 1px 2px color-mix(in oklch, var(--foreground), transparent 90%);
-}
-
-.levelDot {
-  width: 0.4375rem;
-  height: 0.4375rem;
-  border-radius: 999px;
-  flex-shrink: 0;
-}
-
-.levelCount {
-  font-variant-numeric: tabular-nums;
-  color: var(--muted-foreground);
-}
-
-.levelActive .levelCount {
-  color: var(--foreground);
-}
+/* Bar-chart board — the chart fills the card, the interpretation sits under it
+   like every other principal desk board. */
 
 .chart {
   width: 100%;
@@ -187,7 +8,11 @@
   animation: chart-in 0.6s cubic-bezier(0.16, 1, 0.3, 1) backwards;
 }
 
-/* Chart frame eases up a hair before the bars grow. */
+/* Only the section view is clickable — grade bars are read-only. */
+.clickableBar {
+  cursor: pointer;
+}
+
 @keyframes chart-in {
   from {
     opacity: 0;
@@ -224,4 +49,3 @@
     animation: none;
   }
 }
-

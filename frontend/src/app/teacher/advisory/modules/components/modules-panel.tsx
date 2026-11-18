@@ -13,6 +13,7 @@ import {
   TriangleAlert,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { FilterTabs } from "@/components/ui/filter-tabs";
 import { FolderCard } from "@/components/ui/FolderCard";
 import { Pill, type PillTone } from "@/components/ui/pill";
 import type {
@@ -89,34 +90,19 @@ export function ModulesPanel({
         </div>
 
         {counts.all > 0 ? (
-          <div
-            role="tablist"
-            aria-label="Filter modules by status"
-            className="flex flex-wrap items-center justify-center gap-1.5 sm:justify-self-center"
-          >
-            {(Object.keys(FILTER_LABELS) as (keyof ModuleStatusCounts)[]).map((key) => {
-              const active = filter === key;
-              return (
-                <button
-                  key={key}
-                  type="button"
-                  role="tab"
-                  aria-selected={active}
-                  onClick={() => onFilterChange(key)}
-                  className={
-                    active
-                      ? "inline-flex items-center gap-1 rounded-md bg-blue-500/15 px-2 py-0.5 text-[11px] font-semibold text-blue-700 dark:text-blue-400"
-                      : "inline-flex items-center gap-1 rounded-md bg-muted px-2 py-0.5 text-[11px] font-semibold text-muted-foreground transition-colors hover:bg-muted/70 hover:text-foreground"
-                  }
-                >
-                  {FILTER_LABELS[key]}
-                  <span className={active ? "text-blue-700/80 dark:text-blue-400/80" : "text-muted-foreground/80"}>
-                    {counts[key]}
-                  </span>
-                </button>
-              );
-            })}
-          </div>
+          <FilterTabs
+            label="Filter modules by status"
+            className="justify-self-center"
+            options={(Object.keys(FILTER_LABELS) as (keyof ModuleStatusCounts)[]).map(
+              (key) => ({
+                value: key,
+                label: FILTER_LABELS[key],
+                count: counts[key],
+              }),
+            )}
+            value={filter}
+            onChange={onFilterChange}
+          />
         ) : null}
 
         <div className="flex flex-wrap items-center gap-2 sm:justify-self-end">
@@ -229,19 +215,19 @@ export function ModulesPanel({
                       target="_blank"
                       rel="noreferrer noopener"
                       onClick={(e) => e.stopPropagation()}
-                      className="inline-flex min-w-0 items-center gap-1 text-[11px] font-medium text-primary hover:underline"
+                      className="inline-flex min-w-0 items-center gap-1 text-[12px] font-medium text-primary hover:underline"
                       title={m.moduleUrl}
                     >
                       <ExternalLink size={12} aria-hidden /> Open link
                     </a>
                   ) : (
-                    <span className="text-[11px] text-muted-foreground">No link</span>
+                    <span className="text-[12px] text-muted-foreground">No link</span>
                   )}
                   <div className="flex shrink-0 items-center gap-1" onClick={(e) => e.stopPropagation()}>
                     <Button
                       type="button"
                       variant="outline"
-                      className="h-6 px-2 text-[11px]"
+                      className="h-6 px-2 text-[12px]"
                       onClick={() => onEdit(m)}
                       aria-label={`Edit ${m.moduleName}`}
                     >
@@ -250,7 +236,7 @@ export function ModulesPanel({
                     <Button
                       type="button"
                       variant="ghost"
-                      className="h-6 px-1.5 text-[11px] text-muted-foreground hover:text-destructive"
+                      className="h-6 px-1.5 text-[12px] text-muted-foreground hover:text-destructive"
                       onClick={() => onDelete(m)}
                       aria-label={`Delete ${m.moduleName}`}
                     >

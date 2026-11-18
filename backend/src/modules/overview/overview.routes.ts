@@ -122,14 +122,14 @@ router.get(
           prisma.admLearnerProfile.count({
             where: {
               stage: { in: ["meeting_parents", "home_visitation", "certification", "principal_approval"] },
+              // An ADM profile only ever attaches to a registered learner
+              // (studentId is required), so archived roster ids need no filter
+              // here — `AdmLearnerProfile` has no roster relation.
               student: {
                 sectionId: { in: connectedSectionIds },
                 ...(schoolYearId ? { section: { schoolYearId } } : {}),
                 ...excludeArchivedProfiles(archivedLearners),
               },
-              ...(archivedLearners.rosterIds.length > 0
-                ? { rosterId: { notIn: archivedLearners.rosterIds } }
-                : {}),
             },
           }),
 

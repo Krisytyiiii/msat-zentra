@@ -365,7 +365,7 @@
 
 /* Always-visible name label, page-mascot characters style. */
 .mascotName {
-  font-size: 11px;
+  font-size: 0.75rem;
   font-weight: 600;
   line-height: 1.4;
   text-transform: capitalize;

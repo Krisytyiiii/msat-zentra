@@ -35,7 +35,7 @@ export function ChatWithBamaCard() {
       ariaLabel="Chat with Bama"
       className="[font-family:var(--font-inter)]"
       actions={
-        <Button asChild className="h-6 px-2 text-[11px]">
+        <Button asChild className="h-6 px-2 text-[12px]">
           <Link href="/teacher/chat?standalone=1" target="_blank" rel="noopener noreferrer">
             Chat now
           </Link>
@@ -51,7 +51,7 @@ export function ChatWithBamaCard() {
       >
         <span className="flex items-center justify-between gap-2">
           <span
-            className="truncate text-[11px] font-medium text-muted-foreground"
+            className="truncate text-[12px] font-medium text-muted-foreground"
             title="/teacher/chat?standalone=1"
           >
             /teacher/chat?standalone=1
@@ -115,7 +115,7 @@ export function getLegendEntries(variant: LegendVariant): LegendEntry[] {
     ];
   }
   return [
-    { key: "behavioral", label: "Behavioral", hint: "Conduct and classroom behavior", tone: "amber" },
+    { key: "behavioral", label: "Anecdotal", hint: "Conduct and classroom behavior", tone: "amber" },
     { key: "bullying", label: "Bullying", hint: "Peer conflict and bullying", tone: "red" },
     { key: "academic", label: "Academic", hint: "Learning and performance", tone: "blue" },
     { key: "attendance", label: "Attendance", hint: "Absences and tardiness", tone: "green" },
@@ -170,7 +170,7 @@ function GutterIconButton({
       <span className="truncate">{label}</span>
       {count != null && count > 0 ? (
         <span
-          className={`flex h-4 min-w-4 items-center justify-center rounded-full px-1 text-[10px] font-bold leading-none ${
+          className={`flex h-4 min-w-4 items-center justify-center rounded-full px-1 text-[12px] font-bold leading-none ${
             primary ? "bg-primary-foreground text-primary" : "bg-amber-500 text-black"
           }`}
           aria-hidden="true"
@@ -305,7 +305,7 @@ export function AnecdotalToolbarActions({ variant = "category" }: { variant?: Le
                 ariaLabel="Chat with Bama"
                 className="border-0 [font-family:var(--font-inter)]"
                 actions={
-                  <Button asChild className="h-6 px-2 text-[11px]">
+                  <Button asChild className="h-6 px-2 text-[12px]">
                     <Link href="/teacher/chat?standalone=1" target="_blank" rel="noopener noreferrer">
                       Chat now
                     </Link>
@@ -321,7 +321,7 @@ export function AnecdotalToolbarActions({ variant = "category" }: { variant?: Le
                 >
                   <span className="flex items-center justify-between gap-2">
                     <span
-                      className="truncate text-[11px] font-medium text-muted-foreground"
+                      className="truncate text-[12px] font-medium text-muted-foreground"
                       title="/teacher/chat?standalone=1"
                     >
                       /teacher/chat?standalone=1

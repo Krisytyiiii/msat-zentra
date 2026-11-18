@@ -98,7 +98,7 @@ export function SubjectAddKanban({ onClose, onProgress }: Props) {
               onClick={handleCreate}
               disabled={createMany.isPending || filled.length === 0}
               aria-busy={createMany.isPending || undefined}
-              className="h-6 gap-1 px-2 text-[11px]"
+              className="h-6 gap-1 px-2 text-[12px]"
             >
               {createMany.isPending ? (
                 <>
@@ -126,7 +126,7 @@ export function SubjectAddKanban({ onClose, onProgress }: Props) {
                     variant="ghost"
                     onClick={() => setRows((prev) => prev.filter((_, j) => j !== i))}
                     aria-label={`Remove subject row ${i + 1}`}
-                    className="h-6 gap-1 px-2 text-[11px]"
+                    className="h-6 gap-1 px-2 text-[12px]"
                   >
                     <Trash2 size={12} aria-hidden />
                   </Button>
@@ -154,7 +154,7 @@ export function SubjectAddKanban({ onClose, onProgress }: Props) {
             <Button
               variant="secondary"
               onClick={() => setRows((prev) => [...prev, { name: "", code: "" }])}
-              className="h-6 gap-1 px-2 text-[11px]"
+              className="h-6 gap-1 px-2 text-[12px]"
             >
               <Plus size={12} aria-hidden />
               Add another

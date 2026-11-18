@@ -1,0 +1,609 @@
+/* Registry overview — shared record-keeper / registrar components.
+   One module so the attention deck, panels and ledger share the same
+   typography, 1px-border rhythm and 120–180ms micro-motion. Amber is the
+   registry accent; everything else stays neutral so the accent means
+   "needs attention" instead of decoration. */
+
+/* ------------------------------------------------------- attention deck -- */
+
+.deck {
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-xl);
+  background-color: var(--card);
+}
+
+.deckHead {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.375rem 0.75rem;
+  padding: 0.5rem 0.875rem;
+  border-bottom: 1px solid var(--border);
+  background-color: color-mix(in oklch, var(--muted) 45%, transparent);
+}
+
+.deckTitle {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.375rem;
+  font-size: 0.8125rem;
+  font-weight: 600;
+}
+
+.deckTitle > svg {
+  width: 0.875rem;
+  height: 0.875rem;
+  color: var(--muted-foreground);
+}
+
+.tiles {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+}
+
+.tile {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  gap: 0.4375rem;
+  min-width: 0;
+  padding: 0.6875rem 0.875rem 0.75rem;
+  border-right: 1px solid var(--border);
+  color: inherit;
+  text-decoration: none;
+  outline: none;
+  transition: background-color 140ms ease-out;
+}
+
+.tile:last-child {
+  border-right: 0;
+}
+
+.tile:hover {
+  background-color: color-mix(in oklch, var(--muted) 55%, transparent);
+}
+
+.tile:focus-visible {
+  box-shadow: inset 0 0 0 2px var(--ring);
+}
+
+.tileTop {
+  display: flex;
+  align-items: center;
+  gap: 0.4375rem;
+  min-width: 0;
+}
+
+.tileIcon {
+  display: inline-flex;
+  flex-shrink: 0;
+  align-items: center;
+  justify-content: center;
+  width: 1.375rem;
+  height: 1.375rem;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  background-color: color-mix(in oklch, var(--muted) 55%, transparent);
+  color: var(--muted-foreground);
+  transition: color 140ms ease-out;
+}
+
+.tileIcon > svg {
+  width: 0.8125rem;
+  height: 0.8125rem;
+}
+
+.tile:hover .tileIcon {
+  color: #b45309;
+}
+
+:global(.dark) .tile:hover .tileIcon {
+  color: #fbbf24;
+}
+
+.tileLabel {
+  min-width: 0;
+  overflow: hidden;
+  font-size: 0.75rem;
+  font-weight: 600;
+  color: var(--muted-foreground);
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.tileArrow {
+  flex-shrink: 0;
+  width: 0.875rem;
+  height: 0.875rem;
+  margin-left: auto;
+  color: var(--muted-foreground);
+  opacity: 0;
+  transform: translate(-2px, 2px);
+  transition:
+    opacity 140ms ease-out,
+    transform 140ms ease-out;
+}
+
+.tile:hover .tileArrow,
+.tile:focus-visible .tileArrow {
+  opacity: 1;
+  transform: none;
+}
+
+.tileValue {
+  display: flex;
+  align-items: baseline;
+  gap: 0.3125rem;
+  min-width: 0;
+}
+
+.tileNumber {
+  font-size: 1.75rem;
+  font-weight: 700;
+  line-height: 1;
+  letter-spacing: -0.02em;
+  font-variant-numeric: tabular-nums;
+}
+
+.tileClear .tileNumber {
+  font-weight: 600;
+  color: var(--muted-foreground);
+}
+
+.tileUnit {
+  font-size: 0.75rem;
+  font-weight: 600;
+  letter-spacing: 0.07em;
+  text-transform: uppercase;
+  color: var(--muted-foreground);
+  white-space: nowrap;
+}
+
+.tileMeter {
+  position: relative;
+  height: 3px;
+  overflow: hidden;
+  border-radius: 9999px;
+  background-color: color-mix(in oklch, var(--foreground), transparent 92%);
+}
+
+.tileMeterFill {
+  display: block;
+  height: 100%;
+  border-radius: inherit;
+  background-color: #f59e0b;
+  transition: width 640ms cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+.tileClear .tileMeterFill {
+  background-color: color-mix(in oklch, var(--foreground), transparent 72%);
+}
+
+.tileHint {
+  overflow: hidden;
+  font-size: 0.75rem;
+  color: var(--muted-foreground);
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* ------------------------------------------------------------- segmented -- */
+
+.segmented {
+  display: inline-flex;
+  align-items: center;
+  gap: 2px;
+  padding: 2px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  background-color: color-mix(in oklch, var(--muted) 55%, transparent);
+}
+
+.segment {
+  padding: 0.1875rem 0.4375rem;
+  border: 0;
+  border-radius: calc(var(--radius-md) - 2px);
+  background-color: transparent;
+  color: var(--muted-foreground);
+  font-size: 0.75rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition:
+    background-color 120ms ease-out,
+    color 120ms ease-out;
+}
+
+.segment:hover {
+  color: var(--foreground);
+}
+
+.segment[aria-selected="true"] {
+  background-color: var(--card);
+  color: var(--foreground);
+  box-shadow: 0 1px 2px 0 rgb(0 0 0 / 0.06);
+}
+
+.segment:focus-visible {
+  outline: 2px solid var(--ring);
+  outline-offset: 1px;
+}
+
+/* ------------------------------------------------------------- panel body -- */
+
+.panelBody {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  padding-top: 0.125rem;
+}
+
+/* ----------------------------------------------------------- grade panel -- */
+
+.gradeList {
+  display: flex;
+  flex-direction: column;
+  gap: 0.125rem;
+}
+
+.gradeRow {
+  display: grid;
+  grid-template-columns: 2.375rem minmax(0, 1fr) 2.25rem 0.875rem;
+  align-items: center;
+  gap: 0.5rem;
+  width: 100%;
+  padding: 0.3125rem 0.375rem;
+  border: 0;
+  border-radius: var(--radius-md);
+  background-color: transparent;
+  color: inherit;
+  text-align: left;
+  cursor: pointer;
+  transition: background-color 120ms ease-out;
+}
+
+.gradeRow:hover {
+  background-color: color-mix(in oklch, var(--muted) 60%, transparent);
+}
+
+.gradeRow[aria-expanded="true"] {
+  background-color: rgb(245 158 11 / 0.1);
+}
+
+.gradeRow:focus-visible {
+  outline: 2px solid var(--ring);
+  outline-offset: 1px;
+}
+
+.gradeLabel {
+  font-size: 0.75rem;
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+
+.gradeTrack {
+  position: relative;
+  height: 0.5rem;
+  overflow: hidden;
+  border-radius: 9999px;
+  background-color: color-mix(in oklch, var(--foreground), transparent 93%);
+}
+
+.gradeFill {
+  display: block;
+  height: 100%;
+  border-radius: inherit;
+  background-color: #f59e0b;
+  transition:
+    width 520ms cubic-bezier(0.22, 1, 0.36, 1),
+    background-color 140ms ease-out;
+}
+
+.gradeRow:hover .gradeFill,
+.gradeRow[aria-expanded="true"] .gradeFill {
+  background-color: #d97706;
+}
+
+:global(.dark) .gradeRow:hover .gradeFill,
+:global(.dark) .gradeRow[aria-expanded="true"] .gradeFill {
+  background-color: #fbbf24;
+}
+
+.gradeValue {
+  font-size: 0.75rem;
+  font-weight: 700;
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+}
+
+.gradeChevron {
+  width: 0.75rem;
+  height: 0.75rem;
+  color: var(--muted-foreground);
+  transition: transform 160ms ease-out;
+}
+
+.gradeRow[aria-expanded="true"] .gradeChevron {
+  transform: rotate(90deg);
+}
+
+.gradeDetail {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 0.5rem;
+  margin: 0.125rem 0 0.25rem;
+  padding: 0.5rem 0.625rem;
+  border: 1px dashed var(--border);
+  border-radius: var(--radius-md);
+  background-color: color-mix(in oklch, var(--muted) 40%, transparent);
+  animation: rk-detail-in 160ms ease-out;
+}
+
+.gradeDetailItem {
+  display: flex;
+  flex-direction: column;
+  gap: 0.0625rem;
+  min-width: 0;
+}
+
+.gradeDetailLabel {
+  font-size: 0.75rem;
+  font-weight: 600;
+  letter-spacing: 0.07em;
+  text-transform: uppercase;
+  color: var(--muted-foreground);
+}
+
+.gradeDetailValue {
+  font-size: 0.875rem;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+}
+
+@keyframes rk-detail-in {
+  from {
+    opacity: 0;
+    transform: translateY(-3px);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+/* --------------------------------------------------------- requests panel -- */
+
+.seriesRow {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.3125rem;
+}
+
+.seriesChip {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.375rem;
+  height: 1.5rem;
+  padding: 0 0.5rem;
+  border: 1px solid var(--border);
+  border-radius: 9999px;
+  background-color: var(--card);
+  color: var(--foreground);
+  font-size: 0.75rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition:
+    opacity 120ms ease-out,
+    border-color 120ms ease-out;
+}
+
+.seriesChip:hover {
+  border-color: color-mix(in oklch, var(--foreground), transparent 62%);
+}
+
+.seriesChip:focus-visible {
+  outline: 2px solid var(--ring);
+  outline-offset: 1px;
+}
+
+.seriesChip[aria-pressed="false"] {
+  opacity: 0.45;
+}
+
+.seriesDot {
+  width: 0.4375rem;
+  height: 0.4375rem;
+  flex-shrink: 0;
+  border-radius: 9999px;
+}
+
+.seriesTotal {
+  color: var(--muted-foreground);
+  font-variant-numeric: tabular-nums;
+}
+
+.requestsFoot {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.375rem 0.75rem;
+  padding-top: 0.5rem;
+  border-top: 1px dashed var(--border);
+  font-size: 0.75rem;
+  color: var(--muted-foreground);
+}
+
+.peak {
+  font-weight: 600;
+  color: var(--foreground);
+  font-variant-numeric: tabular-nums;
+}
+
+.inlineEmpty {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+  padding: 1.25rem 0.5rem;
+  font-size: 0.75rem;
+  color: var(--muted-foreground);
+  text-align: center;
+}
+
+.inlineEmptyButton {
+  padding: 0.125rem 0.375rem;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  background-color: var(--card);
+  color: var(--foreground);
+  font-size: 0.75rem;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.inlineEmptyButton:focus-visible {
+  outline: 2px solid var(--ring);
+  outline-offset: 1px;
+}
+
+/* ------------------------------------------------------------- ledger -- */
+
+.ledgerGrid {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 0.5rem;
+}
+
+.ledgerCell {
+  display: flex;
+  flex-direction: column;
+  gap: 0.3125rem;
+  min-width: 0;
+  padding: 0.5rem 0.625rem;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  background-color: color-mix(in oklch, var(--muted) 28%, transparent);
+  color: inherit;
+  text-decoration: none;
+  outline: none;
+  transition:
+    border-color 140ms ease-out,
+    background-color 140ms ease-out;
+}
+
+.ledgerCell:hover {
+  border-color: color-mix(in oklch, var(--foreground), transparent 70%);
+  background-color: color-mix(in oklch, var(--muted) 52%, transparent);
+}
+
+.ledgerCell:focus-visible {
+  box-shadow: 0 0 0 2px var(--ring);
+}
+
+.ledgerLabel {
+  overflow: hidden;
+  font-size: 0.75rem;
+  font-weight: 600;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--muted-foreground);
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.ledgerValue {
+  display: flex;
+  align-items: baseline;
+  gap: 0.25rem;
+  font-variant-numeric: tabular-nums;
+}
+
+.ledgerNumber {
+  font-size: 1.125rem;
+  font-weight: 700;
+  line-height: 1;
+  letter-spacing: -0.01em;
+}
+
+.ledgerOf {
+  font-size: 0.75rem;
+  color: var(--muted-foreground);
+}
+
+.ledgerMeter {
+  height: 3px;
+  overflow: hidden;
+  border-radius: 9999px;
+  background-color: color-mix(in oklch, var(--foreground), transparent 92%);
+}
+
+.ledgerMeterFill {
+  display: block;
+  height: 100%;
+  border-radius: inherit;
+  background-color: var(--foreground);
+  transition: width 640ms cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+.ledgerHint {
+  overflow: hidden;
+  font-size: 0.75rem;
+  color: var(--muted-foreground);
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* ------------------------------------------------------------- responsive -- */
+
+@media (max-width: 900px) {
+  .tiles {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+  .tile:nth-child(2) {
+    border-right: 0;
+  }
+  .tile:nth-child(-n + 2) {
+    border-bottom: 1px solid var(--border);
+  }
+  .ledgerGrid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+@media (max-width: 520px) {
+  .tiles {
+    grid-template-columns: 1fr;
+  }
+  .tile {
+    border-right: 0;
+    border-bottom: 1px solid var(--border);
+  }
+  .tile:last-child {
+    border-bottom: 0;
+  }
+  .ledgerGrid {
+    grid-template-columns: 1fr;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .tileMeterFill,
+  .gradeFill,
+  .ledgerMeterFill,
+  .tile,
+  .gradeRow,
+  .gradeChevron,
+  .tileArrow {
+    transition: none;
+  }
+  .gradeDetail {
+    animation: none;
+  }
+}

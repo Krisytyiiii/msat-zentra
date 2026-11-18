@@ -58,7 +58,7 @@ import type { ScheduleSection } from "../../page";
 function TemplateBlockHeading({ title, hint }: { title: string; hint?: string }) {
   return (
     <div className="flex flex-col gap-1.5">
-      <h2 className="self-end text-[10px] font-medium uppercase tracking-[0.12em] text-muted-foreground">
+      <h2 className="self-end text-[12px] font-medium uppercase tracking-[0.12em] text-muted-foreground">
         {title}
       </h2>
       <div className="h-px w-full bg-border" aria-hidden />
@@ -576,13 +576,13 @@ function TemplateInner() {
           <div className="flex items-center justify-end gap-2">
             <Button
               variant="outline"
-              className="h-6 gap-1 px-2 text-[11px]"
+              className="h-6 gap-1 px-2 text-[12px]"
               onClick={openAddSubject}
             >
               <BookPlus size={12} aria-hidden />
               Add subject
             </Button>
-            <Button className="h-6 gap-1 px-2 text-[11px]" onClick={openAddTeacher}>
+            <Button className="h-6 gap-1 px-2 text-[12px]" onClick={openAddTeacher}>
               <UserPlus size={12} aria-hidden />
               Add teacher
             </Button>
@@ -738,7 +738,7 @@ function TemplateInner() {
                               : `${cellsHook.pendingSlots.length} unsaved slot${cellsHook.pendingSlots.length === 1 ? "" : "s"}`}
                           </span>
                           {cellsHook.saveProgress?.active ? (
-                            <Button size="sm" disabled aria-busy className="h-6 gap-1 px-2 text-[11px]">
+                            <Button size="sm" disabled aria-busy className="h-6 gap-1 px-2 text-[12px]">
                               <Save size={12} aria-hidden />
                               Saving…
                             </Button>
@@ -746,7 +746,7 @@ function TemplateInner() {
                             <Button
                               size="sm"
                               onClick={() => void cellsHook.saveAll()}
-                              className="h-6 gap-1 px-2 text-[11px]"
+                              className="h-6 gap-1 px-2 text-[12px]"
                             >
                               <Save size={12} aria-hidden />
                               Save{cellsHook.pendingSlots.length > 0 ? ` (${cellsHook.pendingSlots.length})` : ""}
@@ -766,7 +766,7 @@ function TemplateInner() {
                                 cellsHook.discardStaged();
                               }}
                               title="Discard staged picks and revert to last-saved state"
-                              className="h-6 gap-1 px-2 text-[11px]"
+                              className="h-6 gap-1 px-2 text-[12px]"
                             >
                               <Trash2 size={12} aria-hidden />
                               {confirmClearAll ? "Confirm?" : "Clear all"}
@@ -793,7 +793,7 @@ function TemplateInner() {
                               </Pill>
                               <Button
                                 variant="outline"
-                                className="h-6 gap-1 px-2 text-[11px]"
+                                className="h-6 gap-1 px-2 text-[12px]"
                                 onClick={() => setConfirmUnlock(true)}
                                 disabled={cellsHook.unlock.isPending}
                                 aria-busy={cellsHook.unlock.isPending || undefined}
@@ -810,7 +810,7 @@ function TemplateInner() {
                               </Pill>
                               <Button
                                 variant="outline"
-                                className="h-6 gap-1 px-2 text-[11px]"
+                                className="h-6 gap-1 px-2 text-[12px]"
                                 onClick={cellsHook.cancelEdit}
                               >
                                 <Undo2 size={12} aria-hidden />

@@ -65,7 +65,7 @@ function ActionCard({
       className="flex min-w-0 flex-1 cursor-pointer flex-col gap-1.5 rounded-lg border bg-white p-3 text-left shadow-sm transition-colors [font-family:var(--font-inter)] hover:border-primary/60 hover:shadow dark:bg-card"
     >
       <span className="flex items-center justify-between gap-2">
-        <span className="truncate text-[11px] font-medium text-muted-foreground" title={actionLabel}>
+        <span className="truncate text-[12px] font-medium text-muted-foreground" title={actionLabel}>
           {actionLabel}
         </span>
         <span
@@ -101,7 +101,7 @@ function LinkCard({
       className="flex min-w-0 cursor-pointer flex-col gap-1.5 rounded-lg border bg-white p-3 shadow-sm transition-colors [font-family:var(--font-inter)] hover:border-primary/60 hover:shadow dark:bg-card"
     >
       <span className="flex items-center justify-between gap-2">
-        <span className="truncate text-[11px] font-medium text-muted-foreground" title={href}>
+        <span className="truncate text-[12px] font-medium text-muted-foreground" title={href}>
           {href}
         </span>
         <span
@@ -213,7 +213,7 @@ export function ModulesEmptyKanban({
               icon={<UserRoundSearch size={14} aria-hidden className="text-amber-500" />}
               title="Advisory List"
               action={
-                <Button asChild variant="outline" className="h-6 px-2 text-[11px]">
+                <Button asChild variant="outline" className="h-6 px-2 text-[12px]">
                   <Link href="/teacher/advisory/list">See all</Link>
                 </Button>
               }

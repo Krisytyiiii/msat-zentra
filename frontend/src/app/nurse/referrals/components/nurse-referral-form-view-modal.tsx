@@ -203,7 +203,7 @@ export function NurseReferralFormViewModal({
             type="button"
             variant="outline"
             size="sm"
-            className="h-6 px-2 text-[11px]"
+            className="h-6 px-2 text-[12px]"
             onClick={() => window.print()}
             disabled={!built || !sheetHtml}
           >
@@ -214,7 +214,7 @@ export function NurseReferralFormViewModal({
             type="button"
             variant="outline"
             size="sm"
-            className="h-6 px-2 text-[11px]"
+            className="h-6 px-2 text-[12px]"
             disabled={!built || !sheetHtml || exporting !== null}
             onClick={() => void handleSaveImage("png")}
             aria-busy={exporting === "png" || undefined}
@@ -230,7 +230,7 @@ export function NurseReferralFormViewModal({
             type="button"
             variant="outline"
             size="sm"
-            className="h-6 px-2 text-[11px]"
+            className="h-6 px-2 text-[12px]"
             disabled={!built || !sheetHtml || exporting !== null}
             onClick={() => void handleSaveImage("jpg")}
             aria-busy={exporting === "jpg" || undefined}
@@ -246,7 +246,7 @@ export function NurseReferralFormViewModal({
             type="button"
             variant="outline"
             size="sm"
-            className="h-6 px-2 text-[11px]"
+            className="h-6 px-2 text-[12px]"
             disabled={!built || !sheetHtml || exporting !== null}
             onClick={() => void handleSavePdf()}
             aria-busy={exporting === "pdf" || undefined}
@@ -262,7 +262,7 @@ export function NurseReferralFormViewModal({
             <Button
               type="button"
               size="sm"
-              className="h-6 px-2 text-[11px]"
+              className="h-6 px-2 text-[12px]"
               disabled={endorsing}
               onClick={() => endorse()}
               aria-busy={endorsing || undefined}

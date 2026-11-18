@@ -122,7 +122,7 @@ export function BamaSubmitDock({ submitting, filed, sectionName, studentCount }:
               <span className="min-w-0 flex-1 truncate text-xs" title={sectionName || "Advisory section"}>
                 {sectionName || "Advisory section"}
               </span>
-              <span className="shrink-0 text-[11px] text-muted-foreground">
+              <span className="shrink-0 text-[12px] text-muted-foreground">
                 {submitting ? "Sending…" : "Sent"}
               </span>
             </li>
@@ -137,13 +137,13 @@ export function BamaSubmitDock({ submitting, filed, sectionName, studentCount }:
               <span className="min-w-0 flex-1 truncate text-xs">
                 {studentCount} student{studentCount === 1 ? "" : "s"}
               </span>
-              <span className="shrink-0 text-[11px] text-muted-foreground">
+              <span className="shrink-0 text-[12px] text-muted-foreground">
                 {submitting ? "Verifying…" : "Done"}
               </span>
             </li>
           </ul>
           {submitting && sectionName ? (
-            <p className="truncate text-[11px] text-muted-foreground" title={sectionName}>
+            <p className="truncate text-[12px] text-muted-foreground" title={sectionName}>
               Now sending: {sectionName}
             </p>
           ) : null}

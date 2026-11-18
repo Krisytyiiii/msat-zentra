@@ -1,10 +1,9 @@
 "use client";
 
-import type { ElementType, ReactNode } from "react";
 import Link from "next/link";
-import { ArrowLeft, CalendarDays, ShieldCheck } from "lucide-react";
-import { Button } from "@/components/ui/button";
+import { ArrowLeft, CalendarDays, Check, ShieldCheck } from "lucide-react";
 import { Pill } from "@/components/ui/pill";
+import { cn } from "@/lib/utils";
 import {
   admStageTone,
   eligibilityLabel,
@@ -20,47 +19,110 @@ const dateLabel = (iso: string | null) => {
   return d.toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" });
 };
 
+/**
+ * The ADM journey in plain language. The backend stage machine is the source
+ * of truth; this list only shortens the labels so a non-technical reader can
+ * scan the whole path at a glance.
+ */
+const JOURNEY: { key: string; label: string }[] = [
+  { key: "anecdotal", label: "Concern recorded" },
+  { key: "consultation", label: "Consultation" },
+  { key: "meeting_parents", label: "Parent meeting" },
+  { key: "home_visitation", label: "Home visit" },
+  { key: "certification", label: "Certification" },
+  { key: "principal_approval", label: "Principal approval" },
+  { key: "enrollment_monitoring", label: "Live monitoring" },
+  { key: "completion", label: "Completed" },
+];
+
+function JourneySteps({ stage }: { stage: string }) {
+  const currentIndex = Math.max(
+    0,
+    JOURNEY.findIndex((step) => step.key === stage)
+  );
+
+  return (
+    <div className="flex flex-col gap-2">
+      <div className="flex flex-wrap items-center justify-between gap-1">
+        <p className="m-0 text-[12px] font-semibold uppercase tracking-wide text-muted-foreground">
+          Case journey
+        </p>
+        <p className="m-0 text-[12px] font-medium text-muted-foreground">
+          Step {currentIndex + 1} of {JOURNEY.length}
+        </p>
+      </div>
+
+      <ol className="m-0 flex list-none gap-1 overflow-x-auto p-0 pb-1">
+        {JOURNEY.map((step, index) => {
+          const done = index < currentIndex;
+          const active = index === currentIndex;
+
+          return (
+            <li
+              key={step.key}
+              aria-current={active ? "step" : undefined}
+              className="flex min-w-[4.75rem] flex-1 flex-col items-center gap-1.5 text-center"
+            >
+              <span className="flex w-full items-center gap-1">
+                <span
+                  className={cn(
+                    "h-px flex-1",
+                    index === 0 ? "bg-transparent" : done || active ? "bg-foreground/20" : "bg-border"
+                  )}
+                  aria-hidden
+                />
+                <span
+                  className={cn(
+                    "flex size-6 shrink-0 items-center justify-center rounded-full border text-[12px] font-semibold transition-colors duration-150",
+                    done && "border-transparent bg-emerald-500 text-white",
+                    active && "border-transparent bg-blue-500 text-white ring-4 ring-blue-500/15",
+                    !done && !active && "border-border bg-background text-muted-foreground"
+                  )}
+                >
+                  {done ? <Check size={12} aria-hidden /> : index + 1}
+                </span>
+                <span
+                  className={cn(
+                    "h-px flex-1",
+                    index === JOURNEY.length - 1
+                      ? "bg-transparent"
+                      : done
+                        ? "bg-foreground/20"
+                        : "bg-border"
+                  )}
+                  aria-hidden
+                />
+              </span>
+              <span
+                className={cn(
+                  "text-[12px] leading-tight",
+                  active ? "font-semibold text-foreground" : "text-muted-foreground"
+                )}
+              >
+                {step.label}
+              </span>
+            </li>
+          );
+        })}
+      </ol>
+    </div>
+  );
+}
+
 export function MonitoringHeader({
   header,
   backHref = "/teacher/advisory/adm-cases",
   backLabel = "Back to ADM cases",
-  backVariant = "link",
 }: {
   header: AdmMonitoringCase["header"];
   /** Where the back link points — the coordinator desk reuses this view. */
   backHref?: string;
   backLabel?: string;
-  /** `primary` renders a filled button instead of the quiet text link. */
-  backVariant?: "link" | "primary";
 }) {
-  // One board per stat — the identity card above only carries the learner.
-  const stats: {
-    label: string;
-    value: ReactNode;
-    icon?: ElementType;
-    mono?: boolean;
-  }[] = [
-    { label: "Section", value: header.section },
-    { label: "Grade level", value: header.gradeLevel.replace("G", "Grade ") },
-    {
-      label: "ADM stage",
-      value: (
-        <Pill tone={admStageTone(header.stage)} label="ADM stage">
-          {header.stageLabel}
-        </Pill>
-      ),
-    },
-    {
-      label: "Eligibility",
-      value: (
-        <Pill tone={eligibilityTone(header.eligibilityStatus)} label="Eligibility">
-          {eligibilityLabel(header.eligibilityStatus)}
-        </Pill>
-      ),
-    },
+  const facts = [
     {
       label: "Principal approved",
-      value: dateLabel(header.approvedAt) ?? "—",
+      value: dateLabel(header.approvedAt) ?? "Not yet",
       icon: ShieldCheck,
     },
     {
@@ -72,69 +134,91 @@ export function MonitoringHeader({
 
   return (
     <div className="flex flex-col gap-3">
-      {backVariant === "primary" ? (
-        <Button asChild className="h-7 w-fit px-2.5 text-xs">
-          <Link href={backHref}>
-            <ArrowLeft size={14} aria-hidden /> {backLabel}
-          </Link>
-        </Button>
-      ) : (
-        <Link
-          href={backHref}
-          className="inline-flex w-fit items-center gap-1 text-xs font-medium text-muted-foreground hover:text-foreground"
-        >
-          <ArrowLeft size={14} aria-hidden /> {backLabel}
-        </Link>
-      )}
+      <Link
+        href={backHref}
+        className="-ml-2 inline-flex w-fit items-center gap-1 rounded-md px-2 py-1 text-xs font-medium text-muted-foreground transition-colors duration-150 hover:bg-muted hover:text-foreground"
+      >
+        <ArrowLeft size={14} aria-hidden /> {backLabel}
+      </Link>
 
-      <div className="flex flex-wrap items-stretch gap-2" aria-label="Case statistics">
-        <div className="flex min-w-[10rem] flex-1 items-center gap-2 rounded-md border bg-card px-3 py-2">
-          <StudentMascot
-            name={header.studentName}
-            seed={header.lrn}
-            character={header.mascot ?? undefined}
-            size={36}
-          />
-          <div className="flex min-w-0 flex-col justify-between gap-1">
-            <p className="m-0 text-[10px] font-medium uppercase tracking-wide text-muted-foreground">
-              Learner
-            </p>
-            <p
-              className="m-0 truncate text-sm font-bold text-foreground"
-              title={header.studentName}
-            >
-              {header.studentName}
-            </p>
-            <Pill tone="neutral" label="LRN" className="self-start tabular-nums">
-              {header.lrn}
+      <section
+        className="flex flex-col gap-4 rounded-md border bg-card p-4 sm:p-5"
+        aria-label="Learner case summary"
+      >
+        <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
+          <div className="flex min-w-0 items-start gap-3">
+            <StudentMascot
+              name={header.studentName}
+              seed={header.lrn}
+              character={header.mascot ?? undefined}
+              size={56}
+            />
+            <div className="flex min-w-0 flex-col gap-1.5">
+              <p className="m-0 text-[12px] font-semibold uppercase tracking-wide text-muted-foreground">
+                ADM learner
+              </p>
+              <h1
+                className="m-0 truncate text-lg font-bold tracking-[-0.01em] text-foreground sm:text-xl"
+                title={header.studentName}
+              >
+                {header.studentName}
+              </h1>
+              <div className="flex flex-wrap items-center gap-1.5">
+                <Pill tone="neutral" label="LRN" className="tabular-nums">
+                  {header.lrn}
+                </Pill>
+                <Pill tone="neutral" label="Section">
+                  {header.section || "No section"}
+                </Pill>
+                <Pill tone="neutral" label="Grade level">
+                  {header.gradeLevel.replace("G", "Grade ")}
+                </Pill>
+              </div>
+            </div>
+          </div>
+
+          <div className="flex flex-wrap items-center gap-1.5 sm:justify-end">
+            <Pill tone={admStageTone(header.stage)} label="ADM stage">
+              {header.stageLabel}
+            </Pill>
+            <Pill tone={eligibilityTone(header.eligibilityStatus)} label="Eligibility">
+              {eligibilityLabel(header.eligibilityStatus)}
             </Pill>
           </div>
         </div>
 
-        {stats.map(({ label, value, icon: Icon, mono }) => (
-          <div
-            key={label}
-            className="flex min-w-[7.5rem] flex-1 flex-col items-center justify-between gap-1 rounded-md border bg-card px-3 py-2 text-center"
-          >
-            <p className="m-0 flex min-w-0 items-center justify-center gap-1 text-[10px] font-medium uppercase tracking-wide text-muted-foreground">
-              {Icon ? <Icon size={11} className="shrink-0" aria-hidden /> : null}
-              <span className="truncate" title={label}>
-                {label}
-              </span>
-            </p>
-            <div
-              className={
-                mono
-                  ? "max-w-full truncate text-sm font-bold tabular-nums text-foreground"
-                  : "max-w-full truncate text-sm font-bold text-foreground"
-              }
-              title={typeof value === "string" ? value : undefined}
-            >
-              {value}
-            </div>
+        {/* Facts and journey share one row on desktop; the journey takes the
+            wide side so all eight steps fit without wrapping. */}
+        <div className="flex flex-col gap-4 border-t pt-3 lg:flex-row lg:items-center lg:gap-5">
+          <div className="grid shrink-0 grid-cols-2 gap-2 lg:w-[22rem]">
+            {facts.map(({ label, value, icon: Icon }) => (
+              <div
+                key={label}
+                className="flex items-center gap-2 rounded-md border bg-background px-2.5 py-2"
+              >
+                <Icon size={14} className="shrink-0 text-muted-foreground" aria-hidden />
+                <div className="flex min-w-0 flex-col">
+                  <span className="text-[12px] font-medium uppercase tracking-wide text-muted-foreground">
+                    {label}
+                  </span>
+                  <span
+                    className="truncate text-xs font-semibold text-foreground"
+                    title={value}
+                  >
+                    {value}
+                  </span>
+                </div>
+              </div>
+            ))}
           </div>
-        ))}
-      </div>
+
+          <span className="hidden h-14 w-px shrink-0 bg-border lg:block" aria-hidden />
+
+          <div className="min-w-0 flex-1">
+            <JourneySteps stage={header.stage} />
+          </div>
+        </div>
+      </section>
     </div>
   );
 }

@@ -62,7 +62,7 @@ export function InsightsSessionBoard({
                 width={112}
                 tickLine={false}
                 axisLine={false}
-                tick={{ fontSize: 11 }}
+                tick={{ fontSize: 12 }}
               />
               <Tooltip
                 cursor={{ fill: "color-mix(in oklch, var(--primary), transparent 94%)" }}

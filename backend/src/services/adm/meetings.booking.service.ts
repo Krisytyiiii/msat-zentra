@@ -74,7 +74,12 @@ export async function bookProfileMeeting(ctx: AdmContext, profileId: string, inp
   const profile = await prisma.admLearnerProfile.findUnique({
     where: { id: profileId },
     include: {
-      student: { select: { user: { select: { fullName: true } } } },
+      student: {
+        select: {
+          user: { select: { fullName: true } },
+          section: { select: { adviserId: true } },
+        },
+      },
       referral: { select: { id: true, referredBy: true, status: true, consultReviewer: true } },
     },
   });
@@ -126,36 +131,42 @@ export async function bookProfileMeeting(ctx: AdmContext, profileId: string, inp
     reason: `Parent meeting booked (${input.venue === "home" ? "home visitation" : "in school"})${invitees.length > 0 ? ` · invited: ${inviteeNames(invitees)}` : ""}`,
   });
 
-  {
-    const studentName = profile.student?.user?.fullName ?? "your student";
-    const when = meeting.meetingDatetime.toISOString().slice(0, 16).replace("T", " ");
-    const venueLabel = input.venue === "home" ? "home visitation" : "in school";
-    if (profile.referral && profile.referral.referredBy !== ctx.userId) {
-      void fanoutNotification({
-        userId: profile.referral.referredBy,
-        sourceTable: "adm_parent_meetings",
-        action: "book",
-        message: `Parent meeting booked for ${studentName} on ${when} (${venueLabel}).`,
-        sourceId: meeting.id,
-      });
-    }
+  const studentName = profile.student?.user?.fullName ?? "your student";
+  const when = meeting.meetingDatetime.toISOString().slice(0, 16).replace("T", " ");
+  const venueLabel = input.venue === "home" ? "home visitation" : "in school";
+  // The filing teacher and the learner's section adviser both sit on the
+  // adviser desk — the latter is the one who must still hear the booking when
+  // someone else (guidance) filed the ADM referral.
+  const adviserIds = [
+    ...new Set(
+      [profile.referral?.referredBy, profile.student?.section?.adviserId].filter(
+        (id): id is string => typeof id === "string" && id.length > 0,
+      ),
+    ),
+  ].filter((id) => id !== ctx.userId);
 
+  for (const adviserId of adviserIds) {
     void fanoutNotification({
-      userId: ctx.userId,
+      userId: adviserId,
       sourceTable: "adm_parent_meetings",
-      action: "book_self",
-      message: `You booked a parent meeting for ${studentName} on ${when} (${venueLabel}) — referrals.`,
+      action: "book",
+      message: `Parent meeting booked for ${studentName} on ${when} (${venueLabel}).`,
       sourceId: meeting.id,
     });
   }
 
+  void fanoutNotification({
+    userId: ctx.userId,
+    sourceTable: "adm_parent_meetings",
+    action: "book_self",
+    message: `You booked a parent meeting for ${studentName} on ${when} (${venueLabel}) — referrals.`,
+    sourceId: meeting.id,
+  });
+
   if (invitees.length > 0) {
     const actor = await actorName(ctx.userId);
-    const studentName = profile.student?.user?.fullName ?? "your student";
-    const when = meeting.meetingDatetime.toISOString().slice(0, 16).replace("T", " ");
-    const venueLabel = input.venue === "home" ? "home visitation" : "in school";
     for (const inv of invitees) {
-      if (inv.id === profile.referral?.referredBy) continue;
+      if (adviserIds.includes(inv.id)) continue;
       void fanoutNotification({
         userId: inv.id,
         sourceTable: "adm_parent_meetings",
@@ -197,8 +208,15 @@ export async function bookReferralMeeting(ctx: AdmContext, referralId: string, i
   const referral = await prisma.referral.findUnique({
     where: { id: referralId },
     include: {
-      student: { select: { user: { select: { fullName: true } } } },
-      roster: { select: { fullName: true } },
+      student: {
+        select: {
+          user: { select: { fullName: true } },
+          section: { select: { adviserId: true } },
+        },
+      },
+      roster: {
+        select: { fullName: true, section: { select: { adviserId: true } } },
+      },
       admProfiles: { select: { id: true, approvedBy: true, stage: true } },
     },
   });
@@ -262,8 +280,20 @@ export async function bookReferralMeeting(ctx: AdmContext, referralId: string, i
   const when = meeting.meetingDatetime.toISOString().slice(0, 16).replace("T", " ");
   const venueLabel = input.venue === "home" ? "home visitation" : "in school";
   const actor = await actorName(ctx.userId);
-  if (referral.referredBy !== ctx.userId) {
-    const adviserId = referral.referredBy;
+  // Filing teacher + the learner's section adviser (they can differ when
+  // guidance filed/endorsed the ADM referral).
+  const adviserIds = [
+    ...new Set(
+      [
+        referral.referredBy,
+        referral.student?.section?.adviserId,
+        referral.roster?.section?.adviserId,
+      ].filter(
+        (id): id is string => typeof id === "string" && id.length > 0,
+      ),
+    ),
+  ].filter((id) => id !== ctx.userId);
+  for (const adviserId of adviserIds) {
     void fanoutNotification({
       userId: adviserId,
       sourceTable: "adm_parent_meetings",
@@ -282,7 +312,7 @@ export async function bookReferralMeeting(ctx: AdmContext, referralId: string, i
   });
 
   for (const inv of invitees) {
-    if (inv.id === referral.referredBy) continue;
+    if (adviserIds.includes(inv.id)) continue;
     void fanoutNotification({
       userId: inv.id,
       sourceTable: "adm_parent_meetings",

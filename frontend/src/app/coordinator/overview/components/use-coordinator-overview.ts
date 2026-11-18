@@ -11,7 +11,6 @@ import {
   countFor,
   SHORT_STAGE,
   STAGE_COLORS,
-  type AttentionItem,
   type StageDonutEntry,
 } from "./coordinator-overview-helpers";
 
@@ -26,11 +25,8 @@ export interface CoordinatorOverviewModel {
   awaitingPrincipal: number;
   activeEnrolled: number;
   stageDonut: StageDonutEntry[];
-  attention: AttentionItem[];
-  attentionReady: boolean;
-  attentionError: boolean;
-  allClear: boolean;
-  attentionTotal: number;
+  needsReview: number | null;
+  needsReviewReady: boolean;
   forwards: {
     rows: NonNullable<
       Awaited<ReturnType<typeof fetchCoordinatorReferrals>>["rows"]
@@ -146,51 +142,16 @@ export function useCoordinatorOverview(): CoordinatorOverviewModel {
     () => (Array.isArray(forwardsQuery.data?.rows) ? forwardsQuery.data.rows : []),
     [forwardsQuery.data],
   );
-  const newReferrals = React.useMemo(
-    () => countFor(data?.stageBreakdown, "consultation"),
-    [data],
-  );
-  const needsRevision = data?.needsRevision ?? null;
+  const needsReview = React.useMemo(() => {
+    const raw = forwardsQuery.data?.needsReview;
+    return typeof raw === "number" ? raw : null;
+  }, [forwardsQuery.data]);
+  const needsReviewReady = forwardsQuery.data !== undefined;
   const devicesOut = React.useMemo(() => {
     if (typeof data?.deviceSummary?.issued === "number")
       return data.deviceSummary.issued;
     return devicesQuery.data?.issued ?? null;
   }, [data, devicesQuery.data]);
-
-  const attention: AttentionItem[] = React.useMemo(
-    () => [
-      {
-        label: "New referrals with no profile",
-        count: newReferrals,
-        href: "/coordinator/referrals",
-        hint: "Create the learner profile to start the case",
-      },
-      {
-        label: "Needs revision",
-        count: needsRevision,
-        href: "/coordinator/certifications?tab=revision",
-        hint: "Returned by the Principal or forwarded incomplete",
-      },
-      {
-        label: "Devices still out",
-        count: devicesOut,
-        href: "/coordinator/devices",
-        hint: "Issued tablets not yet returned",
-      },
-    ],
-    [newReferrals, needsRevision, devicesOut],
-  );
-  const attentionError = devicesQuery.isError;
-
-  const attentionReady = data !== undefined && needsRevision !== null;
-  const allClear =
-    attentionReady &&
-    !attentionError &&
-    attention.every((a) => (a.count ?? 0) === 0);
-  const attentionTotal = React.useMemo(
-    () => attention.reduce((sum, a) => sum + (a.count ?? 0), 0),
-    [attention],
-  );
 
   const oldestOut = React.useMemo(() => {
     const raw = devicesQuery.data?.rows;
@@ -219,11 +180,8 @@ export function useCoordinatorOverview(): CoordinatorOverviewModel {
     awaitingPrincipal,
     activeEnrolled,
     stageDonut,
-    attention,
-    attentionReady,
-    attentionError,
-    allClear,
-    attentionTotal,
+    needsReview,
+    needsReviewReady,
     forwards: {
       rows: recentRows,
       isPending: forwardsQuery.isPending,

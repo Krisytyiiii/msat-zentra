@@ -1,9 +1,10 @@
 "use client";
 
 import * as React from "react";
+import Link from "next/link";
 import { useQuery } from "@tanstack/react-query";
 import { Pie, PieChart, Cell } from "recharts";
-import { Users } from "lucide-react";
+import { ArrowRight, Users } from "lucide-react";
 import { PrincipalEmptyState } from "../../components/PrincipalEmptyCard";
 import { KanbanBoard } from "@/components/ui/kanban-board";
 import { InsightCallout } from "@/components/ui/insight-callout";
@@ -200,6 +201,17 @@ export function OverviewPopulation() {
         <Pill tone="green" label="Data source">
           Adviser-shared
         </Pill>
+      }
+      footer={
+        <div className="flex justify-end px-1 pb-0.5">
+          <Link
+            href="/principal/academics"
+            className="inline-flex items-center gap-1 rounded-md text-xs font-semibold text-primary outline-none hover:underline focus-visible:ring-2 focus-visible:ring-ring"
+          >
+            View sections
+            <ArrowRight size={13} aria-hidden />
+          </Link>
+        </div>
       }
     >
       <div className={styles.boardBody}>{body}</div>

@@ -8,6 +8,7 @@ import { markRealtimeUpdate } from "@/lib/api/fresh";
 import { toast } from "@/components/ui/sonner";
 import { coordinatorNotificationTitle } from "@/lib/notifications/label";
 import {
+  isAdmConsultEndorsed,
   isIncomingReferral,
   isReferralCancelled,
   playDeskSound,
@@ -24,6 +25,7 @@ const COORDINATOR_KEYS = [
   ["coordinator-approvals"],
   ["coordinator-devices"],
   ["coordinator-notifications"],
+  ["coordinator-nav-counts"],
 ] as const;
 
 type KeyTuple = readonly [string, ...string[]];
@@ -109,7 +111,11 @@ export function useCoordinatorRealtime(enabled = true) {
     enabled,
     title: "New ADM referrals on the coordinator desk",
     clipFor: (row) =>
-      isReferralCancelled(row) ? "cancelled" : isIncomingReferral(row) ? "referral" : null,
+      isReferralCancelled(row)
+        ? "cancelled"
+        : isIncomingReferral(row) || isAdmConsultEndorsed(row)
+          ? "referral"
+          : null,
   });
 
   React.useEffect(() => {
@@ -130,7 +136,8 @@ export function useCoordinatorRealtime(enabled = true) {
       // A new ADM referral landed on — or was withdrawn from — this desk.
       if (!selfConfirmed) {
         if (isReferralCancelled(row)) playDeskSound("cancelled");
-        else if (isIncomingReferral(row)) playDeskSound("referral");
+        else if (isIncomingReferral(row) || isAdmConsultEndorsed(row))
+          playDeskSound("referral");
       }
       if (!selfConfirmed && !silent) {
         toast.info({
@@ -245,6 +252,9 @@ export function useCoordinatorRealtime(enabled = true) {
       for (const row of queued) {
         for (const key of keysForNotification(row)) keys.set(key.join("|"), key);
       }
+      // The rail's "new or updated" dots read `/api/adm/nav-counts`; every
+      // notification can move a queue version, so always refresh them.
+      keys.set("coordinator-nav-counts", ["coordinator-nav-counts"]);
 
       const targets = keys.size > 0 ? [...keys.values()] : [...COORDINATOR_KEYS];
       for (const key of targets) {

@@ -52,7 +52,7 @@
 .content :global(thead th) {
   height: 2.75rem;
   padding: 0.5rem 0.75rem;
-  font-size: 0.6875rem;
+  font-size: 0.75rem;
   font-weight: 600;
   text-transform: uppercase;
   letter-spacing: 0.04em;
@@ -97,7 +97,7 @@
 }
 
 .studentLrn {
-  font-size: 0.6875rem;
+  font-size: 0.75rem;
   color: var(--muted-foreground);
   font-family: var(--font-mono, ui-monospace, monospace);
   font-variant-numeric: tabular-nums;
@@ -126,7 +126,7 @@
 }
 
 .statusBadge {
-  font-size: 0.6875rem;
+  font-size: 0.75rem;
   font-weight: 600;
 }
 

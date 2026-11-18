@@ -95,7 +95,7 @@ export function InsightsHeatmap({
                   {COLUMNS.map((column) => (
                     <th key={column.key} scope="col" className={styles.heatColHead}>
                       <span>{column.label}</span>
-                      <span className="block text-[0.625rem] font-medium opacity-70 tabular-nums">
+                      <span className="block text-[12px] font-medium opacity-70 tabular-nums">
                         {totals[column.key]}
                       </span>
                     </th>
@@ -142,7 +142,7 @@ export function InsightsHeatmap({
                               <span className="block text-xs font-semibold">
                                 {row.section} · {column.label}
                               </span>
-                              <span className="block text-[0.6875rem] opacity-80">
+                              <span className="block text-[12px] opacity-80">
                                 {count} follow-up{count === 1 ? "" : "s"}
                               </span>
                             </TooltipContent>

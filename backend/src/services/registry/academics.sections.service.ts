@@ -1,4 +1,5 @@
 import { prisma } from "../../lib/prisma.js";
+import { invalidateTermScopeCache } from "../../lib/termScope.js";
 import { AppError } from "../../lib/errors.js";
 import { writeAudit } from "../../lib/audit.js";
 import { notifyAcademicsSelf } from "../../lib/notify.js";
@@ -119,6 +120,7 @@ export async function listTerms(query: SectionsQuery) {
       skipDuplicates: true,
     });
     backfilled = true;
+    invalidateTermScopeCache();
     terms = await prisma.term.findMany({
       where: { schoolYearId: targetYear.id },
       orderBy: { termNumber: "asc" },

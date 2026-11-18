@@ -27,7 +27,7 @@ import styles from "./advisory-insight-board.module.css";
 const FACTOR_BADGE: Record<AdviseeRiskFlag, { label: string; variant: "amber" | "green" | "blue" }> = {
   academic: { label: "Academic", variant: "amber" },
   attendance: { label: "Attendance", variant: "green" },
-  behavioral: { label: "Behavioral", variant: "blue" },
+  behavioral: { label: "Anecdotal", variant: "blue" },
 };
 
 /* Loading placeholders — one per lane of the loaded board. */

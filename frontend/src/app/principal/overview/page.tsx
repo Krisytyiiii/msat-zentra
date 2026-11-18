@@ -7,7 +7,6 @@ import { PageEmptyCallout } from "@/components/shared/page-empty-callout";
 import { OverviewRisk } from "./components/OverviewRisk";
 import { OverviewPopulation } from "./components/OverviewPopulation";
 import { PrincipalOverviewStats } from "./components/PrincipalOverviewStats";
-import { PrincipalOverviewRail } from "./components/PrincipalOverviewRail";
 import styles from "./components/overview.module.css";
 
 export default function PrincipalOverviewPage() {
@@ -21,21 +20,32 @@ export default function PrincipalOverviewPage() {
   });
   const loading = isPending || !termReady;
 
-  // Nothing to report (no sections, enrollment, or filed records) → one
-  // centered callout instead of zero-filled boards and tables.
+  // Nothing to report (no sections, learners, staff, or filed records) → one
+  // centered callout instead of zero-filled boards. Same rule the registry
+  // desks use: every value this page renders must be empty before the shared
+  // PageEmptyCallout (amber InsightCallout) replaces the boards.
   const isEmpty =
     !loading &&
     !!data &&
     data.kpis.activeSections === 0 &&
     data.kpis.enrollment === 0 &&
-    data.kpis.anecdotals === 0;
+    data.kpis.teachers === 0 &&
+    data.kpis.anecdotals === 0 &&
+    data.sections.length === 0 &&
+    data.atRisk.students === 0 &&
+    data.riskByLevel.high === 0 &&
+    data.riskByLevel.moderate === 0 &&
+    data.riskByLevel.low === 0 &&
+    data.attendanceWatch === 0 &&
+    data.honorRoll === 0 &&
+    data.admPending === 0;
 
   return (
     <section className={styles.page} aria-busy={loading || undefined}>
       {isEmpty ? (
         <PageEmptyCallout>
-          No school data for the selected term yet. Sections, enrollment, and
-          risk signals will appear here once classes start.
+          No records for the selected term yet. Sections, enrollment, risk
+          signals, and filed reports will appear here once data is recorded.
         </PageEmptyCallout>
       ) : (
         <div className={styles.layout}>
@@ -46,8 +56,6 @@ export default function PrincipalOverviewPage() {
 
             <OverviewPopulation />
           </div>
-
-          <PrincipalOverviewRail />
         </div>
       )}
     </section>

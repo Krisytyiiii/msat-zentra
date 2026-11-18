@@ -59,7 +59,7 @@ export function GuidanceBehavioralFilters({
           placeholder="Search student, LRN, section, observer…"
           value={query}
           onChange={(e) => onQueryChange(e.target.value)}
-          aria-label="Search behavioral records"
+          aria-label="Search anecdotal records"
         />
       </div>
 

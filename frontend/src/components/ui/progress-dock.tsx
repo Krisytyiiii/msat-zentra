@@ -60,7 +60,7 @@ export function ProgressDock({
           <span
             aria-live="polite"
             aria-label={`${badge} updated`}
-            className={`inline-flex h-6 min-w-6 shrink-0 items-center justify-center rounded-full px-1.5 text-[11px] font-bold tabular-nums ${
+            className={`inline-flex h-6 min-w-6 shrink-0 items-center justify-center rounded-full px-1.5 text-[12px] font-bold tabular-nums ${
               working
                 ? "animate-pulse bg-amber-500 text-black"
                 : "bg-green-600 text-white dark:bg-green-500 dark:text-black"

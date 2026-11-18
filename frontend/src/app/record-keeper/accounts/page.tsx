@@ -13,6 +13,7 @@ import { apiClient } from "@/lib/api/client";
 import { Input } from "@/components/ui/input";
 import { Skeleton } from "@/components/ui/skeleton";
 import { InsightCallout } from "@/components/ui/insight-callout";
+import { PageEmptyCallout } from "@/components/shared/page-empty-callout";
 import { toast } from "@/components/ui/sonner";
 import { useDock } from "@/components/dock/dock-store";
 import { KanbanBoard, KanbanBoardHeader } from "@/components/ui/kanban-board";
@@ -266,8 +267,8 @@ function AccountApprovalsPageInner() {
         idLabel: s.lrn,
         idLabelClassName: "text-xs font-medium",
         meta: [
-          { label: formatSection(s.section), tone: "amber" as const, dot: false },
-          { label: formatGrade(s.gradeLevel), tone: "amber" as const, dot: false },
+          { label: formatSection(s.section), field: "section" as const, dot: false },
+          { label: formatGrade(s.gradeLevel), field: "grade" as const, dot: false },
           {
             label: formatRelativeTime(s.requestedAt),
             tone: "muted" as const,
@@ -293,20 +294,10 @@ function AccountApprovalsPageInner() {
   if (isTrueEmpty) {
     return (
       <section className={`${styles.page} ${styles.pageEmpty}`}>
-        <div className={styles.emptyBoard}>
-          <KanbanBoard
-            title="Pending Students"
-            icon={<UserPlus size={14} className="text-primary" aria-hidden />}
-            description="Review student account requests for grades 7–10."
-            ariaLabel="Pending student accounts"
-          >
-            <RecordKeeperEmptyState
-              icon={UserPlus}
-              title="No pending student accounts"
-              hint="New G7–10 sign-ups awaiting record keeper sign-off will appear here."
-            />
-          </KanbanBoard>
-        </div>
+        <PageEmptyCallout fit>
+          No pending student accounts. New G7–10 sign-ups awaiting record keeper
+          sign-off will appear here.
+        </PageEmptyCallout>
       </section>
     );
   }

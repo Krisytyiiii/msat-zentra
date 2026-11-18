@@ -196,7 +196,7 @@ export function TeacherOverviewCharts({
         { key: "attendance", label: "Attendance", value: factors.attendance },
         ...(hideBehavioral
           ? []
-          : [{ key: "behavioral", label: "Behavioral", value: factors.behavioral }]),
+          : [{ key: "behavioral", label: "Anecdotal", value: factors.behavioral }]),
       ].map((r, i) => ({ ...r, fill: SHADES[i] ?? SHADES[SHADES.length - 1] })),
     [factors, hideBehavioral],
   );
@@ -502,13 +502,13 @@ export function TeacherOverviewCharts({
                       tickLine={false}
                       axisLine={false}
                       interval="preserveStartEnd"
-                      tick={{ fontSize: 11 }}
+                      tick={{ fontSize: 12 }}
                     />
                     <YAxis
                       tickLine={false}
                       axisLine={false}
                       allowDecimals={false}
-                      fontSize={11}
+                      fontSize={12}
                       width={34}
                     />
                     <Tooltip content={<TeacherChartTooltip />} wrapperStyle={TOOLTIP_Z_INDEX} />
@@ -590,14 +590,14 @@ export function TeacherOverviewCharts({
                       tickLine={false}
                       axisLine={false}
                       interval="preserveStartEnd"
-                      tick={{ fontSize: 11 }}
+                      tick={{ fontSize: 12 }}
                     />
                     <YAxis
                       yAxisId="count"
                       allowDecimals={false}
                       tickLine={false}
                       axisLine={false}
-                      fontSize={11}
+                      fontSize={12}
                       width={34}
                     />
                     <YAxis
@@ -606,7 +606,7 @@ export function TeacherOverviewCharts({
                       domain={[0, 100]}
                       tickLine={false}
                       axisLine={false}
-                      fontSize={11}
+                      fontSize={12}
                       width={38}
                       unit="%"
                     />

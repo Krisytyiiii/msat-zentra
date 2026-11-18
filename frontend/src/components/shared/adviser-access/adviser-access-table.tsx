@@ -78,25 +78,36 @@ const STATE: Record<
   },
 };
 
-const BTN = "h-6 shrink-0 px-2 text-[11px] font-medium";
+const BTN = "h-6 shrink-0 px-2 text-[12px] font-medium";
 const GREEN_BTN = `${BTN} border border-transparent bg-emerald-600 text-white hover:bg-emerald-700 focus-visible:ring-emerald-600/30 dark:bg-emerald-600 dark:text-white dark:hover:bg-emerald-700`;
 const RED_BTN = `${BTN} bg-red-600 text-white hover:bg-red-700 dark:bg-red-600 dark:hover:bg-red-700`;
 
-/** Table-shaped loading mirror for the adviser-access desk. */
+/**
+ * Table-shaped loading mirror for the adviser-access desk. Renders the same
+ * KanbanBoard chrome, the same eight column labels and one row per real page
+ * entry, so loading→loaded is a straight swap with no layout shift.
+ */
 export function AdviserAccessTableSkeleton({
   desk,
-  rows = 6,
+  rows = PAGE_SIZE,
 }: {
   desk: AdviserAccessDesk;
   rows?: number;
 }) {
-  const headWidths = ["w-40", "w-24", "w-12", "w-20", "w-24", "w-20", "w-28", "w-16"];
   return (
     <KanbanBoard
       title="Adviser access requests"
       icon={<FileSearch size={14} className="text-primary" aria-hidden />}
       ariaLabel="Loading adviser access requests"
       description={DESK_COPY[desk].description}
+      actions={
+        <div className={styles.headerActions}>
+          {/* Same 240px board-header search the loaded table renders. */}
+          <Skeleton className="h-8 w-60 rounded-[16px]" />
+          <Skeleton className="h-6 w-28 rounded-md" />
+          <Skeleton className="h-6 w-28 rounded-md" />
+        </div>
+      }
     >
       <div
         role="status"
@@ -104,31 +115,58 @@ export function AdviserAccessTableSkeleton({
         aria-label="Loading adviser access requests"
         className="flex min-w-0 flex-col"
       >
-        <div className="flex items-center gap-3 border-b border-border px-3 pb-2">
-          {headWidths.map((w, i) => (
-            <Skeleton key={i} className={`h-3 ${w}`} />
-          ))}
+        <Table className={cascade.table} aria-hidden="true">
+          <TableHeader>
+            <TableRow>
+              <TableHead>Learner</TableHead>
+              <TableHead>LRN</TableHead>
+              <TableHead>Grade</TableHead>
+              <TableHead>Section</TableHead>
+              <TableHead>Adviser</TableHead>
+              <TableHead>SF10 record</TableHead>
+              <TableHead>Status</TableHead>
+              <TableHead className="text-right">Actions</TableHead>
+            </TableRow>
+          </TableHeader>
+          <TableBody>
+            {Array.from({ length: rows }).map((_, row) => (
+              <TableRow key={row}>
+                <TableCell>
+                  <div className="flex min-w-0 items-center gap-2.5">
+                    <Skeleton className="size-8 shrink-0 rounded-full" />
+                    <Skeleton className="h-3.5 w-28 max-w-full" />
+                  </div>
+                </TableCell>
+                <TableCell>
+                  <Skeleton className="h-5 w-24 rounded-full" />
+                </TableCell>
+                <TableCell>
+                  <Skeleton className="h-5 w-10 rounded-full" />
+                </TableCell>
+                <TableCell>
+                  <Skeleton className="h-5 w-16 rounded-full" />
+                </TableCell>
+                <TableCell>
+                  <Skeleton className="h-3.5 w-24" />
+                </TableCell>
+                <TableCell>
+                  <Skeleton className="h-5 w-20 rounded-full" />
+                </TableCell>
+                <TableCell>
+                  <Skeleton className="h-5 w-24 rounded-full" />
+                </TableCell>
+                <TableCell className="text-right">
+                  <span className="inline-flex justify-end">
+                    <Skeleton className="h-6 w-16 rounded-md" />
+                  </span>
+                </TableCell>
+              </TableRow>
+            ))}
+          </TableBody>
+        </Table>
+        <div className="border-t border-border px-3 py-2">
+          <Skeleton className="ml-auto h-7 w-52 rounded-full" />
         </div>
-        {Array.from({ length: rows }).map((_, i) => (
-          <div
-            key={i}
-            aria-hidden="true"
-            className="flex items-center gap-3 border-b border-border/60 px-3 py-3 last:border-b-0"
-          >
-            <Skeleton className="size-8 shrink-0 rounded-full" />
-            <div className="flex min-w-0 flex-1 flex-col gap-1.5">
-              <Skeleton className="h-3.5 w-40 max-w-full" />
-              <Skeleton className="h-3 w-24 max-w-full" />
-            </div>
-            <Skeleton className="h-5 w-24 shrink-0 rounded-md" />
-            <Skeleton className="h-5 w-12 shrink-0 rounded-md" />
-            <Skeleton className="h-5 w-20 shrink-0 rounded-md" />
-            <Skeleton className="h-5 w-24 shrink-0 rounded-md" />
-            <Skeleton className="h-5 w-20 shrink-0 rounded-md" />
-            <Skeleton className="h-5 w-28 shrink-0 rounded-md" />
-            <Skeleton className="h-5 w-16 shrink-0 rounded-md" />
-          </div>
-        ))}
       </div>
     </KanbanBoard>
   );
@@ -400,7 +438,7 @@ export function AdviserAccessTable({
                         </Button>
                       )
                     ) : (
-                      <span className="text-[11px] text-muted-foreground">
+                      <span className="text-[12px] text-muted-foreground">
                         {s.state === "approved" ? "Granted" : "Reported"}
                       </span>
                     )}

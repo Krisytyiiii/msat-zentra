@@ -257,7 +257,7 @@ function AdviseesMode() {
           }}
           placeholder="Search advisee or LRN…"
           aria-label="Search advisee or LRN"
-          className="h-8 w-64 max-w-full text-xs"
+          className="h-8 w-60 max-w-full rounded-[16px] text-xs"
         />
         <span className="text-xs text-muted-foreground">
           {filtered.length} advisee{filtered.length === 1 ? "" : "s"}

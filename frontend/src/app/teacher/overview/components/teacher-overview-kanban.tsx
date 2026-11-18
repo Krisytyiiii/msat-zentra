@@ -128,7 +128,7 @@ function RiskLane({
     () => [
       { id: "academic", name: "Academic", count: factors.academic, pct: Math.min(100, (factors.academic / safeTotal) * 100), fill: RISK_COLORS.academic },
       { id: "attendance", name: "Attendance", count: factors.attendance, pct: Math.min(100, (factors.attendance / safeTotal) * 100), fill: RISK_COLORS.attendance },
-      { id: "behavioral", name: "Behavioral", count: factors.behavioral, pct: Math.min(100, (factors.behavioral / safeTotal) * 100), fill: RISK_COLORS.behavioral },
+      { id: "behavioral", name: "Anecdotal", count: factors.behavioral, pct: Math.min(100, (factors.behavioral / safeTotal) * 100), fill: RISK_COLORS.behavioral },
     ],
     [factors.academic, factors.attendance, factors.behavioral, safeTotal],
   );
@@ -177,7 +177,7 @@ function RiskLane({
             Reset
           </button>
         ) : ordered.length > 1 ? (
-          <span className="inline-flex items-center gap-1 text-[11px] text-muted-foreground">
+          <span className="inline-flex items-center gap-1 text-[12px] text-muted-foreground">
             <GripVertical size={12} aria-hidden /> drag
           </span>
         ) : null
