@@ -24,7 +24,6 @@ class AdvisoryListPage extends ConsumerStatefulWidget {
 class _AdvisoryListState extends ConsumerState<AdvisoryListPage> {
   final _rosterScroll = ScrollController();
   String _risk = '', _factor = '';
-  int _page = 1;
   bool _descending = false;
   String _lastQuery = '', _lastTerm = '';
 
@@ -34,16 +33,15 @@ class _AdvisoryListState extends ConsumerState<AdvisoryListPage> {
     super.dispose();
   }
 
-  void _goToPage(int page) {
-    setState(() => _page = page);
+  void _scrollToTop() {
     if (_rosterScroll.hasClients) _rosterScroll.jumpTo(0);
   }
 
   Future<void> _refresh() async {
     ref.invalidate(overviewProvider);
     try {
-      final roster = await ref.refresh(advisoryProvider.future);
-      if (mounted && roster.students.isEmpty) setState(() => _page = 1);
+      ref.invalidate(advisoryProvider);
+      await ref.read(advisoryProvider.future);
     } catch (_) {
       // The roster provider owns the retryable error presentation.
     }
@@ -67,14 +65,12 @@ class _AdvisoryListState extends ConsumerState<AdvisoryListPage> {
     final termKey = '${term?.schoolYearId}:${term?.id}';
     if (_lastTerm != termKey) {
       _lastTerm = termKey;
-      _page = 1;
     }
     final query = (ScreenSearchScope.maybeOf(context)?.query ?? '')
         .trim()
         .toLowerCase();
     if (_lastQuery != query) {
       _lastQuery = query;
-      _page = 1;
     }
     final active = ref.watch(advisoryProvider);
     return Column(
@@ -196,9 +192,7 @@ class _AdvisoryListState extends ConsumerState<AdvisoryListPage> {
                               fontSize: 12,
                               height: 1.6,
                               fontWeight: FontWeight.w700,
-                              color: entry.$1 == 2
-                                  ? const Color(0xFF489D6A)
-                                  : const Color(0xFF1E293B),
+                              color: const Color(0xFF1E293B),
                             ),
                           ),
                         ),
@@ -280,7 +274,7 @@ class _AdvisoryListState extends ConsumerState<AdvisoryListPage> {
       initialValue: value,
       onSelected: (next) {
         setState(() => update(next));
-        _goToPage(1);
+        _scrollToTop();
       },
       itemBuilder: (_) => [
         for (final option in options.entries)
@@ -351,9 +345,6 @@ class _AdvisoryListState extends ConsumerState<AdvisoryListPage> {
                 ? b.name.toLowerCase().compareTo(a.name.toLowerCase())
                 : a.name.toLowerCase().compareTo(b.name.toLowerCase()),
           );
-    final pages = (shown.length / 10).ceil().clamp(1, 100000);
-    final page = _page.clamp(1, pages);
-    final visible = shown.skip((page - 1) * 10).take(10).toList();
     if (shown.isEmpty) {
       return ZEmptyPage(
         icon: LucideIcons.users,
@@ -374,7 +365,7 @@ class _AdvisoryListState extends ConsumerState<AdvisoryListPage> {
             children: [
               Expanded(
                 child: Text(
-                  'Showing ${visible.length} of ${shown.length} students',
+                  'Showing ${shown.length} students',
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
                   style: const TextStyle(
@@ -386,7 +377,7 @@ class _AdvisoryListState extends ConsumerState<AdvisoryListPage> {
               TextButton.icon(
                 onPressed: () {
                   setState(() => _descending = !_descending);
-                  _goToPage(1);
+                  _scrollToTop();
                 },
                 icon: const Icon(LucideIcons.listFilter, size: 14),
                 label: Text(
@@ -422,34 +413,10 @@ class _AdvisoryListState extends ConsumerState<AdvisoryListPage> {
                 12,
                 112 + MediaQuery.paddingOf(context).bottom,
               ),
-              itemCount: visible.length + (pages > 1 ? 1 : 0),
+              itemCount: shown.length,
               separatorBuilder: (_, _) => const SizedBox(height: 8),
               itemBuilder: (context, index) {
-                if (index == visible.length) {
-                  return Row(
-                    children: [
-                      IconButton(
-                        tooltip: 'Previous page',
-                        onPressed: page > 1 ? () => _goToPage(page - 1) : null,
-                        icon: const Icon(LucideIcons.chevronLeft),
-                      ),
-                      Expanded(
-                        child: Text(
-                          'Page $page of $pages',
-                          textAlign: TextAlign.center,
-                        ),
-                      ),
-                      IconButton(
-                        tooltip: 'Next page',
-                        onPressed: page < pages
-                            ? () => _goToPage(page + 1)
-                            : null,
-                        icon: const Icon(LucideIcons.chevronRight),
-                      ),
-                    ],
-                  );
-                }
-                final student = visible[index];
+                final student = shown[index];
                 final words = student.name
                     .trim()
                     .split(RegExp(r'\s+'))

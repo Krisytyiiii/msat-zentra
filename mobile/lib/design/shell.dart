@@ -106,6 +106,8 @@ class _ZentraShellState extends ConsumerState<ZentraShell> {
   Widget build(BuildContext context) {
     final headerTheme = widget.selectedPath == '/teacher/more'
         ? settingsScreenTheme(Theme.of(context))
+        : widget.selectedPath == '/adviser/advisory/attendance'
+        ? overviewScreenTheme(Theme.of(context))
         : Theme.of(context);
     final theme = widget.selectedPath == '/workspace/overview'
         ? overviewScreenTheme(Theme.of(context))
@@ -434,20 +436,6 @@ class ZentraDrawer extends ConsumerWidget {
                       ),
                       _item(
                         context,
-                        LucideIcons.clipboardCheck,
-                        'Advisory attendance',
-                        '/adviser/advisory/attendance',
-                        _selected('/adviser/advisory/attendance'),
-                      ),
-                      _item(
-                        context,
-                        LucideIcons.graduationCap,
-                        'Academic',
-                        '/adviser/academic',
-                        _selected('/adviser/academic'),
-                      ),
-                      _item(
-                        context,
                         LucideIcons.folderHeart,
                         'ADM cases',
                         '/adviser/adm-cases',
@@ -593,7 +581,7 @@ class ZentraDrawer extends ConsumerWidget {
     String path,
     bool selected,
   ) {
-    const amber = Color(0xFFB45309);
+    const blue = Color(0xFF2563EB);
     return ListTile(
       minTileHeight: 48,
       contentPadding: const EdgeInsets.symmetric(horizontal: 12),
@@ -609,8 +597,8 @@ class ZentraDrawer extends ConsumerWidget {
         ),
       ),
       selected: selected,
-      selectedColor: amber,
-      selectedTileColor: const Color(0xFFFEF3C7),
+      selectedColor: blue,
+      selectedTileColor: const Color(0xFFDBEAFE),
       shape: const StadiumBorder(),
       onTap: () {
         Navigator.pop(context);

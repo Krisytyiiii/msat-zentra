@@ -11,11 +11,15 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+import 'package:lucide_icons_flutter/lucide_icons.dart';
 
+import '../../core/session.dart';
+import '../../design/overview_theme.dart';
 import '../../design/screen_search.dart';
 import '../../design/status_palette.dart';
 import '../../design/tokens.dart';
 import '../../shared/names.dart';
+import '../../shared/models.dart' show Term;
 import '../../shared/widgets.dart';
 import 'advisory_attendance_board.dart';
 import 'advisory_attendance_data.dart';
@@ -85,8 +89,7 @@ class _AdvisoryAttendanceState extends ConsumerState<AdvisoryAttendancePage>
   String? _resolvedSection(List<AdvisorySection> sections) {
     if (sections.isEmpty) return null;
     final selected = _sectionId;
-    if (selected != null &&
-        sections.any((section) => section.id == selected)) {
+    if (selected != null && sections.any((section) => section.id == selected)) {
       return selected;
     }
     // A term/section change can retire the previous pick; fall back to the
@@ -143,9 +146,8 @@ class _AdvisoryAttendanceState extends ConsumerState<AdvisoryAttendancePage>
               padding: const EdgeInsets.fromLTRB(4, 0, 4, 8),
               child: Text(
                 'Advisory section',
-                style: Theme.of(
-                  ctx,
-                ).textTheme.titleSmall?.copyWith(fontWeight: FontWeight.w600),
+                style: Theme.of(ctx).textTheme.titleSmall
+                    ?.copyWith(fontWeight: FontWeight.w600),
               ),
             ),
             for (final section in sections)
@@ -185,16 +187,32 @@ class _AdvisoryAttendanceState extends ConsumerState<AdvisoryAttendancePage>
     context.push(
       '/adviser/advisory/attendance/${Uri.encodeComponent(student.studentId)}'
       '?section=${Uri.encodeComponent(sectionId)}',
-      extra: AdvisoryAttendanceSelection(
-        student: student,
-        subjects: subjects,
-      ),
+      extra: AdvisoryAttendanceSelection(student: student, subjects: subjects),
     );
   }
 
   @override
   Widget build(BuildContext context) {
-    final theme = Theme.of(context);
+    return Theme(
+      data: overviewScreenTheme(Theme.of(context)).copyWith(
+        cardTheme: CardThemeData(
+          color: Colors.white,
+          elevation: 1,
+          shadowColor: const Color(0x140F172A),
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(20),
+            side: const BorderSide(color: Color(0xFFE6ECF4)),
+          ),
+        ),
+      ),
+      child: ColoredBox(
+        color: const Color(0xFFF7F9FC),
+        child: Builder(builder: _content),
+      ),
+    );
+  }
+
+  Widget _content(BuildContext context) {
     final roster = ref.watch(advisoryProvider);
     // The staff shell supplies the header search; standalone stays local.
     final scope = ScreenSearchScope.maybeOf(context);
@@ -202,17 +220,6 @@ class _AdvisoryAttendanceState extends ConsumerState<AdvisoryAttendancePage>
 
     return Column(
       children: [
-        if (scope == null)
-          Padding(
-            padding: const EdgeInsets.fromLTRB(16, 12, 16, 0),
-            child: Align(
-              alignment: Alignment.centerLeft,
-              child: Text(
-                'Advisory attendance',
-                style: theme.textTheme.headlineSmall,
-              ),
-            ),
-          ),
         Expanded(
           child: roster.when(
             loading: () => const Padding(
@@ -230,8 +237,7 @@ class _AdvisoryAttendanceState extends ConsumerState<AdvisoryAttendancePage>
                 return ZEmptyPage(
                   icon: Icons.group_outlined,
                   title: 'No advisory section',
-                  subtitle:
-                      'Advisory attendance appears here once a section is assigned to you.',
+                  subtitle: 'Advisory attendance appears here once a section is assigned to you.',
                   onRefresh: _refresh,
                 );
               }
@@ -248,6 +254,7 @@ class _AdvisoryAttendanceState extends ConsumerState<AdvisoryAttendancePage>
                     padding: const EdgeInsets.fromLTRB(16, 12, 16, 8),
                     child: _Header(
                       count: loaded?.students.length,
+                      term: ref.watch(termProvider),
                       sectionName: sectionName,
                       sections: sections,
                       sectionId: sectionId,
@@ -329,24 +336,85 @@ class _AdvisoryAttendanceState extends ConsumerState<AdvisoryAttendancePage>
     final pages = (rows.length + _pageSize - 1) ~/ _pageSize;
     final page = _page.clamp(0, pages - 1);
     final slice = rows.skip(page * _pageSize).take(_pageSize).toList();
+    final rates = [
+      for (final student in students)
+        attendanceOverall(student.rates, data.subjects.length),
+    ];
+    final measured = rates.whereType<double>().toList();
+    final average = measured.isEmpty
+        ? null
+        : measured.reduce((a, b) => a + b) / measured.length;
 
     return Column(
       children: [
+        Padding(
+          padding: const EdgeInsets.fromLTRB(16, 8, 16, 16),
+          child: ZCard(
+            child: Row(
+              children: [
+                for (final metric in [
+                  ('${students.length}', 'Advisees'),
+                  (
+                    average == null
+                        ? '—'
+                        : '${(average * 100).toStringAsFixed(1)}%',
+                    'Present',
+                  ),
+                  ('${rates.where((rate) => rate == null).length}', 'No marks'),
+                ])
+                  Expanded(
+                    child: Column(
+                      children: [
+                        Text(
+                          metric.$1,
+                          style: const TextStyle(
+                            fontSize: 22,
+                            fontWeight: FontWeight.w700,
+                          ),
+                        ),
+                        const SizedBox(height: 4),
+                        Text(
+                          metric.$2,
+                          style: const TextStyle(
+                            fontSize: 12,
+                            color: Color(0xFF7185A4),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+              ],
+            ),
+          ),
+        ),
+        Padding(
+          padding: const EdgeInsets.fromLTRB(18, 0, 18, 12),
+          child: Row(
+            children: [
+              Expanded(
+                child: Text(
+                  'Showing ${slice.length} of ${rows.length} advisees',
+                  style: const TextStyle(
+                    fontSize: 12,
+                    color: Color(0xFF7185A4),
+                  ),
+                ),
+              ),
+              const Text('Name (A-Z)', style: TextStyle(fontSize: 12)),
+            ],
+          ),
+        ),
         Expanded(
           child: RefreshIndicator(
             onRefresh: _refresh,
             child: ListView.separated(
               key: const PageStorageKey('advisory-attendance-list'),
               physics: const AlwaysScrollableScrollPhysics(),
-              padding: const EdgeInsets.fromLTRB(16, 0, 16, 8),
+              padding: const EdgeInsets.fromLTRB(16, 0, 16, 112),
               itemCount: slice.length,
-              separatorBuilder: (_, _) => const SizedBox(height: 8),
-              itemBuilder: (context, index) => _row(
-                context,
-                slice[index],
-                data.subjects,
-                sectionId,
-              ),
+              separatorBuilder: (_, _) => const SizedBox(height: 14),
+              itemBuilder: (context, index) =>
+                  _row(context, slice[index], data.subjects, sectionId),
             ),
           ),
         ),
@@ -403,40 +471,64 @@ class _AdvisoryAttendanceState extends ConsumerState<AdvisoryAttendancePage>
     return ZCard(
       padding: const EdgeInsets.all(14),
       onTap: () => _openStudent(student, subjects, sectionId),
-      child: Row(
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  formatSurnameFirst(student.name),
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                  style: theme.textTheme.titleSmall?.copyWith(
-                    fontWeight: FontWeight.w600,
-                  ),
+          Row(
+            children: [
+              CircleAvatar(
+                radius: 23,
+                backgroundColor: const Color(0xFFDBEAFE),
+                foregroundColor: const Color(0xFF2563EB),
+                child: Text(
+                  student.name.trim().isEmpty
+                      ? '?'
+                      : student.name.trim().substring(0, 1).toUpperCase(),
                 ),
-                const SizedBox(height: 6),
-                Wrap(
-                  spacing: 6,
-                  runSpacing: 6,
+              ),
+              const SizedBox(width: 12),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    ZStatusPill(
-                      text: 'LRN ${student.lrn}',
-                      tone: StatusTone.neutral,
-                    ),
-                    if (student.isTransferee)
-                      const ZStatusPill(
-                        text: 'Transferee',
-                        tone: StatusTone.amber,
+                    Text(
+                      formatSurnameFirst(student.name),
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: theme.textTheme.titleSmall?.copyWith(
+                        fontWeight: FontWeight.w600,
                       ),
+                    ),
+                    const SizedBox(height: 6),
+                    Wrap(
+                      spacing: 6,
+                      runSpacing: 6,
+                      children: [
+                        ZStatusPill(
+                          text: 'LRN ${student.lrn}',
+                          tone: StatusTone.neutral,
+                        ),
+                        if (student.isTransferee)
+                          const ZStatusPill(
+                            text: 'Transferee',
+                            tone: StatusTone.amber,
+                          ),
+                      ],
+                    ),
                   ],
                 ),
-              ],
-            ),
+              ),
+              const Icon(
+                LucideIcons.chevronRight,
+                size: 18,
+                color: Color(0xFF94A3B8),
+              ),
+            ],
           ),
-          const SizedBox(width: 10),
+          const Padding(
+            padding: EdgeInsets.symmetric(vertical: 14),
+            child: Divider(height: 1, color: Color(0xFFE6ECF4)),
+          ),
           Column(
             crossAxisAlignment: CrossAxisAlignment.end,
             children: [
@@ -469,6 +561,7 @@ class _Header extends StatelessWidget {
     required this.sections,
     required this.sectionId,
     required this.onPick,
+    required this.term,
   });
 
   final int? count;
@@ -476,6 +569,7 @@ class _Header extends StatelessWidget {
   final List<AdvisorySection> sections;
   final String sectionId;
   final VoidCallback onPick;
+  final Term? term;
 
   @override
   Widget build(BuildContext context) {
@@ -486,64 +580,66 @@ class _Header extends StatelessWidget {
         : count == 0
         ? 'No enlisted learners this term · $sectionName'
         : 'Tap a learner to inspect — $count student${count == 1 ? '' : 's'} · $sectionName';
-    return ZCard(
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
-            children: [
-              Container(
-                width: 36,
-                height: 36,
-                decoration: BoxDecoration(
-                  borderRadius: BorderRadius.circular(ZTokens.radiusMd),
-                  color: theme.colorScheme.surfaceContainerLow,
-                ),
-                child: Icon(
-                  Icons.calendar_month_outlined,
-                  size: 18,
-                  color: muted,
-                ),
-              ),
-              const SizedBox(width: 12),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      'Advisory attendance',
-                      style: theme.textTheme.titleSmall?.copyWith(
-                        fontWeight: FontWeight.w700,
-                      ),
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Row(
+          children: [
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    'Advisory Attendance',
+                    style: theme.textTheme.headlineSmall?.copyWith(
+                      fontWeight: FontWeight.w700,
                     ),
-                    const SizedBox(height: 2),
-                    Text(
-                      subtitle,
-                      style: theme.textTheme.bodySmall?.copyWith(color: muted),
-                    ),
-                  ],
-                ),
-              ),
-            ],
-          ),
-          if (sections.length > 1) ...[
-            const SizedBox(height: 10),
-            OutlinedButton.icon(
-              key: const ValueKey('advisory-attendance-section'),
-              onPressed: onPick,
-              icon: const Icon(Icons.swap_horiz, size: 16),
-              label: ConstrainedBox(
-                constraints: const BoxConstraints(maxWidth: 220),
-                child: Text(
-                  sectionName,
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                ),
+                  ),
+                  const SizedBox(height: 2),
+                  Text(
+                    subtitle,
+                    style: theme.textTheme.bodySmall?.copyWith(color: muted),
+                  ),
+                ],
               ),
             ),
           ],
+        ),
+        const SizedBox(height: 14),
+        Wrap(
+          spacing: 8,
+          runSpacing: 8,
+          children: [
+            if (term != null) ...[
+              ZStatusPill(
+                text: 'SY ${term!.schoolYearName}',
+                tone: StatusTone.blue,
+              ),
+              ZStatusPill(
+                text: 'Term ${term!.termNumber}',
+                tone: StatusTone.amber,
+              ),
+            ],
+            ZStatusPill(text: sectionName, tone: StatusTone.violet),
+          ],
+        ),
+        if (sections.length > 1) ...[
+          const SizedBox(height: 10),
+          OutlinedButton.icon(
+            key: const ValueKey('advisory-attendance-section'),
+            onPressed: onPick,
+            icon: const Icon(Icons.swap_horiz, size: 16),
+            label: ConstrainedBox(
+              constraints: const BoxConstraints(maxWidth: 220),
+              child: Text(
+                sectionName,
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+              ),
+            ),
+          ),
         ],
-      ),
+      ],
     );
   }
 }

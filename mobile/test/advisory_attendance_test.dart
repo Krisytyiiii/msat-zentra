@@ -520,7 +520,7 @@ void main() {
           ),
       ],
     );
-    await mount(tester, api, height: 2000);
+    await mount(tester, api, height: 4000);
 
     expect(find.text('16 students'), findsOneWidget);
     expect(find.text('1 / 2'), findsOneWidget);

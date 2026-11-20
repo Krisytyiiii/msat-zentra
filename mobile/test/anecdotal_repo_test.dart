@@ -1,3 +1,7 @@
+import 'dart:io';
+
+import 'package:hive/hive.dart';
+import 'package:zentra_mobile/core/config.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -55,6 +59,12 @@ Future<void> mount(
 }
 
 void main() {
+  setUpAll(() async {
+    final directory = await Directory.systemTemp.createTemp('anecdotal-tests');
+    Hive.init(directory.path);
+    await Hive.openBox(AppConfig.termScopeBox);
+  });
+  tearDownAll(() async => Hive.close());
   testWidgets('legend dots are compact and share the filters line', (
     tester,
   ) async {
@@ -65,7 +75,7 @@ void main() {
     expect(find.text('What each folder color means.'), findsNothing);
 
     expect(find.text('All'), findsOneWidget);
-    expect(find.text('Students'), findsOneWidget);
+    expect(find.text('Students'), findsNWidgets(2));
 
     final tabY = tester.getCenter(find.text('All')).dy;
     for (final label in anecdotalCategoryLabels.values) {
@@ -112,7 +122,7 @@ void main() {
 
     expect(find.text('Ana Reyes'), findsOneWidget);
     expect(find.text('Ben Cruz'), findsNothing);
-    expect(find.text('1 record'), findsOneWidget);
+    expect(find.text('Showing 1 records'), findsOneWidget);
 
     // Single-select: tapping the expanded chip collapses and clears it.
     await tester.tap(find.byTooltip('Show all categories'));
@@ -121,7 +131,7 @@ void main() {
     expect(find.text('Behavioral'), findsOneWidget);
     expect(find.text('Ana Reyes'), findsOneWidget);
     expect(find.text('Ben Cruz'), findsOneWidget);
-    expect(find.text('2 records'), findsOneWidget);
+    expect(find.text('Showing 2 records'), findsOneWidget);
   });
 
   testWidgets('filtered-empty state offers Clear filters and restores rows', (
@@ -146,21 +156,24 @@ void main() {
     expect(find.text('Ana Reyes'), findsOneWidget);
   });
 
-  testWidgets('paging still shows 20 rows per page', (tester) async {
+  testWidgets('all records are scrollable without paging controls', (tester) async {
     final records = [
       for (var i = 0; i < 25; i++)
         rec('Learner $i', 'academic', date: '2026-11-${(i + 1).toString().padLeft(2, '0')}'),
     ];
     await mount(tester, records);
 
-    expect(find.text('25 records'), findsOneWidget);
-    expect(find.text('1 / 2'), findsOneWidget);
-    expect(find.byTooltip('Previous page'), findsOneWidget);
-
-    await tester.tap(find.byTooltip('Next page'));
-    await tester.pumpAndSettle();
-
-    expect(find.text('2 / 2'), findsOneWidget);
+    expect(find.text('Showing 25 records'), findsOneWidget);
+    expect(find.byTooltip('Previous page'), findsNothing);
+    expect(find.byTooltip('Next page'), findsNothing);
+    await tester.scrollUntilVisible(
+      find.text('Learner 9'),
+      300,
+      scrollable: find.descendant(
+        of: find.byType(ListView),
+        matching: find.byType(Scrollable),
+      ),
+    );
     expect(tester.takeException(), isNull);
   });
 
@@ -169,7 +182,7 @@ void main() {
   ) async {
     await mount(tester, [rec('Ana Reyes', 'behavioral')]);
 
-    expect(find.text('1 record'), findsOneWidget);
+    expect(find.text('Showing 1 records'), findsOneWidget);
     expect(find.byTooltip('Next page'), findsNothing);
     expect(find.byTooltip('Previous page'), findsNothing);
   });

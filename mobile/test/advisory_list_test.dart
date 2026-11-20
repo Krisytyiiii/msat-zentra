@@ -316,7 +316,7 @@ void main() {
       expect(find.text('Advisees'), findsOneWidget);
       expect(find.text('Avg Att.'), findsOneWidget);
       expect(find.byTooltip('Avg Attendance'), findsOneWidget);
-      expect(find.text('Showing 2 of 2 students'), findsOneWidget);
+      expect(find.text('Showing 2 students'), findsOneWidget);
       expect(
         tester.getTopLeft(find.text('Amy Cruz')).dy,
         lessThan(tester.getTopLeft(find.text('Zed Reyes')).dy),
@@ -329,7 +329,7 @@ void main() {
       );
       search.setQuery('Amy');
       await tester.pumpAndSettle();
-      expect(find.text('Showing 1 of 1 students'), findsOneWidget);
+      expect(find.text('Showing 1 students'), findsOneWidget);
       expect(find.text('Zed Reyes'), findsNothing);
       expect(find.text('87.5%'), findsOneWidget);
       expect(find.text('Att —'), findsOneWidget);
@@ -360,7 +360,7 @@ void main() {
   );
 
   testWidgets(
-    'ten-per-page pagination returns to the top and search resets the page',
+    'all learners are scrollable without pagination and search still filters',
     (tester) async {
       final api = AdvisoryApi();
       api.active
@@ -375,26 +375,23 @@ void main() {
           ),
         );
       final search = await mount(tester, api, width: 320);
-      expect(find.text('Showing 10 of 20 students'), findsOneWidget);
+      expect(find.text('Showing 20 students'), findsOneWidget);
       expect(find.byKey(const ValueKey('active-roster:10')), findsNothing);
       final scrollable = find.descendant(
         of: find.byKey(const PageStorageKey('active-advisees')),
         matching: find.byType(Scrollable),
       );
       await tester.scrollUntilVisible(
-        find.byTooltip('Next page'),
+        find.byKey(const ValueKey('active-roster:10')),
         300,
         scrollable: scrollable,
       );
-      await tester.ensureVisible(find.byTooltip('Next page'));
-      await tester.pumpAndSettle();
-      await tester.tap(find.byTooltip('Next page'));
       await tester.pumpAndSettle();
       expect(find.byKey(const ValueKey('active-roster:10')), findsOneWidget);
       expect(find.byKey(const ValueKey('active-roster:0')), findsNothing);
       search.setQuery('Learner 00');
       await tester.pumpAndSettle();
-      expect(find.text('Showing 1 of 1 students'), findsOneWidget);
+      expect(find.text('Showing 1 students'), findsOneWidget);
       expect(find.text('Learner 00'), findsOneWidget);
       expect(find.byTooltip('Next page'), findsNothing);
       expect(api.writes, isEmpty);

@@ -38,7 +38,7 @@ class _InterventionsPageState extends ConsumerState<InterventionsPage>
     with WidgetsBindingObserver {
   Timer? _timer;
   String _level = '', _factor = '', _outcome = '', _section = '';
-  int _page = 1;
+  bool _descending = false;
   String _lastQuery = '';
   bool _refreshing = false;
   bool get _visible =>
@@ -65,12 +65,8 @@ class _InterventionsPageState extends ConsumerState<InterventionsPage>
     if (_refreshing) return;
     _refreshing = true;
     try {
-      final refreshed = await ref.refresh(advisoryInterventionsProvider.future);
-      if (mounted) {
-        setState(() {
-          if (refreshed.rows.isEmpty) _page = 1;
-        });
-      }
+      ref.invalidate(advisoryInterventionsProvider);
+      await ref.read(advisoryInterventionsProvider.future);
     } catch (_) {
       // The provider exposes a retryable, user-safe error state.
     } finally {
@@ -103,7 +99,6 @@ class _InterventionsPageState extends ConsumerState<InterventionsPage>
       initialValue: value,
       onSelected: (next) => setState(() {
         update(next);
-        _page = 1;
       }),
       itemBuilder: (_) => [
         for (final option in options.entries)
@@ -176,7 +171,6 @@ class _InterventionsPageState extends ConsumerState<InterventionsPage>
     final query = (search?.query ?? '').trim().toLowerCase();
     if (query != _lastQuery) {
       _lastQuery = query;
-      _page = 1;
     }
     final data = ref.watch(advisoryInterventionsProvider);
     final term = ref.watch(termProvider);
@@ -185,24 +179,27 @@ class _InterventionsPageState extends ConsumerState<InterventionsPage>
       loading: () => const ZSkeletonList(),
       error: (error, _) => ErrorView(message: error, onRetry: _refresh),
       data: (board) {
-        final rows = board.rows
-            .where(
-              (row) =>
-                  (_section.isEmpty || row.text('sectionId') == _section) &&
-                  (_level.isEmpty || row.level == _level) &&
-                  (_factor.isEmpty || row.factors[_factor] == true) &&
-                  (_outcome.isEmpty ||
-                      (_outcome == 'none'
-                          ? row.plan == null
-                          : row.plan?['outcomeStatus'] == _outcome)) &&
-                  '${row.name} ${row.key} ${row.plan?['id'] ?? ''} ${row.text('lrn')} ${row.text('section')}'
-                      .toLowerCase()
-                      .contains(query),
-            )
-            .toList();
-        final pages = (rows.length / 15).ceil().clamp(1, 100000);
-        final page = _page.clamp(1, pages);
-        final visible = rows.skip((page - 1) * 15).take(15);
+        final rows =
+            board.rows
+                .where(
+                  (row) =>
+                      (_section.isEmpty || row.text('sectionId') == _section) &&
+                      (_level.isEmpty || row.level == _level) &&
+                      (_factor.isEmpty || row.factors[_factor] == true) &&
+                      (_outcome.isEmpty ||
+                          (_outcome == 'none'
+                              ? row.plan == null
+                              : row.plan?['outcomeStatus'] == _outcome)) &&
+                      '${row.name} ${row.key} ${row.plan?['id'] ?? ''} ${row.text('lrn')} ${row.text('section')}'
+                          .toLowerCase()
+                          .contains(query),
+                )
+                .toList()
+              ..sort(
+                (a, b) => _descending
+                    ? b.name.toLowerCase().compareTo(a.name.toLowerCase())
+                    : a.name.toLowerCase().compareTo(b.name.toLowerCase()),
+              );
         final sectionName = _section.isNotEmpty
             ? board.sections
                   .where((s) => s['id'].toString() == _section)
@@ -273,17 +270,28 @@ class _InterventionsPageState extends ConsumerState<InterventionsPage>
                 child: Row(
                   children: [
                     Expanded(
-                      child: Text(
-                        '$high\nHigh',
+                      child: Text.rich(
+                        TextSpan(
+                          text: '$high',
+                          style: const TextStyle(
+                            fontWeight: FontWeight.w700,
+                            color: Color(0xFF1E293B),
+                          ),
+                          children: const [
+                            TextSpan(
+                              text: '\nHigh',
+                              style: TextStyle(
+                                fontWeight: FontWeight.w400,
+                                color: Color(0xFF71809B),
+                              ),
+                            ),
+                          ],
+                        ),
                         textAlign: TextAlign.center,
                         style: TextStyle(
                           fontSize: 12,
                           height: 1.6,
                           fontWeight: FontWeight.w600,
-                          color: statusColors(
-                            StatusTone.red,
-                            Theme.of(context),
-                          ).foreground,
                         ),
                       ),
                     ),
@@ -292,17 +300,28 @@ class _InterventionsPageState extends ConsumerState<InterventionsPage>
                       child: VerticalDivider(width: 16),
                     ),
                     Expanded(
-                      child: Text(
-                        '$moderate\nModerate',
+                      child: Text.rich(
+                        TextSpan(
+                          text: '$moderate',
+                          style: const TextStyle(
+                            fontWeight: FontWeight.w700,
+                            color: Color(0xFF1E293B),
+                          ),
+                          children: const [
+                            TextSpan(
+                              text: '\nModerate',
+                              style: TextStyle(
+                                fontWeight: FontWeight.w400,
+                                color: Color(0xFF71809B),
+                              ),
+                            ),
+                          ],
+                        ),
                         textAlign: TextAlign.center,
                         style: TextStyle(
                           fontSize: 12,
                           height: 1.6,
                           fontWeight: FontWeight.w600,
-                          color: statusColors(
-                            StatusTone.amber,
-                            Theme.of(context),
-                          ).foreground,
                         ),
                       ),
                     ),
@@ -311,17 +330,28 @@ class _InterventionsPageState extends ConsumerState<InterventionsPage>
                       child: VerticalDivider(width: 16),
                     ),
                     Expanded(
-                      child: Text(
-                        '$ongoing\nOngoing',
+                      child: Text.rich(
+                        TextSpan(
+                          text: '$ongoing',
+                          style: const TextStyle(
+                            fontWeight: FontWeight.w700,
+                            color: Color(0xFF1E293B),
+                          ),
+                          children: const [
+                            TextSpan(
+                              text: '\nOngoing',
+                              style: TextStyle(
+                                fontWeight: FontWeight.w400,
+                                color: Color(0xFF71809B),
+                              ),
+                            ),
+                          ],
+                        ),
                         textAlign: TextAlign.center,
                         style: TextStyle(
                           fontSize: 12,
                           height: 1.6,
                           fontWeight: FontWeight.w600,
-                          color: statusColors(
-                            StatusTone.blue,
-                            Theme.of(context),
-                          ).foreground,
                         ),
                       ),
                     ),
@@ -382,9 +412,38 @@ class _InterventionsPageState extends ConsumerState<InterventionsPage>
                     }, (v) => _section = v),
                 ],
               ),
-              Text(
-                'Showing ${rows.length} records',
-                style: const TextStyle(fontSize: 12, color: Color(0xFF9999A6)),
+              Row(
+                children: [
+                  Expanded(
+                    child: Text(
+                      'Showing ${rows.length} records',
+                      style: const TextStyle(
+                        fontSize: 12,
+                        color: Color(0xFF9999A6),
+                      ),
+                    ),
+                  ),
+                  TextButton.icon(
+                    onPressed: () => setState(() {
+                      _descending = !_descending;
+                    }),
+                    icon: const Icon(LucideIcons.listFilter, size: 14),
+                    label: Text(
+                      _descending ? 'Name (Z-A)' : 'Name (A-Z)',
+                      style: const TextStyle(fontSize: 12),
+                    ),
+                    style: TextButton.styleFrom(
+                      foregroundColor: const Color(0xFF334155),
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 8,
+                        vertical: 0,
+                      ),
+                      minimumSize: Size.zero,
+                      tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                      visualDensity: VisualDensity.compact,
+                    ),
+                  ),
+                ],
               ),
               const SizedBox(height: 12),
               if (rows.isEmpty)
@@ -448,8 +507,16 @@ class _InterventionsPageState extends ConsumerState<InterventionsPage>
                     ],
                   ),
                 ),
-              for (final row in visible)
+              for (final row in rows)
                 Card(
+                  margin: const EdgeInsets.only(bottom: 12),
+                  elevation: 0,
+                  color: Colors.white,
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(16),
+                    side: const BorderSide(color: Color(0xFFE6ECF4)),
+                  ),
+                  clipBehavior: Clip.antiAlias,
                   child: InkWell(
                     onTap: () => showModalBottomSheet<void>(
                       context: context,
@@ -467,54 +534,111 @@ class _InterventionsPageState extends ConsumerState<InterventionsPage>
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-                          Text(
-                            row.name,
-                            style: Theme.of(context).textTheme.titleSmall,
+                          Row(
+                            children: [
+                              Builder(
+                                builder: (_) {
+                                  final words = row.name
+                                      .trim()
+                                      .split(RegExp(r'\s+'))
+                                      .where((word) => word.isNotEmpty)
+                                      .toList();
+                                  final identity =
+                                      row.text('studentId').isNotEmpty
+                                      ? row.text('studentId')
+                                      : row.key;
+                                  return CircleAvatar(
+                                    radius: 19,
+                                    backgroundColor:
+                                        const [
+                                          Color(0xFFF1F5F9),
+                                          Color(0xFFEFF6FF),
+                                          Color(0xFFFFFBEB),
+                                          Color(0xFFFAF5FF),
+                                          Color(0xFFFFF1F2),
+                                        ][identity.codeUnits.fold(
+                                              0,
+                                              (a, b) => a + b,
+                                            ) %
+                                            5],
+                                    foregroundColor: const Color(0xFF52627C),
+                                    child: Text(
+                                      words.isEmpty
+                                          ? '?'
+                                          : '${words.first.characters.first}${words.length > 1 ? words.last.characters.first : ''}'
+                                                .toUpperCase(),
+                                      style: const TextStyle(
+                                        fontSize: 12,
+                                        fontWeight: FontWeight.w600,
+                                      ),
+                                    ),
+                                  );
+                                },
+                              ),
+                              const SizedBox(width: 12),
+                              Expanded(
+                                child: Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    Text(
+                                      row.name,
+                                      style: const TextStyle(
+                                        fontSize: 14,
+                                        fontWeight: FontWeight.w600,
+                                        color: Color(0xFF172033),
+                                      ),
+                                    ),
+                                    const SizedBox(height: 3),
+                                    Text(
+                                      'LRN ${row.text('lrn')}',
+                                      style: Theme.of(context)
+                                          .textTheme
+                                          .bodySmall
+                                          ?.copyWith(
+                                            color: Theme.of(context)
+                                                .colorScheme
+                                                .onSurfaceVariant,
+                                            fontFeatures: const [
+                                              FontFeature.tabularFigures(),
+                                            ],
+                                          ),
+                                    ),
+                                  ],
+                                ),
+                              ),
+                              const SizedBox(width: 8),
+                              RiskBadge(level: row.level),
+                            ],
                           ),
                           const SizedBox(height: 8),
-                          _identity(row),
-                          const SizedBox(height: 8),
-                          Text(
-                            'Detected ${interventionDate(row.text('detectedAt'))}',
+                          _identity(row, showRisk: false, showMetadata: false),
+                          const Padding(
+                            padding: EdgeInsets.symmetric(vertical: 12),
+                            child: Divider(height: 1, color: Color(0xFFF0F3F8)),
                           ),
-                          Text(
-                            row.plan == null
-                                ? 'No plan yet'
-                                : interventionLabel(
-                                    row.plan?['recommendedAction'],
+                          Row(
+                            children: [
+                              const Icon(
+                                LucideIcons.calendar,
+                                size: 13,
+                                color: Color(0xFF8B9BBA),
+                              ),
+                              const SizedBox(width: 5),
+                              Expanded(
+                                child: Text(
+                                  interventionDate(row.text('detectedAt')),
+                                  style: const TextStyle(
+                                    fontSize: 12,
+                                    color: Color(0xFF8B9BBA),
                                   ),
+                                ),
+                              ),
+                            ],
                           ),
                         ],
                       ),
                     ),
                   ),
-                ),
-              if (rows.isNotEmpty)
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                  children: [
-                    IconButton(
-                      tooltip: 'Previous page',
-                      onPressed: page > 1
-                          ? () => setState(() => _page = page - 1)
-                          : null,
-                      icon: const Icon(Icons.chevron_left),
-                    ),
-                    Expanded(
-                      child: Text(
-                        'Page $page of $pages · ${rows.length} learners',
-                        textAlign: TextAlign.center,
-                        style: Theme.of(context).textTheme.bodySmall,
-                      ),
-                    ),
-                    IconButton(
-                      tooltip: 'Next page',
-                      onPressed: page < pages
-                          ? () => setState(() => _page = page + 1)
-                          : null,
-                      icon: const Icon(Icons.chevron_right),
-                    ),
-                  ],
                 ),
             ],
           ),
@@ -524,22 +648,29 @@ class _InterventionsPageState extends ConsumerState<InterventionsPage>
   }
 }
 
-Widget _identity(AdvisoryIntervention row) => Wrap(
+Widget _identity(
+  AdvisoryIntervention row, {
+  bool showRisk = true,
+  bool showMetadata = true,
+}) => Wrap(
   spacing: 6,
   runSpacing: 6,
   children: [
-    ZStatusPill(text: row.text('lrn'), label: 'LRN'),
-    ZStatusPill(
-      text: row.text('section'),
-      label: 'Section',
-      tone: StatusTone.violet,
-    ),
-    ZStatusPill(
-      text: row.text('gradeLevel'),
-      label: 'Grade level',
-      tone: StatusTone.blue,
-    ),
-    RiskBadge(level: row.level),
+    if (showMetadata) ...[
+      ZStatusPill(text: row.text('lrn'), label: 'LRN'),
+      ZStatusPill(
+        text: row.text('section'),
+        label: 'Section',
+        tone: StatusTone.violet,
+      ),
+      ZStatusPill(
+        text: row.text('gradeLevel'),
+        label: 'Grade level',
+        tone: StatusTone.blue,
+      ),
+    ],
+    if (showRisk) RiskBadge(level: row.level),
+    if (showMetadata) const SizedBox(width: double.infinity, height: 0),
     for (final factor in row.factors.entries)
       if (factor.value == true)
         ZStatusPill(
@@ -583,107 +714,279 @@ class InterventionDetails extends ConsumerWidget {
           );
         }
         final plan = row.plan;
+        Widget panel(Widget child, {bool highlighted = false}) => Container(
+          width: double.infinity,
+          padding: const EdgeInsets.all(12),
+          decoration: BoxDecoration(
+            color: highlighted ? const Color(0xFFF3F9FF) : Colors.white,
+            borderRadius: BorderRadius.circular(14),
+            border: Border.all(
+              color: highlighted
+                  ? const Color(0xFFBFDBFE)
+                  : const Color(0xFFE2E8F0),
+            ),
+          ),
+          child: child,
+        );
         Widget fact(String label, Object? value) => Padding(
-          padding: const EdgeInsets.only(top: 12),
+          padding: const EdgeInsets.only(top: 6),
           child: Text(
             '$label\n${value == null || value.toString().isEmpty ? 'Not recorded' : value}',
+            style: const TextStyle(
+              fontSize: 12,
+              height: 1.45,
+              color: Color(0xFF475569),
+            ),
           ),
         );
-        return ListView(
-          padding: const EdgeInsets.all(20),
-          children: [
-            Row(
-              children: [
-                Expanded(
-                  child: Text(
-                    row.name,
-                    style: Theme.of(context).textTheme.titleLarge,
+        return ColoredBox(
+          color: Colors.white,
+          child: ListView(
+            padding: const EdgeInsets.fromLTRB(16, 12, 16, 24),
+            children: [
+              Row(
+                children: [
+                  Container(
+                    width: 46,
+                    height: 46,
+                    alignment: Alignment.center,
+                    decoration: BoxDecoration(
+                      color: row.level == 'High'
+                          ? const Color(0xFFFF5577)
+                          : const Color(0xFFF59E0B),
+                      borderRadius: BorderRadius.circular(13),
+                    ),
+                    child: Text(
+                      row.name.trim().isEmpty
+                          ? '?'
+                          : row.name
+                                .trim()
+                                .split(RegExp(r'\s+'))
+                                .take(2)
+                                .map((part) => part.characters.first)
+                                .join()
+                                .toUpperCase(),
+                      style: const TextStyle(
+                        fontSize: 15,
+                        fontWeight: FontWeight.w700,
+                        color: Colors.white,
+                      ),
+                    ),
+                  ),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          row.name,
+                          style: const TextStyle(
+                            fontSize: 15,
+                            fontWeight: FontWeight.w700,
+                            color: Color(0xFF0F172A),
+                          ),
+                        ),
+                        const SizedBox(height: 4),
+                        RiskBadge(level: row.level),
+                        const SizedBox(height: 4),
+                        Text(
+                          'LRN ${row.text('lrn')} · Sec. ${row.text('section')} · ${row.text('gradeLevel')}',
+                          style: const TextStyle(
+                            fontSize: 12,
+                            color: Color(0xFF64748B),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                  IconButton(
+                    tooltip: 'Close',
+                    style: IconButton.styleFrom(
+                      backgroundColor: const Color(0xFFF1F5F9),
+                      foregroundColor: const Color(0xFF64748B),
+                    ),
+                    onPressed: () => Navigator.pop(context),
+                    icon: const Icon(Icons.close, size: 20),
+                  ),
+                ],
+              ),
+              const Padding(
+                padding: EdgeInsets.symmetric(vertical: 12),
+                child: Divider(height: 1, color: Color(0xFFF1F5F9)),
+              ),
+              _identity(row),
+              const SizedBox(height: 12),
+              panel(
+                Row(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Container(
+                      padding: const EdgeInsets.all(8),
+                      decoration: BoxDecoration(
+                        color: const Color(0xFF2563EB),
+                        borderRadius: BorderRadius.circular(10),
+                      ),
+                      child: const Icon(
+                        LucideIcons.info,
+                        color: Colors.white,
+                        size: 16,
+                      ),
+                    ),
+                    const SizedBox(width: 12),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          const Text(
+                            'RECOMMENDED ACTION',
+                            style: TextStyle(
+                              fontSize: 12,
+                              fontWeight: FontWeight.w700,
+                              color: Color(0xFF1E3A8A),
+                            ),
+                          ),
+                          const SizedBox(height: 8),
+                          Text(
+                            plan == null
+                                ? 'No plan yet. Guidance has not opened an intervention for this learner.'
+                                : interventionLabel(plan['recommendedAction']),
+                            style: const TextStyle(
+                              fontSize: 12,
+                              height: 1.45,
+                              color: Color(0xFF0F172A),
+                            ),
+                          ),
+                          const SizedBox(height: 12),
+                          Text(
+                            'Detected ${interventionDate(row.text('detectedAt'))}',
+                            style: const TextStyle(
+                              fontSize: 12,
+                              color: Color(0xFF2563EB),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ],
+                ),
+                highlighted: true,
+              ),
+              if (plan != null) ...[
+                const SizedBox(height: 12),
+                panel(
+                  Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      fact('Assigned to', plan['assignee']),
+                      const Padding(
+                        padding: EdgeInsets.only(top: 12),
+                        child: Divider(height: 1, color: Color(0xFFF1F5F9)),
+                      ),
+                      Wrap(
+                        spacing: 20,
+                        runSpacing: 8,
+                        children: [
+                          fact(
+                            'Assigned',
+                            interventionDate(plan['assignedAt']),
+                          ),
+                          fact(
+                            'Approval',
+                            interventionLabel(plan['approvalStatus']),
+                          ),
+                        ],
+                      ),
+                    ],
                   ),
                 ),
-                IconButton(
-                  tooltip: 'Close',
-                  onPressed: () => Navigator.pop(context),
-                  icon: const Icon(Icons.close),
+                const SizedBox(height: 14),
+                const Text(
+                  'CASE PARAMETERS & NOTES',
+                  style: TextStyle(
+                    fontSize: 12,
+                    fontWeight: FontWeight.w700,
+                    color: Color(0xFF94A3B8),
+                    letterSpacing: 0.6,
+                  ),
                 ),
-              ],
-            ),
-            _identity(row),
-            fact('Detected', interventionDate(row.text('detectedAt'))),
-            if (plan == null)
-              const Padding(
-                padding: EdgeInsets.only(top: 24),
-                child: Text(
-                  'No plan yet. Guidance has not opened an intervention for this learner.',
+                const SizedBox(height: 12),
+                panel(
+                  Wrap(
+                    spacing: 20,
+                    runSpacing: 8,
+                    children: [
+                      fact('Priority', interventionLabel(plan['priority'])),
+                      fact('Outcome', interventionLabel(plan['outcomeStatus'])),
+                    ],
+                  ),
                 ),
-              )
-            else ...[
-              fact(
-                'Recommended action',
-                interventionLabel(plan['recommendedAction']),
-              ),
-              fact('Assigned to', plan['assignee']),
-              fact('Assigned', interventionDate(plan['assignedAt'])),
-              fact('Approval', interventionLabel(plan['approvalStatus'])),
-              fact('Priority', interventionLabel(plan['priority'])),
-              fact('Intake notes', plan['intakeNotes']),
-              fact('Outcome', interventionLabel(plan['outcomeStatus'])),
-              fact('Outcome notes', plan['outcomeNotes']),
-              const SizedBox(height: 20),
-              Text('Sessions', style: Theme.of(context).textTheme.titleMedium),
-              if ((plan['sessions'] as List? ?? []).isEmpty)
-                const Text('No sessions recorded.'),
-              for (final raw in plan['sessions'] as List? ?? [])
-                Builder(
-                  builder: (_) {
-                    final session = interventionMap(raw);
-                    return Card(
-                      child: Padding(
-                        padding: const EdgeInsets.all(12),
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Text(interventionLabel(session['sessionType'])),
-                            ZStatusPill(
-                              text: interventionLabel(session['status']),
-                              tone: statusTone(
-                                session['status']?.toString() ?? '',
+                const SizedBox(height: 12),
+                panel(fact('Intake notes', plan['intakeNotes'])),
+                const SizedBox(height: 12),
+                panel(fact('Outcome notes', plan['outcomeNotes'])),
+                const SizedBox(height: 14),
+                Text(
+                  'Sessions',
+                  style: const TextStyle(
+                    fontSize: 13,
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+                if ((plan['sessions'] as List? ?? []).isEmpty)
+                  const Text('No sessions recorded.'),
+                for (final raw in plan['sessions'] as List? ?? [])
+                  Builder(
+                    builder: (_) {
+                      final session = interventionMap(raw);
+                      return Card(
+                        child: Padding(
+                          padding: const EdgeInsets.all(12),
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text(interventionLabel(session['sessionType'])),
+                              ZStatusPill(
+                                text: interventionLabel(session['status']),
+                                tone: statusTone(
+                                  session['status']?.toString() ?? '',
+                                ),
                               ),
-                            ),
-                            fact(
-                              'Scheduled (Philippine time)',
-                              interventionDate(
-                                session['scheduledAt'],
-                                time: true,
-                              ),
-                            ),
-                            fact('Venue', session['venue']),
-                            fact('Session notes', session['sessionNotes']),
-                            fact('Outcome', session['outcome']),
-                            if (session['cancelReason'] != null)
                               fact(
-                                'Cancellation reason',
-                                session['cancelReason'],
-                              ),
-                            if (session['completedAt'] != null)
-                              fact(
-                                'Completed',
+                                'Scheduled (Philippine time)',
                                 interventionDate(
-                                  session['completedAt'],
+                                  session['scheduledAt'],
                                   time: true,
                                 ),
                               ),
-                            fact(
-                              'Attachments',
-                              session['attachmentsCount'] ?? 0,
-                            ),
-                          ],
+                              fact('Venue', session['venue']),
+                              fact('Session notes', session['sessionNotes']),
+                              fact('Outcome', session['outcome']),
+                              if (session['cancelReason'] != null)
+                                fact(
+                                  'Cancellation reason',
+                                  session['cancelReason'],
+                                ),
+                              if (session['completedAt'] != null)
+                                fact(
+                                  'Completed',
+                                  interventionDate(
+                                    session['completedAt'],
+                                    time: true,
+                                  ),
+                                ),
+                              fact(
+                                'Attachments',
+                                session['attachmentsCount'] ?? 0,
+                              ),
+                            ],
+                          ),
                         ),
-                      ),
-                    );
-                  },
-                ),
+                      );
+                    },
+                  ),
+              ],
             ],
-          ],
+          ),
         );
       },
     );
