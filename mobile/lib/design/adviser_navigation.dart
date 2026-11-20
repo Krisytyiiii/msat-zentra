@@ -32,7 +32,10 @@ class AdviserBottomNavigation extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final colors = Theme.of(context).colorScheme;
-    const activeColor = Color(0xFFFFB900);
+    final light = Theme.of(context).brightness == Brightness.light;
+    final activeColor = light
+        ? const Color(0xFFF28C00)
+        : const Color(0xFFFFB900);
     return SafeArea(
       top: false,
       minimum: const EdgeInsets.fromLTRB(16, 8, 16, 12),
@@ -44,9 +47,12 @@ class AdviserBottomNavigation extends StatelessWidget {
             children: [
               Expanded(
                 child: Material(
+                  key: const ValueKey('adviser-nav-bar'),
                   color: colors.surface,
                   elevation: 12,
-                  shadowColor: Colors.black.withValues(alpha: 0.4),
+                  shadowColor: Colors.black.withValues(
+                    alpha: light ? 0.08 : 0.4,
+                  ),
                   shape: StadiumBorder(
                     side: BorderSide(color: colors.outlineVariant),
                   ),
@@ -58,7 +64,10 @@ class AdviserBottomNavigation extends StatelessWidget {
                     child: SizedBox(
                       height: 60,
                       child: Padding(
-                        padding: const EdgeInsets.symmetric(horizontal: 12),
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 12,
+                          vertical: 6,
+                        ),
                         child: Row(
                           crossAxisAlignment: CrossAxisAlignment.stretch,
                           children: [
@@ -87,9 +96,15 @@ class AdviserBottomNavigation extends StatelessWidget {
                                             duration: const Duration(
                                               milliseconds: 150,
                                             ),
-                                            padding: const EdgeInsets.symmetric(
-                                              horizontal: 8,
-                                              vertical: 4,
+                                            padding: EdgeInsets.symmetric(
+                                              horizontal: 6,
+                                              vertical:
+                                                  MediaQuery.textScalerOf(
+                                                        context,
+                                                      ).scale(9) >
+                                                      12
+                                                  ? 0
+                                                  : 2,
                                             ),
                                             decoration: BoxDecoration(
                                               color:
@@ -104,7 +119,7 @@ class AdviserBottomNavigation extends StatelessWidget {
                                             ),
                                             child: Icon(
                                               destination.icon,
-                                              size: 22,
+                                              size: 20,
                                               applyTextScaling: false,
                                               color:
                                                   selectedPath ==
@@ -157,7 +172,9 @@ class AdviserBottomNavigation extends StatelessWidget {
                         ? activeColor.withValues(alpha: 0.16)
                         : colors.surface,
                     elevation: 12,
-                    shadowColor: Colors.black.withValues(alpha: 0.4),
+                    shadowColor: Colors.black.withValues(
+                      alpha: light ? 0.08 : 0.4,
+                    ),
                     shape: CircleBorder(
                       side: BorderSide(
                         color: selectedPath.startsWith('/adviser/bama')
@@ -176,9 +193,7 @@ class AdviserBottomNavigation extends StatelessWidget {
                         width: 60,
                         height: 60,
                         child: const Center(
-                          child: ExcludeSemantics(
-                            child: BamaMascot(size: 52),
-                          ),
+                          child: ExcludeSemantics(child: BamaMascot(size: 52)),
                         ),
                       ),
                     ),

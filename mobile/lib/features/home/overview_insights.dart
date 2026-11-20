@@ -113,7 +113,7 @@ class OverviewRiskMix extends StatelessWidget {
             child: ClipRRect(
               borderRadius: BorderRadius.circular(6),
               child: SizedBox(
-                height: 24,
+                height: 8,
                 child: Row(
                   children: [
                     for (final item in insights.risk.entries)
@@ -185,8 +185,20 @@ class OverviewDailyAttendance extends StatelessWidget {
                 Semantics(
                   label:
                       '${day.date}: ${day.counts.entries.map((e) => '${e.key} ${e.value}').join(', ')}, ${day.rate == null ? 'no marks' : '${day.rate!.round()} percent'}',
-                  child: SizedBox(
-                    width: 70,
+                  child: Container(
+                    width: 64,
+                    margin: const EdgeInsets.only(right: 10),
+                    padding: const EdgeInsets.symmetric(
+                      vertical: 12,
+                      horizontal: 6,
+                    ),
+                    decoration: BoxDecoration(
+                      color: Theme.of(context).colorScheme.surfaceContainerLow,
+                      borderRadius: BorderRadius.circular(16),
+                      border: Border.all(
+                        color: Theme.of(context).colorScheme.outline,
+                      ),
+                    ),
                     child: Column(
                       children: [
                         Text(
@@ -197,14 +209,14 @@ class OverviewDailyAttendance extends StatelessWidget {
                         ),
                         const SizedBox(height: 8),
                         SizedBox(
-                          height: 120,
+                          height: 48,
                           child: Align(
                             alignment: Alignment.bottomCenter,
                             child: SizedBox(
                               width: 28,
                               height: day.marked == 0
                                   ? 2
-                                  : 120 * day.marked / maximum,
+                                  : 48 * day.marked / maximum,
                               child: day.marked == 0
                                   ? ColoredBox(
                                       color: Theme.of(context)

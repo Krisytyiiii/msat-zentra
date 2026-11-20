@@ -3,10 +3,14 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
+import 'package:lucide_icons_flutter/lucide_icons.dart';
 
+import '../../core/session.dart';
+import '../../design/overview_theme.dart';
 import '../../design/screen_search.dart';
 import '../../design/status_palette.dart';
 import '../../shared/widgets.dart';
+import '../home/overview_data.dart';
 import 'interventions_data.dart';
 
 String interventionLabel(Object? value) => (value?.toString() ?? '')
@@ -33,7 +37,7 @@ class InterventionsPage extends ConsumerStatefulWidget {
 class _InterventionsPageState extends ConsumerState<InterventionsPage>
     with WidgetsBindingObserver {
   Timer? _timer;
-  String _level = '', _factor = '', _outcome = '', _section = '', _query = '';
+  String _level = '', _factor = '', _outcome = '', _section = '';
   int _page = 1;
   String _lastQuery = '';
   bool _refreshing = false;
@@ -62,7 +66,11 @@ class _InterventionsPageState extends ConsumerState<InterventionsPage>
     _refreshing = true;
     try {
       final refreshed = await ref.refresh(advisoryInterventionsProvider.future);
-      if (mounted && refreshed.rows.isEmpty) setState(() => _page = 1);
+      if (mounted) {
+        setState(() {
+          if (refreshed.rows.isEmpty) _page = 1;
+        });
+      }
     } catch (_) {
       // The provider exposes a retryable, user-safe error state.
     } finally {
@@ -78,36 +86,101 @@ class _InterventionsPageState extends ConsumerState<InterventionsPage>
   }
 
   Widget _filter(
+    BuildContext context,
     String label,
     String value,
     Map<String, String> options,
-    ValueChanged<String> update,
-  ) => DropdownButtonFormField<String>(
-    initialValue: value,
-    isExpanded: true,
-    decoration: InputDecoration(labelText: label),
-    items: [
-      for (final option in options.entries)
-        DropdownMenuItem(
-          value: option.key,
-          child: Text(option.value, overflow: TextOverflow.ellipsis),
+    ValueChanged<String> update, {
+    bool primary = false,
+  }) {
+    final blue = statusColors(StatusTone.blue, Theme.of(context));
+    final active = primary || value.isNotEmpty;
+    final text = label == 'Risk level'
+        ? options[value]!
+        : '$label: ${options[value]}';
+    return PopupMenuButton<String>(
+      tooltip: label,
+      initialValue: value,
+      onSelected: (next) => setState(() {
+        update(next);
+        _page = 1;
+      }),
+      itemBuilder: (_) => [
+        for (final option in options.entries)
+          PopupMenuItem(value: option.key, child: Text(option.value)),
+      ],
+      child: ConstrainedBox(
+        constraints: const BoxConstraints(minHeight: 48),
+        child: Center(
+          widthFactor: 1,
+          child: Container(
+            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 7),
+            decoration: BoxDecoration(
+              color: active ? blue.background : Colors.white,
+              borderRadius: BorderRadius.circular(999),
+              border: Border.all(
+                color: active
+                    ? blue.foreground.withValues(alpha: 0.25)
+                    : const Color(0xFFE5E5EA),
+              ),
+            ),
+            child: Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Flexible(
+                  child: Text(
+                    text,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: TextStyle(
+                      fontSize: 12,
+                      color: active ? blue.foreground : const Color(0xFF7185A4),
+                    ),
+                  ),
+                ),
+                const SizedBox(width: 6),
+                Icon(
+                  LucideIcons.chevronDown,
+                  size: 12,
+                  color: active ? blue.foreground : const Color(0xFF7185A4),
+                ),
+              ],
+            ),
+          ),
         ),
-    ],
-    onChanged: (next) => setState(() {
-      update(next ?? '');
-      _page = 1;
-    }),
-  );
+      ),
+    );
+  }
 
   @override
   Widget build(BuildContext context) {
+    final theme = overviewScreenTheme(Theme.of(context))
+        .copyWith(scaffoldBackgroundColor: Colors.white);
+    return Theme(
+      data: theme,
+      child: ColoredBox(
+        color: Colors.white,
+        child: Align(
+          alignment: Alignment.topCenter,
+          child: ConstrainedBox(
+            constraints: const BoxConstraints(maxWidth: 760),
+            child: Builder(builder: _content),
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _content(BuildContext context) {
     final search = ScreenSearchScope.maybeOf(context);
-    final query = (search?.query ?? _query).trim().toLowerCase();
+    final query = (search?.query ?? '').trim().toLowerCase();
     if (query != _lastQuery) {
       _lastQuery = query;
       _page = 1;
     }
     final data = ref.watch(advisoryInterventionsProvider);
+    final term = ref.watch(termProvider);
+    final overview = ref.watch(overviewSummaryProvider).asData?.value;
     return data.when(
       loading: () => const ZSkeletonList(),
       error: (error, _) => ErrorView(message: error, onRetry: _refresh),
@@ -122,7 +195,7 @@ class _InterventionsPageState extends ConsumerState<InterventionsPage>
                       (_outcome == 'none'
                           ? row.plan == null
                           : row.plan?['outcomeStatus'] == _outcome)) &&
-                  '${row.name} ${row.text('lrn')} ${row.text('section')}'
+                  '${row.name} ${row.key} ${row.plan?['id'] ?? ''} ${row.text('lrn')} ${row.text('section')}'
                       .toLowerCase()
                       .contains(query),
             )
@@ -130,83 +203,249 @@ class _InterventionsPageState extends ConsumerState<InterventionsPage>
         final pages = (rows.length / 15).ceil().clamp(1, 100000);
         final page = _page.clamp(1, pages);
         final visible = rows.skip((page - 1) * 15).take(15);
+        final sectionName = _section.isNotEmpty
+            ? board.sections
+                  .where((s) => s['id'].toString() == _section)
+                  .map((s) => s['name'].toString())
+                  .firstOrNull
+            : board.sections.length == 1
+            ? board.sections.first['name']?.toString()
+            : board.sections.isEmpty
+            ? overview?.sectionName
+            : 'All sections';
+        final high = board.rows.where((row) => row.level == 'High').length;
+        final moderate = board.rows
+            .where((row) => row.level == 'Moderate')
+            .length;
+        final ongoing = board.rows
+            .where((row) => row.plan?['outcomeStatus'] == 'ongoing')
+            .length;
         return RefreshIndicator(
           onRefresh: _refresh,
           child: ListView(
             physics: const AlwaysScrollableScrollPhysics(),
-            padding: const EdgeInsets.fromLTRB(16, 16, 16, 120),
+            padding: const EdgeInsets.fromLTRB(12, 16, 12, 120),
             children: [
               Text(
                 'Interventions',
-                style: Theme.of(context).textTheme.titleLarge,
+                style: const TextStyle(
+                  fontSize: 22,
+                  fontWeight: FontWeight.w700,
+                  letterSpacing: -0.5,
+                ),
               ),
               const SizedBox(height: 8),
-              const Text(
+              Text(
                 'Read-only follow-up for your advisees, recorded by the guidance desk.',
+                style: Theme.of(context).textTheme.bodySmall
+                    ?.copyWith(color: const Color(0xFF81818F), height: 1.5),
               ),
               const SizedBox(height: 12),
               Wrap(
                 spacing: 6,
                 runSpacing: 6,
                 children: [
-                  for (final entry in board.summary.entries)
+                  if (term != null) ...[
                     ZStatusPill(
-                      text:
-                          '${interventionLabel(entry.key == 'noPlan' ? 'no_plan' : entry.key)}: ${entry.value}',
-                      tone: entry.key == 'high'
-                          ? StatusTone.red
-                          : entry.key == 'moderate'
-                          ? StatusTone.amber
-                          : StatusTone.neutral,
+                      text: term.schoolYearName,
+                      tone: StatusTone.blue,
                     ),
+                    ZStatusPill(
+                      text: 'Term ${term.termNumber}',
+                      tone: StatusTone.amber,
+                    ),
+                  ],
+                  if (sectionName != null && sectionName.isNotEmpty)
+                    ZStatusPill(text: sectionName, tone: StatusTone.violet),
                 ],
               ),
-              if (search == null) ...[
-                const SizedBox(height: 12),
-                TextField(
-                  decoration: const InputDecoration(
-                    hintText: 'Search name, LRN or section',
-                  ),
-                  onChanged: (value) => setState(() => _query = value),
-                ),
-              ],
-              const SizedBox(height: 12),
-              _filter('Risk level', _level, {
-                '': 'All at-risk',
-                'High': 'High risk',
-                'Moderate': 'Moderate risk',
-              }, (v) => _level = v),
-              const SizedBox(height: 8),
-              _filter('Factor', _factor, {
-                '': 'All factors',
-                'academic': 'Academic',
-                'attendance': 'Attendance',
-                'behavioral': 'Behavioral',
-              }, (v) => _factor = v),
-              const SizedBox(height: 8),
-              _filter('State', _outcome, {
-                '': 'All states',
-                'ongoing': 'Ongoing',
-                'resolved': 'Resolved',
-                'unresolved': 'Unresolved',
-                'none': 'No plan yet',
-              }, (v) => _outcome = v),
-              if (board.sections.length > 1) ...[
-                const SizedBox(height: 8),
-                _filter('Section', _section, {
-                  '': 'All sections',
-                  for (final section in board.sections)
-                    section['id'].toString(): section['name'].toString(),
-                }, (v) => _section = v),
-              ],
               const SizedBox(height: 16),
+              Container(
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 12,
+                  vertical: 10,
+                ),
+                decoration: BoxDecoration(
+                  color: const Color(0xFFF9F9FA),
+                  border: Border.all(color: const Color(0xFFE8E8ED)),
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                child: Row(
+                  children: [
+                    Expanded(
+                      child: Text(
+                        '$high\nHigh',
+                        textAlign: TextAlign.center,
+                        style: TextStyle(
+                          fontSize: 12,
+                          height: 1.6,
+                          fontWeight: FontWeight.w600,
+                          color: statusColors(
+                            StatusTone.red,
+                            Theme.of(context),
+                          ).foreground,
+                        ),
+                      ),
+                    ),
+                    const SizedBox(
+                      height: 30,
+                      child: VerticalDivider(width: 16),
+                    ),
+                    Expanded(
+                      child: Text(
+                        '$moderate\nModerate',
+                        textAlign: TextAlign.center,
+                        style: TextStyle(
+                          fontSize: 12,
+                          height: 1.6,
+                          fontWeight: FontWeight.w600,
+                          color: statusColors(
+                            StatusTone.amber,
+                            Theme.of(context),
+                          ).foreground,
+                        ),
+                      ),
+                    ),
+                    const SizedBox(
+                      height: 30,
+                      child: VerticalDivider(width: 16),
+                    ),
+                    Expanded(
+                      child: Text(
+                        '$ongoing\nOngoing',
+                        textAlign: TextAlign.center,
+                        style: TextStyle(
+                          fontSize: 12,
+                          height: 1.6,
+                          fontWeight: FontWeight.w600,
+                          color: statusColors(
+                            StatusTone.blue,
+                            Theme.of(context),
+                          ).foreground,
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              const SizedBox(height: 14),
+              Row(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  const Expanded(
+                    child: Text(
+                      'FILTER ADVISEES',
+                      style: TextStyle(
+                        fontSize: 12,
+                        fontWeight: FontWeight.w700,
+                        letterSpacing: 0.4,
+                        color: Color(0xFF929FB5),
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+              Wrap(
+                spacing: 6,
+                children: [
+                  _filter(
+                    context,
+                    'Risk level',
+                    _level,
+                    {
+                      '': 'All Risk Levels',
+                      'High': 'High risk',
+                      'Moderate': 'Moderate risk',
+                      'Low': 'Low risk',
+                    },
+                    (v) => _level = v,
+                    primary: true,
+                  ),
+                  _filter(context, 'Factor', _factor, {
+                    '': 'All',
+                    'academic': 'Academic',
+                    'attendance': 'Attendance',
+                    'behavioral': 'Behavior',
+                  }, (v) => _factor = v),
+                  _filter(context, 'Status', _outcome, {
+                    '': 'All',
+                    'ongoing': 'Ongoing',
+                    'resolved': 'Resolved',
+                    'unresolved': 'Unresolved',
+                    'none': 'No plan yet',
+                  }, (v) => _outcome = v),
+                  if (board.sections.length > 1)
+                    _filter(context, 'Section', _section, {
+                      '': 'All',
+                      for (final section in board.sections)
+                        section['id'].toString(): section['name'].toString(),
+                    }, (v) => _section = v),
+                ],
+              ),
+              Text(
+                'Showing ${rows.length} records',
+                style: const TextStyle(fontSize: 12, color: Color(0xFF9999A6)),
+              ),
+              const SizedBox(height: 12),
               if (rows.isEmpty)
-                Padding(
-                  padding: const EdgeInsets.all(24),
-                  child: Text(
-                    board.rows.isEmpty
-                        ? 'No advisees needing intervention in this term.'
-                        : 'No matching advisees. Adjust your filters.',
+                Container(
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 20,
+                    vertical: 20,
+                  ),
+                  decoration: BoxDecoration(
+                    color: Colors.white,
+                    border: Border.all(color: const Color(0xFFE6ECF4)),
+                    borderRadius: BorderRadius.circular(16),
+                  ),
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Container(
+                        padding: const EdgeInsets.all(12),
+                        decoration: BoxDecoration(
+                          shape: BoxShape.circle,
+                          color: board.rows.isEmpty
+                              ? const Color(0xFFF0FDF4)
+                              : const Color(0xFFF5F5F7),
+                        ),
+                        child: Icon(
+                          board.rows.isEmpty
+                              ? LucideIcons.badgeCheck
+                              : LucideIcons.search,
+                          size: 20,
+                          color: board.rows.isEmpty
+                              ? const Color(0xFF489D6A)
+                              : const Color(0xFF9B9BA7),
+                        ),
+                      ),
+                      const SizedBox(height: 12),
+                      Text(
+                        board.rows.isEmpty
+                            ? 'No advisees needing intervention'
+                            : 'No matching advisees',
+                        textAlign: TextAlign.center,
+                        style: const TextStyle(
+                          fontSize: 14,
+                          fontWeight: FontWeight.w600,
+                        ),
+                      ),
+                      const SizedBox(height: 6),
+                      Padding(
+                        padding: const EdgeInsets.symmetric(horizontal: 8),
+                        child: Text(
+                          board.rows.isEmpty
+                              ? 'All advisees are currently on track for this term with no active guidance desk flags.'
+                              : 'Adjust your search or filters to see more records.',
+                          textAlign: TextAlign.center,
+                          style: const TextStyle(
+                            fontSize: 12,
+                            height: 1.4,
+                            color: Color(0xFF71809B),
+                          ),
+                        ),
+                      ),
+                    ],
                   ),
                 ),
               for (final row in visible)
@@ -250,32 +489,33 @@ class _InterventionsPageState extends ConsumerState<InterventionsPage>
                     ),
                   ),
                 ),
-              Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                children: [
-                  IconButton(
-                    tooltip: 'Previous page',
-                    onPressed: page > 1
-                        ? () => setState(() => _page = page - 1)
-                        : null,
-                    icon: const Icon(Icons.chevron_left),
-                  ),
-                  Expanded(
-                    child: Text(
-                      'Page $page of $pages · ${rows.length} learners',
-                      textAlign: TextAlign.center,
-                      style: Theme.of(context).textTheme.bodySmall,
+              if (rows.isNotEmpty)
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    IconButton(
+                      tooltip: 'Previous page',
+                      onPressed: page > 1
+                          ? () => setState(() => _page = page - 1)
+                          : null,
+                      icon: const Icon(Icons.chevron_left),
                     ),
-                  ),
-                  IconButton(
-                    tooltip: 'Next page',
-                    onPressed: page < pages
-                        ? () => setState(() => _page = page + 1)
-                        : null,
-                    icon: const Icon(Icons.chevron_right),
-                  ),
-                ],
-              ),
+                    Expanded(
+                      child: Text(
+                        'Page $page of $pages · ${rows.length} learners',
+                        textAlign: TextAlign.center,
+                        style: Theme.of(context).textTheme.bodySmall,
+                      ),
+                    ),
+                    IconButton(
+                      tooltip: 'Next page',
+                      onPressed: page < pages
+                          ? () => setState(() => _page = page + 1)
+                          : null,
+                      icon: const Icon(Icons.chevron_right),
+                    ),
+                  ],
+                ),
             ],
           ),
         );

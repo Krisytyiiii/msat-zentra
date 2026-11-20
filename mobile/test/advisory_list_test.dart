@@ -3,14 +3,15 @@ import 'dart:io';
 
 import 'package:dio/dio.dart';
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:go_router/go_router.dart';
 import 'package:hive_flutter/hive_flutter.dart';
+import 'package:lucide_icons_flutter/lucide_icons.dart';
 import 'package:zentra_mobile/core/api_client.dart';
 import 'package:zentra_mobile/core/config.dart';
 import 'package:zentra_mobile/core/session.dart';
+import 'package:zentra_mobile/design/screen_search.dart';
 import 'package:zentra_mobile/design/theme.dart';
 import 'package:zentra_mobile/features/adviser/advisory_list_page.dart';
 import 'package:zentra_mobile/shared/models.dart';
@@ -28,15 +29,7 @@ Map<String, dynamic> activeStudent({
   'riskLevel': 'High',
   'flags': ['academic', 'attendance', 'behavioral'],
 };
-Map<String, dynamic> archivedStudent() => {
-  'archiveId': 'archive-1',
-  'studentId': 'roster:archived-learner',
-  'name': 'Mira Archived',
-  'lrn': '987654321012',
-  'section': 'Grade 8 – Arts',
-  'archivedAt': '2026-11-16T10:00:00.000Z',
-  'hasAccount': false,
-};
+
 Term selectedTerm([String id = 'term-1']) => Term(
   id: id,
   schoolYearId: 'year-1',
@@ -61,140 +54,110 @@ class AdvisoryAuth extends AuthNotifier {
 }
 
 class AdvisoryApi extends ApiClient {
+  @override
+  Future<String?> accessToken() async => null;
+
   AdvisoryApi() {
     dio.interceptors.clear();
     dio.interceptors.add(
       InterceptorsWrapper(
         onRequest: (options, handler) async {
           requests.add(options);
-          try {
-            Object data;
-            final path = options.path;
-            final mutating = options.method != 'GET';
-            if (mutating && pendingWrite != null) await pendingWrite!.future;
-            if ((path.endsWith('/archived') && failArchived) ||
-                (path.endsWith('/students') && failActive) ||
-                (mutating && failWrite)) {
-              handler.reject(
-                DioException(
-                  requestOptions: options,
-                  type: DioExceptionType.badResponse,
-                  response: Response(
-                    requestOptions: options,
-                    statusCode: 503,
-                    data: {
-                      'error': {
-                        'code': 'DATABASE_ERROR',
-                        'message': 'private database details',
-                      },
-                    },
-                  ),
-                ),
-              );
-              return;
-            }
-            if (path == '/api/teacher/advisory/students') {
-              data = {
-                'students': List.of(active),
-                'advisorySections': [
-                  {'id': 'section-1', 'name': 'Grade 8 – Arts'},
-                ],
-              };
-            } else if (path == '/api/teacher/advisory/archived') {
-              data = {'students': List.of(archived)};
-            } else if (options.method == 'DELETE' &&
-                path.startsWith('/api/teacher/advisory/roster/')) {
-              final id = Uri.decodeComponent(path.split('/').last);
-              final learner = active.firstWhere(
-                (row) => row['studentId'] == id,
-              );
-              active.remove(learner);
-              archived.add({
-                ...learner,
-                'archiveId': 'archive-new',
-                'section': 'Grade 8 – Arts',
-                'archivedAt': '2026-11-16T10:00:00Z',
-              });
-              data = {'archived': true};
-            } else if (options.method == 'POST' && path.endsWith('/restore')) {
-              final id = Uri.decodeComponent(path.split('/')[5]);
-              final learner = archived.firstWhere(
-                (row) => row['archiveId'] == id,
-              );
-              archived.remove(learner);
-              active.add({...learner, 'riskLevel': 'Low', 'flags': <String>[]});
-              data = {'restored': true};
-            } else if (options.method == 'POST' &&
-                path == '/api/teacher/advisory/roster') {
-              final body = options.data as Map;
-              active.add({
-                ...activeStudent(
-                  id: 'roster:new',
-                  name: body['fullName'] as String,
-                ),
-                'lrn': body['lrn'],
-              });
-              data = {'studentId': 'roster:new'};
-            } else {
-              throw StateError('Unexpected endpoint: ${options.method} $path');
-            }
-            handler.resolve(
-              Response(requestOptions: options, statusCode: 200, data: data),
-            );
-          } catch (error) {
-            handler.reject(DioException(requestOptions: options, error: error));
+          if (options.path.endsWith('/students') && pendingRead != null) {
+            await pendingRead!.future;
           }
+          if (options.path.endsWith('/students') && failActive) {
+            handler.reject(
+              DioException(
+                requestOptions: options,
+                type: DioExceptionType.badResponse,
+                response: Response(
+                  requestOptions: options,
+                  statusCode: 503,
+                  data: {
+                    'error': {
+                      'code': 'DATABASE_ERROR',
+                      'message': 'private database details',
+                    },
+                  },
+                ),
+              ),
+            );
+            return;
+          }
+          final Object data;
+          if (options.path == '/api/teacher/advisory/students') {
+            data = {
+              'students': List.of(active),
+              'advisorySections': [
+                {'id': 'section-1', 'name': 'Grade 8 – Arts'},
+              ],
+            };
+          } else if (options.path == '/api/teacher/advisory/archived') {
+            data = {
+              'students': [
+                {
+                  'archiveId': 'archive-1',
+                  'studentId': 'roster:archived-learner',
+                  'name': 'Mira Archived',
+                  'lrn': '987654321012',
+                  'section': 'Grade 8 – Arts',
+                  'archivedAt': '2026-11-16T10:00:00Z',
+                  'hasAccount': false,
+                },
+              ],
+            };
+          } else {
+            data = {'ok': true};
+          }
+          handler.resolve(
+            Response(requestOptions: options, statusCode: 200, data: data),
+          );
         },
       ),
     );
   }
-  final requests = <RequestOptions>[];
   final active = <Map<String, dynamic>>[activeStudent()];
-  final archived = <Map<String, dynamic>>[archivedStudent()];
-  bool failArchived = false;
+  final requests = <RequestOptions>[];
   bool failActive = false;
-  bool failWrite = false;
-  Completer<void>? pendingWrite;
-  Iterable<RequestOptions> get writes =>
-      requests.where((request) => request.method != 'GET');
+  Completer<void>? pendingRead;
   int gets(String suffix) => requests
-      .where(
-        (request) => request.method == 'GET' && request.path.endsWith(suffix),
-      )
+      .where((r) => r.method == 'GET' && r.path.endsWith(suffix))
       .length;
-  @override
-  Future<String?> accessToken() async => null;
+  List<RequestOptions> get writes =>
+      requests.where((r) => r.method != 'GET').toList();
 }
 
-Future<void> settle(WidgetTester tester) async {
-  for (var i = 0; i < 8; i++) {
-    await tester.pump(const Duration(milliseconds: 50));
-  }
-}
-
-Future<void> mount(
+Future<ScreenSearchController> mount(
   WidgetTester tester,
   AdvisoryApi api, {
   double width = 390,
+  double height = 900,
   double scale = 1,
-  bool reducedMotion = true,
 }) async {
-  tester.view.physicalSize = Size(width, 900);
+  tester.view.physicalSize = Size(width, height);
   tester.view.devicePixelRatio = 1;
   addTearDown(tester.view.resetPhysicalSize);
   addTearDown(tester.view.resetDevicePixelRatio);
   addTearDown(api.dio.close);
+  final search = ScreenSearchController();
+  addTearDown(search.dispose);
   final router = GoRouter(
     initialLocation: '/adviser/list',
     routes: [
       GoRoute(
         path: '/adviser/list',
-        builder: (_, _) => const Scaffold(body: AdvisoryListPage()),
+        builder: (_, _) => ScreenSearchScope(
+          controller: search,
+          child: const Scaffold(body: AdvisoryListPage()),
+        ),
       ),
       GoRoute(
         path: '/adviser/students/:id',
-        builder: (_, state) =>
-            Scaffold(body: Text('Learner ${state.pathParameters['id']}')),
+        builder: (_, state) {
+          final student = state.extra! as AdvisoryStudent;
+          return Scaffold(body: Text('Student details: ${student.name}'));
+        },
       ),
     ],
   );
@@ -211,637 +174,193 @@ Future<void> mount(
         theme: zWorkspaceTheme(),
         routerConfig: router,
         builder: (context, child) => MediaQuery(
-          data: MediaQuery.of(context).copyWith(
-            disableAnimations: reducedMotion,
-            textScaler: TextScaler.linear(scale),
-          ),
+          data: MediaQuery.of(context)
+              .copyWith(textScaler: TextScaler.linear(scale)),
           child: child!,
         ),
       ),
     ),
   );
-  await settle(tester);
+  await tester.pumpAndSettle();
+  return search;
 }
 
-Future<void> archives(WidgetTester tester) async {
-  await tester.tap(find.byTooltip('Advisory actions'));
+Future<void> selectFilter(
+  WidgetTester tester,
+  String label,
+  String option,
+) async {
+  await tester.tap(find.byTooltip(label));
   await tester.pumpAndSettle();
-  await tester.tap(find.byKey(const ValueKey('advisory-dial-archived')));
-  await settle(tester);
-}
-
-Future<void> addStudent(WidgetTester tester) async {
-  await tester.tap(find.byTooltip('Advisory actions'));
-  await tester.pumpAndSettle();
-  await tester.tap(find.byKey(const ValueKey('advisory-dial-add')));
-  await settle(tester);
-}
-
-Future<void> openArchiveConfirmation(WidgetTester tester) async {
-  await tester.tap(find.byTooltip('Actions for Juan Active'));
-  await tester.pumpAndSettle();
-  await tester.tap(find.text('Archive student'));
+  await tester.tap(find.text(option).last);
   await tester.pumpAndSettle();
 }
 
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
   late Directory temporary;
-  var offline = false;
-  const connectivity = MethodChannel('dev.fluttercommunity.plus/connectivity');
   setUpAll(() async {
     temporary = await Directory.systemTemp.createTemp('zentra-advisory-tests-');
     Hive.init(temporary.path);
     await Hive.openBox(AppConfig.termScopeBox);
-    await Hive.openBox(AppConfig.outboxBox);
   });
-  setUp(() {
-    offline = false;
-    TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
-        .setMockMethodCallHandler(
-          connectivity,
-          (call) async => offline ? ['none'] : ['wifi'],
-        );
-  });
-  tearDown(
-    () => TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
-        .setMockMethodCallHandler(connectivity, null),
-  );
   tearDownAll(() async {
     await Hive.close();
     await temporary.delete(recursive: true);
   });
 
   test(
-    'archive DTO retains archive identity and does not fabricate risk data',
-    () {
-      final learner = ArchivedAdvisoryStudent.fromJson(archivedStudent());
-      expect(learner.archiveId, 'archive-1');
-      expect(learner.studentId, 'roster:archived-learner');
-      expect(learner.archivedAt, DateTime.utc(2026, 11, 16, 10));
-      final roster = AdvisoryRoster.fromJson({
-        'students': [],
-        'advisorySections': [
-          {'id': 's', 'name': 'Arts'},
-        ],
-      });
-      expect(roster.students, isEmpty);
-      expect(roster.sections.single.id, 's');
-      expect(
-        AdvisoryRoster.fromJson({
-          'students': [activeStudent()],
-        }).students.single.attendancePercentage,
-        87.5,
-      );
-    },
-  );
-  test(
-    'services use exact web methods and encode learner/archive IDs separately',
+    'archive DTO and retained service contracts remain compatible',
     () async {
       final api = AdvisoryApi();
       addTearDown(api.dio.close);
       final service = AdvisoryListService(api);
-      await service.active();
-      expect((await service.archived()).single.archiveId, 'archive-1');
+      final roster = await service.active();
+      expect(roster.students.single.attendancePercentage, 87.5);
+      final archived = (await service.archived()).single;
+      expect(archived.archiveId, 'archive-1');
+      expect(archived.studentId, 'roster:archived-learner');
+      expect(archived.archivedAt, DateTime.utc(2026, 11, 16, 10));
       await service.archive('roster:learner-1');
       await service.restore('archive-1');
-      expect(api.requests.map((r) => '${r.method} ${r.path}').toList(), [
+      expect(api.requests.map((r) => '${r.method} ${r.path}'), [
         'GET /api/teacher/advisory/students',
         'GET /api/teacher/advisory/archived',
         'DELETE /api/teacher/advisory/roster/roster%3Alearner-1',
         'POST /api/teacher/advisory/archived/archive-1/restore',
       ]);
-      expect(api.requests.first.queryParameters, isEmpty);
+      await service.enlist(
+        fullName: 'Transferee',
+        lrn: '111122223333',
+        sectionId: 'section-1',
+        learnerType: AdvisoryLearnerType.transferee,
+      );
+      expect(api.requests.last.data['learnerType'], 'transferee');
     },
   );
-  test('an empty active roster keeps its sections and never falls back to overview', () async {
-    final api = AdvisoryApi()..active.clear();
-    addTearDown(api.dio.close);
-    final roster = await AdvisoryListService(api).active();
-    expect(roster.students, isEmpty);
-    expect(roster.sections.single.id, 'section-1');
-    expect(api.requests.length, 1);
-  });
+
   test(
-    'active failures stay visible instead of being swallowed by a fallback',
+    'empty rosters keep sections and service errors do not fall back',
     () async {
-      final api = AdvisoryApi()..failActive = true;
+      final api = AdvisoryApi()..active.clear();
       addTearDown(api.dio.close);
-      await expectLater(
-        AdvisoryListService(api).active(),
-        throwsA(isA<ApiException>()),
-      );
-      expect(api.requests.length, 1);
-    },
-  );
-  testWidgets(
-    'only floating menu exposes add/archive navigation and can be dismissed',
-    (tester) async {
-      final api = AdvisoryApi();
-      await mount(tester, api);
-      expect(find.text('Add student'), findsNothing);
-      expect(find.text('Archived students'), findsNothing);
-      expect(find.byType(FloatingActionButton), findsOneWidget);
-      final position = tester.getBottomRight(find.byType(FloatingActionButton));
-      expect(position.dx, 374);
-      expect(position.dy, 812); // Same bottom: 88 anchor as Bama.
-      await tester.tap(find.byTooltip('Advisory actions'));
-      await tester.pumpAndSettle();
-      expect(find.byKey(const ValueKey('advisory-dial-add')), findsOneWidget);
-      expect(
-        find.byKey(const ValueKey('advisory-dial-archived')),
-        findsOneWidget,
-      );
-      expect(tester.hasRunningAnimations, isFalse);
-      await tester.tapAt(const Offset(20, 350));
-      await tester.pumpAndSettle();
-      expect(find.text('Add student'), findsNothing);
+      final service = AdvisoryListService(api);
+      expect((await service.active()).sections.single.id, 'section-1');
+      api.failActive = true;
+      await expectLater(service.active(), throwsA(isA<ApiException>()));
       expect(api.gets('/archived'), 0);
     },
   );
+
   testWidgets(
-    'dial matches Bama button sizes, label treatment and eight-pixel gaps',
+    'screen is read-only and one risk indicator replaces the archive action',
     (tester) async {
-      await mount(tester, AdvisoryApi());
-      final main = find.byKey(const ValueKey('advisory-main-action'));
-      expect(tester.getSize(main), const Size(56, 56));
-      expect(tester.getBottomRight(main), const Offset(374, 812));
-      await tester.tap(main);
-      await tester.pumpAndSettle();
-      final add = find.byKey(const ValueKey('advisory-dial-add'));
-      final archived = find.byKey(const ValueKey('advisory-dial-archived'));
-      // small FABs retain their 40px visual body inside a 48px touch target.
-      expect(tester.getSize(add), const Size(48, 48));
-      expect(tester.getSize(archived), const Size(48, 48));
-      expect(tester.getBottomRight(add).dx, tester.getBottomRight(main).dx);
-      expect(
-        tester.getBottomRight(archived).dx,
-        tester.getBottomRight(main).dx,
-      );
-      expect(
-        tester.getTopLeft(main).dy - tester.getBottomRight(archived).dy,
-        8,
-      );
-      expect(tester.getTopLeft(archived).dy - tester.getBottomRight(add).dy, 8);
-      final label = find
-          .ancestor(
-            of: find.text('Add student'),
-            matching: find.byType(Container),
-          )
-          .first;
-      final container = tester.widget<Container>(label);
-      expect(
-        container.padding,
-        const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
-      );
-      expect(
-        (container.decoration! as BoxDecoration).borderRadius,
-        BorderRadius.circular(6),
-      );
-      expect(tester.getTopLeft(add).dx - tester.getBottomRight(label).dx, 8);
-      final copy = tester.widget<Text>(find.text('Add student')).style!;
-      expect(copy.fontSize, 12);
-      expect(copy.fontWeight, FontWeight.w600);
-      expect(tester.widget<FloatingActionButton>(main).backgroundColor, isNull);
-      expect(tester.widget<FloatingActionButton>(add).backgroundColor, isNull);
-      expect(tester.takeException(), isNull);
-    },
-  );
-  testWidgets(
-    'dial expands and reverses in 150ms without changing its anchor',
-    (tester) async {
-      await mount(tester, AdvisoryApi(), reducedMotion: false);
-      final main = find.byKey(const ValueKey('advisory-main-action'));
-      final anchor = tester.getBottomRight(main);
-      await tester.tap(main);
-      await tester.pump();
-      await tester.pump(const Duration(milliseconds: 75));
-      final transition = tester.widget<SizeTransition>(
-        find.byKey(const ValueKey('advisory-dial-options')),
-      );
-      expect(transition.sizeFactor.value, greaterThan(0));
-      expect(transition.sizeFactor.value, lessThan(1));
-      expect(tester.getBottomRight(main), anchor);
-      await tester.pump(const Duration(milliseconds: 75));
-      expect(transition.sizeFactor.value, 1);
-      final rotation = tester.widget<RotationTransition>(
-        find.byKey(const ValueKey('advisory-dial-rotation')),
-      );
-      expect(rotation.turns.value, 0.125);
-      await tester.tap(main);
-      await tester.pumpAndSettle();
+      final api = AdvisoryApi();
+      await mount(tester, api);
+      expect(find.byType(FloatingActionButton), findsNothing);
       expect(find.text('Add student'), findsNothing);
-      expect(tester.getBottomRight(main), anchor);
-    },
-  );
-  testWidgets(
-    'archived view fetches the web endpoint and ignores active risk/search filters',
-    (tester) async {
-      final api = AdvisoryApi();
-      await mount(tester, api);
-      await tester.enterText(find.byType(TextField), 'Juan');
-      await tester.tap(find.widgetWithText(ChoiceChip, 'High'));
-      await archives(tester);
-      expect(api.gets('/archived'), 1);
-      expect(find.text('Mira Archived'), findsOneWidget);
-      expect(find.text('Grade 8 – Arts'), findsOneWidget);
-      expect(find.textContaining('Archived Nov'), findsOneWidget);
-      expect(find.byType(RiskBadge), findsNothing);
-      expect(find.textContaining('Att '), findsNothing);
+      expect(find.text('Archived students'), findsNothing);
+      expect(find.text('Archive student'), findsNothing);
+      expect(find.text('Restore student'), findsNothing);
+      expect(find.byTooltip('Advisory actions'), findsNothing);
+      expect(find.byTooltip('Actions for Juan Active'), findsNothing);
+      expect(find.byIcon(LucideIcons.ellipsis), findsNothing);
+      final risk = find.byKey(const ValueKey('risk-roster:learner-1'));
+      expect(find.byType(RiskBadge), findsOneWidget);
+      expect(risk, findsOneWidget);
       expect(
-        tester.widget<TextField>(find.byType(TextField)).controller!.text,
-        isEmpty,
+        tester.getTopLeft(risk).dy,
+        lessThan(tester.getTopLeft(find.text('Att 87.5%')).dy),
       );
-      await tester.enterText(find.byType(TextField), 'nothing');
-      await tester.pumpAndSettle();
-      expect(find.text('No archived students match'), findsOneWidget);
-      await tester.tap(find.text('Back to advisory list'));
-      await tester.pumpAndSettle();
-      expect(find.text('Juan Active'), findsOneWidget);
-    },
-  );
-  testWidgets(
-    'restore uses archiveId, blocks duplicate writes, and refreshes both lists',
-    (tester) async {
-      final api = AdvisoryApi()..pendingWrite = Completer<void>();
-      await mount(tester, api);
-      await archives(tester);
-      await tester.tap(find.text('Restore student'));
-      await settle(tester);
-      expect(find.text('Restoring…'), findsOneWidget);
       expect(
-        tester
-            .widget<OutlinedButton>(
-              find.widgetWithText(OutlinedButton, 'Restoring…'),
-            )
-            .onPressed,
-        isNull,
+        tester.getTopLeft(risk).dx,
+        greaterThan(tester.getTopLeft(find.text('Juan Active')).dx),
       );
-      expect(api.writes.length, 1);
-      expect(
-        api.writes.single.path,
-        '/api/teacher/advisory/archived/archive-1/restore',
-      );
-      api.pendingWrite!.complete();
-      await settle(tester);
-      expect(find.text('No archived students'), findsOneWidget);
-      expect(api.gets('/students'), 2);
-      expect(api.gets('/archived'), 2);
-      await tester.tap(find.text('Back to advisory list'));
-      await tester.pumpAndSettle();
-      expect(find.text('Mira Archived'), findsOneWidget);
-    },
-  );
-  testWidgets(
-    'archive has a named confirmation and cancellation never writes',
-    (tester) async {
-      final api = AdvisoryApi();
-      await mount(tester, api);
-      await openArchiveConfirmation(tester);
-      expect(find.textContaining('not from the school'), findsOneWidget);
-      expect(find.text('Juan Active'), findsNWidgets(2));
-      expect(find.text('LRN 123456789012'), findsNWidgets(2));
-      await tester.tap(find.text('Keep student'));
-      await tester.pumpAndSettle();
       expect(api.writes, isEmpty);
-      await openArchiveConfirmation(tester);
-      await tester.tap(find.widgetWithText(FilledButton, 'Archive student'));
-      await settle(tester);
-      expect(api.writes.single.method, 'DELETE');
-      expect(
-        api.writes.single.path,
-        '/api/teacher/advisory/roster/roster%3Alearner-1',
-      );
-      expect(find.text('No advisees yet'), findsOneWidget);
-      await archives(tester);
-      expect(find.text('Juan Active'), findsOneWidget);
+      expect(api.gets('/archived'), 0);
+      expect(find.byType(TextField), findsNothing);
+      expect(tester.takeException(), isNull);
     },
   );
-  testWidgets('restore/archive errors are friendly and preserve rows', (
-    tester,
-  ) async {
-    final api = AdvisoryApi()..failWrite = true;
-    await mount(tester, api);
-    await archives(tester);
-    await tester.tap(find.text('Restore student'));
-    await settle(tester);
-    expect(find.text('Mira Archived'), findsOneWidget);
-    expect(find.text('Restore student'), findsOneWidget);
-    expect(find.textContaining('private database'), findsNothing);
-    expect(
-      find.text('Something went wrong on our side. Please try again shortly.'),
-      findsOneWidget,
-    );
-  });
-  testWidgets(
-    'archived errors retry and can load even if active roster failed',
-    (tester) async {
-      final api = AdvisoryApi()
-        ..failActive = true
-        ..failArchived = true;
-      await mount(tester, api);
-      await archives(tester);
-      expect(find.text('Try again'), findsOneWidget);
-      api.failArchived = false;
-      await tester.tap(find.text('Try again'));
-      await settle(tester);
-      expect(find.text('Mira Archived'), findsOneWidget);
-      expect(api.gets('/archived'), 2);
-    },
-  );
-  testWidgets(
-    'empty archives still support a refresh that waits for requests',
-    (tester) async {
-      final api = AdvisoryApi()..archived.clear();
-      await mount(tester, api);
-      await archives(tester);
-      expect(find.text('No archived students'), findsOneWidget);
-      final refresh = tester
-          .widget<RefreshIndicator>(find.byType(RefreshIndicator))
-          .onRefresh();
-      await settle(tester);
-      await refresh;
-      await tester.pumpAndSettle();
-      expect(api.gets('/students'), 2);
-      expect(api.gets('/archived'), 2);
-    },
-  );
-  testWidgets('adding uses a keyboard-safe form and the unchanged roster API', (
+
+  testWidgets('learner details still open with the original learner identity', (
     tester,
   ) async {
     final api = AdvisoryApi();
-    await mount(tester, api, width: 320, scale: 1.5);
-    await addStudent(tester);
-    await tester.ensureVisible(find.text('Enlist student'));
+    await mount(tester, api);
+    await tester.tap(find.text('Juan Active'));
     await tester.pumpAndSettle();
-    await tester.tap(find.text('Enlist student'));
-    await tester.pumpAndSettle();
-    expect(find.textContaining('12-digit LRN'), findsWidgets);
+    expect(find.text('Student details: Juan Active'), findsOneWidget);
     expect(api.writes, isEmpty);
-    final fields = find.byType(TextField);
-    // The underlying search is also mounted; use the labeled form fields.
-    await tester.enterText(
-      find.widgetWithText(TextField, 'Full name'),
-      'New Learner',
-    );
-    await tester.enterText(
-      find.widgetWithText(TextField, 'LRN'),
-      '111122223333',
-    );
-    expect(fields, findsNWidgets(3));
-    tester.view.viewInsets = const FakeViewPadding(bottom: 320);
-    addTearDown(tester.view.resetViewInsets);
-    await tester.pumpAndSettle();
-    await tester.ensureVisible(find.text('Enlist student'));
-    await tester.pumpAndSettle();
-    await tester.tap(find.text('Enlist student'));
-    await settle(tester);
-    expect(api.writes.single.path, '/api/teacher/advisory/roster');
-    expect(api.writes.single.data, {
-      'fullName': 'New Learner',
-      'lrn': '111122223333',
-      'sectionId': 'section-1',
-      'learnerType': 'regular',
-    });
     expect(tester.takeException(), isNull);
   });
-  testWidgets('offline restoration does not send a write', (tester) async {
-    final api = AdvisoryApi();
-    await mount(tester, api);
-    await archives(tester);
-    offline = true;
-    await tester.tap(find.text('Restore student'));
-    await settle(tester);
-    expect(api.writes, isEmpty);
-    expect(find.text('Mira Archived'), findsOneWidget);
-    expect(find.textContaining('internet connection'), findsOneWidget);
-  });
+
   testWidgets(
-    'transferee selection preserves form data, is sent and locks during saving',
+    'full-roster summary excludes unknown attendance and search/sort work',
     (tester) async {
-      final api = AdvisoryApi()..pendingWrite = Completer<void>();
-      await mount(tester, api, width: 320, scale: 1.5);
-      await addStudent(tester);
-      final regular = find.widgetWithText(OutlinedButton, 'Regular student');
-      final transferee = find.widgetWithText(OutlinedButton, 'Transferee');
-      final scheme = Theme.of(tester.element(regular)).colorScheme;
+      final api = AdvisoryApi();
+      api.active
+        ..clear()
+        ..addAll([
+          activeStudent(id: 'roster:zed', name: 'Zed Reyes'),
+          {
+            ...activeStudent(id: 'roster:amy', name: 'Amy Cruz'),
+            'riskLevel': 'Low',
+            'flags': <String>[],
+            'attendanceRate': null,
+          },
+        ]);
+      final search = await mount(tester, api);
+      expect(find.text('87.5%'), findsOneWidget);
+      expect(find.text('Flagged'), findsOneWidget);
+      expect(find.text('Advisees'), findsOneWidget);
+      expect(find.text('Avg Att.'), findsOneWidget);
+      expect(find.byTooltip('Avg Attendance'), findsOneWidget);
+      expect(find.text('Showing 2 of 2 students'), findsOneWidget);
       expect(
-        tester
-            .widget<OutlinedButton>(regular)
-            .style!
-            .backgroundColor!
-            .resolve({}),
-        scheme.primary.withValues(alpha: 0.10),
+        tester.getTopLeft(find.text('Amy Cruz')).dy,
+        lessThan(tester.getTopLeft(find.text('Zed Reyes')).dy),
       );
-      await tester.enterText(
-        find.widgetWithText(TextField, 'Full name'),
-        'Transfer Learner',
-      );
-      await tester.enterText(
-        find.widgetWithText(TextField, 'LRN'),
-        '111122223333',
-      );
-      await tester.ensureVisible(transferee);
+      await tester.tap(find.text('Name (A-Z)'));
       await tester.pumpAndSettle();
-      await tester.tap(transferee);
+      expect(
+        tester.getTopLeft(find.text('Zed Reyes')).dy,
+        lessThan(tester.getTopLeft(find.text('Amy Cruz')).dy),
+      );
+      search.setQuery('Amy');
       await tester.pumpAndSettle();
-      expect(
-        tester
-            .widget<OutlinedButton>(transferee)
-            .style!
-            .backgroundColor!
-            .resolve({}),
-        scheme.primary.withValues(alpha: 0.10),
-      );
-      expect(
-        tester
-            .widget<TextField>(find.widgetWithText(TextField, 'Full name'))
-            .controller!
-            .text,
-        'Transfer Learner',
-      );
-      expect(
-        tester
-            .widget<TextField>(find.widgetWithText(TextField, 'LRN'))
-            .controller!
-            .text,
-        '111122223333',
-      );
-      expect(
-        find.text(
-          'Attendance starts on the day this student is enlisted, not the term start.',
-        ),
-        findsOneWidget,
-      );
-      await tester.ensureVisible(find.text('Enlist student'));
-      await tester.pumpAndSettle();
-      await tester.tap(find.text('Enlist student'));
-      await settle(tester);
-      expect(api.writes.single.data, {
-        'fullName': 'Transfer Learner',
-        'lrn': '111122223333',
-        'sectionId': 'section-1',
-        'learnerType': 'transferee',
-      });
-      expect(tester.widget<OutlinedButton>(regular).onPressed, isNull);
-      expect(tester.widget<OutlinedButton>(transferee).onPressed, isNull);
-      expect(
-        tester
-            .widget<FilledButton>(
-              find.widgetWithText(FilledButton, 'Enlisting…'),
-            )
-            .onPressed,
-        isNull,
-      );
-      api.pendingWrite!.complete();
-      await settle(tester);
+      expect(find.text('Showing 1 of 1 students'), findsOneWidget);
+      expect(find.text('Zed Reyes'), findsNothing);
+      expect(find.text('87.5%'), findsOneWidget);
+      expect(find.text('Att —'), findsOneWidget);
+      expect(find.text('Avg —'), findsOneWidget);
       expect(tester.takeException(), isNull);
     },
   );
+
   testWidgets(
-    'failed enlistment retains learner type and retry submits the same selection',
-    (tester) async {
-      final api = AdvisoryApi()..failWrite = true;
-      await mount(tester, api);
-      await addStudent(tester);
-      await tester.enterText(
-        find.widgetWithText(TextField, 'Full name'),
-        'Transfer Learner',
-      );
-      await tester.enterText(
-        find.widgetWithText(TextField, 'LRN'),
-        '111122223333',
-      );
-      await tester.ensureVisible(find.text('Transferee'));
-      await tester.pumpAndSettle();
-      await tester.tap(find.text('Transferee'));
-      await tester.ensureVisible(find.text('Enlist student'));
-      await tester.pumpAndSettle();
-      await tester.tap(find.text('Enlist student'));
-      await settle(tester);
-      expect(
-        find.text(
-          'Something went wrong on our side. Please try again shortly.',
-        ),
-        findsOneWidget,
-      );
-      final selected = tester.widget<OutlinedButton>(
-        find.widgetWithText(OutlinedButton, 'Transferee'),
-      );
-      expect(selected.onPressed, isNotNull);
-      expect(
-        selected.style!.backgroundColor!.resolve({}),
-        const Color(0xFF7EF5D0).withValues(alpha: 0.10),
-      );
-      api.failWrite = false;
-      await tester.ensureVisible(find.text('Enlist student'));
-      await tester.pumpAndSettle();
-      await tester.tap(find.text('Enlist student'));
-      await settle(tester);
-      expect(api.writes.length, 2);
-      expect(
-        api.writes.every(
-          (request) => (request.data as Map)['learnerType'] == 'transferee',
-        ),
-        isTrue,
-      );
-      expect(tester.takeException(), isNull);
-    },
-  );
-  testWidgets(
-    'a newly opened add form defaults to regular rather than retaining the prior selection',
+    'risk and factor filters combine and All clears each without Reset',
     (tester) async {
       await mount(tester, AdvisoryApi());
-      await addStudent(tester);
-      await tester.ensureVisible(find.text('Transferee'));
-      await tester.pumpAndSettle();
-      await tester.tap(find.text('Transferee'));
-      await tester.pumpAndSettle();
-      Navigator.of(tester.element(find.text('Learner type'))).pop();
-      await settle(tester);
-      await addStudent(tester);
-      final regular = tester.widget<OutlinedButton>(
-        find.widgetWithText(OutlinedButton, 'Regular student'),
-      );
-      expect(
-        regular.style!.backgroundColor!.resolve({}),
-        const Color(0xFF7EF5D0).withValues(alpha: 0.10),
-      );
-      expect(
-        find.text('Attendance is rated from the start of the term.'),
-        findsOneWidget,
-      );
+      expect(find.text('FILTER ADVISEES'), findsOneWidget);
+      expect(find.text('Reset'), findsNothing);
+      await selectFilter(tester, 'Risk level', 'Low risk');
+      expect(find.text('No students match'), findsOneWidget);
+      await selectFilter(tester, 'Risk level', 'All Risk Levels');
+      await selectFilter(tester, 'Factor', 'Academic');
+      expect(find.text('Juan Active'), findsOneWidget);
+      await selectFilter(tester, 'Risk level', 'Moderate risk');
+      expect(find.text('No students match'), findsOneWidget);
+      await selectFilter(tester, 'Factor', 'All');
+      expect(find.text('No students match'), findsOneWidget);
+      await selectFilter(tester, 'Risk level', 'High risk');
+      expect(find.text('Juan Active'), findsOneWidget);
+      expect(tester.takeException(), isNull);
     },
   );
-  testWidgets('selected term changes refetch active and archived lists', (
-    tester,
-  ) async {
-    final api = AdvisoryApi();
-    await mount(tester, api);
-    await archives(tester);
-    api.archived.clear();
-    final container = ProviderScope.containerOf(
-      tester.element(find.byType(AdvisoryListPage)),
-    );
-    await container.read(termProvider.notifier).select(selectedTerm('term-2'));
-    await settle(tester);
-    expect(find.text('No archived students'), findsOneWidget);
-    expect(api.gets('/students'), 2);
-    expect(api.gets('/archived'), 2);
-  });
-  testWidgets('failed archive keeps the active learner and allows retry', (
-    tester,
-  ) async {
-    final api = AdvisoryApi()..failWrite = true;
-    await mount(tester, api);
-    await openArchiveConfirmation(tester);
-    await tester.tap(find.widgetWithText(FilledButton, 'Archive student'));
-    await settle(tester);
-    expect(find.text('Juan Active'), findsOneWidget);
-    expect(find.textContaining('private database'), findsNothing);
-    expect(api.writes.single.method, 'DELETE');
-    api.failWrite = false;
-    await openArchiveConfirmation(tester);
-    await tester.tap(find.widgetWithText(FilledButton, 'Archive student'));
-    await settle(tester);
-    expect(find.text('No advisees yet'), findsOneWidget);
-    expect(api.writes.length, 2);
-  });
-  testWidgets('dismissing a saving add sheet cannot start a second mutation', (
-    tester,
-  ) async {
-    final api = AdvisoryApi()..pendingWrite = Completer<void>();
-    await mount(tester, api);
-    await addStudent(tester);
-    await tester.enterText(
-      find.widgetWithText(TextField, 'Full name'),
-      'New Learner',
-    );
-    await tester.enterText(
-      find.widgetWithText(TextField, 'LRN'),
-      '111122223333',
-    );
-    await tester.ensureVisible(find.text('Enlist student'));
-    await tester.pumpAndSettle();
-    await tester.tap(find.text('Enlist student'));
-    await settle(tester);
-    expect(api.writes.length, 1);
-    Navigator.of(tester.element(find.text('Enlisting…'))).pop();
-    await settle(tester);
-    expect(
-      tester
-          .widget<FloatingActionButton>(find.byType(FloatingActionButton))
-          .onPressed,
-      isNull,
-    );
-    api.pendingWrite!.complete();
-    await settle(tester);
-    expect(find.text('New Learner'), findsOneWidget);
-    expect(api.writes.length, 1);
-    expect(tester.takeException(), isNull);
-  });
+
   testWidgets(
-    'bottom list padding keeps the last learner clear of the floating button',
+    'ten-per-page pagination returns to the top and search resets the page',
     (tester) async {
       final api = AdvisoryApi();
       api.active
@@ -849,60 +368,127 @@ void main() {
         ..addAll(
           List.generate(
             20,
-            (i) => activeStudent(id: 'roster:$i', name: 'Learner $i'),
+            (i) => activeStudent(
+              id: 'roster:$i',
+              name: 'Learner ${i.toString().padLeft(2, '0')}',
+            ),
           ),
         );
-      await mount(tester, api, width: 320);
+      final search = await mount(tester, api, width: 320);
+      expect(find.text('Showing 10 of 20 students'), findsOneWidget);
+      expect(find.byKey(const ValueKey('active-roster:10')), findsNothing);
       final scrollable = find.descendant(
         of: find.byKey(const PageStorageKey('active-advisees')),
         matching: find.byType(Scrollable),
       );
-      final state = tester.state<ScrollableState>(scrollable);
-      state.position.jumpTo(state.position.maxScrollExtent);
-      await tester.pumpAndSettle();
-      final row = find.byKey(const ValueKey('active-roster:19'));
-      expect(row, findsOneWidget);
-      expect(
-        tester.getBottomRight(row).dy,
-        lessThan(tester.getTopLeft(find.byType(FloatingActionButton)).dy),
+      await tester.scrollUntilVisible(
+        find.byTooltip('Next page'),
+        300,
+        scrollable: scrollable,
       );
+      await tester.ensureVisible(find.byTooltip('Next page'));
+      await tester.pumpAndSettle();
+      await tester.tap(find.byTooltip('Next page'));
+      await tester.pumpAndSettle();
+      expect(find.byKey(const ValueKey('active-roster:10')), findsOneWidget);
+      expect(find.byKey(const ValueKey('active-roster:0')), findsNothing);
+      search.setQuery('Learner 00');
+      await tester.pumpAndSettle();
+      expect(find.text('Showing 1 of 1 students'), findsOneWidget);
+      expect(find.text('Learner 00'), findsOneWidget);
+      expect(find.byTooltip('Next page'), findsNothing);
+      expect(api.writes, isEmpty);
+      expect(tester.takeException(), isNull);
     },
   );
+
+  testWidgets('empty and failed rosters never offer mutation actions', (
+    tester,
+  ) async {
+    final api = AdvisoryApi()..active.clear();
+    await mount(tester, api);
+    expect(find.text('No advisees yet'), findsOneWidget);
+    expect(find.text('Grade 8 – Arts'), findsOneWidget);
+    expect(find.textContaining('Use the +'), findsNothing);
+    expect(find.byType(FloatingActionButton), findsNothing);
+    expect(api.gets('/archived'), 0);
+    expect(api.writes, isEmpty);
+  });
+
+  testWidgets('refresh waits for the roster read without fetching archives', (
+    tester,
+  ) async {
+    final api = AdvisoryApi();
+    await mount(tester, api);
+    api.pendingRead = Completer<void>();
+    var complete = false;
+    final refresh = tester
+        .widget<RefreshIndicator>(find.byType(RefreshIndicator))
+        .onRefresh()
+        .then((_) => complete = true);
+    await tester.pump();
+    expect(complete, isFalse);
+    api.pendingRead!.complete();
+    await tester.pumpAndSettle();
+    await refresh;
+    expect(api.gets('/students'), 2);
+    expect(api.gets('/archived'), 0);
+    expect(api.writes, isEmpty);
+  });
+
+  testWidgets('term changes refetch the active roster only', (tester) async {
+    final api = AdvisoryApi();
+    await mount(tester, api);
+    api.active
+      ..clear()
+      ..add(activeStudent(id: 'roster:new', name: 'Next Term Learner'));
+    final container = ProviderScope.containerOf(
+      tester.element(find.byType(AdvisoryListPage)),
+    );
+    await container.read(termProvider.notifier).select(selectedTerm('term-2'));
+    await tester.pumpAndSettle();
+    expect(find.text('Next Term Learner'), findsOneWidget);
+    expect(find.text('Juan Active'), findsNothing);
+    expect(api.gets('/students'), 2);
+    expect(api.gets('/archived'), 0);
+  });
+
   testWidgets(
-    'a term change while confirming prevents archiving the wrong scope',
+    'loading failures are retryable and do not reveal backend details',
     (tester) async {
-      final api = AdvisoryApi();
+      final api = AdvisoryApi()..failActive = true;
       await mount(tester, api);
-      await openArchiveConfirmation(tester);
+      expect(find.textContaining('private database details'), findsNothing);
+      api.failActive = false;
       final container = ProviderScope.containerOf(
         tester.element(find.byType(AdvisoryListPage)),
       );
-      await container
-          .read(termProvider.notifier)
-          .select(selectedTerm('term-2'));
-      await settle(tester);
-      await tester.tap(find.widgetWithText(FilledButton, 'Archive student'));
-      await settle(tester);
-      expect(api.writes, isEmpty);
-      expect(find.textContaining('selected term changed'), findsOneWidget);
+      await tester.runAsync(() async {
+        container.invalidate(advisoryProvider);
+        await container.read(advisoryProvider.future);
+      });
+      await tester.pumpAndSettle();
+      expect(find.text('Juan Active'), findsOneWidget);
+      expect(api.gets('/students'), 2);
+      expect(tester.takeException(), isNull);
     },
   );
+
   for (final width in [320.0, 700.0, 1200.0]) {
-    testWidgets('active and archived layouts fit $width at larger text', (
-      tester,
-    ) async {
-      final api = AdvisoryApi();
-      await mount(tester, api, width: width, scale: 1.5);
+    testWidgets('read-only cards fit $width at larger text', (tester) async {
+      await mount(tester, AdvisoryApi(), width: width, scale: 1.5);
+      expect(find.byType(RiskBadge), findsOneWidget);
+      expect(find.byType(FloatingActionButton), findsNothing);
       expect(tester.takeException(), isNull);
-      await archives(tester);
-      expect(find.text('Mira Archived'), findsOneWidget);
-      expect(tester.takeException(), isNull);
-      expect(
-        tester
-            .getSize(find.widgetWithText(OutlinedButton, 'Restore student'))
-            .height,
-        greaterThanOrEqualTo(48),
-      );
     });
   }
+
+  testWidgets('short screens retain filters, cards and risk without overflow', (
+    tester,
+  ) async {
+    await mount(tester, AdvisoryApi(), width: 320, height: 500, scale: 1.5);
+    expect(find.byTooltip('Risk level'), findsOneWidget);
+    expect(find.byType(RiskBadge), findsOneWidget);
+    expect(tester.takeException(), isNull);
+  });
 }

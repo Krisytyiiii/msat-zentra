@@ -5,15 +5,38 @@
 // + Referrals. All fetches in parallel; per-section errors degrade locally.
 
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+import 'package:lucide_icons_flutter/lucide_icons.dart';
 
 import '../../design/adviser_navigation.dart';
 import '../../core/api_client.dart';
+import '../../core/session.dart';
+import '../../design/overview_theme.dart';
 import '../../design/tokens.dart';
 import '../../shared/models.dart';
 import '../../design/status_palette.dart';
 import '../../shared/widgets.dart';
+
+// Advisory learner detail palette — scoped light content under the app's own
+// header, matching the advisory list's white cards.
+const _ink = Color(0xFF0F172A);
+const _body = Color(0xFF334155);
+const _muted = Color(0xFF71809B);
+const _faint = Color(0xFF94A3B8);
+const _line = Color(0xFFE6ECF4);
+const _soft = Color(0xFFF6F8FB);
+const _blue = Color(0xFF2563EB);
+const _red = Color(0xFFDC2626);
+const _redSoft = Color(0xFFFFF5F5);
+const _redLine = Color(0xFFFBD5D5);
+const _green = Color(0xFF1F8A48);
+const _greenSoft = Color(0xFFF1FBF4);
+const _greenLine = Color(0xFFCFF0DA);
+const _amber = Color(0xFFB45309);
+const _amberSoft = Color(0xFFFFFAEF);
+const _amberLine = Color(0xFFF7E5B8);
 
 // --- attendance models (unchanged) ---
 
@@ -352,25 +375,36 @@ class _StudentDetailState extends ConsumerState<StudentDetailPage> {
       future: _future,
       builder: (context, snap) {
         final data = snap.data;
-        final name = (data?.detail['name'] ?? widget.student.name).toString();
         return Scaffold(
           appBar: AppBar(
+            centerTitle: true,
+            leadingWidth: 48,
             leading: canPop
-                ? null
+                ? IconButton(
+                    icon: const Icon(LucideIcons.chevronLeft),
+                    tooltip: 'Back',
+                    onPressed: _close,
+                  )
                 : IconButton(
                     icon: const Icon(Icons.close),
                     tooltip: 'Close',
                     onPressed: _close,
                   ),
-            title: Text(name, maxLines: 1, overflow: TextOverflow.ellipsis),
+            title: const Text('Student Profile'),
           ),
           body: AdviserBamaAccess(
-            child: data == null
-                ? const Padding(
-                    padding: EdgeInsets.all(16),
-                    child: ZSkeletonList(count: 4),
-                  )
-                : _loaded(context, data),
+            child: Theme(
+              data: overviewScreenTheme(Theme.of(context)),
+              child: ColoredBox(
+                color: Colors.white,
+                child: data == null
+                    ? const Padding(
+                        padding: EdgeInsets.all(16),
+                        child: ZSkeletonList(count: 4),
+                      )
+                    : _loaded(context, data),
+              ),
+            ),
           ),
         );
       },
@@ -378,8 +412,11 @@ class _StudentDetailState extends ConsumerState<StudentDetailPage> {
   }
 
   Widget _loaded(BuildContext context, _DetailData data) {
-    final theme = Theme.of(context);
     final d = data.detail;
+    final term = ref.watch(termProvider);
+    final risk = (d['riskLevel'] ?? widget.student.riskLevel).toString();
+    final name = (d['name'] ?? widget.student.name).toString();
+    final lrn = (d['lrn'] ?? widget.student.lrn).toString();
     final referrals = (d['referrals'] as List? ?? []);
     final attendance = data.attendance == null
         ? null
@@ -397,79 +434,89 @@ class _StudentDetailState extends ConsumerState<StudentDetailPage> {
         : AcademicSummary.fromJson(
             Map<String, dynamic>.from(academicRaw['summary'] as Map),
           );
+    // Subject codes come from the attendance payload (the academic rows only
+    // carry names), so a subject keeps one short code across both sections.
+    final codes = <String, String>{
+      for (final s in attendance?.bySubject ?? const <SubjectRate>[])
+        if (s.code.isNotEmpty) s.name.toLowerCase(): s.code,
+    };
+    final gradeLevel = (d['gradeLevel'] ?? '').toString();
+    final gradeLabel = gradeLevel.isEmpty
+        ? ''
+        : 'Grade ${gradeLevel.replaceFirst(RegExp(r'^G'), '')}';
+    final schoolYear = term?.schoolYearName ?? '';
+    final subtitle = [
+      if (gradeLabel.isNotEmpty) gradeLabel,
+      if (schoolYear.isNotEmpty) 'SY $schoolYear',
+    ].join(' · ');
     return Center(
       child: ConstrainedBox(
         constraints: const BoxConstraints(maxWidth: 900),
         child: ListView(
-          padding: const EdgeInsets.fromLTRB(16, 12, 16, 24),
+          padding: const EdgeInsets.fromLTRB(16, 12, 16, 32),
           children: [
-            ZCard(
-              child: Row(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Icon(Icons.person_outline, color: theme.colorScheme.primary),
-                  const SizedBox(width: 12),
-                  Expanded(
-                    // The header names the learner, so this card carries
-                    // only the identity facts worth keeping on screen.
-                    child: Wrap(
-                      spacing: 8,
-                      runSpacing: 8,
-                      crossAxisAlignment: WrapCrossAlignment.center,
-                      children: [
-                        _DetailPill(
-                          label: 'LRN ${d['lrn'] ?? widget.student.lrn}',
-                        ),
-                        if ((d['section'] ?? '').toString().isNotEmpty)
-                          _DetailPill(label: d['section'].toString()),
-                        RiskBadge(
-                          level: (d['riskLevel'] ?? widget.student.riskLevel)
-                              .toString(),
-                        ),
-                      ],
-                    ),
-                  ),
-                ],
-              ),
+            _IdentityCard(
+              name: name,
+              lrn: lrn,
+              subtitle: subtitle,
+              risk: risk,
+              onCopyLrn: () async {
+                await Clipboard.setData(ClipboardData(text: lrn));
+                if (!context.mounted) return;
+                ScaffoldMessenger.of(context)
+                    .showSnackBar(const SnackBar(content: Text('LRN copied.')));
+              },
             ),
-            const _SectionHeading(
-              title: 'Academic',
-              icon: Icons.menu_book_outlined,
+            _SectionHeader(
+              icon: LucideIcons.bookOpen,
+              color: _blue,
+              title: 'ACADEMIC OVERVIEW',
             ),
             if (academicGrades == null)
-              const ZEmpty(
-                compact: true,
-                icon: Icons.grade_outlined,
-                title: 'No grades encoded this term',
-                subtitle:
-                    'Scores appear once the subject teacher encodes them.',
+              _SectionCard(
+                child: _EmptyBlock(
+                  icon: LucideIcons.graduationCap,
+                  title: 'No grades encoded this term',
+                  subtitle:
+                      'Scores appear once the subject teacher encodes them.',
+                ),
               )
             else
-              _AcademicCard(grades: academicGrades, summary: academicSummary),
-            const _SectionHeading(
-              title: 'Attendance',
-              icon: Icons.fact_check_outlined,
+              _AcademicCard(
+                grades: academicGrades,
+                summary: academicSummary,
+                codes: codes,
+              ),
+            _SectionHeader(
+              icon: LucideIcons.activity,
+              color: _red,
+              title: 'ATTENDANCE MONITORING',
             ),
             if (attendance == null)
-              const ZEmpty(
-                compact: true,
-                icon: Icons.fact_check_outlined,
-                title: 'No attendance yet',
-                subtitle:
-                    'Records appear once takes are submitted for this term.',
+              _SectionCard(
+                child: _EmptyBlock(
+                  icon: LucideIcons.calendarCheck,
+                  title: 'No attendance yet',
+                  subtitle:
+                      'Records appear once takes are submitted for this term.',
+                ),
               )
             else
               _AttendanceCard(summary: attendance),
-            _SectionHeading(
-              title: 'Anecdotal (${data.anecdotal.length})',
-              icon: Icons.note_outlined,
+            _SectionHeader(
+              icon: LucideIcons.folder,
+              color: _amber,
+              title: 'ANECDOTAL RECORDS (${data.anecdotal.length})',
             ),
             if (data.anecdotal.isEmpty)
-              const ZEmpty(
-                compact: true,
-                icon: Icons.note_outlined,
-                title: 'No anecdotal records this term',
-                subtitle: 'File one in Chat with Bama.',
+              _SectionCard(
+                tone: _Tone.amber,
+                child: _EmptyBlock(
+                  icon: LucideIcons.fileText,
+                  tone: _Tone.amber,
+                  title: 'No anecdotal records this term',
+                  subtitle: 'File observations directly or log voice notes with Bama AI assistant.',
+                ),
               )
             else
               for (final rec in data.anecdotal)
@@ -478,9 +525,10 @@ class _StudentDetailState extends ConsumerState<StudentDetailPage> {
                   child: _AnecdotalCard(record: rec),
                 ),
             if (data.admCases.isNotEmpty) ...[
-              _SectionHeading(
+              _SectionHeader(
+                icon: LucideIcons.clipboardList,
+                color: _blue,
                 title: 'ADM (${data.admCases.length})',
-                icon: Icons.assignment_outlined,
               ),
               for (final c in data.admCases)
                 Padding(
@@ -488,34 +536,42 @@ class _StudentDetailState extends ConsumerState<StudentDetailPage> {
                   child: _AdmCard(caseData: c),
                 ),
             ],
-            _SectionHeading(
-              title: 'Referrals (${referrals.length})',
-              icon: Icons.send_outlined,
+            _SectionHeader(
+              icon: LucideIcons.send,
+              color: _blue,
+              title: 'REFERRALS (${referrals.length})',
             ),
             if (referrals.isEmpty)
-              const ZEmpty(
-                compact: true,
-                icon: Icons.send_outlined,
-                title: 'No referrals',
-                subtitle: 'File an anecdotal in Bama, then refer from there.',
+              _SectionCard(
+                child: _EmptyBlock(
+                  icon: LucideIcons.send,
+                  title: 'No active referrals',
+                  subtitle: 'File an anecdotal note first or escalate immediately to the Guidance Counselor.',
+                ),
               )
             else
               for (final r in referrals)
                 Padding(
                   padding: const EdgeInsets.only(bottom: 8),
-                  child: ZCard(
-                    child: Wrap(
-                      spacing: 12,
-                      runSpacing: 8,
-                      crossAxisAlignment: WrapCrossAlignment.center,
+                  child: _SectionCard(
+                    padded: true,
+                    child: Row(
                       children: [
-                        Text(
-                          _humanize((r as Map)['referredToRole']?.toString()),
-                          style: const TextStyle(
-                            fontSize: 13,
-                            fontWeight: FontWeight.w600,
+                        const Icon(LucideIcons.send, size: 16, color: _blue),
+                        const SizedBox(width: 10),
+                        Expanded(
+                          child: Text(
+                            _humanize((r as Map)['referredToRole']?.toString()),
+                            maxLines: 2,
+                            overflow: TextOverflow.ellipsis,
+                            style: const TextStyle(
+                              fontSize: 13,
+                              fontWeight: FontWeight.w600,
+                              color: _ink,
+                            ),
                           ),
                         ),
+                        const SizedBox(width: 8),
                         FlagChip(flag: (r['status']?.toString() ?? 'pending')),
                       ],
                     ),
@@ -528,117 +584,168 @@ class _StudentDetailState extends ConsumerState<StudentDetailPage> {
   }
 }
 
-class _AcademicCard extends StatefulWidget {
-  final List<AcademicGrade> grades;
-  final AcademicSummary? summary;
-  const _AcademicCard({required this.grades, required this.summary});
-
-  @override
-  State<_AcademicCard> createState() => _AcademicCardState();
+String _initials(String name) {
+  final parts = name
+      .trim()
+      .split(RegExp(r'\s+'))
+      .where((p) => p.isNotEmpty)
+      .toList();
+  if (parts.isEmpty) return '?';
+  final first = parts.first.characters.first;
+  final last = parts.length > 1 ? parts.last.characters.first : '';
+  return '$first$last'.toUpperCase();
 }
 
-class _AcademicCardState extends State<_AcademicCard> {
-  bool finalVersion = true;
+// --- content building blocks -------------------------------------------------
+
+enum _Tone { neutral, red, green, amber, blue }
+
+class _TonePill extends StatelessWidget {
+  const _TonePill({required this.text, required this.tone});
+  final String text;
+  final _Tone tone;
 
   @override
   Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-    final grades = widget.grades;
-    final summary = widget.summary;
-    final failing = grades.where((g) => g.remarks == 'Failed').toList();
-    final gradedAvg = summary?.average;
-    return ZCard(
-      padding: const EdgeInsets.all(16),
+    final (bg, fg, border) = switch (tone) {
+      _Tone.red => (_redSoft, _red, _redLine),
+      _Tone.green => (_greenSoft, _green, _greenLine),
+      _Tone.amber => (_amberSoft, _amber, _amberLine),
+      _Tone.blue => (const Color(0xFFEFF5FF), _blue, const Color(0xFFD6E4FF)),
+      _Tone.neutral => (_soft, _muted, _line),
+    };
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 4),
+      decoration: BoxDecoration(
+        color: bg,
+        borderRadius: BorderRadius.circular(ZTokens.radiusPill),
+        border: Border.all(color: border),
+      ),
+      child: Text(
+        text,
+        maxLines: 1,
+        overflow: TextOverflow.ellipsis,
+        style: TextStyle(fontSize: 11, fontWeight: FontWeight.w600, color: fg),
+      ),
+    );
+  }
+}
+
+class _SectionHeader extends StatelessWidget {
+  const _SectionHeader({
+    required this.icon,
+    required this.title,
+    this.color = _blue,
+  });
+  final IconData icon;
+  final String title;
+  final Color color;
+
+  @override
+  Widget build(BuildContext context) => Padding(
+    padding: const EdgeInsets.only(top: 22, bottom: 10),
+    child: Row(
+      children: [
+        Icon(icon, size: 16, color: color),
+        const SizedBox(width: 8),
+        Expanded(
+          child: Text(
+            title,
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+            style: const TextStyle(
+              fontSize: 12,
+              fontWeight: FontWeight.w700,
+              letterSpacing: 0.4,
+              color: _body,
+            ),
+          ),
+        ),
+      ],
+    ),
+  );
+}
+
+class _SectionCard extends StatelessWidget {
+  const _SectionCard({
+    required this.child,
+    this.tone = _Tone.neutral,
+    this.padded = false,
+  });
+  final Widget child;
+  final _Tone tone;
+  final bool padded;
+
+  @override
+  Widget build(BuildContext context) {
+    final (bg, border) = switch (tone) {
+      _Tone.red => (_redSoft, _redLine),
+      _Tone.amber => (_amberSoft, _amberLine),
+      _Tone.green => (_greenSoft, _greenLine),
+      _ => (Colors.white, _line),
+    };
+    return Container(
+      padding: EdgeInsets.all(padded ? 12 : 0),
+      decoration: BoxDecoration(
+        color: bg,
+        borderRadius: BorderRadius.circular(14),
+        border: Border.all(color: border),
+      ),
+      child: child,
+    );
+  }
+}
+
+class _MetricTile extends StatelessWidget {
+  const _MetricTile({
+    required this.label,
+    required this.value,
+    this.tone = _Tone.neutral,
+  });
+  final String label;
+  final String value;
+  final _Tone tone;
+
+  @override
+  Widget build(BuildContext context) {
+    final (bg, border, color) = switch (tone) {
+      _Tone.red => (_redSoft, _redLine, _red),
+      _Tone.green => (_greenSoft, _greenLine, _green),
+      _ => (_soft, _line, _ink),
+    };
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 9),
+      decoration: BoxDecoration(
+        color: bg,
+        borderRadius: BorderRadius.circular(10),
+        border: Border.all(color: border),
+      ),
       child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
+        mainAxisSize: MainAxisSize.min,
         children: [
-          Text('Student grades', style: theme.textTheme.titleSmall),
-          const SizedBox(height: 12),
-          Wrap(
-            spacing: 8,
-            runSpacing: 8,
-            children: [
-              _DetailPill(
-                label: 'Gen avg ${gradedAvg?.toStringAsFixed(1) ?? '—'}',
-                color: theme.colorScheme.primary,
-              ),
-              _DetailPill(
-                label: summary == null
-                    ? '${grades.length} subjects'
-                    : '${summary.graded} of ${summary.subjects} graded',
-              ),
-              if (summary != null) ...[
-                _DetailPill(
-                  label: '${summary.passed} passed',
-                  color: zSuccessText(theme),
-                ),
-                _DetailPill(
-                  label: '${summary.failed} failed',
-                  color: summary.failed > 0 ? zDangerText(theme) : null,
-                ),
-              ],
-            ],
-          ),
-          if (summary != null && failing.isNotEmpty)
-            Padding(
-              padding: const EdgeInsets.only(top: 12),
-              child: Text(
-                '${failing.length} failing — ${failing.map((g) => g.subject).join(', ')} · Needs intervention',
-                style: theme.textTheme.bodySmall?.copyWith(
-                  color: zDangerText(theme),
-                ),
-              ),
-            ),
-          if (summary != null && failing.isEmpty && summary.graded > 0)
-            Padding(
-              padding: const EdgeInsets.only(top: 12),
-              child: Text(
-                'All ${summary.graded} passed · On track',
-                style: theme.textTheme.bodySmall?.copyWith(
-                  color: zSuccessText(theme),
-                ),
-              ),
-            ),
-          const SizedBox(height: 16),
-          SegTabs<String>(
-            values: const ['final', 'computed'],
-            labels: const ['Final', 'Computed'],
-            selected: finalVersion ? 'final' : 'computed',
-            onChanged: (value) =>
-                setState(() => finalVersion = value == 'final'),
-          ),
-          const SizedBox(height: 16),
           Text(
-            finalVersion
-                ? 'FINAL GRADE PER SUBJECT'
-                : 'COMPUTED AVERAGE PER SUBJECT',
-            style: theme.textTheme.labelSmall?.copyWith(
-              color: theme.colorScheme.onSurfaceVariant,
-              letterSpacing: 0.6,
+            label,
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+            style: const TextStyle(
+              fontSize: 9,
+              fontWeight: FontWeight.w600,
+              letterSpacing: 0.3,
+              color: _muted,
             ),
           ),
-          const SizedBox(height: 10),
-          LayoutBuilder(
-            builder: (context, constraints) {
-              final minWidth = 280 * MediaQuery.textScalerOf(context).scale(1);
-              final columns = constraints.maxWidth >= minWidth * 2 + 12 ? 2 : 1;
-              final width =
-                  (constraints.maxWidth - (columns - 1) * 12) / columns;
-              return Wrap(
-                spacing: 12,
-                runSpacing: 12,
-                children: [
-                  for (final grade in grades)
-                    SizedBox(
-                      width: width,
-                      child: _SubjectGradeCard(
-                        grade: grade,
-                        finalVersion: finalVersion,
-                      ),
-                    ),
-                ],
-              );
-            },
+          const SizedBox(height: 4),
+          Text(
+            value,
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+            textAlign: TextAlign.center,
+            style: TextStyle(
+              fontSize: 16,
+              fontWeight: FontWeight.w700,
+              color: color,
+              fontFeatures: const [FontFeature.tabularFigures()],
+            ),
           ),
         ],
       ),
@@ -646,132 +753,535 @@ class _AcademicCardState extends State<_AcademicCard> {
   }
 }
 
-class _SectionHeading extends StatelessWidget {
-  const _SectionHeading({required this.title, required this.icon});
-  final String title;
+class _EmptyBlock extends StatelessWidget {
+  const _EmptyBlock({
+    required this.icon,
+    required this.title,
+    this.subtitle,
+    this.tone = _Tone.neutral,
+  });
   final IconData icon;
+  final String title;
+  final String? subtitle;
+  final _Tone tone;
 
   @override
-  Widget build(BuildContext context) => Padding(
-    padding: const EdgeInsets.only(top: 24, bottom: 12),
+  Widget build(BuildContext context) {
+    final color = switch (tone) {
+      _Tone.amber => _amber,
+      _Tone.red => _red,
+      _Tone.green => _green,
+      _ => _blue,
+    };
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(18, 22, 18, 22),
+      child: Column(
+        children: [
+          Container(
+            width: 40,
+            height: 40,
+            decoration: BoxDecoration(
+              shape: BoxShape.circle,
+              color: color.withValues(alpha: 0.10),
+            ),
+            child: Icon(icon, size: 18, color: color),
+          ),
+          const SizedBox(height: 12),
+          Text(
+            title,
+            textAlign: TextAlign.center,
+            style: const TextStyle(
+              fontSize: 13.5,
+              fontWeight: FontWeight.w700,
+              color: _ink,
+            ),
+          ),
+          if (subtitle != null) ...[
+            const SizedBox(height: 5),
+            Text(
+              subtitle!,
+              textAlign: TextAlign.center,
+              style: const TextStyle(fontSize: 12, height: 1.45, color: _muted),
+            ),
+          ],
+        ],
+      ),
+    );
+  }
+}
+
+class _IdentityCard extends StatelessWidget {
+  const _IdentityCard({
+    required this.name,
+    required this.lrn,
+    required this.subtitle,
+    required this.risk,
+    required this.onCopyLrn,
+  });
+  final String name;
+  final String lrn;
+  final String subtitle;
+  final String risk;
+  final VoidCallback onCopyLrn;
+
+  @override
+  Widget build(BuildContext context) {
+    return Stack(
+      clipBehavior: Clip.none,
+      children: [
+        Container(
+          padding: const EdgeInsets.all(14),
+          decoration: BoxDecoration(
+            color: Colors.white,
+            borderRadius: BorderRadius.circular(16),
+            border: Border.all(color: _line),
+          ),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Row(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Stack(
+                    clipBehavior: Clip.none,
+                    children: [
+                      Container(
+                        width: 46,
+                        height: 46,
+                        alignment: Alignment.center,
+                        decoration: BoxDecoration(
+                          color: _ink,
+                          borderRadius: BorderRadius.circular(13),
+                        ),
+                        child: Text(
+                          _initials(name),
+                          style: const TextStyle(
+                            fontSize: 15,
+                            fontWeight: FontWeight.w700,
+                            color: Colors.white,
+                          ),
+                        ),
+                      ),
+                      Positioned(
+                        left: -2,
+                        top: -2,
+                        child: Container(
+                          width: 12,
+                          height: 12,
+                          decoration: BoxDecoration(
+                            shape: BoxShape.circle,
+                            color: _red,
+                            border: Border.all(color: Colors.white, width: 2),
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Padding(
+                          padding: EdgeInsets.only(
+                            right: risk.isNotEmpty
+                                ? MediaQuery.textScalerOf(context).scale(65) +
+                                      20
+                                : 0,
+                          ),
+                          child: Text(
+                            name,
+                            maxLines: 2,
+                            overflow: TextOverflow.ellipsis,
+                            style: const TextStyle(
+                              fontSize: 15,
+                              fontWeight: FontWeight.w700,
+                              color: _ink,
+                            ),
+                          ),
+                        ),
+                        if (subtitle.isNotEmpty) ...[
+                          const SizedBox(height: 4),
+                          Text(
+                            subtitle,
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                            style: const TextStyle(fontSize: 11, color: _muted),
+                          ),
+                        ],
+                      ],
+                    ),
+                  ),
+                ],
+              ),
+              const Padding(
+                padding: EdgeInsets.symmetric(vertical: 12),
+                child: Divider(height: 1, color: _line),
+              ),
+              Center(
+                child: Semantics(
+                  button: true,
+                  label: 'Copy LRN',
+                  child: InkWell(
+                    onTap: onCopyLrn,
+                    borderRadius: BorderRadius.circular(8),
+                    child: Container(
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 8,
+                        vertical: 5,
+                      ),
+                      decoration: BoxDecoration(
+                        color: _soft,
+                        borderRadius: BorderRadius.circular(8),
+                        border: Border.all(color: _line),
+                      ),
+                      child: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Flexible(
+                            child: Text(
+                              'LRN $lrn',
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                              style: const TextStyle(
+                                fontSize: 11,
+                                color: _muted,
+                                fontFeatures: [FontFeature.tabularFigures()],
+                              ),
+                            ),
+                          ),
+                          const SizedBox(width: 6),
+                          const Icon(LucideIcons.copy, size: 12, color: _faint),
+                        ],
+                      ),
+                    ),
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ),
+        if (risk.isNotEmpty)
+          Positioned(
+            top: 10,
+            right: 10,
+            child: Container(
+              decoration: BoxDecoration(
+                borderRadius: BorderRadius.circular(ZTokens.radiusPill),
+                boxShadow: const [
+                  BoxShadow(
+                    color: Color(0x140F172A),
+                    blurRadius: 4,
+                    offset: Offset(0, 1),
+                  ),
+                ],
+              ),
+              child: _TonePill(
+                text: _humanize(risk).replaceAll('_', ' '),
+                tone: switch (risk.toLowerCase()) {
+                  'high' => _Tone.red,
+                  'moderate' => _Tone.amber,
+                  'low' => _Tone.green,
+                  _ => _Tone.neutral,
+                },
+              ),
+            ),
+          ),
+      ],
+    );
+  }
+}
+
+class _Segmented extends StatelessWidget {
+  const _Segmented({
+    required this.labels,
+    required this.selected,
+    required this.onChanged,
+  });
+  final List<String> labels;
+  final int selected;
+  final ValueChanged<int> onChanged;
+
+  @override
+  Widget build(BuildContext context) => Container(
+    padding: const EdgeInsets.all(3),
+    decoration: BoxDecoration(
+      color: _soft,
+      borderRadius: BorderRadius.circular(10),
+      border: Border.all(color: _line),
+    ),
     child: Row(
       children: [
-        Icon(icon, size: 18, color: Theme.of(context).colorScheme.primary),
-        const SizedBox(width: 8),
-        Expanded(
-          child: Text(title, style: Theme.of(context).textTheme.titleSmall),
-        ),
+        for (var i = 0; i < labels.length; i++)
+          Expanded(
+            child: Semantics(
+              checked: i == selected,
+              inMutuallyExclusiveGroup: true,
+              child: Material(
+                color: i == selected ? Colors.white : Colors.transparent,
+                borderRadius: BorderRadius.circular(8),
+                child: InkWell(
+                  onTap: () => onChanged(i),
+                  borderRadius: BorderRadius.circular(8),
+                  child: Container(
+                    alignment: Alignment.center,
+                    padding: const EdgeInsets.symmetric(vertical: 8),
+                    decoration: BoxDecoration(
+                      borderRadius: BorderRadius.circular(8),
+                      border: Border.all(
+                        color: i == selected ? _line : Colors.transparent,
+                      ),
+                    ),
+                    child: Text(
+                      labels[i],
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: TextStyle(
+                        fontSize: 12,
+                        fontWeight: FontWeight.w600,
+                        color: i == selected ? _ink : _muted,
+                      ),
+                    ),
+                  ),
+                ),
+              ),
+            ),
+          ),
       ],
     ),
   );
 }
 
-class _DetailPill extends StatelessWidget {
-  const _DetailPill({required this.label, this.color});
-  final String label;
-  final Color? color;
+class _AcademicCard extends StatefulWidget {
+  final List<AcademicGrade> grades;
+  final AcademicSummary? summary;
+  final Map<String, String> codes;
+  const _AcademicCard({
+    required this.grades,
+    required this.summary,
+    this.codes = const {},
+  });
+
+  @override
+  State<_AcademicCard> createState() => _AcademicCardState();
+}
+
+class _AcademicCardState extends State<_AcademicCard> {
+  bool finalVersion = true;
+  bool _expanded = false;
+
+  static const _collapsedRows = 3;
 
   @override
   Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-    final tone = color ?? theme.colorScheme.onSurfaceVariant;
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 6),
-      decoration: BoxDecoration(
-        color: tone.withValues(alpha: 0.08),
-        border: Border.all(color: tone.withValues(alpha: 0.25)),
-        borderRadius: BorderRadius.circular(ZTokens.radiusMd),
-      ),
-      child: Text(
-        label,
-        style: theme.textTheme.labelSmall?.copyWith(
-          color: tone,
-          fontFeatures: const [FontFeature.tabularFigures()],
+    final grades = widget.grades;
+    final summary = widget.summary;
+    final failing = grades.where((g) => g.remarks == 'Failed').toList();
+    final visible = _expanded
+        ? grades
+        : grades.take(_collapsedRows).toList(growable: false);
+    final subjects = summary?.subjects ?? grades.length;
+    final graded = summary?.graded;
+    return _SectionCard(
+      padded: true,
+      child: Padding(
+        padding: const EdgeInsets.fromLTRB(12, 12, 12, 6),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            Row(
+              children: [
+                Expanded(
+                  child: _MetricTile(
+                    label: 'GEN. AVG',
+                    value: summary?.average == null
+                        ? '—'
+                        : summary!.average!.toStringAsFixed(1),
+                  ),
+                ),
+                const SizedBox(width: 8),
+                Expanded(
+                  child: _MetricTile(
+                    label: 'GRADED',
+                    value: graded == null ? '—' : '$graded / $subjects',
+                  ),
+                ),
+                const SizedBox(width: 8),
+                Expanded(
+                  child: _MetricTile(
+                    label: 'PASSED',
+                    value: summary == null ? '—' : '${summary.passed}',
+                    tone: _Tone.green,
+                  ),
+                ),
+                const SizedBox(width: 8),
+                Expanded(
+                  child: _MetricTile(
+                    label: 'FAILED',
+                    value: summary == null ? '—' : '${summary.failed}',
+                    tone: summary != null && summary.failed > 0
+                        ? _Tone.red
+                        : _Tone.neutral,
+                  ),
+                ),
+              ],
+            ),
+            if (summary != null && summary.graded > 0) ...[
+              const SizedBox(height: 8),
+              Text(
+                failing.isNotEmpty
+                    ? '${failing.length} failing — ${failing.map((g) => g.subject).join(', ')} · Needs intervention'
+                    : 'All ${summary.graded} passed · On track',
+                style: TextStyle(
+                  fontSize: 11,
+                  height: 1.4,
+                  color: failing.isNotEmpty ? _red : _green,
+                ),
+              ),
+            ],
+            const SizedBox(height: 12),
+            _Segmented(
+              labels: const ['Final', 'Computed'],
+              selected: finalVersion ? 0 : 1,
+              onChanged: (value) => setState(() => finalVersion = value == 0),
+            ),
+            const SizedBox(height: 14),
+            Row(
+              children: [
+                Expanded(
+                  child: Text(
+                    finalVersion
+                        ? 'FINAL GRADE PER SUBJECT'
+                        : 'COMPUTED AVERAGE PER SUBJECT',
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: const TextStyle(
+                      fontSize: 10,
+                      fontWeight: FontWeight.w700,
+                      letterSpacing: 0.4,
+                      color: _muted,
+                    ),
+                  ),
+                ),
+                const SizedBox(width: 8),
+                Text(
+                  '$subjects Enrolled',
+                  style: const TextStyle(fontSize: 10, color: _faint),
+                ),
+              ],
+            ),
+            const SizedBox(height: 8),
+            for (final grade in visible)
+              Padding(
+                padding: const EdgeInsets.only(bottom: 6),
+                child: _SubjectRow(
+                  grade: grade,
+                  finalVersion: finalVersion,
+                  code: widget.codes[grade.subject.toLowerCase()] ?? '',
+                ),
+              ),
+            if (grades.length > _collapsedRows)
+              Center(
+                child: TextButton.icon(
+                  onPressed: () => setState(() => _expanded = !_expanded),
+                  iconAlignment: IconAlignment.end,
+                  icon: Icon(
+                    _expanded ? LucideIcons.chevronUp : LucideIcons.chevronDown,
+                    size: 14,
+                  ),
+                  label: Text(
+                    _expanded
+                        ? 'Show fewer subjects'
+                        : 'Show all ${grades.length} subjects',
+                  ),
+                  style: TextButton.styleFrom(
+                    foregroundColor: _muted,
+                    minimumSize: Size.zero,
+                    tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 8,
+                      vertical: 6,
+                    ),
+                    textStyle: const TextStyle(fontSize: 11),
+                  ),
+                ),
+              ),
+          ],
         ),
       ),
     );
   }
 }
 
-class _SubjectGradeCard extends StatelessWidget {
-  const _SubjectGradeCard({required this.grade, required this.finalVersion});
+class _SubjectRow extends StatelessWidget {
+  const _SubjectRow({
+    required this.grade,
+    required this.finalVersion,
+    required this.code,
+  });
   final AcademicGrade grade;
   final bool finalVersion;
+  final String code;
 
   @override
   Widget build(BuildContext context) {
-    final theme = Theme.of(context);
     final failed = grade.remarks == 'Failed';
-    final tone = failed ? zDangerText(theme) : theme.colorScheme.primary;
     final value = finalVersion
         ? grade.transmutedGrade?.toStringAsFixed(0)
         : grade.computedAverage?.toStringAsFixed(1);
+    final pending = value == null;
     return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 10),
       decoration: BoxDecoration(
-        border: Border.all(color: theme.colorScheme.outlineVariant),
-        borderRadius: BorderRadius.circular(ZTokens.radiusLg),
+        color: _soft,
+        borderRadius: BorderRadius.circular(10),
+        border: Border.all(color: _line),
       ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.stretch,
+      child: Row(
         children: [
-          Padding(
-            padding: const EdgeInsets.all(12),
-            child: Row(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Icon(Icons.menu_book_outlined, size: 18, color: tone),
-                const SizedBox(width: 8),
-                Expanded(
-                  child: Text(
-                    grade.subject,
-                    style: theme.textTheme.bodyMedium?.copyWith(
-                      fontWeight: FontWeight.w600,
-                    ),
-                  ),
-                ),
-              ],
-            ),
-          ),
-          const Divider(height: 1),
           Container(
-            color: theme.colorScheme.surfaceContainerLow,
-            padding: const EdgeInsets.all(12),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  finalVersion ? 'Final grade' : 'Computed average',
-                  style: theme.textTheme.bodySmall,
-                ),
-                const SizedBox(height: 6),
-                Text(
-                  value ?? '—',
-                  style: theme.textTheme.headlineMedium?.copyWith(
-                    color: value == null
-                        ? theme.colorScheme.onSurfaceVariant
-                        : tone,
-                    fontWeight: FontWeight.w700,
-                    fontFeatures: const [FontFeature.tabularFigures()],
-                  ),
-                ),
-                const SizedBox(height: 10),
-                Wrap(
-                  spacing: 6,
-                  runSpacing: 6,
-                  children: [
-                    if (grade.remarks != null)
-                      _DetailPill(
-                        label: grade.remarks!,
-                        color: failed
-                            ? zDangerText(theme)
-                            : zSuccessText(theme),
-                      ),
-                    _DetailPill(label: _humanize(grade.lockStatus)),
-                  ],
-                ),
-              ],
+            width: 7,
+            height: 7,
+            decoration: BoxDecoration(
+              shape: BoxShape.circle,
+              color: pending ? _faint : (failed ? _red : _blue),
             ),
           ),
+          const SizedBox(width: 8),
+          Expanded(
+            child: Text(
+              grade.subject,
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+              style: const TextStyle(
+                fontSize: 12,
+                fontWeight: FontWeight.w600,
+                color: _ink,
+              ),
+            ),
+          ),
+          if (code.isNotEmpty) ...[
+            const SizedBox(width: 6),
+            Text(
+              code,
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+              style: const TextStyle(fontSize: 9, color: _faint),
+            ),
+          ],
+          const SizedBox(width: 8),
+          if (pending)
+            const _TonePill(text: 'Pending', tone: _Tone.neutral)
+          else
+            Text(
+              value,
+              style: TextStyle(
+                fontSize: 13,
+                fontWeight: FontWeight.w700,
+                color: failed ? _red : _ink,
+                fontFeatures: const [FontFeature.tabularFigures()],
+              ),
+            ),
         ],
       ),
     );
@@ -784,99 +1294,258 @@ class _AttendanceCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-    final pct = (summary.rate * 100).toStringAsFixed(1);
+    final rate = summary.rate.clamp(0.0, 1.0);
+    final pct = (rate * 100).toStringAsFixed(1);
+    final warning = summary.total > 0 && rate < 0.8;
     final sorted = [...summary.bySubject]
       ..sort((a, b) => a.rate.compareTo(b.rate));
     final weakest = sorted.isEmpty ? null : sorted.first;
-    return ZCard(
+    return Container(
+      padding: const EdgeInsets.fromLTRB(14, 14, 14, 16),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(14),
+        border: Border.all(color: warning ? _redLine : _line),
+      ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Wrap(
-            spacing: 12,
-            runSpacing: 8,
-            crossAxisAlignment: WrapCrossAlignment.center,
+          Row(
             children: [
-              Text(
-                '$pct% present',
-                style: theme.textTheme.headlineSmall?.copyWith(
-                  fontWeight: FontWeight.w700,
-                  fontFeatures: const [FontFeature.tabularFigures()],
+              Expanded(
+                child: Wrap(
+                  spacing: 8,
+                  runSpacing: 6,
+                  crossAxisAlignment: WrapCrossAlignment.center,
+                  children: [
+                    Text(
+                      '$pct%',
+                      style: const TextStyle(
+                        fontSize: 26,
+                        fontWeight: FontWeight.w800,
+                        color: _ink,
+                        letterSpacing: -0.8,
+                        fontFeatures: [FontFeature.tabularFigures()],
+                      ),
+                    ),
+                    if (summary.isRisk)
+                      const _TonePill(text: 'HIGH', tone: _Tone.red),
+                  ],
                 ),
               ),
-              if (summary.isRisk) const RiskBadge(level: 'High'),
+              const SizedBox(width: 8),
+              _RateDonut(value: rate, percent: pct, warning: warning),
             ],
           ),
-          const SizedBox(height: 6),
-          ClipRRect(
-            borderRadius: BorderRadius.circular(6),
-            child: LinearProgressIndicator(
-              value: summary.rate.clamp(0, 1),
-              minHeight: 6,
-            ),
-          ),
-          const SizedBox(height: 6),
+          const SizedBox(height: 2),
           Text(
             summary.subjectEra
                 ? '${summary.present} present across ${summary.total} subject sessions'
                 : '${summary.present} present across ${summary.total} sessions (AM/PM record — no per-subject takes yet)',
-            style: theme.textTheme.bodySmall?.copyWith(
-              fontFeatures: const [FontFeature.tabularFigures()],
+            style: const TextStyle(
+              fontSize: 11.5,
+              color: _muted,
+              fontFeatures: [FontFeature.tabularFigures()],
             ),
           ),
           const SizedBox(height: 12),
-          Wrap(
-            spacing: 8,
-            runSpacing: 8,
+          Row(
             children: [
-              _DetailPill(label: 'Present ${summary.present}'),
-              _DetailPill(label: 'Absent ${summary.absent}'),
-              _DetailPill(label: 'Late ${summary.late}'),
-              _DetailPill(label: 'Excused ${summary.excused}'),
+              Expanded(
+                child: _MetricTile(
+                  label: 'PRESENT',
+                  value: '${summary.present}',
+                ),
+              ),
+              const SizedBox(width: 8),
+              Expanded(
+                child: _MetricTile(
+                  label: 'ABSENT',
+                  value: '${summary.absent}',
+                  tone: summary.absent > 0 ? _Tone.red : _Tone.neutral,
+                ),
+              ),
+              const SizedBox(width: 8),
+              Expanded(
+                child: _MetricTile(label: 'LATE', value: '${summary.late}'),
+              ),
+              const SizedBox(width: 8),
+              Expanded(
+                child: _MetricTile(
+                  label: 'EXCUSED',
+                  value: '${summary.excused}',
+                ),
+              ),
             ],
           ),
           if (weakest != null) ...[
-            const SizedBox(height: 4),
-            Text(
-              'Weakest: ${weakest.name} at ${(weakest.rate * 100).toStringAsFixed(1)}% (${weakest.present}/${weakest.total})',
-              style: theme.textTheme.bodySmall?.copyWith(
-                fontFeatures: const [FontFeature.tabularFigures()],
+            const SizedBox(height: 12),
+            Container(
+              width: double.infinity,
+              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 9),
+              decoration: BoxDecoration(
+                color: _redSoft,
+                borderRadius: BorderRadius.circular(9),
+                border: Border.all(color: _redLine),
+              ),
+              child: Row(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  const Padding(
+                    padding: EdgeInsets.only(top: 1),
+                    child: Icon(LucideIcons.circleAlert, size: 13, color: _red),
+                  ),
+                  const SizedBox(width: 7),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        const Text(
+                          'Weakest Subject Record',
+                          style: TextStyle(
+                            fontSize: 11.5,
+                            fontWeight: FontWeight.w700,
+                            color: _red,
+                          ),
+                        ),
+                        const SizedBox(height: 2),
+                        Text(
+                          '${weakest.name} at ${(weakest.rate * 100).toStringAsFixed(1)}% (${weakest.present}/${weakest.total} sessions attended)',
+                          style: const TextStyle(
+                            fontSize: 11,
+                            height: 1.35,
+                            color: _red,
+                            fontFeatures: [FontFeature.tabularFigures()],
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ],
               ),
             ),
-          ],
-          if (sorted.isNotEmpty) ...[
-            const SizedBox(height: 8),
-            const Divider(height: 1),
+            const SizedBox(height: 12),
             for (var i = 0; i < sorted.length; i++) ...[
-              Padding(
-                padding: const EdgeInsets.symmetric(vertical: 12),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      '${sorted[i].name} (${sorted[i].code})',
-                      style: const TextStyle(
-                        fontSize: 13,
-                        fontWeight: FontWeight.w600,
-                      ),
-                    ),
-                    const SizedBox(height: 6),
-                    Text(
-                      '${sorted[i].present}/${sorted[i].total} — ${(sorted[i].rate * 100).toStringAsFixed(1)}%',
-                      style: const TextStyle(
-                        fontSize: 12,
-                        fontFeatures: [FontFeature.tabularFigures()],
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-              if (i != sorted.length - 1) const Divider(height: 1),
+              _SubjectAttendanceRow(s: sorted[i]),
+              if (i != sorted.length - 1) const SizedBox(height: 10),
             ],
           ],
         ],
       ),
+    );
+  }
+}
+
+class _RateDonut extends StatelessWidget {
+  const _RateDonut({
+    required this.value,
+    required this.percent,
+    required this.warning,
+  });
+  final double value;
+  final String percent;
+  final bool warning;
+
+  @override
+  Widget build(BuildContext context) {
+    final color = warning ? _red : _green;
+    return SizedBox(
+      width: 46,
+      height: 46,
+      child: Stack(
+        alignment: Alignment.center,
+        children: [
+          SizedBox(
+            width: 46,
+            height: 46,
+            child: CircularProgressIndicator(
+              value: value,
+              strokeWidth: 4,
+              color: color,
+              backgroundColor: color.withValues(alpha: 0.14),
+            ),
+          ),
+          Text(
+            '$percent%',
+            style: TextStyle(
+              fontSize: 8.5,
+              fontWeight: FontWeight.w700,
+              color: color,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _SubjectAttendanceRow extends StatelessWidget {
+  const _SubjectAttendanceRow({required this.s});
+  final SubjectRate s;
+
+  @override
+  Widget build(BuildContext context) {
+    final rate = s.rate.clamp(0.0, 1.0);
+    final low = rate < 0.8;
+    final color = low ? _red : _green;
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Row(
+          children: [
+            Expanded(
+              child: Text(
+                s.name,
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                style: const TextStyle(
+                  fontSize: 12,
+                  fontWeight: FontWeight.w600,
+                  color: _ink,
+                ),
+              ),
+            ),
+            const SizedBox(width: 8),
+            Flexible(
+              child: FittedBox(
+                fit: BoxFit.scaleDown,
+                alignment: Alignment.centerRight,
+                child: Text.rich(
+                  TextSpan(
+                    children: [
+                      if (s.code.isNotEmpty)
+                        TextSpan(
+                          text: '${s.code}   ',
+                          style: const TextStyle(fontSize: 9, color: _faint),
+                        ),
+                      TextSpan(
+                        text:
+                            '${s.present}/${s.total} · ${(rate * 100).toStringAsFixed(1)}%',
+                        style: TextStyle(
+                          fontSize: 11,
+                          fontWeight: FontWeight.w700,
+                          color: low ? _red : _body,
+                          fontFeatures: const [FontFeature.tabularFigures()],
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+            ),
+          ],
+        ),
+        const SizedBox(height: 6),
+        ClipRRect(
+          borderRadius: BorderRadius.circular(4),
+          child: LinearProgressIndicator(
+            value: rate,
+            minHeight: 4,
+            color: color,
+            backgroundColor: color.withValues(alpha: 0.14),
+          ),
+        ),
+      ],
     );
   }
 }

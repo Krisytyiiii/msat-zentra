@@ -77,6 +77,37 @@ Future<void> mountShell(
 }
 
 void main() {
+  testWidgets('Overview uses the Class header without recoloring its body', (
+    tester,
+  ) async {
+    await mountShell(
+      tester,
+      child: const _Probe(),
+      selectedPath: '/workspace/classes',
+    );
+    final classHeight = tester.getSize(find.byType(AppBar)).height;
+    final classHeader = Theme.of(tester.element(find.byType(AppBar)));
+    final classSearch = tester
+        .widget<TextField>(find.byKey(const ValueKey('screen-search-field')))
+        .decoration!;
+    await mountShell(tester, child: const _Probe());
+    final overviewHeader = Theme.of(tester.element(find.byType(AppBar)));
+    final overviewSearch = tester
+        .widget<TextField>(find.byKey(const ValueKey('screen-search-field')))
+        .decoration!;
+    expect(tester.getSize(find.byType(AppBar)).height, classHeight);
+    expect(overviewHeader.colorScheme, classHeader.colorScheme);
+    expect(overviewSearch.fillColor, classSearch.fillColor);
+    expect(
+      Theme.of(tester.element(find.text('probe:'))).scaffoldBackgroundColor,
+      classHeader.scaffoldBackgroundColor,
+    );
+    expect(
+      Theme.of(tester.element(find.text('probe:'))).brightness,
+      Brightness.light,
+    );
+    expect(tester.takeException(), isNull);
+  });
   testWidgets('settings keeps the light header without bottom navigation', (
     tester,
   ) async {

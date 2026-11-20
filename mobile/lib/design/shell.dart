@@ -24,6 +24,7 @@ import '../shared/widgets.dart';
 import '../shared/user_messages.dart';
 import 'brand.dart';
 import 'adviser_navigation.dart';
+import 'overview_theme.dart';
 import 'screen_search.dart';
 import 'settings_theme.dart';
 import 'theme_mode.dart' show themeSettingsProvider;
@@ -103,7 +104,12 @@ class _ZentraShellState extends ConsumerState<ZentraShell> {
 
   @override
   Widget build(BuildContext context) {
-    final theme = widget.selectedPath == '/teacher/more'
+    final headerTheme = widget.selectedPath == '/teacher/more'
+        ? settingsScreenTheme(Theme.of(context))
+        : Theme.of(context);
+    final theme = widget.selectedPath == '/workspace/overview'
+        ? overviewScreenTheme(Theme.of(context))
+        : widget.selectedPath == '/teacher/more'
         ? settingsScreenTheme(Theme.of(context))
         : Theme.of(context);
     final router = GoRouter.maybeOf(context);
@@ -136,27 +142,39 @@ class _ZentraShellState extends ConsumerState<ZentraShell> {
         controller: _search,
         child: Scaffold(
           extendBody: showBottomNavigation,
-          appBar: AppBar(
-            titleSpacing: 0,
-            leading: location == '/adviser/bama' && (router?.canPop() ?? false)
-                ? IconButton(
-                    tooltip: 'Back',
-                    icon: const Icon(Icons.arrow_back),
-                    onPressed: () => router!.pop(),
-                  )
-                : Builder(
-                    builder: (ctx) => IconButton(
-                      icon: const Icon(Icons.menu),
-                      tooltip: 'Menu',
-                      onPressed: () => Scaffold.of(ctx).openDrawer(),
-                    ),
+          appBar: PreferredSize(
+            preferredSize: Size.fromHeight(
+              (headerTheme.appBarTheme.toolbarHeight ?? kToolbarHeight) + 1,
+            ),
+            child: Theme(
+              data: headerTheme,
+              child: AppBar(
+                titleSpacing: 0,
+                leading:
+                    location == '/adviser/bama' && (router?.canPop() ?? false)
+                    ? IconButton(
+                        tooltip: 'Back',
+                        icon: const Icon(Icons.arrow_back),
+                        onPressed: () => router!.pop(),
+                      )
+                    : Builder(
+                        builder: (ctx) => IconButton(
+                          icon: const Icon(Icons.menu),
+                          tooltip: 'Menu',
+                          onPressed: () => Scaffold.of(ctx).openDrawer(),
+                        ),
+                      ),
+                // Drive-style header: the search field owns the middle lane.
+                title: _searchField(context, spec),
+                actions: const [_ProfileButton()],
+                bottom: PreferredSize(
+                  preferredSize: const Size.fromHeight(1),
+                  child: Divider(
+                    height: 1,
+                    color: headerTheme.colorScheme.outline,
                   ),
-            // Drive-style header: the search field owns the middle lane.
-            title: _searchField(context, spec),
-            actions: const [_ProfileButton()],
-            bottom: PreferredSize(
-              preferredSize: const Size.fromHeight(1),
-              child: Divider(height: 1, color: theme.colorScheme.outline),
+                ),
+              ),
             ),
           ),
           drawer: ZentraDrawer(selectedPath: widget.selectedPath),
@@ -202,7 +220,7 @@ class _ZentraShellState extends ConsumerState<ZentraShell> {
         height: 40,
         child: TextField(
           key: const ValueKey('screen-search-field'),
-          textAlign: TextAlign.center,
+          textAlign: TextAlign.start,
           textAlignVertical: TextAlignVertical.center,
           controller: _text,
           focusNode: _focus,
@@ -210,6 +228,7 @@ class _ZentraShellState extends ConsumerState<ZentraShell> {
           onChanged: _search.setQuery,
           style: theme.textTheme.bodyMedium,
           decoration: InputDecoration(
+            prefixIcon: const Icon(Icons.search, size: 20),
             hintText: spec.hint,
             isDense: true,
             filled: true,
@@ -338,7 +357,7 @@ class ZentraDrawer extends ConsumerWidget {
     final drawerTheme = base.copyWith(
       brightness: Brightness.light,
       colorScheme: const ColorScheme.light(
-        primary: Color(0xFF1855B5),
+        primary: Color(0xFFB45309),
         surface: Color(0xFFFAFAF9),
         onSurface: Color(0xFF181B19),
         onSurfaceVariant: Color(0xFF707572),
@@ -574,7 +593,7 @@ class ZentraDrawer extends ConsumerWidget {
     String path,
     bool selected,
   ) {
-    const blue = Color(0xFF1855B5);
+    const amber = Color(0xFFB45309);
     return ListTile(
       minTileHeight: 48,
       contentPadding: const EdgeInsets.symmetric(horizontal: 12),
@@ -590,8 +609,8 @@ class ZentraDrawer extends ConsumerWidget {
         ),
       ),
       selected: selected,
-      selectedColor: blue,
-      selectedTileColor: const Color(0xFFD9E6FC),
+      selectedColor: amber,
+      selectedTileColor: const Color(0xFFFEF3C7),
       shape: const StadiumBorder(),
       onTap: () {
         Navigator.pop(context);
@@ -1142,24 +1161,24 @@ class _ProfileScreen extends ConsumerWidget {
 
     final lightTheme = theme.copyWith(
       brightness: Brightness.light,
-      scaffoldBackgroundColor: Colors.white,
+      scaffoldBackgroundColor: const Color(0xFFFCFAF5),
       colorScheme: const ColorScheme.light(
-        primary: Color(0xFF567C8B),
+        primary: Color(0xFFB45309),
         surface: Colors.white,
-        onSurface: Color(0xFF121614),
-        onSurfaceVariant: Color(0xFF737975),
-        surfaceContainerLow: Color(0xFFECEEF0),
-        outline: Color(0xFFE2E4E2),
-        outlineVariant: Color(0xFFE2E4E2),
-        error: Color(0xFFA76E70),
+        onSurface: Color(0xFF292419),
+        onSurfaceVariant: Color(0xFF787164),
+        surfaceContainerLow: Color(0xFFFEF3C7),
+        outline: Color(0xFFEAE3D6),
+        outlineVariant: Color(0xFFEAE3D6),
+        error: Color(0xFFBE3545),
       ),
       textTheme: theme.textTheme.apply(
-        bodyColor: const Color(0xFF121614),
-        displayColor: const Color(0xFF121614),
+        bodyColor: const Color(0xFF292419),
+        displayColor: const Color(0xFF292419),
       ),
       appBarTheme: const AppBarTheme(
-        backgroundColor: Colors.white,
-        foregroundColor: Color(0xFF121614),
+        backgroundColor: Color(0xFFFCFAF5),
+        foregroundColor: Color(0xFF292419),
         surfaceTintColor: Colors.transparent,
         elevation: 0,
       ),
@@ -1170,17 +1189,21 @@ class _ProfileScreen extends ConsumerWidget {
         shadowColor: Colors.black26,
         shape: RoundedRectangleBorder(
           borderRadius: BorderRadius.circular(16),
-          side: const BorderSide(color: Color(0xFFE2E4E2)),
+          side: const BorderSide(color: Color(0xFFEAE3D6)),
         ),
       ),
       dividerTheme: const DividerThemeData(
-        color: Color(0xFFE2E4E2),
+        color: Color(0xFFEAE3D6),
         space: 1,
         thickness: 1,
       ),
       listTileTheme: const ListTileThemeData(
-        textColor: Color(0xFF121614),
-        iconColor: Color(0xFF567C8B),
+        minTileHeight: 48,
+        contentPadding: EdgeInsets.symmetric(horizontal: 12),
+        horizontalTitleGap: 12,
+        minVerticalPadding: 8,
+        textColor: Color(0xFF292419),
+        iconColor: Color(0xFFB45309),
       ),
     );
     return Theme(
@@ -1197,7 +1220,7 @@ class _ProfileScreen extends ConsumerWidget {
               key: const ValueKey('profile-close'),
               tooltip: 'Close',
               style: IconButton.styleFrom(
-                backgroundColor: const Color(0xFFECEEF0),
+                backgroundColor: const Color(0xFFFEF3C7),
               ),
               icon: const Icon(LucideIcons.x, size: 20),
               onPressed: () => Navigator.of(context).pop(),
@@ -1205,9 +1228,10 @@ class _ProfileScreen extends ConsumerWidget {
           ],
         ),
         body: ListView(
-          padding: const EdgeInsets.fromLTRB(16, 24, 16, 32),
+          padding: const EdgeInsets.fromLTRB(12, 12, 12, 24),
           children: [
             ZCard(
+              padding: const EdgeInsets.all(12),
               child: Row(
                 children: [
                   TeacherAvatar(
@@ -1239,12 +1263,15 @@ class _ProfileScreen extends ConsumerWidget {
                             vertical: 2,
                           ),
                           decoration: BoxDecoration(
-                            color: const Color(0xFFECEEF0),
+                            color: const Color(0xFFFEF3C7),
                             borderRadius: BorderRadius.circular(8),
                           ),
                           child: Text(
                             _roleLabel(role ?? ''),
-                            style: const TextStyle(fontSize: 12),
+                            style: const TextStyle(
+                              fontSize: 12,
+                              color: Color(0xFF92400E),
+                            ),
                           ),
                         ),
                       ],
@@ -1253,7 +1280,7 @@ class _ProfileScreen extends ConsumerWidget {
                 ],
               ),
             ),
-            const SizedBox(height: 28),
+            const SizedBox(height: 16),
             Row(
               children: [
                 const Expanded(
@@ -1282,7 +1309,7 @@ class _ProfileScreen extends ConsumerWidget {
               data: (items) {
                 if (items.isEmpty) {
                   return const ZEmpty(
-                    icon: Icons.notifications_outlined,
+                    icon: LucideIcons.bell,
                     title: 'No notifications yet',
                     subtitle: 'Referral updates, absent alerts, and meeting reminders appear here.',
                     compact: true,
@@ -1302,7 +1329,7 @@ class _ProfileScreen extends ConsumerWidget {
                 );
               },
             ),
-            const SizedBox(height: 20),
+            const SizedBox(height: 12),
             ZCard(
               padding: EdgeInsets.zero,
               child: Column(
@@ -1322,7 +1349,7 @@ class _ProfileScreen extends ConsumerWidget {
                           vertical: 2,
                         ),
                         decoration: BoxDecoration(
-                          color: const Color(0xFFECEEF0),
+                          color: const Color(0xFFFEF3C7),
                           borderRadius: BorderRadius.circular(8),
                         ),
                         child: Text(
@@ -1385,7 +1412,7 @@ class _ProfileNotificationTile extends ConsumerWidget {
     return Theme(
       data: theme.copyWith(
         cardTheme: theme.cardTheme.copyWith(
-          color: const Color(0xFFECEEF0),
+          color: const Color(0xFFFFF8E7),
           elevation: 0,
           shape: RoundedRectangleBorder(
             borderRadius: BorderRadius.circular(12),
@@ -1425,7 +1452,7 @@ class _ProfileNotificationTile extends ConsumerWidget {
                 margin: const EdgeInsets.only(right: 8),
                 decoration: BoxDecoration(
                   shape: BoxShape.circle,
-                  color: theme.colorScheme.onSurface,
+                  color: theme.colorScheme.primary,
                 ),
               ),
             Expanded(

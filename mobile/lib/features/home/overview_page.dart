@@ -5,6 +5,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter/widget_previews.dart';
 import 'package:go_router/go_router.dart';
 import 'package:intl/intl.dart';
+import 'package:lucide_icons_flutter/lucide_icons.dart';
 
 import '../../core/session.dart';
 import '../../design/screen_search.dart';
@@ -117,9 +118,9 @@ class _OverviewPageState extends ConsumerState<OverviewPage>
         physics: const AlwaysScrollableScrollPhysics(),
         padding: EdgeInsets.fromLTRB(
           16,
-          20,
           16,
-          32 + MediaQuery.paddingOf(context).bottom,
+          16,
+          112 + MediaQuery.paddingOf(context).bottom,
         ),
         child: Center(
           child: ConstrainedBox(
@@ -132,9 +133,16 @@ class _OverviewPageState extends ConsumerState<OverviewPage>
                   const SizedBox(height: 10),
                 ],
                 _welcome(summary, term, section),
-                const SizedBox(height: 22),
+                const SizedBox(height: 16),
                 _Board(
-                  icon: Icons.schedule_outlined,
+                  icon: LucideIcons.bell,
+                  title: 'Needs attention',
+                  count: attentionCount > 0 ? attentionCount : null,
+                  child: _attention(summary, attention),
+                ),
+                const SizedBox(height: 16),
+                _Board(
+                  icon: LucideIcons.clock,
                   title: 'Up next',
                   action: 'View schedule',
                   onAction: () => _open(
@@ -155,15 +163,8 @@ class _OverviewPageState extends ConsumerState<OverviewPage>
                 ),
                 const SizedBox(height: 16),
                 _Board(
-                  icon: Icons.notifications_active_outlined,
-                  title: 'Needs attention',
-                  count: attentionCount > 0 ? attentionCount : null,
-                  child: _attention(summary, attention),
-                ),
-                const SizedBox(height: 16),
-                _Board(
                   key: const ValueKey('overview-stats-panel'),
-                  icon: Icons.insights_outlined,
+                  icon: LucideIcons.activity,
                   title: 'At a glance',
                   child: summary.when(
                     loading: () => const ZSkeletonRow(),
@@ -176,7 +177,7 @@ class _OverviewPageState extends ConsumerState<OverviewPage>
                 ),
                 const SizedBox(height: 16),
                 _Board(
-                  icon: Icons.donut_small_outlined,
+                  icon: LucideIcons.chartPie,
                   title: 'Risk mix',
                   child: insights.when(
                     loading: () => const ZSkeletonRow(),
@@ -189,7 +190,7 @@ class _OverviewPageState extends ConsumerState<OverviewPage>
                 ),
                 const SizedBox(height: 16),
                 _Board(
-                  icon: Icons.bar_chart_outlined,
+                  icon: LucideIcons.chartColumn,
                   title: 'Attendance, day by day',
                   child: insights.when(
                     loading: () => const ZSkeletonRow(),
@@ -226,7 +227,7 @@ class _OverviewPageState extends ConsumerState<OverviewPage>
           data: (data) => Text(
             data.teacherName.trim().isEmpty
                 ? 'Welcome back.'
-                : 'Welcome back, ${data.teacherName}.',
+                : 'Welcome back,\n${data.teacherName}.',
             style: theme.textTheme.headlineSmall?.copyWith(
               fontSize: 21,
               fontWeight: FontWeight.w700,
@@ -390,7 +391,7 @@ class _OverviewPageState extends ConsumerState<OverviewPage>
             }
             if (count == 0) return const SizedBox.shrink();
             return _AttentionRow(
-              icon: Icons.edit_note_outlined,
+              icon: LucideIcons.notebookPen,
               title:
                   '$count assessment${count == 1 ? '' : 's'} with missing scores',
               subtitle: 'Review and enter scores in Gradebook.',
@@ -410,7 +411,7 @@ class _OverviewPageState extends ConsumerState<OverviewPage>
                 top: pending != null && pending > 0 ? 8 : 0,
               ),
               child: _AttentionRow(
-                icon: Icons.support_agent_outlined,
+                icon: LucideIcons.heart,
                 title:
                     '$support learner${support == 1 ? '' : 's'} may need support',
                 subtitle: 'Review your advisory list and risk indicators.',
@@ -455,12 +456,14 @@ class _Board extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
-    final accent = ZDesk.dataAccent(context);
+    final accent = theme.colorScheme.primary;
     final hairline = theme.colorScheme.outline.withValues(alpha: 0.7);
     return Material(
       color: theme.cardTheme.color ?? theme.colorScheme.surface,
+      elevation: 1,
+      shadowColor: Colors.black.withValues(alpha: 0.08),
       shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(ZTokens.radiusXl),
+        borderRadius: BorderRadius.circular(16),
         side: BorderSide(color: theme.colorScheme.outline),
       ),
       clipBehavior: Clip.antiAlias,
@@ -468,10 +471,17 @@ class _Board extends StatelessWidget {
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
           Padding(
-            padding: EdgeInsets.fromLTRB(14, 8, action == null ? 14 : 6, 6),
+            padding: EdgeInsets.fromLTRB(14, 8, action == null ? 14 : 6, 8),
             child: Row(
               children: [
-                Icon(icon, size: 18, color: accent),
+                Container(
+                  padding: const EdgeInsets.all(5),
+                  decoration: BoxDecoration(
+                    color: accent.withValues(alpha: 0.08),
+                    borderRadius: BorderRadius.circular(11),
+                  ),
+                  child: Icon(icon, size: 18, color: accent),
+                ),
                 const SizedBox(width: 8),
                 Expanded(
                   flex: 2,
@@ -498,29 +508,31 @@ class _Board extends StatelessWidget {
                     ),
                   ),
                 if (action != null)
-                  // Loose flex so the action hugs its label on normal widths
-                  // but never starves the title or overflows on narrow,
-                  // large-text screens.
+                  // Keep the action at the trailing edge, while allowing
+                  // its label to shrink on narrow or large-text layouts.
                   Flexible(
                     flex: 3,
                     fit: FlexFit.loose,
-                    child: TextButton(
-                      onPressed: onAction,
-                      style: TextButton.styleFrom(
-                        minimumSize: const Size(0, 40),
-                        padding: const EdgeInsets.symmetric(horizontal: 10),
-                        tapTargetSize: MaterialTapTargetSize.shrinkWrap,
-                        foregroundColor: theme.colorScheme.onSurfaceVariant,
-                        textStyle: theme.textTheme.labelSmall?.copyWith(
-                          fontSize: 12,
-                          fontWeight: FontWeight.w600,
+                    child: Align(
+                      alignment: Alignment.centerRight,
+                      child: TextButton(
+                        onPressed: onAction,
+                        style: TextButton.styleFrom(
+                          minimumSize: const Size(0, 40),
+                          padding: const EdgeInsets.symmetric(horizontal: 10),
+                          tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                          foregroundColor: theme.colorScheme.onSurfaceVariant,
+                          textStyle: theme.textTheme.labelSmall?.copyWith(
+                            fontSize: 12,
+                            fontWeight: FontWeight.w600,
+                          ),
                         ),
-                      ),
-                      child: Text(
-                        action!,
-                        maxLines: 1,
-                        softWrap: false,
-                        overflow: TextOverflow.ellipsis,
+                        child: Text(
+                          action!,
+                          maxLines: 1,
+                          softWrap: false,
+                          overflow: TextOverflow.ellipsis,
+                        ),
                       ),
                     ),
                   ),
@@ -531,7 +543,7 @@ class _Board extends StatelessWidget {
           // stats row separator elsewhere and can't be themed per board.
           Container(height: 1, color: hairline),
           Padding(
-            padding: const EdgeInsets.fromLTRB(14, 12, 14, 14),
+            padding: const EdgeInsets.fromLTRB(14, 12, 14, 12),
             child: child,
           ),
         ],
@@ -545,10 +557,30 @@ class _BoardNote extends StatelessWidget {
   const _BoardNote(this.text);
   final String text;
   @override
-  Widget build(BuildContext context) => Text(
-    text,
-    style: Theme.of(context).textTheme.bodySmall
-        ?.copyWith(color: Theme.of(context).colorScheme.onSurfaceVariant),
+  Widget build(BuildContext context) => Padding(
+    padding: const EdgeInsets.symmetric(vertical: 4),
+    child: Row(
+      children: [
+        CircleAvatar(
+          radius: 18,
+          backgroundColor: Theme.of(context).colorScheme.surfaceContainerLow,
+          child: Icon(
+            LucideIcons.calendarDays,
+            size: 18,
+            color: Theme.of(context).colorScheme.onSurfaceVariant,
+          ),
+        ),
+        const SizedBox(width: 10),
+        Expanded(
+          child: Text(
+            text,
+            style: Theme.of(context).textTheme.bodySmall?.copyWith(
+              color: Theme.of(context).colorScheme.onSurfaceVariant,
+            ),
+          ),
+        ),
+      ],
+    ),
   );
 }
 
@@ -565,24 +597,24 @@ class OverviewQuickActions extends StatelessWidget {
   Widget build(BuildContext context) => LayoutBuilder(
     builder: (context, constraints) {
       final row =
-          constraints.maxWidth >= 330 &&
+          constraints.maxWidth >= 260 &&
           MediaQuery.textScalerOf(context).scale(13) <= 16;
       final actions = [
         (
           label: 'Chat with Bama',
-          icon: Icons.chat_bubble_outline,
+          icon: LucideIcons.messageCircle,
           path: '/adviser/bama',
           enabled: isAdviser,
         ),
         (
           label: 'Enter grades',
-          icon: Icons.edit_note_outlined,
+          icon: LucideIcons.notebookPen,
           path: '/workspace/gradebook',
           enabled: true,
         ),
         (
           label: 'Take attendance',
-          icon: Icons.fact_check_outlined,
+          icon: LucideIcons.clipboardCheck,
           path: '/workspace/attendance',
           enabled: true,
         ),
@@ -654,7 +686,7 @@ class OverviewStats extends StatelessWidget {
           constraints.maxWidth >= 330 &&
           MediaQuery.textScalerOf(context).scale(13) <= 16;
       final theme = Theme.of(context);
-      final accent = ZDesk.dataAccent(context);
+      final accent = theme.colorScheme.primary;
       final tiles = [
         for (final item in items)
           Semantics(
@@ -665,14 +697,14 @@ class OverviewStats extends StatelessWidget {
               hoverColor: theme.colorScheme.primary.withValues(alpha: 0.04),
               highlightColor: theme.colorScheme.primary.withValues(alpha: 0.08),
               child: Padding(
-                padding: const EdgeInsets.fromLTRB(14, 10, 14, 12),
+                padding: const EdgeInsets.fromLTRB(6, 10, 6, 12),
                 child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
+                  crossAxisAlignment: CrossAxisAlignment.center,
                   children: [
                     Text(
                       item.value?.toString() ?? '—',
                       style: theme.textTheme.headlineSmall?.copyWith(
-                        fontSize: 25,
+                        fontSize: 22,
                         fontWeight: FontWeight.w700,
                         color: accent,
                         fontFeatures: const [FontFeature.tabularFigures()],
@@ -796,7 +828,7 @@ class _AttentionRow extends StatelessWidget {
                 ),
                 const SizedBox(width: 6),
                 Icon(
-                  Icons.chevron_right,
+                  LucideIcons.chevronRight,
                   size: 18,
                   color: theme.colorScheme.onSurfaceVariant,
                 ),
@@ -839,19 +871,19 @@ class _AllClear extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
-    final accent = ZDesk.dataAccent(context);
+    const accent = Color(0xFF059669);
     return Container(
       width: double.infinity,
       margin: const EdgeInsets.only(top: 6),
       padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
       decoration: BoxDecoration(
         color: accent.withValues(alpha: ZDesk.isDark(context) ? 0.10 : 0.08),
-        borderRadius: BorderRadius.circular(ZTokens.radiusMd),
+        borderRadius: BorderRadius.circular(14),
         border: Border.all(color: accent.withValues(alpha: 0.32)),
       ),
       child: Row(
         children: [
-          Icon(Icons.check_circle_outline, size: 16, color: accent),
+          Icon(LucideIcons.circleCheck, size: 16, color: accent),
           const SizedBox(width: 8),
           Expanded(
             child: Text(
@@ -967,7 +999,7 @@ class _OverviewActionTile extends StatelessWidget {
                 Expanded(child: copy),
                 if (enabled)
                   Icon(
-                    Icons.chevron_right,
+                    LucideIcons.chevronRight,
                     size: 18,
                     color: theme.colorScheme.onSurfaceVariant,
                   ),

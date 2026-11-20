@@ -1,14 +1,35 @@
+import 'dart:io';
+
 import 'package:dio/dio.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:go_router/go_router.dart';
+import 'package:hive/hive.dart';
+import 'package:lucide_icons_flutter/lucide_icons.dart';
 import 'package:zentra_mobile/core/api_client.dart';
+import 'package:zentra_mobile/core/config.dart';
+import 'package:zentra_mobile/core/session.dart';
 import 'package:zentra_mobile/design/theme.dart';
 import 'package:zentra_mobile/features/adviser/student_detail_page.dart';
 import 'package:zentra_mobile/shared/models.dart';
 
 const longSubject = 'Contemporary Philippine Arts from the Regions';
+
+class DetailTerm extends TermNotifier {
+  DetailTerm() {
+    state = Term(
+      id: 'term-1',
+      schoolYearId: 'sy-1',
+      schoolYearName: '2026-2027',
+      termNumber: 1,
+    );
+  }
+  @override
+  Future<void> select(Term term) async {
+    state = term;
+  }
+}
 
 class DetailApi extends ApiClient {
   DetailApi({this.empty = false}) {
@@ -108,7 +129,10 @@ Future<void> mount(
   addTearDown(() => api.dio.close(force: true));
   await tester.pumpWidget(
     ProviderScope(
-      overrides: [apiClientProvider.overrideWithValue(api)],
+      overrides: [
+        apiClientProvider.overrideWithValue(api),
+        termProvider.overrideWith((ref) => DetailTerm()),
+      ],
       child: MaterialApp(
         theme: zWorkspaceTheme(),
         builder: (context, child) => MediaQuery(
@@ -131,16 +155,31 @@ Future<void> mount(
 }
 
 void main() {
+  TestWidgetsFlutterBinding.ensureInitialized();
+  late Directory temporary;
+  setUpAll(() async {
+    temporary = await Directory.systemTemp.createTemp(
+      'zentra-student-detail-tests-',
+    );
+    Hive.init(temporary.path);
+    await Hive.openBox(AppConfig.termScopeBox);
+  });
+  tearDownAll(() async {
+    await Hive.close();
+    await temporary.delete(recursive: true);
+  });
+
   testWidgets('grade switch preserves values and does not refetch the page', (
     tester,
   ) async {
     final api = DetailApi();
     await mount(tester, api);
     expect(find.text('LRN 123456789012'), findsOneWidget);
-    expect(find.text('Gen avg 80.5'), findsOneWidget);
-    expect(find.text('2 of 3 graded'), findsOneWidget);
-    expect(find.text('1 passed'), findsOneWidget);
-    expect(find.text('1 failed'), findsOneWidget);
+    expect(find.text('GEN. AVG'), findsOneWidget);
+    expect(find.text('80.5'), findsOneWidget);
+    expect(find.text('2 / 3'), findsOneWidget);
+    expect(find.text('PASSED'), findsOneWidget);
+    expect(find.text('FAILED'), findsOneWidget);
     expect(find.text('90'), findsOneWidget);
     final requestCount = api.requests.length;
     await tester.tap(find.text('Computed'));
@@ -224,7 +263,10 @@ void main() {
       );
       await tester.pumpWidget(
         ProviderScope(
-          overrides: [apiClientProvider.overrideWithValue(api)],
+          overrides: [
+            apiClientProvider.overrideWithValue(api),
+            termProvider.overrideWith((ref) => DetailTerm()),
+          ],
           child: MaterialApp.router(
             theme: zWorkspaceTheme(),
             routerConfig: router,
@@ -235,9 +277,10 @@ void main() {
       return router;
     }
 
-    testWidgets('names the learner and never repeats the name', (tester) async {
+    testWidgets('names the learner once in the content card', (tester) async {
       await mount(tester, DetailApi());
       expect(find.byType(AppBar), findsOneWidget);
+      expect(find.text('Student profile'), findsOneWidget);
       expect(find.text('Maria Alexandra Dela Cruz'), findsOneWidget);
       expect(find.text('LRN 123456789012'), findsOneWidget);
       expect(tester.takeException(), isNull);
@@ -256,7 +299,7 @@ void main() {
 
       expect(find.text('Maria Alexandra Dela Cruz'), findsOneWidget);
       expect(find.byIcon(Icons.close), findsNothing);
-      final back = find.byIcon(Icons.arrow_back);
+      final back = find.byIcon(LucideIcons.chevronLeft);
       expect(back, findsOneWidget);
 
       await tester.tap(back);
@@ -276,7 +319,7 @@ void main() {
       // back arrow that would do nothing.
       final close = find.byIcon(Icons.close);
       expect(close, findsOneWidget);
-      expect(find.byIcon(Icons.arrow_back), findsNothing);
+      expect(find.byIcon(LucideIcons.chevronLeft), findsNothing);
 
       await tester.tap(close);
       await tester.pumpAndSettle();
