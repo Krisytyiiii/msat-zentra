@@ -92,10 +92,10 @@ export async function resolveTermScope(
   req: Request,
   role?: string | null,
 ): Promise<TermScope | null> {
-  // The administrator console reads system-wide aggregates only; it never
-  // touches term-scoped data, so skip the active-year lookup entirely.
-  if (role === "admin") return null;
-
+  // Admin is term-steering too: the schedule/timetable desks are configured per
+  // term, so an admin request without headers still falls back to the active
+  // year → current term below (returning null here broke those desks with
+  // NO_ACTIVE_TERM).
   // Teacher roles steer the term per desk; the principal steers it once in
   // Settings and every principal page follows the pick. Every other role —
   // and unauthenticated callers — always resolves server-side (active school

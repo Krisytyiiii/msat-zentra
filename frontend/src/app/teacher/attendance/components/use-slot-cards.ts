@@ -5,7 +5,7 @@ import {
   buildTimetable,
   formatRange,
   type DayConfig,
-} from "@/app/teacher/schedule/components/schedule-time";
+} from "@/components/schedule/schedule-time";
 import { useDebouncedValue } from "@/lib/useDebouncedValue";
 import type { AttendancePair } from "./use-attendance-pairs";
 export interface SlotCard {

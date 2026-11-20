@@ -5,8 +5,8 @@ import { KeyRound } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { KanbanBoard } from "@/components/ui/kanban-board";
 import { Pill } from "@/components/ui/pill";
-import emptyStyles from "@/app/teacher/schedule/schedule-empty.module.css";
-import kanbanStyles from "@/app/teacher/schedule/components/subject-kanban.module.css";
+import emptyStyles from "@/components/schedule/schedule-empty.module.css";
+import kanbanStyles from "@/components/schedule/subject-kanban.module.css";
 import styles from "./attendance-sheet.module.css";
 
 function GateShell({

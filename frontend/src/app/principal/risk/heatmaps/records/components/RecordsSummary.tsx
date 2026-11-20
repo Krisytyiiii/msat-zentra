@@ -11,7 +11,7 @@ import {
   Users,
 } from "lucide-react";
 import { Skeleton } from "@/components/ui/skeleton";
-import { CountUpNumber } from "../../../../overview/components/CountUpNumber";
+import { StatDeck, type StatDeckItem } from "@/components/ui/stat-deck";
 import {
   CATEGORY_KEYS,
   CATEGORY_META,
@@ -20,16 +20,6 @@ import {
 import type { BehavioralCategory } from "../types";
 import { liveQueryOptions } from "@/lib/api/live";
 import styles from "./RecordsSummary.module.css";
-
-interface StatTile {
-  key: string;
-  icon: React.ComponentType<{ size?: number }>;
-  label: string;
-  unit: string;
-  value: number;
-  hint: string;
-  tone?: "red" | "amber";
-}
 
 /**
  * Records desk summary — one stat strip plus the two follow-up panels that used
@@ -103,7 +93,7 @@ export function RecordsSummary({
     };
   }, [data]);
 
-  const tiles: StatTile[] = [
+  const tiles: StatDeckItem[] = [
     {
       key: "total",
       icon: FileText,
@@ -145,48 +135,13 @@ export function RecordsSummary({
 
   return (
     <div className={styles.wrap}>
-      <section className={styles.deck} aria-label="Records at a glance">
-        <div className={styles.deckHead}>
-          <span className={styles.deckTitle}>
-            <FileText size={14} aria-hidden />
-            Records at a glance
-          </span>
-        </div>
-        <div className={styles.tiles}>
-          {tiles.map((tile) => {
-            const Icon = tile.icon;
-            return (
-              <div
-                key={tile.key}
-                className={`${styles.tile} ${
-                  tile.tone === "red" ? styles.tileRed : ""
-                }`}
-              >
-                <span className={styles.tileTop}>
-                  <span className={styles.tileIcon} aria-hidden>
-                    <Icon size={13} />
-                  </span>
-                  <span className={styles.tileLabel}>{tile.label}</span>
-                </span>
-                <span className={styles.tileValue}>
-                  {isPending ? (
-                    <Skeleton className={styles.tileSkeleton} />
-                  ) : (
-                    <CountUpNumber
-                      className={`${styles.tileNumber} ${
-                        tile.value === 0 ? styles.tileNumberZero : ""
-                      }`}
-                      value={tile.value}
-                    />
-                  )}
-                  <span className={styles.tileUnit}>{tile.unit}</span>
-                </span>
-                <span className={styles.tileHint}>{tile.hint}</span>
-              </div>
-            );
-          })}
-        </div>
-      </section>
+      <StatDeck
+        title="Records at a glance"
+        icon={FileText}
+        items={tiles}
+        loading={isPending}
+        hidden={!isPending && model.total === 0}
+      />
 
       <div className={styles.panels}>
         <section className={styles.panel} aria-label="Records by category">

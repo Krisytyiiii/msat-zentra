@@ -73,7 +73,12 @@ interface TermContextValue {
   activeTerm: ActiveTerm | null;
   activeSchoolYear: ActiveSchoolYear | null;
   termReady: boolean;
-  setActiveTerm: (term: ActiveTerm) => void;
+  /**
+   * Store a new term for this desk. Reloads the page by default because many
+   * pages keep page-local state on the old term; pass `{ reload: false }` for
+   * desks whose queries are fully keyed by the term (they refetch in place).
+   */
+  setActiveTerm: (term: ActiveTerm, options?: { reload?: boolean }) => void;
   /** Drop the stored pick so pages follow the server's active scope again. */
   clearActiveTerm: () => void;
   promptRequired: boolean;
@@ -146,7 +151,7 @@ export function TermProvider({ children }: { children: React.ReactNode }) {
   }, [queryClient]);
 
   const setActiveTerm = React.useCallback(
-    (term: ActiveTerm) => {
+    (term: ActiveTerm, options?: { reload?: boolean }) => {
       const unchanged =
         activeTerm?.termId === term.termId &&
         activeTerm?.schoolYearId === term.schoolYearId;
@@ -164,7 +169,8 @@ export function TermProvider({ children }: { children: React.ReactNode }) {
       // Term changes touch every page's dataset, cache key and local state.
       // Reload once so the workspace rebuilds entirely against the new scope
       // (query invalidation alone leaves page-local state on the old term).
-      if (!unchanged && typeof window !== "undefined") {
+      // Desks whose queries are all keyed by the term opt out and refetch.
+      if (!unchanged && options?.reload !== false && typeof window !== "undefined") {
         window.location.reload();
       }
     },

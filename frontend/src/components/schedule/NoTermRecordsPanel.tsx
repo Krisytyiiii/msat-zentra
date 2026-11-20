@@ -4,13 +4,11 @@ import { CalendarDays } from "lucide-react";
 
 interface NoTermRecordsPanelProps {
   termLabel: string;
-  isMasterTeacher: boolean;
   teacherName: string;
 }
 
 export function NoTermRecordsPanel({
   termLabel,
-  isMasterTeacher,
   teacherName,
 }: NoTermRecordsPanelProps) {
   return (
@@ -20,9 +18,7 @@ export function NoTermRecordsPanel({
       </span>
       <h3 className="text-lg font-semibold">No records for {termLabel} yet</h3>
       <p className="mt-1 max-w-md text-sm text-muted-foreground">
-        {isMasterTeacher
-          ? "Nothing is scheduled for your login this term yet — schedule subjects in the Schedule workspace. Records open here without a code, and other terms are unaffected."
-          : `Nothing is scheduled for ${teacherName} this term yet — your classes will appear here once the master teacher schedules them. Records are kept per term, so other terms are unaffected.`}
+        {`Nothing is scheduled for ${teacherName} this term yet — your classes will appear here once the administrator publishes the section schedules. Records are kept per term, so other terms are unaffected.`}
       </p>
     </div>
   );

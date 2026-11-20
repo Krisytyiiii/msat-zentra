@@ -51,7 +51,7 @@ export function isTeacherRole(role: string | null | undefined): boolean {
  * `TERM_STEERING_ROLES` (`backend/src/lib/roles.ts`).
  */
 export function canSteerTermRole(role: string | null | undefined): boolean {
-  return isTeacherRole(role) || role === "principal";
+  return isTeacherRole(role) || role === "principal" || role === "admin";
 }
 
 export interface TokenIdentity {

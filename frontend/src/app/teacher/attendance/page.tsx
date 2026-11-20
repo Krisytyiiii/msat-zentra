@@ -30,7 +30,7 @@ import { useTerm } from "@/lib/term/TermContext";
 import {
   buildTimetable,
   formatClock,
-} from "@/app/teacher/schedule/components/schedule-time";
+} from "@/components/schedule/schedule-time";
 import type { AttendanceLive } from "./components/AttendanceRosterTable";
 import styles from "./components/attendance-sheet.module.css";
 interface TermGrant {
@@ -395,7 +395,6 @@ export default function TeacherAdvisoryAttendancePage() {
           <div className="w-full max-w-3xl">
             <NoTermRecordsPanel
               termLabel={termLabel}
-              isMasterTeacher={false}
               teacherName={linked?.name ?? "your linked name"}
             />
           </div>

@@ -290,6 +290,30 @@
   font-variant-numeric: tabular-nums;
 }
 
+/* Busiest-spot readout that rides in the ADM stats deck header rail. */
+.hotspotInline {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.3125rem;
+  min-width: 0;
+  font-size: 0.75rem;
+  color: var(--muted-foreground);
+}
+
+.hotspotInlineValue {
+  font-weight: 600;
+  color: var(--foreground);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.hotspotInlineMeta {
+  font-size: 0.75rem;
+  color: var(--muted-foreground);
+  white-space: nowrap;
+}
+
 .findingLabel {
   margin: 0;
   font-size: 0.8125rem;

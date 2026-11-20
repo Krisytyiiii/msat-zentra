@@ -396,12 +396,6 @@ model StaffProfile {
   employeeId   String  @unique
   department   String?
   isAdviser    Boolean @default(false)
-  // Master Teacher designation (grades 7–10 seat). Self-declared by the
-  // teacher from Settings; the update endpoint enforces the grade band.
-  isMasterTeacher Boolean @default(false)
-  // Senior High Master Teacher seat (grades 11–12). Independent from the
-  // 7–10 seat — one holder per band, and a teacher may hold both.
-  isMasterTeacherSenior Boolean @default(false)
   handledGradeLevels GradeLevel[]
   // The teacher's one reusable drawn signature (PNG data URL), stamped onto
   // records via POST /api/anecdotal/:id/apply-signature.
@@ -438,6 +432,7 @@ model SchoolYear {
   terms      Term[]
   sections   Section[]
   rosterEntries StudentRoster[]
+  scheduleConfigs ScheduleConfig[]
   @@index([isActive])
 }
 
@@ -461,7 +456,6 @@ model Term {
   reportSnapshots ReportSnapshot[]
   teacherAssignments TeacherSubjectAssignment[]
   gradeFlags GradeFlag[]
-  scheduleConfigs ScheduleConfig[]
   timetableEntries SectionTimetableEntry[]
   termGrants TeacherTermGrant[]
   rosterEnlistments StudentRoster[] @relation("RosterEnlistTerm")
@@ -605,32 +599,38 @@ model TeacherSubjectAssignment {
   @@unique([teacherId, subjectId, sectionId, termId])
 }
 
-// Schedule review workflow: master-teacher fills are DRAFTS — never live —
-// until sent (SUBMITTED) and principal-approved (APPROVED, the only status
-// that materializes gradebook assignments). Reject returns rows to DRAFT
-// with the principal's note for revision.
+// Schedule publication workflow: the administrator desk fills DRAFTS — never
+// live — and publishing flips them to APPROVED (the only status that
+// materializes gradebook assignments). The principal desk is read-only.
 enum TimetableStatus {
   DRAFT
   SUBMITTED
   APPROVED
 }
-// ScheduleConfig stores the day shape per term (start time, period length,
-// lunch + recess placement). One row per term; the setup view falls back to
-// app defaults when no row exists yet.
+// A named school-day preset for a whole school year (start time, period length,
+// lunch + recess placement). A year can keep several presets — e.g. the regular
+// day and an El Niño adjusted day — and exactly one is `isActive`; the active
+// preset shapes every timetable, attendance slot and principal view of that
+// year. No presets yet → readers fall back to app defaults.
 model ScheduleConfig {
-  id            String @id @default(uuid())
-  termId        String @unique
-  startTime     String @default("07:30")
-  periodMins    Int    @default(60)
-  lunchAfter    Int    @default(4)
-  lunchMins     Int    @default(90)
+  id            String  @id @default(uuid())
+  schoolYearId  String
+  name          String  @default("Default")
+  isActive      Boolean @default(false)
+  startTime     String  @default("07:30")
+  periodMins    Int     @default(60)
+  lunchAfter    Int     @default(4)
+  lunchMins     Int     @default(90)
   recessAmOn    Boolean @default(false)
-  recessAmAfter Int    @default(2)
-  recessAmMins  Int    @default(15)
+  recessAmAfter Int     @default(2)
+  recessAmMins  Int     @default(15)
   recessPmOn    Boolean @default(false)
-  recessPmAfter Int    @default(6)
-  recessPmMins  Int    @default(15)
-  term          Term   @relation(fields: [termId], references: [id], onDelete: Cascade)
+  recessPmAfter Int     @default(6)
+  recessPmMins  Int     @default(15)
+  schoolYear    SchoolYear @relation(fields: [schoolYearId], references: [id], onDelete: Cascade)
+
+  @@unique([schoolYearId, name])
+  @@index([schoolYearId])
 }
 
 // One filled timetable cell: a subject placed in a section's weekly template

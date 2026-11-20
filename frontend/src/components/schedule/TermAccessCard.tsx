@@ -8,7 +8,7 @@ import { toast } from "@/components/ui/sonner";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { KanbanBoard } from "@/components/ui/kanban-board";
-import kanbanStyles from "@/app/teacher/schedule/components/subject-kanban.module.css";
+import kanbanStyles from "@/components/schedule/subject-kanban.module.css";
 import { TeacherCodeClaim } from "./TeacherCodeClaim";
 
 function getErrorMessage(err: unknown, fallback: string): string {
@@ -85,7 +85,7 @@ export function TermAccessCard({
             <KeyRound size={14} />
           </span>
         }
-        description={`Linked as ${linkedName} — type your teacher code to unlock this term's workspace. Your subjects appear here once the master teacher schedules them; a code alone never creates classes.`}
+        description={`Linked as ${linkedName} - type your teacher code to unlock this term's workspace. Your subjects appear here once the administrator publishes your section's timetable; a code alone never creates classes.`}
         ariaLabel={`Enter ${termLabel} with teacher code`}
       >
         <div className="flex flex-col px-1 py-1">

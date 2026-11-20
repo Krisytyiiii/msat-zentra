@@ -10,6 +10,7 @@ import {
 } from "lucide-react";
 import { KanbanBoard } from "@/components/ui/kanban-board";
 import { Pill } from "@/components/ui/pill";
+import { StatDeck } from "@/components/ui/stat-deck";
 import { StudentMascot } from "@/components/student-mascot/StudentMascot";
 import type {
   GuidanceAdmInsightsData,
@@ -26,7 +27,6 @@ const FINDING_META: Record<string, { icon: LucideIcon; accent: string }> = {
   endorsed: { icon: Send, accent: "text-blue-500" },
 };
 
-const STAT_PILL_MAX = "max-w-full";
 const SECTION_PILL = "max-w-[7rem] truncate";
 
 function typeTone(kind: string | null | undefined): "blue" | "violet" | "neutral" {
@@ -43,34 +43,26 @@ function BoardIcon({ icon: Icon }: { icon: LucideIcon }) {
   );
 }
 
-/** KPI stats strip — one kanban board per finding. */
+/** KPI stats strip — the shared stat deck, one tile per finding. */
 export function GuidanceAdmStats({ data }: { data: GuidanceAdmInsightsData }) {
   return (
-    <div className={styles.findings} role="status" aria-label="Key findings">
-      {data.findings.map((f) => {
+    <StatDeck
+      title="Key findings"
+      icon={Activity}
+      ariaLabel="Key findings"
+      items={data.findings.map((f) => {
         const meta = FINDING_META[f.key] ?? FINDING_META.total;
-        const Icon = meta.icon;
-        return (
-          <KanbanBoard
-            key={f.key}
-            title={f.label}
-            icon={
-              <span className={meta.accent} aria-hidden>
-                <Icon size={14} />
-              </span>
-            }
-            description={
-              <Pill tone="amber" label={f.label} className={STAT_PILL_MAX}>
-                {f.hint}
-              </Pill>
-            }
-            className="flex-1"
-          >
-            <p className={styles.findingValue}>{f.value}</p>
-          </KanbanBoard>
-        );
+        return {
+          key: f.key,
+          icon: meta.icon,
+          label: f.label,
+          unit: "",
+          value: f.value,
+          hint: f.hint,
+          tone: f.key === "awaiting" ? ("amber" as const) : undefined,
+        };
       })}
-    </div>
+    />
   );
 }
 

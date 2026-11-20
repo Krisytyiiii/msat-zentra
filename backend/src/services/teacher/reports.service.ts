@@ -74,7 +74,6 @@ export interface TeacherReportsPayload {
     name: string;
     code: string | null;
     isAdviser: boolean;
-    isMasterTeacher: boolean;
     advisorySection: { id: string; name: string; gradeLevel: string } | null;
   };
   summary: {
@@ -117,7 +116,6 @@ const EMPTY: TeacherReportsPayload = {
     name: "",
     code: null,
     isAdviser: false,
-    isMasterTeacher: false,
     advisorySection: null,
   },
   summary: {
@@ -202,7 +200,6 @@ export async function getTeacherReports(ctx: TeacherContext): Promise<TeacherRep
       where: { id: teacherId },
       select: {
         fullName: true,
-        staffProfile: { select: { isMasterTeacher: true, isMasterTeacherSenior: true } },
       },
     }),
     prisma.teacherName.findUnique({ where: { userId: teacherId }, select: { code: true } }),
@@ -717,9 +714,6 @@ export async function getTeacherReports(ctx: TeacherContext): Promise<TeacherRep
       name: user?.fullName ?? "",
       code: teacherName?.code ?? null,
       isAdviser: advisorySection !== null,
-      isMasterTeacher:
-        (user?.staffProfile?.isMasterTeacher ?? false) ||
-        (user?.staffProfile?.isMasterTeacherSenior ?? false),
       advisorySection: advisorySection
         ? {
             id: advisorySection.id,

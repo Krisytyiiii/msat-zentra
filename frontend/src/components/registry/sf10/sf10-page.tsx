@@ -4,7 +4,6 @@ import Link from "next/link";
 import { keepPreviousData, useQuery } from "@tanstack/react-query";
 import {
   Archive,
-  ArrowUpRight,
   FileCheck,
   Files,
   FolderOpen,
@@ -17,6 +16,7 @@ import { Input } from "@/components/ui/input";
 import { FilterTabs } from "@/components/ui/filter-tabs";
 import { InsightCallout } from "@/components/ui/insight-callout";
 import { Skeleton } from "@/components/ui/skeleton";
+import { StatDeck } from "@/components/ui/stat-deck";
 import { KanbanBoard } from "@/components/ui/kanban-board";
 import { useDebouncedValue } from "@/lib/useDebouncedValue";
 import { Pagination } from "@/components/shared/pagination";
@@ -255,67 +255,24 @@ export function Sf10Page({
         </header>
 
         {recordKeeper ? (
-          <section
-            className={styles.deck}
-            aria-label="SF10 summary"
-            aria-busy={isPending || undefined}
-          >
-            <div className={styles.deckHead}>
-              <span className={styles.deckTitle}>
-                <Files size={14} aria-hidden />
-                Records at a glance
-              </span>
-            </div>
-            <div className={styles.deckTiles}>
-              {isPending
-                ? Array.from({ length: kpiTiles.length }).map((_, i) => (
-                    <div key={i} className={styles.deckTile} aria-hidden="true">
-                      <span className={styles.deckTileTop}>
-                        <Skeleton className="size-3.5 rounded-full" />
-                        <Skeleton className="h-3 w-24" />
-                      </span>
-                      <span className={styles.deckTileValue}>
-                        <Skeleton className="h-6 w-12" />
-                      </span>
-                      <Skeleton className="h-1 w-full rounded-full" />
-                      <Skeleton className="h-2.5 w-2/3" />
-                    </div>
-                  ))
-                : kpiTiles.map((tile) => {
-                    const Icon = tile.icon;
-                    const active = status === tile.status;
-                    return (
-                      <button
-                        key={tile.key}
-                        type="button"
-                        className={`${styles.deckTile} ${active ? styles.deckTileActive : ""}`}
-                        aria-pressed={active}
-                        onClick={() => setStatus(tile.status)}
-                        title={`${tile.hint} — click to filter the records board`}
-                      >
-                        <span className={styles.deckTileTop}>
-                          <span className={styles.deckTileIcon}>
-                            <Icon size={13} aria-hidden />
-                          </span>
-                          <span className={styles.deckTileLabel}>{tile.label}</span>
-                          <ArrowUpRight className={styles.deckTileArrow} aria-hidden />
-                        </span>
-                        <span className={styles.deckTileValue}>
-                          <span className={styles.deckTileNumber}>{tile.value}</span>
-                          <span className={styles.deckTileUnit}>{tile.unit}</span>
-                        </span>
-                        <span className={styles.deckTileMeter} aria-hidden>
-                          <span
-                            className={styles.deckTileMeterFill}
-                            style={{ width: `${Math.round((tile.value / shareBase) * 100)}%` }}
-                          />
-                        </span>
-                        <span className={styles.deckTileHint}>{tile.hint}</span>
-                      </button>
-                    );
-                  })}
-            </div>
-          </section>
+          <StatDeck
+            title="Records at a glance"
+            icon={Files}
+            ariaLabel="SF10 summary"
+            items={kpiTiles.map((tile) => ({
+              key: tile.key,
+              icon: tile.icon,
+              label: tile.label,
+              unit: tile.unit,
+              value: tile.value,
+              hint: tile.hint,
+              meter: Math.round((tile.value / shareBase) * 100),
+              onClick: () => setStatus(tile.status),
+              active: status === tile.status,
+              ariaLabel: `${tile.label}: ${tile.value} ${tile.unit} — filter the records board`,
+            }))}
+            loading={isPending}
+          />
         ) : (
           <section className={assign.card} aria-label="SF10 summary">
             <span className={assign.glowClip} aria-hidden="true">

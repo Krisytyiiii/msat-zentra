@@ -36,8 +36,6 @@ export interface TeacherNavQueues {
   adm: TeacherNavEntry[];
   /** Advisory modules and their learner submissions. */
   modules: TeacherNavEntry[];
-  /** Section timetable the advisory schedule page renders. */
-  schedule: TeacherNavEntry[];
   /** The adviser's SF10 access requests (registry decisions). */
   sf10: TeacherNavEntry[];
 }
@@ -59,7 +57,6 @@ const EMPTY_QUEUES: TeacherNavQueues = {
   interventions: [],
   adm: [],
   modules: [],
-  schedule: [],
   sf10: [],
 };
 
@@ -225,11 +222,6 @@ export async function getTeacherNavQueues(
         WHERE m."sectionId" IN (SELECT id FROM sec) AND ${termFilter('m."termId"')}
         GROUP BY m.id, m.xmin
       ),
-      schedule AS (
-        SELECT id, xmin::text AS v
-        FROM "SectionTimetableEntry"
-        WHERE "sectionId" IN (SELECT id FROM sec) AND ${termFilter('"termId"')}
-      ),
       sf10 AS (
         SELECT id, xmin::text AS v
         FROM "AdviserSf10AccessRequest"
@@ -244,7 +236,6 @@ export async function getTeacherNavQueues(
       UNION ALL SELECT 'advisoryList', id, v FROM advisory_list
       UNION ALL SELECT 'adm', id, v FROM adm
       UNION ALL SELECT 'modules', id, v FROM modules
-      UNION ALL SELECT 'schedule', id, v FROM schedule
       UNION ALL SELECT 'sf10', id, v FROM sf10
     `,
   );
@@ -261,7 +252,6 @@ export async function getTeacherNavQueues(
     interventions: [],
     adm: [],
     modules: [],
-    schedule: [],
     sf10: [],
   };
   for (const row of rows) {

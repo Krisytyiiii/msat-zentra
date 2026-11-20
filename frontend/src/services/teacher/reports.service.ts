@@ -3,7 +3,7 @@
 import { useLiveQuery } from "@/lib/api/live";
 import { apiClient } from "@/lib/api/client";
 import { useTerm } from "@/lib/term/TermContext";
-import type { TeacherReportsPayload, TeachingLoadSlot } from "./reports.types";
+import type { TeacherReportsPayload } from "./reports.types";
 
 export async function fetchTeacherReports(): Promise<TeacherReportsPayload> {
   const { data } = await apiClient.get<TeacherReportsPayload>("/api/teacher/reports");
@@ -30,24 +30,6 @@ export function useTeacherReports() {
     gcTime: 5 * 60_000,
     // No placeholderData: a report must never show one term's numbers under
     // another term's scope while the switch is loading.
-    retry: false,
-  });
-}
-
-export async function fetchTeachingLoad(): Promise<{ slots: TeachingLoadSlot[] }> {
-  const { data } = await apiClient.get<{ slots: TeachingLoadSlot[] }>("/api/teacher/schedule/my-slots");
-  return data;
-}
-
-export function useTeachingLoad() {
-  const { activeTerm, termReady } = useTerm();
-  const termKey = `${activeTerm?.schoolYearId ?? ""}:${activeTerm?.termId ?? ""}`;
-  return useLiveQuery<{ slots: TeachingLoadSlot[] }>({
-    queryKey: ["teacher-my-slots", termKey],
-    queryFn: fetchTeachingLoad,
-    enabled: termReady,
-    staleTime: 60_000,
-    gcTime: 5 * 60_000,
     retry: false,
   });
 }

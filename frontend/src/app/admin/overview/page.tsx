@@ -26,7 +26,7 @@ export default function AdminOverviewPage() {
           loads, instead of waiting for the API before starting. */}
       <PresenceGlobe users={active} />
 
-      {/* Login-activity line chart, top-left. */}
+      {/* Login-activity area chart, top-left. */}
       <aside className={styles.activity} aria-label="Login activity">
         {activity ? (
           <LoginActivityChart

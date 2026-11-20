@@ -16,7 +16,7 @@ import type {
   ClassStudent,
   ComponentType,
 } from "@/services/teacher/grading.types";
-import emptyStyles from "@/app/teacher/schedule/schedule-empty.module.css";
+import emptyStyles from "@/components/schedule/schedule-empty.module.css";
 import styles from "./AssessmentList.module.css";
 
 const DOT: Record<string, string> = {

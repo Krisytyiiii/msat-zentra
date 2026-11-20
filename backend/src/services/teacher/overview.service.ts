@@ -10,7 +10,6 @@ import {
   GRADE_LABELS,
   timeAgo,
 } from "../../modules/teacher/teacher.repository.js";
-import { isMasterTeacherEligible } from "./settings.service.js";
 import { resolveTeacherClassPairs } from "./timetable.read.service.js";
 import {
   archivedAdvisoryLearnerIds,
@@ -104,15 +103,13 @@ export async function getOverview(
     return EMPTY_RESPONSE;
   }
 
-  const [user, assignments, advisorySections, masterHolders] = await Promise.all([
+  const [user, assignments, advisorySections] = await Promise.all([
     prisma.user.findUnique({
       where: { id: teacherId },
       select: {
         fullName: true,
         staffProfile: {
           select: {
-            isMasterTeacher: true,
-            isMasterTeacherSenior: true,
             shareStudentData: true,
             shareUpdatedAt: true,
           },
@@ -127,44 +124,16 @@ export async function getOverview(
       where: { adviserId: teacherId },
       select: { id: true, name: true, gradeLevel: true },
     }),
-
-    prisma.user.findMany({
-      where: {
-        id: { not: teacherId },
-        status: "active",
-        OR: [
-          { staffProfile: { isMasterTeacher: true } },
-          { staffProfile: { isMasterTeacherSenior: true } },
-        ],
-      },
-      select: {
-        fullName: true,
-        staffProfile: { select: { isMasterTeacher: true, isMasterTeacherSenior: true } },
-      },
-    }),
   ]);
-  const juniorHolder =
-    masterHolders.find((m) => m.staffProfile?.isMasterTeacher) ?? null;
-  const seniorHolder =
-    masterHolders.find((m) => m.staffProfile?.isMasterTeacherSenior) ?? null;
 
   const isAdviser = advisorySections.length > 0;
   const advisorySection = advisorySections[0] ?? null;
 
-  const scopeGrades = [
-    ...assignments.map((a) => a.section.gradeLevel),
-    ...advisorySections.map((s) => s.gradeLevel),
-  ];
-  const masterTeacherEligible = isMasterTeacherEligible(scopeGrades, "7-10");
-  const masterTeacherSeniorEligible = isMasterTeacherEligible(scopeGrades, "11-12");
-  const isMasterTeacher = user?.staffProfile?.isMasterTeacher ?? false;
-  const isMasterTeacherSenior = user?.staffProfile?.isMasterTeacherSenior ?? false;
-
   const linkedPairs = await resolveTeacherClassPairs(teacherId, termId);
 
-  // Grading (gradebook scope) is gated on the class-page link code:
-  // every teacher — master included — only sees subjects with
-  // timetable-linked entries. No linked pairs => no display on /teacher/grading.
+  // Grading (gradebook scope) is gated on the class-page link code: every
+  // teacher only sees subjects with timetable-linked entries. No linked pairs
+  // means nothing on /teacher/grading.
   if (isGradebookOnly && linkedPairs.length === 0) {
     return {
       classes: [],
@@ -940,17 +909,9 @@ export async function getOverview(
   return {
     teacherName: user?.fullName ?? "",
     isAdviser,
-    isMasterTeacher,
-    isMasterTeacherSenior,
-    masterTeacherEligible,
-    masterTeacherSeniorEligible,
     shareStudentData: user?.staffProfile?.shareStudentData ?? false,
     shareUpdatedAt: user?.staffProfile?.shareUpdatedAt ?? null,
 
-    masterTeacherTaken: !isMasterTeacher && juniorHolder !== null,
-    masterTeacherHolderName: juniorHolder?.fullName ?? null,
-    masterTeacherSeniorTaken: !isMasterTeacherSenior && seniorHolder !== null,
-    masterTeacherSeniorHolderName: seniorHolder?.fullName ?? null,
     advisorySection: advisorySection
       ? {
           id: advisorySection.id,

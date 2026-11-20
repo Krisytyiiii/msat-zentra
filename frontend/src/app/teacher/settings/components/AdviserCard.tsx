@@ -93,7 +93,7 @@ export function AdviserCard() {
     if (needsCode && !trimmedCode) {
       toast.error({
         title: "Code required",
-        description: `Enter the advisory code your principal shared for ${target.name}.`,
+        description: `Enter the advisory code your administrator or principal shared for ${target.name}.`,
       });
       return;
     }
@@ -248,7 +248,7 @@ export function AdviserCard() {
         title="Adviser"
         icon={<Users size={14} aria-hidden="true" />}
         count={overview.isPending ? undefined : statusText}
-        description="Are you an adviser? Pick your section and enter the advisory code your principal shared."
+        description="Are you an adviser? Pick your section and enter the advisory code your administrator or principal shared."
         ariaLabel="Adviser settings"
         footer={overview.isPending ? null : footer}
       >
@@ -339,7 +339,7 @@ export function AdviserPicker({ ordered, loading, loadError, effectiveSelected, 
   if (loadError) {
     return (
       <p role="alert" className={`text-sm text-destructive ${sectionStyles.reveal}`}>
-        Could not load sections from the master teacher&apos;s schedule.
+        Could not load the section list from the school timetable.
       </p>
     );
   }
@@ -347,7 +347,7 @@ export function AdviserPicker({ ordered, loading, loadError, effectiveSelected, 
   if (claimableCount === 0) {
     return (
       <p role="status" className="rounded-lg border border-dashed border-input p-4 text-sm text-muted-foreground">
-        No unclaimed sections left in the master teacher&apos;s schedule. Ask your principal to add a
+        No unclaimed sections left in the school timetable. Ask the administrator to add a
         section first, then come back here.
       </p>
     );
@@ -425,7 +425,7 @@ export function AdviserPicker({ ordered, loading, loadError, effectiveSelected, 
               <KanbanBoard
                 title={`Code for ${selectedTarget.name}`}
                 icon={<KeyRound size={14} aria-hidden="true" className="text-amber-500" />}
-                description={`Ask your principal for the code for ${selectedTarget.name} — it proves you are the listed adviser.`}
+                description={`Ask your administrator or principal for the code for ${selectedTarget.name} - it proves you are the listed adviser.`}
                 ariaLabel={`Advisory code for ${selectedTarget.name}`}
                 actions={
                   <Button

@@ -11,15 +11,14 @@ import {
 } from "lucide-react";
 import { apiClient } from "@/lib/api/client";
 import { Input } from "@/components/ui/input";
-import { Skeleton } from "@/components/ui/skeleton";
+import { StatDeck } from "@/components/ui/stat-deck";
 import { InsightCallout } from "@/components/ui/insight-callout";
 import { PageEmptyCallout } from "@/components/shared/page-empty-callout";
 import { toast } from "@/components/ui/sonner";
 import { useDock } from "@/components/dock/dock-store";
-import { KanbanBoard, KanbanBoardHeader } from "@/components/ui/kanban-board";
+import { KanbanBoard } from "@/components/ui/kanban-board";
 import { RowList, type RowListItem } from "@/components/ui/row-list";
 import { RowListSkeleton } from "@/components/shared/zentra-skeletons/ZentraSkeletons";
-import { StudentMascot } from "@/components/student-mascot/StudentMascot";
 import { LrnVerifyButton } from "./components/LrnVerifyButton";
 import { LrnVerifyDock } from "./components/LrnVerifyDock";
 import { RecordKeeperEmptyState } from "../components/RecordKeeperEmptyCard";
@@ -305,57 +304,20 @@ function AccountApprovalsPageInner() {
   return (
     <section className={styles.page}>
       <div className={styles.stack}>
-        <section
-          className={styles.kpiBoard}
-          aria-label="Accounts summary"
-          aria-busy={kpisPending || undefined}
-        >
-          <div className={styles.kpiGrid}>
-            {kpisPending
-              ? Array.from({ length: kpiColumns.length }).map((_, i) => (
-                  <div key={i} className={styles.kpiColumn} aria-hidden="true">
-                    <div className={styles.kpiHeadSkeleton}>
-                      <Skeleton className={styles.kpiSkelTitle} />
-                    </div>
-                    <Skeleton className={styles.kpiSkelCard} />
-                  </div>
-                ))
-              : kpiColumns.map((column) => {
-                  const Icon = column.icon;
-                  return (
-                    <div
-                      key={column.key}
-                      className={styles.kpiColumn}
-                      aria-label={`${column.title}, ${column.value}`}
-                    >
-                      <KanbanBoardHeader
-                        icon={<Icon size={14} className={column.accent} aria-hidden />}
-                        title={column.title}
-                      />
-                      <div className={styles.kpiStat}>
-                        <span className={styles.kpiStatTop}>
-                          <span
-                            className={`${styles.kpiNumber} ${
-                              column.value === 0 ? styles.kpiNumberZero : ""
-                            }`}
-                          >
-                            {column.value}
-                          </span>
-                          <span className={styles.kpiMascot} aria-hidden="true">
-                            <StudentMascot
-                              name={column.title}
-                              character={column.mascot}
-                              size={36}
-                            />
-                          </span>
-                        </span>
-                        <span className={styles.kpiHint}>{column.hint}</span>
-                      </div>
-                    </div>
-                  );
-                })}
-          </div>
-        </section>
+        <StatDeck
+          title="Accounts summary"
+          icon={UserCheck}
+          ariaLabel="Accounts summary"
+          loading={kpisPending}
+          items={kpiColumns.map((column) => ({
+            key: column.key,
+            icon: column.icon,
+            label: column.title,
+            unit: "",
+            value: column.value,
+            hint: column.hint,
+          }))}
+        />
 
         <div className={styles.queueAnchor}>
           <KanbanBoard

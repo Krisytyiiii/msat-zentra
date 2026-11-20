@@ -31,6 +31,16 @@ export const NAV: NavGroup[] = [
     items: [{ title: "Overview", href: ROOT, icon: NAV_ICONS.overview }],
   },
   {
+    label: "Academics",
+    items: [
+      {
+        title: "Timetable",
+        href: "/admin/academics/schedule",
+        icon: NAV_ICONS.schedule,
+      },
+    ],
+  },
+  {
     label: "Administration",
     items: [
       {

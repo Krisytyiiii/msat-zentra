@@ -1,7 +1,6 @@
 "use client";
 
 import {
-  GraduationCap,
   KeyRound,
   Palette,
   RefreshCw,
@@ -18,15 +17,12 @@ export interface SettingsSectionLink {
   Icon: LucideIcon;
 }
 
-export function settingsSections(masterTeacherEligible: boolean): SettingsSectionLink[] {
+export function settingsSections(): SettingsSectionLink[] {
   const links: SettingsSectionLink[] = [
     { id: "section-profile", label: "Profile", Icon: UserRound },
     { id: "section-adviser", label: "Adviser", Icon: Users },
     { id: "section-sync", label: "Sync", Icon: RefreshCw },
   ];
-  if (masterTeacherEligible) {
-    links.push({ id: "section-master-teacher", label: "Master Teacher", Icon: GraduationCap });
-  }
   links.push(
     { id: "section-appearance", label: "Appearance", Icon: Palette },
     { id: "section-password", label: "Password", Icon: KeyRound },

@@ -13,8 +13,8 @@ import { TeacherEmptyCard } from "../components/TeacherEmptyCard";
 import { Pill } from "@/components/ui/pill";
 import { useTeacherOverviewGradebook } from "@/services/teacher/overview.service";
 import { GradebookCards } from "./components/GradebookCards";
-import emptyStyles from "@/app/teacher/schedule/schedule-empty.module.css";
-import kanbanStyles from "@/app/teacher/schedule/components/subject-kanban.module.css";
+import emptyStyles from "@/components/schedule/schedule-empty.module.css";
+import kanbanStyles from "@/components/schedule/subject-kanban.module.css";
 import styles from "./components/gradebook.module.css";
 
 function TermPills({ termLabel }: { termLabel: string }) {

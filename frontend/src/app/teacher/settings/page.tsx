@@ -8,29 +8,21 @@ import { ZentraPageHeaderSkeleton, KanbanBoardSkeleton, IconRailSkeleton } from 
 import { PasswordCard } from "./components/PasswordCard";
 import { AdviserCard } from "./components/AdviserCard";
 import { DataSyncCard } from "./components/DataSyncCard";
-import { MasterTeacherCard } from "./components/MasterTeacherCard";
 import { settingsSections } from "./components/SettingsNav";
 import { SettingsRail } from "./components/SettingsRail";
 import { useTheme } from "@/components/providers";
 import sectionStyles from "./components/settings-section.module.css";
-import { useTeacherOverview } from "@/services/teacher/overview.service";
 import { useTeacherProfileSettings } from "@/services/settings/profile-settings";
 export default function TeacherSettingsPage() {
   const { theme, setTheme } = useTheme();
-  const overview = useTeacherOverview();
   const profile = useTeacherProfileSettings();
   const isDark = theme === "dark";
-  const masterTeacherEligible = overview.data?.masterTeacherEligible ?? false;
-  const masterTeacherSeniorEligible = overview.data?.masterTeacherSeniorEligible ?? false;
-  const links = React.useMemo(
-    () => settingsSections(masterTeacherEligible || masterTeacherSeniorEligible),
-    [masterTeacherEligible, masterTeacherSeniorEligible],
-  );
+  const links = React.useMemo(() => settingsSections(), []);
   const [activeId, setActiveId] = React.useState("section-profile");
 
   // Scroll-spy: highlight the rail icon for the section in view.
   // Re-attaches when sections mount (profile loads first, overview-gated
-  // cards like Master Teacher arrive later).
+  // cards arrive later).
   React.useEffect(() => {
     if (profile.isPending) return;
     const els = links
@@ -49,8 +41,8 @@ export default function TeacherSettingsPage() {
     return () => observer.disconnect();
   }, [links, profile.isPending]);
 
-  // Gate on the fast profile query — overview-gated cards (pills, adviser,
-  // master teacher) skeleton in place instead of blocking the whole page.
+  // Gate on the fast profile query — overview-gated cards skeleton in place
+  // instead of blocking the whole page.
   if (profile.isPending) {
     return (
       <section className={`mx-auto flex w-full max-w-3xl flex-col gap-3 ${sectionStyles.page}`} aria-busy="true" aria-label="Loading settings">
@@ -82,7 +74,6 @@ export default function TeacherSettingsPage() {
           <ProfileCard />
           <AdviserCard />
           <DataSyncCard />
-          <MasterTeacherCard />
           <div id="section-appearance" className={sectionStyles.boardWrap}>
             <KanbanBoard
               title="Appearance"

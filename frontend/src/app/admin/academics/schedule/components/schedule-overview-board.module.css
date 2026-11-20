@@ -1,0 +1,55 @@
+/* Admin schedule overview — slim publish-progress rail on every section card.
+   The status filter lives in the shared StatDeck. Same tokens as the desk. */
+
+/* ── Loading skeleton: the filter track keeps the real chip footprint ─── */
+.skelTrack {
+  display: inline-flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.125rem;
+  max-width: 100%;
+  padding: 0.1875rem;
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  background-color: color-mix(in oklch, var(--muted) 40%, transparent);
+}
+
+.skelTab {
+  width: 4.25rem;
+  height: 1.75rem;
+  border-radius: 999px;
+}
+
+/* ── Publish progress rail ────────────────────────────────────────────── */
+.progress {
+  position: relative;
+  height: 0.3125rem;
+  overflow: hidden;
+  border-radius: 999px;
+  background-color: color-mix(in oklch, var(--muted) 70%, var(--card));
+}
+
+.progressFill {
+  display: block;
+  height: 100%;
+  border-radius: 999px;
+  background-color: color-mix(in oklch, #f59e0b 75%, var(--card));
+  transition: width 260ms cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+.progressDone {
+  background-color: color-mix(in oklch, #22c55e 80%, var(--card));
+}
+
+.progressLine {
+  margin: -0.1875rem 0 0;
+  font-size: 0.75rem;
+  font-variant-numeric: tabular-nums;
+  color: var(--muted-foreground);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .progressFill {
+    transition: none;
+  }
+}

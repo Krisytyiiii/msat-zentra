@@ -2,15 +2,7 @@
 
 import * as React from "react";
 import Link from "next/link";
-import {
-  ArrowUpRight,
-  CalendarDays,
-  Check,
-  Clock3,
-  Search,
-  Send,
-  X,
-} from "lucide-react";
+import { ArrowUpRight, CalendarDays, Check, Search, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { FilterTabs } from "@/components/ui/filter-tabs";
 import {
@@ -25,93 +17,38 @@ import { StudentMascot } from "@/components/student-mascot/StudentMascot";
 import {
   SECTION_CARD_STATUS_META,
   sectionCardStatus,
-  type SectionCardStatus,
 } from "@/components/schedule/SectionScheduleCard";
 import { scheduleTone } from "@/lib/labels/status-tone";
 import type { ScheduleSection } from "@/components/schedule/section-schedule-table";
 import { sectionPath } from "./section-path";
 import styles from "./schedule-board.module.css";
 
-type StatusFilter = "all" | "submitted" | "approved" | "draft" | "empty";
+type StatusFilter = "all" | "published" | "empty";
 
 const GRADES = [7, 8, 9, 10, 11, 12] as const;
-
-/** Bucket order: the desk is a review queue first, an archive second. */
-const STATUS_ORDER: Record<SectionCardStatus, number> = {
-  submitted: 0,
-  returned: 1,
-  draft: 2,
-  approved: 3,
-  empty: 4,
-};
 
 function gradeNumber(gradeLevel: string): number {
   return Number(gradeLevel.replace(/\D/g, "")) || 0;
 }
 
-/** "draft" also covers a timetable the principal sent back for revision. */
-function bucketOf(status: SectionCardStatus): Exclude<StatusFilter, "all"> {
-  if (status === "submitted") return "submitted";
-  if (status === "approved") return "approved";
-  if (status === "empty") return "empty";
-  return "draft";
-}
-
-function timeAgo(value?: string | null): string | null {
-  if (!value) return null;
-  const time = new Date(value).getTime();
-  if (Number.isNaN(time)) return null;
-  const minutes = Math.round((Date.now() - time) / 60_000);
-  if (minutes < 1) return "just now";
-  if (minutes < 60) return `${minutes}m ago`;
-  const hours = Math.round(minutes / 60);
-  if (hours < 24) return `${hours}h ago`;
-  const days = Math.round(hours / 24);
-  if (days < 7) return `${days}d ago`;
-  return new Date(time).toLocaleDateString(undefined, {
-    month: "short",
-    day: "numeric",
-  });
-}
-
-function latestSubmission(section: ScheduleSection): string | null {
-  let latest: string | null = null;
-  for (const entry of section.timetableEntries) {
-    if (!entry.submittedAt) continue;
-    if (!latest || entry.submittedAt > latest) latest = entry.submittedAt;
-  }
-  return latest;
-}
-
-function reviewNoteOf(section: ScheduleSection): string | null {
-  const note = section.timetableEntries.find(
-    (entry) => entry.status === "DRAFT" && entry.reviewNote,
-  )?.reviewNote;
-  return note?.trim() ? note.trim() : null;
+function bucketOf(entries: ScheduleSection["timetableEntries"]): Exclude<StatusFilter, "all"> {
+  return sectionCardStatus(entries) === "empty" ? "empty" : "published";
 }
 
 /**
- * Principal schedule desk: the review queue as a card grid. Sections are
- * sorted action-first (awaiting review, returned, draft, approved, far
- * empties last), each card carries the timetable's real shape — subjects,
- * teachers, slots and submit time — and the one action that matters (review)
- * sits next to the link into the full timetable.
+ * Principal timetable desk: a read-only card grid over the sections' published
+ * grids. The administrator publishes the schedules; nothing here is reviewed,
+ * approved or sent back.
  */
-export function ScheduleBoard({
-  sections,
-  onReview,
-}: {
-  sections: ScheduleSection[];
-  onReview?: (section: ScheduleSection) => void;
-}) {
+export function ScheduleBoard({ sections }: { sections: ScheduleSection[] }) {
   const [query, setQuery] = React.useState("");
   const [status, setStatus] = React.useState<StatusFilter>("all");
   const [grade, setGrade] = React.useState<number | null>(null);
 
   const counts = React.useMemo(() => {
-    const next = { submitted: 0, approved: 0, draft: 0, empty: 0 };
+    const next = { published: 0, empty: 0 };
     for (const section of sections) {
-      next[bucketOf(sectionCardStatus(section.timetableEntries))] += 1;
+      next[bucketOf(section.timetableEntries)] += 1;
     }
     return next;
   }, [sections]);
@@ -119,10 +56,6 @@ export function ScheduleBoard({
   const ordered = React.useMemo(
     () =>
       [...sections].sort((a, b) => {
-        const statusDiff =
-          STATUS_ORDER[sectionCardStatus(a.timetableEntries)] -
-          STATUS_ORDER[sectionCardStatus(b.timetableEntries)];
-        if (statusDiff !== 0) return statusDiff;
         const gradeDiff = gradeNumber(a.gradeLevel) - gradeNumber(b.gradeLevel);
         if (gradeDiff !== 0) return gradeDiff;
         return a.name.localeCompare(b.name);
@@ -133,9 +66,8 @@ export function ScheduleBoard({
   const visible = React.useMemo(() => {
     const needle = query.trim().toLowerCase();
     return ordered.filter((section) => {
-      const cardStatus = sectionCardStatus(section.timetableEntries);
       if (grade != null && gradeNumber(section.gradeLevel) !== grade) return false;
-      if (status !== "all" && bucketOf(cardStatus) !== status) return false;
+      if (status !== "all" && bucketOf(section.timetableEntries) !== status) return false;
       if (!needle) return true;
       return (
         section.name.toLowerCase().includes(needle) ||
@@ -146,45 +78,21 @@ export function ScheduleBoard({
 
   const boardEmpty = sections.length === 0;
   const filtersActive = grade != null || status !== "all" || query.trim() !== "";
-  const nextReview = ordered.find(
-    (section) => sectionCardStatus(section.timetableEntries) === "submitted",
-  );
 
   return (
-    <section className={styles.board} aria-label="Schedule approval">
+    <section className={styles.board} aria-label="Section timetables">
       <header className={styles.header}>
         <div className={styles.headerText}>
           <div className={styles.titleRow}>
             <span className={styles.titleIcon} aria-hidden>
               <CalendarDays size={16} />
             </span>
-            <h2 className={styles.title}>Schedule approval</h2>
+            <h2 className={styles.title}>Section timetables</h2>
           </div>
           <p className={styles.subtitle}>
-            Timetables sent by the master teacher land here for review. Approve
-            one to make its slots official, or send it back with a note.
+            Published weekly timetables. The administrator desk prepares and
+            publishes these grids — this desk is read-only.
           </p>
-        </div>
-        <div className={styles.headerActions}>
-          <Button
-            size="sm"
-            className="h-6 px-2 text-[12px]"
-            disabled={!nextReview || !onReview}
-            title={
-              nextReview
-                ? `Review ${nextReview.name}`
-                : "Nothing is waiting for review"
-            }
-            onClick={() => {
-              if (nextReview && onReview) onReview(nextReview);
-            }}
-          >
-            <Send size={12} aria-hidden />
-            Review next
-            {counts.submitted > 0 ? (
-              <span className={styles.headerCount}>{counts.submitted}</span>
-            ) : null}
-          </Button>
         </div>
       </header>
 
@@ -194,9 +102,7 @@ export function ScheduleBoard({
             label="Filter by timetable status"
             options={[
               { value: "all", label: "All", count: sections.length },
-              { value: "submitted", label: "Awaiting review", count: counts.submitted },
-              { value: "approved", label: "Approved", count: counts.approved },
-              { value: "draft", label: "Draft or returned", count: counts.draft },
+              { value: "published", label: "Published", count: counts.published },
               { value: "empty", label: "No schedule", count: counts.empty },
             ]}
             value={status}
@@ -264,25 +170,12 @@ export function ScheduleBoard({
             const cardStatus = sectionCardStatus(entries);
             const meta = SECTION_CARD_STATUS_META[cardStatus];
             const slots = entries.length;
-            const submitted = entries.filter((e) => e.status === "SUBMITTED").length;
-            const approved = entries.filter((e) => e.status === "APPROVED").length;
             const subjects = new Set(
               entries.map((entry) => entry.subject?.id).filter(Boolean),
             ).size;
             const teachers = new Set(
               entries.map((entry) => entry.teacherName?.id ?? "unassigned"),
             ).size;
-            const draft = entries.filter((e) => e.status === "DRAFT").length;
-            const submittedAt =
-              cardStatus === "submitted" ? timeAgo(latestSubmission(section)) : null;
-            const note = cardStatus === "returned" ? reviewNoteOf(section) : null;
-            const filled =
-              cardStatus === "approved"
-                ? approved
-                : cardStatus === "submitted"
-                  ? submitted
-                  : draft;
-            const progress = slots > 0 ? Math.round((filled / slots) * 100) : 0;
 
             return (
               <article
@@ -318,19 +211,9 @@ export function ScheduleBoard({
 
                 <div className={styles.statusRow}>
                   <Pill tone={scheduleTone(cardStatus)} label="Timetable status">
-                    {cardStatus === "submitted" ? (
-                      <Clock3 size={11} aria-hidden />
-                    ) : cardStatus === "approved" ? (
-                      <Check size={11} aria-hidden />
-                    ) : null}
+                    {cardStatus === "approved" ? <Check size={11} aria-hidden /> : null}
                     {meta.label}
                   </Pill>
-                  {submittedAt ? (
-                    <span className={styles.stamp}>
-                      <Clock3 size={10} aria-hidden />
-                      {submittedAt}
-                    </span>
-                  ) : null}
                 </div>
 
                 {slots > 0 ? (
@@ -353,50 +236,23 @@ export function ScheduleBoard({
                       <span
                         className={styles.progressTrack}
                         role="img"
-                        aria-label={`${filled} of ${slots} slots ${
-                          cardStatus === "approved" ? "approved" : "submitted"
-                        }`}
+                        aria-label={`${slots} published slots`}
                       >
-                        <span
-                          className={styles.progressFill}
-                          style={{ width: `${progress}%` }}
-                        />
+                        <span className={styles.progressFill} style={{ width: "100%" }} />
                       </span>
                       <span className={styles.progressLabel}>
-                        {cardStatus === "approved"
-                          ? `${approved} of ${slots} approved`
-                          : cardStatus === "submitted"
-                            ? `${submitted} of ${slots} submitted`
-                            : `${draft} of ${slots} in draft`}
+                        {slots} published slot{slots === 1 ? "" : "s"}
                       </span>
                     </div>
                   </>
                 ) : (
                   <p className={styles.noSlots}>
-                    No slots yet this term — the master teacher has not started
-                    this timetable.
+                    No published slots this term — the administrator has not
+                    published this timetable yet.
                   </p>
                 )}
 
-                {note ? (
-                  <p className={styles.note} title={note}>
-                    <strong>Sent back:</strong> {note}
-                  </p>
-                ) : null}
-
                 <div className={styles.cardActions}>
-                  {onReview && cardStatus === "submitted" ? (
-                    <Button
-                      type="button"
-                      variant="secondary"
-                      size="xs"
-                      className="h-6 px-2 text-[12px]"
-                      onClick={() => onReview(section)}
-                      aria-label={`Review schedule for ${section.name}`}
-                    >
-                      Review
-                    </Button>
-                  ) : null}
                   <Button
                     asChild
                     variant="default"

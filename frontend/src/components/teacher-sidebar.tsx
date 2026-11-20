@@ -10,10 +10,7 @@ import BranchedMenu from "./nav/BranchedMenu";
 import { NAV_ICONS } from "./nav/sidebar-icons";
 import { SidebarIconRail } from "./nav/SidebarIconRail";
 import { ScrollDownHint } from "@/components/ui/scroll-down-hint";
-import {
-  useCachedAdviser,
-  useCachedMasterTeacher,
-} from "@/services/teacher/flagCache";
+import { useCachedAdviser } from "@/services/teacher/flagCache";
 import { useTeacherOverview } from "@/services/teacher/overview.service";
 import {
   useTeacherNavDots,
@@ -38,16 +35,13 @@ type NavGroup = {
 
 export type { NavGroup, NavItem };
 
-export function buildNav(isMasterTeacher: boolean, isAdviser: boolean): NavGroup[] {
+export function buildNav(isAdviser: boolean): NavGroup[] {
   const workspaceItems = [
     { title: "Class", href: "/teacher/classes", icon: NAV_ICONS.class },
     { title: "Gradebook", href: "/teacher/grading", icon: NAV_ICONS.gradebook },
     { title: "Lock Grades", href: "/teacher/lock-grades", icon: NAV_ICONS.lockGrades },
     { title: "Attendance", href: "/teacher/attendance", icon: NAV_ICONS.attendance },
   ];
-  if (isMasterTeacher) {
-    workspaceItems.push({ title: "Timeslot", href: "/teacher/schedule", icon: NAV_ICONS.timeslot });
-  }
   const groups: NavGroup[] = [
     { label: "Overview", items: [
       { title: "Dashboard", href: "/teacher/overview", icon: NAV_ICONS.overview },
@@ -66,7 +60,6 @@ export function buildNav(isMasterTeacher: boolean, isAdviser: boolean): NavGroup
         { title: "Interventions", href: "/teacher/advisory/interventions", icon: NAV_ICONS.interventions },
         { title: "ADM", href: "/teacher/advisory/adm-cases", icon: NAV_ICONS.admCases },
         { title: "Modules", href: "/teacher/advisory/modules", icon: NAV_ICONS.modules },
-        { title: "Class Schedule", href: "/teacher/advisory/schedule", icon: NAV_ICONS.schedule },
         { title: "SF10 Access", href: "/teacher/advisory/sf10-access", icon: NAV_ICONS.sf10Access },
       ]},
     );
@@ -90,7 +83,6 @@ const QUEUE_FOR_HREF: Record<string, keyof TeacherNavDots> = {
   "/teacher/advisory/interventions": "interventions",
   "/teacher/advisory/adm-cases": "adm",
   "/teacher/advisory/modules": "modules",
-  "/teacher/advisory/schedule": "schedule",
   "/teacher/advisory/sf10-access": "sf10",
 };
 
@@ -112,18 +104,13 @@ export function TeacherSidebar({
   const session = useSession();
   const overview = useTeacherOverview();
 
-  const cachedMaster = useCachedMasterTeacher(session?.sub);
-  const isMasterTeacher =
-    overview.data?.isMasterTeacher ||
-    overview.data?.isMasterTeacherSenior ||
-    cachedMaster;
   const cachedAdviser = useCachedAdviser(session?.sub);
   const isAdviser = overview.data?.isAdviser ?? cachedAdviser ?? true;
   const dots = useTeacherNavDots();
   useTeacherNavDotInvalidation(dots);
   const nav = React.useMemo(
-    () => withDots(buildNav(isMasterTeacher, isAdviser), dots),
-    [isMasterTeacher, isAdviser, dots],
+    () => withDots(buildNav(isAdviser), dots),
+    [isAdviser, dots],
   );
   const tabs = React.useMemo(() => nav.flatMap((group) => group.items), [nav]);
 
@@ -145,7 +132,7 @@ export function TeacherSidebar({
             <div className={styles.railHintWrap}>
               <ScrollDownHint
                 scrollRef={railScrollRef}
-                watchKey={`${isAdviser}:${isMasterTeacher}`}
+                watchKey={`${isAdviser}`}
                 label="Scroll for more"
                 className="pointer-events-auto rounded-full border border-border bg-card px-3 py-1 shadow-sm"
               />

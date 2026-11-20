@@ -120,7 +120,7 @@ export function AdviserClaimGate() {
     if (needsCode && !trimmedCode) {
       setError({
         year: schoolYearId,
-        message: `Enter the advisory code your principal shared for ${section.name}.`,
+        message: `Enter the advisory code your administrator or principal shared for ${section.name}.`,
       });
       return;
     }
@@ -217,13 +217,13 @@ export function AdviserClaimGate() {
             <p className="mt-1 text-sm text-muted-foreground">
               These are the unclaimed advisory sections for{" "}
               <strong>{activeTerm?.schoolYearName ?? "this school year"}</strong>. Pick your section
-              and enter the advisory code your principal shared — the code proves you are the
+              and enter the advisory code your administrator or principal shared — the code proves you are the
               listed teacher.
             </p>
             {status.claimable.length === 0 ? (
               <p role="status" className="mt-6 rounded-xl border border-dashed border-input p-5 text-sm text-muted-foreground">
                 No unclaimed sections left for {activeTerm?.schoolYearName ?? "this school year"}.
-                Ask your principal to add a section first, then come back here.
+                Ask your administrator or principal to add a section first, then come back here.
               </p>
             ) : (
               <div className="mt-6 grid grid-cols-1 gap-3 sm:grid-cols-2" role="radiogroup" aria-label="Your section">
@@ -317,7 +317,7 @@ export function AdviserClaimGate() {
                     {selectedSection.adviserLabel
                       ? ` · Listed as "${selectedSection.adviserLabel}"`
                       : ""}
-                    ) needs its advisory code — ask your principal for it. The code proves
+                    ) needs its advisory code — ask your administrator or principal for it. The code proves
                     you are the listed teacher.
                   </>
                 }

@@ -37,6 +37,7 @@ import guidanceRoutes from "./modules/guidance/guidance.routes.js";
 import nurseRoutes from "./modules/nurse/nurse.routes.js";
 import principalRoutes from "./modules/principal/principal.routes.js";
 import adminRoutes from "./modules/admin/admin.routes.js";
+import adminScheduleRoutes from "./modules/admin/schedule.routes.js";
 import sessionsRoutes from "./modules/sessions/sessions.routes.js";
 import studentRoutes from "./modules/student/modules.routes.js";
 
@@ -112,6 +113,7 @@ app.use("/api/teacher", termContextRoutes);
   app.use("/api/nurse", nurseRoutes);
   app.use("/api/principal", principalRoutes);
   app.use("/api/admin", adminRoutes);
+  app.use("/api/admin/schedule", adminScheduleRoutes);
   app.use("/api/my-sessions", sessionsRoutes);
   app.use("/api/student", studentRoutes);
 

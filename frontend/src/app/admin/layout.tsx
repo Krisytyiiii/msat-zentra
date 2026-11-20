@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { useRouter } from "next/navigation";
+import { usePathname, useRouter } from "next/navigation";
 import { useQueryClient } from "@tanstack/react-query";
 import { ShieldCheck } from "lucide-react";
 import { logout } from "@/lib/api/client";
@@ -10,16 +10,22 @@ import { KanbanAccountMenu } from "@/components/account/kanban-account-menu";
 import { useCollapsibleSidebar } from "@/components/nav/use-collapsible-sidebar";
 import { AppBreadcrumbs } from "@/components/nav/AppBreadcrumbs";
 import { useRoleGuard } from "@/lib/auth/useRoleGuard";
+import { ActiveTermBadge } from "@/components/term/ActiveTermBadge";
 import { AdminBell } from "./components/admin-bell";
 import styles from "./admin.module.css";
 
 function AdminShell({ children }: { children: React.ReactNode }) {
   const router = useRouter();
+  const pathname = usePathname();
   const queryClient = useQueryClient();
   const { allowed } = useRoleGuard(["admin"]);
   const { collapsed: sidebarCollapsed } = useCollapsibleSidebar(
     "zentra.admin.sidebar.collapsed",
   );
+  // The timetable template workspace brings its own left nav (Back to schedule,
+  // Timetable / Subjects / Teachers / Configure / Publish), so the desk rail is
+  // hidden there and the workspace spans the full width.
+  const workspace = pathname.startsWith("/admin/academics/schedule/template");
 
   const handleLogout = () => {
     void logout();
@@ -56,6 +62,8 @@ function AdminShell({ children }: { children: React.ReactNode }) {
 
         <div className={styles.spacer} />
 
+        <ActiveTermBadge />
+
         <AdminBell />
 
         <KanbanAccountMenu
@@ -72,11 +80,11 @@ function AdminShell({ children }: { children: React.ReactNode }) {
         </KanbanAccountMenu>
       </header>
 
-      <AdminSidebar collapsed={sidebarCollapsed} />
+      {workspace ? null : <AdminSidebar collapsed={sidebarCollapsed} />}
 
       <div
-        className={`${styles.shell} ${styles.shellWithRail} ${
-          sidebarCollapsed ? styles.shellWithRailCollapsed : ""
+        className={`${styles.shell} ${workspace ? styles.shellFull : styles.shellWithRail} ${
+          !workspace && sidebarCollapsed ? styles.shellWithRailCollapsed : ""
         }`}
       >
         <main className={styles.main}>{children}</main>

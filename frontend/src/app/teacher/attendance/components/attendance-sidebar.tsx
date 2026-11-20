@@ -12,7 +12,7 @@ import {
   TooltipProvider,
   TooltipTrigger,
 } from "@/components/ui/tooltip";
-import kanbanStyles from "@/app/teacher/schedule/components/subject-kanban.module.css";
+import kanbanStyles from "@/components/schedule/subject-kanban.module.css";
 import menuStyles from "@/app/teacher/classes/components/timetable-menu.module.css";
 import type { SlotCard } from "./use-slot-cards";
 

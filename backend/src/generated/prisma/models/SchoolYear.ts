@@ -201,6 +201,7 @@ export type SchoolYearWhereInput = {
   terms?: Prisma.TermListRelationFilter
   sections?: Prisma.SectionListRelationFilter
   rosterEntries?: Prisma.StudentRosterListRelationFilter
+  scheduleConfigs?: Prisma.ScheduleConfigListRelationFilter
 }
 
 export type SchoolYearOrderByWithRelationInput = {
@@ -214,6 +215,7 @@ export type SchoolYearOrderByWithRelationInput = {
   terms?: Prisma.TermOrderByRelationAggregateInput
   sections?: Prisma.SectionOrderByRelationAggregateInput
   rosterEntries?: Prisma.StudentRosterOrderByRelationAggregateInput
+  scheduleConfigs?: Prisma.ScheduleConfigOrderByRelationAggregateInput
 }
 
 export type SchoolYearWhereUniqueInput = Prisma.AtLeast<{
@@ -230,6 +232,7 @@ export type SchoolYearWhereUniqueInput = Prisma.AtLeast<{
   terms?: Prisma.TermListRelationFilter
   sections?: Prisma.SectionListRelationFilter
   rosterEntries?: Prisma.StudentRosterListRelationFilter
+  scheduleConfigs?: Prisma.ScheduleConfigListRelationFilter
 }, "id">
 
 export type SchoolYearOrderByWithAggregationInput = {
@@ -269,6 +272,7 @@ export type SchoolYearCreateInput = {
   terms?: Prisma.TermCreateNestedManyWithoutSchoolYearInput
   sections?: Prisma.SectionCreateNestedManyWithoutSchoolYearInput
   rosterEntries?: Prisma.StudentRosterCreateNestedManyWithoutSchoolYearInput
+  scheduleConfigs?: Prisma.ScheduleConfigCreateNestedManyWithoutSchoolYearInput
 }
 
 export type SchoolYearUncheckedCreateInput = {
@@ -282,6 +286,7 @@ export type SchoolYearUncheckedCreateInput = {
   terms?: Prisma.TermUncheckedCreateNestedManyWithoutSchoolYearInput
   sections?: Prisma.SectionUncheckedCreateNestedManyWithoutSchoolYearInput
   rosterEntries?: Prisma.StudentRosterUncheckedCreateNestedManyWithoutSchoolYearInput
+  scheduleConfigs?: Prisma.ScheduleConfigUncheckedCreateNestedManyWithoutSchoolYearInput
 }
 
 export type SchoolYearUpdateInput = {
@@ -295,6 +300,7 @@ export type SchoolYearUpdateInput = {
   terms?: Prisma.TermUpdateManyWithoutSchoolYearNestedInput
   sections?: Prisma.SectionUpdateManyWithoutSchoolYearNestedInput
   rosterEntries?: Prisma.StudentRosterUpdateManyWithoutSchoolYearNestedInput
+  scheduleConfigs?: Prisma.ScheduleConfigUpdateManyWithoutSchoolYearNestedInput
 }
 
 export type SchoolYearUncheckedUpdateInput = {
@@ -308,6 +314,7 @@ export type SchoolYearUncheckedUpdateInput = {
   terms?: Prisma.TermUncheckedUpdateManyWithoutSchoolYearNestedInput
   sections?: Prisma.SectionUncheckedUpdateManyWithoutSchoolYearNestedInput
   rosterEntries?: Prisma.StudentRosterUncheckedUpdateManyWithoutSchoolYearNestedInput
+  scheduleConfigs?: Prisma.ScheduleConfigUncheckedUpdateManyWithoutSchoolYearNestedInput
 }
 
 export type SchoolYearCreateManyInput = {
@@ -417,6 +424,20 @@ export type SchoolYearUpdateOneRequiredWithoutRosterEntriesNestedInput = {
   update?: Prisma.XOR<Prisma.XOR<Prisma.SchoolYearUpdateToOneWithWhereWithoutRosterEntriesInput, Prisma.SchoolYearUpdateWithoutRosterEntriesInput>, Prisma.SchoolYearUncheckedUpdateWithoutRosterEntriesInput>
 }
 
+export type SchoolYearCreateNestedOneWithoutScheduleConfigsInput = {
+  create?: Prisma.XOR<Prisma.SchoolYearCreateWithoutScheduleConfigsInput, Prisma.SchoolYearUncheckedCreateWithoutScheduleConfigsInput>
+  connectOrCreate?: Prisma.SchoolYearCreateOrConnectWithoutScheduleConfigsInput
+  connect?: Prisma.SchoolYearWhereUniqueInput
+}
+
+export type SchoolYearUpdateOneRequiredWithoutScheduleConfigsNestedInput = {
+  create?: Prisma.XOR<Prisma.SchoolYearCreateWithoutScheduleConfigsInput, Prisma.SchoolYearUncheckedCreateWithoutScheduleConfigsInput>
+  connectOrCreate?: Prisma.SchoolYearCreateOrConnectWithoutScheduleConfigsInput
+  upsert?: Prisma.SchoolYearUpsertWithoutScheduleConfigsInput
+  connect?: Prisma.SchoolYearWhereUniqueInput
+  update?: Prisma.XOR<Prisma.XOR<Prisma.SchoolYearUpdateToOneWithWhereWithoutScheduleConfigsInput, Prisma.SchoolYearUpdateWithoutScheduleConfigsInput>, Prisma.SchoolYearUncheckedUpdateWithoutScheduleConfigsInput>
+}
+
 export type SchoolYearCreateWithoutTermsInput = {
   id?: string
   name: string
@@ -427,6 +448,7 @@ export type SchoolYearCreateWithoutTermsInput = {
   createdAt?: Date | string
   sections?: Prisma.SectionCreateNestedManyWithoutSchoolYearInput
   rosterEntries?: Prisma.StudentRosterCreateNestedManyWithoutSchoolYearInput
+  scheduleConfigs?: Prisma.ScheduleConfigCreateNestedManyWithoutSchoolYearInput
 }
 
 export type SchoolYearUncheckedCreateWithoutTermsInput = {
@@ -439,6 +461,7 @@ export type SchoolYearUncheckedCreateWithoutTermsInput = {
   createdAt?: Date | string
   sections?: Prisma.SectionUncheckedCreateNestedManyWithoutSchoolYearInput
   rosterEntries?: Prisma.StudentRosterUncheckedCreateNestedManyWithoutSchoolYearInput
+  scheduleConfigs?: Prisma.ScheduleConfigUncheckedCreateNestedManyWithoutSchoolYearInput
 }
 
 export type SchoolYearCreateOrConnectWithoutTermsInput = {
@@ -467,6 +490,7 @@ export type SchoolYearUpdateWithoutTermsInput = {
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   sections?: Prisma.SectionUpdateManyWithoutSchoolYearNestedInput
   rosterEntries?: Prisma.StudentRosterUpdateManyWithoutSchoolYearNestedInput
+  scheduleConfigs?: Prisma.ScheduleConfigUpdateManyWithoutSchoolYearNestedInput
 }
 
 export type SchoolYearUncheckedUpdateWithoutTermsInput = {
@@ -479,6 +503,7 @@ export type SchoolYearUncheckedUpdateWithoutTermsInput = {
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   sections?: Prisma.SectionUncheckedUpdateManyWithoutSchoolYearNestedInput
   rosterEntries?: Prisma.StudentRosterUncheckedUpdateManyWithoutSchoolYearNestedInput
+  scheduleConfigs?: Prisma.ScheduleConfigUncheckedUpdateManyWithoutSchoolYearNestedInput
 }
 
 export type SchoolYearCreateWithoutSectionsInput = {
@@ -491,6 +516,7 @@ export type SchoolYearCreateWithoutSectionsInput = {
   createdAt?: Date | string
   terms?: Prisma.TermCreateNestedManyWithoutSchoolYearInput
   rosterEntries?: Prisma.StudentRosterCreateNestedManyWithoutSchoolYearInput
+  scheduleConfigs?: Prisma.ScheduleConfigCreateNestedManyWithoutSchoolYearInput
 }
 
 export type SchoolYearUncheckedCreateWithoutSectionsInput = {
@@ -503,6 +529,7 @@ export type SchoolYearUncheckedCreateWithoutSectionsInput = {
   createdAt?: Date | string
   terms?: Prisma.TermUncheckedCreateNestedManyWithoutSchoolYearInput
   rosterEntries?: Prisma.StudentRosterUncheckedCreateNestedManyWithoutSchoolYearInput
+  scheduleConfigs?: Prisma.ScheduleConfigUncheckedCreateNestedManyWithoutSchoolYearInput
 }
 
 export type SchoolYearCreateOrConnectWithoutSectionsInput = {
@@ -531,6 +558,7 @@ export type SchoolYearUpdateWithoutSectionsInput = {
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   terms?: Prisma.TermUpdateManyWithoutSchoolYearNestedInput
   rosterEntries?: Prisma.StudentRosterUpdateManyWithoutSchoolYearNestedInput
+  scheduleConfigs?: Prisma.ScheduleConfigUpdateManyWithoutSchoolYearNestedInput
 }
 
 export type SchoolYearUncheckedUpdateWithoutSectionsInput = {
@@ -543,6 +571,7 @@ export type SchoolYearUncheckedUpdateWithoutSectionsInput = {
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   terms?: Prisma.TermUncheckedUpdateManyWithoutSchoolYearNestedInput
   rosterEntries?: Prisma.StudentRosterUncheckedUpdateManyWithoutSchoolYearNestedInput
+  scheduleConfigs?: Prisma.ScheduleConfigUncheckedUpdateManyWithoutSchoolYearNestedInput
 }
 
 export type SchoolYearCreateWithoutRosterEntriesInput = {
@@ -555,6 +584,7 @@ export type SchoolYearCreateWithoutRosterEntriesInput = {
   createdAt?: Date | string
   terms?: Prisma.TermCreateNestedManyWithoutSchoolYearInput
   sections?: Prisma.SectionCreateNestedManyWithoutSchoolYearInput
+  scheduleConfigs?: Prisma.ScheduleConfigCreateNestedManyWithoutSchoolYearInput
 }
 
 export type SchoolYearUncheckedCreateWithoutRosterEntriesInput = {
@@ -567,6 +597,7 @@ export type SchoolYearUncheckedCreateWithoutRosterEntriesInput = {
   createdAt?: Date | string
   terms?: Prisma.TermUncheckedCreateNestedManyWithoutSchoolYearInput
   sections?: Prisma.SectionUncheckedCreateNestedManyWithoutSchoolYearInput
+  scheduleConfigs?: Prisma.ScheduleConfigUncheckedCreateNestedManyWithoutSchoolYearInput
 }
 
 export type SchoolYearCreateOrConnectWithoutRosterEntriesInput = {
@@ -595,6 +626,7 @@ export type SchoolYearUpdateWithoutRosterEntriesInput = {
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   terms?: Prisma.TermUpdateManyWithoutSchoolYearNestedInput
   sections?: Prisma.SectionUpdateManyWithoutSchoolYearNestedInput
+  scheduleConfigs?: Prisma.ScheduleConfigUpdateManyWithoutSchoolYearNestedInput
 }
 
 export type SchoolYearUncheckedUpdateWithoutRosterEntriesInput = {
@@ -607,6 +639,75 @@ export type SchoolYearUncheckedUpdateWithoutRosterEntriesInput = {
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   terms?: Prisma.TermUncheckedUpdateManyWithoutSchoolYearNestedInput
   sections?: Prisma.SectionUncheckedUpdateManyWithoutSchoolYearNestedInput
+  scheduleConfigs?: Prisma.ScheduleConfigUncheckedUpdateManyWithoutSchoolYearNestedInput
+}
+
+export type SchoolYearCreateWithoutScheduleConfigsInput = {
+  id?: string
+  name: string
+  startDate: Date | string
+  endDate: Date | string
+  isActive?: boolean
+  createdBy: string
+  createdAt?: Date | string
+  terms?: Prisma.TermCreateNestedManyWithoutSchoolYearInput
+  sections?: Prisma.SectionCreateNestedManyWithoutSchoolYearInput
+  rosterEntries?: Prisma.StudentRosterCreateNestedManyWithoutSchoolYearInput
+}
+
+export type SchoolYearUncheckedCreateWithoutScheduleConfigsInput = {
+  id?: string
+  name: string
+  startDate: Date | string
+  endDate: Date | string
+  isActive?: boolean
+  createdBy: string
+  createdAt?: Date | string
+  terms?: Prisma.TermUncheckedCreateNestedManyWithoutSchoolYearInput
+  sections?: Prisma.SectionUncheckedCreateNestedManyWithoutSchoolYearInput
+  rosterEntries?: Prisma.StudentRosterUncheckedCreateNestedManyWithoutSchoolYearInput
+}
+
+export type SchoolYearCreateOrConnectWithoutScheduleConfigsInput = {
+  where: Prisma.SchoolYearWhereUniqueInput
+  create: Prisma.XOR<Prisma.SchoolYearCreateWithoutScheduleConfigsInput, Prisma.SchoolYearUncheckedCreateWithoutScheduleConfigsInput>
+}
+
+export type SchoolYearUpsertWithoutScheduleConfigsInput = {
+  update: Prisma.XOR<Prisma.SchoolYearUpdateWithoutScheduleConfigsInput, Prisma.SchoolYearUncheckedUpdateWithoutScheduleConfigsInput>
+  create: Prisma.XOR<Prisma.SchoolYearCreateWithoutScheduleConfigsInput, Prisma.SchoolYearUncheckedCreateWithoutScheduleConfigsInput>
+  where?: Prisma.SchoolYearWhereInput
+}
+
+export type SchoolYearUpdateToOneWithWhereWithoutScheduleConfigsInput = {
+  where?: Prisma.SchoolYearWhereInput
+  data: Prisma.XOR<Prisma.SchoolYearUpdateWithoutScheduleConfigsInput, Prisma.SchoolYearUncheckedUpdateWithoutScheduleConfigsInput>
+}
+
+export type SchoolYearUpdateWithoutScheduleConfigsInput = {
+  id?: Prisma.StringFieldUpdateOperationsInput | string
+  name?: Prisma.StringFieldUpdateOperationsInput | string
+  startDate?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
+  endDate?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
+  isActive?: Prisma.BoolFieldUpdateOperationsInput | boolean
+  createdBy?: Prisma.StringFieldUpdateOperationsInput | string
+  createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
+  terms?: Prisma.TermUpdateManyWithoutSchoolYearNestedInput
+  sections?: Prisma.SectionUpdateManyWithoutSchoolYearNestedInput
+  rosterEntries?: Prisma.StudentRosterUpdateManyWithoutSchoolYearNestedInput
+}
+
+export type SchoolYearUncheckedUpdateWithoutScheduleConfigsInput = {
+  id?: Prisma.StringFieldUpdateOperationsInput | string
+  name?: Prisma.StringFieldUpdateOperationsInput | string
+  startDate?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
+  endDate?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
+  isActive?: Prisma.BoolFieldUpdateOperationsInput | boolean
+  createdBy?: Prisma.StringFieldUpdateOperationsInput | string
+  createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
+  terms?: Prisma.TermUncheckedUpdateManyWithoutSchoolYearNestedInput
+  sections?: Prisma.SectionUncheckedUpdateManyWithoutSchoolYearNestedInput
+  rosterEntries?: Prisma.StudentRosterUncheckedUpdateManyWithoutSchoolYearNestedInput
 }
 
 
@@ -618,12 +719,14 @@ export type SchoolYearCountOutputType = {
   terms: number
   sections: number
   rosterEntries: number
+  scheduleConfigs: number
 }
 
 export type SchoolYearCountOutputTypeSelect<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
   terms?: boolean | SchoolYearCountOutputTypeCountTermsArgs
   sections?: boolean | SchoolYearCountOutputTypeCountSectionsArgs
   rosterEntries?: boolean | SchoolYearCountOutputTypeCountRosterEntriesArgs
+  scheduleConfigs?: boolean | SchoolYearCountOutputTypeCountScheduleConfigsArgs
 }
 
 /**
@@ -657,6 +760,13 @@ export type SchoolYearCountOutputTypeCountRosterEntriesArgs<ExtArgs extends runt
   where?: Prisma.StudentRosterWhereInput
 }
 
+/**
+ * SchoolYearCountOutputType without action
+ */
+export type SchoolYearCountOutputTypeCountScheduleConfigsArgs<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
+  where?: Prisma.ScheduleConfigWhereInput
+}
+
 
 export type SchoolYearSelect<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = runtime.Types.Extensions.GetSelect<{
   id?: boolean
@@ -669,6 +779,7 @@ export type SchoolYearSelect<ExtArgs extends runtime.Types.Extensions.InternalAr
   terms?: boolean | Prisma.SchoolYear$termsArgs<ExtArgs>
   sections?: boolean | Prisma.SchoolYear$sectionsArgs<ExtArgs>
   rosterEntries?: boolean | Prisma.SchoolYear$rosterEntriesArgs<ExtArgs>
+  scheduleConfigs?: boolean | Prisma.SchoolYear$scheduleConfigsArgs<ExtArgs>
   _count?: boolean | Prisma.SchoolYearCountOutputTypeDefaultArgs<ExtArgs>
 }, ExtArgs["result"]["schoolYear"]>
 
@@ -707,6 +818,7 @@ export type SchoolYearInclude<ExtArgs extends runtime.Types.Extensions.InternalA
   terms?: boolean | Prisma.SchoolYear$termsArgs<ExtArgs>
   sections?: boolean | Prisma.SchoolYear$sectionsArgs<ExtArgs>
   rosterEntries?: boolean | Prisma.SchoolYear$rosterEntriesArgs<ExtArgs>
+  scheduleConfigs?: boolean | Prisma.SchoolYear$scheduleConfigsArgs<ExtArgs>
   _count?: boolean | Prisma.SchoolYearCountOutputTypeDefaultArgs<ExtArgs>
 }
 export type SchoolYearIncludeCreateManyAndReturn<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {}
@@ -718,6 +830,7 @@ export type $SchoolYearPayload<ExtArgs extends runtime.Types.Extensions.Internal
     terms: Prisma.$TermPayload<ExtArgs>[]
     sections: Prisma.$SectionPayload<ExtArgs>[]
     rosterEntries: Prisma.$StudentRosterPayload<ExtArgs>[]
+    scheduleConfigs: Prisma.$ScheduleConfigPayload<ExtArgs>[]
   }
   scalars: runtime.Types.Extensions.GetPayloadResult<{
     id: string
@@ -1124,6 +1237,7 @@ export interface Prisma__SchoolYearClient<T, Null = never, ExtArgs extends runti
   terms<T extends Prisma.SchoolYear$termsArgs<ExtArgs> = {}>(args?: Prisma.Subset<T, Prisma.SchoolYear$termsArgs<ExtArgs>>): Prisma.PrismaPromise<runtime.Types.Result.GetResult<Prisma.$TermPayload<ExtArgs>, T, "findMany", GlobalOmitOptions> | Null>
   sections<T extends Prisma.SchoolYear$sectionsArgs<ExtArgs> = {}>(args?: Prisma.Subset<T, Prisma.SchoolYear$sectionsArgs<ExtArgs>>): Prisma.PrismaPromise<runtime.Types.Result.GetResult<Prisma.$SectionPayload<ExtArgs>, T, "findMany", GlobalOmitOptions> | Null>
   rosterEntries<T extends Prisma.SchoolYear$rosterEntriesArgs<ExtArgs> = {}>(args?: Prisma.Subset<T, Prisma.SchoolYear$rosterEntriesArgs<ExtArgs>>): Prisma.PrismaPromise<runtime.Types.Result.GetResult<Prisma.$StudentRosterPayload<ExtArgs>, T, "findMany", GlobalOmitOptions> | Null>
+  scheduleConfigs<T extends Prisma.SchoolYear$scheduleConfigsArgs<ExtArgs> = {}>(args?: Prisma.Subset<T, Prisma.SchoolYear$scheduleConfigsArgs<ExtArgs>>): Prisma.PrismaPromise<runtime.Types.Result.GetResult<Prisma.$ScheduleConfigPayload<ExtArgs>, T, "findMany", GlobalOmitOptions> | Null>
   /**
    * Attaches callbacks for the resolution and/or rejection of the Promise.
    * @param onfulfilled The callback to execute when the Promise is resolved.
@@ -1622,6 +1736,30 @@ export type SchoolYear$rosterEntriesArgs<ExtArgs extends runtime.Types.Extension
   take?: number
   skip?: number
   distinct?: Prisma.StudentRosterScalarFieldEnum | Prisma.StudentRosterScalarFieldEnum[]
+}
+
+/**
+ * SchoolYear.scheduleConfigs
+ */
+export type SchoolYear$scheduleConfigsArgs<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
+  /**
+   * Select specific fields to fetch from the ScheduleConfig
+   */
+  select?: Prisma.ScheduleConfigSelect<ExtArgs> | null
+  /**
+   * Omit specific fields from the ScheduleConfig
+   */
+  omit?: Prisma.ScheduleConfigOmit<ExtArgs> | null
+  /**
+   * Choose, which related nodes to fetch as well
+   */
+  include?: Prisma.ScheduleConfigInclude<ExtArgs> | null
+  where?: Prisma.ScheduleConfigWhereInput
+  orderBy?: Prisma.ScheduleConfigOrderByWithRelationInput | Prisma.ScheduleConfigOrderByWithRelationInput[]
+  cursor?: Prisma.ScheduleConfigWhereUniqueInput
+  take?: number
+  skip?: number
+  distinct?: Prisma.ScheduleConfigScalarFieldEnum | Prisma.ScheduleConfigScalarFieldEnum[]
 }
 
 /**

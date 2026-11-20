@@ -67,7 +67,6 @@ export interface TeacherReportsPayload {
     name: string;
     code: string | null;
     isAdviser: boolean;
-    isMasterTeacher: boolean;
     advisorySection: { id: string; name: string; gradeLevel: string } | null;
   };
   summary: {
@@ -102,12 +101,4 @@ export interface TeacherReportsPayload {
     referrals: { total: number; byStatus: { status: string; count: number }[] };
   };
   generatedAt: string;
-}
-
-export interface TeachingLoadSlot {
-  day: number;
-  period: number;
-  status: "DRAFT" | "SUBMITTED" | "APPROVED";
-  subject: { id: string; name: string; code: string };
-  section: { id: string; name: string; gradeLevel: string };
 }

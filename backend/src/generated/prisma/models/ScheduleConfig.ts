@@ -48,7 +48,9 @@ export type ScheduleConfigSumAggregateOutputType = {
 
 export type ScheduleConfigMinAggregateOutputType = {
   id: string | null
-  termId: string | null
+  schoolYearId: string | null
+  name: string | null
+  isActive: boolean | null
   startTime: string | null
   periodMins: number | null
   lunchAfter: number | null
@@ -63,7 +65,9 @@ export type ScheduleConfigMinAggregateOutputType = {
 
 export type ScheduleConfigMaxAggregateOutputType = {
   id: string | null
-  termId: string | null
+  schoolYearId: string | null
+  name: string | null
+  isActive: boolean | null
   startTime: string | null
   periodMins: number | null
   lunchAfter: number | null
@@ -78,7 +82,9 @@ export type ScheduleConfigMaxAggregateOutputType = {
 
 export type ScheduleConfigCountAggregateOutputType = {
   id: number
-  termId: number
+  schoolYearId: number
+  name: number
+  isActive: number
   startTime: number
   periodMins: number
   lunchAfter: number
@@ -115,7 +121,9 @@ export type ScheduleConfigSumAggregateInputType = {
 
 export type ScheduleConfigMinAggregateInputType = {
   id?: true
-  termId?: true
+  schoolYearId?: true
+  name?: true
+  isActive?: true
   startTime?: true
   periodMins?: true
   lunchAfter?: true
@@ -130,7 +138,9 @@ export type ScheduleConfigMinAggregateInputType = {
 
 export type ScheduleConfigMaxAggregateInputType = {
   id?: true
-  termId?: true
+  schoolYearId?: true
+  name?: true
+  isActive?: true
   startTime?: true
   periodMins?: true
   lunchAfter?: true
@@ -145,7 +155,9 @@ export type ScheduleConfigMaxAggregateInputType = {
 
 export type ScheduleConfigCountAggregateInputType = {
   id?: true
-  termId?: true
+  schoolYearId?: true
+  name?: true
+  isActive?: true
   startTime?: true
   periodMins?: true
   lunchAfter?: true
@@ -247,7 +259,9 @@ export type ScheduleConfigGroupByArgs<ExtArgs extends runtime.Types.Extensions.I
 
 export type ScheduleConfigGroupByOutputType = {
   id: string
-  termId: string
+  schoolYearId: string
+  name: string
+  isActive: boolean
   startTime: string
   periodMins: number
   lunchAfter: number
@@ -285,7 +299,9 @@ export type ScheduleConfigWhereInput = {
   OR?: Prisma.ScheduleConfigWhereInput[]
   NOT?: Prisma.ScheduleConfigWhereInput | Prisma.ScheduleConfigWhereInput[]
   id?: Prisma.StringFilter<"ScheduleConfig"> | string
-  termId?: Prisma.StringFilter<"ScheduleConfig"> | string
+  schoolYearId?: Prisma.StringFilter<"ScheduleConfig"> | string
+  name?: Prisma.StringFilter<"ScheduleConfig"> | string
+  isActive?: Prisma.BoolFilter<"ScheduleConfig"> | boolean
   startTime?: Prisma.StringFilter<"ScheduleConfig"> | string
   periodMins?: Prisma.IntFilter<"ScheduleConfig"> | number
   lunchAfter?: Prisma.IntFilter<"ScheduleConfig"> | number
@@ -296,12 +312,14 @@ export type ScheduleConfigWhereInput = {
   recessPmOn?: Prisma.BoolFilter<"ScheduleConfig"> | boolean
   recessPmAfter?: Prisma.IntFilter<"ScheduleConfig"> | number
   recessPmMins?: Prisma.IntFilter<"ScheduleConfig"> | number
-  term?: Prisma.XOR<Prisma.TermScalarRelationFilter, Prisma.TermWhereInput>
+  schoolYear?: Prisma.XOR<Prisma.SchoolYearScalarRelationFilter, Prisma.SchoolYearWhereInput>
 }
 
 export type ScheduleConfigOrderByWithRelationInput = {
   id?: Prisma.SortOrder
-  termId?: Prisma.SortOrder
+  schoolYearId?: Prisma.SortOrder
+  name?: Prisma.SortOrder
+  isActive?: Prisma.SortOrder
   startTime?: Prisma.SortOrder
   periodMins?: Prisma.SortOrder
   lunchAfter?: Prisma.SortOrder
@@ -312,15 +330,18 @@ export type ScheduleConfigOrderByWithRelationInput = {
   recessPmOn?: Prisma.SortOrder
   recessPmAfter?: Prisma.SortOrder
   recessPmMins?: Prisma.SortOrder
-  term?: Prisma.TermOrderByWithRelationInput
+  schoolYear?: Prisma.SchoolYearOrderByWithRelationInput
 }
 
 export type ScheduleConfigWhereUniqueInput = Prisma.AtLeast<{
   id?: string
-  termId?: string
+  schoolYearId_name?: Prisma.ScheduleConfigSchoolYearIdNameCompoundUniqueInput
   AND?: Prisma.ScheduleConfigWhereInput | Prisma.ScheduleConfigWhereInput[]
   OR?: Prisma.ScheduleConfigWhereInput[]
   NOT?: Prisma.ScheduleConfigWhereInput | Prisma.ScheduleConfigWhereInput[]
+  schoolYearId?: Prisma.StringFilter<"ScheduleConfig"> | string
+  name?: Prisma.StringFilter<"ScheduleConfig"> | string
+  isActive?: Prisma.BoolFilter<"ScheduleConfig"> | boolean
   startTime?: Prisma.StringFilter<"ScheduleConfig"> | string
   periodMins?: Prisma.IntFilter<"ScheduleConfig"> | number
   lunchAfter?: Prisma.IntFilter<"ScheduleConfig"> | number
@@ -331,12 +352,14 @@ export type ScheduleConfigWhereUniqueInput = Prisma.AtLeast<{
   recessPmOn?: Prisma.BoolFilter<"ScheduleConfig"> | boolean
   recessPmAfter?: Prisma.IntFilter<"ScheduleConfig"> | number
   recessPmMins?: Prisma.IntFilter<"ScheduleConfig"> | number
-  term?: Prisma.XOR<Prisma.TermScalarRelationFilter, Prisma.TermWhereInput>
-}, "id" | "termId">
+  schoolYear?: Prisma.XOR<Prisma.SchoolYearScalarRelationFilter, Prisma.SchoolYearWhereInput>
+}, "id" | "schoolYearId_name">
 
 export type ScheduleConfigOrderByWithAggregationInput = {
   id?: Prisma.SortOrder
-  termId?: Prisma.SortOrder
+  schoolYearId?: Prisma.SortOrder
+  name?: Prisma.SortOrder
+  isActive?: Prisma.SortOrder
   startTime?: Prisma.SortOrder
   periodMins?: Prisma.SortOrder
   lunchAfter?: Prisma.SortOrder
@@ -359,7 +382,9 @@ export type ScheduleConfigScalarWhereWithAggregatesInput = {
   OR?: Prisma.ScheduleConfigScalarWhereWithAggregatesInput[]
   NOT?: Prisma.ScheduleConfigScalarWhereWithAggregatesInput | Prisma.ScheduleConfigScalarWhereWithAggregatesInput[]
   id?: Prisma.StringWithAggregatesFilter<"ScheduleConfig"> | string
-  termId?: Prisma.StringWithAggregatesFilter<"ScheduleConfig"> | string
+  schoolYearId?: Prisma.StringWithAggregatesFilter<"ScheduleConfig"> | string
+  name?: Prisma.StringWithAggregatesFilter<"ScheduleConfig"> | string
+  isActive?: Prisma.BoolWithAggregatesFilter<"ScheduleConfig"> | boolean
   startTime?: Prisma.StringWithAggregatesFilter<"ScheduleConfig"> | string
   periodMins?: Prisma.IntWithAggregatesFilter<"ScheduleConfig"> | number
   lunchAfter?: Prisma.IntWithAggregatesFilter<"ScheduleConfig"> | number
@@ -374,6 +399,8 @@ export type ScheduleConfigScalarWhereWithAggregatesInput = {
 
 export type ScheduleConfigCreateInput = {
   id?: string
+  name?: string
+  isActive?: boolean
   startTime?: string
   periodMins?: number
   lunchAfter?: number
@@ -384,12 +411,14 @@ export type ScheduleConfigCreateInput = {
   recessPmOn?: boolean
   recessPmAfter?: number
   recessPmMins?: number
-  term: Prisma.TermCreateNestedOneWithoutScheduleConfigsInput
+  schoolYear: Prisma.SchoolYearCreateNestedOneWithoutScheduleConfigsInput
 }
 
 export type ScheduleConfigUncheckedCreateInput = {
   id?: string
-  termId: string
+  schoolYearId: string
+  name?: string
+  isActive?: boolean
   startTime?: string
   periodMins?: number
   lunchAfter?: number
@@ -404,6 +433,8 @@ export type ScheduleConfigUncheckedCreateInput = {
 
 export type ScheduleConfigUpdateInput = {
   id?: Prisma.StringFieldUpdateOperationsInput | string
+  name?: Prisma.StringFieldUpdateOperationsInput | string
+  isActive?: Prisma.BoolFieldUpdateOperationsInput | boolean
   startTime?: Prisma.StringFieldUpdateOperationsInput | string
   periodMins?: Prisma.IntFieldUpdateOperationsInput | number
   lunchAfter?: Prisma.IntFieldUpdateOperationsInput | number
@@ -414,12 +445,14 @@ export type ScheduleConfigUpdateInput = {
   recessPmOn?: Prisma.BoolFieldUpdateOperationsInput | boolean
   recessPmAfter?: Prisma.IntFieldUpdateOperationsInput | number
   recessPmMins?: Prisma.IntFieldUpdateOperationsInput | number
-  term?: Prisma.TermUpdateOneRequiredWithoutScheduleConfigsNestedInput
+  schoolYear?: Prisma.SchoolYearUpdateOneRequiredWithoutScheduleConfigsNestedInput
 }
 
 export type ScheduleConfigUncheckedUpdateInput = {
   id?: Prisma.StringFieldUpdateOperationsInput | string
-  termId?: Prisma.StringFieldUpdateOperationsInput | string
+  schoolYearId?: Prisma.StringFieldUpdateOperationsInput | string
+  name?: Prisma.StringFieldUpdateOperationsInput | string
+  isActive?: Prisma.BoolFieldUpdateOperationsInput | boolean
   startTime?: Prisma.StringFieldUpdateOperationsInput | string
   periodMins?: Prisma.IntFieldUpdateOperationsInput | number
   lunchAfter?: Prisma.IntFieldUpdateOperationsInput | number
@@ -434,7 +467,9 @@ export type ScheduleConfigUncheckedUpdateInput = {
 
 export type ScheduleConfigCreateManyInput = {
   id?: string
-  termId: string
+  schoolYearId: string
+  name?: string
+  isActive?: boolean
   startTime?: string
   periodMins?: number
   lunchAfter?: number
@@ -449,6 +484,8 @@ export type ScheduleConfigCreateManyInput = {
 
 export type ScheduleConfigUpdateManyMutationInput = {
   id?: Prisma.StringFieldUpdateOperationsInput | string
+  name?: Prisma.StringFieldUpdateOperationsInput | string
+  isActive?: Prisma.BoolFieldUpdateOperationsInput | boolean
   startTime?: Prisma.StringFieldUpdateOperationsInput | string
   periodMins?: Prisma.IntFieldUpdateOperationsInput | number
   lunchAfter?: Prisma.IntFieldUpdateOperationsInput | number
@@ -463,7 +500,9 @@ export type ScheduleConfigUpdateManyMutationInput = {
 
 export type ScheduleConfigUncheckedUpdateManyInput = {
   id?: Prisma.StringFieldUpdateOperationsInput | string
-  termId?: Prisma.StringFieldUpdateOperationsInput | string
+  schoolYearId?: Prisma.StringFieldUpdateOperationsInput | string
+  name?: Prisma.StringFieldUpdateOperationsInput | string
+  isActive?: Prisma.BoolFieldUpdateOperationsInput | boolean
   startTime?: Prisma.StringFieldUpdateOperationsInput | string
   periodMins?: Prisma.IntFieldUpdateOperationsInput | number
   lunchAfter?: Prisma.IntFieldUpdateOperationsInput | number
@@ -486,9 +525,16 @@ export type ScheduleConfigOrderByRelationAggregateInput = {
   _count?: Prisma.SortOrder
 }
 
+export type ScheduleConfigSchoolYearIdNameCompoundUniqueInput = {
+  schoolYearId: string
+  name: string
+}
+
 export type ScheduleConfigCountOrderByAggregateInput = {
   id?: Prisma.SortOrder
-  termId?: Prisma.SortOrder
+  schoolYearId?: Prisma.SortOrder
+  name?: Prisma.SortOrder
+  isActive?: Prisma.SortOrder
   startTime?: Prisma.SortOrder
   periodMins?: Prisma.SortOrder
   lunchAfter?: Prisma.SortOrder
@@ -513,7 +559,9 @@ export type ScheduleConfigAvgOrderByAggregateInput = {
 
 export type ScheduleConfigMaxOrderByAggregateInput = {
   id?: Prisma.SortOrder
-  termId?: Prisma.SortOrder
+  schoolYearId?: Prisma.SortOrder
+  name?: Prisma.SortOrder
+  isActive?: Prisma.SortOrder
   startTime?: Prisma.SortOrder
   periodMins?: Prisma.SortOrder
   lunchAfter?: Prisma.SortOrder
@@ -528,7 +576,9 @@ export type ScheduleConfigMaxOrderByAggregateInput = {
 
 export type ScheduleConfigMinOrderByAggregateInput = {
   id?: Prisma.SortOrder
-  termId?: Prisma.SortOrder
+  schoolYearId?: Prisma.SortOrder
+  name?: Prisma.SortOrder
+  isActive?: Prisma.SortOrder
   startTime?: Prisma.SortOrder
   periodMins?: Prisma.SortOrder
   lunchAfter?: Prisma.SortOrder
@@ -551,50 +601,52 @@ export type ScheduleConfigSumOrderByAggregateInput = {
   recessPmMins?: Prisma.SortOrder
 }
 
-export type ScheduleConfigCreateNestedManyWithoutTermInput = {
-  create?: Prisma.XOR<Prisma.ScheduleConfigCreateWithoutTermInput, Prisma.ScheduleConfigUncheckedCreateWithoutTermInput> | Prisma.ScheduleConfigCreateWithoutTermInput[] | Prisma.ScheduleConfigUncheckedCreateWithoutTermInput[]
-  connectOrCreate?: Prisma.ScheduleConfigCreateOrConnectWithoutTermInput | Prisma.ScheduleConfigCreateOrConnectWithoutTermInput[]
-  createMany?: Prisma.ScheduleConfigCreateManyTermInputEnvelope
+export type ScheduleConfigCreateNestedManyWithoutSchoolYearInput = {
+  create?: Prisma.XOR<Prisma.ScheduleConfigCreateWithoutSchoolYearInput, Prisma.ScheduleConfigUncheckedCreateWithoutSchoolYearInput> | Prisma.ScheduleConfigCreateWithoutSchoolYearInput[] | Prisma.ScheduleConfigUncheckedCreateWithoutSchoolYearInput[]
+  connectOrCreate?: Prisma.ScheduleConfigCreateOrConnectWithoutSchoolYearInput | Prisma.ScheduleConfigCreateOrConnectWithoutSchoolYearInput[]
+  createMany?: Prisma.ScheduleConfigCreateManySchoolYearInputEnvelope
   connect?: Prisma.ScheduleConfigWhereUniqueInput | Prisma.ScheduleConfigWhereUniqueInput[]
 }
 
-export type ScheduleConfigUncheckedCreateNestedManyWithoutTermInput = {
-  create?: Prisma.XOR<Prisma.ScheduleConfigCreateWithoutTermInput, Prisma.ScheduleConfigUncheckedCreateWithoutTermInput> | Prisma.ScheduleConfigCreateWithoutTermInput[] | Prisma.ScheduleConfigUncheckedCreateWithoutTermInput[]
-  connectOrCreate?: Prisma.ScheduleConfigCreateOrConnectWithoutTermInput | Prisma.ScheduleConfigCreateOrConnectWithoutTermInput[]
-  createMany?: Prisma.ScheduleConfigCreateManyTermInputEnvelope
+export type ScheduleConfigUncheckedCreateNestedManyWithoutSchoolYearInput = {
+  create?: Prisma.XOR<Prisma.ScheduleConfigCreateWithoutSchoolYearInput, Prisma.ScheduleConfigUncheckedCreateWithoutSchoolYearInput> | Prisma.ScheduleConfigCreateWithoutSchoolYearInput[] | Prisma.ScheduleConfigUncheckedCreateWithoutSchoolYearInput[]
+  connectOrCreate?: Prisma.ScheduleConfigCreateOrConnectWithoutSchoolYearInput | Prisma.ScheduleConfigCreateOrConnectWithoutSchoolYearInput[]
+  createMany?: Prisma.ScheduleConfigCreateManySchoolYearInputEnvelope
   connect?: Prisma.ScheduleConfigWhereUniqueInput | Prisma.ScheduleConfigWhereUniqueInput[]
 }
 
-export type ScheduleConfigUpdateManyWithoutTermNestedInput = {
-  create?: Prisma.XOR<Prisma.ScheduleConfigCreateWithoutTermInput, Prisma.ScheduleConfigUncheckedCreateWithoutTermInput> | Prisma.ScheduleConfigCreateWithoutTermInput[] | Prisma.ScheduleConfigUncheckedCreateWithoutTermInput[]
-  connectOrCreate?: Prisma.ScheduleConfigCreateOrConnectWithoutTermInput | Prisma.ScheduleConfigCreateOrConnectWithoutTermInput[]
-  upsert?: Prisma.ScheduleConfigUpsertWithWhereUniqueWithoutTermInput | Prisma.ScheduleConfigUpsertWithWhereUniqueWithoutTermInput[]
-  createMany?: Prisma.ScheduleConfigCreateManyTermInputEnvelope
+export type ScheduleConfigUpdateManyWithoutSchoolYearNestedInput = {
+  create?: Prisma.XOR<Prisma.ScheduleConfigCreateWithoutSchoolYearInput, Prisma.ScheduleConfigUncheckedCreateWithoutSchoolYearInput> | Prisma.ScheduleConfigCreateWithoutSchoolYearInput[] | Prisma.ScheduleConfigUncheckedCreateWithoutSchoolYearInput[]
+  connectOrCreate?: Prisma.ScheduleConfigCreateOrConnectWithoutSchoolYearInput | Prisma.ScheduleConfigCreateOrConnectWithoutSchoolYearInput[]
+  upsert?: Prisma.ScheduleConfigUpsertWithWhereUniqueWithoutSchoolYearInput | Prisma.ScheduleConfigUpsertWithWhereUniqueWithoutSchoolYearInput[]
+  createMany?: Prisma.ScheduleConfigCreateManySchoolYearInputEnvelope
   set?: Prisma.ScheduleConfigWhereUniqueInput | Prisma.ScheduleConfigWhereUniqueInput[]
   disconnect?: Prisma.ScheduleConfigWhereUniqueInput | Prisma.ScheduleConfigWhereUniqueInput[]
   delete?: Prisma.ScheduleConfigWhereUniqueInput | Prisma.ScheduleConfigWhereUniqueInput[]
   connect?: Prisma.ScheduleConfigWhereUniqueInput | Prisma.ScheduleConfigWhereUniqueInput[]
-  update?: Prisma.ScheduleConfigUpdateWithWhereUniqueWithoutTermInput | Prisma.ScheduleConfigUpdateWithWhereUniqueWithoutTermInput[]
-  updateMany?: Prisma.ScheduleConfigUpdateManyWithWhereWithoutTermInput | Prisma.ScheduleConfigUpdateManyWithWhereWithoutTermInput[]
+  update?: Prisma.ScheduleConfigUpdateWithWhereUniqueWithoutSchoolYearInput | Prisma.ScheduleConfigUpdateWithWhereUniqueWithoutSchoolYearInput[]
+  updateMany?: Prisma.ScheduleConfigUpdateManyWithWhereWithoutSchoolYearInput | Prisma.ScheduleConfigUpdateManyWithWhereWithoutSchoolYearInput[]
   deleteMany?: Prisma.ScheduleConfigScalarWhereInput | Prisma.ScheduleConfigScalarWhereInput[]
 }
 
-export type ScheduleConfigUncheckedUpdateManyWithoutTermNestedInput = {
-  create?: Prisma.XOR<Prisma.ScheduleConfigCreateWithoutTermInput, Prisma.ScheduleConfigUncheckedCreateWithoutTermInput> | Prisma.ScheduleConfigCreateWithoutTermInput[] | Prisma.ScheduleConfigUncheckedCreateWithoutTermInput[]
-  connectOrCreate?: Prisma.ScheduleConfigCreateOrConnectWithoutTermInput | Prisma.ScheduleConfigCreateOrConnectWithoutTermInput[]
-  upsert?: Prisma.ScheduleConfigUpsertWithWhereUniqueWithoutTermInput | Prisma.ScheduleConfigUpsertWithWhereUniqueWithoutTermInput[]
-  createMany?: Prisma.ScheduleConfigCreateManyTermInputEnvelope
+export type ScheduleConfigUncheckedUpdateManyWithoutSchoolYearNestedInput = {
+  create?: Prisma.XOR<Prisma.ScheduleConfigCreateWithoutSchoolYearInput, Prisma.ScheduleConfigUncheckedCreateWithoutSchoolYearInput> | Prisma.ScheduleConfigCreateWithoutSchoolYearInput[] | Prisma.ScheduleConfigUncheckedCreateWithoutSchoolYearInput[]
+  connectOrCreate?: Prisma.ScheduleConfigCreateOrConnectWithoutSchoolYearInput | Prisma.ScheduleConfigCreateOrConnectWithoutSchoolYearInput[]
+  upsert?: Prisma.ScheduleConfigUpsertWithWhereUniqueWithoutSchoolYearInput | Prisma.ScheduleConfigUpsertWithWhereUniqueWithoutSchoolYearInput[]
+  createMany?: Prisma.ScheduleConfigCreateManySchoolYearInputEnvelope
   set?: Prisma.ScheduleConfigWhereUniqueInput | Prisma.ScheduleConfigWhereUniqueInput[]
   disconnect?: Prisma.ScheduleConfigWhereUniqueInput | Prisma.ScheduleConfigWhereUniqueInput[]
   delete?: Prisma.ScheduleConfigWhereUniqueInput | Prisma.ScheduleConfigWhereUniqueInput[]
   connect?: Prisma.ScheduleConfigWhereUniqueInput | Prisma.ScheduleConfigWhereUniqueInput[]
-  update?: Prisma.ScheduleConfigUpdateWithWhereUniqueWithoutTermInput | Prisma.ScheduleConfigUpdateWithWhereUniqueWithoutTermInput[]
-  updateMany?: Prisma.ScheduleConfigUpdateManyWithWhereWithoutTermInput | Prisma.ScheduleConfigUpdateManyWithWhereWithoutTermInput[]
+  update?: Prisma.ScheduleConfigUpdateWithWhereUniqueWithoutSchoolYearInput | Prisma.ScheduleConfigUpdateWithWhereUniqueWithoutSchoolYearInput[]
+  updateMany?: Prisma.ScheduleConfigUpdateManyWithWhereWithoutSchoolYearInput | Prisma.ScheduleConfigUpdateManyWithWhereWithoutSchoolYearInput[]
   deleteMany?: Prisma.ScheduleConfigScalarWhereInput | Prisma.ScheduleConfigScalarWhereInput[]
 }
 
-export type ScheduleConfigCreateWithoutTermInput = {
+export type ScheduleConfigCreateWithoutSchoolYearInput = {
   id?: string
+  name?: string
+  isActive?: boolean
   startTime?: string
   periodMins?: number
   lunchAfter?: number
@@ -607,8 +659,10 @@ export type ScheduleConfigCreateWithoutTermInput = {
   recessPmMins?: number
 }
 
-export type ScheduleConfigUncheckedCreateWithoutTermInput = {
+export type ScheduleConfigUncheckedCreateWithoutSchoolYearInput = {
   id?: string
+  name?: string
+  isActive?: boolean
   startTime?: string
   periodMins?: number
   lunchAfter?: number
@@ -621,30 +675,30 @@ export type ScheduleConfigUncheckedCreateWithoutTermInput = {
   recessPmMins?: number
 }
 
-export type ScheduleConfigCreateOrConnectWithoutTermInput = {
+export type ScheduleConfigCreateOrConnectWithoutSchoolYearInput = {
   where: Prisma.ScheduleConfigWhereUniqueInput
-  create: Prisma.XOR<Prisma.ScheduleConfigCreateWithoutTermInput, Prisma.ScheduleConfigUncheckedCreateWithoutTermInput>
+  create: Prisma.XOR<Prisma.ScheduleConfigCreateWithoutSchoolYearInput, Prisma.ScheduleConfigUncheckedCreateWithoutSchoolYearInput>
 }
 
-export type ScheduleConfigCreateManyTermInputEnvelope = {
-  data: Prisma.ScheduleConfigCreateManyTermInput | Prisma.ScheduleConfigCreateManyTermInput[]
+export type ScheduleConfigCreateManySchoolYearInputEnvelope = {
+  data: Prisma.ScheduleConfigCreateManySchoolYearInput | Prisma.ScheduleConfigCreateManySchoolYearInput[]
   skipDuplicates?: boolean
 }
 
-export type ScheduleConfigUpsertWithWhereUniqueWithoutTermInput = {
+export type ScheduleConfigUpsertWithWhereUniqueWithoutSchoolYearInput = {
   where: Prisma.ScheduleConfigWhereUniqueInput
-  update: Prisma.XOR<Prisma.ScheduleConfigUpdateWithoutTermInput, Prisma.ScheduleConfigUncheckedUpdateWithoutTermInput>
-  create: Prisma.XOR<Prisma.ScheduleConfigCreateWithoutTermInput, Prisma.ScheduleConfigUncheckedCreateWithoutTermInput>
+  update: Prisma.XOR<Prisma.ScheduleConfigUpdateWithoutSchoolYearInput, Prisma.ScheduleConfigUncheckedUpdateWithoutSchoolYearInput>
+  create: Prisma.XOR<Prisma.ScheduleConfigCreateWithoutSchoolYearInput, Prisma.ScheduleConfigUncheckedCreateWithoutSchoolYearInput>
 }
 
-export type ScheduleConfigUpdateWithWhereUniqueWithoutTermInput = {
+export type ScheduleConfigUpdateWithWhereUniqueWithoutSchoolYearInput = {
   where: Prisma.ScheduleConfigWhereUniqueInput
-  data: Prisma.XOR<Prisma.ScheduleConfigUpdateWithoutTermInput, Prisma.ScheduleConfigUncheckedUpdateWithoutTermInput>
+  data: Prisma.XOR<Prisma.ScheduleConfigUpdateWithoutSchoolYearInput, Prisma.ScheduleConfigUncheckedUpdateWithoutSchoolYearInput>
 }
 
-export type ScheduleConfigUpdateManyWithWhereWithoutTermInput = {
+export type ScheduleConfigUpdateManyWithWhereWithoutSchoolYearInput = {
   where: Prisma.ScheduleConfigScalarWhereInput
-  data: Prisma.XOR<Prisma.ScheduleConfigUpdateManyMutationInput, Prisma.ScheduleConfigUncheckedUpdateManyWithoutTermInput>
+  data: Prisma.XOR<Prisma.ScheduleConfigUpdateManyMutationInput, Prisma.ScheduleConfigUncheckedUpdateManyWithoutSchoolYearInput>
 }
 
 export type ScheduleConfigScalarWhereInput = {
@@ -652,7 +706,9 @@ export type ScheduleConfigScalarWhereInput = {
   OR?: Prisma.ScheduleConfigScalarWhereInput[]
   NOT?: Prisma.ScheduleConfigScalarWhereInput | Prisma.ScheduleConfigScalarWhereInput[]
   id?: Prisma.StringFilter<"ScheduleConfig"> | string
-  termId?: Prisma.StringFilter<"ScheduleConfig"> | string
+  schoolYearId?: Prisma.StringFilter<"ScheduleConfig"> | string
+  name?: Prisma.StringFilter<"ScheduleConfig"> | string
+  isActive?: Prisma.BoolFilter<"ScheduleConfig"> | boolean
   startTime?: Prisma.StringFilter<"ScheduleConfig"> | string
   periodMins?: Prisma.IntFilter<"ScheduleConfig"> | number
   lunchAfter?: Prisma.IntFilter<"ScheduleConfig"> | number
@@ -665,8 +721,10 @@ export type ScheduleConfigScalarWhereInput = {
   recessPmMins?: Prisma.IntFilter<"ScheduleConfig"> | number
 }
 
-export type ScheduleConfigCreateManyTermInput = {
+export type ScheduleConfigCreateManySchoolYearInput = {
   id?: string
+  name?: string
+  isActive?: boolean
   startTime?: string
   periodMins?: number
   lunchAfter?: number
@@ -679,8 +737,10 @@ export type ScheduleConfigCreateManyTermInput = {
   recessPmMins?: number
 }
 
-export type ScheduleConfigUpdateWithoutTermInput = {
+export type ScheduleConfigUpdateWithoutSchoolYearInput = {
   id?: Prisma.StringFieldUpdateOperationsInput | string
+  name?: Prisma.StringFieldUpdateOperationsInput | string
+  isActive?: Prisma.BoolFieldUpdateOperationsInput | boolean
   startTime?: Prisma.StringFieldUpdateOperationsInput | string
   periodMins?: Prisma.IntFieldUpdateOperationsInput | number
   lunchAfter?: Prisma.IntFieldUpdateOperationsInput | number
@@ -693,8 +753,10 @@ export type ScheduleConfigUpdateWithoutTermInput = {
   recessPmMins?: Prisma.IntFieldUpdateOperationsInput | number
 }
 
-export type ScheduleConfigUncheckedUpdateWithoutTermInput = {
+export type ScheduleConfigUncheckedUpdateWithoutSchoolYearInput = {
   id?: Prisma.StringFieldUpdateOperationsInput | string
+  name?: Prisma.StringFieldUpdateOperationsInput | string
+  isActive?: Prisma.BoolFieldUpdateOperationsInput | boolean
   startTime?: Prisma.StringFieldUpdateOperationsInput | string
   periodMins?: Prisma.IntFieldUpdateOperationsInput | number
   lunchAfter?: Prisma.IntFieldUpdateOperationsInput | number
@@ -707,8 +769,10 @@ export type ScheduleConfigUncheckedUpdateWithoutTermInput = {
   recessPmMins?: Prisma.IntFieldUpdateOperationsInput | number
 }
 
-export type ScheduleConfigUncheckedUpdateManyWithoutTermInput = {
+export type ScheduleConfigUncheckedUpdateManyWithoutSchoolYearInput = {
   id?: Prisma.StringFieldUpdateOperationsInput | string
+  name?: Prisma.StringFieldUpdateOperationsInput | string
+  isActive?: Prisma.BoolFieldUpdateOperationsInput | boolean
   startTime?: Prisma.StringFieldUpdateOperationsInput | string
   periodMins?: Prisma.IntFieldUpdateOperationsInput | number
   lunchAfter?: Prisma.IntFieldUpdateOperationsInput | number
@@ -725,7 +789,9 @@ export type ScheduleConfigUncheckedUpdateManyWithoutTermInput = {
 
 export type ScheduleConfigSelect<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = runtime.Types.Extensions.GetSelect<{
   id?: boolean
-  termId?: boolean
+  schoolYearId?: boolean
+  name?: boolean
+  isActive?: boolean
   startTime?: boolean
   periodMins?: boolean
   lunchAfter?: boolean
@@ -736,12 +802,14 @@ export type ScheduleConfigSelect<ExtArgs extends runtime.Types.Extensions.Intern
   recessPmOn?: boolean
   recessPmAfter?: boolean
   recessPmMins?: boolean
-  term?: boolean | Prisma.TermDefaultArgs<ExtArgs>
+  schoolYear?: boolean | Prisma.SchoolYearDefaultArgs<ExtArgs>
 }, ExtArgs["result"]["scheduleConfig"]>
 
 export type ScheduleConfigSelectCreateManyAndReturn<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = runtime.Types.Extensions.GetSelect<{
   id?: boolean
-  termId?: boolean
+  schoolYearId?: boolean
+  name?: boolean
+  isActive?: boolean
   startTime?: boolean
   periodMins?: boolean
   lunchAfter?: boolean
@@ -752,12 +820,14 @@ export type ScheduleConfigSelectCreateManyAndReturn<ExtArgs extends runtime.Type
   recessPmOn?: boolean
   recessPmAfter?: boolean
   recessPmMins?: boolean
-  term?: boolean | Prisma.TermDefaultArgs<ExtArgs>
+  schoolYear?: boolean | Prisma.SchoolYearDefaultArgs<ExtArgs>
 }, ExtArgs["result"]["scheduleConfig"]>
 
 export type ScheduleConfigSelectUpdateManyAndReturn<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = runtime.Types.Extensions.GetSelect<{
   id?: boolean
-  termId?: boolean
+  schoolYearId?: boolean
+  name?: boolean
+  isActive?: boolean
   startTime?: boolean
   periodMins?: boolean
   lunchAfter?: boolean
@@ -768,12 +838,14 @@ export type ScheduleConfigSelectUpdateManyAndReturn<ExtArgs extends runtime.Type
   recessPmOn?: boolean
   recessPmAfter?: boolean
   recessPmMins?: boolean
-  term?: boolean | Prisma.TermDefaultArgs<ExtArgs>
+  schoolYear?: boolean | Prisma.SchoolYearDefaultArgs<ExtArgs>
 }, ExtArgs["result"]["scheduleConfig"]>
 
 export type ScheduleConfigSelectScalar = {
   id?: boolean
-  termId?: boolean
+  schoolYearId?: boolean
+  name?: boolean
+  isActive?: boolean
   startTime?: boolean
   periodMins?: boolean
   lunchAfter?: boolean
@@ -786,25 +858,27 @@ export type ScheduleConfigSelectScalar = {
   recessPmMins?: boolean
 }
 
-export type ScheduleConfigOmit<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = runtime.Types.Extensions.GetOmit<"id" | "termId" | "startTime" | "periodMins" | "lunchAfter" | "lunchMins" | "recessAmOn" | "recessAmAfter" | "recessAmMins" | "recessPmOn" | "recessPmAfter" | "recessPmMins", ExtArgs["result"]["scheduleConfig"]>
+export type ScheduleConfigOmit<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = runtime.Types.Extensions.GetOmit<"id" | "schoolYearId" | "name" | "isActive" | "startTime" | "periodMins" | "lunchAfter" | "lunchMins" | "recessAmOn" | "recessAmAfter" | "recessAmMins" | "recessPmOn" | "recessPmAfter" | "recessPmMins", ExtArgs["result"]["scheduleConfig"]>
 export type ScheduleConfigInclude<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
-  term?: boolean | Prisma.TermDefaultArgs<ExtArgs>
+  schoolYear?: boolean | Prisma.SchoolYearDefaultArgs<ExtArgs>
 }
 export type ScheduleConfigIncludeCreateManyAndReturn<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
-  term?: boolean | Prisma.TermDefaultArgs<ExtArgs>
+  schoolYear?: boolean | Prisma.SchoolYearDefaultArgs<ExtArgs>
 }
 export type ScheduleConfigIncludeUpdateManyAndReturn<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
-  term?: boolean | Prisma.TermDefaultArgs<ExtArgs>
+  schoolYear?: boolean | Prisma.SchoolYearDefaultArgs<ExtArgs>
 }
 
 export type $ScheduleConfigPayload<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
   name: "ScheduleConfig"
   objects: {
-    term: Prisma.$TermPayload<ExtArgs>
+    schoolYear: Prisma.$SchoolYearPayload<ExtArgs>
   }
   scalars: runtime.Types.Extensions.GetPayloadResult<{
     id: string
-    termId: string
+    schoolYearId: string
+    name: string
+    isActive: boolean
     startTime: string
     periodMins: number
     lunchAfter: number
@@ -1209,7 +1283,7 @@ readonly fields: ScheduleConfigFieldRefs;
  */
 export interface Prisma__ScheduleConfigClient<T, Null = never, ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs, GlobalOmitOptions = {}> extends Prisma.PrismaPromise<T> {
   readonly [Symbol.toStringTag]: "PrismaPromise"
-  term<T extends Prisma.TermDefaultArgs<ExtArgs> = {}>(args?: Prisma.Subset<T, Prisma.TermDefaultArgs<ExtArgs>>): Prisma.Prisma__TermClient<runtime.Types.Result.GetResult<Prisma.$TermPayload<ExtArgs>, T, "findUniqueOrThrow", GlobalOmitOptions> | Null, Null, ExtArgs, GlobalOmitOptions>
+  schoolYear<T extends Prisma.SchoolYearDefaultArgs<ExtArgs> = {}>(args?: Prisma.Subset<T, Prisma.SchoolYearDefaultArgs<ExtArgs>>): Prisma.Prisma__SchoolYearClient<runtime.Types.Result.GetResult<Prisma.$SchoolYearPayload<ExtArgs>, T, "findUniqueOrThrow", GlobalOmitOptions> | Null, Null, ExtArgs, GlobalOmitOptions>
   /**
    * Attaches callbacks for the resolution and/or rejection of the Promise.
    * @param onfulfilled The callback to execute when the Promise is resolved.
@@ -1240,7 +1314,9 @@ export interface Prisma__ScheduleConfigClient<T, Null = never, ExtArgs extends r
  */
 export interface ScheduleConfigFieldRefs {
   readonly id: Prisma.FieldRef<"ScheduleConfig", 'String'>
-  readonly termId: Prisma.FieldRef<"ScheduleConfig", 'String'>
+  readonly schoolYearId: Prisma.FieldRef<"ScheduleConfig", 'String'>
+  readonly name: Prisma.FieldRef<"ScheduleConfig", 'String'>
+  readonly isActive: Prisma.FieldRef<"ScheduleConfig", 'Boolean'>
   readonly startTime: Prisma.FieldRef<"ScheduleConfig", 'String'>
   readonly periodMins: Prisma.FieldRef<"ScheduleConfig", 'Int'>
   readonly lunchAfter: Prisma.FieldRef<"ScheduleConfig", 'Int'>

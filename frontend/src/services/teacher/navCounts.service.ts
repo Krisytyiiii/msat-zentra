@@ -21,7 +21,6 @@ export interface TeacherNavQueues {
   interventions: TeacherNavEntry[];
   adm: TeacherNavEntry[];
   modules: TeacherNavEntry[];
-  schedule: TeacherNavEntry[];
   sf10: TeacherNavEntry[];
 }
 
@@ -45,7 +44,6 @@ const ROUTE_KEYS: Record<string, keyof TeacherNavQueues> = {
   "/teacher/advisory/interventions": "interventions",
   "/teacher/advisory/adm-cases": "adm",
   "/teacher/advisory/modules": "modules",
-  "/teacher/advisory/schedule": "schedule",
   "/teacher/advisory/sf10-access": "sf10",
 };
 
@@ -72,7 +70,6 @@ export const NAV_QUEUE_QUERY_KEYS: Record<
   interventions: [["advisory-interventions"]],
   adm: [["adm-my-cases"], ["adm-monitoring"]],
   modules: [["advisory-modules"]],
-  schedule: [["teacher-schedule"], ["teacher-schedule-section"]],
   sf10: [["teacher-sf10-access"]],
 };
 
@@ -135,7 +132,6 @@ const QUEUE_KEYS: (keyof TeacherNavQueues)[] = [
   "interventions",
   "adm",
   "modules",
-  "schedule",
   "sf10",
 ];
 

@@ -94,7 +94,6 @@ const TYPE_MAP: Record<string, string> = {
   "teacher_names:claim": "teacher_code_claimed",
   "teacher_names:claim_self": "teacher_code_claimed_self",
   "section_timetable_entries:schedule_update": "schedule_updated",
-  "staff_profiles:master_take": "master_teacher_changed",
   "teacher_names:unclaim": "teacher_code_released",
   "teacher_names:attendance_unlock": "attendance_unlocked",
   "grade_flags:open": "grade_flag_opened",

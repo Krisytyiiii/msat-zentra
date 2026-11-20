@@ -5,7 +5,7 @@ import Link from "next/link";
 import { Badge } from "@/components/ui/badge";
 import assign from "@/app/principal/academics/assign/components/section-assignments.module.css";
 import { STATUS_META } from "@/app/principal/academics/assign/components/status-dots";
-import emptyStyles from "@/app/teacher/schedule/schedule-empty.module.css";
+import emptyStyles from "@/components/schedule/schedule-empty.module.css";
 
 export type TimetableSlotStatus = "DRAFT" | "SUBMITTED" | "APPROVED";
 

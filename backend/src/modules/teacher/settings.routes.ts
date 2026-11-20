@@ -5,7 +5,6 @@ import { validate } from "../../middleware/validate.js";
 import { resolveActiveTermId } from "../../services/risk.js";
 import {
   dataSharingSchema,
-  masterTeacherSchema,
   teacherPhotoSchema,
   teacherProfileSchema,
 } from "./teacher.schemas.js";
@@ -14,7 +13,6 @@ import {
   readDataSharing,
   readProfileSettings,
   setDataSharing,
-  setMasterTeacher,
   updateProfilePhoto,
   updateProfileSettings,
 } from "../../services/teacher/settings.service.js";
@@ -46,27 +44,6 @@ router.get(
           termId,
         }),
       );
-    } catch (e) {
-      next(e);
-    }
-  }
-);
-
-router.patch(
-  "/settings/master-teacher",
-  requireAuth,
-  requireRole("subject_teacher", "adviser"),
-  validate("body", masterTeacherSchema),
-  async (req, res, next) => {
-    try {
-      const { isMasterTeacher, band = "7-10" } = req.body as {
-        isMasterTeacher: boolean;
-        band?: "7-10" | "11-12";
-      };
-      const termId = await resolveActiveTermId(req);
-      const result = await setMasterTeacher({ ...ctxOf(req), termId }, band, isMasterTeacher);
-      await invalidateTags(["teacher", "overview", "schedule", "academics", "principal"]);
-      res.json(result);
     } catch (e) {
       next(e);
     }

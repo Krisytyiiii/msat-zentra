@@ -7,6 +7,7 @@ import {
   SCHEDULE_CONFIG_DEFAULTS,
   toScheduleConfig,
 } from "../modules/teacher/teacher.labels.js";
+import { activeScheduleConfigForYear } from "../lib/schedule-config.js";
 
 const RECORDED_BY = "system:auto-absent";
 const LOOKBACK_DAYS = 14;
@@ -65,7 +66,7 @@ export async function sweepAutoAbsent(
       startDate: { lte: now },
       OR: [{ endDate: null }, { endDate: { gte: new Date(`${earliestStr}T00:00:00Z`) } }],
     },
-    select: { id: true, startDate: true, endDate: true },
+    select: { id: true, schoolYearId: true, startDate: true, endDate: true },
   });
 
   let meetups = 0;
@@ -85,7 +86,7 @@ export async function sweepAutoAbsent(
     const winEnd = termEndStr && termEndStr < todayStr ? termEndStr : todayStr;
     if (winStart > winEnd) continue;
 
-    const cfgRow = await prisma.scheduleConfig.findUnique({ where: { termId: term.id } });
+    const cfgRow = await activeScheduleConfigForYear(term.schoolYearId);
     const cfg: ScheduleLike = cfgRow ? toScheduleConfig(cfgRow) : SCHEDULE_CONFIG_DEFAULTS;
 
     const [entries, taken, profiles, rosters] = await Promise.all([

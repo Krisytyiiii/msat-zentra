@@ -201,8 +201,6 @@ export const StaffProfileScalarFieldEnum = {
   employeeId: 'employeeId',
   department: 'department',
   isAdviser: 'isAdviser',
-  isMasterTeacher: 'isMasterTeacher',
-  isMasterTeacherSenior: 'isMasterTeacherSenior',
   handledGradeLevels: 'handledGradeLevels',
   signatureImageUrl: 'signatureImageUrl',
   photoUrl: 'photoUrl',
@@ -311,7 +309,9 @@ export type TeacherSubjectAssignmentScalarFieldEnum = (typeof TeacherSubjectAssi
 
 export const ScheduleConfigScalarFieldEnum = {
   id: 'id',
-  termId: 'termId',
+  schoolYearId: 'schoolYearId',
+  name: 'name',
+  isActive: 'isActive',
   startTime: 'startTime',
   periodMins: 'periodMins',
   lunchAfter: 'lunchAfter',

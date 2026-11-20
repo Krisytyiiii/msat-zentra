@@ -2,12 +2,6 @@ import { z } from "zod";
 import { MAX_PAGE_SIZE, PAGE_SIZE } from "../../lib/pagination.js";
 import { MASCOT_CHARACTERS } from "../../services/mascot.js";
 
-export const masterTeacherSchema = z.object({
-  isMasterTeacher: z.boolean(),
-  // Defaults to the legacy G7–G10 seat so older clients keep working.
-  band: z.enum(["7-10", "11-12"]).optional(),
-});
-
 export const dataSharingSchema = z.object({ shareStudentData: z.boolean() });
 
 export const HEX_COLOR = z

@@ -23,7 +23,6 @@ import {
 } from "@/services/settings/profile-settings";
 import { TeacherNotificationsBell } from "./components/TeacherNotificationsBell";
 import { TeacherBamaPill, TONE_CLASSES } from "./components/TeacherBamaPill";
-import { TemplateSaveProvider } from "./schedule/components/template-save-context";
 import { AddAssessmentSaveProvider } from "./grading/[assignmentId]/components/add-assessment-save-context";
 import { ScoreSaveProvider } from "./grading/[assignmentId]/components/score-save-context";
 import { DeleteAssessmentSaveProvider } from "./grading/[assignmentId]/components/delete-assessment-save-context";
@@ -37,7 +36,6 @@ function TeacherShell({ children }: { children: React.ReactNode }) {
   useTeacherRealtime();
 
   return (
-    <TemplateSaveProvider>
     <AddAssessmentSaveProvider>
     <ScoreSaveProvider>
     <DeleteAssessmentSaveProvider>
@@ -53,13 +51,12 @@ function TeacherShell({ children }: { children: React.ReactNode }) {
     </DeleteAssessmentSaveProvider>
     </ScoreSaveProvider>
     </AddAssessmentSaveProvider>
-    </TemplateSaveProvider>
   );
 }
 
 // Standalone mode (`?standalone=1`, used by the floating Bama bubble's new
-// tab, and always for the schedule template new tab): no left sidebar
-// links — just the page. The shell drops its rail offset and goes full width.
+// tab): no left sidebar links — just the page. The shell drops its rail offset
+// and goes full width.
 function TeacherChrome({
   children,
 }: {
@@ -70,8 +67,7 @@ function TeacherChrome({
 
   const searchParams = useSearchParams();
   const pathname = usePathname();
-  const standalone =
-    searchParams.get("standalone") === "1" || pathname?.startsWith("/teacher/schedule/template") === true;
+  const standalone = searchParams.get("standalone") === "1";
   // Quick actions are dashboard shortcuts; other desks have their own controls.
   const isOverview = pathname === "/teacher/overview";
 

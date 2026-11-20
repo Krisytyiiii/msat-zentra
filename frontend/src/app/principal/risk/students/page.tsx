@@ -9,6 +9,7 @@ import type { RiskFactor, RiskLevelKey } from "@/services/principal/riskStudents
 import { usePersistentState } from "@/lib/hooks/usePersistentState";
 import { PageEmptyCallout } from "@/components/shared/page-empty-callout";
 import { Button } from "@/components/ui/button";
+import { StatDeck } from "@/components/ui/stat-deck";
 import { PrincipalPageHeader } from "../../components/PrincipalPageHeader";
 import { RiskInsightRow } from "./components/RiskInsightRow";
 import { StudentHeatmap } from "./components/StudentHeatmap";
@@ -167,86 +168,52 @@ export default function RiskBoardStudentsPage() {
         </PageEmptyCallout>
       ) : (
         <>
-          <section className={styles.statsDeck} aria-label="Risk at a glance">
-            <div className={styles.statsHead}>
-              <span className={styles.statsTitle}>
-                <ShieldAlert size={14} aria-hidden="true" /> Risk at a glance
-              </span>
-            </div>
-            <div className={styles.statsTiles}>
-              {[
-                {
-                  key: "atRisk",
-                  label: "At risk",
-                  unit: "learners",
-                  value: students.length,
-                  hint: "High + moderate flags",
-                  icon: ShieldAlert,
-                  alert: true,
-                },
-                {
-                  key: "high",
-                  label: "High",
-                  unit: "learners",
-                  value: high,
-                  hint: "Two or more rules fired",
-                  icon: TriangleAlert,
-                  alert: false,
-                },
-                {
-                  key: "moderate",
-                  label: "Moderate",
-                  unit: "learners",
-                  value: moderate,
-                  hint: "One rule fired",
-                  icon: CircleAlert,
-                  alert: false,
-                },
-                {
-                  key: "sections",
-                  label: "Sections",
-                  unit: "sections",
-                  value: sections.length,
-                  hint: "Adviser-shared",
-                  icon: School,
-                  alert: false,
-                },
-              ].map((tile) => {
-                const Icon = tile.icon;
-                return (
-                  <div
-                    key={tile.key}
-                    className={`${styles.statsTile} ${tile.alert ? styles.statsTileAlert : ""}`}
-                  >
-                    <span className={styles.statsTileTop}>
-                      <span className={styles.statsTileIcon} aria-hidden="true">
-                        <Icon size={13} />
-                      </span>
-                      <span className={styles.statsTileLabel}>{tile.label}</span>
-                    </span>
-                    <span className={styles.statsTileValue}>
-                      <span
-                        className={`${styles.statsTileNumber} ${
-                          tile.value === 0 ? styles.statsTileNumberZero : ""
-                        }`}
-                      >
-                        {statsPending ? "—" : tile.value.toLocaleString()}
-                      </span>
-                      <span className={styles.statsTileUnit}>{tile.unit}</span>
-                    </span>
-                    <span className={styles.statsTileHint}>{tile.hint}</span>
-                  </div>
-                );
-              })}
-            </div>
-            <p className={styles.statsFoot}>
-              {statsPending
-                ? "Loading the term's risk figures…"
-                : topDriver
-                  ? `Most common driver this term: ${topDriver.factor} — ${topDriver.count} flagged.`
-                  : "No risk driver flagged yet this term."}
-            </p>
-          </section>
+          <StatDeck
+            title="Risk at a glance"
+            icon={ShieldAlert}
+            ariaLabel="Risk at a glance"
+            loading={statsPending}
+            items={[
+              {
+                key: "atRisk",
+                label: "At risk",
+                unit: "learners",
+                value: students.length,
+                hint: "High + moderate flags",
+                icon: ShieldAlert,
+                tone: "amber" as const,
+              },
+              {
+                key: "high",
+                label: "High",
+                unit: "learners",
+                value: high,
+                hint: "Two or more rules fired",
+                icon: TriangleAlert,
+              },
+              {
+                key: "moderate",
+                label: "Moderate",
+                unit: "learners",
+                value: moderate,
+                hint: "One rule fired",
+                icon: CircleAlert,
+              },
+              {
+                key: "sections",
+                label: "Sections",
+                unit: "sections",
+                value: sections.length,
+                hint: "Adviser-shared",
+                icon: School,
+              },
+            ]}
+            footer={
+              topDriver
+                ? `Most common driver this term: ${topDriver.factor} — ${topDriver.count} flagged.`
+                : "No risk driver flagged yet this term."
+            }
+          />
 
           <RiskInsightRow
             students={students}

@@ -36,7 +36,6 @@ const WORKSPACE_LABELS: Record<string, string> = {
   "/teacher/grading": "Workspace",
   "/teacher/lock-grades": "Workspace",
   "/teacher/attendance": "Workspace",
-  "/teacher/schedule": "Workspace",
   "/teacher/settings": "Settings",
 };
 
@@ -48,7 +47,6 @@ const PATH_LABELS: Record<string, string> = {
   "/teacher/advisory/attendance": "Attendance",
   "/teacher/advisory/referrals": "Referrals",
   "/teacher/advisory/adm-cases": "ADM Cases",
-  "/teacher/advisory/schedule": "Class Schedule",
   "/teacher/advisory/sf10-access": "SF10 Access",
 };
 

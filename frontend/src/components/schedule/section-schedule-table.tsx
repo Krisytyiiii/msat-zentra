@@ -45,19 +45,19 @@ function teacherCount(entries: ScheduleEntry[]): number {
 
 /**
  * Section timetable table — the shared KanbanBoard shell wrapped around a data
- * table, centered on the page. Used by the principal approval desk and the
- * teacher master-schedule desk so both read the same way: grade-level filter
- * chips are shared pills, status chips use the status-tone palette, and grades
- * stay listed even before they have sections. The table has no header row —
- * every cell is a labelled pill so the columns explain themselves.
+ * table, centered on the page. Used by the administrator scheduling desk:
+ * grade-level filter chips are shared pills, status chips use the status-tone
+ * palette, and grades stay listed even before they have sections. The table has
+ * no header row — every cell is a labelled pill so the columns explain
+ * themselves.
  */
 export function SectionScheduleTable({
   sections,
   onReview,
   hrefFor,
   linkTarget,
-  title = "Schedule approval",
-  description = "Timetables sent by the master teacher appear here for review.",
+  title = "Schedule",
+  description = "Every section's timetable, owned by the administrator desk.",
   emptyHint,
   grades = ALL_GRADES,
   actionLabel = "Open",
@@ -212,8 +212,7 @@ export function SectionScheduleTable({
                       </td>
                       <td className={styles.actionCol}>
                         <span className="inline-flex items-center gap-1">
-                          {/* Review only exists once the master teacher has
-                              sent the timetable — drafts never reach that desk. */}
+                          {/* Review only exists for a submitted timetable. */}
                           {onReview && status === "submitted" ? (
                             <Button
                               type="button"

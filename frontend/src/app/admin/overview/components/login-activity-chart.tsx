@@ -19,20 +19,30 @@ import { roleColor } from "./role-colors";
 import styles from "./login-activity-chart.module.css";
 
 /* Amber ramp — same shade steps as the teacher/guidance/nurse overview charts
-   so every role's boards read as one system. */
-const AMBER = "oklch(0.769 0.188 70.08)";
-const SIGN_OUT = `color-mix(in oklch, ${AMBER}, transparent 45%)`;
+   so every role's boards read as one system. Plain hex on purpose: the chart
+   paints these into SVG gradient stops, where wide `oklch()` support is not
+   guaranteed. */
+const AMBER = "#f59e0b";
+const SIGN_OUT = "rgba(245, 158, 11, 0.55)";
+const BUCKET_MS = 60 * 60 * 1000;
 const TOOLTIP_Z_INDEX = { zIndex: 50 };
 
 function timeLabel(iso: string): string {
   return new Date(iso).toLocaleTimeString([], { hour: "numeric", minute: "2-digit" });
 }
 
-function fullTimeLabel(iso: string): string {
-  return new Date(iso).toLocaleTimeString([], {
+/** Axis tick for an hourly bucket, e.g. "1 PM". */
+function hourLabel(date: Date): string {
+  return date.toLocaleTimeString([], { hour: "numeric" });
+}
+
+/** Tooltip heading for an hourly bucket, e.g. "Nov 20, 1:00 PM". */
+function bucketLabel(date: Date): string {
+  return date.toLocaleString([], {
+    month: "short",
+    day: "numeric",
     hour: "numeric",
     minute: "2-digit",
-    second: "2-digit",
   });
 }
 
@@ -78,8 +88,8 @@ function ActivityTooltip({
                 tone={isLogin ? "amber" : "neutral"}
                 label={
                   isLogin
-                    ? "Total sign-ins up to this moment"
-                    : "Total sign-outs up to this moment"
+                    ? "Sign-ins in this hour"
+                    : "Sign-outs in this hour"
                 }
               >
                 {item.name}
@@ -104,31 +114,34 @@ export default function LoginActivityChart({
   signOuts: number;
   windowHours: number;
 }) {
-  // One point per event timestamp, plotted as running totals so the line keeps
-  // rising through the window (no hourly buckets).
+  // Hourly buckets across the window, each carrying its own sign-in / sign-out
+  // count — an area chart needs per-interval activity so it rises and falls
+  // instead of drawing one monotone cumulative ramp.
+  //
+  // The window end is frozen at mount (`useState` lazy init) so the render stays
+  // pure and the buckets don't shift under a polling refetch.
+  const [windowEnd] = React.useState(() => Math.ceil(Date.now() / BUCKET_MS) * BUCKET_MS);
   const points = React.useMemo(() => {
-    const rows: Array<{
-      at: string;
-      label: string;
-      axisLabel: string;
-      Logins: number;
-      "Sign-outs": number;
-    }> = [];
-    let logins = 0;
-    let outs = 0;
+    const start = windowEnd - windowHours * BUCKET_MS;
+    const rows = Array.from({ length: windowHours }, (_, index) => {
+      const at = new Date(start + index * BUCKET_MS);
+      return {
+        at: at.toISOString(),
+        label: bucketLabel(at),
+        Logins: 0,
+        "Sign-outs": 0,
+      };
+    });
     for (const event of events) {
-      if (event.kind === "logout") outs += 1;
-      else logins += 1;
-      rows.push({
-        at: event.at,
-        label: fullTimeLabel(event.at),
-        axisLabel: timeLabel(event.at),
-        Logins: logins,
-        "Sign-outs": outs,
-      });
+      const index = Math.floor((new Date(event.at).getTime() - start) / BUCKET_MS);
+      if (index < 0 || index >= rows.length) continue;
+      if (event.kind === "logout") rows[index]["Sign-outs"] += 1;
+      else rows[index].Logins += 1;
     }
     return rows;
-  }, [events]);
+  }, [events, windowHours, windowEnd]);
+
+  const hasEvents = events.length > 0;
 
   return (
     <div className={styles.chart}>
@@ -148,27 +161,28 @@ export default function LoginActivityChart({
       </div>
 
       <div className={styles.plot}>
-        {points.length > 0 ? (
+        {hasEvents ? (
           <div
-            className={styles.lineChart}
+            className={styles.areaChart}
             role="img"
             aria-label={`Logins and sign-outs over the last ${windowHours} hours: ${total} sign-ins, ${signOuts} sign-outs`}
           >
             <ResponsiveContainer width="100%" height={168}>
-              <AreaChart data={points} margin={{ top: 6, right: 6, bottom: 0, left: -18 }}>
+              <AreaChart data={points} margin={{ top: 10, right: 8, bottom: 0, left: 0 }}>
                 <defs>
                   <linearGradient id="admin-logins-fill" x1="0" y1="0" x2="0" y2="1">
-                    <stop offset="0%" stopColor={AMBER} stopOpacity={0.36} />
-                    <stop offset="100%" stopColor={AMBER} stopOpacity={0} />
+                    <stop offset="0%" stopColor={AMBER} stopOpacity={0.55} />
+                    <stop offset="100%" stopColor={AMBER} stopOpacity={0.04} />
                   </linearGradient>
                   <linearGradient id="admin-signouts-fill" x1="0" y1="0" x2="0" y2="1">
-                    <stop offset="0%" stopColor={AMBER} stopOpacity={0.18} />
-                    <stop offset="100%" stopColor={AMBER} stopOpacity={0} />
+                    <stop offset="0%" stopColor={AMBER} stopOpacity={0.28} />
+                    <stop offset="100%" stopColor={AMBER} stopOpacity={0.02} />
                   </linearGradient>
                 </defs>
                 <CartesianGrid strokeDasharray="3 3" stroke="var(--border)" vertical={false} />
                 <XAxis
-                  dataKey="axisLabel"
+                  dataKey="at"
+                  tickFormatter={(value: string) => hourLabel(new Date(value))}
                   tickLine={false}
                   axisLine={false}
                   interval="preserveStartEnd"
@@ -180,7 +194,7 @@ export default function LoginActivityChart({
                   axisLine={false}
                   allowDecimals={false}
                   fontSize={12}
-                  width={30}
+                  width={34}
                 />
                 <Tooltip
                   content={<ActivityTooltip />}
@@ -220,7 +234,7 @@ export default function LoginActivityChart({
         )}
       </div>
 
-      {points.length > 0 ? (
+      {hasEvents ? (
         <ul className={styles.legend}>
           <li className={styles.legendItem}>
             <span className={styles.swatch} style={{ background: AMBER }} aria-hidden="true" />
@@ -258,15 +272,17 @@ function LatestAccess({ events }: { events: AdminLoginActivityEvent[] }) {
 
   return (
     <div className={styles.latest}>
-      <FilterTabs
-        label="Latest activity"
-        options={[
-          { value: "login", label: "Latest logins" },
-          { value: "logout", label: "Latest sign-outs" },
-        ]}
-        value={tab}
-        onChange={setTab}
-      />
+      <div className={styles.filterTabs}>
+        <FilterTabs
+          label="Latest activity"
+          options={[
+            { value: "login", label: "Latest logins" },
+            { value: "logout", label: "Latest sign-outs" },
+          ]}
+          value={tab}
+          onChange={setTab}
+        />
+      </div>
 
       {rows.length === 0 ? (
         <p className={styles.latestEmpty}>

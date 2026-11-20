@@ -3,7 +3,6 @@
 import * as React from "react";
 import { useQuery } from "@tanstack/react-query";
 import {
-  ArrowUpRight,
   CheckCircle2,
   Clock,
   FileSearch,
@@ -15,9 +14,9 @@ import {
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Pill } from "@/components/ui/pill";
+import { StatDeck } from "@/components/ui/stat-deck";
 import { StudentMascot } from "@/components/student-mascot/StudentMascot";
 import { useAdviserAccessCheck } from "@/components/shared/adviser-access/adviser-access-check-context";
-import { useCountUp } from "@/lib/hooks/useCountUp";
 import { apiClient } from "@/lib/api/client";
 import type { RegistryDesk } from "@/services/registry/overview.service";
 import type {
@@ -65,47 +64,6 @@ interface StatItem {
   unit: string;
   hint: string;
   count: number;
-}
-
-/** Overview-style attention tile: icon + label, big count, thin share meter. */
-function StatTile({
-  item,
-  share,
-  active,
-  onSelect,
-}: {
-  item: StatItem;
-  share: number;
-  active: boolean;
-  onSelect: () => void;
-}) {
-  const Icon = item.icon;
-  const shown = useCountUp(item.count, 700);
-  return (
-    <button
-      type="button"
-      className={`${styles.tile} ${active ? styles.tileActive : ""}`}
-      aria-pressed={active}
-      onClick={onSelect}
-      title={`${item.hint} — click to filter the workbench`}
-    >
-      <span className={styles.tileTop}>
-        <span className={styles.tileIcon} aria-hidden>
-          <Icon />
-        </span>
-        <span className={styles.tileLabel}>{item.label}</span>
-        <ArrowUpRight className={styles.tileArrow} aria-hidden />
-      </span>
-      <span className={styles.tileValue}>
-        <span className={styles.tileNumber}>{shown}</span>
-        <span className={styles.tileUnit}>{item.unit}</span>
-      </span>
-      <span className={styles.tileMeter} aria-hidden>
-        <span className={styles.tileMeterFill} style={{ width: `${share}%` }} />
-      </span>
-      <span className={styles.tileHint}>{item.hint}</span>
-    </button>
-  );
 }
 
 export function AdviserAccessWorkspace({ desk }: { desk: RegistryDesk }) {
@@ -312,25 +270,23 @@ export function AdviserAccessWorkspace({ desk }: { desk: RegistryDesk }) {
         <div className={styles.stack}>
           {hero}
 
-          <section className={styles.deck} aria-label="Access request stats">
-            <div className={styles.deckHead}>
-              <span className={styles.deckTitle}>
-                <FileSearch aria-hidden />
-                Access requests at a glance
-              </span>
-            </div>
-            <div className={styles.tiles}>
-              {kpis.map((item) => (
-                <StatTile
-                  key={item.key}
-                  item={item}
-                  share={Math.round((item.count / shareBase) * 100)}
-                  active={kpiActive(item.key)}
-                  onSelect={() => onKpiClick(item.key)}
-                />
-              ))}
-            </div>
-          </section>
+          <StatDeck
+            title="Access requests at a glance"
+            icon={FileSearch}
+            ariaLabel="Access request stats"
+            items={kpis.map((item) => ({
+              key: item.key,
+              icon: item.icon,
+              label: item.label,
+              unit: item.unit,
+              hint: item.hint,
+              value: item.count,
+              meter: Math.round((item.count / shareBase) * 100),
+              onClick: () => onKpiClick(item.key),
+              active: kpiActive(item.key),
+              ariaLabel: `${item.label}: ${item.count} ${item.unit} — filter the workbench`,
+            }))}
+          />
 
           <section className={styles.requestStrip} aria-label="Pending adviser requests">
             <div className={styles.stripHead}>

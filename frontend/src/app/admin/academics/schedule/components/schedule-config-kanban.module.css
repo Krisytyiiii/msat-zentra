@@ -1,0 +1,222 @@
+/* Live day-preview list. The scrollbar stays invisible until the list is
+   hovered, then shows a thin amber thumb — enough to signal "this scrolls"
+   without putting a heavy grey track beside the wizard fields. */
+.scrollArea {
+  scrollbar-width: thin;
+  scrollbar-color: transparent transparent;
+}
+
+.scrollArea:hover {
+  scrollbar-color: color-mix(in oklch, #f59e0b 70%, transparent) transparent;
+}
+
+.scrollArea::-webkit-scrollbar {
+  width: 6px;
+}
+
+.scrollArea::-webkit-scrollbar-track {
+  background-color: transparent;
+}
+
+.scrollArea::-webkit-scrollbar-thumb {
+  border-radius: 999px;
+  background-color: transparent;
+  transition: background-color 150ms ease-out;
+}
+
+.scrollArea:hover::-webkit-scrollbar-thumb {
+  background-color: color-mix(in oklch, #f59e0b 55%, transparent);
+}
+
+.scrollArea::-webkit-scrollbar-thumb:hover {
+  background-color: #f59e0b;
+}
+
+/* Step hints — one plain-language sentence so first-time admins know what the
+   screen is asking for before they touch a field. */
+.hint {
+  margin: 0;
+  padding-inline: 0.25rem;
+  font-family: var(--font-inter), ui-sans-serif, system-ui, sans-serif;
+  font-size: 0.75rem;
+  line-height: 1.45;
+  color: var(--muted-foreground);
+}
+
+/* ── Group heading ("Starting shape") ─────────────────────────────────── */
+.groupLabel {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.375rem;
+  font-family: var(--font-inter), ui-sans-serif, system-ui, sans-serif;
+  font-size: 0.75rem;
+  font-weight: 600;
+  color: var(--foreground);
+}
+
+.groupHint {
+  font-family: var(--font-inter), ui-sans-serif, system-ui, sans-serif;
+  font-size: 0.75rem;
+  font-weight: 400;
+  color: var(--muted-foreground);
+}
+
+/* ── Quick-shape cards ────────────────────────────────────────────────── */
+.shapeCard {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+  min-width: 0;
+  padding: 0.5rem 0.625rem;
+  border: 1px solid var(--border);
+  border-radius: 0.5rem;
+  background-color: var(--card);
+  text-align: left;
+  transition:
+    border-color 150ms ease-out,
+    background-color 150ms ease-out,
+    transform 150ms ease-out;
+}
+
+.shapeCard:hover {
+  border-color: color-mix(in oklch, #f59e0b 45%, var(--border));
+  background-color: color-mix(in oklch, #f59e0b 5%, var(--card));
+}
+
+.shapeCard:focus-visible {
+  outline: 2px solid color-mix(in oklch, var(--ring) 65%, transparent);
+  outline-offset: 1px;
+}
+
+.shapeCardActive,
+.shapeCardActive:hover {
+  border-color: color-mix(in oklch, #f59e0b 60%, var(--border));
+  background-color: color-mix(in oklch, #f59e0b 9%, var(--card));
+}
+
+.shapeTop {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.375rem;
+  min-width: 0;
+}
+
+.shapeName {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-family: var(--font-inter), ui-sans-serif, system-ui, sans-serif;
+  font-size: 0.75rem;
+  font-weight: 600;
+  color: var(--foreground);
+}
+
+.shapeCheck {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 0.9375rem;
+  height: 0.9375rem;
+  flex-shrink: 0;
+  border-radius: 999px;
+  background-color: #f59e0b;
+  color: #1c1917;
+}
+
+.shapeMeta {
+  font-family: var(--font-inter), ui-sans-serif, system-ui, sans-serif;
+  font-size: 0.75rem;
+  font-variant-numeric: tabular-nums;
+  color: var(--muted-foreground);
+}
+
+.shapeBar {
+  display: flex;
+  gap: 1px;
+  height: 0.25rem;
+  margin-top: 0.125rem;
+  overflow: hidden;
+  border-radius: 999px;
+}
+
+.shapeSegment {
+  min-width: 1px;
+  background-color: color-mix(in oklch, var(--primary) 30%, var(--border));
+}
+
+.shapeSegLunch {
+  background-color: color-mix(in oklch, #f59e0b 65%, var(--card));
+}
+
+.shapeSegRecess {
+  background-color: color-mix(in oklch, #14b8a6 55%, var(--card));
+}
+
+/* ── Fieldset panels ──────────────────────────────────────────────────── */
+.panel {
+  display: flex;
+  flex-direction: column;
+  gap: 0.625rem;
+  padding: 0.75rem;
+  border: 1px solid var(--border);
+  border-radius: 0.625rem;
+  background-color: color-mix(in oklch, var(--muted) 18%, var(--card));
+}
+
+.panelHead {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.5rem;
+  min-width: 0;
+}
+
+.panelIcon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 1.5rem;
+  height: 1.5rem;
+  flex-shrink: 0;
+  border: 1px solid var(--border);
+  border-radius: 0.375rem;
+  background-color: var(--card);
+  color: color-mix(in oklch, #b45309 80%, var(--foreground));
+}
+
+.panelText {
+  display: flex;
+  flex-direction: column;
+  gap: 0.0625rem;
+  min-width: 0;
+}
+
+.panelTitle {
+  margin: 0;
+  font-family: var(--font-inter), ui-sans-serif, system-ui, sans-serif;
+  font-size: 0.75rem;
+  font-weight: 700;
+  color: var(--foreground);
+}
+
+.panelHint {
+  margin: 0;
+  font-family: var(--font-inter), ui-sans-serif, system-ui, sans-serif;
+  font-size: 0.75rem;
+  line-height: 1.4;
+  color: var(--muted-foreground);
+}
+
+.fieldLabel {
+  font-family: var(--font-inter), ui-sans-serif, system-ui, sans-serif;
+  font-size: 0.75rem;
+  font-weight: 500;
+  color: var(--foreground);
+}
+
+.fieldHint {
+  font-family: var(--font-inter), ui-sans-serif, system-ui, sans-serif;
+  font-size: 0.75rem;
+  line-height: 1.4;
+  color: var(--muted-foreground);
+}

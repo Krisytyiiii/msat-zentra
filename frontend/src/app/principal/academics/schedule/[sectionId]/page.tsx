@@ -1,6 +1,5 @@
 "use client";
 
-import { useState } from "react";
 import Link from "next/link";
 import { useParams } from "next/navigation";
 import { ArrowLeft, CalendarDays } from "lucide-react";
@@ -8,12 +7,8 @@ import { Button } from "@/components/ui/button";
 import { PrincipalEmptyCard } from "../../../components/PrincipalEmptyCard";
 import { ScheduleReadonlyGrid } from "./components/schedule-readonly-grid";
 import { SectionReviewHero } from "./components/section-review-hero";
-import { ReviewDialog } from "./components/review-dialog";
 import { SectionScheduleSkeleton } from "./components/section-schedule-skeleton";
-import {
-  usePrincipalScheduleSection,
-  type SlotFilter,
-} from "./components/use-principal-schedule-section";
+import { usePrincipalScheduleSection } from "./components/use-principal-schedule-section";
 
 export default function PrincipalSectionSchedulePage() {
   const params = useParams<{ sectionId: string }>();
@@ -27,20 +22,8 @@ export default function PrincipalSectionSchedulePage() {
     entryByKey,
     counts,
     emptyCount,
-    returnedNote,
-    review,
-    note,
-    setNote,
-    formError,
-    setFormError,
-    reviewOpen,
-    setReviewOpen,
-    handleReview,
-    rejecting,
-    approving,
     statusMeta,
   } = usePrincipalScheduleSection(sectionRef);
-  const [slotFilter, setSlotFilter] = useState<SlotFilter>("all");
 
   if (sectionsQuery.isPending || configQuery.isPending) {
     return <SectionScheduleSkeleton />;
@@ -71,11 +54,6 @@ export default function PrincipalSectionSchedulePage() {
     );
   }
 
-  const openReview = () => {
-    setFormError(null);
-    setReviewOpen(true);
-  };
-
   return (
     <section className="flex w-full flex-col gap-4">
       <div className="flex min-w-0 flex-wrap items-center justify-between gap-2">
@@ -92,38 +70,9 @@ export default function PrincipalSectionSchedulePage() {
         statusMeta={statusMeta}
         counts={counts}
         emptyCount={emptyCount}
-        returnedNote={returnedNote}
-        filter={slotFilter}
-        onFilterChange={setSlotFilter}
-        onOpenReview={openReview}
       />
 
-      <ScheduleReadonlyGrid
-        config={config}
-        rows={rows}
-        entryByKey={entryByKey}
-        filter={slotFilter}
-      />
-
-      <ReviewDialog
-        open={reviewOpen}
-        onClose={() => {
-          if (review.isPending) return;
-          setReviewOpen(false);
-          setFormError(null);
-        }}
-        submission={submission}
-        note={note}
-        onNoteChange={(v) => {
-          setNote(v);
-          setFormError(null);
-        }}
-        formError={formError}
-        onReview={handleReview}
-        rejecting={rejecting}
-        approving={approving}
-        reviewPending={review.isPending}
-      />
+      <ScheduleReadonlyGrid config={config} rows={rows} entryByKey={entryByKey} />
     </section>
   );
 }

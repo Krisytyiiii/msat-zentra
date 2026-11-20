@@ -14,13 +14,13 @@ import {
   type LucideIcon,
 } from "lucide-react";
 import { Skeleton } from "@/components/ui/skeleton";
+import { StatDeck } from "@/components/ui/stat-deck";
 import { FilterTabs } from "@/components/ui/filter-tabs";
 import { Input } from "@/components/ui/input";
 import { InsightCallout } from "@/components/ui/insight-callout";
 import { KanbanBoard } from "@/components/ui/kanban-board";
 import { Pill } from "@/components/ui/pill";
 import { formatGrade } from "@/lib/utils";
-import { useCountUp } from "@/lib/hooks/useCountUp";
 import {
   fetchRegistrySubjects,
   type RegistrySubject,
@@ -66,43 +66,6 @@ interface StatItem {
   value: number | null;
   /** Slice of the largest stat, 0–100. */
   share: number;
-}
-
-/**
- * Deck tile — same anatomy as the final-grade approvals / adviser-access
- * stats: icon + label, big count, thin share meter, hint.
- */
-function StatTile({ item }: { item: StatItem }) {
-  const Icon = item.icon;
-  const shown = useCountUp(item.value ?? 0, 700);
-  const clear = item.value === null || item.value === 0;
-
-  return (
-    <div
-      className={`${styles.tile} ${clear ? styles.tileClear : ""}`}
-      aria-label={`${item.label}: ${item.value ?? "no data"} ${item.unit}`}
-    >
-      <span className={styles.tileTop}>
-        <span className={styles.tileIcon} aria-hidden>
-          <Icon />
-        </span>
-        <span className={styles.tileLabel}>{item.label}</span>
-      </span>
-
-      <span className={styles.tileValue}>
-        <span className={styles.tileNumber}>
-          {item.value === null ? "—" : shown}
-        </span>
-        <span className={styles.tileUnit}>{item.unit}</span>
-      </span>
-
-      <span className={styles.tileMeter} aria-hidden>
-        <span className={styles.tileMeterFill} style={{ width: `${item.share}%` }} />
-      </span>
-
-      <span className={styles.tileHint}>{item.hint}</span>
-    </div>
-  );
 }
 
 /**
@@ -271,31 +234,21 @@ export function SubjectCatalogPage({
 
   return (
     <section className="flex min-w-0 flex-col gap-3 font-sans">
-      {/* Desk snapshot — same deck anatomy as the other registry desks. */}
-      <section className={styles.deck} aria-label="Subject catalog at a glance">
-        <div className={styles.deckHead}>
-          <span className={styles.deckTitle}>
-            <GraduationCap aria-hidden />
-            Subject catalog at a glance
-          </span>
-        </div>
-
-        <div className={styles.tiles}>
-          {isPending
-            ? Array.from({ length: 4 }).map((_, i) => (
-                <div key={i} className={styles.tile} aria-hidden>
-                  <span className={styles.tileTop}>
-                    <Skeleton className="size-[1.375rem] shrink-0 rounded-md" />
-                    <Skeleton className="h-3 w-28" />
-                  </span>
-                  <Skeleton className="h-7 w-12" />
-                  <Skeleton className="h-[3px] w-full" />
-                  <Skeleton className="h-3 w-32" />
-                </div>
-              ))
-            : stats.map((item) => <StatTile key={item.key} item={item} />)}
-        </div>
-      </section>
+      {/* Desk snapshot — the shared stat deck used by every desk. */}
+      <StatDeck
+        title="Subject catalog at a glance"
+        icon={GraduationCap}
+        items={stats.map((item) => ({
+          key: item.key,
+          icon: item.icon,
+          label: item.label,
+          unit: item.unit,
+          hint: item.hint,
+          value: item.value ?? "—",
+          meter: item.share,
+        }))}
+        loading={isPending}
+      />
 
       <KanbanBoard
         title="Subject catalog"

@@ -4,34 +4,14 @@ import { writeAudit } from "../../lib/audit.js";
 import { fanoutNotification } from "../../lib/notify.js";
 import { findTeacherTermGrant } from "../../lib/teacherGrant.js";
 import { adviserSectionsOr404 } from "../../modules/teacher/advisory.repository.js";
-import {
-  notifyMastersTeacherLinkChanged,
-} from "../../modules/teacher/teacher.repository.js";
 import type { TeacherContext } from "./teacher.types.js";
-
-export async function listTeachers() {
-  const rows = await prisma.teacherName.findMany({
-    orderBy: { name: "asc" },
-    select: { id: true, name: true, code: true, userId: true },
-  });
-
-  return {
-    teachers: rows.map((t) => ({ id: t.id, name: t.name, code: t.code, linked: !!t.userId })),
-  };
-}
 
 export async function getMyLink(ctx: TeacherContext) {
   const teacherId = ctx.userId;
-  const [mine, profile] = await Promise.all([
-    prisma.teacherName.findUnique({
-      where: { userId: teacherId },
-      select: { id: true, name: true, code: true },
-    }),
-    prisma.staffProfile.findUnique({
-      where: { userId: teacherId },
-      select: { isMasterTeacher: true, isMasterTeacherSenior: true },
-    }),
-  ]);
+  const mine = await prisma.teacherName.findUnique({
+    where: { userId: teacherId },
+    select: { id: true, name: true, code: true },
+  });
   const termId = ctx.termId;
   let termGrant: { via: string; attendanceVerified: boolean } | null = null;
   if (termId) {
@@ -53,8 +33,6 @@ export async function getMyLink(ctx: TeacherContext) {
         }
       : null,
     termGrant,
-    isMasterTeacher:
-      (profile?.isMasterTeacher ?? false) || (profile?.isMasterTeacherSenior ?? false),
   };
 }
 
@@ -152,8 +130,6 @@ export async function claimCode(ctx: TeacherContext, code: string) {
     reason: `Teacher linked login to teacher list entry ${linked.name} (${linked.code})`,
   });
 
-  void notifyMastersTeacherLinkChanged(linked.id, linked.name, linked.code, "claim");
-
   void fanoutNotification({
     userId: teacherId,
     sourceTable: "teacher_names",
@@ -231,42 +207,13 @@ export async function verifyAttendance(ctx: TeacherContext, code: string) {
     },
   });
   const result = { verified: true, teacherName: { id: mine.id, name: mine.name, code: mine.code } };
-  void (async () => {
-    try {
-      const masters = await prisma.user.findMany({
-        where: {
-          status: "active",
-          OR: [
-            { staffProfile: { isMasterTeacher: true } },
-            { staffProfile: { isMasterTeacherSenior: true } },
-          ],
-        },
-        select: { id: true },
-      });
-      await fanoutNotification({
-        userId: teacherId,
-        sourceTable: "teacher_names",
-        action: "attendance_unlock",
-        sourceId: mine.id,
-        message: `You unlocked attendance with code ${mine.code} — per-subject sheets are now open.`,
-      });
-      await Promise.all(
-        masters
-          .filter((m) => m.id !== teacherId)
-          .map((m) =>
-            fanoutNotification({
-              userId: m.id,
-              sourceTable: "teacher_names",
-              action: "attendance_unlock",
-              sourceId: mine.id,
-              message: `${mine.name} unlocked attendance with code ${mine.code}.`,
-            })
-          )
-      );
-    } catch {
-
-    }
-  })();
+  void fanoutNotification({
+    userId: teacherId,
+    sourceTable: "teacher_names",
+    action: "attendance_unlock",
+    sourceId: mine.id,
+    message: `You unlocked attendance with code ${mine.code} — per-subject sheets are now open.`,
+  });
   return result;
 }
 
@@ -296,8 +243,6 @@ export async function unlinkCode(ctx: TeacherContext) {
     sourceId: mine.id,
     reason: `Teacher unlinked code ${mine.code ?? "—"} (${mine.name}) from their login`,
   });
-
-  void notifyMastersTeacherLinkChanged(mine.id, mine.name, mine.code, "unclaim");
 
   void fanoutNotification({
     userId: teacherId,

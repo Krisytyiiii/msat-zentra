@@ -82,14 +82,6 @@ export interface ClassStudentRow {
 export interface TeacherOverviewData {
   teacherName: string;
   isAdviser: boolean;
-  isMasterTeacher: boolean;
-  isMasterTeacherSenior: boolean;
-  masterTeacherEligible: boolean;
-  masterTeacherSeniorEligible: boolean;
-  masterTeacherTaken: boolean;
-  masterTeacherHolderName: string | null;
-  masterTeacherSeniorTaken: boolean;
-  masterTeacherSeniorHolderName: string | null;
   shareStudentData?: boolean;
   shareUpdatedAt?: string | null;
   advisorySection: AdvisorySectionInfo | null;
@@ -115,14 +107,6 @@ export interface TeacherOverviewData {
 export interface TeacherOverviewCritical {
   teacherName: string;
   isAdviser: boolean;
-  isMasterTeacher: boolean;
-  isMasterTeacherSenior: boolean;
-  masterTeacherEligible: boolean;
-  masterTeacherSeniorEligible: boolean;
-  masterTeacherTaken: boolean;
-  masterTeacherHolderName: string | null;
-  masterTeacherSeniorTaken: boolean;
-  masterTeacherSeniorHolderName: string | null;
   shareStudentData?: boolean;
   shareUpdatedAt?: string | null;
   advisorySection: AdvisorySectionInfo | null;

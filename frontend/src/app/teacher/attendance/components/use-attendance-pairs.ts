@@ -3,7 +3,7 @@ import { useMemo } from "react";
 import { useLiveQuery } from "@/lib/api/live";
 import { apiClient } from "@/lib/api/client";
 import { liveQueryOptions } from "@/lib/api/live";
-import type { DayConfig } from "@/app/teacher/schedule/components/schedule-time";
+import type { DayConfig } from "@/components/schedule/schedule-time";
 export interface LinkedName {
   id: string;
   name: string;
@@ -22,13 +22,18 @@ export interface AttendancePair {
   subject: { id: string; name: string; code: string } | null;
   slots: { day: number; period: number; status: "DRAFT" | "SUBMITTED" | "APPROVED" }[];
 }
+interface MyLoad {
+  slots: MySlot[];
+  config: DayConfig;
+  meetupDays: Record<string, number[]>;
+}
 export function useAttendancePairs(termKey: string, linked: LinkedName | null) {
-  const mySlotsQuery = useLiveQuery<{ slots: MySlot[] }>({
-    queryKey: ["teacher-my-slots", termKey],
+  // Published load only: the admin desk owns the timetable, teachers just read
+  // the classes they teach and when they meet.
+  const loadQuery = useLiveQuery<MyLoad>({
+    queryKey: ["teacher-my-load", termKey],
     queryFn: async () => {
-      const { data } = await apiClient.get<{ slots: MySlot[] }>(
-        "/api/teacher/schedule/my-slots",
-      );
+      const { data } = await apiClient.get<MyLoad>("/api/teacher/my-load");
       return data;
     },
     enabled: linked !== null,
@@ -37,23 +42,10 @@ export function useAttendancePairs(termKey: string, linked: LinkedName | null) {
     gcTime: 5 * 60_000,
     ...liveQueryOptions,
   });
-  const configQuery = useLiveQuery<{ config: DayConfig }>({
-    queryKey: ["teacher-schedule-config", termKey],
-    queryFn: async () => {
-      const { data } = await apiClient.get<{ config: DayConfig }>(
-        "/api/teacher/schedule/config",
-      );
-      return data;
-    },
-    retry: false,
-    staleTime: 60_000,
-    gcTime: 5 * 60_000,
-    ...liveQueryOptions,
-  });
   const pairs = useMemo<AttendancePair[]>(() => {
     const list: AttendancePair[] = [];
     const byKey = new Map<string, AttendancePair>();
-    const ordered = [...(mySlotsQuery.data?.slots ?? [])].sort(
+    const ordered = [...(loadQuery.data?.slots ?? [])].sort(
       (a, b) => a.day - b.day || a.period - b.period,
     );
     for (const s of ordered) {
@@ -72,6 +64,14 @@ export function useAttendancePairs(termKey: string, linked: LinkedName | null) {
       entry.slots.push({ day: s.day, period: s.period, status: s.status });
     }
     return list;
-  }, [mySlotsQuery.data]);
-  return { pairs, mySlotsQuery, configQuery };
+  }, [loadQuery.data]);
+  return {
+    pairs,
+    mySlotsQuery: loadQuery,
+    configQuery: {
+      data: loadQuery.data?.config ? { config: loadQuery.data.config } : undefined,
+      isPending: loadQuery.isPending,
+      isError: loadQuery.isError,
+    },
+  };
 }

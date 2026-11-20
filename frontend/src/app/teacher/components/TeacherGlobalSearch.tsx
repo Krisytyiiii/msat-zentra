@@ -24,7 +24,6 @@ import {
 import { useTeacherOverview } from "@/services/teacher/overview.service";
 import {
   useCachedAdviser,
-  useCachedMasterTeacher,
 } from "@/services/teacher/flagCache";
 import { useAdvisoryRoster } from "@/services/teacher/advisory.service";
 import {
@@ -56,17 +55,12 @@ export function TeacherGlobalSearch() {
 
   const session = useSession();
   const overview = useTeacherOverview();
-  const cachedMaster = useCachedMasterTeacher(session?.sub);
-  const isMasterTeacher =
-    overview.data?.isMasterTeacher ||
-    overview.data?.isMasterTeacherSenior ||
-    cachedMaster;
   const cachedAdviser = useCachedAdviser(session?.sub);
   const isAdviser = overview.data?.isAdviser ?? cachedAdviser ?? true;
 
   const groups = React.useMemo(
-    () => buildNav(isMasterTeacher, isAdviser),
-    [isMasterTeacher, isAdviser],
+    () => buildNav(isAdviser),
+    [isAdviser],
   );
 
   // Permanent-record search (advisers): roster + granted SF10 rows. The

@@ -27,9 +27,7 @@ export function ReportsScopeBar({ data }: { data: TeacherReportsPayload }) {
   const teacher = data.teacher;
 
   const schoolYear = term?.schoolYearName ?? activeTerm?.schoolYearName ?? "School year";
-  const teacherHint = `${teacher.code ? `Code ${teacher.code}` : "No linked code"}, ${
-    teacher.isMasterTeacher ? "Master teacher" : "Subject teacher"
-  }`;
+  const teacherHint = `${teacher.code ? `Code ${teacher.code}` : "No linked code"}, subject teacher`;
   const advisoryHint = teacher.advisorySection
     ? `${teacher.advisorySection.gradeLevel}, Adviser`
     : "No advisory section this term";
@@ -63,9 +61,6 @@ export function ReportsScopeBar({ data }: { data: TeacherReportsPayload }) {
             <span className={styles.chips}>
               <Pill tone="neutral" label="Teacher code">
                 {teacher.code ? `Code ${teacher.code}` : "No linked code"}
-              </Pill>
-              <Pill tone={teacher.isMasterTeacher ? "blue" : "neutral"} label="Staff role">
-                {teacher.isMasterTeacher ? "Master teacher" : "Subject teacher"}
               </Pill>
             </span>
           }

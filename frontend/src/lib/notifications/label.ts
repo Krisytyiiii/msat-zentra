@@ -329,11 +329,10 @@ export function teacherNotificationTitle(n: {
 export function teacherNotificationTarget(
   n: { sourceTable: string | null; sourceId: string | null; message?: string | null },
 ): BellNotificationTarget {
-  if (n.sourceTable === "section_timetable_entries" && n.sourceId) {
-    // Workspace-wide submit echoes carry the term id, not a section — land on
-    // the schedule workspace instead of a bogus section URL.
-    if (/you sent .* principal review/i.test(n.message ?? "")) return { href: "/teacher/schedule" };
-    return { href: `/teacher/schedule/template?sectionId=${encodeURIComponent(n.sourceId)}` };
+  if (n.sourceTable === "section_timetable_entries") {
+    // Published/unpublished section schedule: the class list is the teacher's
+    // only view of the timetable.
+    return { href: "/teacher/classes" };
   }
   if (n.sourceTable === "referrals" && n.sourceId) {
     if (/adm/i.test(n.message ?? "")) {
@@ -359,8 +358,8 @@ export function teacherNotificationTarget(
   if (n.sourceTable === "anecdotal_record_followups") return { href: "/teacher/anecdotal" };
   if (n.sourceTable === "teacher_names") return { href: "/teacher/classes" };
   if (n.sourceTable === "grade_flags") return { href: "/teacher/grade-flags" };
-  if (n.sourceTable === "sections") return { href: "/teacher/schedule" };
-  if (n.sourceTable === "teacher_subject_assignments") return { href: "/teacher/schedule" };
+  if (n.sourceTable === "sections") return { href: "/teacher/classes" };
+  if (n.sourceTable === "teacher_subject_assignments") return { href: "/teacher/classes" };
   if (n.sourceTable === "final_grades") return { href: "/teacher/grading" };
   if (n.sourceTable === "attendance_records") return { href: "/teacher/attendance" };
   return null;
@@ -368,8 +367,8 @@ export function teacherNotificationTarget(
 export function principalNotificationTarget(
   n: { sourceTable: string | null; sourceId: string | null },
 ): BellNotificationTarget {
-  if (n.sourceTable === "section_timetable_entries" && n.sourceId)
-    return { href: `/principal/academics/schedule/${n.sourceId}` };
+  if (n.sourceTable === "section_timetable_entries")
+    return { href: "/principal/academics/schedule" };
   if (n.sourceTable === "adm_devices") return { href: "/principal/adm" };
   return null;
 }

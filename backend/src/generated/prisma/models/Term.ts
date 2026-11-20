@@ -230,7 +230,6 @@ export type TermWhereInput = {
   reportSnapshots?: Prisma.ReportSnapshotListRelationFilter
   teacherAssignments?: Prisma.TeacherSubjectAssignmentListRelationFilter
   gradeFlags?: Prisma.GradeFlagListRelationFilter
-  scheduleConfigs?: Prisma.ScheduleConfigListRelationFilter
   timetableEntries?: Prisma.SectionTimetableEntryListRelationFilter
   termGrants?: Prisma.TeacherTermGrantListRelationFilter
   rosterEnlistments?: Prisma.StudentRosterListRelationFilter
@@ -258,7 +257,6 @@ export type TermOrderByWithRelationInput = {
   reportSnapshots?: Prisma.ReportSnapshotOrderByRelationAggregateInput
   teacherAssignments?: Prisma.TeacherSubjectAssignmentOrderByRelationAggregateInput
   gradeFlags?: Prisma.GradeFlagOrderByRelationAggregateInput
-  scheduleConfigs?: Prisma.ScheduleConfigOrderByRelationAggregateInput
   timetableEntries?: Prisma.SectionTimetableEntryOrderByRelationAggregateInput
   termGrants?: Prisma.TeacherTermGrantOrderByRelationAggregateInput
   rosterEnlistments?: Prisma.StudentRosterOrderByRelationAggregateInput
@@ -290,7 +288,6 @@ export type TermWhereUniqueInput = Prisma.AtLeast<{
   reportSnapshots?: Prisma.ReportSnapshotListRelationFilter
   teacherAssignments?: Prisma.TeacherSubjectAssignmentListRelationFilter
   gradeFlags?: Prisma.GradeFlagListRelationFilter
-  scheduleConfigs?: Prisma.ScheduleConfigListRelationFilter
   timetableEntries?: Prisma.SectionTimetableEntryListRelationFilter
   termGrants?: Prisma.TeacherTermGrantListRelationFilter
   rosterEnlistments?: Prisma.StudentRosterListRelationFilter
@@ -341,7 +338,6 @@ export type TermCreateInput = {
   reportSnapshots?: Prisma.ReportSnapshotCreateNestedManyWithoutTermInput
   teacherAssignments?: Prisma.TeacherSubjectAssignmentCreateNestedManyWithoutTermInput
   gradeFlags?: Prisma.GradeFlagCreateNestedManyWithoutTermInput
-  scheduleConfigs?: Prisma.ScheduleConfigCreateNestedManyWithoutTermInput
   timetableEntries?: Prisma.SectionTimetableEntryCreateNestedManyWithoutTermInput
   termGrants?: Prisma.TeacherTermGrantCreateNestedManyWithoutTermInput
   rosterEnlistments?: Prisma.StudentRosterCreateNestedManyWithoutEnlistedTermInput
@@ -368,7 +364,6 @@ export type TermUncheckedCreateInput = {
   reportSnapshots?: Prisma.ReportSnapshotUncheckedCreateNestedManyWithoutTermInput
   teacherAssignments?: Prisma.TeacherSubjectAssignmentUncheckedCreateNestedManyWithoutTermInput
   gradeFlags?: Prisma.GradeFlagUncheckedCreateNestedManyWithoutTermInput
-  scheduleConfigs?: Prisma.ScheduleConfigUncheckedCreateNestedManyWithoutTermInput
   timetableEntries?: Prisma.SectionTimetableEntryUncheckedCreateNestedManyWithoutTermInput
   termGrants?: Prisma.TeacherTermGrantUncheckedCreateNestedManyWithoutTermInput
   rosterEnlistments?: Prisma.StudentRosterUncheckedCreateNestedManyWithoutEnlistedTermInput
@@ -395,7 +390,6 @@ export type TermUpdateInput = {
   reportSnapshots?: Prisma.ReportSnapshotUpdateManyWithoutTermNestedInput
   teacherAssignments?: Prisma.TeacherSubjectAssignmentUpdateManyWithoutTermNestedInput
   gradeFlags?: Prisma.GradeFlagUpdateManyWithoutTermNestedInput
-  scheduleConfigs?: Prisma.ScheduleConfigUpdateManyWithoutTermNestedInput
   timetableEntries?: Prisma.SectionTimetableEntryUpdateManyWithoutTermNestedInput
   termGrants?: Prisma.TeacherTermGrantUpdateManyWithoutTermNestedInput
   rosterEnlistments?: Prisma.StudentRosterUpdateManyWithoutEnlistedTermNestedInput
@@ -422,7 +416,6 @@ export type TermUncheckedUpdateInput = {
   reportSnapshots?: Prisma.ReportSnapshotUncheckedUpdateManyWithoutTermNestedInput
   teacherAssignments?: Prisma.TeacherSubjectAssignmentUncheckedUpdateManyWithoutTermNestedInput
   gradeFlags?: Prisma.GradeFlagUncheckedUpdateManyWithoutTermNestedInput
-  scheduleConfigs?: Prisma.ScheduleConfigUncheckedUpdateManyWithoutTermNestedInput
   timetableEntries?: Prisma.SectionTimetableEntryUncheckedUpdateManyWithoutTermNestedInput
   termGrants?: Prisma.TeacherTermGrantUncheckedUpdateManyWithoutTermNestedInput
   rosterEnlistments?: Prisma.StudentRosterUncheckedUpdateManyWithoutEnlistedTermNestedInput
@@ -594,20 +587,6 @@ export type TermUpdateOneRequiredWithoutTeacherAssignmentsNestedInput = {
   upsert?: Prisma.TermUpsertWithoutTeacherAssignmentsInput
   connect?: Prisma.TermWhereUniqueInput
   update?: Prisma.XOR<Prisma.XOR<Prisma.TermUpdateToOneWithWhereWithoutTeacherAssignmentsInput, Prisma.TermUpdateWithoutTeacherAssignmentsInput>, Prisma.TermUncheckedUpdateWithoutTeacherAssignmentsInput>
-}
-
-export type TermCreateNestedOneWithoutScheduleConfigsInput = {
-  create?: Prisma.XOR<Prisma.TermCreateWithoutScheduleConfigsInput, Prisma.TermUncheckedCreateWithoutScheduleConfigsInput>
-  connectOrCreate?: Prisma.TermCreateOrConnectWithoutScheduleConfigsInput
-  connect?: Prisma.TermWhereUniqueInput
-}
-
-export type TermUpdateOneRequiredWithoutScheduleConfigsNestedInput = {
-  create?: Prisma.XOR<Prisma.TermCreateWithoutScheduleConfigsInput, Prisma.TermUncheckedCreateWithoutScheduleConfigsInput>
-  connectOrCreate?: Prisma.TermCreateOrConnectWithoutScheduleConfigsInput
-  upsert?: Prisma.TermUpsertWithoutScheduleConfigsInput
-  connect?: Prisma.TermWhereUniqueInput
-  update?: Prisma.XOR<Prisma.XOR<Prisma.TermUpdateToOneWithWhereWithoutScheduleConfigsInput, Prisma.TermUpdateWithoutScheduleConfigsInput>, Prisma.TermUncheckedUpdateWithoutScheduleConfigsInput>
 }
 
 export type TermCreateNestedOneWithoutTimetableEntriesInput = {
@@ -840,7 +819,6 @@ export type TermCreateWithoutSchoolYearInput = {
   reportSnapshots?: Prisma.ReportSnapshotCreateNestedManyWithoutTermInput
   teacherAssignments?: Prisma.TeacherSubjectAssignmentCreateNestedManyWithoutTermInput
   gradeFlags?: Prisma.GradeFlagCreateNestedManyWithoutTermInput
-  scheduleConfigs?: Prisma.ScheduleConfigCreateNestedManyWithoutTermInput
   timetableEntries?: Prisma.SectionTimetableEntryCreateNestedManyWithoutTermInput
   termGrants?: Prisma.TeacherTermGrantCreateNestedManyWithoutTermInput
   rosterEnlistments?: Prisma.StudentRosterCreateNestedManyWithoutEnlistedTermInput
@@ -866,7 +844,6 @@ export type TermUncheckedCreateWithoutSchoolYearInput = {
   reportSnapshots?: Prisma.ReportSnapshotUncheckedCreateNestedManyWithoutTermInput
   teacherAssignments?: Prisma.TeacherSubjectAssignmentUncheckedCreateNestedManyWithoutTermInput
   gradeFlags?: Prisma.GradeFlagUncheckedCreateNestedManyWithoutTermInput
-  scheduleConfigs?: Prisma.ScheduleConfigUncheckedCreateNestedManyWithoutTermInput
   timetableEntries?: Prisma.SectionTimetableEntryUncheckedCreateNestedManyWithoutTermInput
   termGrants?: Prisma.TeacherTermGrantUncheckedCreateNestedManyWithoutTermInput
   rosterEnlistments?: Prisma.StudentRosterUncheckedCreateNestedManyWithoutEnlistedTermInput
@@ -930,7 +907,6 @@ export type TermCreateWithoutRosterEnlistmentsInput = {
   reportSnapshots?: Prisma.ReportSnapshotCreateNestedManyWithoutTermInput
   teacherAssignments?: Prisma.TeacherSubjectAssignmentCreateNestedManyWithoutTermInput
   gradeFlags?: Prisma.GradeFlagCreateNestedManyWithoutTermInput
-  scheduleConfigs?: Prisma.ScheduleConfigCreateNestedManyWithoutTermInput
   timetableEntries?: Prisma.SectionTimetableEntryCreateNestedManyWithoutTermInput
   termGrants?: Prisma.TeacherTermGrantCreateNestedManyWithoutTermInput
   rosterConfirmations?: Prisma.TermRosterConfirmationCreateNestedManyWithoutTermInput
@@ -956,7 +932,6 @@ export type TermUncheckedCreateWithoutRosterEnlistmentsInput = {
   reportSnapshots?: Prisma.ReportSnapshotUncheckedCreateNestedManyWithoutTermInput
   teacherAssignments?: Prisma.TeacherSubjectAssignmentUncheckedCreateNestedManyWithoutTermInput
   gradeFlags?: Prisma.GradeFlagUncheckedCreateNestedManyWithoutTermInput
-  scheduleConfigs?: Prisma.ScheduleConfigUncheckedCreateNestedManyWithoutTermInput
   timetableEntries?: Prisma.SectionTimetableEntryUncheckedCreateNestedManyWithoutTermInput
   termGrants?: Prisma.TeacherTermGrantUncheckedCreateNestedManyWithoutTermInput
   rosterConfirmations?: Prisma.TermRosterConfirmationUncheckedCreateNestedManyWithoutTermInput
@@ -998,7 +973,6 @@ export type TermUpdateWithoutRosterEnlistmentsInput = {
   reportSnapshots?: Prisma.ReportSnapshotUpdateManyWithoutTermNestedInput
   teacherAssignments?: Prisma.TeacherSubjectAssignmentUpdateManyWithoutTermNestedInput
   gradeFlags?: Prisma.GradeFlagUpdateManyWithoutTermNestedInput
-  scheduleConfigs?: Prisma.ScheduleConfigUpdateManyWithoutTermNestedInput
   timetableEntries?: Prisma.SectionTimetableEntryUpdateManyWithoutTermNestedInput
   termGrants?: Prisma.TeacherTermGrantUpdateManyWithoutTermNestedInput
   rosterConfirmations?: Prisma.TermRosterConfirmationUpdateManyWithoutTermNestedInput
@@ -1024,7 +998,6 @@ export type TermUncheckedUpdateWithoutRosterEnlistmentsInput = {
   reportSnapshots?: Prisma.ReportSnapshotUncheckedUpdateManyWithoutTermNestedInput
   teacherAssignments?: Prisma.TeacherSubjectAssignmentUncheckedUpdateManyWithoutTermNestedInput
   gradeFlags?: Prisma.GradeFlagUncheckedUpdateManyWithoutTermNestedInput
-  scheduleConfigs?: Prisma.ScheduleConfigUncheckedUpdateManyWithoutTermNestedInput
   timetableEntries?: Prisma.SectionTimetableEntryUncheckedUpdateManyWithoutTermNestedInput
   termGrants?: Prisma.TeacherTermGrantUncheckedUpdateManyWithoutTermNestedInput
   rosterConfirmations?: Prisma.TermRosterConfirmationUncheckedUpdateManyWithoutTermNestedInput
@@ -1050,7 +1023,6 @@ export type TermCreateWithoutRosterConfirmationsInput = {
   reportSnapshots?: Prisma.ReportSnapshotCreateNestedManyWithoutTermInput
   teacherAssignments?: Prisma.TeacherSubjectAssignmentCreateNestedManyWithoutTermInput
   gradeFlags?: Prisma.GradeFlagCreateNestedManyWithoutTermInput
-  scheduleConfigs?: Prisma.ScheduleConfigCreateNestedManyWithoutTermInput
   timetableEntries?: Prisma.SectionTimetableEntryCreateNestedManyWithoutTermInput
   termGrants?: Prisma.TeacherTermGrantCreateNestedManyWithoutTermInput
   rosterEnlistments?: Prisma.StudentRosterCreateNestedManyWithoutEnlistedTermInput
@@ -1076,7 +1048,6 @@ export type TermUncheckedCreateWithoutRosterConfirmationsInput = {
   reportSnapshots?: Prisma.ReportSnapshotUncheckedCreateNestedManyWithoutTermInput
   teacherAssignments?: Prisma.TeacherSubjectAssignmentUncheckedCreateNestedManyWithoutTermInput
   gradeFlags?: Prisma.GradeFlagUncheckedCreateNestedManyWithoutTermInput
-  scheduleConfigs?: Prisma.ScheduleConfigUncheckedCreateNestedManyWithoutTermInput
   timetableEntries?: Prisma.SectionTimetableEntryUncheckedCreateNestedManyWithoutTermInput
   termGrants?: Prisma.TeacherTermGrantUncheckedCreateNestedManyWithoutTermInput
   rosterEnlistments?: Prisma.StudentRosterUncheckedCreateNestedManyWithoutEnlistedTermInput
@@ -1118,7 +1089,6 @@ export type TermUpdateWithoutRosterConfirmationsInput = {
   reportSnapshots?: Prisma.ReportSnapshotUpdateManyWithoutTermNestedInput
   teacherAssignments?: Prisma.TeacherSubjectAssignmentUpdateManyWithoutTermNestedInput
   gradeFlags?: Prisma.GradeFlagUpdateManyWithoutTermNestedInput
-  scheduleConfigs?: Prisma.ScheduleConfigUpdateManyWithoutTermNestedInput
   timetableEntries?: Prisma.SectionTimetableEntryUpdateManyWithoutTermNestedInput
   termGrants?: Prisma.TeacherTermGrantUpdateManyWithoutTermNestedInput
   rosterEnlistments?: Prisma.StudentRosterUpdateManyWithoutEnlistedTermNestedInput
@@ -1144,7 +1114,6 @@ export type TermUncheckedUpdateWithoutRosterConfirmationsInput = {
   reportSnapshots?: Prisma.ReportSnapshotUncheckedUpdateManyWithoutTermNestedInput
   teacherAssignments?: Prisma.TeacherSubjectAssignmentUncheckedUpdateManyWithoutTermNestedInput
   gradeFlags?: Prisma.GradeFlagUncheckedUpdateManyWithoutTermNestedInput
-  scheduleConfigs?: Prisma.ScheduleConfigUncheckedUpdateManyWithoutTermNestedInput
   timetableEntries?: Prisma.SectionTimetableEntryUncheckedUpdateManyWithoutTermNestedInput
   termGrants?: Prisma.TeacherTermGrantUncheckedUpdateManyWithoutTermNestedInput
   rosterEnlistments?: Prisma.StudentRosterUncheckedUpdateManyWithoutEnlistedTermNestedInput
@@ -1169,7 +1138,6 @@ export type TermCreateWithoutTeacherAssignmentsInput = {
   riskSnapshots?: Prisma.RiskSnapshotCreateNestedManyWithoutTermInput
   reportSnapshots?: Prisma.ReportSnapshotCreateNestedManyWithoutTermInput
   gradeFlags?: Prisma.GradeFlagCreateNestedManyWithoutTermInput
-  scheduleConfigs?: Prisma.ScheduleConfigCreateNestedManyWithoutTermInput
   timetableEntries?: Prisma.SectionTimetableEntryCreateNestedManyWithoutTermInput
   termGrants?: Prisma.TeacherTermGrantCreateNestedManyWithoutTermInput
   rosterEnlistments?: Prisma.StudentRosterCreateNestedManyWithoutEnlistedTermInput
@@ -1195,7 +1163,6 @@ export type TermUncheckedCreateWithoutTeacherAssignmentsInput = {
   riskSnapshots?: Prisma.RiskSnapshotUncheckedCreateNestedManyWithoutTermInput
   reportSnapshots?: Prisma.ReportSnapshotUncheckedCreateNestedManyWithoutTermInput
   gradeFlags?: Prisma.GradeFlagUncheckedCreateNestedManyWithoutTermInput
-  scheduleConfigs?: Prisma.ScheduleConfigUncheckedCreateNestedManyWithoutTermInput
   timetableEntries?: Prisma.SectionTimetableEntryUncheckedCreateNestedManyWithoutTermInput
   termGrants?: Prisma.TeacherTermGrantUncheckedCreateNestedManyWithoutTermInput
   rosterEnlistments?: Prisma.StudentRosterUncheckedCreateNestedManyWithoutEnlistedTermInput
@@ -1237,7 +1204,6 @@ export type TermUpdateWithoutTeacherAssignmentsInput = {
   riskSnapshots?: Prisma.RiskSnapshotUpdateManyWithoutTermNestedInput
   reportSnapshots?: Prisma.ReportSnapshotUpdateManyWithoutTermNestedInput
   gradeFlags?: Prisma.GradeFlagUpdateManyWithoutTermNestedInput
-  scheduleConfigs?: Prisma.ScheduleConfigUpdateManyWithoutTermNestedInput
   timetableEntries?: Prisma.SectionTimetableEntryUpdateManyWithoutTermNestedInput
   termGrants?: Prisma.TeacherTermGrantUpdateManyWithoutTermNestedInput
   rosterEnlistments?: Prisma.StudentRosterUpdateManyWithoutEnlistedTermNestedInput
@@ -1262,127 +1228,6 @@ export type TermUncheckedUpdateWithoutTeacherAssignmentsInput = {
   admProfiles?: Prisma.AdmLearnerProfileUncheckedUpdateManyWithoutTermNestedInput
   riskSnapshots?: Prisma.RiskSnapshotUncheckedUpdateManyWithoutTermNestedInput
   reportSnapshots?: Prisma.ReportSnapshotUncheckedUpdateManyWithoutTermNestedInput
-  gradeFlags?: Prisma.GradeFlagUncheckedUpdateManyWithoutTermNestedInput
-  scheduleConfigs?: Prisma.ScheduleConfigUncheckedUpdateManyWithoutTermNestedInput
-  timetableEntries?: Prisma.SectionTimetableEntryUncheckedUpdateManyWithoutTermNestedInput
-  termGrants?: Prisma.TeacherTermGrantUncheckedUpdateManyWithoutTermNestedInput
-  rosterEnlistments?: Prisma.StudentRosterUncheckedUpdateManyWithoutEnlistedTermNestedInput
-  rosterConfirmations?: Prisma.TermRosterConfirmationUncheckedUpdateManyWithoutTermNestedInput
-  advisoryModules?: Prisma.AdvisoryModuleUncheckedUpdateManyWithoutTermNestedInput
-}
-
-export type TermCreateWithoutScheduleConfigsInput = {
-  id?: string
-  termNumber: number
-  startDate?: Date | string | null
-  endDate?: Date | string | null
-  schoolYear: Prisma.SchoolYearCreateNestedOneWithoutTermsInput
-  gradeComponents?: Prisma.GradeComponentCreateNestedManyWithoutTermInput
-  finalGrades?: Prisma.FinalGradeCreateNestedManyWithoutTermInput
-  attendanceRecords?: Prisma.AttendanceRecordCreateNestedManyWithoutTermInput
-  anecdotalRecords?: Prisma.AnecdotalRecordCreateNestedManyWithoutTermInput
-  referrals?: Prisma.ReferralCreateNestedManyWithoutTermInput
-  interventions?: Prisma.InterventionCreateNestedManyWithoutTermInput
-  healthRecords?: Prisma.HealthRecordCreateNestedManyWithoutTermInput
-  homeVisitations?: Prisma.HomeVisitationRecordCreateNestedManyWithoutTermInput
-  admProfiles?: Prisma.AdmLearnerProfileCreateNestedManyWithoutTermInput
-  riskSnapshots?: Prisma.RiskSnapshotCreateNestedManyWithoutTermInput
-  reportSnapshots?: Prisma.ReportSnapshotCreateNestedManyWithoutTermInput
-  teacherAssignments?: Prisma.TeacherSubjectAssignmentCreateNestedManyWithoutTermInput
-  gradeFlags?: Prisma.GradeFlagCreateNestedManyWithoutTermInput
-  timetableEntries?: Prisma.SectionTimetableEntryCreateNestedManyWithoutTermInput
-  termGrants?: Prisma.TeacherTermGrantCreateNestedManyWithoutTermInput
-  rosterEnlistments?: Prisma.StudentRosterCreateNestedManyWithoutEnlistedTermInput
-  rosterConfirmations?: Prisma.TermRosterConfirmationCreateNestedManyWithoutTermInput
-  advisoryModules?: Prisma.AdvisoryModuleCreateNestedManyWithoutTermInput
-}
-
-export type TermUncheckedCreateWithoutScheduleConfigsInput = {
-  id?: string
-  schoolYearId: string
-  termNumber: number
-  startDate?: Date | string | null
-  endDate?: Date | string | null
-  gradeComponents?: Prisma.GradeComponentUncheckedCreateNestedManyWithoutTermInput
-  finalGrades?: Prisma.FinalGradeUncheckedCreateNestedManyWithoutTermInput
-  attendanceRecords?: Prisma.AttendanceRecordUncheckedCreateNestedManyWithoutTermInput
-  anecdotalRecords?: Prisma.AnecdotalRecordUncheckedCreateNestedManyWithoutTermInput
-  referrals?: Prisma.ReferralUncheckedCreateNestedManyWithoutTermInput
-  interventions?: Prisma.InterventionUncheckedCreateNestedManyWithoutTermInput
-  healthRecords?: Prisma.HealthRecordUncheckedCreateNestedManyWithoutTermInput
-  homeVisitations?: Prisma.HomeVisitationRecordUncheckedCreateNestedManyWithoutTermInput
-  admProfiles?: Prisma.AdmLearnerProfileUncheckedCreateNestedManyWithoutTermInput
-  riskSnapshots?: Prisma.RiskSnapshotUncheckedCreateNestedManyWithoutTermInput
-  reportSnapshots?: Prisma.ReportSnapshotUncheckedCreateNestedManyWithoutTermInput
-  teacherAssignments?: Prisma.TeacherSubjectAssignmentUncheckedCreateNestedManyWithoutTermInput
-  gradeFlags?: Prisma.GradeFlagUncheckedCreateNestedManyWithoutTermInput
-  timetableEntries?: Prisma.SectionTimetableEntryUncheckedCreateNestedManyWithoutTermInput
-  termGrants?: Prisma.TeacherTermGrantUncheckedCreateNestedManyWithoutTermInput
-  rosterEnlistments?: Prisma.StudentRosterUncheckedCreateNestedManyWithoutEnlistedTermInput
-  rosterConfirmations?: Prisma.TermRosterConfirmationUncheckedCreateNestedManyWithoutTermInput
-  advisoryModules?: Prisma.AdvisoryModuleUncheckedCreateNestedManyWithoutTermInput
-}
-
-export type TermCreateOrConnectWithoutScheduleConfigsInput = {
-  where: Prisma.TermWhereUniqueInput
-  create: Prisma.XOR<Prisma.TermCreateWithoutScheduleConfigsInput, Prisma.TermUncheckedCreateWithoutScheduleConfigsInput>
-}
-
-export type TermUpsertWithoutScheduleConfigsInput = {
-  update: Prisma.XOR<Prisma.TermUpdateWithoutScheduleConfigsInput, Prisma.TermUncheckedUpdateWithoutScheduleConfigsInput>
-  create: Prisma.XOR<Prisma.TermCreateWithoutScheduleConfigsInput, Prisma.TermUncheckedCreateWithoutScheduleConfigsInput>
-  where?: Prisma.TermWhereInput
-}
-
-export type TermUpdateToOneWithWhereWithoutScheduleConfigsInput = {
-  where?: Prisma.TermWhereInput
-  data: Prisma.XOR<Prisma.TermUpdateWithoutScheduleConfigsInput, Prisma.TermUncheckedUpdateWithoutScheduleConfigsInput>
-}
-
-export type TermUpdateWithoutScheduleConfigsInput = {
-  id?: Prisma.StringFieldUpdateOperationsInput | string
-  termNumber?: Prisma.IntFieldUpdateOperationsInput | number
-  startDate?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
-  endDate?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
-  schoolYear?: Prisma.SchoolYearUpdateOneRequiredWithoutTermsNestedInput
-  gradeComponents?: Prisma.GradeComponentUpdateManyWithoutTermNestedInput
-  finalGrades?: Prisma.FinalGradeUpdateManyWithoutTermNestedInput
-  attendanceRecords?: Prisma.AttendanceRecordUpdateManyWithoutTermNestedInput
-  anecdotalRecords?: Prisma.AnecdotalRecordUpdateManyWithoutTermNestedInput
-  referrals?: Prisma.ReferralUpdateManyWithoutTermNestedInput
-  interventions?: Prisma.InterventionUpdateManyWithoutTermNestedInput
-  healthRecords?: Prisma.HealthRecordUpdateManyWithoutTermNestedInput
-  homeVisitations?: Prisma.HomeVisitationRecordUpdateManyWithoutTermNestedInput
-  admProfiles?: Prisma.AdmLearnerProfileUpdateManyWithoutTermNestedInput
-  riskSnapshots?: Prisma.RiskSnapshotUpdateManyWithoutTermNestedInput
-  reportSnapshots?: Prisma.ReportSnapshotUpdateManyWithoutTermNestedInput
-  teacherAssignments?: Prisma.TeacherSubjectAssignmentUpdateManyWithoutTermNestedInput
-  gradeFlags?: Prisma.GradeFlagUpdateManyWithoutTermNestedInput
-  timetableEntries?: Prisma.SectionTimetableEntryUpdateManyWithoutTermNestedInput
-  termGrants?: Prisma.TeacherTermGrantUpdateManyWithoutTermNestedInput
-  rosterEnlistments?: Prisma.StudentRosterUpdateManyWithoutEnlistedTermNestedInput
-  rosterConfirmations?: Prisma.TermRosterConfirmationUpdateManyWithoutTermNestedInput
-  advisoryModules?: Prisma.AdvisoryModuleUpdateManyWithoutTermNestedInput
-}
-
-export type TermUncheckedUpdateWithoutScheduleConfigsInput = {
-  id?: Prisma.StringFieldUpdateOperationsInput | string
-  schoolYearId?: Prisma.StringFieldUpdateOperationsInput | string
-  termNumber?: Prisma.IntFieldUpdateOperationsInput | number
-  startDate?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
-  endDate?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
-  gradeComponents?: Prisma.GradeComponentUncheckedUpdateManyWithoutTermNestedInput
-  finalGrades?: Prisma.FinalGradeUncheckedUpdateManyWithoutTermNestedInput
-  attendanceRecords?: Prisma.AttendanceRecordUncheckedUpdateManyWithoutTermNestedInput
-  anecdotalRecords?: Prisma.AnecdotalRecordUncheckedUpdateManyWithoutTermNestedInput
-  referrals?: Prisma.ReferralUncheckedUpdateManyWithoutTermNestedInput
-  interventions?: Prisma.InterventionUncheckedUpdateManyWithoutTermNestedInput
-  healthRecords?: Prisma.HealthRecordUncheckedUpdateManyWithoutTermNestedInput
-  homeVisitations?: Prisma.HomeVisitationRecordUncheckedUpdateManyWithoutTermNestedInput
-  admProfiles?: Prisma.AdmLearnerProfileUncheckedUpdateManyWithoutTermNestedInput
-  riskSnapshots?: Prisma.RiskSnapshotUncheckedUpdateManyWithoutTermNestedInput
-  reportSnapshots?: Prisma.ReportSnapshotUncheckedUpdateManyWithoutTermNestedInput
-  teacherAssignments?: Prisma.TeacherSubjectAssignmentUncheckedUpdateManyWithoutTermNestedInput
   gradeFlags?: Prisma.GradeFlagUncheckedUpdateManyWithoutTermNestedInput
   timetableEntries?: Prisma.SectionTimetableEntryUncheckedUpdateManyWithoutTermNestedInput
   termGrants?: Prisma.TeacherTermGrantUncheckedUpdateManyWithoutTermNestedInput
@@ -1410,7 +1255,6 @@ export type TermCreateWithoutTimetableEntriesInput = {
   reportSnapshots?: Prisma.ReportSnapshotCreateNestedManyWithoutTermInput
   teacherAssignments?: Prisma.TeacherSubjectAssignmentCreateNestedManyWithoutTermInput
   gradeFlags?: Prisma.GradeFlagCreateNestedManyWithoutTermInput
-  scheduleConfigs?: Prisma.ScheduleConfigCreateNestedManyWithoutTermInput
   termGrants?: Prisma.TeacherTermGrantCreateNestedManyWithoutTermInput
   rosterEnlistments?: Prisma.StudentRosterCreateNestedManyWithoutEnlistedTermInput
   rosterConfirmations?: Prisma.TermRosterConfirmationCreateNestedManyWithoutTermInput
@@ -1436,7 +1280,6 @@ export type TermUncheckedCreateWithoutTimetableEntriesInput = {
   reportSnapshots?: Prisma.ReportSnapshotUncheckedCreateNestedManyWithoutTermInput
   teacherAssignments?: Prisma.TeacherSubjectAssignmentUncheckedCreateNestedManyWithoutTermInput
   gradeFlags?: Prisma.GradeFlagUncheckedCreateNestedManyWithoutTermInput
-  scheduleConfigs?: Prisma.ScheduleConfigUncheckedCreateNestedManyWithoutTermInput
   termGrants?: Prisma.TeacherTermGrantUncheckedCreateNestedManyWithoutTermInput
   rosterEnlistments?: Prisma.StudentRosterUncheckedCreateNestedManyWithoutEnlistedTermInput
   rosterConfirmations?: Prisma.TermRosterConfirmationUncheckedCreateNestedManyWithoutTermInput
@@ -1478,7 +1321,6 @@ export type TermUpdateWithoutTimetableEntriesInput = {
   reportSnapshots?: Prisma.ReportSnapshotUpdateManyWithoutTermNestedInput
   teacherAssignments?: Prisma.TeacherSubjectAssignmentUpdateManyWithoutTermNestedInput
   gradeFlags?: Prisma.GradeFlagUpdateManyWithoutTermNestedInput
-  scheduleConfigs?: Prisma.ScheduleConfigUpdateManyWithoutTermNestedInput
   termGrants?: Prisma.TeacherTermGrantUpdateManyWithoutTermNestedInput
   rosterEnlistments?: Prisma.StudentRosterUpdateManyWithoutEnlistedTermNestedInput
   rosterConfirmations?: Prisma.TermRosterConfirmationUpdateManyWithoutTermNestedInput
@@ -1504,7 +1346,6 @@ export type TermUncheckedUpdateWithoutTimetableEntriesInput = {
   reportSnapshots?: Prisma.ReportSnapshotUncheckedUpdateManyWithoutTermNestedInput
   teacherAssignments?: Prisma.TeacherSubjectAssignmentUncheckedUpdateManyWithoutTermNestedInput
   gradeFlags?: Prisma.GradeFlagUncheckedUpdateManyWithoutTermNestedInput
-  scheduleConfigs?: Prisma.ScheduleConfigUncheckedUpdateManyWithoutTermNestedInput
   termGrants?: Prisma.TeacherTermGrantUncheckedUpdateManyWithoutTermNestedInput
   rosterEnlistments?: Prisma.StudentRosterUncheckedUpdateManyWithoutEnlistedTermNestedInput
   rosterConfirmations?: Prisma.TermRosterConfirmationUncheckedUpdateManyWithoutTermNestedInput
@@ -1530,7 +1371,6 @@ export type TermCreateWithoutTermGrantsInput = {
   reportSnapshots?: Prisma.ReportSnapshotCreateNestedManyWithoutTermInput
   teacherAssignments?: Prisma.TeacherSubjectAssignmentCreateNestedManyWithoutTermInput
   gradeFlags?: Prisma.GradeFlagCreateNestedManyWithoutTermInput
-  scheduleConfigs?: Prisma.ScheduleConfigCreateNestedManyWithoutTermInput
   timetableEntries?: Prisma.SectionTimetableEntryCreateNestedManyWithoutTermInput
   rosterEnlistments?: Prisma.StudentRosterCreateNestedManyWithoutEnlistedTermInput
   rosterConfirmations?: Prisma.TermRosterConfirmationCreateNestedManyWithoutTermInput
@@ -1556,7 +1396,6 @@ export type TermUncheckedCreateWithoutTermGrantsInput = {
   reportSnapshots?: Prisma.ReportSnapshotUncheckedCreateNestedManyWithoutTermInput
   teacherAssignments?: Prisma.TeacherSubjectAssignmentUncheckedCreateNestedManyWithoutTermInput
   gradeFlags?: Prisma.GradeFlagUncheckedCreateNestedManyWithoutTermInput
-  scheduleConfigs?: Prisma.ScheduleConfigUncheckedCreateNestedManyWithoutTermInput
   timetableEntries?: Prisma.SectionTimetableEntryUncheckedCreateNestedManyWithoutTermInput
   rosterEnlistments?: Prisma.StudentRosterUncheckedCreateNestedManyWithoutEnlistedTermInput
   rosterConfirmations?: Prisma.TermRosterConfirmationUncheckedCreateNestedManyWithoutTermInput
@@ -1598,7 +1437,6 @@ export type TermUpdateWithoutTermGrantsInput = {
   reportSnapshots?: Prisma.ReportSnapshotUpdateManyWithoutTermNestedInput
   teacherAssignments?: Prisma.TeacherSubjectAssignmentUpdateManyWithoutTermNestedInput
   gradeFlags?: Prisma.GradeFlagUpdateManyWithoutTermNestedInput
-  scheduleConfigs?: Prisma.ScheduleConfigUpdateManyWithoutTermNestedInput
   timetableEntries?: Prisma.SectionTimetableEntryUpdateManyWithoutTermNestedInput
   rosterEnlistments?: Prisma.StudentRosterUpdateManyWithoutEnlistedTermNestedInput
   rosterConfirmations?: Prisma.TermRosterConfirmationUpdateManyWithoutTermNestedInput
@@ -1624,7 +1462,6 @@ export type TermUncheckedUpdateWithoutTermGrantsInput = {
   reportSnapshots?: Prisma.ReportSnapshotUncheckedUpdateManyWithoutTermNestedInput
   teacherAssignments?: Prisma.TeacherSubjectAssignmentUncheckedUpdateManyWithoutTermNestedInput
   gradeFlags?: Prisma.GradeFlagUncheckedUpdateManyWithoutTermNestedInput
-  scheduleConfigs?: Prisma.ScheduleConfigUncheckedUpdateManyWithoutTermNestedInput
   timetableEntries?: Prisma.SectionTimetableEntryUncheckedUpdateManyWithoutTermNestedInput
   rosterEnlistments?: Prisma.StudentRosterUncheckedUpdateManyWithoutEnlistedTermNestedInput
   rosterConfirmations?: Prisma.TermRosterConfirmationUncheckedUpdateManyWithoutTermNestedInput
@@ -1649,7 +1486,6 @@ export type TermCreateWithoutGradeComponentsInput = {
   reportSnapshots?: Prisma.ReportSnapshotCreateNestedManyWithoutTermInput
   teacherAssignments?: Prisma.TeacherSubjectAssignmentCreateNestedManyWithoutTermInput
   gradeFlags?: Prisma.GradeFlagCreateNestedManyWithoutTermInput
-  scheduleConfigs?: Prisma.ScheduleConfigCreateNestedManyWithoutTermInput
   timetableEntries?: Prisma.SectionTimetableEntryCreateNestedManyWithoutTermInput
   termGrants?: Prisma.TeacherTermGrantCreateNestedManyWithoutTermInput
   rosterEnlistments?: Prisma.StudentRosterCreateNestedManyWithoutEnlistedTermInput
@@ -1675,7 +1511,6 @@ export type TermUncheckedCreateWithoutGradeComponentsInput = {
   reportSnapshots?: Prisma.ReportSnapshotUncheckedCreateNestedManyWithoutTermInput
   teacherAssignments?: Prisma.TeacherSubjectAssignmentUncheckedCreateNestedManyWithoutTermInput
   gradeFlags?: Prisma.GradeFlagUncheckedCreateNestedManyWithoutTermInput
-  scheduleConfigs?: Prisma.ScheduleConfigUncheckedCreateNestedManyWithoutTermInput
   timetableEntries?: Prisma.SectionTimetableEntryUncheckedCreateNestedManyWithoutTermInput
   termGrants?: Prisma.TeacherTermGrantUncheckedCreateNestedManyWithoutTermInput
   rosterEnlistments?: Prisma.StudentRosterUncheckedCreateNestedManyWithoutEnlistedTermInput
@@ -1717,7 +1552,6 @@ export type TermUpdateWithoutGradeComponentsInput = {
   reportSnapshots?: Prisma.ReportSnapshotUpdateManyWithoutTermNestedInput
   teacherAssignments?: Prisma.TeacherSubjectAssignmentUpdateManyWithoutTermNestedInput
   gradeFlags?: Prisma.GradeFlagUpdateManyWithoutTermNestedInput
-  scheduleConfigs?: Prisma.ScheduleConfigUpdateManyWithoutTermNestedInput
   timetableEntries?: Prisma.SectionTimetableEntryUpdateManyWithoutTermNestedInput
   termGrants?: Prisma.TeacherTermGrantUpdateManyWithoutTermNestedInput
   rosterEnlistments?: Prisma.StudentRosterUpdateManyWithoutEnlistedTermNestedInput
@@ -1743,7 +1577,6 @@ export type TermUncheckedUpdateWithoutGradeComponentsInput = {
   reportSnapshots?: Prisma.ReportSnapshotUncheckedUpdateManyWithoutTermNestedInput
   teacherAssignments?: Prisma.TeacherSubjectAssignmentUncheckedUpdateManyWithoutTermNestedInput
   gradeFlags?: Prisma.GradeFlagUncheckedUpdateManyWithoutTermNestedInput
-  scheduleConfigs?: Prisma.ScheduleConfigUncheckedUpdateManyWithoutTermNestedInput
   timetableEntries?: Prisma.SectionTimetableEntryUncheckedUpdateManyWithoutTermNestedInput
   termGrants?: Prisma.TeacherTermGrantUncheckedUpdateManyWithoutTermNestedInput
   rosterEnlistments?: Prisma.StudentRosterUncheckedUpdateManyWithoutEnlistedTermNestedInput
@@ -1769,7 +1602,6 @@ export type TermCreateWithoutFinalGradesInput = {
   reportSnapshots?: Prisma.ReportSnapshotCreateNestedManyWithoutTermInput
   teacherAssignments?: Prisma.TeacherSubjectAssignmentCreateNestedManyWithoutTermInput
   gradeFlags?: Prisma.GradeFlagCreateNestedManyWithoutTermInput
-  scheduleConfigs?: Prisma.ScheduleConfigCreateNestedManyWithoutTermInput
   timetableEntries?: Prisma.SectionTimetableEntryCreateNestedManyWithoutTermInput
   termGrants?: Prisma.TeacherTermGrantCreateNestedManyWithoutTermInput
   rosterEnlistments?: Prisma.StudentRosterCreateNestedManyWithoutEnlistedTermInput
@@ -1795,7 +1627,6 @@ export type TermUncheckedCreateWithoutFinalGradesInput = {
   reportSnapshots?: Prisma.ReportSnapshotUncheckedCreateNestedManyWithoutTermInput
   teacherAssignments?: Prisma.TeacherSubjectAssignmentUncheckedCreateNestedManyWithoutTermInput
   gradeFlags?: Prisma.GradeFlagUncheckedCreateNestedManyWithoutTermInput
-  scheduleConfigs?: Prisma.ScheduleConfigUncheckedCreateNestedManyWithoutTermInput
   timetableEntries?: Prisma.SectionTimetableEntryUncheckedCreateNestedManyWithoutTermInput
   termGrants?: Prisma.TeacherTermGrantUncheckedCreateNestedManyWithoutTermInput
   rosterEnlistments?: Prisma.StudentRosterUncheckedCreateNestedManyWithoutEnlistedTermInput
@@ -1837,7 +1668,6 @@ export type TermUpdateWithoutFinalGradesInput = {
   reportSnapshots?: Prisma.ReportSnapshotUpdateManyWithoutTermNestedInput
   teacherAssignments?: Prisma.TeacherSubjectAssignmentUpdateManyWithoutTermNestedInput
   gradeFlags?: Prisma.GradeFlagUpdateManyWithoutTermNestedInput
-  scheduleConfigs?: Prisma.ScheduleConfigUpdateManyWithoutTermNestedInput
   timetableEntries?: Prisma.SectionTimetableEntryUpdateManyWithoutTermNestedInput
   termGrants?: Prisma.TeacherTermGrantUpdateManyWithoutTermNestedInput
   rosterEnlistments?: Prisma.StudentRosterUpdateManyWithoutEnlistedTermNestedInput
@@ -1863,7 +1693,6 @@ export type TermUncheckedUpdateWithoutFinalGradesInput = {
   reportSnapshots?: Prisma.ReportSnapshotUncheckedUpdateManyWithoutTermNestedInput
   teacherAssignments?: Prisma.TeacherSubjectAssignmentUncheckedUpdateManyWithoutTermNestedInput
   gradeFlags?: Prisma.GradeFlagUncheckedUpdateManyWithoutTermNestedInput
-  scheduleConfigs?: Prisma.ScheduleConfigUncheckedUpdateManyWithoutTermNestedInput
   timetableEntries?: Prisma.SectionTimetableEntryUncheckedUpdateManyWithoutTermNestedInput
   termGrants?: Prisma.TeacherTermGrantUncheckedUpdateManyWithoutTermNestedInput
   rosterEnlistments?: Prisma.StudentRosterUncheckedUpdateManyWithoutEnlistedTermNestedInput
@@ -1889,7 +1718,6 @@ export type TermCreateWithoutGradeFlagsInput = {
   riskSnapshots?: Prisma.RiskSnapshotCreateNestedManyWithoutTermInput
   reportSnapshots?: Prisma.ReportSnapshotCreateNestedManyWithoutTermInput
   teacherAssignments?: Prisma.TeacherSubjectAssignmentCreateNestedManyWithoutTermInput
-  scheduleConfigs?: Prisma.ScheduleConfigCreateNestedManyWithoutTermInput
   timetableEntries?: Prisma.SectionTimetableEntryCreateNestedManyWithoutTermInput
   termGrants?: Prisma.TeacherTermGrantCreateNestedManyWithoutTermInput
   rosterEnlistments?: Prisma.StudentRosterCreateNestedManyWithoutEnlistedTermInput
@@ -1915,7 +1743,6 @@ export type TermUncheckedCreateWithoutGradeFlagsInput = {
   riskSnapshots?: Prisma.RiskSnapshotUncheckedCreateNestedManyWithoutTermInput
   reportSnapshots?: Prisma.ReportSnapshotUncheckedCreateNestedManyWithoutTermInput
   teacherAssignments?: Prisma.TeacherSubjectAssignmentUncheckedCreateNestedManyWithoutTermInput
-  scheduleConfigs?: Prisma.ScheduleConfigUncheckedCreateNestedManyWithoutTermInput
   timetableEntries?: Prisma.SectionTimetableEntryUncheckedCreateNestedManyWithoutTermInput
   termGrants?: Prisma.TeacherTermGrantUncheckedCreateNestedManyWithoutTermInput
   rosterEnlistments?: Prisma.StudentRosterUncheckedCreateNestedManyWithoutEnlistedTermInput
@@ -1957,7 +1784,6 @@ export type TermUpdateWithoutGradeFlagsInput = {
   riskSnapshots?: Prisma.RiskSnapshotUpdateManyWithoutTermNestedInput
   reportSnapshots?: Prisma.ReportSnapshotUpdateManyWithoutTermNestedInput
   teacherAssignments?: Prisma.TeacherSubjectAssignmentUpdateManyWithoutTermNestedInput
-  scheduleConfigs?: Prisma.ScheduleConfigUpdateManyWithoutTermNestedInput
   timetableEntries?: Prisma.SectionTimetableEntryUpdateManyWithoutTermNestedInput
   termGrants?: Prisma.TeacherTermGrantUpdateManyWithoutTermNestedInput
   rosterEnlistments?: Prisma.StudentRosterUpdateManyWithoutEnlistedTermNestedInput
@@ -1983,7 +1809,6 @@ export type TermUncheckedUpdateWithoutGradeFlagsInput = {
   riskSnapshots?: Prisma.RiskSnapshotUncheckedUpdateManyWithoutTermNestedInput
   reportSnapshots?: Prisma.ReportSnapshotUncheckedUpdateManyWithoutTermNestedInput
   teacherAssignments?: Prisma.TeacherSubjectAssignmentUncheckedUpdateManyWithoutTermNestedInput
-  scheduleConfigs?: Prisma.ScheduleConfigUncheckedUpdateManyWithoutTermNestedInput
   timetableEntries?: Prisma.SectionTimetableEntryUncheckedUpdateManyWithoutTermNestedInput
   termGrants?: Prisma.TeacherTermGrantUncheckedUpdateManyWithoutTermNestedInput
   rosterEnlistments?: Prisma.StudentRosterUncheckedUpdateManyWithoutEnlistedTermNestedInput
@@ -2009,7 +1834,6 @@ export type TermCreateWithoutAttendanceRecordsInput = {
   reportSnapshots?: Prisma.ReportSnapshotCreateNestedManyWithoutTermInput
   teacherAssignments?: Prisma.TeacherSubjectAssignmentCreateNestedManyWithoutTermInput
   gradeFlags?: Prisma.GradeFlagCreateNestedManyWithoutTermInput
-  scheduleConfigs?: Prisma.ScheduleConfigCreateNestedManyWithoutTermInput
   timetableEntries?: Prisma.SectionTimetableEntryCreateNestedManyWithoutTermInput
   termGrants?: Prisma.TeacherTermGrantCreateNestedManyWithoutTermInput
   rosterEnlistments?: Prisma.StudentRosterCreateNestedManyWithoutEnlistedTermInput
@@ -2035,7 +1859,6 @@ export type TermUncheckedCreateWithoutAttendanceRecordsInput = {
   reportSnapshots?: Prisma.ReportSnapshotUncheckedCreateNestedManyWithoutTermInput
   teacherAssignments?: Prisma.TeacherSubjectAssignmentUncheckedCreateNestedManyWithoutTermInput
   gradeFlags?: Prisma.GradeFlagUncheckedCreateNestedManyWithoutTermInput
-  scheduleConfigs?: Prisma.ScheduleConfigUncheckedCreateNestedManyWithoutTermInput
   timetableEntries?: Prisma.SectionTimetableEntryUncheckedCreateNestedManyWithoutTermInput
   termGrants?: Prisma.TeacherTermGrantUncheckedCreateNestedManyWithoutTermInput
   rosterEnlistments?: Prisma.StudentRosterUncheckedCreateNestedManyWithoutEnlistedTermInput
@@ -2077,7 +1900,6 @@ export type TermUpdateWithoutAttendanceRecordsInput = {
   reportSnapshots?: Prisma.ReportSnapshotUpdateManyWithoutTermNestedInput
   teacherAssignments?: Prisma.TeacherSubjectAssignmentUpdateManyWithoutTermNestedInput
   gradeFlags?: Prisma.GradeFlagUpdateManyWithoutTermNestedInput
-  scheduleConfigs?: Prisma.ScheduleConfigUpdateManyWithoutTermNestedInput
   timetableEntries?: Prisma.SectionTimetableEntryUpdateManyWithoutTermNestedInput
   termGrants?: Prisma.TeacherTermGrantUpdateManyWithoutTermNestedInput
   rosterEnlistments?: Prisma.StudentRosterUpdateManyWithoutEnlistedTermNestedInput
@@ -2103,7 +1925,6 @@ export type TermUncheckedUpdateWithoutAttendanceRecordsInput = {
   reportSnapshots?: Prisma.ReportSnapshotUncheckedUpdateManyWithoutTermNestedInput
   teacherAssignments?: Prisma.TeacherSubjectAssignmentUncheckedUpdateManyWithoutTermNestedInput
   gradeFlags?: Prisma.GradeFlagUncheckedUpdateManyWithoutTermNestedInput
-  scheduleConfigs?: Prisma.ScheduleConfigUncheckedUpdateManyWithoutTermNestedInput
   timetableEntries?: Prisma.SectionTimetableEntryUncheckedUpdateManyWithoutTermNestedInput
   termGrants?: Prisma.TeacherTermGrantUncheckedUpdateManyWithoutTermNestedInput
   rosterEnlistments?: Prisma.StudentRosterUncheckedUpdateManyWithoutEnlistedTermNestedInput
@@ -2129,7 +1950,6 @@ export type TermCreateWithoutAnecdotalRecordsInput = {
   reportSnapshots?: Prisma.ReportSnapshotCreateNestedManyWithoutTermInput
   teacherAssignments?: Prisma.TeacherSubjectAssignmentCreateNestedManyWithoutTermInput
   gradeFlags?: Prisma.GradeFlagCreateNestedManyWithoutTermInput
-  scheduleConfigs?: Prisma.ScheduleConfigCreateNestedManyWithoutTermInput
   timetableEntries?: Prisma.SectionTimetableEntryCreateNestedManyWithoutTermInput
   termGrants?: Prisma.TeacherTermGrantCreateNestedManyWithoutTermInput
   rosterEnlistments?: Prisma.StudentRosterCreateNestedManyWithoutEnlistedTermInput
@@ -2155,7 +1975,6 @@ export type TermUncheckedCreateWithoutAnecdotalRecordsInput = {
   reportSnapshots?: Prisma.ReportSnapshotUncheckedCreateNestedManyWithoutTermInput
   teacherAssignments?: Prisma.TeacherSubjectAssignmentUncheckedCreateNestedManyWithoutTermInput
   gradeFlags?: Prisma.GradeFlagUncheckedCreateNestedManyWithoutTermInput
-  scheduleConfigs?: Prisma.ScheduleConfigUncheckedCreateNestedManyWithoutTermInput
   timetableEntries?: Prisma.SectionTimetableEntryUncheckedCreateNestedManyWithoutTermInput
   termGrants?: Prisma.TeacherTermGrantUncheckedCreateNestedManyWithoutTermInput
   rosterEnlistments?: Prisma.StudentRosterUncheckedCreateNestedManyWithoutEnlistedTermInput
@@ -2197,7 +2016,6 @@ export type TermUpdateWithoutAnecdotalRecordsInput = {
   reportSnapshots?: Prisma.ReportSnapshotUpdateManyWithoutTermNestedInput
   teacherAssignments?: Prisma.TeacherSubjectAssignmentUpdateManyWithoutTermNestedInput
   gradeFlags?: Prisma.GradeFlagUpdateManyWithoutTermNestedInput
-  scheduleConfigs?: Prisma.ScheduleConfigUpdateManyWithoutTermNestedInput
   timetableEntries?: Prisma.SectionTimetableEntryUpdateManyWithoutTermNestedInput
   termGrants?: Prisma.TeacherTermGrantUpdateManyWithoutTermNestedInput
   rosterEnlistments?: Prisma.StudentRosterUpdateManyWithoutEnlistedTermNestedInput
@@ -2223,7 +2041,6 @@ export type TermUncheckedUpdateWithoutAnecdotalRecordsInput = {
   reportSnapshots?: Prisma.ReportSnapshotUncheckedUpdateManyWithoutTermNestedInput
   teacherAssignments?: Prisma.TeacherSubjectAssignmentUncheckedUpdateManyWithoutTermNestedInput
   gradeFlags?: Prisma.GradeFlagUncheckedUpdateManyWithoutTermNestedInput
-  scheduleConfigs?: Prisma.ScheduleConfigUncheckedUpdateManyWithoutTermNestedInput
   timetableEntries?: Prisma.SectionTimetableEntryUncheckedUpdateManyWithoutTermNestedInput
   termGrants?: Prisma.TeacherTermGrantUncheckedUpdateManyWithoutTermNestedInput
   rosterEnlistments?: Prisma.StudentRosterUncheckedUpdateManyWithoutEnlistedTermNestedInput
@@ -2249,7 +2066,6 @@ export type TermCreateWithoutReferralsInput = {
   reportSnapshots?: Prisma.ReportSnapshotCreateNestedManyWithoutTermInput
   teacherAssignments?: Prisma.TeacherSubjectAssignmentCreateNestedManyWithoutTermInput
   gradeFlags?: Prisma.GradeFlagCreateNestedManyWithoutTermInput
-  scheduleConfigs?: Prisma.ScheduleConfigCreateNestedManyWithoutTermInput
   timetableEntries?: Prisma.SectionTimetableEntryCreateNestedManyWithoutTermInput
   termGrants?: Prisma.TeacherTermGrantCreateNestedManyWithoutTermInput
   rosterEnlistments?: Prisma.StudentRosterCreateNestedManyWithoutEnlistedTermInput
@@ -2275,7 +2091,6 @@ export type TermUncheckedCreateWithoutReferralsInput = {
   reportSnapshots?: Prisma.ReportSnapshotUncheckedCreateNestedManyWithoutTermInput
   teacherAssignments?: Prisma.TeacherSubjectAssignmentUncheckedCreateNestedManyWithoutTermInput
   gradeFlags?: Prisma.GradeFlagUncheckedCreateNestedManyWithoutTermInput
-  scheduleConfigs?: Prisma.ScheduleConfigUncheckedCreateNestedManyWithoutTermInput
   timetableEntries?: Prisma.SectionTimetableEntryUncheckedCreateNestedManyWithoutTermInput
   termGrants?: Prisma.TeacherTermGrantUncheckedCreateNestedManyWithoutTermInput
   rosterEnlistments?: Prisma.StudentRosterUncheckedCreateNestedManyWithoutEnlistedTermInput
@@ -2317,7 +2132,6 @@ export type TermUpdateWithoutReferralsInput = {
   reportSnapshots?: Prisma.ReportSnapshotUpdateManyWithoutTermNestedInput
   teacherAssignments?: Prisma.TeacherSubjectAssignmentUpdateManyWithoutTermNestedInput
   gradeFlags?: Prisma.GradeFlagUpdateManyWithoutTermNestedInput
-  scheduleConfigs?: Prisma.ScheduleConfigUpdateManyWithoutTermNestedInput
   timetableEntries?: Prisma.SectionTimetableEntryUpdateManyWithoutTermNestedInput
   termGrants?: Prisma.TeacherTermGrantUpdateManyWithoutTermNestedInput
   rosterEnlistments?: Prisma.StudentRosterUpdateManyWithoutEnlistedTermNestedInput
@@ -2343,7 +2157,6 @@ export type TermUncheckedUpdateWithoutReferralsInput = {
   reportSnapshots?: Prisma.ReportSnapshotUncheckedUpdateManyWithoutTermNestedInput
   teacherAssignments?: Prisma.TeacherSubjectAssignmentUncheckedUpdateManyWithoutTermNestedInput
   gradeFlags?: Prisma.GradeFlagUncheckedUpdateManyWithoutTermNestedInput
-  scheduleConfigs?: Prisma.ScheduleConfigUncheckedUpdateManyWithoutTermNestedInput
   timetableEntries?: Prisma.SectionTimetableEntryUncheckedUpdateManyWithoutTermNestedInput
   termGrants?: Prisma.TeacherTermGrantUncheckedUpdateManyWithoutTermNestedInput
   rosterEnlistments?: Prisma.StudentRosterUncheckedUpdateManyWithoutEnlistedTermNestedInput
@@ -2369,7 +2182,6 @@ export type TermCreateWithoutInterventionsInput = {
   reportSnapshots?: Prisma.ReportSnapshotCreateNestedManyWithoutTermInput
   teacherAssignments?: Prisma.TeacherSubjectAssignmentCreateNestedManyWithoutTermInput
   gradeFlags?: Prisma.GradeFlagCreateNestedManyWithoutTermInput
-  scheduleConfigs?: Prisma.ScheduleConfigCreateNestedManyWithoutTermInput
   timetableEntries?: Prisma.SectionTimetableEntryCreateNestedManyWithoutTermInput
   termGrants?: Prisma.TeacherTermGrantCreateNestedManyWithoutTermInput
   rosterEnlistments?: Prisma.StudentRosterCreateNestedManyWithoutEnlistedTermInput
@@ -2395,7 +2207,6 @@ export type TermUncheckedCreateWithoutInterventionsInput = {
   reportSnapshots?: Prisma.ReportSnapshotUncheckedCreateNestedManyWithoutTermInput
   teacherAssignments?: Prisma.TeacherSubjectAssignmentUncheckedCreateNestedManyWithoutTermInput
   gradeFlags?: Prisma.GradeFlagUncheckedCreateNestedManyWithoutTermInput
-  scheduleConfigs?: Prisma.ScheduleConfigUncheckedCreateNestedManyWithoutTermInput
   timetableEntries?: Prisma.SectionTimetableEntryUncheckedCreateNestedManyWithoutTermInput
   termGrants?: Prisma.TeacherTermGrantUncheckedCreateNestedManyWithoutTermInput
   rosterEnlistments?: Prisma.StudentRosterUncheckedCreateNestedManyWithoutEnlistedTermInput
@@ -2437,7 +2248,6 @@ export type TermUpdateWithoutInterventionsInput = {
   reportSnapshots?: Prisma.ReportSnapshotUpdateManyWithoutTermNestedInput
   teacherAssignments?: Prisma.TeacherSubjectAssignmentUpdateManyWithoutTermNestedInput
   gradeFlags?: Prisma.GradeFlagUpdateManyWithoutTermNestedInput
-  scheduleConfigs?: Prisma.ScheduleConfigUpdateManyWithoutTermNestedInput
   timetableEntries?: Prisma.SectionTimetableEntryUpdateManyWithoutTermNestedInput
   termGrants?: Prisma.TeacherTermGrantUpdateManyWithoutTermNestedInput
   rosterEnlistments?: Prisma.StudentRosterUpdateManyWithoutEnlistedTermNestedInput
@@ -2463,7 +2273,6 @@ export type TermUncheckedUpdateWithoutInterventionsInput = {
   reportSnapshots?: Prisma.ReportSnapshotUncheckedUpdateManyWithoutTermNestedInput
   teacherAssignments?: Prisma.TeacherSubjectAssignmentUncheckedUpdateManyWithoutTermNestedInput
   gradeFlags?: Prisma.GradeFlagUncheckedUpdateManyWithoutTermNestedInput
-  scheduleConfigs?: Prisma.ScheduleConfigUncheckedUpdateManyWithoutTermNestedInput
   timetableEntries?: Prisma.SectionTimetableEntryUncheckedUpdateManyWithoutTermNestedInput
   termGrants?: Prisma.TeacherTermGrantUncheckedUpdateManyWithoutTermNestedInput
   rosterEnlistments?: Prisma.StudentRosterUncheckedUpdateManyWithoutEnlistedTermNestedInput
@@ -2489,7 +2298,6 @@ export type TermCreateWithoutHealthRecordsInput = {
   reportSnapshots?: Prisma.ReportSnapshotCreateNestedManyWithoutTermInput
   teacherAssignments?: Prisma.TeacherSubjectAssignmentCreateNestedManyWithoutTermInput
   gradeFlags?: Prisma.GradeFlagCreateNestedManyWithoutTermInput
-  scheduleConfigs?: Prisma.ScheduleConfigCreateNestedManyWithoutTermInput
   timetableEntries?: Prisma.SectionTimetableEntryCreateNestedManyWithoutTermInput
   termGrants?: Prisma.TeacherTermGrantCreateNestedManyWithoutTermInput
   rosterEnlistments?: Prisma.StudentRosterCreateNestedManyWithoutEnlistedTermInput
@@ -2515,7 +2323,6 @@ export type TermUncheckedCreateWithoutHealthRecordsInput = {
   reportSnapshots?: Prisma.ReportSnapshotUncheckedCreateNestedManyWithoutTermInput
   teacherAssignments?: Prisma.TeacherSubjectAssignmentUncheckedCreateNestedManyWithoutTermInput
   gradeFlags?: Prisma.GradeFlagUncheckedCreateNestedManyWithoutTermInput
-  scheduleConfigs?: Prisma.ScheduleConfigUncheckedCreateNestedManyWithoutTermInput
   timetableEntries?: Prisma.SectionTimetableEntryUncheckedCreateNestedManyWithoutTermInput
   termGrants?: Prisma.TeacherTermGrantUncheckedCreateNestedManyWithoutTermInput
   rosterEnlistments?: Prisma.StudentRosterUncheckedCreateNestedManyWithoutEnlistedTermInput
@@ -2557,7 +2364,6 @@ export type TermUpdateWithoutHealthRecordsInput = {
   reportSnapshots?: Prisma.ReportSnapshotUpdateManyWithoutTermNestedInput
   teacherAssignments?: Prisma.TeacherSubjectAssignmentUpdateManyWithoutTermNestedInput
   gradeFlags?: Prisma.GradeFlagUpdateManyWithoutTermNestedInput
-  scheduleConfigs?: Prisma.ScheduleConfigUpdateManyWithoutTermNestedInput
   timetableEntries?: Prisma.SectionTimetableEntryUpdateManyWithoutTermNestedInput
   termGrants?: Prisma.TeacherTermGrantUpdateManyWithoutTermNestedInput
   rosterEnlistments?: Prisma.StudentRosterUpdateManyWithoutEnlistedTermNestedInput
@@ -2583,7 +2389,6 @@ export type TermUncheckedUpdateWithoutHealthRecordsInput = {
   reportSnapshots?: Prisma.ReportSnapshotUncheckedUpdateManyWithoutTermNestedInput
   teacherAssignments?: Prisma.TeacherSubjectAssignmentUncheckedUpdateManyWithoutTermNestedInput
   gradeFlags?: Prisma.GradeFlagUncheckedUpdateManyWithoutTermNestedInput
-  scheduleConfigs?: Prisma.ScheduleConfigUncheckedUpdateManyWithoutTermNestedInput
   timetableEntries?: Prisma.SectionTimetableEntryUncheckedUpdateManyWithoutTermNestedInput
   termGrants?: Prisma.TeacherTermGrantUncheckedUpdateManyWithoutTermNestedInput
   rosterEnlistments?: Prisma.StudentRosterUncheckedUpdateManyWithoutEnlistedTermNestedInput
@@ -2609,7 +2414,6 @@ export type TermCreateWithoutHomeVisitationsInput = {
   reportSnapshots?: Prisma.ReportSnapshotCreateNestedManyWithoutTermInput
   teacherAssignments?: Prisma.TeacherSubjectAssignmentCreateNestedManyWithoutTermInput
   gradeFlags?: Prisma.GradeFlagCreateNestedManyWithoutTermInput
-  scheduleConfigs?: Prisma.ScheduleConfigCreateNestedManyWithoutTermInput
   timetableEntries?: Prisma.SectionTimetableEntryCreateNestedManyWithoutTermInput
   termGrants?: Prisma.TeacherTermGrantCreateNestedManyWithoutTermInput
   rosterEnlistments?: Prisma.StudentRosterCreateNestedManyWithoutEnlistedTermInput
@@ -2635,7 +2439,6 @@ export type TermUncheckedCreateWithoutHomeVisitationsInput = {
   reportSnapshots?: Prisma.ReportSnapshotUncheckedCreateNestedManyWithoutTermInput
   teacherAssignments?: Prisma.TeacherSubjectAssignmentUncheckedCreateNestedManyWithoutTermInput
   gradeFlags?: Prisma.GradeFlagUncheckedCreateNestedManyWithoutTermInput
-  scheduleConfigs?: Prisma.ScheduleConfigUncheckedCreateNestedManyWithoutTermInput
   timetableEntries?: Prisma.SectionTimetableEntryUncheckedCreateNestedManyWithoutTermInput
   termGrants?: Prisma.TeacherTermGrantUncheckedCreateNestedManyWithoutTermInput
   rosterEnlistments?: Prisma.StudentRosterUncheckedCreateNestedManyWithoutEnlistedTermInput
@@ -2677,7 +2480,6 @@ export type TermUpdateWithoutHomeVisitationsInput = {
   reportSnapshots?: Prisma.ReportSnapshotUpdateManyWithoutTermNestedInput
   teacherAssignments?: Prisma.TeacherSubjectAssignmentUpdateManyWithoutTermNestedInput
   gradeFlags?: Prisma.GradeFlagUpdateManyWithoutTermNestedInput
-  scheduleConfigs?: Prisma.ScheduleConfigUpdateManyWithoutTermNestedInput
   timetableEntries?: Prisma.SectionTimetableEntryUpdateManyWithoutTermNestedInput
   termGrants?: Prisma.TeacherTermGrantUpdateManyWithoutTermNestedInput
   rosterEnlistments?: Prisma.StudentRosterUpdateManyWithoutEnlistedTermNestedInput
@@ -2703,7 +2505,6 @@ export type TermUncheckedUpdateWithoutHomeVisitationsInput = {
   reportSnapshots?: Prisma.ReportSnapshotUncheckedUpdateManyWithoutTermNestedInput
   teacherAssignments?: Prisma.TeacherSubjectAssignmentUncheckedUpdateManyWithoutTermNestedInput
   gradeFlags?: Prisma.GradeFlagUncheckedUpdateManyWithoutTermNestedInput
-  scheduleConfigs?: Prisma.ScheduleConfigUncheckedUpdateManyWithoutTermNestedInput
   timetableEntries?: Prisma.SectionTimetableEntryUncheckedUpdateManyWithoutTermNestedInput
   termGrants?: Prisma.TeacherTermGrantUncheckedUpdateManyWithoutTermNestedInput
   rosterEnlistments?: Prisma.StudentRosterUncheckedUpdateManyWithoutEnlistedTermNestedInput
@@ -2729,7 +2530,6 @@ export type TermCreateWithoutAdmProfilesInput = {
   reportSnapshots?: Prisma.ReportSnapshotCreateNestedManyWithoutTermInput
   teacherAssignments?: Prisma.TeacherSubjectAssignmentCreateNestedManyWithoutTermInput
   gradeFlags?: Prisma.GradeFlagCreateNestedManyWithoutTermInput
-  scheduleConfigs?: Prisma.ScheduleConfigCreateNestedManyWithoutTermInput
   timetableEntries?: Prisma.SectionTimetableEntryCreateNestedManyWithoutTermInput
   termGrants?: Prisma.TeacherTermGrantCreateNestedManyWithoutTermInput
   rosterEnlistments?: Prisma.StudentRosterCreateNestedManyWithoutEnlistedTermInput
@@ -2755,7 +2555,6 @@ export type TermUncheckedCreateWithoutAdmProfilesInput = {
   reportSnapshots?: Prisma.ReportSnapshotUncheckedCreateNestedManyWithoutTermInput
   teacherAssignments?: Prisma.TeacherSubjectAssignmentUncheckedCreateNestedManyWithoutTermInput
   gradeFlags?: Prisma.GradeFlagUncheckedCreateNestedManyWithoutTermInput
-  scheduleConfigs?: Prisma.ScheduleConfigUncheckedCreateNestedManyWithoutTermInput
   timetableEntries?: Prisma.SectionTimetableEntryUncheckedCreateNestedManyWithoutTermInput
   termGrants?: Prisma.TeacherTermGrantUncheckedCreateNestedManyWithoutTermInput
   rosterEnlistments?: Prisma.StudentRosterUncheckedCreateNestedManyWithoutEnlistedTermInput
@@ -2797,7 +2596,6 @@ export type TermUpdateWithoutAdmProfilesInput = {
   reportSnapshots?: Prisma.ReportSnapshotUpdateManyWithoutTermNestedInput
   teacherAssignments?: Prisma.TeacherSubjectAssignmentUpdateManyWithoutTermNestedInput
   gradeFlags?: Prisma.GradeFlagUpdateManyWithoutTermNestedInput
-  scheduleConfigs?: Prisma.ScheduleConfigUpdateManyWithoutTermNestedInput
   timetableEntries?: Prisma.SectionTimetableEntryUpdateManyWithoutTermNestedInput
   termGrants?: Prisma.TeacherTermGrantUpdateManyWithoutTermNestedInput
   rosterEnlistments?: Prisma.StudentRosterUpdateManyWithoutEnlistedTermNestedInput
@@ -2823,7 +2621,6 @@ export type TermUncheckedUpdateWithoutAdmProfilesInput = {
   reportSnapshots?: Prisma.ReportSnapshotUncheckedUpdateManyWithoutTermNestedInput
   teacherAssignments?: Prisma.TeacherSubjectAssignmentUncheckedUpdateManyWithoutTermNestedInput
   gradeFlags?: Prisma.GradeFlagUncheckedUpdateManyWithoutTermNestedInput
-  scheduleConfigs?: Prisma.ScheduleConfigUncheckedUpdateManyWithoutTermNestedInput
   timetableEntries?: Prisma.SectionTimetableEntryUncheckedUpdateManyWithoutTermNestedInput
   termGrants?: Prisma.TeacherTermGrantUncheckedUpdateManyWithoutTermNestedInput
   rosterEnlistments?: Prisma.StudentRosterUncheckedUpdateManyWithoutEnlistedTermNestedInput
@@ -2850,7 +2647,6 @@ export type TermCreateWithoutAdvisoryModulesInput = {
   reportSnapshots?: Prisma.ReportSnapshotCreateNestedManyWithoutTermInput
   teacherAssignments?: Prisma.TeacherSubjectAssignmentCreateNestedManyWithoutTermInput
   gradeFlags?: Prisma.GradeFlagCreateNestedManyWithoutTermInput
-  scheduleConfigs?: Prisma.ScheduleConfigCreateNestedManyWithoutTermInput
   timetableEntries?: Prisma.SectionTimetableEntryCreateNestedManyWithoutTermInput
   termGrants?: Prisma.TeacherTermGrantCreateNestedManyWithoutTermInput
   rosterEnlistments?: Prisma.StudentRosterCreateNestedManyWithoutEnlistedTermInput
@@ -2876,7 +2672,6 @@ export type TermUncheckedCreateWithoutAdvisoryModulesInput = {
   reportSnapshots?: Prisma.ReportSnapshotUncheckedCreateNestedManyWithoutTermInput
   teacherAssignments?: Prisma.TeacherSubjectAssignmentUncheckedCreateNestedManyWithoutTermInput
   gradeFlags?: Prisma.GradeFlagUncheckedCreateNestedManyWithoutTermInput
-  scheduleConfigs?: Prisma.ScheduleConfigUncheckedCreateNestedManyWithoutTermInput
   timetableEntries?: Prisma.SectionTimetableEntryUncheckedCreateNestedManyWithoutTermInput
   termGrants?: Prisma.TeacherTermGrantUncheckedCreateNestedManyWithoutTermInput
   rosterEnlistments?: Prisma.StudentRosterUncheckedCreateNestedManyWithoutEnlistedTermInput
@@ -2918,7 +2713,6 @@ export type TermUpdateWithoutAdvisoryModulesInput = {
   reportSnapshots?: Prisma.ReportSnapshotUpdateManyWithoutTermNestedInput
   teacherAssignments?: Prisma.TeacherSubjectAssignmentUpdateManyWithoutTermNestedInput
   gradeFlags?: Prisma.GradeFlagUpdateManyWithoutTermNestedInput
-  scheduleConfigs?: Prisma.ScheduleConfigUpdateManyWithoutTermNestedInput
   timetableEntries?: Prisma.SectionTimetableEntryUpdateManyWithoutTermNestedInput
   termGrants?: Prisma.TeacherTermGrantUpdateManyWithoutTermNestedInput
   rosterEnlistments?: Prisma.StudentRosterUpdateManyWithoutEnlistedTermNestedInput
@@ -2944,7 +2738,6 @@ export type TermUncheckedUpdateWithoutAdvisoryModulesInput = {
   reportSnapshots?: Prisma.ReportSnapshotUncheckedUpdateManyWithoutTermNestedInput
   teacherAssignments?: Prisma.TeacherSubjectAssignmentUncheckedUpdateManyWithoutTermNestedInput
   gradeFlags?: Prisma.GradeFlagUncheckedUpdateManyWithoutTermNestedInput
-  scheduleConfigs?: Prisma.ScheduleConfigUncheckedUpdateManyWithoutTermNestedInput
   timetableEntries?: Prisma.SectionTimetableEntryUncheckedUpdateManyWithoutTermNestedInput
   termGrants?: Prisma.TeacherTermGrantUncheckedUpdateManyWithoutTermNestedInput
   rosterEnlistments?: Prisma.StudentRosterUncheckedUpdateManyWithoutEnlistedTermNestedInput
@@ -2969,7 +2762,6 @@ export type TermCreateWithoutRiskSnapshotsInput = {
   reportSnapshots?: Prisma.ReportSnapshotCreateNestedManyWithoutTermInput
   teacherAssignments?: Prisma.TeacherSubjectAssignmentCreateNestedManyWithoutTermInput
   gradeFlags?: Prisma.GradeFlagCreateNestedManyWithoutTermInput
-  scheduleConfigs?: Prisma.ScheduleConfigCreateNestedManyWithoutTermInput
   timetableEntries?: Prisma.SectionTimetableEntryCreateNestedManyWithoutTermInput
   termGrants?: Prisma.TeacherTermGrantCreateNestedManyWithoutTermInput
   rosterEnlistments?: Prisma.StudentRosterCreateNestedManyWithoutEnlistedTermInput
@@ -2995,7 +2787,6 @@ export type TermUncheckedCreateWithoutRiskSnapshotsInput = {
   reportSnapshots?: Prisma.ReportSnapshotUncheckedCreateNestedManyWithoutTermInput
   teacherAssignments?: Prisma.TeacherSubjectAssignmentUncheckedCreateNestedManyWithoutTermInput
   gradeFlags?: Prisma.GradeFlagUncheckedCreateNestedManyWithoutTermInput
-  scheduleConfigs?: Prisma.ScheduleConfigUncheckedCreateNestedManyWithoutTermInput
   timetableEntries?: Prisma.SectionTimetableEntryUncheckedCreateNestedManyWithoutTermInput
   termGrants?: Prisma.TeacherTermGrantUncheckedCreateNestedManyWithoutTermInput
   rosterEnlistments?: Prisma.StudentRosterUncheckedCreateNestedManyWithoutEnlistedTermInput
@@ -3037,7 +2828,6 @@ export type TermUpdateWithoutRiskSnapshotsInput = {
   reportSnapshots?: Prisma.ReportSnapshotUpdateManyWithoutTermNestedInput
   teacherAssignments?: Prisma.TeacherSubjectAssignmentUpdateManyWithoutTermNestedInput
   gradeFlags?: Prisma.GradeFlagUpdateManyWithoutTermNestedInput
-  scheduleConfigs?: Prisma.ScheduleConfigUpdateManyWithoutTermNestedInput
   timetableEntries?: Prisma.SectionTimetableEntryUpdateManyWithoutTermNestedInput
   termGrants?: Prisma.TeacherTermGrantUpdateManyWithoutTermNestedInput
   rosterEnlistments?: Prisma.StudentRosterUpdateManyWithoutEnlistedTermNestedInput
@@ -3063,7 +2853,6 @@ export type TermUncheckedUpdateWithoutRiskSnapshotsInput = {
   reportSnapshots?: Prisma.ReportSnapshotUncheckedUpdateManyWithoutTermNestedInput
   teacherAssignments?: Prisma.TeacherSubjectAssignmentUncheckedUpdateManyWithoutTermNestedInput
   gradeFlags?: Prisma.GradeFlagUncheckedUpdateManyWithoutTermNestedInput
-  scheduleConfigs?: Prisma.ScheduleConfigUncheckedUpdateManyWithoutTermNestedInput
   timetableEntries?: Prisma.SectionTimetableEntryUncheckedUpdateManyWithoutTermNestedInput
   termGrants?: Prisma.TeacherTermGrantUncheckedUpdateManyWithoutTermNestedInput
   rosterEnlistments?: Prisma.StudentRosterUncheckedUpdateManyWithoutEnlistedTermNestedInput
@@ -3089,7 +2878,6 @@ export type TermCreateWithoutReportSnapshotsInput = {
   riskSnapshots?: Prisma.RiskSnapshotCreateNestedManyWithoutTermInput
   teacherAssignments?: Prisma.TeacherSubjectAssignmentCreateNestedManyWithoutTermInput
   gradeFlags?: Prisma.GradeFlagCreateNestedManyWithoutTermInput
-  scheduleConfigs?: Prisma.ScheduleConfigCreateNestedManyWithoutTermInput
   timetableEntries?: Prisma.SectionTimetableEntryCreateNestedManyWithoutTermInput
   termGrants?: Prisma.TeacherTermGrantCreateNestedManyWithoutTermInput
   rosterEnlistments?: Prisma.StudentRosterCreateNestedManyWithoutEnlistedTermInput
@@ -3115,7 +2903,6 @@ export type TermUncheckedCreateWithoutReportSnapshotsInput = {
   riskSnapshots?: Prisma.RiskSnapshotUncheckedCreateNestedManyWithoutTermInput
   teacherAssignments?: Prisma.TeacherSubjectAssignmentUncheckedCreateNestedManyWithoutTermInput
   gradeFlags?: Prisma.GradeFlagUncheckedCreateNestedManyWithoutTermInput
-  scheduleConfigs?: Prisma.ScheduleConfigUncheckedCreateNestedManyWithoutTermInput
   timetableEntries?: Prisma.SectionTimetableEntryUncheckedCreateNestedManyWithoutTermInput
   termGrants?: Prisma.TeacherTermGrantUncheckedCreateNestedManyWithoutTermInput
   rosterEnlistments?: Prisma.StudentRosterUncheckedCreateNestedManyWithoutEnlistedTermInput
@@ -3157,7 +2944,6 @@ export type TermUpdateWithoutReportSnapshotsInput = {
   riskSnapshots?: Prisma.RiskSnapshotUpdateManyWithoutTermNestedInput
   teacherAssignments?: Prisma.TeacherSubjectAssignmentUpdateManyWithoutTermNestedInput
   gradeFlags?: Prisma.GradeFlagUpdateManyWithoutTermNestedInput
-  scheduleConfigs?: Prisma.ScheduleConfigUpdateManyWithoutTermNestedInput
   timetableEntries?: Prisma.SectionTimetableEntryUpdateManyWithoutTermNestedInput
   termGrants?: Prisma.TeacherTermGrantUpdateManyWithoutTermNestedInput
   rosterEnlistments?: Prisma.StudentRosterUpdateManyWithoutEnlistedTermNestedInput
@@ -3183,7 +2969,6 @@ export type TermUncheckedUpdateWithoutReportSnapshotsInput = {
   riskSnapshots?: Prisma.RiskSnapshotUncheckedUpdateManyWithoutTermNestedInput
   teacherAssignments?: Prisma.TeacherSubjectAssignmentUncheckedUpdateManyWithoutTermNestedInput
   gradeFlags?: Prisma.GradeFlagUncheckedUpdateManyWithoutTermNestedInput
-  scheduleConfigs?: Prisma.ScheduleConfigUncheckedUpdateManyWithoutTermNestedInput
   timetableEntries?: Prisma.SectionTimetableEntryUncheckedUpdateManyWithoutTermNestedInput
   termGrants?: Prisma.TeacherTermGrantUncheckedUpdateManyWithoutTermNestedInput
   rosterEnlistments?: Prisma.StudentRosterUncheckedUpdateManyWithoutEnlistedTermNestedInput
@@ -3216,7 +3001,6 @@ export type TermUpdateWithoutSchoolYearInput = {
   reportSnapshots?: Prisma.ReportSnapshotUpdateManyWithoutTermNestedInput
   teacherAssignments?: Prisma.TeacherSubjectAssignmentUpdateManyWithoutTermNestedInput
   gradeFlags?: Prisma.GradeFlagUpdateManyWithoutTermNestedInput
-  scheduleConfigs?: Prisma.ScheduleConfigUpdateManyWithoutTermNestedInput
   timetableEntries?: Prisma.SectionTimetableEntryUpdateManyWithoutTermNestedInput
   termGrants?: Prisma.TeacherTermGrantUpdateManyWithoutTermNestedInput
   rosterEnlistments?: Prisma.StudentRosterUpdateManyWithoutEnlistedTermNestedInput
@@ -3242,7 +3026,6 @@ export type TermUncheckedUpdateWithoutSchoolYearInput = {
   reportSnapshots?: Prisma.ReportSnapshotUncheckedUpdateManyWithoutTermNestedInput
   teacherAssignments?: Prisma.TeacherSubjectAssignmentUncheckedUpdateManyWithoutTermNestedInput
   gradeFlags?: Prisma.GradeFlagUncheckedUpdateManyWithoutTermNestedInput
-  scheduleConfigs?: Prisma.ScheduleConfigUncheckedUpdateManyWithoutTermNestedInput
   timetableEntries?: Prisma.SectionTimetableEntryUncheckedUpdateManyWithoutTermNestedInput
   termGrants?: Prisma.TeacherTermGrantUncheckedUpdateManyWithoutTermNestedInput
   rosterEnlistments?: Prisma.StudentRosterUncheckedUpdateManyWithoutEnlistedTermNestedInput
@@ -3276,7 +3059,6 @@ export type TermCountOutputType = {
   reportSnapshots: number
   teacherAssignments: number
   gradeFlags: number
-  scheduleConfigs: number
   timetableEntries: number
   termGrants: number
   rosterEnlistments: number
@@ -3298,7 +3080,6 @@ export type TermCountOutputTypeSelect<ExtArgs extends runtime.Types.Extensions.I
   reportSnapshots?: boolean | TermCountOutputTypeCountReportSnapshotsArgs
   teacherAssignments?: boolean | TermCountOutputTypeCountTeacherAssignmentsArgs
   gradeFlags?: boolean | TermCountOutputTypeCountGradeFlagsArgs
-  scheduleConfigs?: boolean | TermCountOutputTypeCountScheduleConfigsArgs
   timetableEntries?: boolean | TermCountOutputTypeCountTimetableEntriesArgs
   termGrants?: boolean | TermCountOutputTypeCountTermGrantsArgs
   rosterEnlistments?: boolean | TermCountOutputTypeCountRosterEnlistmentsArgs
@@ -3410,13 +3191,6 @@ export type TermCountOutputTypeCountGradeFlagsArgs<ExtArgs extends runtime.Types
 /**
  * TermCountOutputType without action
  */
-export type TermCountOutputTypeCountScheduleConfigsArgs<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
-  where?: Prisma.ScheduleConfigWhereInput
-}
-
-/**
- * TermCountOutputType without action
- */
 export type TermCountOutputTypeCountTimetableEntriesArgs<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
   where?: Prisma.SectionTimetableEntryWhereInput
 }
@@ -3470,7 +3244,6 @@ export type TermSelect<ExtArgs extends runtime.Types.Extensions.InternalArgs = r
   reportSnapshots?: boolean | Prisma.Term$reportSnapshotsArgs<ExtArgs>
   teacherAssignments?: boolean | Prisma.Term$teacherAssignmentsArgs<ExtArgs>
   gradeFlags?: boolean | Prisma.Term$gradeFlagsArgs<ExtArgs>
-  scheduleConfigs?: boolean | Prisma.Term$scheduleConfigsArgs<ExtArgs>
   timetableEntries?: boolean | Prisma.Term$timetableEntriesArgs<ExtArgs>
   termGrants?: boolean | Prisma.Term$termGrantsArgs<ExtArgs>
   rosterEnlistments?: boolean | Prisma.Term$rosterEnlistmentsArgs<ExtArgs>
@@ -3521,7 +3294,6 @@ export type TermInclude<ExtArgs extends runtime.Types.Extensions.InternalArgs = 
   reportSnapshots?: boolean | Prisma.Term$reportSnapshotsArgs<ExtArgs>
   teacherAssignments?: boolean | Prisma.Term$teacherAssignmentsArgs<ExtArgs>
   gradeFlags?: boolean | Prisma.Term$gradeFlagsArgs<ExtArgs>
-  scheduleConfigs?: boolean | Prisma.Term$scheduleConfigsArgs<ExtArgs>
   timetableEntries?: boolean | Prisma.Term$timetableEntriesArgs<ExtArgs>
   termGrants?: boolean | Prisma.Term$termGrantsArgs<ExtArgs>
   rosterEnlistments?: boolean | Prisma.Term$rosterEnlistmentsArgs<ExtArgs>
@@ -3553,7 +3325,6 @@ export type $TermPayload<ExtArgs extends runtime.Types.Extensions.InternalArgs =
     reportSnapshots: Prisma.$ReportSnapshotPayload<ExtArgs>[]
     teacherAssignments: Prisma.$TeacherSubjectAssignmentPayload<ExtArgs>[]
     gradeFlags: Prisma.$GradeFlagPayload<ExtArgs>[]
-    scheduleConfigs: Prisma.$ScheduleConfigPayload<ExtArgs>[]
     timetableEntries: Prisma.$SectionTimetableEntryPayload<ExtArgs>[]
     termGrants: Prisma.$TeacherTermGrantPayload<ExtArgs>[]
     rosterEnlistments: Prisma.$StudentRosterPayload<ExtArgs>[]
@@ -3974,7 +3745,6 @@ export interface Prisma__TermClient<T, Null = never, ExtArgs extends runtime.Typ
   reportSnapshots<T extends Prisma.Term$reportSnapshotsArgs<ExtArgs> = {}>(args?: Prisma.Subset<T, Prisma.Term$reportSnapshotsArgs<ExtArgs>>): Prisma.PrismaPromise<runtime.Types.Result.GetResult<Prisma.$ReportSnapshotPayload<ExtArgs>, T, "findMany", GlobalOmitOptions> | Null>
   teacherAssignments<T extends Prisma.Term$teacherAssignmentsArgs<ExtArgs> = {}>(args?: Prisma.Subset<T, Prisma.Term$teacherAssignmentsArgs<ExtArgs>>): Prisma.PrismaPromise<runtime.Types.Result.GetResult<Prisma.$TeacherSubjectAssignmentPayload<ExtArgs>, T, "findMany", GlobalOmitOptions> | Null>
   gradeFlags<T extends Prisma.Term$gradeFlagsArgs<ExtArgs> = {}>(args?: Prisma.Subset<T, Prisma.Term$gradeFlagsArgs<ExtArgs>>): Prisma.PrismaPromise<runtime.Types.Result.GetResult<Prisma.$GradeFlagPayload<ExtArgs>, T, "findMany", GlobalOmitOptions> | Null>
-  scheduleConfigs<T extends Prisma.Term$scheduleConfigsArgs<ExtArgs> = {}>(args?: Prisma.Subset<T, Prisma.Term$scheduleConfigsArgs<ExtArgs>>): Prisma.PrismaPromise<runtime.Types.Result.GetResult<Prisma.$ScheduleConfigPayload<ExtArgs>, T, "findMany", GlobalOmitOptions> | Null>
   timetableEntries<T extends Prisma.Term$timetableEntriesArgs<ExtArgs> = {}>(args?: Prisma.Subset<T, Prisma.Term$timetableEntriesArgs<ExtArgs>>): Prisma.PrismaPromise<runtime.Types.Result.GetResult<Prisma.$SectionTimetableEntryPayload<ExtArgs>, T, "findMany", GlobalOmitOptions> | Null>
   termGrants<T extends Prisma.Term$termGrantsArgs<ExtArgs> = {}>(args?: Prisma.Subset<T, Prisma.Term$termGrantsArgs<ExtArgs>>): Prisma.PrismaPromise<runtime.Types.Result.GetResult<Prisma.$TeacherTermGrantPayload<ExtArgs>, T, "findMany", GlobalOmitOptions> | Null>
   rosterEnlistments<T extends Prisma.Term$rosterEnlistmentsArgs<ExtArgs> = {}>(args?: Prisma.Subset<T, Prisma.Term$rosterEnlistmentsArgs<ExtArgs>>): Prisma.PrismaPromise<runtime.Types.Result.GetResult<Prisma.$StudentRosterPayload<ExtArgs>, T, "findMany", GlobalOmitOptions> | Null>
@@ -4724,30 +4494,6 @@ export type Term$gradeFlagsArgs<ExtArgs extends runtime.Types.Extensions.Interna
   take?: number
   skip?: number
   distinct?: Prisma.GradeFlagScalarFieldEnum | Prisma.GradeFlagScalarFieldEnum[]
-}
-
-/**
- * Term.scheduleConfigs
- */
-export type Term$scheduleConfigsArgs<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
-  /**
-   * Select specific fields to fetch from the ScheduleConfig
-   */
-  select?: Prisma.ScheduleConfigSelect<ExtArgs> | null
-  /**
-   * Omit specific fields from the ScheduleConfig
-   */
-  omit?: Prisma.ScheduleConfigOmit<ExtArgs> | null
-  /**
-   * Choose, which related nodes to fetch as well
-   */
-  include?: Prisma.ScheduleConfigInclude<ExtArgs> | null
-  where?: Prisma.ScheduleConfigWhereInput
-  orderBy?: Prisma.ScheduleConfigOrderByWithRelationInput | Prisma.ScheduleConfigOrderByWithRelationInput[]
-  cursor?: Prisma.ScheduleConfigWhereUniqueInput
-  take?: number
-  skip?: number
-  distinct?: Prisma.ScheduleConfigScalarFieldEnum | Prisma.ScheduleConfigScalarFieldEnum[]
 }
 
 /**

@@ -19,7 +19,9 @@ function subscribeSession(onChange: () => void) {
 }
 
 function isTeacherSession(): boolean {
-  return isTeacherRole(decodeTokenIdentity(getAccessToken())?.role);
+  const role = decodeTokenIdentity(getAccessToken())?.role;
+  // The administrator desk also steers a term so it can prepare future terms.
+  return isTeacherRole(role) || role === "admin";
 }
 
 function serverIsTeacher(): boolean {

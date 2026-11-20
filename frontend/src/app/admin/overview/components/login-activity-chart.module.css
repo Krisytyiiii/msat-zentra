@@ -38,7 +38,7 @@
   min-height: 168px;
 }
 
-.lineChart {
+.areaChart {
   width: 100%;
 }
 
@@ -50,7 +50,7 @@
 
 /* Recharts sets its own SVG text attributes, so tick colour comes from the
    stylesheet rather than per-prop. */
-.lineChart text {
+.areaChart text {
   fill: var(--muted-foreground);
   font-family: var(--font-inter), system-ui, sans-serif;
 }

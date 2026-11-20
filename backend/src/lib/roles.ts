@@ -27,7 +27,7 @@ export const TEACHER_ROLES: Role[] = ["subject_teacher", "adviser"];
  * per-desk; the principal picks once in Settings and every principal page
  * follows it (see `termScope.ts`).
  */
-export const TERM_STEERING_ROLES: Role[] = [...TEACHER_ROLES, "principal"];
+export const TERM_STEERING_ROLES: Role[] = [...TEACHER_ROLES, "principal", "admin"];
 
 export function canSteerTerm(role?: string | null): boolean {
   return role != null && (TERM_STEERING_ROLES as string[]).includes(role);

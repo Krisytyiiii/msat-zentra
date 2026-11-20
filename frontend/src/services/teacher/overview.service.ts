@@ -5,7 +5,7 @@ import { apiClient } from "@/lib/api/client";
 import { liveQueryOptions } from "@/lib/api/live";
 import { useSession } from "@/lib/auth/useSession";
 import { useTerm } from "@/lib/term/TermContext";
-import { writeCachedAdviser, writeCachedMasterTeacher } from "./flagCache";
+import { writeCachedAdviser } from "./flagCache";
 import type {
   TeacherOverviewCritical,
   TeacherOverviewGradebook,
@@ -75,10 +75,6 @@ export function useTeacherOverview() {
     queryKey: teacherOverviewKey(teacherId, termKey),
     queryFn: async () => {
       const payload = await fetchTeacherOverview();
-      writeCachedMasterTeacher(
-        teacherId,
-        payload.isMasterTeacher || payload.isMasterTeacherSenior,
-      );
       writeCachedAdviser(teacherId, payload.isAdviser);
       return payload;
     },

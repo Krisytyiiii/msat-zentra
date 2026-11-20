@@ -9,8 +9,8 @@ import { toast } from "@/components/ui/sonner";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { KanbanBoard } from "@/components/ui/kanban-board";
-import kanbanStyles from "@/app/teacher/schedule/components/subject-kanban.module.css";
-import emptyStyles from "@/app/teacher/schedule/schedule-empty.module.css";
+import kanbanStyles from "@/components/schedule/subject-kanban.module.css";
+import emptyStyles from "@/components/schedule/schedule-empty.module.css";
 
 function getErrorMessage(err: unknown, fallback: string): string {
   const data = (err as { response?: { data?: { error?: { message?: unknown }; message?: unknown } } })?.response?.data;
@@ -52,7 +52,7 @@ export function TeacherCodeClaim({ title, description }: TeacherCodeClaimProps) 
         /* dock is best-effort */
       }
       void queryClient.invalidateQueries({ queryKey: ["teacher-schedule-me"] });
-      void queryClient.invalidateQueries({ queryKey: ["teacher-my-slots"] });
+      void queryClient.invalidateQueries({ queryKey: ["teacher-my-load"] });
       // Merged entry: linking also entered the term, so refresh the
       // term-gated pages (classes, grading, attendance) together.
       void queryClient.invalidateQueries({ queryKey: ["teacher-overview"] });

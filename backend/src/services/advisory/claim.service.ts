@@ -103,20 +103,22 @@ export async function claimSection(ctx: AdvisoryContext, input: ClaimInput, year
     adviserCode?: string | null;
   };
 
-  if (row.adviserLabel) {
+  if (row.adviserCode || row.adviserLabel) {
     const entered = normalizeAdviserCode(input.code);
     if (!entered) {
       throw new AppError(
         400,
         "CODE_REQUIRED",
-        `Section "${section.name}" is listed under "${row.adviserLabel}" — enter the advisory code from your principal.`,
+        row.adviserLabel
+          ? `Section "${section.name}" is listed under "${row.adviserLabel}" — enter the advisory code from your principal.`
+          : `Section "${section.name}" needs its advisory code — ask the administrator for the code issued with it.`,
       );
     }
     if (!matchesAdviserCode(row.adviserCode, entered)) {
       throw new AppError(
         403,
         "CODE_MISMATCH",
-        "Wrong advisory code — ask your principal for the current code for this section.",
+        "Wrong advisory code — ask your administrator or principal for the current code for this section.",
       );
     }
   }
@@ -181,7 +183,9 @@ export async function releaseClaim(ctx: AdvisoryContext, input: ReleaseClaimInpu
     }
     await prisma.section.updateMany({
       where: { id: owned.id, adviserId: teacherId, ...yearFilter },
-      data: { adviserId: null, adviserCode: null },
+      // The advisory code stays: it is the section's access key, so a released
+      // section still cannot be claimed without it.
+      data: { adviserId: null },
     });
     released = [{ id: owned.id, name: owned.name }];
   } else {
@@ -194,7 +198,7 @@ export async function releaseClaim(ctx: AdvisoryContext, input: ReleaseClaimInpu
     }
     await prisma.section.updateMany({
       where: { adviserId: teacherId, ...yearFilter },
-      data: { adviserId: null, adviserCode: null },
+      data: { adviserId: null },
     });
     released = owned.map((s) => ({ id: s.id, name: s.name }));
   }

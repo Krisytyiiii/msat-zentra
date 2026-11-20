@@ -6,7 +6,7 @@ import { WEEK_LABELS_SHORT } from "@/services/teacher/schedule";
 import {
   formatRange,
   type DayConfig,
-} from "@/app/teacher/schedule/components/schedule-time";
+} from "@/components/schedule/schedule-time";
 import type { SlotFilter, SubmissionEntry } from "./use-principal-schedule-section";
 import styles from "./schedule-readonly-grid.module.css";
 
@@ -42,7 +42,7 @@ export function ScheduleReadonlyGrid({
   filter = "all",
 }: {
   config: DayConfig | null;
-  rows: ReturnType<typeof import("@/app/teacher/schedule/components/schedule-time").buildTimetable>;
+  rows: ReturnType<typeof import("@/components/schedule/schedule-time").buildTimetable>;
   entryByKey: Map<string, SubmissionEntry>;
   filter?: SlotFilter;
 }) {

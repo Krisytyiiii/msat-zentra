@@ -2,7 +2,7 @@ import { toSlug } from "./slug";
 
 /**
  * URL segment for a section in the schedule template route
- * (`/teacher/schedule/template/<section>`).
+ * (`/admin/academics/schedule/template/<section>`).
  *
  * Normally just the slug of the section name ("Einstein" → "einstein"). When
  * another section shares that name (names are only unique per grade band), the

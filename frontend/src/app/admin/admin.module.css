@@ -147,3 +147,17 @@
     padding: 1rem;
   }
 }
+
+/* Workspace routes (schedule template) hide the desk rail entirely — no rail,
+   and no mobile tab bar either, so the shell sits directly under the topbar. */
+.shellFull {
+  margin-left: 0;
+  margin-top: 3rem;
+}
+
+@media (min-width: 1024px) {
+  .shellFull {
+    margin-left: 0;
+    margin-top: 3rem;
+  }
+}

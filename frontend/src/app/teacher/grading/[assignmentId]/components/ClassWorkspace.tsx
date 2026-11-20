@@ -7,8 +7,8 @@ import { Input } from "@/components/ui/input";
 import { Pill } from "@/components/ui/pill";
 import { gradeLabel } from "@/services/teacher/grading.compute";
 import { compareSurnameFirst } from "@/lib/names";
-import emptyStyles from "@/app/teacher/schedule/schedule-empty.module.css";
-import kanbanStyles from "@/app/teacher/schedule/components/subject-kanban.module.css";
+import emptyStyles from "@/components/schedule/schedule-empty.module.css";
+import kanbanStyles from "@/components/schedule/subject-kanban.module.css";
 import { Button } from "@/components/ui/button";
 import { useRefreshAcademic } from "@/services/teacher/grading.service";
 import type {

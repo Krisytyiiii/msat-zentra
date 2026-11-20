@@ -1,6 +1,5 @@
 "use client";
 
-import Link from "next/link";
 import {
   AlertTriangle,
   BookOpen,
@@ -9,171 +8,86 @@ import {
   GraduationCap,
   Users,
 } from "lucide-react";
-import { StudentMascot } from "@/components/student-mascot/StudentMascot";
-import { Pill } from "@/components/ui/pill";
+import { StatDeck, type StatDeckItem } from "@/components/ui/stat-deck";
 import type { TeacherReportsPayload } from "@/services/teacher/reports.types";
 import { formatGrade, formatPercent } from "./reports-format";
-import { ReportsStatColumn } from "./reports-stat-column";
-import styles from "./reports.module.css";
-
-type Tone = "positive" | "warn" | "danger" | "muted";
-
-function gradeTone(value: number | null): Tone | undefined {
-  if (value == null) return "muted";
-  if (value < 75) return "danger";
-  if (value < 80) return "warn";
-  return "positive";
-}
-
-function rateTone(value: number | null, cutoff = 0.8): Tone | undefined {
-  if (value == null) return "muted";
-  if (value < cutoff) return "danger";
-  return "positive";
-}
 
 /**
- * Term KPIs as kanban stat columns — the same board chrome the principal,
- * coordinator, and registry overviews use (tinted column, KanbanBoardHeader,
- * number-first value card, mascot chip, pinned footer action).
+ * Term KPIs for the teacher reports desk — rendered through the shared
+ * `StatDeck`, the same stat strip every other desk uses.
  */
 export function ReportsKpiStrip({ summary }: { summary: TeacherReportsPayload["summary"] }) {
   const incomplete = summary.assessments - summary.gradedAssessments;
 
+  const tiles: StatDeckItem[] = [
+    {
+      key: "classes",
+      icon: BookOpen,
+      label: "Classes",
+      unit: "classes",
+      value: summary.classes,
+      hint: "Subject × section load",
+    },
+    {
+      key: "learners",
+      icon: Users,
+      label: "Learners",
+      unit: "learners",
+      value: summary.learners,
+      hint: "Unique learners in your classes",
+    },
+    {
+      key: "average",
+      icon: GraduationCap,
+      label: "Class average",
+      unit: "",
+      value: formatGrade(summary.transmutedAverage, 1),
+      hint: `Computed ${formatGrade(summary.average, 1)} · pass ${formatPercent(
+        summary.passRate,
+      )}`,
+      tone:
+        summary.transmutedAverage != null && summary.transmutedAverage < 75
+          ? "red"
+          : undefined,
+    },
+    {
+      key: "attendance",
+      icon: CalendarCheck,
+      label: "Attendance",
+      unit: "",
+      value: formatPercent(summary.attendanceRate),
+      hint: `${summary.attendancePresent}/${summary.attendanceTotal} present this term`,
+      tone:
+        summary.attendanceRate != null && summary.attendanceRate < 0.8
+          ? "red"
+          : undefined,
+    },
+    {
+      key: "assessments",
+      icon: ClipboardList,
+      label: "Assessments graded",
+      unit: "",
+      value: `${summary.gradedAssessments}/${summary.assessments}`,
+      hint: `${incomplete} not fully scored`,
+      tone: incomplete > 0 ? "amber" : undefined,
+    },
+    {
+      key: "risk",
+      icon: AlertTriangle,
+      label: "High-risk learners",
+      unit: "learners",
+      value: summary.highRisk,
+      hint: `${summary.highRiskAdvisees} advisees · ${summary.highRiskSubjectStudents} subject students`,
+      tone: summary.highRisk > 0 ? "red" : undefined,
+    },
+  ];
+
   return (
-    <section className={styles.statBoard} aria-label="Term report KPIs">
-      <div className={styles.statGrid} style={{ ["--cols" as string]: 6 }}>
-        <ReportsStatColumn
-          icon={<BookOpen size={14} className="text-blue-500" />}
-          title="Classes"
-          value={String(summary.classes)}
-          hint="Subject × section load"
-          tooltip="Subject and section pairs you teach this term"
-          valueTone={summary.classes === 0 ? "muted" : undefined}
-          mascot={<StudentMascot name="Classes" character="cap" size={36} />}
-          action={
-            <Link className={styles.statBtn} href="/teacher/classes">
-              Open classes
-            </Link>
-          }
-        />
-        <ReportsStatColumn
-          icon={<Users size={14} className="text-emerald-600 dark:text-emerald-400" />}
-          title="Learners"
-          value={String(summary.learners)}
-          hint="Unique learners in your classes"
-          tooltip="Distinct learners enrolled across your classes"
-          valueTone={summary.learners === 0 ? "muted" : undefined}
-          mascot={<StudentMascot name="Learners" character="owl" size={36} />}
-          action={
-            <Link className={styles.statBtn} href="/teacher/overview/students">
-              Open students
-            </Link>
-          }
-        />
-        <ReportsStatColumn
-          icon={<GraduationCap size={14} className="text-violet-500" />}
-          title="Class average"
-          value={formatGrade(summary.transmutedAverage, 1)}
-          hint={
-            <span className={styles.chips}>
-              <Pill tone="neutral" label="Computed average">
-                Computed {formatGrade(summary.average, 1)}
-              </Pill>
-              <Pill
-                tone={
-                  summary.passRate == null
-                    ? "neutral"
-                    : summary.passRate >= 0.75
-                      ? "green"
-                      : summary.passRate > 0
-                        ? "amber"
-                        : "red"
-                }
-                label="Pass rate"
-              >
-                pass {formatPercent(summary.passRate)}
-              </Pill>
-            </span>
-          }
-          hintText={`Computed ${formatGrade(summary.average, 1)}, pass ${formatPercent(summary.passRate)}`}
-          tooltip="DepEd transmuted average across your classes"
-          valueTone={gradeTone(summary.transmutedAverage)}
-          mascot={<StudentMascot name="Class average" character="scientist" size={36} />}
-          action={
-            <Link className={styles.statBtn} href="/teacher/grading">
-              Open grading
-            </Link>
-          }
-        />
-        <ReportsStatColumn
-          icon={<CalendarCheck size={14} className="text-teal-500" />}
-          title="Attendance"
-          value={formatPercent(summary.attendanceRate)}
-          hint={`${summary.attendancePresent}/${summary.attendanceTotal} present this term`}
-          tooltip="Present rate from per-subject attendance this term"
-          valueTone={rateTone(summary.attendanceRate)}
-          mascot={<StudentMascot name="Attendance" character="clockwork" size={36} />}
-          action={
-            <Link className={styles.statBtn} href="/teacher/attendance">
-              Open attendance
-            </Link>
-          }
-        />
-        <ReportsStatColumn
-          icon={<ClipboardList size={14} className="text-indigo-500" />}
-          title="Assessments graded"
-          value={`${summary.gradedAssessments}/${summary.assessments}`}
-          hint={
-            <span className={styles.chips}>
-              <Pill
-                tone={incomplete > 0 ? "amber" : "green"}
-                label="Assessments not fully scored"
-              >
-                {incomplete} not fully scored
-              </Pill>
-            </span>
-          }
-          hintText={`${incomplete} not fully scored`}
-          tooltip="Assessments fully scored out of all assessments"
-          valueTone={incomplete > 0 ? "warn" : "positive"}
-          mascot={<StudentMascot name="Assessments" character="postbot" size={36} />}
-          action={
-            <Link className={styles.statBtn} href="/teacher/grading">
-              Finish grading
-            </Link>
-          }
-        />
-        <ReportsStatColumn
-          icon={<AlertTriangle size={14} className="text-red-500" />}
-          title="High-risk learners"
-          value={String(summary.highRisk)}
-          hint={
-            <span className={styles.chips}>
-              <Pill
-                tone={summary.highRiskAdvisees > 0 ? "red" : "green"}
-                label="High-risk advisees"
-              >
-                {summary.highRiskAdvisees} advisees
-              </Pill>
-              <Pill
-                tone={summary.highRiskSubjectStudents > 0 ? "red" : "green"}
-                label="High-risk subject students"
-              >
-                {summary.highRiskSubjectStudents} subject students
-              </Pill>
-            </span>
-          }
-          hintText={`${summary.highRiskAdvisees} advisees, ${summary.highRiskSubjectStudents} subject students`}
-          tooltip="High-risk learners in your advisory section and in the subject classes assigned to you this term"
-          valueTone={summary.highRisk === 0 ? "positive" : "danger"}
-          mascot={<StudentMascot name="High-risk learners" character="knight" size={36} />}
-          action={
-            <Link className={styles.statBtn} href="/teacher/overview/students">
-              Review learners
-            </Link>
-          }
-        />
-      </div>
-    </section>
+    <StatDeck
+      title="This term at a glance"
+      icon={GraduationCap}
+      ariaLabel="Term report KPIs"
+      items={tiles}
+    />
   );
 }
