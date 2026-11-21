@@ -23,7 +23,7 @@ String? shownAsset(WidgetTester tester) {
 }
 
 void main() {
-  testWidgets('renders the web CRT center frame with Bama semantics', (
+  testWidgets('renders the new Bama avatar with Bama semantics', (
     tester,
   ) async {
     final semantics = tester.ensureSemantics();
@@ -34,14 +34,12 @@ void main() {
     await tester.pumpWidget(const SizedBox());
   });
 
-  testWidgets('blinks with the web reactions frame', (tester) async {
+  testWidgets('keeps the new avatar static', (tester) async {
     await tester.pumpWidget(wrapMascot());
-    var blinked = false;
     for (var i = 0; i < 60; i++) {
       await tester.pump(const Duration(milliseconds: 100));
-      if (shownAsset(tester) == BamaMascot.blinkAsset) blinked = true;
+      expect(shownAsset(tester), 'assets/mascots/bama-v2.png');
     }
-    expect(blinked, isTrue);
     await tester.pumpWidget(const SizedBox());
   });
 

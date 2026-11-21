@@ -12,6 +12,7 @@ import '../../core/config.dart';
 import '../../core/session.dart';
 import '../../core/sync_outbox.dart';
 import '../../design/status_palette.dart';
+import '../../design/overview_theme.dart';
 import '../../shared/models.dart';
 import '../../shared/user_messages.dart';
 import '../../shared/widgets.dart';
@@ -274,6 +275,28 @@ class _ScoreState extends ConsumerState<AssessmentScorePage> {
         });
       }
     }
+    if (mounted &&
+        !_stale &&
+        _currentScope == _scope &&
+        savedCount == jobs.length &&
+        queuedCount == 0 &&
+        _rowErrors.isEmpty &&
+        _error == null) {
+      setState(() => _allowPop = true);
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (!mounted) return;
+        final router = GoRouter.maybeOf(context);
+        if (router != null && router.canPop()) {
+          router.pop(true);
+        } else if (router != null) {
+          router.go(
+            '/workspace/classes/${Uri.encodeComponent(widget.classId)}',
+          );
+        } else {
+          Navigator.of(context).pop(true);
+        }
+      });
+    }
   }
 
   Future<bool> _discard() async {
@@ -333,86 +356,74 @@ class _ScoreState extends ConsumerState<AssessmentScorePage> {
     final canPop =
         GoRouter.maybeOf(context)?.canPop() ??
         (ModalRoute.of(context)?.canPop ?? false);
-    return PopScope(
-      canPop: !_saving && (_dirty.isEmpty || _allowPop),
-      onPopInvokedWithResult: (didPop, _) {
-        if (!didPop) _leave();
-      },
-      child: Scaffold(
-        appBar: AppBar(
-          leading: IconButton(
-            tooltip: canPop ? 'Back' : 'Close',
-            onPressed: _saving ? null : _leave,
-            icon: Icon(canPop ? Icons.arrow_back : Icons.close),
+    return Theme(
+      data: overviewScreenTheme(Theme.of(context)),
+      child: PopScope(
+        canPop: !_saving && (_dirty.isEmpty || _allowPop),
+        onPopInvokedWithResult: (didPop, _) {
+          if (!didPop) _leave();
+        },
+        child: Scaffold(
+          backgroundColor: Colors.white,
+          appBar: AppBar(
+            backgroundColor: Colors.white,
+            surfaceTintColor: Colors.transparent,
+            scrolledUnderElevation: 0,
+            centerTitle: true,
+            leadingWidth: 48,
+            leading: IconButton(
+              tooltip: canPop ? 'Back' : 'Close',
+              onPressed: _saving ? null : _leave,
+              icon: const Icon(Icons.chevron_left),
+            ),
+            title: const Text('Assessment scores'),
           ),
-          title: Column(
-            mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text(
-                assessment?.title ?? 'Assessment',
-                maxLines: 1,
-                overflow: TextOverflow.ellipsis,
-                style: const TextStyle(
-                  fontSize: 16,
-                  fontWeight: FontWeight.w600,
-                ),
-              ),
-              if (_record != null)
-                Text(
-                  '${_record!.assignment['subjectName'] ?? ''} · ${_record!.assignment['sectionName'] ?? ''}',
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                  style: Theme.of(context).textTheme.bodySmall,
-                ),
-            ],
+          body: AdviserBamaAccess(
+            busy: _saving,
+            child: _busy
+                ? const LoadingView()
+                : assessment == null
+                ? ErrorView(
+                    message: _error ?? 'This assessment is unavailable.',
+                    onRetry: _load,
+                  )
+                : _body(assessment),
           ),
-        ),
-        body: AdviserBamaAccess(
-          busy: _saving,
-          child: _busy
-              ? const LoadingView()
-              : assessment == null
-              ? ErrorView(
-                  message: _error ?? 'This assessment is unavailable.',
-                  onRetry: _load,
-                )
-              : _body(assessment),
-        ),
-        bottomNavigationBar: _busy || assessment == null
-            ? null
-            : Padding(
-                padding: EdgeInsets.only(
-                  bottom: MediaQuery.viewInsetsOf(context).bottom,
-                ),
-                child: SafeArea(
-                  top: false,
-                  child: Padding(
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: 16,
-                      vertical: 8,
-                    ),
-                    child: Wrap(
-                      alignment: WrapAlignment.spaceBetween,
-                      crossAxisAlignment: WrapCrossAlignment.center,
-                      spacing: 12,
-                      runSpacing: 8,
-                      children: [
-                        Text(
-                          '${_dirty.length} changed',
-                          style: Theme.of(context).textTheme.bodySmall,
-                        ),
-                        FilledButton(
-                          onPressed: _saving || _stale || _dirty.isEmpty
-                              ? null
-                              : _save,
-                          child: Text(_saving ? 'Saving…' : 'Save scores'),
-                        ),
-                      ],
+          bottomNavigationBar: _busy || assessment == null
+              ? null
+              : Padding(
+                  padding: EdgeInsets.only(
+                    bottom: MediaQuery.viewInsetsOf(context).bottom,
+                  ),
+                  child: SafeArea(
+                    top: false,
+                    child: Padding(
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 16,
+                        vertical: 8,
+                      ),
+                      child: Wrap(
+                        alignment: WrapAlignment.spaceBetween,
+                        crossAxisAlignment: WrapCrossAlignment.center,
+                        spacing: 12,
+                        runSpacing: 8,
+                        children: [
+                          Text(
+                            '${_dirty.length} changed',
+                            style: Theme.of(context).textTheme.bodySmall,
+                          ),
+                          FilledButton(
+                            onPressed: _saving || _stale || _dirty.isEmpty
+                                ? null
+                                : _save,
+                            child: Text(_saving ? 'Saving…' : 'Save scores'),
+                          ),
+                        ],
+                      ),
                     ),
                   ),
                 ),
-              ),
+        ),
       ),
     );
   }
@@ -433,14 +444,42 @@ class _ScoreState extends ConsumerState<AssessmentScorePage> {
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
             Padding(
-              padding: const EdgeInsets.fromLTRB(16, 12, 16, 8),
+              padding: const EdgeInsets.fromLTRB(12, 16, 12, 8),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
+                  Text(
+                    assessment.title,
+                    style: const TextStyle(
+                      fontSize: 22,
+                      fontWeight: FontWeight.w700,
+                      letterSpacing: -0.5,
+                    ),
+                  ),
+                  const SizedBox(height: 8),
+                  Text(
+                    '${_record!.assignment['subjectName'] ?? ''} · ${_record!.assignment['sectionName'] ?? ''}',
+                    style: const TextStyle(
+                      fontSize: 12,
+                      height: 1.5,
+                      color: Color(0xFF81818F),
+                    ),
+                  ),
+                  const SizedBox(height: 12),
                   Wrap(
                     spacing: 6,
                     runSpacing: 6,
                     children: [
+                      if (_record!.assignment['schoolYear'] != null)
+                        ZStatusPill(
+                          text: _record!.assignment['schoolYear'].toString(),
+                          tone: StatusTone.blue,
+                        ),
+                      if (_record!.assignment['termNumber'] != null)
+                        ZStatusPill(
+                          text: 'Term ${_record!.assignment['termNumber']}',
+                          tone: StatusTone.amber,
+                        ),
                       ZStatusPill(
                         text:
                             assessmentTypes[assessment.type] ?? assessment.type,
@@ -457,14 +496,47 @@ class _ScoreState extends ConsumerState<AssessmentScorePage> {
                     ],
                   ),
                   const SizedBox(height: 8),
-                  TextField(
-                    controller: _search,
-                    decoration: const InputDecoration(
-                      prefixIcon: Icon(Icons.search, size: 18),
-                      hintText: 'Search learner or LRN',
+                  SizedBox(
+                    height: 40,
+                    child: TextField(
+                      controller: _search,
+                      textAlignVertical: TextAlignVertical.center,
+                      style: const TextStyle(fontSize: 12),
+                      decoration: InputDecoration(
+                        prefixIcon: const Icon(Icons.search, size: 20),
+                        hintText: 'Search learner or LRN',
+                        suffixIcon: _search.text.isEmpty
+                            ? null
+                            : IconButton(
+                                tooltip: 'Clear search',
+                                icon: const Icon(Icons.close, size: 16),
+                                onPressed: () => setState(() {
+                                  _search.clear();
+                                  _query = '';
+                                }),
+                              ),
+                        filled: true,
+                        fillColor: const Color(0xFFF5F7FA),
+                        contentPadding: const EdgeInsets.symmetric(
+                          horizontal: 16,
+                          vertical: 8,
+                        ),
+                        border: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(999),
+                          borderSide: const BorderSide(
+                            color: Color(0xFFE6ECF4),
+                          ),
+                        ),
+                        enabledBorder: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(999),
+                          borderSide: const BorderSide(
+                            color: Color(0xFFE6ECF4),
+                          ),
+                        ),
+                      ),
+                      onChanged: (text) =>
+                          setState(() => _query = text.trim().toLowerCase()),
                     ),
-                    onChanged: (text) =>
-                        setState(() => _query = text.trim().toLowerCase()),
                   ),
                   const SizedBox(height: 8),
                   SingleChildScrollView(

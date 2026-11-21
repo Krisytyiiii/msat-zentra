@@ -54,15 +54,20 @@ class AttendanceApi extends ApiClient {
                   : null,
               'termGrant': entered ? {'attendanceVerified': verified} : null,
             };
-          } else if (o.path.endsWith('/my-slots')) {
+          } else if (o.path == '/api/teacher/my-load') {
             data = {
+              'config': config,
               'slots': [
                 for (final period in [0, 1])
                   {
                     'day': 2,
                     'period': period,
                     'status': 'APPROVED',
-                    'section': {'id': 'section', 'name': 'Arts'},
+                    'section': {
+                      'id': 'section',
+                      'name': 'Arts',
+                      'gradeLevel': 'G7',
+                    },
                     'subject': {'id': 'subject', 'name': 'Mathematics'},
                   },
                 {
@@ -82,8 +87,6 @@ class AttendanceApi extends ApiClient {
                   },
               ],
             };
-          } else if (o.path.endsWith('/config')) {
-            data = {'config': config};
           } else if (o.path.endsWith('/advisory/sections')) {
             data = {
               'advisorySections': advisory
@@ -261,9 +264,10 @@ Future<ProviderContainer> mount(
 }
 
 Future<void> openSheet(WidgetTester tester) async {
-  await tester.ensureVisible(find.text('Open attendance sheet').first);
+  final card = find.byKey(const ValueKey('attendance-class-section|subject'));
+  await tester.ensureVisible(card);
   await tester.pumpAndSettle();
-  await tester.tap(find.text('Open attendance sheet'));
+  await tester.tap(card);
   await tester.pumpAndSettle();
 }
 
@@ -341,58 +345,63 @@ void main() {
         find.text(linked ? 'Enter your school year' : 'Link your teacher code'),
         findsOneWidget,
       );
-      expect(api.requests.any((r) => r.path.endsWith('/my-slots')), false);
+      expect(api.requests.any((r) => r.path == '/api/teacher/my-load'), false);
     });
   }
 
-  testWidgets('class screen defaults to today and explains empty dates', (
+  test(
+    'attendance reads published load and timing through the web endpoint',
+    () async {
+      final api = AttendanceApi()..advisory = true;
+      addTearDown(() => api.dio.close(force: true));
+      final access = await AttendanceService(api).access();
+      expect(access.pairs, hasLength(1));
+      expect(access.pairs.single.subjectName, 'Mathematics');
+      expect(access.pairs.single.slots, hasLength(2));
+      expect(access.config, isNotNull);
+      expect(access.advisoryIds, contains('section'));
+      expect(
+        api.requests.where((r) => r.path == '/api/teacher/my-load'),
+        hasLength(1),
+      );
+      expect(
+        api.requests.any(
+          (r) =>
+              r.path == '/api/teacher/schedule/my-slots' ||
+              r.path == '/api/teacher/schedule/config',
+        ),
+        isFalse,
+      );
+    },
+  );
+
+  testWidgets('class list matches Gradebook and hides date controls', (
     tester,
   ) async {
     await mount(tester, AttendanceApi());
-    expect(find.text('1 class · Tue, Nov 17'), findsOneWidget);
-    expect(find.text('Tue, Nov 17, 2026'), findsOneWidget);
-    expect(find.text('Live'), findsOneWidget);
-    expect(
-      tester
-          .widget<TextButton>(find.widgetWithText(TextButton, 'Today'))
-          .onPressed,
-      isNull,
-    );
-    await tester.tap(find.byTooltip('Next day'));
-    await tester.pumpAndSettle();
-    expect(find.text('0 classes · Wed, Nov 18'), findsOneWidget);
-    expect(find.text('No scheduled classes on this date'), findsOneWidget);
-    await tester.tap(find.text('Show all classes'));
-    await tester.pumpAndSettle();
-    expect(find.text('1 class · Wed, Nov 18'), findsOneWidget);
-    expect(find.text('Read-only'), findsOneWidget);
-    expect(find.text('No scheduled meetup on this date.'), findsOneWidget);
-    await tester.tap(find.text('Today'));
-    await tester.pumpAndSettle();
-    expect(find.text('Live'), findsOneWidget);
-    expect(
-      tester
-          .widget<TextButton>(find.widgetWithText(TextButton, 'Today'))
-          .onPressed,
-      isNull,
-    );
+    expect(find.text('Showing 1 records'), findsOneWidget);
+    expect(find.byKey(const ValueKey('attendance-class-date')), findsNothing);
+    expect(find.text('Today'), findsNothing);
+    expect(find.text('G7'), findsOneWidget);
+    expect(find.text('2 weekly meetups'), findsNothing);
+    expect(find.text('Weekly Meetups'), findsOneWidget);
+    // Compact footer: one line per distinct time, days combined.
+    expect(find.text('Tue · 7:00–8:00 AM'), findsOneWidget);
+    expect(find.text('Tue · 8:00–9:00 AM'), findsOneWidget);
   });
 
   testWidgets('class screen filters by section and search', (tester) async {
     final api = AttendanceApi()..extraSection = true;
     await mount(tester, api);
     expect(find.text('Mathematics'), findsOneWidget);
-    expect(find.text('Physics'), findsNothing);
-    await tester.tap(find.byKey(const ValueKey('attendance-all')));
-    await tester.pumpAndSettle();
-    expect(find.text('2 classes · Tue, Nov 17'), findsOneWidget);
+    expect(find.text('Showing 2 records'), findsOneWidget);
     expect(find.text('Physics'), findsOneWidget);
 
     await tester.tap(find.text('All sections'));
     await tester.pumpAndSettle();
     await tester.tap(find.text('Science').last);
     await tester.pumpAndSettle();
-    expect(find.text('1 class · Tue, Nov 17'), findsOneWidget);
+    expect(find.text('Showing 1 records'), findsOneWidget);
     expect(find.text('Physics'), findsOneWidget);
     expect(find.text('Mathematics'), findsNothing);
 
@@ -401,7 +410,7 @@ void main() {
       'physics',
     );
     await tester.pumpAndSettle();
-    expect(find.text('1 class · Tue, Nov 17'), findsOneWidget);
+    expect(find.text('Showing 1 records'), findsOneWidget);
     await tester.enterText(
       find.widgetWithText(TextField, 'Search subject or section'),
       'nothing',
@@ -410,16 +419,35 @@ void main() {
     expect(find.text('No classes match these filters'), findsOneWidget);
   });
 
-  testWidgets('the class screen opens the selected day spreadsheet', (
+  testWidgets('class list sorts alphabetically and search can be cleared', (
+    tester,
+  ) async {
+    await mount(tester, AttendanceApi()..extraSection = true);
+    final ascendingY = tester.getTopLeft(find.text('Mathematics')).dy;
+    expect(ascendingY, lessThan(tester.getTopLeft(find.text('Physics')).dy));
+    await tester.tap(find.text('Name (A-Z)'));
+    await tester.pumpAndSettle();
+    expect(find.text('Name (Z-A)'), findsOneWidget);
+    expect(
+      tester.getTopLeft(find.text('Physics')).dy,
+      lessThan(tester.getTopLeft(find.text('Mathematics')).dy),
+    );
+    await tester.enterText(
+      find.widgetWithText(TextField, 'Search subject or section'),
+      'nothing',
+    );
+    await tester.pumpAndSettle();
+    await tester.tap(find.byTooltip('Clear search'));
+    await tester.pumpAndSettle();
+    expect(find.text('Showing 2 records'), findsOneWidget);
+    expect(find.text('Weekly Meetups'), findsOneWidget);
+  });
+
+  testWidgets('the class screen opens today within the selected term', (
     tester,
   ) async {
     final api = AttendanceApi();
     await mount(tester, api);
-    await tester.tap(find.byKey(const ValueKey('attendance-all')));
-    await tester.pumpAndSettle();
-    await tester.tap(find.byTooltip('Previous day'));
-    await tester.pumpAndSettle();
-    expect(find.text('Mon, Nov 16, 2026'), findsOneWidget);
     final card = find.byKey(const ValueKey('attendance-class-section|subject'));
     await tester.ensureVisible(card);
     await tester.pumpAndSettle();
@@ -429,22 +457,23 @@ void main() {
       api.requests
           .lastWhere((r) => r.path.endsWith('/advisory/attendance'))
           .queryParameters['date'],
-      '2026-11-16T00:00:00Z',
+      '2026-11-17T00:00:00Z',
     );
-    expect(find.text('No scheduled meetup on this date.'), findsWidgets);
+    expect(tester.takeException(), isNull);
   });
 
   testWidgets('an out-of-term clock is clamped into the selected term', (
     tester,
   ) async {
-    await mount(tester, AttendanceApi(), now: DateTime.utc(2027, 2, 1, 0, 30));
-    expect(find.text('Thu, Dec 31, 2026'), findsOneWidget);
-    expect(find.text('0 classes · Thu, Dec 31'), findsOneWidget);
+    final api = AttendanceApi();
+    await mount(tester, api, now: DateTime.utc(2027, 2, 1, 0, 30));
+    expect(find.text('Showing 1 records'), findsOneWidget);
+    await openSheet(tester);
     expect(
-      tester
-          .widget<TextButton>(find.widgetWithText(TextButton, 'Today'))
-          .onPressed,
-      isNull,
+      api.requests
+          .lastWhere((r) => r.path.endsWith('/advisory/attendance'))
+          .queryParameters['date'],
+      '2026-12-31T00:00:00Z',
     );
   });
 
@@ -821,14 +850,16 @@ void main() {
   ) async {
     final api = AttendanceApi()..holdRoster = Completer<void>();
     await mount(tester, api);
-    await tester.tap(find.text('Open attendance sheet'));
+    await tester.tap(
+      find.byKey(const ValueKey('attendance-class-section|subject')),
+    );
     await tester.pump();
     await tester.pump(const Duration(milliseconds: 400));
     await tester.tap(find.byTooltip('Back'));
     await tester.pumpAndSettle();
     api.holdRoster!.complete();
     await tester.pumpAndSettle();
-    expect(find.text('Take attendance'), findsOneWidget);
+    expect(find.text('Attendance'), findsOneWidget);
     expect(tester.takeException(), isNull);
   });
 

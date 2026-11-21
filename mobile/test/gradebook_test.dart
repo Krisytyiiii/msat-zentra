@@ -15,6 +15,7 @@ import 'package:zentra_mobile/features/teacher/gradebook_data.dart';
 import 'package:zentra_mobile/features/teacher/gradebook_page.dart';
 import 'package:zentra_mobile/features/teacher/assessment_score_page.dart';
 import 'package:zentra_mobile/features/teacher/gradebook_dashboard_page.dart';
+import 'package:zentra_mobile/features/teacher/assessments_page.dart';
 import 'package:zentra_mobile/shared/models.dart';
 
 Map<String, dynamic> fixture() => {
@@ -261,6 +262,15 @@ Future<ProviderContainer> mount(
         ),
       ),
       GoRoute(
+        path: '/workspace/classes/:id/assessments',
+        builder: (_, state) => AssessmentsPage(
+          classId: state.pathParameters['id']!,
+          audience: state.uri.queryParameters['audience'] == 'adm'
+              ? 'adm'
+              : 'regular',
+        ),
+      ),
+      GoRoute(
         path: '/workspace/classes/:id/assessments/:assessmentId',
         builder: (_, state) => AssessmentScorePage(
           classId: state.pathParameters['id']!,
@@ -290,8 +300,8 @@ Future<ProviderContainer> mount(
   return container;
 }
 
-Finder score([String learner = 'roster:r1', String assessment = 'quiz']) =>
-    find.byKey(ValueKey('score-$assessment-$learner'));
+Finder score([String learner = 'roster:r1']) =>
+    find.byKey(ValueKey('category-WRITTEN_WORK-$learner'));
 Finder get scoreInput =>
     find.byKey(const ValueKey('assessment-score-roster:r1'));
 
@@ -333,7 +343,7 @@ void main() {
     expect(gradeNumber(9.5), '9.5');
   });
 
-  testWidgets('opens the editable Class Record with frozen learner names', (
+  testWidgets('opens Class Record with learner cards and confirmed scores', (
     tester,
   ) async {
     final api = GradeApi();
@@ -342,19 +352,13 @@ void main() {
     expect(find.text('Class Record'), findsOneWidget);
     expect(find.text('Dela Cruz, Juan'), findsOneWidget);
     expect(find.text('Luna, Mira'), findsNothing);
-    expect(find.text('Quiz 1'), findsOneWidget);
+    expect(find.textContaining('Written ('), findsWidgets);
     expect(find.byType(ExpansionTile), findsNothing);
     expect(
-      find.descendant(of: score(), matching: find.text('0')),
+      find.descendant(of: score(), matching: find.text('Written (0/20 pts)')),
       findsOneWidget,
     );
-    final before = tester.getTopLeft(find.text('Dela Cruz, Juan'));
-    await tester.drag(
-      find.byKey(const ValueKey('record-horizontal')),
-      const Offset(-700, 0),
-    );
-    await tester.pumpAndSettle();
-    expect(tester.getTopLeft(find.text('Dela Cruz, Juan')), before);
+    expect(find.byKey(const ValueKey('class-record-cards')), findsOneWidget);
     expect(
       api.requests.first.path,
       '/api/teacher/grading/classes/subject%7Csection',
@@ -388,10 +392,9 @@ void main() {
         {'studentId': 'roster:r1', 'rawScore': 9.5},
       ],
     });
-    await tester.tap(find.byTooltip('Back'));
-    await tester.pumpAndSettle();
+    expect(find.byType(AssessmentScorePage), findsNothing);
     expect(
-      find.descendant(of: score(), matching: find.text('9.5')),
+      find.descendant(of: score(), matching: find.text('Written (9.5/20 pts)')),
       findsOneWidget,
     );
   });
@@ -436,11 +439,9 @@ void main() {
     api.failScore = false;
     await tester.tap(find.text('Save scores'));
     await tester.pumpAndSettle();
-    expect(find.text('0 changed'), findsOneWidget);
-    await tester.tap(find.byTooltip('Back'));
-    await tester.pumpAndSettle();
+    expect(find.byType(AssessmentScorePage), findsNothing);
     expect(
-      find.descendant(of: score(), matching: find.text('15')),
+      find.descendant(of: score(), matching: find.text('Written (15/20 pts)')),
       findsOneWidget,
     );
   });
@@ -490,11 +491,11 @@ void main() {
     final api = GradeApi();
     addTearDown(() => api.dio.close(force: true));
     await mount(tester, api);
-    await tester.tap(find.widgetWithText(TextButton, 'ADM'));
+    await tester.tap(find.widgetWithText(OutlinedButton, 'Regular'));
     await tester.pumpAndSettle();
     expect(find.text('Luna, Mira'), findsOneWidget);
     expect(find.text('Dela Cruz, Juan'), findsNothing);
-    expect(find.text('ADM quiz'), findsOneWidget);
+    expect(find.textContaining('Written ('), findsOneWidget);
     expect(find.text('Quiz 1'), findsNothing);
   });
 
@@ -505,7 +506,7 @@ void main() {
       addTearDown(() => api.dio.close(force: true));
       await mount(tester, api);
       expect(find.byType(TextFormField), findsNothing);
-      await tester.tap(find.byKey(const ValueKey('open-assessment-quiz')));
+      await tester.tap(score());
       await tester.pumpAndSettle();
       expect(find.byType(AssessmentScorePage), findsOneWidget);
       expect(find.byType(AppBar), findsOneWidget);
@@ -514,6 +515,79 @@ void main() {
       expect(find.text('Save scores'), findsOneWidget);
     },
   );
+
+  testWidgets('Assessments groups the current audience and opens score entry', (
+    tester,
+  ) async {
+    final api = GradeApi();
+    addTearDown(() => api.dio.close(force: true));
+    await mount(tester, api);
+    await tester.tap(find.text('Assessments ›'));
+    await tester.pumpAndSettle();
+    expect(find.byType(AssessmentsPage), findsOneWidget);
+    expect(find.text('Written Work'), findsOneWidget);
+    expect(find.text('Performance Task'), findsOneWidget);
+    expect(find.text('Exam'), findsOneWidget);
+    expect(find.text('Quiz 1'), findsOneWidget);
+    expect(find.text('ADM quiz'), findsNothing);
+    await tester.tap(find.text('Quiz 1'));
+    await tester.pumpAndSettle();
+    expect(find.byType(AssessmentScorePage), findsOneWidget);
+    await tester.tap(find.byTooltip('Back'));
+    await tester.pumpAndSettle();
+    expect(find.byType(AssessmentsPage), findsOneWidget);
+    await tester.enterText(find.byType(TextField), 'not a title');
+    await tester.pump();
+    expect(find.text('Quiz 1'), findsNothing);
+    expect(find.text('No matching assessments'), findsNWidgets(3));
+    await tester.tap(find.byTooltip('Clear search'));
+    await tester.pump();
+    expect(find.text('Quiz 1'), findsOneWidget);
+    expect(tester.takeException(), isNull);
+  });
+
+  testWidgets('saving through Assessments returns to refreshed Class Record', (
+    tester,
+  ) async {
+    final api = GradeApi();
+    addTearDown(() => api.dio.close(force: true));
+    await mount(tester, api);
+    await tester.tap(find.text('Assessments ›'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Quiz 1'));
+    await tester.pumpAndSettle();
+    await tester.enterText(scoreInput, '12');
+    await tester.pump();
+    await tester.tap(find.text('Save scores'));
+    await tester.pumpAndSettle();
+    expect(find.byType(AssessmentScorePage), findsNothing);
+    expect(find.byType(AssessmentsPage), findsNothing);
+    expect(find.byType(GradebookPage), findsOneWidget);
+    expect(find.text('Written (12/20 pts)'), findsOneWidget);
+    expect(tester.takeException(), isNull);
+  });
+
+  for (final width in [320.0, 700.0, 1200.0]) {
+    testWidgets(
+      'ADM Assessments fits $width with large text and respects scope',
+      (tester) async {
+        final api = GradeApi();
+        addTearDown(() => api.dio.close(force: true));
+        await mount(
+          tester,
+          api,
+          width: width,
+          scale: 1.5,
+          initialLocation:
+              '/workspace/classes/subject%7Csection/assessments?audience=adm',
+        );
+        expect(find.text('ADM quiz'), findsOneWidget);
+        expect(find.text('Quiz 1'), findsNothing);
+        expect(find.text('ADM'), findsOneWidget);
+        expect(tester.takeException(), isNull);
+      },
+    );
+  }
 
   testWidgets('partial bulk success retries only failed learners', (
     tester,
@@ -543,7 +617,7 @@ void main() {
         {'studentId': 'student', 'rawScore': 15.0},
       ],
     });
-    expect(find.text('0 changed'), findsOneWidget);
+    expect(find.byType(AssessmentScorePage), findsNothing);
     expect(find.text('Failed'), findsNothing);
   });
 
@@ -637,9 +711,7 @@ void main() {
     expect(tester.takeException(), isNull);
   });
 
-  testWidgets('vertical scrolling keeps score rows aligned with pinned names', (
-    tester,
-  ) async {
+  testWidgets('learner cards scroll as one list', (tester) async {
     final api = GradeApi();
     api.data['students'] = [
       for (var i = 0; i < 40; i++)
@@ -651,17 +723,14 @@ void main() {
     ];
     addTearDown(() => api.dio.close(force: true));
     await mount(tester, api);
-    final header = tester.getTopLeft(find.text('Quiz 1'));
+    final before = tester.getTopLeft(find.text('00, Learner'));
     await tester.drag(
-      find.byKey(const ValueKey('record-names')),
+      find.byKey(const ValueKey('class-record-cards')),
       const Offset(0, -200),
     );
     await tester.pumpAndSettle();
-    expect(
-      tester.getTopLeft(find.byKey(const ValueKey('learner-s4'))).dy,
-      closeTo(tester.getTopLeft(score('s4')).dy, 1),
-    );
-    expect(tester.getTopLeft(find.text('Quiz 1')), header);
+    expect(tester.getTopLeft(find.text('00, Learner')).dy, lessThan(before.dy));
+    expect(tester.takeException(), isNull);
   });
 
   testWidgets(
@@ -673,7 +742,8 @@ void main() {
       await mount(tester, api);
       expect(find.text('Class Record'), findsOneWidget);
       expect(find.text('Dela Cruz, Juan'), findsOneWidget);
-      expect(find.text('No assessments'), findsNWidgets(3));
+      expect(find.textContaining('0/0 pts'), findsWidgets);
+      expect(find.text('No grades'), findsWidgets);
       expect(find.byTooltip('Add assessment'), findsOneWidget);
     },
   );
@@ -684,7 +754,7 @@ void main() {
       final api = GradeApi();
       addTearDown(() => api.dio.close(force: true));
       await mount(tester, api);
-      await tester.tap(find.widgetWithText(TextButton, 'ADM'));
+      await tester.tap(find.widgetWithText(OutlinedButton, 'Regular'));
       await tester.tap(find.byTooltip('Add assessment'));
       await tester.pumpAndSettle();
       await tester.tap(
@@ -761,12 +831,54 @@ void main() {
           'title': 'New task',
           'maxScore': 25.0,
           'audience': 'regular',
+          'dateGiven': isA<String>(),
         });
+        final given = DateTime.parse((post.data as Map)['dateGiven'] as String);
+        final today = DateTime.now().toUtc().add(const Duration(hours: 8));
+        expect(given, DateTime.utc(today.year, today.month, today.day));
         expect(find.byType(AssessmentScorePage), findsOneWidget);
         expect(find.text('New task'), findsOneWidget);
       },
     );
   }
+
+  testWidgets('assessment form can override student type and date', (
+    tester,
+  ) async {
+    final api = GradeApi();
+    addTearDown(() => api.dio.close(force: true));
+    await mount(tester, api);
+    await tester.tap(find.byTooltip('Add assessment'));
+    await tester.pumpAndSettle();
+    await tester.tap(
+      find.byKey(const ValueKey('assessment-dial-WRITTEN_WORK')),
+    );
+    await tester.pumpAndSettle();
+    await tester.tap(find.byKey(const ValueKey('assessment-student-type')));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('ADM').last);
+    await tester.pumpAndSettle();
+    await tester.tap(find.byKey(const ValueKey('assessment-date')));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('15').last);
+    await tester.tap(find.text('OK'));
+    await tester.pumpAndSettle();
+    await tester.enterText(
+      find.widgetWithText(TextFormField, 'Assessment title'),
+      'Dated ADM task',
+    );
+    await tester.tap(find.text('Add assessment'));
+    await tester.pumpAndSettle();
+    final body =
+        api.requests.singleWhere((r) => r.method == 'POST').data as Map;
+    expect(body['audience'], 'adm');
+    final today = DateTime.now().toUtc().add(const Duration(hours: 8));
+    expect(
+      DateTime.parse(body['dateGiven'] as String),
+      DateTime.utc(today.year, today.month, 15),
+    );
+    expect(find.byType(AssessmentScorePage), findsOneWidget);
+  });
 
   testWidgets(
     'assessment dial matches advisory animation, dimensions and spacing',
@@ -842,7 +954,11 @@ void main() {
         scale: 1.5,
         secondaryFailure: true,
       );
-      expect(find.text('Open Class Record'), findsOneWidget);
+      expect(find.text('Open Class Record'), findsNothing);
+      expect(find.text('Name (A-Z)'), findsOneWidget);
+      await tester.tap(find.text('Name (A-Z)'));
+      await tester.pump();
+      expect(find.text('Name (Z-A)'), findsOneWidget);
       expect(find.text('Assessment counts unavailable. Retry'), findsOneWidget);
       expect(find.text('0'), findsNothing);
       expect(tester.takeException(), isNull);

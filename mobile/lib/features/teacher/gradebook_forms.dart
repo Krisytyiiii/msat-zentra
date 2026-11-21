@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
+import 'package:intl/intl.dart';
 
 import '../../shared/user_messages.dart';
+import '../adviser/schedule_timing.dart';
 import 'gradebook_data.dart';
 
 class GradebookEditor extends StatefulWidget {
@@ -11,21 +13,30 @@ class GradebookEditor extends StatefulWidget {
     required this.assessment,
     this.initialScore,
   }) : type = null,
-       audience = 'regular';
+       audience = 'regular',
+       onAssessmentSave = null;
   const GradebookEditor.assessment({
     super.key,
     required this.type,
     required this.audience,
-    required this.onSave,
+    required this.onAssessmentSave,
   }) : learner = null,
        assessment = null,
-       initialScore = null;
+       initialScore = null,
+       onSave = null;
   final String? type;
   final String audience;
   final RecordLearner? learner;
   final RecordAssessment? assessment;
   final double? initialScore;
-  final Future<void> Function(String title, double value) onSave;
+  final Future<void> Function(String title, double value)? onSave;
+  final Future<void> Function(
+    String title,
+    double maxScore,
+    String audience,
+    DateTime dateGiven,
+  )?
+  onAssessmentSave;
   @override
   State<GradebookEditor> createState() => _EditorState();
 }
@@ -43,6 +54,25 @@ class _EditorState extends State<GradebookEditor> {
   bool _saving = false;
   bool _completed = false;
   String? _error;
+  late String _audience = widget.audience;
+  late DateTime _date = () {
+    final now = philippineTime(DateTime.now());
+    return DateTime.utc(now.year, now.month, now.day);
+  }();
+
+  Future<void> _pickDate() async {
+    final selected = await showDatePicker(
+      context: context,
+      initialDate: DateTime(_date.year, _date.month, _date.day),
+      firstDate: DateTime(1900),
+      lastDate: DateTime(2100, 12, 31),
+    );
+    if (selected != null && mounted && !_saving) {
+      setState(
+        () => _date = DateTime.utc(selected.year, selected.month, selected.day),
+      );
+    }
+  }
 
   @override
   void dispose() {
@@ -58,7 +88,17 @@ class _EditorState extends State<GradebookEditor> {
       _error = null;
     });
     try {
-      await widget.onSave(_title.text.trim(), double.parse(_value.text.trim()));
+      final value = double.parse(_value.text.trim());
+      if (widget.type != null) {
+        await widget.onAssessmentSave!(
+          _title.text.trim(),
+          value,
+          _audience,
+          _date,
+        );
+      } else {
+        await widget.onSave!(_title.text.trim(), value);
+      }
       if (mounted) {
         setState(() {
           _saving = false;
@@ -108,12 +148,43 @@ class _EditorState extends State<GradebookEditor> {
                   const SizedBox(height: 8),
                   Text(
                     adding
-                        ? '${widget.audience == 'adm' ? 'ADM' : 'Regular'} assessment'
+                        ? '${_audience == 'adm' ? 'ADM' : 'Regular'} assessment'
                         : '${widget.learner!.displayName}\n${widget.assessment!.title}',
                     style: Theme.of(context).textTheme.bodySmall,
                   ),
                   const SizedBox(height: 16),
                   if (adding) ...[
+                    DropdownButtonFormField<String>(
+                      key: const ValueKey('assessment-student-type'),
+                      initialValue: _audience,
+                      decoration: const InputDecoration(
+                        labelText: 'Student type',
+                      ),
+                      items: const [
+                        DropdownMenuItem(
+                          value: 'regular',
+                          child: Text('Regular'),
+                        ),
+                        DropdownMenuItem(value: 'adm', child: Text('ADM')),
+                      ],
+                      onChanged: _saving
+                          ? null
+                          : (value) {
+                              if (value != null) {
+                                setState(() => _audience = value);
+                              }
+                            },
+                    ),
+                    const SizedBox(height: 12),
+                    OutlinedButton.icon(
+                      key: const ValueKey('assessment-date'),
+                      onPressed: _saving ? null : _pickDate,
+                      icon: const Icon(Icons.calendar_today_outlined, size: 18),
+                      label: Text(
+                        'Date: ${DateFormat('MM/dd/yyyy').format(_date)}',
+                      ),
+                    ),
+                    const SizedBox(height: 12),
                     TextFormField(
                       controller: _title,
                       enabled: !_saving,

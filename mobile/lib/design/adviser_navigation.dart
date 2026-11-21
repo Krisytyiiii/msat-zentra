@@ -2,8 +2,6 @@ import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:lucide_icons_flutter/lucide_icons.dart';
 
-import 'bama_mascot.dart';
-
 const _destinations = [
   (
     path: '/workspace/overview',
@@ -192,8 +190,17 @@ class AdviserBottomNavigation extends StatelessWidget {
                       child: SizedBox(
                         width: 60,
                         height: 60,
-                        child: const Center(
-                          child: ExcludeSemantics(child: BamaMascot(size: 52)),
+                        child: Center(
+                          child: ExcludeSemantics(
+                            child: ClipOval(
+                              child: Image.asset(
+                                'assets/mascots/bama-v2.png',
+                                width: 60,
+                                height: 60,
+                                fit: BoxFit.cover,
+                              ),
+                            ),
+                          ),
                         ),
                       ),
                     ),

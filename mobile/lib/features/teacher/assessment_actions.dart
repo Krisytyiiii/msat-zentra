@@ -1,6 +1,7 @@
 import 'dart:math' as math;
 
 import 'package:flutter/material.dart';
+import 'package:lucide_icons_flutter/lucide_icons.dart';
 
 import 'gradebook_data.dart';
 
@@ -105,7 +106,7 @@ class _ActionsState extends State<AssessmentActions>
           child: RotationTransition(
             key: const ValueKey('assessment-dial-rotation'),
             turns: _rotation,
-            child: const Icon(Icons.add),
+            child: const Icon(LucideIcons.plus),
           ),
         ),
       ],
@@ -122,9 +123,9 @@ class _Option extends StatelessWidget {
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final icon = switch (type) {
-      'WRITTEN_WORK' => Icons.edit_note_outlined,
-      'PERFORMANCE_TASK' => Icons.assignment_outlined,
-      _ => Icons.quiz_outlined,
+      'WRITTEN_WORK' => LucideIcons.notebookPen,
+      'PERFORMANCE_TASK' => LucideIcons.presentation,
+      _ => LucideIcons.clipboardCheck,
     };
     return Row(
       mainAxisSize: MainAxisSize.min,

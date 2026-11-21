@@ -71,9 +71,7 @@ class ClassRecord {
           component['type'] as String: (component['weight'] as num? ?? 0)
               .toDouble(),
       } {
-    learners.sort(
-      (a, b) => compareSurnameFirst(a.name, b.name),
-    );
+    learners.sort((a, b) => compareSurnameFirst(a.name, b.name));
   }
   final Map<String, dynamic> assignment;
   final List<RecordLearner> learners;
@@ -118,6 +116,7 @@ class GradebookService {
     required String title,
     required double maxScore,
     required String audience,
+    DateTime? dateGiven,
   }) async {
     final response = await api.dio.post(
       '/api/teacher/grading/classes/${Uri.encodeComponent(classId)}/assessments',
@@ -126,6 +125,7 @@ class GradebookService {
         'title': title,
         'maxScore': maxScore,
         'audience': audience,
+        if (dateGiven != null) 'dateGiven': dateGiven.toUtc().toIso8601String(),
       },
     );
     return (response.data as Map)['id'] as String;

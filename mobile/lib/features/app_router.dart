@@ -39,6 +39,7 @@ import 'teacher/classes_page.dart';
 import 'teacher/gradebook_dashboard_page.dart';
 import 'teacher/gradebook_page.dart';
 import 'teacher/assessment_score_page.dart';
+import 'teacher/assessments_page.dart';
 import 'workspace/workspace_attendance_page.dart';
 import '../core/session.dart' show authProvider, sessionRoleHint, mobilePortalForRole;
 import '../design/theme.dart' show zWorkspaceTheme;
@@ -274,6 +275,13 @@ final routerProvider = Provider<GoRouter>((ref) {
       GoRoute(path: '/workspace/schedule', builder: (context, _) => const WorkspaceShell(selected: WorkspaceRoute.schedule, child: AdviserSchedulePage(advisory: false))),
       GoRoute(path: '/workspace/classes', builder: (context, _) => const WorkspaceShell(selected: WorkspaceRoute.classes, child: ClassesPage())),
       GoRoute(path: '/workspace/gradebook', builder: (context, _) => const WorkspaceShell(selected: WorkspaceRoute.gradebook, child: GradebookDashboardPage())),
+      GoRoute(
+        path: '/workspace/classes/:id/assessments',
+        builder: (context, state) => AssessmentsPage(
+          classId: state.pathParameters['id']!,
+          audience: state.uri.queryParameters['audience'] == 'adm' ? 'adm' : 'regular',
+        ),
+      ),
       GoRoute(
         path: '/workspace/classes/:id/assessments/:assessmentId',
         builder: (context, state) => AssessmentScorePage(

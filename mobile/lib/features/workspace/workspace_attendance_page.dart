@@ -3,11 +3,12 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
-import 'package:intl/intl.dart';
+import 'package:lucide_icons_flutter/lucide_icons.dart';
 
 import '../../core/api_client.dart';
 import '../../core/session.dart';
 import '../../design/status_palette.dart';
+import '../../design/overview_theme.dart';
 import '../../shared/models.dart';
 import '../../shared/widgets.dart';
 import '../adviser/schedule_timing.dart';
@@ -26,7 +27,7 @@ class _AttendanceState extends ConsumerState<WorkspaceAttendancePage>
   AttendanceAccess? _access;
   Term? _term;
   late String _date;
-  bool _scheduledOnly = true;
+  bool _descending = false;
   String? _sectionId;
   Object? _error;
   bool _loading = true;
@@ -114,6 +115,9 @@ class _AttendanceState extends ConsumerState<WorkspaceAttendancePage>
           _sectionId = null;
         }
         if (term != null) {
+          _date = attendanceDay(
+            philippineTime(ref.read(attendanceClockProvider)()),
+          );
           // Keep the selected day inside the authoritative term, e.g. when an
           // older term is selected or the term rolled over while open.
           final first = attendanceDay(term.startDate!);
@@ -164,7 +168,7 @@ class _AttendanceState extends ConsumerState<WorkspaceAttendancePage>
       _access = null;
       _term = null;
       _sectionId = null;
-      _scheduledOnly = true;
+      _descending = false;
       _query = '';
       _search.clear();
       _date = attendanceDay(
@@ -172,6 +176,16 @@ class _AttendanceState extends ConsumerState<WorkspaceAttendancePage>
       );
       _load();
     });
+    return Theme(
+      data: overviewScreenTheme(Theme.of(context)),
+      child: ColoredBox(
+        color: Colors.white,
+        child: Builder(builder: (context) => _content(context)),
+      ),
+    );
+  }
+
+  Widget _content(BuildContext context) {
     if (_loading) return const LoadingView();
     if (_error != null) return ErrorView(message: _error!, onRetry: _load);
     final access = _access!;
@@ -210,22 +224,12 @@ class _AttendanceState extends ConsumerState<WorkspaceAttendancePage>
         ),
       );
     }
-    if (access.pairs.isEmpty) {
-      return ZEmptyPage(
-        icon: Icons.class_outlined,
-        title: 'No teaching load',
-        subtitle:
-            'Your submitted or approved timetable classes will appear here.',
-        onRefresh: _load,
-      );
-    }
     final now = ref.read(attendanceClockProvider)();
     final sections = {for (final p in access.pairs) p.sectionId: p.sectionName};
     final pairs =
         access.pairs
             .where(
               (p) =>
-                  (!_scheduledOnly || _scheduled(p)) &&
                   (_sectionId == null || p.sectionId == _sectionId) &&
                   '${p.sectionName} ${p.subjectName}'.toLowerCase().contains(
                     _query,
@@ -233,20 +237,14 @@ class _AttendanceState extends ConsumerState<WorkspaceAttendancePage>
             )
             .toList()
           ..sort((a, b) {
-            final rank = _cardState(
-              a,
-              access,
-              now,
-            ).rank.compareTo(_cardState(b, access, now).rank);
-            return rank != 0
-                ? rank
-                : '${a.subjectName} ${a.sectionName}'.compareTo(
-                    '${b.subjectName} ${b.sectionName}',
-                  );
+            final order = '${a.subjectName} ${a.sectionName}'
+                .toLowerCase()
+                .compareTo('${b.subjectName} ${b.sectionName}'.toLowerCase());
+            return _descending ? -order : order;
           });
     return Center(
       child: ConstrainedBox(
-        constraints: const BoxConstraints(maxWidth: 760),
+        constraints: const BoxConstraints(maxWidth: 1200),
         child: RefreshIndicator(
           onRefresh: () => _load(silent: true),
           child: CustomScrollView(
@@ -255,82 +253,203 @@ class _AttendanceState extends ConsumerState<WorkspaceAttendancePage>
             slivers: [
               SliverToBoxAdapter(
                 child: Padding(
-                  padding: const EdgeInsets.fromLTRB(16, 12, 16, 12),
+                  padding: const EdgeInsets.fromLTRB(12, 16, 12, 12),
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.stretch,
                     children: [
-                      Text(
-                        'Take attendance',
-                        style: Theme.of(context).textTheme.titleMedium,
-                      ),
-                      const SizedBox(height: 4),
                       const Text(
-                        'Pick a date and class, then review and save your marks.',
+                        'Attendance',
+                        style: TextStyle(
+                          fontSize: 22,
+                          fontWeight: FontWeight.w700,
+                          letterSpacing: -0.5,
+                        ),
+                      ),
+                      const SizedBox(height: 8),
+                      const Text(
+                        'Choose a class to review and record learner attendance.',
+                        style: TextStyle(
+                          fontSize: 12,
+                          height: 1.5,
+                          color: Color(0xFF81818F),
+                        ),
                       ),
                       const SizedBox(height: 12),
-                      _dateControls(),
-                      const SizedBox(height: 8),
                       Wrap(
-                        spacing: 8,
+                        spacing: 6,
                         runSpacing: 6,
                         children: [
-                          ChoiceChip(
-                            key: const ValueKey('attendance-scheduled'),
-                            label: const Text('Scheduled that day'),
-                            selected: _scheduledOnly,
-                            onSelected: (_) =>
-                                setState(() => _scheduledOnly = true),
+                          ZStatusPill(
+                            text: _term!.schoolYearName,
+                            tone: StatusTone.blue,
                           ),
-                          ChoiceChip(
-                            key: const ValueKey('attendance-all'),
-                            label: const Text('All classes'),
-                            selected: !_scheduledOnly,
-                            onSelected: (_) =>
-                                setState(() => _scheduledOnly = false),
+                          ZStatusPill(
+                            text: 'Term ${_term!.termNumber}',
+                            tone: StatusTone.amber,
                           ),
                         ],
+                      ),
+                      const SizedBox(height: 16),
+                      Container(
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 12,
+                          vertical: 10,
+                        ),
+                        decoration: BoxDecoration(
+                          color: const Color(0xFFF9F9FA),
+                          border: Border.all(color: const Color(0xFFE8E8ED)),
+                          borderRadius: BorderRadius.circular(12),
+                        ),
+                        child: Row(
+                          children: [
+                            for (final entry in [
+                              ('${access.pairs.length}', 'Classes'),
+                              ('${sections.length}', 'Sections'),
+                              (
+                                '${access.pairs.fold<int>(0, (total, pair) => total + pair.slots.length)}',
+                                'Weekly Meetups',
+                              ),
+                            ].indexed) ...[
+                              if (entry.$1 > 0)
+                                const SizedBox(
+                                  height: 30,
+                                  child: VerticalDivider(width: 16),
+                                ),
+                              Expanded(
+                                child: Column(
+                                  children: [
+                                    Text(
+                                      entry.$2.$1,
+                                      style: const TextStyle(
+                                        fontSize: 12,
+                                        height: 1.6,
+                                        fontWeight: FontWeight.w700,
+                                        color: Color(0xFF1E293B),
+                                      ),
+                                    ),
+                                    Text(
+                                      entry.$2.$2,
+                                      textAlign: TextAlign.center,
+                                      style: const TextStyle(
+                                        fontSize: 12,
+                                        height: 1.6,
+                                        color: Color(0xFF71809B),
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              ),
+                            ],
+                          ],
+                        ),
                       ),
                       const SizedBox(height: 12),
-                      DropdownButtonFormField<String>(
-                        key: ValueKey(
-                          'attendance-section-${_sectionId ?? 'all'}',
-                        ),
-                        initialValue: _sectionId ?? '',
-                        isExpanded: true,
-                        decoration: const InputDecoration(labelText: 'Section'),
-                        items: [
-                          const DropdownMenuItem(
-                            value: '',
-                            child: Text('All sections'),
+                      if (sections.length > 1) ...[
+                        DropdownButtonFormField<String>(
+                          key: ValueKey(
+                            'attendance-section-${_sectionId ?? 'all'}',
                           ),
-                          for (final section in sections.entries)
-                            DropdownMenuItem(
-                              value: section.key,
-                              child: Text(
-                                section.value,
-                                maxLines: 1,
-                                overflow: TextOverflow.ellipsis,
+                          initialValue: _sectionId ?? '',
+                          isExpanded: true,
+                          decoration: const InputDecoration(
+                            labelText: 'Section',
+                          ),
+                          items: [
+                            const DropdownMenuItem(
+                              value: '',
+                              child: Text('All sections'),
+                            ),
+                            for (final section in sections.entries)
+                              DropdownMenuItem(
+                                value: section.key,
+                                child: Text(
+                                  section.value,
+                                  maxLines: 1,
+                                  overflow: TextOverflow.ellipsis,
+                                ),
+                              ),
+                          ],
+                          onChanged: (value) => setState(
+                            () => _sectionId = value == '' ? null : value,
+                          ),
+                        ),
+                        const SizedBox(height: 10),
+                      ],
+                      SizedBox(
+                        height: 40,
+                        child: TextField(
+                          controller: _search,
+                          textAlignVertical: TextAlignVertical.center,
+                          style: const TextStyle(fontSize: 12),
+                          decoration: InputDecoration(
+                            prefixIcon: const Icon(Icons.search, size: 20),
+                            hintText: 'Search subject or section',
+                            isDense: true,
+                            filled: true,
+                            fillColor: const Color(0xFFF5F7FA),
+                            contentPadding: const EdgeInsets.symmetric(
+                              horizontal: 16,
+                              vertical: 8,
+                            ),
+                            suffixIcon: _search.text.isEmpty
+                                ? null
+                                : IconButton(
+                                    tooltip: 'Clear search',
+                                    icon: const Icon(Icons.close, size: 16),
+                                    onPressed: () => setState(() {
+                                      _search.clear();
+                                      _query = '';
+                                    }),
+                                  ),
+                            border: OutlineInputBorder(
+                              borderRadius: BorderRadius.circular(999),
+                              borderSide: const BorderSide(
+                                color: Color(0xFFE6ECF4),
                               ),
                             ),
+                            enabledBorder: OutlineInputBorder(
+                              borderRadius: BorderRadius.circular(999),
+                              borderSide: const BorderSide(
+                                color: Color(0xFFE6ECF4),
+                              ),
+                            ),
+                          ),
+                          onChanged: (v) =>
+                              setState(() => _query = v.trim().toLowerCase()),
+                        ),
+                      ),
+                      const SizedBox(height: 12),
+                      Row(
+                        children: [
+                          Expanded(
+                            child: Text(
+                              'Showing ${pairs.length} records',
+                              style: const TextStyle(
+                                fontSize: 12,
+                                color: Color(0xFF9999A6),
+                              ),
+                            ),
+                          ),
+                          TextButton.icon(
+                            onPressed: () =>
+                                setState(() => _descending = !_descending),
+                            icon: const Icon(LucideIcons.listFilter, size: 14),
+                            label: Text(
+                              _descending ? 'Name (Z-A)' : 'Name (A-Z)',
+                              style: const TextStyle(fontSize: 12),
+                            ),
+                            style: TextButton.styleFrom(
+                              foregroundColor: const Color(0xFF334155),
+                              padding: const EdgeInsets.symmetric(
+                                horizontal: 8,
+                                vertical: 0,
+                              ),
+                              minimumSize: Size.zero,
+                              tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                              visualDensity: VisualDensity.compact,
+                            ),
+                          ),
                         ],
-                        onChanged: (value) => setState(
-                          () => _sectionId = value == '' ? null : value,
-                        ),
-                      ),
-                      const SizedBox(height: 10),
-                      TextField(
-                        controller: _search,
-                        decoration: const InputDecoration(
-                          prefixIcon: Icon(Icons.search),
-                          hintText: 'Search subject or section',
-                        ),
-                        onChanged: (v) =>
-                            setState(() => _query = v.trim().toLowerCase()),
-                      ),
-                      const SizedBox(height: 8),
-                      Text(
-                        '${pairs.length} ${pairs.length == 1 ? 'class' : 'classes'} · ${DateFormat('EEE, MMM d').format(DateTime.parse(_date))}',
-                        style: Theme.of(context).textTheme.bodySmall,
                       ),
                     ],
                   ),
@@ -339,31 +458,59 @@ class _AttendanceState extends ConsumerState<WorkspaceAttendancePage>
               if (pairs.isEmpty)
                 SliverToBoxAdapter(
                   child: Padding(
-                    padding: const EdgeInsets.fromLTRB(16, 8, 16, 24),
-                    child: ZCard(
+                    padding: const EdgeInsets.fromLTRB(12, 0, 12, 120),
+                    child: Container(
+                      width: double.infinity,
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 20,
+                        vertical: 24,
+                      ),
+                      decoration: BoxDecoration(
+                        color: Colors.white,
+                        border: Border.all(color: const Color(0xFFDFE7F5)),
+                        borderRadius: BorderRadius.circular(16),
+                      ),
                       child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
+                          const CircleAvatar(
+                            backgroundColor: Color(0xFFEAF0FF),
+                            child: Icon(
+                              LucideIcons.bookOpen,
+                              size: 20,
+                              color: Color(0xFF4263F0),
+                            ),
+                          ),
+                          const SizedBox(height: 12),
                           Text(
                             _query.isNotEmpty || _sectionId != null
                                 ? 'No classes match these filters'
-                                : 'No scheduled classes on this date',
-                            style: const TextStyle(fontWeight: FontWeight.w600),
+                                : 'No teaching load',
+                            textAlign: TextAlign.center,
+                            style: const TextStyle(
+                              fontSize: 14,
+                              fontWeight: FontWeight.w600,
+                            ),
                           ),
                           const SizedBox(height: 6),
                           const Text(
-                            'Choose another date, or browse all your classes.',
+                            'Published classes will appear here. Try adjusting your search or section filter.',
+                            textAlign: TextAlign.center,
+                            style: TextStyle(
+                              fontSize: 12,
+                              height: 1.5,
+                              color: Color(0xFF71809B),
+                            ),
                           ),
                           const SizedBox(height: 8),
-                          TextButton(
-                            onPressed: () => setState(() {
-                              _scheduledOnly = false;
-                              _sectionId = null;
-                              _query = '';
-                              _search.clear();
-                            }),
-                            child: const Text('Show all classes'),
-                          ),
+                          if (_query.isNotEmpty || _sectionId != null)
+                            TextButton(
+                              onPressed: () => setState(() {
+                                _sectionId = null;
+                                _query = '';
+                                _search.clear();
+                              }),
+                              child: const Text('Show all classes'),
+                            ),
                         ],
                       ),
                     ),
@@ -371,64 +518,123 @@ class _AttendanceState extends ConsumerState<WorkspaceAttendancePage>
                 )
               else
                 SliverPadding(
-                  padding: const EdgeInsets.fromLTRB(16, 0, 16, 24),
+                  padding: const EdgeInsets.fromLTRB(12, 0, 12, 120),
                   sliver: SliverList.separated(
                     itemCount: pairs.length,
-                    separatorBuilder: (_, _) => const SizedBox(height: 10),
+                    separatorBuilder: (_, _) => const SizedBox(height: 12),
                     itemBuilder: (_, i) {
                       final pair = pairs[i];
                       final state = _cardState(pair, access, now);
-                      return ZCard(
-                        key: ValueKey('attendance-class-${pair.key}'),
-                        onTap: () => _open(pair),
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Text(
-                              pair.subjectName,
-                              style: const TextStyle(
-                                fontWeight: FontWeight.w600,
+                      final theme = Theme.of(context);
+                      final words = pair.subjectName
+                          .trim()
+                          .split(RegExp(r'\s+'))
+                          .where((word) => word.isNotEmpty)
+                          .toList();
+                      final initials = words.isEmpty
+                          ? '?'
+                          : '${words.first.characters.first}${words.length > 1 ? words.last.characters.first : ''}'
+                                .toUpperCase();
+                      final identity = '${pair.subjectId}|${pair.sectionId}';
+                      return Tooltip(
+                        message: state.message,
+                        child: Material(
+                          key: ValueKey('attendance-class-${pair.key}'),
+                          elevation: 1,
+                          shadowColor: Colors.black.withValues(alpha: 0.06),
+                          color: theme.cardTheme.color,
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(12),
+                            side: BorderSide(
+                              color: theme.colorScheme.outline.withValues(
+                                alpha: 0.72,
                               ),
                             ),
-                            Text(
-                              pair.sectionName,
-                              style: Theme.of(context).textTheme.bodySmall,
+                          ),
+                          clipBehavior: Clip.antiAlias,
+                          child: InkWell(
+                            onTap: () => _open(pair),
+                            child: Padding(
+                              padding: const EdgeInsets.all(12),
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Row(
+                                    children: [
+                                      CircleAvatar(
+                                        radius: 19,
+                                        backgroundColor:
+                                            const [
+                                              Color(0xFFF1F5F9),
+                                              Color(0xFFEFF6FF),
+                                              Color(0xFFFFFBEB),
+                                              Color(0xFFFAF5FF),
+                                              Color(0xFFFFF1F2),
+                                            ][identity.codeUnits.fold(
+                                                  0,
+                                                  (a, b) => a + b,
+                                                ) %
+                                                5],
+                                        foregroundColor: const Color(
+                                          0xFF52627C,
+                                        ),
+                                        child: Text(
+                                          initials,
+                                          style: const TextStyle(
+                                            fontSize: 12,
+                                            fontWeight: FontWeight.w600,
+                                          ),
+                                        ),
+                                      ),
+                                      const SizedBox(width: 12),
+                                      Expanded(
+                                        child: Column(
+                                          crossAxisAlignment:
+                                              CrossAxisAlignment.start,
+                                          children: [
+                                            Text(
+                                              pair.subjectName,
+                                              style: theme.textTheme.titleSmall
+                                                  ?.copyWith(
+                                                    fontSize: 13,
+                                                    fontWeight: FontWeight.w600,
+                                                  ),
+                                            ),
+                                            const SizedBox(height: 3),
+                                            Text(
+                                              pair.sectionName,
+                                              style: theme.textTheme.bodySmall
+                                                  ?.copyWith(
+                                                    color: theme
+                                                        .colorScheme
+                                                        .onSurfaceVariant,
+                                                    fontFeatures: const [
+                                                      FontFeature.tabularFigures(),
+                                                    ],
+                                                  ),
+                                            ),
+                                          ],
+                                        ),
+                                      ),
+                                      if (pair.gradeLevel != null) ...[
+                                        const SizedBox(width: 8),
+                                        ZStatusPill(
+                                          text: pair.gradeLevel!,
+                                          tone: StatusTone.blue,
+                                          label: 'Grade level',
+                                        ),
+                                      ],
+                                    ],
+                                  ),
+                                  const Padding(
+                                    padding: EdgeInsets.symmetric(vertical: 10),
+                                    child: Divider(height: 1),
+                                  ),
+                                  _ScheduleFooter(pair: pair, access: access),
+                                ],
+                              ),
                             ),
-                            const SizedBox(height: 4),
-                            Text(
-                              _scheduleLabel(pair, access),
-                              style: Theme.of(context).textTheme.bodySmall,
-                              maxLines: 2,
-                              overflow: TextOverflow.ellipsis,
-                            ),
-                            const SizedBox(height: 8),
-                            Wrap(
-                              spacing: 6,
-                              runSpacing: 6,
-                              children: [
-                                ZStatusPill(
-                                  text: state.label,
-                                  tone: state.tone,
-                                ),
-                                ZStatusPill(
-                                  text: '${pair.slots.length} weekly meetups',
-                                ),
-                              ],
-                            ),
-                            const SizedBox(height: 6),
-                            Text(
-                              state.message,
-                              style: Theme.of(context).textTheme.bodySmall,
-                            ),
-                            const SizedBox(height: 8),
-                            const Row(
-                              mainAxisAlignment: MainAxisAlignment.end,
-                              children: [
-                                Flexible(child: Text('Open attendance sheet')),
-                                Icon(Icons.chevron_right, size: 18),
-                              ],
-                            ),
-                          ],
+                          ),
                         ),
                       );
                     },
@@ -439,33 +645,6 @@ class _AttendanceState extends ConsumerState<WorkspaceAttendancePage>
         ),
       ),
     );
-  }
-
-  String _scheduleLabel(AttendancePair pair, AttendanceAccess access) {
-    const days = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
-    String clock(int m) =>
-        '${(m ~/ 60).toString().padLeft(2, '0')}:${(m % 60).toString().padLeft(2, '0')}';
-    final selected =
-        pair.slots.where((s) => s.day == DateTime.parse(_date).weekday).toList()
-          ..sort((a, b) => a.period.compareTo(b.period));
-    if (!_scheduled(pair)) return 'No meetup on the selected date.';
-    return selected
-            .take(3)
-            .map((s) {
-              final day = s.day >= 1 && s.day <= 7
-                  ? days[s.day - 1]
-                  : 'Day ${s.day}';
-              final periods = access.config?.periods;
-              if (periods == null ||
-                  s.period < 0 ||
-                  s.period >= periods.length) {
-                return '$day · Period ${s.period + 1}';
-              }
-              final t = periods[s.period];
-              return '$day ${clock(t.start)}–${clock(t.end)}';
-            })
-            .join(' · ') +
-        (selected.length > 3 ? ' · +${selected.length - 3} more' : '');
   }
 
   bool _scheduled(AttendancePair pair) =>
@@ -540,88 +719,140 @@ class _AttendanceState extends ConsumerState<WorkspaceAttendancePage>
       rank: 10000 + start,
     );
   }
+}
 
-  Widget _dateControls() {
-    final first = attendanceDay(_term!.startDate!);
-    final last = attendanceDay(_term!.endDate!);
-    final today = attendanceDay(
-      philippineTime(ref.read(attendanceClockProvider)()),
-    );
-    return Wrap(
-      spacing: 6,
-      runSpacing: 6,
-      crossAxisAlignment: WrapCrossAlignment.center,
+/// Compact schedule footer: one line per distinct time, days sharing it combined.
+class _ScheduleFooter extends StatefulWidget {
+  const _ScheduleFooter({required this.pair, required this.access});
+  final AttendancePair pair;
+  final AttendanceAccess access;
+
+  @override
+  State<_ScheduleFooter> createState() => _ScheduleFooterState();
+}
+
+class _ScheduleFooterState extends State<_ScheduleFooter> {
+  bool _expanded = false;
+
+  @override
+  Widget build(BuildContext context) {
+    final lines = _scheduleLines(widget.pair, widget.access);
+    if (lines.isEmpty) {
+      return const _ScheduleLineRow('Schedule not published');
+    }
+    final visible = _expanded ? lines : lines.take(2).toList();
+    final hidden = lines.length - visible.length;
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        IconButton(
-          tooltip: 'Previous day',
-          onPressed: _date.compareTo(first) <= 0
-              ? null
-              : () => setState(() {
-                  _date = _date.compareTo(last) > 0
-                      ? last
-                      : attendanceDay(
-                          DateTime.parse(_date)
-                              .subtract(const Duration(days: 1)),
-                        );
-                }),
-          icon: const Icon(Icons.chevron_left),
-        ),
-        OutlinedButton.icon(
-          key: const ValueKey('attendance-class-date'),
-          onPressed: _chooseDate,
-          icon: const Icon(Icons.calendar_today_outlined, size: 16),
-          label: Text(
-            DateFormat('EEE, MMM d, yyyy').format(DateTime.parse(_date)),
+        for (final line in visible) _ScheduleLineRow(line),
+        if (lines.length > 2)
+          TextButton(
+            onPressed: () => setState(() => _expanded = !_expanded),
+            style: TextButton.styleFrom(
+              foregroundColor: const Color(0xFF4263F0),
+              padding: EdgeInsets.zero,
+              minimumSize: const Size(48, 28),
+              tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+              visualDensity: VisualDensity.compact,
+            ),
+            child: Text(
+              _expanded ? 'Show less' : '+$hidden more',
+              style: const TextStyle(fontSize: 12),
+            ),
           ),
-        ),
-        IconButton(
-          tooltip: 'Next day',
-          onPressed: _date.compareTo(last) >= 0
-              ? null
-              : () => setState(() {
-                  _date = _date.compareTo(first) < 0
-                      ? first
-                      : attendanceDay(
-                          DateTime.parse(_date).add(const Duration(days: 1)),
-                        );
-                }),
-          icon: const Icon(Icons.chevron_right),
-        ),
-        TextButton(
-          onPressed:
-              _date == today ||
-                  today.compareTo(first) < 0 ||
-                  today.compareTo(last) > 0
-              ? null
-              : () => setState(() => _date = today),
-          child: const Text('Today'),
-        ),
       ],
     );
   }
+}
 
-  Future<void> _chooseDate() async {
-    final term = _term!;
-    final scope = ref.read(termProvider);
-    final first = DateTime.parse(attendanceDay(term.startDate!));
-    final last = DateTime.parse(attendanceDay(term.endDate!));
-    var initial = DateTime.parse(_date);
-    if (initial.isBefore(first)) initial = first;
-    if (initial.isAfter(last)) initial = last;
-    final picked = await showDatePicker(
-      context: context,
-      firstDate: first,
-      lastDate: last,
-      initialDate: initial,
-      helpText: 'Choose attendance date',
+class _ScheduleLineRow extends StatelessWidget {
+  const _ScheduleLineRow(this.text);
+  final String text;
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 2),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          const Padding(
+            padding: EdgeInsets.only(top: 1),
+            child: Icon(
+              LucideIcons.clock,
+              size: 13,
+              color: Color(0xFF94A3B8),
+            ),
+          ),
+          const SizedBox(width: 6),
+          Expanded(
+            child: Text(
+              text,
+              style: const TextStyle(fontSize: 12, color: Color(0xFF71809B)),
+            ),
+          ),
+        ],
+      ),
     );
-    if (!mounted) return;
-    final current = ref.read(termProvider);
-    if (picked == null ||
-        current?.id != scope?.id ||
-        current?.schoolYearId != scope?.schoolYearId) {
-      return;
-    }
-    setState(() => _date = attendanceDay(picked));
   }
+}
+
+List<String> _scheduleLines(AttendancePair pair, AttendanceAccess access) {
+  const days = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
+  final periods = access.config?.periods;
+  final grouped = <String, ({int? start, int? end, int period, Set<int> days})>{};
+  for (final slot in pair.slots) {
+    final known =
+        periods != null && slot.period >= 0 && slot.period < periods.length;
+    final key = known
+        ? '${periods[slot.period].start}|${periods[slot.period].end}'
+        : 'p${slot.period}';
+    final existing = grouped[key];
+    if (existing != null) {
+      existing.days.add(slot.day);
+    } else {
+      grouped[key] = (
+        start: known ? periods[slot.period].start : null,
+        end: known ? periods[slot.period].end : null,
+        period: slot.period,
+        days: {slot.day},
+      );
+    }
+  }
+  final sorted = grouped.values.toList()
+    ..sort((a, b) {
+      if (a.start != null && b.start != null && a.start != b.start) {
+        return a.start!.compareTo(b.start!);
+      }
+      if (a.start == null && b.start != null) return 1;
+      if (a.start != null && b.start == null) return -1;
+      return a.period.compareTo(b.period);
+    });
+  return sorted.map((group) {
+    final slots = group.days.toList()..sort();
+    final label = slots
+        .map((day) => day >= 1 && day <= 7 ? days[day - 1] : 'Day $day')
+        .join(', ');
+    final time = group.start != null && group.end != null
+        ? _clockRange(group.start!, group.end!)
+        : 'Period ${group.period + 1}';
+    return '$label · $time';
+  }).toList();
+}
+
+String _clockRange(int start, int end) {
+  final from = _clockTime(start);
+  final to = _clockTime(end);
+  // Only repeat the meridiem when the range crosses noon/midnight.
+  return from.$2 == to.$2
+      ? '${from.$1}–${to.$1} ${from.$2}'
+      : '${from.$1} ${from.$2}–${to.$1} ${to.$2}';
+}
+
+(String, String) _clockTime(int minutes) {
+  final hour24 = (minutes ~/ 60) % 24;
+  final minute = (minutes % 60).toString().padLeft(2, '0');
+  final hour = hour24 % 12 == 0 ? 12 : hour24 % 12;
+  return ('$hour:$minute', hour24 < 12 ? 'AM' : 'PM');
 }

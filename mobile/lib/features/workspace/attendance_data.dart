@@ -22,9 +22,11 @@ class AttendancePair {
     this.sectionId,
     this.sectionName,
     this.subjectId,
-    this.subjectName,
-  );
+    this.subjectName, {
+    this.gradeLevel,
+  });
   final String sectionId, sectionName, subjectId, subjectName;
+  final String? gradeLevel;
   final slots = <({int day, int period})>[];
   String get key => '$sectionId|$subjectId';
 }
@@ -201,8 +203,7 @@ class AttendanceService {
       return AttendanceAccess(me, [], null, {});
     }
     final results = await Future.wait([
-      api.dio.get('/api/teacher/schedule/my-slots'),
-      api.dio.get('/api/teacher/schedule/config'),
+      api.dio.get('/api/teacher/my-load'),
       api.dio.get('/api/teacher/advisory/sections'),
     ]);
     final pairs = <String, AttendancePair>{};
@@ -218,11 +219,12 @@ class AttendanceService {
           section['name'] as String,
           subject['id'] as String,
           subject['name'] as String,
+          gradeLevel: section['gradeLevel'] as String?,
         ),
       );
       pair.slots.add((day: row['day'] as int, period: row['period'] as int));
     }
-    final config = (results[1].data as Map)['config'];
+    final config = (results[0].data as Map)['config'];
     return AttendanceAccess(
       me,
       pairs.values.toList(),
@@ -230,7 +232,7 @@ class AttendanceService {
           ? SchoolDayConfig.fromJson(Map<String, dynamic>.from(config))
           : null,
       {
-        for (final s in (results[2].data as Map)['advisorySections'] as List)
+        for (final s in (results[1].data as Map)['advisorySections'] as List)
           s['id'] as String,
       },
     );
