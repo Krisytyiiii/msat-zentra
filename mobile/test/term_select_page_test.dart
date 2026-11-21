@@ -485,10 +485,10 @@ void main() {
       for (var i = 0; i < 8; i++) {
         await tester.pump(const Duration(milliseconds: 10));
       }
-      expect(find.text('Preparing workspace…'), findsOneWidget);
-      expect(find.byKey(const ValueKey('auth-flow-center')), findsOneWidget);
-      expect(find.byType(LoginBackground), findsOneWidget);
-      expect(find.byType(AuthSpinner), findsOneWidget);
+      expect(find.bySemanticsLabel('Loading overview'), findsOneWidget);
+      expect(find.text('Preparing workspace…'), findsNothing);
+      expect(find.byType(LoginBackground), findsNothing);
+      expect(find.byType(AuthSpinner), findsNothing);
       overview.completeError(ApiException('NETWORK', 'private details'));
       await tester.pump();
       await tester.pump();
@@ -542,34 +542,12 @@ void main() {
           for (var i = 0; i < 8; i++) {
             await tester.pump(const Duration(milliseconds: 10));
           }
-          final brand = tester.getRect(find.text('Zentra'));
-          final footer = tester.getRect(
-            find.text('Mati School of Arts and Trades'),
-          );
-          final region = tester.getRect(
-            find.byKey(const ValueKey('auth-flow-center')),
-          );
-          final loadingCenter = tester.getCenter(find.byType(AuthLoading));
+          expect(find.bySemanticsLabel('Loading overview'), findsOneWidget);
+          expect(tester.takeException(), isNull);
           initial.completeError(ApiException('NETWORK', 'private details'));
           await tester.pumpAndSettle();
           expect(find.text('Try again'), findsOneWidget);
-          expect(tester.getRect(find.text('Zentra')), brand);
-          expect(
-            tester.getRect(find.text('Mati School of Arts and Trades')),
-            footer,
-          );
-          expect(
-            tester.getRect(find.byKey(const ValueKey('auth-flow-center'))),
-            region,
-          );
-          final errorContent = find.descendant(
-            of: find.byType(ErrorView),
-            matching: find.byType(Column),
-          );
-          expect(
-            tester.getCenter(errorContent).dy,
-            closeTo(loadingCenter.dy, 1),
-          );
+          expect(find.byType(ErrorView), findsOneWidget);
           expect(
             tester.getCenter(find.widgetWithText(FilledButton, 'Try again')).dx,
             closeTo(size.width / 2, 1),
@@ -577,13 +555,7 @@ void main() {
           expect(find.textContaining('private details'), findsNothing);
           await tester.tap(find.text('Try again'));
           await tester.pumpAndSettle();
-          expect(find.byType(AuthLoading), findsOneWidget);
-          expect(tester.getCenter(find.byType(AuthLoading)), loadingCenter);
-          expect(tester.getRect(find.text('Zentra')), brand);
-          expect(
-            tester.getRect(find.text('Mati School of Arts and Trades')),
-            footer,
-          );
+          expect(find.bySemanticsLabel('Loading overview'), findsOneWidget);
           retried.complete({'isAdviser': false});
           await tester.pumpAndSettle();
           expect(calls, 2);

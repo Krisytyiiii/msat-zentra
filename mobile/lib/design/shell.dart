@@ -450,14 +450,6 @@ class ZentraDrawer extends ConsumerWidget {
                       ),
                       _item(
                         context,
-                        LucideIcons.calendarDays,
-                        'Class Schedule',
-                        '/adviser/schedule',
-                        _selected('/adviser/schedule') ||
-                            _selected('/workspace/schedule'),
-                      ),
-                      _item(
-                        context,
                         LucideIcons.send,
                         'Referrals',
                         '/adviser/referrals',

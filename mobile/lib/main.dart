@@ -9,7 +9,8 @@ import 'package:hive_flutter/hive_flutter.dart';
 import 'core/config.dart';
 import 'core/sync_outbox.dart';
 import 'design/theme.dart';
-import 'design/theme_mode.dart' show openThemeSettingsBox, themeSettingsProvider;
+import 'design/theme_mode.dart'
+    show openThemeSettingsBox, themeSettingsProvider;
 import 'dev_preview/device_preview_host.dart';
 import 'features/app_router.dart';
 
@@ -19,6 +20,7 @@ Future<void> main() async {
   await Hive.openBox(AppConfig.termScopeBox);
   await Hive.openBox(AppConfig.portalBox);
   await Hive.openBox(AppConfig.outboxBox);
+  await Hive.openBox(AppConfig.cacheBox);
   await Hive.openBox(AppConfig.bamaBox);
   await openThemeSettingsBox();
   runApp(const ProviderScope(child: ZentraApp()));

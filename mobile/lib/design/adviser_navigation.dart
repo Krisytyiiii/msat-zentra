@@ -182,6 +182,8 @@ class AdviserBottomNavigation extends StatelessWidget {
                     ),
                     clipBehavior: Clip.antiAlias,
                     child: InkWell(
+                      splashColor: Colors.transparent,
+                      highlightColor: activeColor.withValues(alpha: 0.22),
                       onTap: () {
                         if (!selectedPath.startsWith('/adviser/bama')) {
                           context.push('/adviser/bama');
@@ -192,13 +194,11 @@ class AdviserBottomNavigation extends StatelessWidget {
                         height: 60,
                         child: Center(
                           child: ExcludeSemantics(
-                            child: ClipOval(
-                              child: Image.asset(
-                                'assets/mascots/bama-v2.png',
-                                width: 60,
-                                height: 60,
-                                fit: BoxFit.cover,
-                              ),
+                            child: Image.asset(
+                              'assets/mascots/bama-v2-nobg.png',
+                              width: 60,
+                              height: 60,
+                              fit: BoxFit.contain,
                             ),
                           ),
                         ),

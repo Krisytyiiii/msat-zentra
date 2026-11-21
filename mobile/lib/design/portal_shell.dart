@@ -66,13 +66,19 @@ class PortalAppBar extends ConsumerWidget implements PreferredSizeWidget {
           child: PopupMenuButton<String>(
             tooltip: 'Account',
             onSelected: (value) async {
+              if (value == 'profile' && portal == 'student') {
+                context.push('/student/profile');
+                return;
+              }
               if (value == 'logout') {
                 await ref.read(authProvider.notifier).logout();
                 if (context.mounted) context.go('/login');
               }
             },
-            itemBuilder: (context) => const [
-              PopupMenuItem(value: 'logout', child: Text('Log out')),
+            itemBuilder: (context) => [
+              if (portal == 'student')
+                const PopupMenuItem(value: 'profile', child: Text('Profile')),
+              const PopupMenuItem(value: 'logout', child: Text('Log out')),
             ],
             child: CircleAvatar(
               radius: 16,
@@ -246,6 +252,8 @@ class PortalDrawer extends ConsumerWidget {
           _item(context, Icons.folder_shared_outlined, 'Modules', '/$portal/modules'),
           _item(context, Icons.event_available_outlined, 'Sessions', '/$portal/sessions'),
           const _DrawerHeader('Account'),
+          if (portal == 'student')
+            _item(context, Icons.person_outline, 'Profile', '/student/profile'),
           _item(context, Icons.notifications_none, 'Notifications', '/portal/notifications'),
           ListTile(
             dense: true,

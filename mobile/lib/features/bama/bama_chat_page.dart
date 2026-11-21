@@ -15,6 +15,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:hive_flutter/hive_flutter.dart';
 import 'package:intl/intl.dart';
+import 'package:lucide_icons_flutter/lucide_icons.dart';
 
 import '../../shared/user_messages.dart';
 import '../../core/config.dart';
@@ -103,7 +104,6 @@ class _State extends ConsumerState<BamaChatPage> {
       _timeInput = flow?.observationTime ?? '';
       _loadOptions();
     } else {
-      final remembered = widget.freshEntry ? null : _active?.id;
       _activeId = null;
       // Route replacement (Start new chat) completes the old push future
       // early. Keep the landing snapshot current across those replacements too.
@@ -117,11 +117,6 @@ class _State extends ConsumerState<BamaChatPage> {
           _activeId = null;
         });
       });
-      if (remembered != null) {
-        WidgetsBinding.instance.addPostFrameCallback((_) {
-          if (mounted) _openConversation(remembered);
-        });
-      }
     }
   }
 
@@ -270,7 +265,7 @@ class _State extends ConsumerState<BamaChatPage> {
   void _scrollToBottom() {
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (!_scroll.hasClients) return;
-      _scroll.jumpTo(_scroll.position.maxScrollExtent);
+      _scroll.jumpTo(0);
     });
   }
 
@@ -1039,7 +1034,7 @@ class _ChatHeader extends StatelessWidget implements PreferredSizeWidget {
     return AppBar(
       toolbarHeight: 72,
       leading: IconButton(
-        icon: Icon(canPop ? Icons.arrow_back : Icons.close, size: 20),
+        icon: Icon(canPop ? Icons.chevron_left : Icons.close, size: 20),
         tooltip: canPop ? 'Back' : 'Close',
         onPressed: busy ? null : onBack,
       ),
@@ -1276,10 +1271,19 @@ class _ThreadView extends StatelessWidget {
     final theme = Theme.of(context);
     final f = flow;
     final anecOpen = active.type == 'anecdotal' && !active.filed && f != null;
-    return ListView(
+    return LayoutBuilder(
+      builder: (context, constraints) => ListView(
       controller: scroll,
+      reverse: true,
       padding: const EdgeInsets.fromLTRB(16, 12, 16, 8),
       children: [
+        ConstrainedBox(
+          constraints: BoxConstraints(
+            minHeight: (constraints.maxHeight - 20).clamp(0.0, double.infinity),
+          ),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
          for (final m in active.messages)
            if (m.id != writingMessageId) _Bubble(message: m),
          if (sending || filing) const BamaWritingIndicator(),
@@ -1335,7 +1339,11 @@ class _ThreadView extends StatelessWidget {
             padding: const EdgeInsets.only(top: 4),
             child: Text(flowError!, style: TextStyle(color: theme.colorScheme.error, fontSize: 13)),
           ),
+            ],
+          ),
+        ),
       ],
+      ),
     );
   }
 
@@ -1622,31 +1630,37 @@ class _PreviewCard extends StatelessWidget {
           child: Row(crossAxisAlignment: CrossAxisAlignment.start, children: [
             SizedBox(
               width: 100,
-              child: Text(label, style: theme.textTheme.bodySmall?.copyWith(color: theme.colorScheme.onSurfaceVariant)),
+              child: Text(label, style: theme.textTheme.bodySmall?.copyWith(color: const Color(0xFF71809B))),
             ),
-            Expanded(child: Text(value.isEmpty ? '—' : value, style: const TextStyle(fontSize: 13))),
+            Expanded(child: Text(value.isEmpty ? '—' : value, style: const TextStyle(fontSize: 13, color: Color(0xFF172033)))),
             if (editStep != null)
               InkWell(
                 borderRadius: BorderRadius.circular(6),
                 onTap: () => onEditStep(editStep),
                 child: const Padding(
                   padding: EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-                  child: Text('Edit', style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600)),
+                  child: Text('Edit', style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: Color(0xFF2563EB))),
                 ),
               ),
           ]),
         );
     return Card(
       margin: const EdgeInsets.only(bottom: 8),
+      elevation: 0,
+      color: Colors.white,
+      clipBehavior: Clip.antiAlias,
       shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(6),
-        side: BorderSide(color: theme.colorScheme.primary, width: 1.5),
+        borderRadius: BorderRadius.circular(16),
+        side: const BorderSide(color: Color(0xFFE6ECF4)),
       ),
       child: Padding(
-        padding: const EdgeInsets.all(12),
+        padding: const EdgeInsets.all(14),
         child: Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
-          const Text('Review the complete record before filing:', style: TextStyle(fontSize: 14, fontWeight: FontWeight.w600)),
-          const SizedBox(height: 8),
+          const Text('Review the complete record before filing:', style: TextStyle(fontSize: 14, fontWeight: FontWeight.w600, color: Color(0xFF172033))),
+          const Padding(
+            padding: EdgeInsets.symmetric(vertical: 12),
+            child: Divider(height: 1, color: Color(0xFFF0F3F8)),
+          ),
           row('Student', '${student?['name'] ?? ''} · ${student?['lrn'] ?? ''}', editStep: 'student'),
           row('Section', sectionNames[student?['sectionId']?.toString()] ?? '—'),
           row('Category', anecdotalCategoryLabels[flow.category] ?? '', editStep: 'category'),
@@ -1657,8 +1671,18 @@ class _PreviewCard extends StatelessWidget {
           if (flow.notes.isNotEmpty) row('Notes', flow.notes),
           if (flow.classPerf.isNotEmpty) row('Class', flow.classPerf),
           if (flow.attendance.isNotEmpty) row('Attendance', flow.attendance),
-          const SizedBox(height: 8),
-          FilledButton(onPressed: filing ? null : onFile, child: Text(filing ? 'Filing…' : 'File record')),
+          const Padding(
+            padding: EdgeInsets.symmetric(vertical: 12),
+            child: Divider(height: 1, color: Color(0xFFF0F3F8)),
+          ),
+          FilledButton(
+            style: FilledButton.styleFrom(
+              backgroundColor: const Color(0xFF2563EB),
+              foregroundColor: Colors.white,
+            ),
+            onPressed: filing ? null : onFile,
+            child: Text(filing ? 'Filing…' : 'File record'),
+          ),
         ]),
       ),
     );
@@ -1730,25 +1754,46 @@ class _Composer extends StatelessWidget {
             child: TextField(
               controller: draft,
               enabled: !disabled,
-              decoration: InputDecoration(hintText: sending ? 'Working on it…' : placeholder),
+              decoration: InputDecoration(
+                hintText: sending ? 'Working on it…' : placeholder,
+                filled: true,
+                fillColor: theme.colorScheme.surfaceContainerLow,
+                contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                border: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(24),
+                  borderSide: BorderSide.none,
+                ),
+                enabledBorder: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(24),
+                  borderSide: BorderSide.none,
+                ),
+                focusedBorder: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(24),
+                  borderSide: BorderSide(color: theme.colorScheme.primary),
+                ),
+              ),
               minLines: 1,
-              maxLines: 4,
+              maxLines: 6,
               maxLength: 2000,
               buildCounter: (_, {required currentLength, required isFocused, maxLength}) => null,
-              textInputAction: TextInputAction.send,
+              keyboardType: TextInputType.multiline,
+              textInputAction: TextInputAction.newline,
               onChanged: onChanged,
-              onSubmitted: (_) {
-                if (!sendDisabled) onSend();
-              },
             ),
           ),
           const SizedBox(width: 8),
           Container(
-            width: 40,
-            height: 40,
-            decoration: BoxDecoration(shape: BoxShape.circle, color: sendDisabled ? theme.colorScheme.surfaceContainerLow : theme.colorScheme.primary),
+            width: 48,
+            height: 48,
+            decoration: const BoxDecoration(shape: BoxShape.circle),
             child: IconButton(
-              icon: Icon(Icons.arrow_upward, size: 18, color: sendDisabled ? theme.colorScheme.onSurfaceVariant : theme.colorScheme.onPrimary),
+              icon: Icon(
+                (anecMode && f?.textQuestion == null)
+                    ? LucideIcons.check
+                    : LucideIcons.sendHorizontal,
+                size: 26,
+                color: sendDisabled ? theme.colorScheme.onSurfaceVariant : const Color(0xFF0084FF),
+              ),
               tooltip: sendLabel,
               onPressed: sendDisabled ? null : onSend,
             ),
@@ -1805,7 +1850,14 @@ class _ConfirmSheet extends StatelessWidget {
                     Row(children: [
                       Expanded(child: OutlinedButton(onPressed: onKeep, child: const Text('Keep editing'))),
                       const SizedBox(width: 8),
-                      Expanded(child: FilledButton(onPressed: onFile, child: const Text('File record'))),
+                      Expanded(child: FilledButton(
+                        style: FilledButton.styleFrom(
+                          backgroundColor: const Color(0xFF2563EB),
+                          foregroundColor: Colors.white,
+                        ),
+                        onPressed: onFile,
+                        child: const Text('File record'),
+                      )),
                     ]),
                   ]),
                 ),

@@ -384,6 +384,9 @@ void main() {
       final api = _Api();
       addTearDown(() => api.dio.close(force: true));
       await _mount(tester, api, fresh: false);
+      expect(find.text('Staff shell header'), findsOneWidget);
+      await tester.tap(find.text('Old filed chat'));
+      await tester.pumpAndSettle();
       await tester.tap(find.text('Start new chat'));
       await tester.pumpAndSettle();
       await tester.tap(find.text('Ana Reyes'));
@@ -672,7 +675,7 @@ void main() {
     );
     final api = _Api();
     addTearDown(() => api.dio.close(force: true));
-    await _mount(tester, api, fresh: false);
+    await _mount(tester, api, initialLocation: '/adviser/bama/conversation/ready');
     await tester.tap(find.byTooltip('File record'));
     await tester.pumpAndSettle();
     final confirm = find.widgetWithText(FilledButton, 'File record').last;
@@ -690,7 +693,7 @@ void main() {
     expect(find.text('This chat has ended.'), findsOneWidget);
     final stored = Hive.box(AppConfig.bamaBox).get('conversations') as List;
     expect((stored.single as Map)['filed'], isTrue);
-    await tester.tap(find.byTooltip('Back'));
+    await tester.tap(find.byTooltip('Close'));
     await tester.pumpAndSettle();
     expect(find.text('Ana Reyes · Behavioral · Filed'), findsOneWidget);
   });

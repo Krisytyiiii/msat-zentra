@@ -13,7 +13,7 @@ import '../../shared/models.dart';
 import '../../shared/widgets.dart';
 import '../adviser/schedule_timing.dart';
 import 'attendance_data.dart';
-import 'attendance_sheet_page.dart';
+import 'attendance_record_page.dart';
 
 /// Shared adviser/subject-teacher attendance entry, using web's teaching load.
 class WorkspaceAttendancePage extends ConsumerStatefulWidget {
@@ -33,10 +33,8 @@ class _AttendanceState extends ConsumerState<WorkspaceAttendancePage>
   bool _loading = true;
   bool _fetching = false;
   bool _opening = false;
-  String _query = '';
   int _generation = 0;
   Timer? _timer;
-  final _search = TextEditingController();
 
   @override
   void initState() {
@@ -57,7 +55,6 @@ class _AttendanceState extends ConsumerState<WorkspaceAttendancePage>
   void dispose() {
     WidgetsBinding.instance.removeObserver(this);
     _timer?.cancel();
-    _search.dispose();
     super.dispose();
   }
 
@@ -142,16 +139,10 @@ class _AttendanceState extends ConsumerState<WorkspaceAttendancePage>
   Future<void> _open(AttendancePair pair) async {
     if (_opening || _access == null || _error != null) return;
     _opening = true;
-    final access = _access!;
-    final date = _date;
     try {
-      await Navigator.of(context).push(
+      await Navigator.of(context, rootNavigator: true).push(
         MaterialPageRoute<void>(
-          builder: (_) => AttendanceSheetPage(
-            pair: pair,
-            access: access,
-            initialDate: date,
-          ),
+          builder: (_) => AttendanceRecordPage(pair: pair),
         ),
       );
       if (mounted) await _load(silent: true);
@@ -169,8 +160,6 @@ class _AttendanceState extends ConsumerState<WorkspaceAttendancePage>
       _term = null;
       _sectionId = null;
       _descending = false;
-      _query = '';
-      _search.clear();
       _date = attendanceDay(
         philippineTime(ref.read(attendanceClockProvider)()),
       );
@@ -232,7 +221,7 @@ class _AttendanceState extends ConsumerState<WorkspaceAttendancePage>
               (p) =>
                   (_sectionId == null || p.sectionId == _sectionId) &&
                   '${p.sectionName} ${p.subjectName}'.toLowerCase().contains(
-                    _query,
+                    '',
                   ),
             )
             .toList()
@@ -375,50 +364,6 @@ class _AttendanceState extends ConsumerState<WorkspaceAttendancePage>
                         ),
                         const SizedBox(height: 10),
                       ],
-                      SizedBox(
-                        height: 40,
-                        child: TextField(
-                          controller: _search,
-                          textAlignVertical: TextAlignVertical.center,
-                          style: const TextStyle(fontSize: 12),
-                          decoration: InputDecoration(
-                            prefixIcon: const Icon(Icons.search, size: 20),
-                            hintText: 'Search subject or section',
-                            isDense: true,
-                            filled: true,
-                            fillColor: const Color(0xFFF5F7FA),
-                            contentPadding: const EdgeInsets.symmetric(
-                              horizontal: 16,
-                              vertical: 8,
-                            ),
-                            suffixIcon: _search.text.isEmpty
-                                ? null
-                                : IconButton(
-                                    tooltip: 'Clear search',
-                                    icon: const Icon(Icons.close, size: 16),
-                                    onPressed: () => setState(() {
-                                      _search.clear();
-                                      _query = '';
-                                    }),
-                                  ),
-                            border: OutlineInputBorder(
-                              borderRadius: BorderRadius.circular(999),
-                              borderSide: const BorderSide(
-                                color: Color(0xFFE6ECF4),
-                              ),
-                            ),
-                            enabledBorder: OutlineInputBorder(
-                              borderRadius: BorderRadius.circular(999),
-                              borderSide: const BorderSide(
-                                color: Color(0xFFE6ECF4),
-                              ),
-                            ),
-                          ),
-                          onChanged: (v) =>
-                              setState(() => _query = v.trim().toLowerCase()),
-                        ),
-                      ),
-                      const SizedBox(height: 12),
                       Row(
                         children: [
                           Expanded(
@@ -482,7 +427,7 @@ class _AttendanceState extends ConsumerState<WorkspaceAttendancePage>
                           ),
                           const SizedBox(height: 12),
                           Text(
-                            _query.isNotEmpty || _sectionId != null
+                            _sectionId != null
                                 ? 'No classes match these filters'
                                 : 'No teaching load',
                             textAlign: TextAlign.center,
@@ -493,7 +438,7 @@ class _AttendanceState extends ConsumerState<WorkspaceAttendancePage>
                           ),
                           const SizedBox(height: 6),
                           const Text(
-                            'Published classes will appear here. Try adjusting your search or section filter.',
+                            'Published classes will appear here. Try adjusting your section filter.',
                             textAlign: TextAlign.center,
                             style: TextStyle(
                               fontSize: 12,
@@ -502,12 +447,10 @@ class _AttendanceState extends ConsumerState<WorkspaceAttendancePage>
                             ),
                           ),
                           const SizedBox(height: 8),
-                          if (_query.isNotEmpty || _sectionId != null)
+                          if (_sectionId != null)
                             TextButton(
                               onPressed: () => setState(() {
                                 _sectionId = null;
-                                _query = '';
-                                _search.clear();
                               }),
                               child: const Text('Show all classes'),
                             ),
@@ -779,11 +722,7 @@ class _ScheduleLineRow extends StatelessWidget {
         children: [
           const Padding(
             padding: EdgeInsets.only(top: 1),
-            child: Icon(
-              LucideIcons.clock,
-              size: 13,
-              color: Color(0xFF94A3B8),
-            ),
+            child: Icon(LucideIcons.clock, size: 13, color: Color(0xFF94A3B8)),
           ),
           const SizedBox(width: 6),
           Expanded(
@@ -801,7 +740,8 @@ class _ScheduleLineRow extends StatelessWidget {
 List<String> _scheduleLines(AttendancePair pair, AttendanceAccess access) {
   const days = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
   final periods = access.config?.periods;
-  final grouped = <String, ({int? start, int? end, int period, Set<int> days})>{};
+  final grouped =
+      <String, ({int? start, int? end, int period, Set<int> days})>{};
   for (final slot in pair.slots) {
     final known =
         periods != null && slot.period >= 0 && slot.period < periods.length;

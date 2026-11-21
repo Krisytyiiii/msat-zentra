@@ -6,18 +6,22 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:hive_flutter/hive_flutter.dart';
 import 'package:intl/intl.dart';
+import 'package:lucide_icons_flutter/lucide_icons.dart';
 
 import '../../design/adviser_navigation.dart';
+import '../../design/status_palette.dart';
 import '../../core/api_client.dart';
 import '../../core/config.dart';
 import '../../core/session.dart';
 import '../../core/sync_outbox.dart';
-import '../../design/status_palette.dart';
 import '../../shared/models.dart';
 import '../../shared/user_messages.dart';
 import '../../shared/widgets.dart';
 import '../adviser/schedule_timing.dart';
 import 'attendance_data.dart';
+import 'attendance_qr_logic.dart';
+import 'attendance_scanner_page.dart';
+import 'attendance_mark_card.dart';
 
 /// Full-screen meetup sheet. Roster identity is never inferred from marks.
 class AttendanceSheetPage extends ConsumerStatefulWidget {
@@ -26,10 +30,14 @@ class AttendanceSheetPage extends ConsumerStatefulWidget {
     required this.pair,
     required this.access,
     this.initialDate,
+    this.openQr = false,
+    this.historyEdit = false,
   });
   final AttendancePair pair;
   final AttendanceAccess access;
   final String? initialDate;
+  final bool openQr;
+  final bool historyEdit;
   @override
   ConsumerState<AttendanceSheetPage> createState() => _SheetState();
 }
@@ -41,7 +49,7 @@ class _SheetState extends ConsumerState<AttendanceSheetPage>
   late String _scope;
   late String _date;
   Object? _loadError;
-  String? _saveError, _notice;
+  String? _notice;
   bool _loading = true, _fetching = false, _saving = false;
   bool _stale = false, _allowPop = false, _leaving = false, _reviewing = false;
   int _generation = 0;
@@ -49,8 +57,11 @@ class _SheetState extends ConsumerState<AttendanceSheetPage>
   final _queued = <String, String>{};
   final _search = TextEditingController();
   String _query = '', _filter = 'all';
+  String _saveFilter = 'all';
+  bool _descending = false;
   Timer? _timer;
   Future<void> _draftWrites = Future.value();
+  bool _openedInitialQr = false;
   AttendanceService get _service =>
       AttendanceService(ref.read(apiClientProvider));
   DateTime get _now => ref.read(attendanceClockProvider)();
@@ -141,14 +152,17 @@ class _SheetState extends ConsumerState<AttendanceSheetPage>
     }
   }
 
+  /// The draft cache box is not opened at startup, so open it on demand.
+  Future<Box> _cacheBox() async => Hive.isBoxOpen(AppConfig.cacheBox)
+      ? Hive.box(AppConfig.cacheBox)
+      : Hive.openBox(AppConfig.cacheBox);
+
   Future<void> _persist() async {
     final key = _storageKey;
     final values = Map<String, String>.from(_draft);
     _draftWrites = _draftWrites.catchError((_) {}).then((_) async {
-      if (!Hive.isBoxOpen(AppConfig.cacheBox)) {
-        throw StateError('Draft storage unavailable');
-      }
-      await Hive.box(AppConfig.cacheBox).put(key, values);
+      final cache = await _cacheBox();
+      await cache.put(key, values);
     });
     await _draftWrites;
   }
@@ -232,6 +246,15 @@ class _SheetState extends ConsumerState<AttendanceSheetPage>
         _loading = false;
         _loadError = null;
       });
+      // A restored draft that matches the server marks is not a change; drop it
+      // so leaving never re-writes (or blocks on) an unchanged draft.
+      _draft.removeWhere((id, value) => value == _baseline(id));
+      if (widget.openQr && !_openedInitialQr) {
+        _openedInitialQr = true;
+        WidgetsBinding.instance.addPostFrameCallback((_) {
+          if (mounted) _openScanner();
+        });
+      }
     } catch (error) {
       if (mounted && generation == _generation) {
         setState(() {
@@ -246,8 +269,144 @@ class _SheetState extends ConsumerState<AttendanceSheetPage>
     }
   }
 
+  Future<void> _openScanner() async {
+    if (_saving || _fetching || _reviewing || _sheet == null) return;
+    final lock = _lock;
+    final now = philippineTime(_now);
+    final config = _access.config;
+    final slot = _sheet!.gate.slot;
+    // A date-picker jump into the past is a correction too, even when the
+    // sheet was originally opened from the new-attendance action.
+    final historyEdit = widget.historyEdit || _date != attendanceDay(now);
+    if (lock != null ||
+        (!historyEdit &&
+            (config == null || slot < 1 || slot > config.periods.length))) {
+      _alert(
+        lock ?? 'QR attendance is available only for today’s published class period.',
+      );
+      return;
+    }
+    final period = config != null && slot >= 1 && slot <= config.periods.length
+        ? config.periods[slot - 1]
+        : null;
+    final day = DateTime.utc(now.year, now.month, now.day);
+    final start = period == null
+        ? null
+        : day.add(Duration(minutes: period.start));
+    final end = period == null ? null : day.add(Duration(minutes: period.end));
+    final live =
+        _date == attendanceDay(now) &&
+        start != null &&
+        end != null &&
+        !now.isBefore(start) &&
+        now.isBefore(end);
+    final key = _storageKey;
+    var finishedAbsences = false;
+    _reviewing = true;
+    try {
+      await Navigator.of(context, rootNavigator: true).push(
+        MaterialPageRoute<void>(
+          builder: (_) => AttendanceScannerPage(
+            title: '${widget.pair.subjectName} · ${widget.pair.sectionName}',
+            historyEdit: historyEdit,
+            allowAutomatic: !historyEdit || live,
+            onScan: (raw, automatic, manual) async {
+              if (!mounted ||
+                  _stale ||
+                  _scope != _currentScope ||
+                  key != _storageKey ||
+                  _lock != null) {
+                throw ApiException(
+                  'SCOPE_CHANGED',
+                  'The sheet changed. Return and refresh attendance.',
+                );
+              }
+              final learner = matchAttendanceQr(raw, _sheet!.learners);
+              if (!historyEdit &&
+                  (_draft.containsKey(learner.id) ||
+                      _baseline(learner.id) != null)) {
+                return '${learner.name} already has a mark. Use Manual to change it.';
+              }
+              if (automatic && historyEdit && !live) {
+                throw ApiException(
+                  'QR_OUTSIDE_PERIOD',
+                  'Choose P, A, L or E for this recorded date.',
+                );
+              }
+              final status = historyEdit && !automatic
+                  ? manual
+                  : qrAttendanceStatus(
+                      philippineTime(_now),
+                      start!,
+                      end!,
+                      automatic: automatic,
+                      manual: manual,
+                    );
+              if (!attendanceLabels.containsKey(status)) {
+                throw ApiException(
+                  'INVALID_STATUS',
+                  'Choose a valid attendance status.',
+                );
+              }
+              setState(() {
+                if (historyEdit && status == _baseline(learner.id)) {
+                  _draft.remove(learner.id);
+                } else {
+                  _draft[learner.id] = status;
+                }
+              });
+              await _persist();
+              return '${learner.name} · ${attendanceLabels[status]} (draft)';
+            },
+            onAutomaticTick: () async {
+              if (!mounted ||
+                  historyEdit ||
+                  finishedAbsences ||
+                  _stale ||
+                  _scope != _currentScope ||
+                  key != _storageKey) {
+                return null;
+              }
+              final clock = philippineTime(_now);
+              if (attendanceDay(clock) != _date) {
+                throw ApiException(
+                  'SCOPE_CHANGED',
+                  'The class date changed. Return to review your drafts.',
+                );
+              }
+              if (end == null || clock.isBefore(end)) return null;
+              if (_lock != null) {
+                throw ApiException(
+                  'SCOPE_CHANGED',
+                  'The period or attendance access changed. Return to review your drafts.',
+                );
+              }
+              final unmarked = qrAbsentDrafts(
+                now: clock,
+                end: end,
+                learners: _sheet!.learners,
+                existing: {..._sheet!.marks, ..._queued, ..._draft},
+              );
+              setState(() {
+                _draft.addAll(unmarked);
+              });
+              await _persist();
+              finishedAbsences = true;
+              return 'Period ended · ${unmarked.length} unmarked students set to Absent (draft).';
+            },
+          ),
+        ),
+      );
+    } finally {
+      _reviewing = false;
+      if (mounted) setState(() {});
+    }
+  }
+
   Future<void> _pick(AttendanceLearner learner, String value) async {
-    if (_saving || _fetching || _lock != null || learner.exempt) return;
+    if (_saving || _fetching || _reviewing || _lock != null || learner.exempt) {
+      return;
+    }
     setState(() {
       final current = _draft[learner.id] ?? _baseline(learner.id);
       if (current == value) {
@@ -256,72 +415,21 @@ class _SheetState extends ConsumerState<AttendanceSheetPage>
         _draft[learner.id] = value;
       }
       _notice = null;
-      _saveError = null;
     });
     try {
       await _persist();
     } catch (error) {
-      if (mounted) {
-        setState(
-          () => _saveError = 'Your draft could not be stored. Keep this sheet open and try saving again.',
-        );
-      }
+      _alert(
+        'Your draft could not be stored. Keep this sheet open and try saving again.',
+      );
     }
   }
 
-  Future<void> _chooseDate() async {
-    if (_saving || _fetching || _stale || _sheet == null) return;
-    final start = _sheet!.start, end = _sheet!.end;
-    if (start == null || end == null || start.compareTo(end) > 0) return;
-    final first = DateTime.parse(start), last = DateTime.parse(end);
-    var initial = DateTime.parse(_date);
-    if (initial.isBefore(first)) initial = first;
-    if (initial.isAfter(last)) initial = last;
-    bool eligible(DateTime d) =>
-        d.weekday <= 5 && widget.pair.slots.any((s) => s.day == d.weekday);
-    if (!eligible(initial)) {
-      var candidate = first;
-      while (!eligible(candidate) && !candidate.isAfter(last)) {
-        candidate = candidate.add(const Duration(days: 1));
-      }
-      if (candidate.isAfter(last)) return;
-      initial = candidate;
-    }
-    _reviewing = true;
-    final picked = await showDatePicker(
-      context: context,
-      firstDate: first,
-      lastDate: last,
-      initialDate: initial,
-      helpText: 'Choose a meetup date',
-      selectableDayPredicate: eligible,
-      // Historical/future sheets can be viewed, but never bypass the gate.
-    );
-    _reviewing = false;
-    if (picked == null || !mounted || _saving || _stale) return;
-    try {
-      await _persist();
-      if (!mounted) return;
-      setState(() {
-        _generation++;
-        _fetching = false;
-        _date = attendanceDay(picked);
-        _sheet = null;
-        _draft.clear();
-        _queued.clear();
-        _notice = null;
-        _saveError = null;
-        _loadError = null;
-      });
-      await _load();
-    } catch (_) {
-      if (mounted) {
-        setState(
-          () => _saveError =
-              'Your draft could not be stored. Save before changing dates.',
-        );
-      }
-    }
+  void _alert(String message) {
+    if (!mounted) return;
+    ScaffoldMessenger.of(context)
+      ..hideCurrentSnackBar()
+      ..showSnackBar(SnackBar(content: Text(message)));
   }
 
   Future<void> _review() async {
@@ -333,39 +441,12 @@ class _SheetState extends ConsumerState<AttendanceSheetPage>
     final key = _storageKey;
     final confirmed = await showDialog<bool>(
       context: context,
-      builder: (dialog) => AlertDialog(
-        title: const Text('Review attendance'),
-        content: SingleChildScrollView(
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text('${widget.pair.subjectName} · ${widget.pair.sectionName}'),
-              Text('$_date · Meetup ${_sheet!.gate.slot}'),
-              const SizedBox(height: 12),
-              Text('${records.length} changed learners'),
-              for (final entry in attendanceLabels.entries)
-                if (records.values.contains(entry.key))
-                  Text(
-                    '${records.values.where((v) => v == entry.key).length} ${entry.value}',
-                  ),
-              const SizedBox(height: 8),
-              const Text(
-                'Unmarked and ADM-exempt learners will not be submitted.',
-              ),
-            ],
-          ),
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(dialog, false),
-            child: const Text('Keep editing'),
-          ),
-          FilledButton(
-            onPressed: () => Navigator.pop(dialog, true),
-            child: const Text('Save attendance'),
-          ),
-        ],
+      builder: (dialog) => _ReviewAttendanceDialog(
+        subject: widget.pair.subjectName,
+        section: widget.pair.sectionName,
+        gradeLevel: widget.pair.gradeLevel,
+        date: _date,
+        records: records,
       ),
     );
     _reviewing = false;
@@ -378,7 +459,6 @@ class _SheetState extends ConsumerState<AttendanceSheetPage>
     if (_saving || _stale || _scope != _currentScope) return;
     setState(() {
       _saving = true;
-      _saveError = null;
       _notice = null;
     });
     var saved = 0, queued = 0;
@@ -471,7 +551,7 @@ class _SheetState extends ConsumerState<AttendanceSheetPage>
         );
       }
     } catch (error) {
-      if (mounted) setState(() => _saveError = userMessage(error));
+      _alert(userMessage(error));
     } finally {
       if (mounted) {
         if (saved > 0) {
@@ -504,7 +584,7 @@ class _SheetState extends ConsumerState<AttendanceSheetPage>
           );
       if (mounted) await _load(silent: true);
     } catch (error) {
-      if (mounted) setState(() => _saveError = userMessage(error));
+      _alert(userMessage(error));
     } finally {
       if (mounted) setState(() => _saving = false);
     }
@@ -514,19 +594,16 @@ class _SheetState extends ConsumerState<AttendanceSheetPage>
     if (_saving || _leaving) return;
     _leaving = true;
     try {
-      if (_draft.isNotEmpty) await _persist();
+      // Only a real draft needs storing; unchanged restored entries must not
+      // block leaving with a storage error.
+      if (_delta.isNotEmpty) await _persist();
       if (!mounted) return;
       setState(() => _allowPop = true);
       WidgetsBinding.instance.addPostFrameCallback((_) {
         if (mounted) Navigator.of(context).pop();
       });
     } catch (_) {
-      if (mounted) {
-        setState(
-          () => _saveError =
-              'Draft storage failed. Save your changes before leaving.',
-        );
-      }
+      _alert('Draft storage failed. Save your changes before leaving.');
     } finally {
       _leaving = false;
     }
@@ -553,40 +630,14 @@ class _SheetState extends ConsumerState<AttendanceSheetPage>
       },
       child: Scaffold(
         appBar: AppBar(
+          centerTitle: true,
+          backgroundColor: Theme.of(context).scaffoldBackgroundColor,
           leading: IconButton(
             tooltip: 'Back',
             onPressed: _saving ? null : _leave,
-            icon: const Icon(Icons.arrow_back),
+            icon: const Icon(Icons.chevron_left),
           ),
-          title: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text(
-                widget.pair.subjectName,
-                maxLines: 1,
-                overflow: TextOverflow.ellipsis,
-                style: const TextStyle(
-                  fontSize: 16,
-                  fontWeight: FontWeight.w600,
-                ),
-              ),
-              Text(
-                widget.pair.sectionName,
-                maxLines: 1,
-                overflow: TextOverflow.ellipsis,
-                style: Theme.of(context).textTheme.bodySmall,
-              ),
-            ],
-          ),
-          actions: [
-            IconButton(
-              tooltip: 'Refresh attendance',
-              onPressed: _saving || _fetching
-                  ? null
-                  : () => _load(silent: true),
-              icon: const Icon(Icons.refresh),
-            ),
-          ],
+          title: const Text('Edit Record'),
         ),
         body: AdviserBamaAccess(
           busy: _saving,
@@ -623,26 +674,29 @@ class _SheetState extends ConsumerState<AttendanceSheetPage>
                       horizontal: 16,
                       vertical: 8,
                     ),
-                    child: Wrap(
-                      alignment: WrapAlignment.spaceBetween,
-                      crossAxisAlignment: WrapCrossAlignment.center,
-                      spacing: 12,
-                      runSpacing: 8,
-                      children: [
-                        Text(
-                          '${_delta.length} changed · ${_queued.length} queued',
+                    child: SizedBox(
+                      width: double.infinity,
+                      child: FilledButton(
+                        onPressed:
+                            _saving ||
+                                _fetching ||
+                                lock != null ||
+                                _delta.isEmpty
+                            ? null
+                            : _review,
+                        style: FilledButton.styleFrom(
+                          backgroundColor: const Color(0xFF2563EB),
+                          foregroundColor: Colors.white,
+                          minimumSize: const Size(0, 48),
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(12),
+                          ),
                         ),
-                        FilledButton(
-                          onPressed:
-                              _saving ||
-                                  _fetching ||
-                                  lock != null ||
-                                  _delta.isEmpty
-                              ? null
-                              : _review,
-                          child: Text(_saving ? 'Saving…' : 'Review changes'),
+                        child: Text(
+                          _saving ? 'Saving…' : 'Save attendance',
+                          style: const TextStyle(fontWeight: FontWeight.w600),
                         ),
-                      ],
+                      ),
                     ),
                   ),
                 ),
@@ -652,228 +706,680 @@ class _SheetState extends ConsumerState<AttendanceSheetPage>
   }
 
   Widget _body(AttendanceSheet sheet, String? lock) {
+    final term = ref.watch(termProvider);
+    final selectedDate = DateTime.parse(_date);
+    final theme = Theme.of(context);
+    final searchBorder = OutlineInputBorder(
+      borderRadius: BorderRadius.circular(999),
+      borderSide: BorderSide(color: theme.colorScheme.outlineVariant),
+    );
+    final searchField = SizedBox(
+      height: 40,
+      child: TextField(
+        controller: _search,
+        textAlignVertical: TextAlignVertical.center,
+        textInputAction: TextInputAction.search,
+        style: theme.textTheme.bodyMedium,
+        decoration: InputDecoration(
+          prefixIcon: const Icon(Icons.search, size: 20),
+          hintText: 'Search learner or LRN',
+          isDense: true,
+          filled: true,
+          fillColor: theme.colorScheme.surfaceContainerLow,
+          constraints: const BoxConstraints(minHeight: 40),
+          contentPadding: const EdgeInsets.symmetric(
+            vertical: 8,
+            horizontal: 16,
+          ),
+          suffixIcon: _search.text.isEmpty
+              ? null
+              : IconButton(
+                  tooltip: 'Clear search',
+                  icon: const Icon(Icons.close, size: 16),
+                  onPressed: () => setState(() {
+                    _search.clear();
+                    _query = '';
+                  }),
+                ),
+          suffixIconConstraints: const BoxConstraints(
+            minWidth: 36,
+            minHeight: 36,
+          ),
+          border: searchBorder,
+          enabledBorder: searchBorder,
+          focusedBorder: searchBorder.copyWith(
+            borderSide: BorderSide(color: theme.colorScheme.primary),
+          ),
+        ),
+        onChanged: (value) =>
+            setState(() => _query = value.trim().toLowerCase()),
+      ),
+    );
+    final dateChip = Container(
+      key: const ValueKey('attendance-date-chip'),
+      height: 40,
+      padding: const EdgeInsets.symmetric(horizontal: 10),
+      decoration: BoxDecoration(
+        color: const Color(0xFFF8F9FB),
+        border: Border.all(color: const Color(0xFFE6ECF4)),
+        borderRadius: BorderRadius.circular(12),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          const Icon(
+            Icons.calendar_today_outlined,
+            size: 14,
+            color: Color(0xFF192034),
+          ),
+          const SizedBox(width: 6),
+          Text(
+            DateFormat('MMM d, yyyy').format(selectedDate),
+            style: const TextStyle(
+              fontSize: 12,
+              fontWeight: FontWeight.w600,
+              color: Color(0xFF192034),
+            ),
+          ),
+        ],
+      ),
+    );
     final dirtyIds = _delta.keys.toSet();
     String? status(AttendanceLearner s) => s.exempt
         ? null
         : _draft[s.id] ??
               _baseline(s.id) ??
               (sheet.gate.pastDue ? 'absent' : null);
-    final shown = sheet.learners
-        .where(
-          (s) =>
-              ('${s.name} ${s.lrn}'.toLowerCase().contains(_query)) &&
-              (_filter == 'all' ||
-                  (_filter == 'unmarked'
-                      ? !s.exempt && status(s) == null
-                      : status(s) == _filter)),
-        )
-        .toList();
-    return Column(
-      children: [
-        Padding(
-          padding: const EdgeInsets.fromLTRB(16, 8, 16, 8),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.stretch,
-            children: [
-              Wrap(
-                spacing: 8,
-                runSpacing: 6,
-                crossAxisAlignment: WrapCrossAlignment.center,
-                children: [
-                  OutlinedButton.icon(
-                    onPressed: _saving || _fetching || _stale
-                        ? null
-                        : _chooseDate,
-                    icon: const Icon(Icons.calendar_today_outlined, size: 16),
-                    label: Text(
-                      DateFormat('EEE, MMM d, yyyy')
-                          .format(DateTime.parse(_date)),
-                    ),
-                  ),
-                  ZStatusPill(text: 'Meetup ${sheet.gate.slot}'),
-                ],
-              ),
-              Text(
-                lock ?? sheet.gate.message,
-                style: Theme.of(context).textTheme.bodySmall,
-              ),
-              if (!_access.canMark(widget.pair))
-                Align(
-                  alignment: Alignment.centerLeft,
-                  child: TextButton.icon(
-                    onPressed: _saving || _stale ? null : _verify,
-                    icon: const Icon(Icons.key_outlined),
-                    label: const Text('Verify teacher code'),
-                  ),
-                ),
-              if (_loadError != null)
-                Text(
-                  userMessage(_loadError!),
-                  style: TextStyle(color: Theme.of(context).colorScheme.error),
-                ),
-              if (_saveError != null)
-                Semantics(
-                  liveRegion: true,
-                  child: Text(
-                    _saveError!,
-                    style: TextStyle(
-                      color: Theme.of(context).colorScheme.error,
-                    ),
-                  ),
-                ),
-              if (_notice != null)
-                Semantics(liveRegion: true, child: Text(_notice!)),
-              const SizedBox(height: 8),
-              TextField(
-                controller: _search,
-                decoration: const InputDecoration(
-                  prefixIcon: Icon(Icons.search, size: 18),
-                  hintText: 'Search learner or LRN',
-                ),
-                onChanged: (v) =>
-                    setState(() => _query = v.trim().toLowerCase()),
-              ),
-              const SizedBox(height: 6),
-              SingleChildScrollView(
-                scrollDirection: Axis.horizontal,
-                child: Row(
+    bool saved(AttendanceLearner learner) =>
+        !learner.exempt &&
+        !dirtyIds.contains(learner.id) &&
+        !_queued.containsKey(learner.id) &&
+        sheet.marks.containsKey(learner.id);
+    final shown =
+        sheet.learners
+            .where(
+              (learner) =>
+                  ('${learner.name} ${learner.lrn}'.toLowerCase().contains(
+                    _query,
+                  )) &&
+                  (_filter == 'all' || status(learner) == _filter) &&
+                  (_saveFilter == 'all' ||
+                      (!learner.exempt &&
+                          (_saveFilter == 'saved'
+                              ? saved(learner)
+                              : !saved(learner)))),
+            )
+            .toList()
+          ..sort((a, b) {
+            final order = a.name.toLowerCase().compareTo(b.name.toLowerCase());
+            return _descending ? -order : order;
+          });
+    return LayoutBuilder(
+      builder: (context, constraints) => Column(
+        children: [
+          ConstrainedBox(
+            constraints: BoxConstraints(
+              maxHeight: constraints.maxHeight * 0.65,
+            ),
+            child: SingleChildScrollView(
+              child: Padding(
+                padding: const EdgeInsets.fromLTRB(16, 8, 16, 8),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
                   children: [
-                    for (final entry in {
-                      'all': 'All',
-                      'unmarked': 'Unmarked',
-                      ...attendanceLabels,
-                    }.entries)
-                      Padding(
-                        padding: const EdgeInsets.only(right: 6),
-                        child: FilterChip(
-                          label: Text(entry.value),
-                          selected: _filter == entry.key,
-                          onSelected: (_) =>
-                              setState(() => _filter = entry.key),
+                    LayoutBuilder(
+                      builder: (context, constraints) {
+                        final subject = Text(
+                          widget.pair.subjectName,
+                          style: const TextStyle(
+                            fontSize: 22,
+                            fontWeight: FontWeight.w700,
+                            letterSpacing: -0.5,
+                          ),
+                        );
+                        if (constraints.maxWidth < 280 ||
+                            MediaQuery.textScalerOf(context).scale(12) > 16) {
+                          return Column(
+                            crossAxisAlignment: CrossAxisAlignment.stretch,
+                            children: [
+                              subject,
+                              const SizedBox(height: 8),
+                              Align(
+                                alignment: Alignment.centerRight,
+                                child: dateChip,
+                              ),
+                            ],
+                          );
+                        }
+                        return Row(
+                          children: [
+                            Expanded(child: subject),
+                            const SizedBox(width: 8),
+                            dateChip,
+                          ],
+                        );
+                      },
+                    ),
+                    const SizedBox(height: 8),
+                    const Text(
+                      'View the learners in this class.',
+                      style: TextStyle(fontSize: 12, color: Color(0xFF81818F)),
+                    ),
+                    const SizedBox(height: 12),
+                    Wrap(
+                      spacing: 6,
+                      runSpacing: 6,
+                      children: [
+                        if (term != null && term.id == sheet.termId) ...[
+                          ZStatusPill(
+                            text: term.schoolYearName,
+                            tone: StatusTone.blue,
+                          ),
+                          ZStatusPill(
+                            text: 'Term ${term.termNumber}',
+                            tone: StatusTone.amber,
+                          ),
+                        ],
+                        if (widget.pair.gradeLevel != null)
+                          ZStatusPill(
+                            text: widget.pair.gradeLevel!,
+                            tone: StatusTone.blue,
+                          ),
+                        ZStatusPill(
+                          text: widget.pair.sectionName,
+                          tone: StatusTone.violet,
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 12),
+                    searchField,
+                    const SizedBox(height: 6),
+                    if (lock != null)
+                      Text(lock, style: Theme.of(context).textTheme.bodySmall),
+                    if (!_access.canMark(widget.pair))
+                      Align(
+                        alignment: Alignment.centerLeft,
+                        child: TextButton.icon(
+                          onPressed: _saving || _stale ? null : _verify,
+                          icon: const Icon(Icons.key_outlined),
+                          label: const Text('Verify teacher code'),
                         ),
                       ),
+                    if (_loadError != null)
+                      Text(
+                        userMessage(_loadError!),
+                        style: TextStyle(
+                          color: Theme.of(context).colorScheme.error,
+                        ),
+                      ),
+                    if (_notice != null)
+                      Semantics(liveRegion: true, child: Text(_notice!)),
+                    Row(
+                      children: [
+                        Flexible(
+                          child: _recordFilter(
+                            tooltip: 'Category',
+                            value: _filter,
+                            options: const {
+                              'all': 'All Category',
+                              'present': 'Present (P)',
+                              'late': 'Late (L)',
+                              'absent': 'Absent (A)',
+                              'excused': 'Excused (E)',
+                            },
+                            primary: true,
+                            onChanged: (value) =>
+                                setState(() => _filter = value),
+                          ),
+                        ),
+                        const SizedBox(width: 8),
+                        Flexible(
+                          child: _recordFilter(
+                            tooltip: 'Save status',
+                            value: _saveFilter,
+                            options: const {
+                              'all': 'All',
+                              'saved': 'Saved',
+                              'unsaved': 'Unsaved',
+                            },
+                            prefix: 'Save: ',
+                            onChanged: (value) =>
+                                setState(() => _saveFilter = value),
+                          ),
+                        ),
+                      ],
+                    ),
+                    Row(
+                      children: [
+                        Expanded(
+                          child: Text(
+                            'Showing ${shown.length} records',
+                            style: const TextStyle(
+                              fontSize: 12,
+                              color: Color(0xFF9999A6),
+                            ),
+                          ),
+                        ),
+                        TextButton.icon(
+                          onPressed: () =>
+                              setState(() => _descending = !_descending),
+                          icon: const Icon(LucideIcons.listFilter, size: 14),
+                          label: Text(
+                            _descending ? 'Name (Z-A)' : 'Name (A-Z)',
+                            style: const TextStyle(fontSize: 12),
+                          ),
+                          style: TextButton.styleFrom(
+                            foregroundColor: const Color(0xFF334155),
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: 8,
+                              vertical: 0,
+                            ),
+                            minimumSize: Size.zero,
+                            tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                            visualDensity: VisualDensity.compact,
+                          ),
+                        ),
+                      ],
+                    ),
                   ],
                 ),
+              ),
+            ),
+          ),
+          Expanded(
+            child: shown.isEmpty
+                ? const ZEmptyPage(
+                    icon: Icons.fact_check_outlined,
+                    title: 'No learners to show',
+                    subtitle:
+                        'Try another filter, or refresh this class roster.',
+                  )
+                : ListView.separated(
+                    padding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
+                    itemCount: shown.length,
+                    separatorBuilder: (_, _) => const SizedBox(height: 12),
+                    itemBuilder: (_, i) {
+                      final s = shown[i];
+                      final value = status(s);
+                      final implied =
+                          !s.exempt &&
+                          _draft[s.id] == null &&
+                          _baseline(s.id) == null &&
+                          value == 'absent';
+                      final state = s.exempt
+                          ? 'ADM exempt'
+                          : dirtyIds.contains(s.id)
+                          ? 'Unsaved'
+                          : _queued.containsKey(s.id)
+                          ? 'Queued'
+                          : implied
+                          ? 'Absent · not recorded'
+                          : sheet.marks.containsKey(s.id)
+                          ? 'Saved'
+                          : 'Unmarked';
+                      return AttendanceMarkCard(
+                        learner: s,
+                        index: i,
+                        value: value,
+                        recordState: state,
+                        enabled:
+                            !_saving &&
+                            !_fetching &&
+                            !_reviewing &&
+                            lock == null &&
+                            !s.exempt,
+                        onSelect: (status) => _pick(s, status),
+                      );
+                    },
+                  ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _recordFilter({
+    required String tooltip,
+    required String value,
+    required Map<String, String> options,
+    required ValueChanged<String> onChanged,
+    bool primary = false,
+    String prefix = '',
+  }) {
+    final blue = statusColors(StatusTone.blue, Theme.of(context));
+    final active = primary || value != 'all';
+    return PopupMenuButton<String>(
+      tooltip: tooltip,
+      initialValue: value,
+      onSelected: onChanged,
+      itemBuilder: (_) => [
+        for (final option in options.entries)
+          PopupMenuItem(value: option.key, child: Text(option.value)),
+      ],
+      child: ConstrainedBox(
+        constraints: const BoxConstraints(minHeight: 48),
+        child: Center(
+          widthFactor: 1,
+          child: Container(
+            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 7),
+            decoration: BoxDecoration(
+              color: active ? blue.background : Colors.white,
+              borderRadius: BorderRadius.circular(999),
+              border: Border.all(
+                color: active
+                    ? blue.foreground.withValues(alpha: 0.25)
+                    : const Color(0xFFE5E5EA),
+              ),
+            ),
+            child: Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Flexible(
+                  child: Text(
+                    '$prefix${options[value]}',
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: TextStyle(
+                      fontSize: 12,
+                      color: active ? blue.foreground : const Color(0xFF7185A4),
+                    ),
+                  ),
+                ),
+                const SizedBox(width: 6),
+                Icon(
+                  LucideIcons.chevronDown,
+                  size: 12,
+                  color: active ? blue.foreground : const Color(0xFF7185A4),
+                ),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _ReviewAttendanceDialog extends StatelessWidget {
+  const _ReviewAttendanceDialog({
+    required this.subject,
+    required this.section,
+    required this.gradeLevel,
+    required this.date,
+    required this.records,
+  });
+
+  final String subject;
+  final String section;
+  final String? gradeLevel;
+  final String date;
+  final Map<String, String> records;
+
+  @override
+  Widget build(BuildContext context) {
+    final counts = {
+      for (final entry in attendanceLabels.entries)
+        entry.key: records.values.where((value) => value == entry.key).length,
+    }..removeWhere((_, count) => count == 0);
+    return Dialog(
+      backgroundColor: Colors.white,
+      insetPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 24),
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(24)),
+      child: ConstrainedBox(
+        constraints: const BoxConstraints(maxWidth: 380),
+        child: SingleChildScrollView(
+          padding: const EdgeInsets.fromLTRB(16, 18, 16, 20),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Row(
+                children: [
+                  const Expanded(
+                    child: Text(
+                      'Review attendance',
+                      style: TextStyle(
+                        fontSize: 20,
+                        fontWeight: FontWeight.w700,
+                        color: Color(0xFF101828),
+                      ),
+                    ),
+                  ),
+                  SizedBox(
+                    width: 32,
+                    height: 32,
+                    child: Material(
+                      color: const Color(0xFFF2F4F7),
+                      shape: const CircleBorder(),
+                      child: InkWell(
+                        customBorder: const CircleBorder(),
+                        onTap: () => Navigator.pop(context, false),
+                        child: const Icon(
+                          Icons.close,
+                          size: 16,
+                          color: Color(0xFF475467),
+                        ),
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 12),
+              Row(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Expanded(
+                    child: Wrap(
+                      spacing: 6,
+                      runSpacing: 6,
+                      children: [
+                        ZStatusPill(text: subject, tone: StatusTone.blue),
+                        if (gradeLevel != null)
+                          ZStatusPill(
+                            text: gradeLevel!,
+                            tone: StatusTone.amber,
+                          ),
+                        ZStatusPill(text: section, tone: StatusTone.violet),
+                      ],
+                    ),
+                  ),
+                  const SizedBox(width: 8),
+                  Padding(
+                    padding: const EdgeInsets.only(top: 2),
+                    child: Text(
+                      date,
+                      style: const TextStyle(
+                        fontSize: 12,
+                        fontWeight: FontWeight.w600,
+                        color: Color(0xFF667085),
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 16),
+              Container(
+                decoration: BoxDecoration(
+                  color: const Color(0xFFF9FAFB),
+                  borderRadius: BorderRadius.circular(16),
+                  border: Border.all(color: const Color(0xFFEAECF0)),
+                ),
+                child: Column(
+                  children: [
+                    _panelRow(
+                      'Changed learners',
+                      Text(
+                        '${records.length} changed learners',
+                        style: const TextStyle(
+                          fontSize: 13,
+                          fontWeight: FontWeight.w700,
+                          color: Color(0xFF101828),
+                        ),
+                      ),
+                    ),
+                    const Divider(height: 1, color: Color(0xFFEAECF0)),
+                    _panelRow(
+                      'Status breakdown',
+                      Wrap(
+                        spacing: 6,
+                        runSpacing: 6,
+                        children: [
+                          for (final entry in counts.entries)
+                            _statusPill(context, entry.key, entry.value),
+                        ],
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              const SizedBox(height: 12),
+              Container(
+                padding: const EdgeInsets.all(12),
+                decoration: BoxDecoration(
+                  color: const Color(0xFFF9FAFB),
+                  borderRadius: BorderRadius.circular(12),
+                  border: Border.all(color: const Color(0xFFEAECF0)),
+                ),
+                child: Row(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    const Icon(
+                      Icons.info_outline,
+                      size: 16,
+                      color: Color(0xFF98A2B3),
+                    ),
+                    const SizedBox(width: 8),
+                    const Expanded(
+                      child: Text(
+                        'Unmarked and ADM-exempt learners will not be submitted.',
+                        style: TextStyle(
+                          fontSize: 12,
+                          height: 1.4,
+                          color: Color(0xFF475467),
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              const SizedBox(height: 18),
+              Row(
+                children: [
+                  Expanded(
+                    child: SizedBox(
+                      height: 48,
+                      child: FilledButton(
+                        onPressed: () => Navigator.pop(context, false),
+                        style: FilledButton.styleFrom(
+                          backgroundColor: const Color(0xFFF2F4F7),
+                          foregroundColor: const Color(0xFF101828),
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(12),
+                          ),
+                        ),
+                        child: const Text(
+                          'Keep editing',
+                          style: TextStyle(fontWeight: FontWeight.w600),
+                        ),
+                      ),
+                    ),
+                  ),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: SizedBox(
+                      height: 48,
+                      child: FilledButton(
+                        onPressed: () => Navigator.pop(context, true),
+                        style: FilledButton.styleFrom(
+                          backgroundColor: const Color(0xFF2563EB),
+                          foregroundColor: Colors.white,
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(12),
+                          ),
+                        ),
+                        child: const Text(
+                          'Save',
+                          style: TextStyle(fontWeight: FontWeight.w600),
+                        ),
+                      ),
+                    ),
+                  ),
+                ],
               ),
             ],
           ),
         ),
-        Expanded(
-          child: shown.isEmpty
-              ? const ZEmptyPage(
-                  icon: Icons.fact_check_outlined,
-                  title: 'No learners to show',
-                  subtitle: 'Try another filter, or refresh this class roster.',
-                )
-              : ListView.separated(
-                  padding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
-                  itemCount: shown.length,
-                  separatorBuilder: (_, _) => const SizedBox(height: 8),
-                  itemBuilder: (_, i) {
-                    final s = shown[i];
-                    final value = status(s);
-                    final implied =
-                        !s.exempt &&
-                        _draft[s.id] == null &&
-                        _baseline(s.id) == null &&
-                        value == 'absent';
-                    final state = s.exempt
-                        ? 'ADM exempt'
-                        : dirtyIds.contains(s.id)
-                        ? 'Unsaved'
-                        : _queued.containsKey(s.id)
-                        ? 'Queued'
-                        : implied
-                        ? 'Absent · not recorded'
-                        : sheet.marks.containsKey(s.id)
-                        ? 'Saved'
-                        : 'Unmarked';
-                    return ZCard(
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Text(
-                            s.name,
-                            style: const TextStyle(fontWeight: FontWeight.w600),
-                          ),
-                          Text(
-                            s.lrn,
-                            style: Theme.of(context).textTheme.bodySmall,
-                          ),
-                          const SizedBox(height: 6),
-                          ZStatusPill(
-                            text: state,
-                            tone: state == 'Unsaved' || state == 'Queued'
-                                ? StatusTone.amber
-                                : StatusTone.neutral,
-                          ),
-                          if (s.exempt)
-                            const Padding(
-                              padding: EdgeInsets.only(top: 8),
-                              child: Text(
-                                'Signed ADM · seat-time attendance is not recorded.',
-                              ),
-                            )
-                          else
-                            Padding(
-                              padding: const EdgeInsets.only(top: 8),
-                              child: Wrap(
-                                spacing: 6,
-                                runSpacing: 6,
-                                children: [
-                                  for (final entry in attendanceLabels.entries)
-                                    Semantics(
-                                      label: '${s.name}, ${entry.value}',
-                                      selected: value == entry.key,
-                                      child: OutlinedButton(
-                                        key: ValueKey(
-                                          'attendance-${s.id}-${entry.key}',
-                                        ),
-                                        style: OutlinedButton.styleFrom(
-                                          minimumSize: const Size(64, 48),
-                                          backgroundColor: value == entry.key
-                                              ? _color(
-                                                  context,
-                                                  entry.key,
-                                                ).withValues(alpha: .15)
-                                              : null,
-                                          side: BorderSide(
-                                            color: value == entry.key
-                                                ? _color(context, entry.key)
-                                                : Theme.of(context)
-                                                      .dividerColor,
-                                          ),
-                                          foregroundColor: value == entry.key
-                                              ? _color(context, entry.key)
-                                              : null,
-                                        ),
-                                        onPressed:
-                                            _saving || _fetching || lock != null
-                                            ? null
-                                            : () => _pick(s, entry.key),
-                                        child: Text(entry.value),
-                                      ),
-                                    ),
-                                ],
-                              ),
-                            ),
-                        ],
-                      ),
-                    );
-                  },
-                ),
-        ),
-      ],
+      ),
     );
   }
 
-  Color _color(BuildContext context, String value) =>
-      statusColors(switch (value) {
-        'absent' => StatusTone.red,
-        'late' => StatusTone.amber,
-        'excused' => StatusTone.blue,
-        _ => StatusTone.green,
-      }, Theme.of(context)).foreground;
+  Widget _panelRow(String label, Widget value) => Padding(
+    padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+    child: Row(
+      crossAxisAlignment: CrossAxisAlignment.center,
+      children: [
+        Flexible(
+          flex: 2,
+          child: Text(
+            label,
+            style: const TextStyle(
+              fontSize: 13,
+              fontWeight: FontWeight.w600,
+              color: Color(0xFF344054),
+            ),
+          ),
+        ),
+        const SizedBox(width: 12),
+        Flexible(
+          flex: 3,
+          child: Align(alignment: Alignment.centerRight, child: value),
+        ),
+      ],
+    ),
+  );
+
+  Widget _statusPill(BuildContext context, String status, int count) {
+    final colors = statusColors(switch (status) {
+      'absent' => StatusTone.red,
+      'late' => StatusTone.amber,
+      'excused' => StatusTone.blue,
+      _ => StatusTone.green,
+    }, Theme.of(context));
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+      decoration: BoxDecoration(
+        color: colors.background,
+        borderRadius: BorderRadius.circular(999),
+        border: Border.all(color: colors.foreground.withValues(alpha: 0.25)),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Container(
+            width: 6,
+            height: 6,
+            decoration: BoxDecoration(
+              color: colors.foreground.withValues(alpha: 0.7),
+              shape: BoxShape.circle,
+            ),
+          ),
+          const SizedBox(width: 4),
+          Flexible(
+            child: Text(
+              '$count ${attendanceLabels[status] ?? status}',
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+              style: TextStyle(
+                fontSize: 12,
+                fontWeight: FontWeight.w600,
+                color: colors.foreground,
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
 }
 
 class _AttendanceCodeDialog extends StatefulWidget {

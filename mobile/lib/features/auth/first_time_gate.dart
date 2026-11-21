@@ -14,6 +14,7 @@ import '../../core/session.dart';
 import '../../shared/widgets.dart';
 import '../../shared/user_messages.dart';
 import 'auth_flow_ui.dart';
+import 'workspace_skeleton.dart';
 
 class FirstTimeGate extends ConsumerStatefulWidget {
   const FirstTimeGate({super.key});
@@ -46,7 +47,9 @@ class _GateState extends ConsumerState<FirstTimeGate> {
     });
     try {
       final api = ref.read(apiClientProvider);
-      final me = (await api.dio.get('/api/teacher/schedule/teachers/me')).data as Map<String, dynamic>;
+      final me =
+          (await api.dio.get('/api/teacher/schedule/teachers/me')).data
+              as Map<String, dynamic>;
       // Ensure overview (sets role) is ready before routing.
       await ref.read(overviewProvider.future);
       if (!mounted) return;
@@ -56,7 +59,10 @@ class _GateState extends ConsumerState<FirstTimeGate> {
       });
     } catch (e) {
       if (!mounted) return;
-      final msg = userMessage(e, fallback: 'We couldn’t load your workspace. Please try again.');
+      final msg = userMessage(
+        e,
+        fallback: 'We couldn’t load your workspace. Please try again.',
+      );
       setState(() {
         _busy = false;
         _error = msg;
@@ -72,22 +78,41 @@ class _GateState extends ConsumerState<FirstTimeGate> {
   Future<void> _claim() async {
     final api = ref.read(apiClientProvider);
     try {
-      await api.dio.post('/api/teacher/schedule/teachers/claim', data: {'code': _code.text.trim()});
+      await api.dio.post(
+        '/api/teacher/schedule/teachers/claim',
+        data: {'code': _code.text.trim()},
+      );
       await _load();
     } on DioException catch (e) {
-      final msg = userMessage(e, fallback: 'We couldn’t link your classes. Check your code and try again.');
-      if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(msg)));
+      final msg = userMessage(
+        e,
+        fallback:
+            'We couldn’t link your classes. Check your code and try again.',
+      );
+      if (mounted) {
+        ScaffoldMessenger.of(context)
+            .showSnackBar(SnackBar(content: Text(msg)));
+      }
     }
   }
 
   Future<void> _verify() async {
     final api = ref.read(apiClientProvider);
     try {
-      await api.dio.post('/api/teacher/schedule/teachers/verify-attendance', data: {'code': _code.text.trim()});
+      await api.dio.post(
+        '/api/teacher/schedule/teachers/verify-attendance',
+        data: {'code': _code.text.trim()},
+      );
       await _load();
     } on DioException catch (e) {
-      final msg = userMessage(e, fallback: 'We couldn’t verify your code. Check it and try again.');
-      if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(msg)));
+      final msg = userMessage(
+        e,
+        fallback: 'We couldn’t verify your code. Check it and try again.',
+      );
+      if (mounted) {
+        ScaffoldMessenger.of(context)
+            .showSnackBar(SnackBar(content: Text(msg)));
+      }
     }
   }
 
@@ -97,19 +122,33 @@ class _GateState extends ConsumerState<FirstTimeGate> {
       await api.dio.post('/api/teacher/schedule/teachers/term-grant', data: {});
       await _load();
     } on DioException catch (e) {
-      final msg = userMessage(e, fallback: 'We couldn’t open your workspace. Please try again.');
-      if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(msg)));
+      final msg = userMessage(
+        e,
+        fallback: 'We couldn’t open your workspace. Please try again.',
+      );
+      if (mounted) {
+        ScaffoldMessenger.of(context)
+            .showSnackBar(SnackBar(content: Text(msg)));
+      }
     }
   }
 
   @override
   Widget build(BuildContext context) {
-    if (_busy) return const AuthFlowScaffold(centerContent: true, child: AuthLoading(label: 'Preparing workspace…'));
-    if (_error != null) return AuthFlowScaffold(centerContent: true, child: ErrorView(message: _error!, onRetry: _retry));
+    if (_busy) return const WorkspaceSkeleton();
+    if (_error != null) {
+      return AuthFlowScaffold(
+        centerContent: true,
+        child: ErrorView(message: _error!, onRetry: _retry),
+      );
+    }
     final overview = ref.watch(overviewProvider);
     return overview.when(
-      loading: () => const AuthFlowScaffold(centerContent: true, child: AuthLoading(label: 'Preparing workspace…')),
-      error: (e, _) => AuthFlowScaffold(centerContent: true, child: ErrorView(message: e, onRetry: _retry)),
+      loading: () => const WorkspaceSkeleton(),
+      error: (e, _) => AuthFlowScaffold(
+        centerContent: true,
+        child: ErrorView(message: e, onRetry: _retry),
+      ),
       data: (data) {
         final isAdviser = data['isAdviser'] == true;
         final teacherName = _me?['teacherName'];
@@ -123,16 +162,38 @@ class _GateState extends ConsumerState<FirstTimeGate> {
                 child: ConstrainedBox(
                   constraints: const BoxConstraints(maxWidth: 400),
                   child: ZCard(
-                    child: Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
-                      const Text('Link your classes', style: TextStyle(fontSize: 15, fontWeight: FontWeight.w600)),
-                      const SizedBox(height: 4),
-                      Text('First time here? Enter the link code from your Master Teacher to attach your timetable slots.',
-                          style: Theme.of(context).textTheme.bodySmall),
-                      const SizedBox(height: 12),
-                      TextField(controller: _code, decoration: const InputDecoration(labelText: 'Link code (e.g. MS-101)'), style: const TextStyle(fontFeatures: [FontFeature.tabularFigures()])),
-                      const SizedBox(height: 12),
-                      FilledButton(onPressed: _claim, child: const Text('Link classes')),
-                    ]),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.stretch,
+                      children: [
+                        const Text(
+                          'Link your classes',
+                          style: TextStyle(
+                            fontSize: 15,
+                            fontWeight: FontWeight.w600,
+                          ),
+                        ),
+                        const SizedBox(height: 4),
+                        Text(
+                          'First time here? Enter the link code from your Master Teacher to attach your timetable slots.',
+                          style: Theme.of(context).textTheme.bodySmall,
+                        ),
+                        const SizedBox(height: 12),
+                        TextField(
+                          controller: _code,
+                          decoration: const InputDecoration(
+                            labelText: 'Link code (e.g. MS-101)',
+                          ),
+                          style: const TextStyle(
+                            fontFeatures: [FontFeature.tabularFigures()],
+                          ),
+                        ),
+                        const SizedBox(height: 12),
+                        FilledButton(
+                          onPressed: _claim,
+                          child: const Text('Link classes'),
+                        ),
+                      ],
+                    ),
                   ),
                 ),
               ),
@@ -148,20 +209,44 @@ class _GateState extends ConsumerState<FirstTimeGate> {
                 child: ConstrainedBox(
                   constraints: const BoxConstraints(maxWidth: 400),
                   child: ZCard(
-                    child: Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
-                      const Text('Verify for this term', style: TextStyle(fontSize: 15, fontWeight: FontWeight.w600)),
-                      const SizedBox(height: 4),
-                      Text('Hi ${teacherName['name'] ?? ''} — verify access for this term to take attendance and encode grades.',
-                          style: Theme.of(context).textTheme.bodySmall),
-                      const SizedBox(height: 12),
-                      TextField(controller: _code, decoration: const InputDecoration(labelText: 'Attendance code')),
-                      const SizedBox(height: 12),
-                      FilledButton(onPressed: _verify, child: const Text('Verify')),
-                      if (isAdviser) ...[
-                        const SizedBox(height: 8),
-                        OutlinedButton(onPressed: _adviserTapThrough, child: const Text('Continue as adviser (tap-through)')),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.stretch,
+                      children: [
+                        const Text(
+                          'Verify for this term',
+                          style: TextStyle(
+                            fontSize: 15,
+                            fontWeight: FontWeight.w600,
+                          ),
+                        ),
+                        const SizedBox(height: 4),
+                        Text(
+                          'Hi ${teacherName['name'] ?? ''} — verify access for this term to take attendance and encode grades.',
+                          style: Theme.of(context).textTheme.bodySmall,
+                        ),
+                        const SizedBox(height: 12),
+                        TextField(
+                          controller: _code,
+                          decoration: const InputDecoration(
+                            labelText: 'Attendance code',
+                          ),
+                        ),
+                        const SizedBox(height: 12),
+                        FilledButton(
+                          onPressed: _verify,
+                          child: const Text('Verify'),
+                        ),
+                        if (isAdviser) ...[
+                          const SizedBox(height: 8),
+                          OutlinedButton(
+                            onPressed: _adviserTapThrough,
+                            child: const Text(
+                              'Continue as adviser (tap-through)',
+                            ),
+                          ),
+                        ],
                       ],
-                    ]),
+                    ),
                   ),
                 ),
               ),
@@ -172,7 +257,7 @@ class _GateState extends ConsumerState<FirstTimeGate> {
         WidgetsBinding.instance.addPostFrameCallback((_) {
           if (mounted) context.go('/workspace/overview');
         });
-        return const AuthFlowScaffold(centerContent: true, child: AuthLoading(label: 'Opening workspace…'));
+        return const WorkspaceSkeleton();
       },
     );
   }

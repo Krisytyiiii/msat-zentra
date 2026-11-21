@@ -14,6 +14,7 @@ import '../core/config.dart';
 import '../design/portal_shell.dart';
 import '../design/shell.dart';
 import 'student/student_pages.dart';
+import 'student/student_identity_page.dart';
 import 'parent/parent_pages.dart';
 import 'portal/portal_views.dart';
 import '../shared/models.dart';
@@ -170,6 +171,8 @@ final routerProvider = Provider<GoRouter>((ref) {
       GoRoute(path: '/coordinator/notifications', builder: (_, _) => _coordinatorView(
         const CoordinatorNotificationsPage())),
       GoRoute(path: '/student/home', builder: (context, _) => const StudentHomePage()),
+      GoRoute(path: '/student/profile', builder: (context, _) => const StudentIdentityPage()),
+      GoRoute(path: '/student/profile/qr', builder: (context, _) => const StudentIdentityPage(qr: true)),
       GoRoute(path: '/student/grades', builder: (context, _) => const StudentGradesPage()),
       GoRoute(path: '/student/attendance', builder: (context, _) => const StudentAttendancePage()),
       GoRoute(path: '/student/schedule', builder: (context, _) => const StudentSchedulePage()),

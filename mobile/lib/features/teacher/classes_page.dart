@@ -3,13 +3,13 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
-import 'package:intl/intl.dart';
 import 'package:lucide_icons_flutter/lucide_icons.dart';
 
 import '../../core/session.dart';
 import '../../design/overview_theme.dart';
 import '../../design/status_palette.dart';
 import '../../shared/widgets.dart';
+import '../../shared/date_strip_selector.dart';
 import '../adviser/schedule_timing.dart';
 import 'classes_data.dart';
 
@@ -22,14 +22,9 @@ class ClassesPage extends ConsumerStatefulWidget {
 
 class _ClassesPageState extends ConsumerState<ClassesPage>
     with WidgetsBindingObserver {
-  late int _day;
-  static const _todayPage = 10000;
+  int get _day => _selectedDate.weekday;
   late final DateTime _dateAnchor;
-  final _dates = PageController(
-    initialPage: _todayPage,
-    viewportFraction: 1 / 6,
-  );
-  int _selectedPage = _todayPage;
+  late DateTime _selectedDate;
   Timer? _poll;
   bool _refreshing = false;
   String _classFilter = 'All';
@@ -39,9 +34,9 @@ class _ClassesPageState extends ConsumerState<ClassesPage>
   @override
   void initState() {
     super.initState();
-    _day = philippineTime(DateTime.now()).weekday;
     final now = philippineTime(DateTime.now());
     _dateAnchor = DateTime.utc(now.year, now.month, now.day);
+    _selectedDate = _dateAnchor;
     WidgetsBinding.instance.addObserver(this);
     _poll = Timer.periodic(const Duration(seconds: 20), (_) {
       final lifecycle = WidgetsBinding.instance.lifecycleState;
@@ -60,7 +55,6 @@ class _ClassesPageState extends ConsumerState<ClassesPage>
   @override
   void dispose() {
     _poll?.cancel();
-    _dates.dispose();
     WidgetsBinding.instance.removeObserver(this);
     super.dispose();
   }
@@ -83,23 +77,6 @@ class _ClassesPageState extends ConsumerState<ClassesPage>
     return '${hour % 12 == 0 ? 12 : hour % 12}:${(minute % 60).toString().padLeft(2, '0')} ${hour < 12 ? 'AM' : 'PM'}';
   }
 
-  DateTime get _selectedDate =>
-      _dateAnchor.add(Duration(days: _selectedPage - _todayPage));
-
-  Future<void> _pickDate(BuildContext context) async {
-    final selected = _selectedDate;
-    final picked = await showDatePicker(
-      context: context,
-      initialDate: selected,
-      firstDate: _dateAnchor.subtract(const Duration(days: _todayPage)),
-      lastDate: DateTime(9999, 12, 31),
-      helpText: 'Choose class date',
-    );
-    if (picked == null || !mounted || !_dates.hasClients) return;
-    final date = DateTime.utc(picked.year, picked.month, picked.day);
-    _dates.jumpToPage(_todayPage + date.difference(_dateAnchor).inDays);
-  }
-
   @override
   Widget build(BuildContext context) {
     final week = ref.watch(teachingWeekProvider);
@@ -113,8 +90,6 @@ class _ClassesPageState extends ConsumerState<ClassesPage>
         child: Builder(
           builder: (context) {
             final data = week.asData?.value;
-            final dateControlHeight =
-                16 + MediaQuery.textScalerOf(context).scale(12) * 1.5;
             return RefreshIndicator(
               onRefresh: _refresh,
               child: ListView(
@@ -161,236 +136,19 @@ class _ClassesPageState extends ConsumerState<ClassesPage>
                     ],
                   ),
                   const SizedBox(height: 8),
-                  Container(
-                    padding: const EdgeInsets.all(8),
-                    decoration: BoxDecoration(
-                      color: Colors.white,
-                      border: Border.all(color: const Color(0xFFE6ECF4)),
-                      borderRadius: BorderRadius.circular(16),
-                      boxShadow: const [
-                        BoxShadow(
-                          color: Color(0x06000000),
-                          blurRadius: 6,
-                          offset: Offset(0, 2),
-                        ),
-                      ],
+                  DateStripSelector(
+                    selectedDate: _selectedDate,
+                    today: today,
+                    firstDate: _dateAnchor.subtract(
+                      const Duration(days: 10000),
                     ),
-                    child: Column(
-                      children: [
-                        Row(
-                          children: [
-                            IconButton.outlined(
-                              tooltip: 'Previous day',
-                              onPressed: () => _dates.previousPage(
-                                duration: const Duration(milliseconds: 150),
-                                curve: Curves.easeOut,
-                              ),
-                              icon: const Icon(Icons.chevron_left, size: 18),
-                              style: IconButton.styleFrom(
-                                minimumSize: Size(32, dateControlHeight),
-                                maximumSize: Size(32, dateControlHeight),
-                                padding: EdgeInsets.zero,
-                                tapTargetSize: MaterialTapTargetSize.padded,
-                                foregroundColor: const Color(0xFF52627C),
-                                side: const BorderSide(
-                                  color: Color(0xFFE6ECF4),
-                                ),
-                                shape: RoundedRectangleBorder(
-                                  borderRadius: BorderRadius.circular(8),
-                                ),
-                              ),
-                            ),
-                            const SizedBox(width: 4),
-                            Expanded(
-                              child: Material(
-                                color: const Color(0xFFF8F9FB),
-                                shape: RoundedRectangleBorder(
-                                  borderRadius: BorderRadius.circular(12),
-                                  side: const BorderSide(
-                                    color: Color(0xFFE6ECF4),
-                                  ),
-                                ),
-                                child: InkWell(
-                                  onTap: () => _pickDate(context),
-                                  borderRadius: BorderRadius.circular(12),
-                                  child: SizedBox(
-                                    height: dateControlHeight,
-                                    child: Row(
-                                      mainAxisAlignment:
-                                          MainAxisAlignment.center,
-                                      children: [
-                                        const Icon(
-                                          Icons.calendar_today_outlined,
-                                          size: 14,
-                                          color: Color(0xFF52627C),
-                                        ),
-                                        const SizedBox(width: 6),
-                                        Flexible(
-                                          child: Text(
-                                            DateFormat('EEE, MMM d, yyyy')
-                                                .format(_selectedDate),
-                                            textAlign: TextAlign.center,
-                                            maxLines: 1,
-                                            overflow: TextOverflow.ellipsis,
-                                            style: const TextStyle(
-                                              fontSize: 12,
-                                              fontWeight: FontWeight.w600,
-                                              color: Color(0xFF192034),
-                                            ),
-                                          ),
-                                        ),
-                                      ],
-                                    ),
-                                  ),
-                                ),
-                              ),
-                            ),
-                            const SizedBox(width: 4),
-                            IconButton.outlined(
-                              tooltip: 'Next day',
-                              onPressed: () => _dates.nextPage(
-                                duration: const Duration(milliseconds: 150),
-                                curve: Curves.easeOut,
-                              ),
-                              icon: const Icon(Icons.chevron_right, size: 18),
-                              style: IconButton.styleFrom(
-                                minimumSize: Size(32, dateControlHeight),
-                                maximumSize: Size(32, dateControlHeight),
-                                padding: EdgeInsets.zero,
-                                tapTargetSize: MaterialTapTargetSize.padded,
-                                foregroundColor: const Color(0xFF52627C),
-                                side: const BorderSide(
-                                  color: Color(0xFFE6ECF4),
-                                ),
-                                shape: RoundedRectangleBorder(
-                                  borderRadius: BorderRadius.circular(8),
-                                ),
-                              ),
-                            ),
-                            TextButton(
-                              onPressed: () => _dates.animateToPage(
-                                _todayPage,
-                                duration: const Duration(milliseconds: 150),
-                                curve: Curves.easeOut,
-                              ),
-                              style: TextButton.styleFrom(
-                                minimumSize: const Size(48, 48),
-                                foregroundColor: const Color(0xFF2563EB),
-                                padding: const EdgeInsets.symmetric(
-                                  horizontal: 6,
-                                ),
-                              ),
-                              child: Text(
-                                'Today',
-                                style: const TextStyle(fontSize: 12),
-                              ),
-                            ),
-                          ],
-                        ),
-                        const Divider(height: 12, color: Color(0xFFF0F3F8)),
-                        SizedBox(
-                          height:
-                              24 +
-                              MediaQuery.textScalerOf(context).scale(12) * 3,
-                          child: PageView.builder(
-                            key: const ValueKey('class-date-selector'),
-                            controller: _dates,
-                            onPageChanged: (index) => setState(() {
-                              _selectedPage = index;
-                              _day = _dateAnchor
-                                  .add(Duration(days: index - _todayPage))
-                                  .weekday;
-                            }),
-                            itemBuilder: (context, index) {
-                              final day = _dateAnchor.add(
-                                Duration(days: index - _todayPage),
-                              );
-                              return SizedBox(
-                                child: Padding(
-                                  padding: const EdgeInsets.symmetric(
-                                    horizontal: 2,
-                                    vertical: 2,
-                                  ),
-                                  child: TextButton(
-                                    onPressed: () => _dates.animateToPage(
-                                      index,
-                                      duration: const Duration(
-                                        milliseconds: 150,
-                                      ),
-                                      curve: Curves.easeOut,
-                                    ),
-                                    style: TextButton.styleFrom(
-                                      minimumSize: const Size(48, 48),
-                                      padding: const EdgeInsets.symmetric(
-                                        horizontal: 2,
-                                      ),
-                                      backgroundColor: _selectedPage == index
-                                        ? const Color(0xFF4060EF)
-                                          : const Color(0xFFF8F9FB),
-                                      foregroundColor: _selectedPage == index
-                                          ? Colors.white
-                                          : const Color(0xFF71809B),
-                                      shape: RoundedRectangleBorder(
-                                        borderRadius: BorderRadius.circular(12),
-                                      ),
-                                    ),
-                                    child: Column(
-                                      mainAxisSize: MainAxisSize.min,
-                                      children: [
-                                        Text(
-                                          DateFormat('EEE')
-                                              .format(day)
-                                              .toUpperCase(),
-                                          maxLines: 1,
-                                          overflow: TextOverflow.ellipsis,
-                                          style: const TextStyle(fontSize: 12),
-                                        ),
-                                        const SizedBox(height: 3),
-                                        Text(
-                                          DateFormat('d').format(day),
-                                          maxLines: 1,
-                                          overflow: TextOverflow.ellipsis,
-                                          style: TextStyle(
-                                            fontSize: 12,
-                                            fontWeight: FontWeight.w700,
-                                            color: _selectedPage == index
-                                                ? Colors.white
-                                                : const Color(0xFF263045),
-                                          ),
-                                        ),
-                                        const SizedBox(height: 4),
-                                        Container(
-                                          width: 6,
-                                          height: 6,
-                                          decoration: BoxDecoration(
-                                            shape: BoxShape.circle,
-                                            color:
-                                                data?.periods.any(
-                                                      (slot) =>
-                                                          slot.day ==
-                                                          day.weekday,
-                                                    ) ==
-                                                    true
-                                                ? (_selectedPage == index
-                                                      ? const Color(0xFFF59E0B)
-                                                      : const Color(0xFFCBD5E1))
-                                                : (_selectedPage == index
-                                                      ? const Color(0xFFF59E0B)
-                                                      : const Color(
-                                                          0xFFE6ECF4,
-                                                        )),
-                                          ),
-                                        ),
-                                      ],
-                                    ),
-                                  ),
-                                ),
-                              );
-                            },
-                          ),
-                        ),
-                      ],
-                    ),
+                    lastDate: DateTime.utc(9999, 12, 31),
+                    stripKey: const ValueKey('class-date-selector'),
+                    pickerHelpText: 'Choose class date',
+                    hasEvent: (date) =>
+                        data?.periods.any((slot) => slot.day == date.weekday) ==
+                        true,
+                    onChanged: (date) => setState(() => _selectedDate = date),
                   ),
                   const SizedBox(height: 8),
                   week.when(
