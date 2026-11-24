@@ -105,6 +105,56 @@ function metaFor(page: string, take: number, total: number) {
   return buildPaginationMeta(Math.max(parseInt(page, 10) || 1, 1), take, total);
 }
 
+export interface AuditSummary {
+  total: number;
+  last24h: number;
+  last7d: number;
+  actors: number;
+  actions: { value: string; count: number }[];
+  sources: { value: string; count: number }[];
+}
+
+/**
+ * Facet counts for the audit console's stat strip and filter menus. Reads the
+ * same `where` as the list, so every figure answers "for the current filters".
+ * Cheap on purpose: grouped counts over indexed columns, no row payloads.
+ */
+export async function summarizeAudit(
+  query: Omit<AuditListQuery, "page" | "pageSize">,
+): Promise<AuditSummary> {
+  const where = buildWhere(query);
+  const now = Date.now();
+  const since24 = new Date(now - 24 * 60 * 60 * 1000);
+  const since7 = new Date(now - 7 * 24 * 60 * 60 * 1000);
+
+  const [total, last24h, last7d, byAction, bySource, byActor] = await Promise.all([
+    prisma.auditLog.count({ where }),
+    prisma.auditLog.count({ where: { AND: [where, { createdAt: { gte: since24 } }] } }),
+    prisma.auditLog.count({ where: { AND: [where, { createdAt: { gte: since7 } }] } }),
+    prisma.auditLog.groupBy({ by: ["actionType"], where, _count: { _all: true } }),
+    prisma.auditLog.groupBy({ by: ["sourceTable"], where, _count: { _all: true } }),
+    prisma.auditLog.groupBy({ by: ["userId"], where }),
+  ]);
+
+  const top = <T extends { _count: { _all: number } }>(
+    rows: T[],
+    key: (row: T) => string,
+  ): { value: string; count: number }[] =>
+    rows
+      .map((row) => ({ value: key(row), count: row._count._all }))
+      .sort((a, b) => b.count - a.count)
+      .slice(0, 8);
+
+  return {
+    total,
+    last24h,
+    last7d,
+    actors: byActor.length,
+    actions: top(byAction, (row) => row.actionType),
+    sources: top(bySource, (row) => row.sourceTable),
+  };
+}
+
 export async function exportAuditWorkbook(
   query: Omit<AuditListQuery, "page" | "pageSize">,
   generatedBy: { userId: string },

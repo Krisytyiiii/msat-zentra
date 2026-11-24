@@ -24,12 +24,10 @@ export default function RecordKeeperOverviewPage() {
 
   const isEmpty =
     !!data &&
-    data.pendingAccounts === 0 &&
     data.pendingAdviserAccess === 0 &&
     data.lockedFinalsAwaiting === 0 &&
     data.latestAttachments.length === 0 &&
     data.missingSf10.length === 0 &&
-    data.pendingStudents.length === 0 &&
     data.finals.total === 0 &&
     data.sf10.total === 0 &&
     data.sections === 0 &&

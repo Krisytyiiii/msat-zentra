@@ -8,9 +8,7 @@ import {
   ArrowRight,
   FileSignature,
   FileStack,
-  GraduationCap,
   ShieldQuestion,
-  UserCog,
   type LucideIcon,
 } from "lucide-react";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -100,17 +98,6 @@ export function OverviewShortcuts({
       cta: "Open queue",
       accent: "text-primary",
       mascot: "owl",
-    },
-    {
-      key: "students",
-      icon: GraduationCap,
-      title: "Pending Students",
-      count: data?.pendingStudents.length ?? 0,
-      href: `/${desk}/accounts`,
-      hint: "Awaiting decision",
-      cta: "Review accounts",
-      accent: "text-blue-500",
-      mascot: "scout",
     },
     {
       key: "adviser",
@@ -206,13 +193,6 @@ export function OverviewShortcuts({
           );
         })}
       </div>
-      {variant !== "stats" && (
-        <p className={styles.footnote}>
-          <UserCog className={styles.footnoteIcon} aria-hidden />
-          {data?.pendingAccounts ?? 0} pending account request
-          {(data?.pendingAccounts ?? 0) !== 1 ? "s" : ""} across the grade band.
-        </p>
-      )}
     </section>
   );
 }

@@ -1,12 +1,11 @@
 "use client";
 
 import * as React from "react";
-import { BookOpen, Trash2 } from "lucide-react";
+import { BookOpen, Loader2, Trash2, TriangleAlert } from "lucide-react";
 import { TeacherEmptyCard } from "../../components/TeacherEmptyCard";
 import { Button } from "@/components/ui/button";
 import { useDock } from "@/components/dock/dock-store";
 import { KanbanOverlay } from "@/components/ui/kanban-overlay";
-import { Pill } from "@/components/ui/pill";
 import {
   Select,
   SelectContent,
@@ -20,7 +19,7 @@ import { ModulesEmptyKanban } from "./components/modules-empty-kanban";
 import { ModulesPanel } from "./components/modules-panel";
 import { ModuleDetailsOverlay } from "./components/module-details-overlay";
 import { ModuleFormDialog } from "./components/module-form-dialog";
-import { SubmissionsTable } from "./components/submissions-table";
+import { SubmissionsDrawer } from "./components/submissions-drawer";
 import {
   modulesExtras,
   submissionsExtras,
@@ -55,7 +54,6 @@ export default function TeacherAdvisoryModulesPage() {
 
   const [selectedModuleId, setSelectedModuleId] = React.useState<string | null>(null);
   const [submissionPage, setSubmissionPage] = React.useState(1);
-
   const [formOpen, setFormOpen] = React.useState(false);
   const [formKind, setFormKind] = React.useState<AdvisoryModuleKind>("general");
   const [editing, setEditing] = React.useState<AdvisoryModuleRow | null>(null);
@@ -72,26 +70,30 @@ export default function TeacherAdvisoryModulesPage() {
   const sections = extras?.sections ?? [];
   const counts = extras?.counts ?? EMPTY_COUNTS;
 
-  // Default the submissions table to the first module on the board; clicking a
-  // module name switches it. Derived, so a deleted module falls back cleanly.
-  const activeModuleId =
-    (selectedModuleId && rows.some((r) => r.id === selectedModuleId) ? selectedModuleId : null) ??
-    rows[0]?.id ??
-    null;
+  // The submissions live in a drawer, opened per module. Keep the id in local
+  // state so a deleted or filtered-out module simply closes it.
+  const drawerModule =
+    selectedModuleId !== null
+      ? (rows.find((r) => r.id === selectedModuleId) ?? null)
+      : null;
 
   const submissionsQuery = useModuleSubmissions({
-    moduleId: activeModuleId,
+    moduleId: drawerModule?.id ?? null,
     page: submissionPage,
-    enabled: rows.find((r) => r.id === activeModuleId)?.kind === "adm",
+    enabled: drawerModule?.kind === "adm",
   });
   const submissionsExtrasData = submissionsExtras(submissionsQuery.data);
   const submissionRows = submissionsQuery.data?.data ?? [];
   const submissionCounts = submissionsExtrasData?.counts ?? EMPTY_COUNTS;
-  const activeModule =
-    rows.find((r) => r.id === activeModuleId) ?? null;
 
   // Keep the open overlay fresh if the module is edited or the page refetches.
   const viewingModule = viewing ? rows.find((r) => r.id === viewing.id) ?? viewing : null;
+
+  const openSubmissions = (moduleId: string) => {
+    setViewing(null);
+    setSubmissionPage(1);
+    setSelectedModuleId(moduleId);
+  };
 
   const createModule = useCreateAdvisoryModule();
   const updateModule = useUpdateAdvisoryModule();
@@ -212,7 +214,7 @@ export default function TeacherAdvisoryModulesPage() {
   };
 
   return (
-    <div className="flex flex-col gap-10">
+    <div className="flex flex-col gap-4">
       {counts.all === 0 ? (
         <div className="flex min-h-[calc(100dvh-10rem)] w-full items-center justify-center">
           <div className="w-full">
@@ -226,7 +228,7 @@ export default function TeacherAdvisoryModulesPage() {
             counts={counts}
             total={modulesQuery.data?.total ?? 0}
             page={modulePage}
-            selectedId={activeModuleId}
+            selectedId={selectedModuleId ?? viewingModule?.id ?? null}
             filter={moduleFilter}
             headerActions={sectionPicker}
             onFilterChange={(next) => {
@@ -241,33 +243,11 @@ export default function TeacherAdvisoryModulesPage() {
             }}
             onDelete={setDeleting}
             onSelect={(module) => {
-              setSelectedModuleId(module.id);
-              setSubmissionPage(1);
+              if (module.kind === "adm") openSubmissions(module.id);
+              else setViewing(module);
             }}
             onOpen={setViewing}
           />
-
-          {activeModule?.kind === "general" ? (
-            <section className="flex min-w-0 flex-col gap-2 rounded-lg border bg-card p-4" aria-label="General module">
-              <div className="flex flex-wrap items-center gap-2">
-                <h2 className="m-0 text-sm font-bold tracking-[-0.01em] text-foreground">General module</h2>
-                <Pill tone="neutral" label="Module type">General</Pill>
-              </div>
-              <p className="m-0 text-xs text-muted-foreground">
-                &ldquo;{activeModule.moduleName}&rdquo; is a post-only module — it carries no
-                submission tracking. Switch to an ADM module to track learners&apos; answers.
-              </p>
-            </section>
-          ) : (
-            <SubmissionsTable
-              moduleName={activeModule?.moduleName ?? submissionsExtrasData?.module.moduleName ?? "Select a module"}
-              rows={submissionRows}
-              counts={submissionCounts}
-              total={submissionsQuery.data?.total ?? 0}
-              page={submissionPage}
-              onPageChange={setSubmissionPage}
-            />
-          )}
         </>
       )}
 
@@ -293,10 +273,22 @@ export default function TeacherAdvisoryModulesPage() {
           setFormOpen(true);
           setViewing(null);
         }}
-        onViewSubmissions={(module) => {
-          setSelectedModuleId(module.id);
+        onViewSubmissions={(module) => openSubmissions(module.id)}
+      />
+
+      <SubmissionsDrawer
+        open={drawerModule?.kind === "adm"}
+        moduleName={drawerModule?.moduleName ?? ""}
+        kind={drawerModule?.kind ?? null}
+        counts={submissionCounts}
+        rows={submissionRows}
+        total={submissionsQuery.data?.total ?? 0}
+        page={submissionPage}
+        loading={submissionsQuery.isPending && !submissionsQuery.data}
+        onPageChange={setSubmissionPage}
+        onClose={() => {
+          setSelectedModuleId(null);
           setSubmissionPage(1);
-          setViewing(null);
         }}
       />
 
@@ -308,29 +300,55 @@ export default function TeacherAdvisoryModulesPage() {
         dismissable={!deleteModule.isPending}
         title="Remove module"
         ariaLabel="Remove module"
-        icon={<Trash2 size={16} aria-hidden />}
-        description={
-          deleting
-            ? `Delete "${deleting.moduleName}" and every recorded submission for it?`
-            : undefined
+        icon={
+          <span
+            className="flex size-6 items-center justify-center rounded-md bg-red-500/10 text-red-600 dark:text-red-400"
+            aria-hidden
+          >
+            <Trash2 size={14} />
+          </span>
         }
         width="sm"
         footer={
-          <div className="flex items-center justify-end gap-2 px-1 pb-1">
+          <div className="flex w-full flex-wrap items-center justify-between gap-2 px-0.5 pb-0.5">
+            <p className="m-0 text-[12px] text-muted-foreground">This can&apos;t be undone.</p>
             <Button
               type="button"
-              variant="destructive"
-              className="h-6 bg-destructive px-2.5 text-xs text-white hover:bg-destructive/90"
+              className="ml-auto gap-1.5 bg-red-600 text-white hover:bg-red-700 dark:bg-red-600 dark:hover:bg-red-700"
               onClick={handleDelete}
+              disabled={deleteModule.isPending}
+              aria-busy={deleteModule.isPending || undefined}
             >
-              Remove
+              {deleteModule.isPending ? (
+                <Loader2 size={14} className="animate-spin" aria-hidden />
+              ) : (
+                <Trash2 size={14} aria-hidden />
+              )}
+              Remove module
             </Button>
           </div>
         }
       >
-        <p className="m-0 text-xs text-muted-foreground">
-          Submissions recorded against this module are removed with it. The audit trail keeps the change.
-        </p>
+        <div className="flex flex-col gap-3">
+          <p className="m-0 text-sm text-foreground">
+            Delete{" "}
+            <span className="font-semibold">
+              &ldquo;{deleting?.moduleName ?? "this module"}&rdquo;
+            </span>{" "}
+            and every recorded submission for it?
+          </p>
+          <div className="flex flex-col gap-1.5 rounded-md border border-red-500/30 bg-red-500/[0.06] p-3">
+            <span className="inline-flex items-center gap-1.5 text-[12px] font-semibold text-red-700 dark:text-red-400">
+              <TriangleAlert size={13} aria-hidden />
+              What happens next
+            </span>
+            <ul className="m-0 flex list-disc flex-col gap-1 pl-4 text-[12px] text-muted-foreground">
+              <li>Every submission recorded against this module is deleted.</li>
+              <li>Advisees lose access to the handout from their desk.</li>
+              <li>The audit trail still keeps a record of the removal.</li>
+            </ul>
+          </div>
+        </div>
       </KanbanOverlay>
     </div>
   );

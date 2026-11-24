@@ -47,7 +47,7 @@ export function AdmTrackingTimeline({
       !dismissalRole || dismissalRole === "adviser" || dismissalRole === "subject_teacher";
     return (
       <ol
-        className="grid min-w-0 grid-cols-1 gap-2 sm:grid-cols-2 lg:grid-cols-4"
+        className="grid min-w-0 grid-cols-1 gap-1.5 md:grid-cols-2"
         aria-label="ADM pipeline steps"
       >
         {steps.map((step) => {
@@ -61,78 +61,97 @@ export function AdmTrackingTimeline({
               : isCurrent && input.referralStatus === "resolved"
                 ? { label: "Resolved", color: "#22c55e" }
                 : null;
-          // State accent tint (theme-safe via color-mix): done reads green,
-          // the active step reads primary, ended steps read their outcome.
+          // Flat one-surface steps: a numbered rail node carries the state,
+          // the body carries label / detail / owner. No card-inside-a-card.
           const accent = decision?.color ?? (done ? "#22c55e" : isCurrent ? "var(--primary)" : null);
           return (
             <li
               key={step.stage}
-              className={`flex min-w-0 flex-col gap-2 rounded-xl border p-2.5 ${
-                accent ? "" : "border-border bg-muted/60 dark:bg-muted/20"
+              className={`relative flex min-w-0 items-start gap-2.5 overflow-hidden rounded-lg border px-3 py-2.5 ${
+                accent ? "" : "border-border/80 bg-muted/30 dark:bg-muted/10"
               }`}
               style={
                 accent
                   ? {
-                      borderColor: `color-mix(in srgb, ${accent} 40%, transparent)`,
-                      backgroundColor: `color-mix(in srgb, ${accent} 10%, transparent)`,
+                      borderColor: `color-mix(in srgb, ${accent} 35%, transparent)`,
+                      backgroundColor: `color-mix(in srgb, ${accent} 7%, transparent)`,
                     }
                   : undefined
               }
             >
-              <div className="-mx-2.5 flex min-w-0 items-center gap-1.5 border-b border-border px-3.5 pb-2">
-                <span className="min-w-0 flex-1 truncate text-[12px] font-semibold">
-                  Step {step.order}
-                </span>
-                {decision ? (
-                  <span
-                    className="inline-flex h-6 shrink-0 items-center rounded-md border px-2 py-0.5 text-[12px] font-semibold leading-tight"
-                    style={{
-                      color: decision.color,
-                      borderColor: `color-mix(in srgb, ${decision.color} 40%, transparent)`,
-                      backgroundColor: `color-mix(in srgb, ${decision.color} 12%, transparent)`,
-                    }}
-                  >
-                    {decision.label}
-                  </span>
-                ) : done ? (
-                  <span
-                    className="inline-flex h-6 shrink-0 items-center rounded-md border px-2 py-0.5 text-[12px] font-semibold leading-tight"
-                    style={{
-                      color: "#22c55e",
-                      borderColor: "color-mix(in srgb, #22c55e 40%, transparent)",
-                      backgroundColor: "color-mix(in srgb, #22c55e 12%, transparent)",
-                    }}
-                  >
-                    Done
-                  </span>
-                ) : isCurrent ? (
-                  <span className="inline-flex h-6 shrink-0 items-center rounded-md bg-primary px-2 py-0.5 text-[12px] font-semibold leading-tight text-primary-foreground">
-                    Current
-                  </span>
-                ) : (
-                  <span className="inline-flex h-6 shrink-0 items-center rounded-md border border-border bg-secondary px-2 py-0.5 text-[12px] font-medium leading-tight text-secondary-foreground">
-                    Upcoming
-                  </span>
-                )}
-              </div>
-              <div className="flex min-w-0 flex-1 flex-col gap-1.5 rounded-lg border border-border bg-white p-2 text-left shadow-sm dark:bg-card">
+              {isCurrent ? (
                 <span
-                  className="line-clamp-2 min-h-10 text-xs/5 font-semibold text-foreground"
-                  title={step.label}
-                >
-                  {step.label}
-                </span>
-                <span className="flex min-w-0 flex-wrap items-center gap-1.5">
-                  <span
-                    className="inline-flex max-w-full items-center rounded-md border border-border bg-secondary px-2 py-0.5 text-[12px] font-medium leading-tight text-secondary-foreground"
-                    title={step.owner}
+                  aria-hidden
+                  className="absolute inset-y-0 left-0 w-0.5 bg-amber-500"
+                />
+              ) : null}
+              <span
+                className={`mt-0.5 inline-flex size-5 shrink-0 items-center justify-center rounded-full border text-[12px] font-semibold tabular-nums ${
+                  done
+                    ? "border-transparent bg-emerald-500 text-white"
+                    : isCurrent
+                      ? "border-transparent bg-amber-500 text-amber-950"
+                      : "border-border bg-background text-muted-foreground"
+                }`}
+                style={
+                  decision
+                    ? {
+                        backgroundColor: decision.color,
+                        borderColor: "transparent",
+                        color: "#fff",
+                      }
+                    : undefined
+                }
+              >
+                {done || decision ? (
+                  <Check size={12} strokeWidth={3} aria-hidden />
+                ) : (
+                  step.order
+                )}
+              </span>
+              <div className="flex min-w-0 flex-1 flex-col gap-0.5">
+                <div className="flex min-w-0 items-start justify-between gap-2">
+                  <p
+                    className={`m-0 min-w-0 text-[12px] leading-snug font-semibold ${
+                      done || isCurrent ? "text-foreground" : "text-muted-foreground"
+                    }`}
+                    title={step.label}
                   >
+                    {step.label}
+                  </p>
+                  {decision ? (
+                    <span
+                      className="inline-flex h-5 shrink-0 items-center rounded-md border px-1.5 text-[12px] font-semibold leading-tight"
+                      style={{
+                        color: decision.color,
+                        borderColor: `color-mix(in srgb, ${decision.color} 40%, transparent)`,
+                        backgroundColor: `color-mix(in srgb, ${decision.color} 12%, transparent)`,
+                      }}
+                    >
+                      {decision.label}
+                    </span>
+                  ) : done ? (
+                    <span className="inline-flex h-5 shrink-0 items-center rounded-md border border-emerald-500/35 bg-emerald-500/10 px-1.5 text-[12px] font-semibold leading-tight text-emerald-600 dark:text-emerald-400">
+                      Done
+                    </span>
+                  ) : isCurrent ? (
+                    <span className="inline-flex h-5 shrink-0 items-center rounded-md bg-amber-500 px-1.5 text-[12px] font-semibold leading-tight text-amber-950">
+                      Current
+                    </span>
+                  ) : (
+                    <span className="inline-flex h-5 shrink-0 items-center rounded-md border border-border bg-background px-1.5 text-[12px] font-medium leading-tight text-muted-foreground">
+                      Upcoming
+                    </span>
+                  )}
+                </div>
+                <p className="m-0 text-[12px] leading-snug text-muted-foreground">
+                  {step.detail}
+                </p>
+                <p className="m-0 flex min-w-0 items-center gap-1 text-[12px] leading-snug text-muted-foreground/80">
+                  <span className="truncate" title={step.owner}>
                     {step.owner}
                   </span>
-                </span>
-                <span className="text-[12px] leading-snug text-muted-foreground">
-                  {step.detail}
-                </span>
+                </p>
               </div>
             </li>
           );

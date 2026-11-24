@@ -3,6 +3,7 @@ import * as React from "react";
 import type { CSSProperties } from "react";
 import { StudentMascot } from "@/components/student-mascot/StudentMascot";
 import { KanbanBoardEmpty } from "@/components/ui/kanban-board";
+import { InsightCallout } from "@/components/ui/insight-callout";
 import type { ClassAssessment, ClassStudent } from "@/services/teacher/grading.types";
 import { ScoreCellInput, scoreOf } from "./score-input";
 import { assignUniqueMascots } from "./mascot-assignment";
@@ -18,7 +19,11 @@ export function PlainEncodeTable({ assessment, students, drafts, nameFilter, onD
     return <KanbanBoardEmpty>No students in this section yet.</KanbanBoardEmpty>;
   }
   if (rows.length === 0) {
-    return <KanbanBoardEmpty>No students match your search.</KanbanBoardEmpty>;
+    return (
+      <InsightCallout>
+        No students match your search.
+      </InsightCallout>
+    );
   }
   return (
     <ul

@@ -5,6 +5,8 @@ import { FileText } from "lucide-react";
 import { FolderCard } from "@/components/ui/FolderCard";
 import { Pill, type PillTone } from "@/components/ui/pill";
 import { StudentMascot } from "@/components/student-mascot/StudentMascot";
+import { cn } from "@/lib/utils";
+import glassStyles from "./anecdotal-record-kanban-card.module.css";
 
 export const ANECDOTAL_CATEGORY_COLORS: Record<string, string> = {
   behavioral: "#f59e0b",
@@ -41,6 +43,8 @@ export interface AnecdotalRecordKanbanCardProps {
   metaTitle?: string;
   /** Second pill field name shown on hover (e.g. "LRN", "Section"). */
   metaLabel?: string;
+  /** Extra classes for the second pill (e.g. to match a desk's pill height). */
+  metaClassName?: string;
   /** Second pill tone. Defaults to neutral. */
   metaTone?: PillTone;
   /** Optional LRN pill rendered before the meta pill. */
@@ -74,6 +78,8 @@ export interface AnecdotalRecordKanbanCardProps {
   onOpen: () => void;
   /** Bottom-right action row (e.g. Edit / Delete). Rendered outside the card's open button. */
   actions?: React.ReactNode;
+  /** `glass` swaps the muted kanban shell for the amber-edged glass surface. */
+  variant?: "default" | "glass";
 }
 
 /**
@@ -89,6 +95,7 @@ export function AnecdotalRecordKanbanCard({
   metaText,
   metaTitle,
   metaLabel,
+  metaClassName,
   metaTone,
   lrn,
   plainName = false,
@@ -107,12 +114,14 @@ export function AnecdotalRecordKanbanCard({
   openLabel,
   onOpen,
   actions,
+  variant = "default",
 }: AnecdotalRecordKanbanCardProps) {
   const horizontal = layout === "horizontal";
   const folderLeft = layout === "folder-left";
   const iconColor =
     categoryColor ?? ANECDOTAL_CATEGORY_COLORS[category] ?? "var(--muted-foreground)";
   const spriteSize = mascotSize ?? (folderLeft ? 44 : 28);
+  const bodyFill = variant === "glass" ? glassStyles.glassBody : "bg-white dark:bg-card";
   const identityColumnClass =
     mascotSeed || stackIdentity
       ? `flex min-w-0 flex-col items-start gap-1${
@@ -144,7 +153,14 @@ export function AnecdotalRecordKanbanCard({
     </span>
   );
   return (
-    <div className="flex min-w-0 flex-1 flex-col gap-2 overflow-hidden rounded-xl border border-border bg-muted/60 p-2.5 text-left transition-colors [font-family:var(--font-inter)] hover:border-primary/60 hover:shadow dark:bg-muted/20">
+    <div
+      className={cn(
+        "flex min-w-0 flex-1 flex-col gap-2 overflow-hidden rounded-xl p-2.5 text-left [font-family:var(--font-inter)]",
+        variant === "glass"
+          ? glassStyles.glass
+          : "border border-border bg-muted/60 transition-colors hover:border-primary/60 hover:shadow dark:bg-muted/20",
+      )}
+    >
       <button
         type="button"
         onClick={onOpen}
@@ -161,10 +177,10 @@ export function AnecdotalRecordKanbanCard({
       <span
         className={
           folderLeft
-            ? "flex min-w-0 flex-row items-center gap-3 rounded-lg border bg-white p-3 shadow-sm dark:bg-card"
+            ? `flex min-w-0 flex-row items-center gap-3 rounded-lg border p-3 shadow-sm ${bodyFill}`
             : horizontal
-              ? "flex min-w-0 flex-row items-center gap-3 rounded-lg border bg-white p-3 shadow-sm dark:bg-card"
-              : "flex min-w-0 flex-col gap-2 rounded-lg border bg-white p-3 shadow-sm dark:bg-card"
+              ? `flex min-w-0 flex-row items-center gap-3 rounded-lg border p-3 shadow-sm ${bodyFill}`
+              : `flex min-w-0 flex-col gap-2 rounded-lg border p-3 shadow-sm ${bodyFill}`
         }
       >
         {folderLeft ? folderNode : null}
@@ -211,7 +227,7 @@ export function AnecdotalRecordKanbanCard({
                 tone={metaTone}
                 label={metaLabel ?? metaTitle ?? metaText}
                 aria-label={metaTitle ?? metaText}
-                className="min-w-0 max-w-full overflow-hidden"
+                className={cn("min-w-0 max-w-full overflow-hidden", metaClassName)}
               >
                 <span className="truncate">{metaText}</span>
               </Pill>

@@ -10,7 +10,7 @@ import { computeSubjectGrade, recomputeSubjectFinal } from "../../services/gradi
 import { recomputeRisk, recomputeRosterRisk } from "../../services/risk.js";
 import { writeAudit } from "../../lib/audit.js";
 import { fanoutNotification, fanoutToRole } from "../../lib/notify.js";
-import { assertAssignment } from "../teacher/grading.repository.js";
+import { assertAssignment, hasClassCoverage } from "../teacher/grading.repository.js";
 import { verifyTeacherCode } from "../../services/teacher/directory.service.js";
 import { admExemptStudentIds, isAdmExempt } from "../../services/adm/attendancePolicy.js";
 
@@ -78,32 +78,16 @@ router.post(
         }
       }
       if (isRoster) {
-        const coverage = await prisma.teacherSubjectAssignment.findFirst({
-          where: {
-            teacherId: req.user!.id,
-            subjectId: gc.subjectId,
-            termId: gc.termId,
-            sectionId: rosterEntry!.sectionId,
-          },
-          select: { id: true },
-        });
-        if (!coverage) {
-          // Fall back to the timetable link: a teacher placed on the
-          // submitted/approved timetable for this subject × section × term
-          // owns the class even without an assignment row.
-          const linked = await prisma.sectionTimetableEntry.findFirst({
-            where: {
-              subjectId: gc.subjectId,
-              sectionId: rosterEntry!.sectionId,
-              termId: gc.termId,
-              status: { in: ["SUBMITTED", "APPROVED"] },
-              teacherName: { userId: req.user!.id },
-            },
-            select: { id: true },
-          });
-          if (!linked) {
-            throw new AppError(403, "FORBIDDEN", "Student is not in your class for this subject");
-          }
+        // Class coverage carries across the school year (see
+        // `hasClassCoverage`), matching how the workspace resolves the class.
+        const covered = await hasClassCoverage(
+          req.user!.id,
+          gc.subjectId,
+          rosterEntry!.sectionId,
+          gc.termId,
+        );
+        if (!covered) {
+          throw new AppError(403, "FORBIDDEN", "Student is not in your class for this subject");
         }
       }
 
@@ -250,25 +234,15 @@ router.post(
       }
 
       // Coverage check batched per distinct section (parallel, not N sequential).
+      // Uses the same year-wide rule as the workspace/assertAssignment so a
+      // class timetabled in an earlier term still accepts roster scores.
       const validAfterExist = candidates.filter((i) => i.ok);
       const sectionIds = [...new Set(validAfterExist.filter((i) => i.rosterId).map((i) => rosterById.get(i.rosterId as string)!.sectionId))];
       const coverageResults = await Promise.all(
-        sectionIds.map(async (sectionId) => {
-          const coverage = await prisma.teacherSubjectAssignment.findFirst({
-            where: { teacherId: req.user!.id, subjectId: gc.subjectId, termId: gc.termId, sectionId },
-            select: { id: true },
-          });
-          if (coverage) return { sectionId, ok: true };
-          const linked = await prisma.sectionTimetableEntry.findFirst({
-            where: {
-              subjectId: gc.subjectId, sectionId, termId: gc.termId,
-              status: { in: ["SUBMITTED", "APPROVED"] },
-              teacherName: { userId: req.user!.id },
-            },
-            select: { id: true },
-          });
-          return { sectionId, ok: !!linked };
-        }),
+        sectionIds.map(async (sectionId) => ({
+          sectionId,
+          ok: await hasClassCoverage(req.user!.id, gc.subjectId, sectionId, gc.termId),
+        })),
       );
       const unauthorizedSections = new Set(
         coverageResults.filter((c) => !c.ok).map((c) => c.sectionId),

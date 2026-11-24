@@ -7,6 +7,7 @@ import { Button } from "@/components/ui/button";
 import { Calendar } from "@/components/ui/calendar";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { Pill } from "@/components/ui/pill";
 import {
   Popover,
   PopoverContent,
@@ -14,10 +15,15 @@ import {
 } from "@/components/ui/popover";
 import { COMPONENT_LABELS } from "@/services/teacher/grading.compute";
 import type { ComponentType } from "@/services/teacher/grading.types";
+import { FilterTabs, type FilterTabOption } from "@/components/ui/filter-tabs";
 import { cn } from "@/lib/utils";
 import { CategoryTabs } from "./CategoryTabs";
-import categoryStyles from "./CategoryTabs.module.css";
 import { useAddAssessmentSave } from "./add-assessment-save-context";
+
+const AUDIENCE_OPTIONS: ReadonlyArray<FilterTabOption<"regular" | "adm">> = [
+  { value: "regular", label: "Regular" },
+  { value: "adm", label: "ADM" },
+];
 
 function todayKey(): string {
   return new Date().toISOString().slice(0, 10);
@@ -99,81 +105,72 @@ export function AddAssessmentForm({
     }
   };
 
+  const fieldLabel =
+    "text-[12px] font-medium tracking-[0.08em] text-muted-foreground uppercase";
+
   return (
     <form
-      className="flex flex-col gap-3 px-1"
+      className="flex flex-col gap-4 px-1 py-1"
       onSubmit={(e) => {
         e.preventDefault();
         void handleSave();
       }}
     >
       <div className="flex flex-col gap-1.5">
-        <span className="text-xs font-medium text-muted-foreground">
-          Category
-        </span>
-        <CategoryTabs value={componentType} onChange={setComponentType} />
-      </div>
-
-      <div className="flex flex-col gap-1.5">
-        <span className="text-xs font-medium text-muted-foreground">
-          Type
-        </span>
-        <div
-          className={categoryStyles.tabs}
-          role="tablist"
-          aria-label="Assessment type"
-        >
-          {(
-            [
-              { value: "regular", label: "Regular" },
-              { value: "adm", label: "ADM" },
-            ] as const
-          ).map((t) => (
-            <button
-              key={t.value}
-              type="button"
-              role="tab"
-              aria-selected={audience === t.value}
-              className={`${categoryStyles.tab} ${audience === t.value ? categoryStyles.tabActive : ""}`}
-              onClick={() => setAudience(t.value)}
-              disabled={saving}
-            >
-              {t.label}
-            </button>
-          ))}
-        </div>
-        <p className="text-[12px] leading-snug text-muted-foreground">
-          Regular counts toward regular learners; ADM counts toward signed ADM
-          learners.
-        </p>
-      </div>
-
-      <div className="flex flex-col gap-1.5">
         <Label
-          className="text-xs text-muted-foreground"
+          className={fieldLabel}
           htmlFor="gutter-add-assessment-title"
         >
           Title
         </Label>
         <Input
           id="gutter-add-assessment-title"
+          className="h-9"
           value={title}
-          placeholder="e.g. Quiz 1"
+          placeholder="e.g. Quiz 1 — Fractions"
           onChange={(e) => setTitle(e.target.value)}
           disabled={saving}
         />
       </div>
 
-      <div className="grid grid-cols-2 gap-2">
+      <div className="grid gap-4 sm:grid-cols-2">
+        <div className="flex min-w-0 flex-col gap-1.5">
+          <span className={fieldLabel}>Category</span>
+          <CategoryTabs
+            value={componentType}
+            onChange={setComponentType}
+            className="self-start"
+          />
+        </div>
+
+        <div className="flex min-w-0 flex-col gap-1.5">
+          <span className={fieldLabel}>Grade input</span>
+          <FilterTabs
+            label="Grade input"
+            options={AUDIENCE_OPTIONS}
+            value={audience}
+            onChange={setAudience}
+            className="self-start"
+          />
+        </div>
+      </div>
+
+      <p className="text-[12px] leading-snug text-muted-foreground">
+        Regular counts toward regular learners; ADM counts toward signed ADM
+        learners.
+      </p>
+
+      <div className="grid gap-4 sm:grid-cols-2">
         <div className="flex min-w-0 flex-col gap-1.5">
           <Label
-            className="text-xs text-muted-foreground"
+            className={fieldLabel}
             htmlFor="gutter-add-assessment-max"
           >
             Max score
           </Label>
           <Input
             id="gutter-add-assessment-max"
+            className="h-9"
             inputMode="decimal"
             value={max}
             onChange={(e) => setMax(e.target.value)}
@@ -182,7 +179,7 @@ export function AddAssessmentForm({
         </div>
         <div className="flex min-w-0 flex-col gap-1.5">
           <Label
-            className="text-xs text-muted-foreground"
+            className={fieldLabel}
             htmlFor="gutter-add-assessment-date"
           >
             Date given
@@ -195,7 +192,7 @@ export function AddAssessmentForm({
                 variant="outline"
                 disabled={saving}
                 className={cn(
-                  "min-w-0 justify-start px-2 text-left font-normal",
+                  "h-9 min-w-0 justify-start px-3 text-left font-normal",
                   !selectedDate && "text-muted-foreground",
                 )}
               >
@@ -228,12 +225,26 @@ export function AddAssessmentForm({
       </div>
 
       {error ? (
-        <p role="alert" className="text-xs text-destructive">
+        <p role="alert" className="text-[12px] text-destructive">
           {error}
         </p>
       ) : null}
 
-      <div className="flex justify-end pb-1">
+      <div className="flex flex-wrap items-center justify-between gap-3 border-t border-border pt-3 pb-1">
+        <span className="flex flex-wrap items-center gap-1.5">
+          <Pill tone="amber" label="Category">
+            {COMPONENT_LABELS[componentType]}
+          </Pill>
+          <Pill tone={audience === "adm" ? "amber" : "neutral"} label="Assessment type">
+            {audience === "adm" ? "ADM" : "Regular"}
+          </Pill>
+          <Pill tone="neutral" label="Max score">
+            {max.trim() === "" ? "—" : max} max
+          </Pill>
+          <Pill tone="neutral" label="Date given">
+            {selectedDate ? format(selectedDate, "MM/dd/yyyy") : "No date"}
+          </Pill>
+        </span>
         <Button
           type="submit"
           size="sm"

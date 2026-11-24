@@ -130,6 +130,7 @@ export function NurseAdmReviewDialog({
         }}
         student={row.student}
         lrn={row.lrn}
+        mascot={row.mascot}
         sectionLine={`${row.section} · ${row.grade}`}
         observed={row.anecdotal?.observedAt ?? "—"}
         category={row.anecdotal?.category ?? row.category}

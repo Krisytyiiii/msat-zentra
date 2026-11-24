@@ -2,12 +2,11 @@
 
 import * as React from "react";
 import { useSearchParams } from "next/navigation";
-import { HeartHandshake, Search } from "lucide-react";
+import { HeartHandshake } from "lucide-react";
 import { TeacherEmptyCard } from "../../components/TeacherEmptyCard";
-import { InsightCallout } from "@/components/ui/insight-callout";
-import { Input } from "@/components/ui/input";
-import { KanbanBoard } from "@/components/ui/kanban-board";
-import { Skeleton } from "@/components/ui/skeleton";
+import { TeacherSearchField, searchEmptyMessage } from "@/app/teacher/components/TeacherSearchField";
+import { Pill } from "@/components/ui/pill";
+import { PageEmptyCallout } from "@/components/shared/page-empty-callout";
 import { Pagination } from "@/components/shared/pagination";
 import { useUrlPager } from "@/components/shared/pagination/useUrlPager";
 import { useNowTick } from "@/lib/clock";
@@ -22,7 +21,12 @@ import {
 } from "@/services/teacher/interventions.service";
 import { FilterTabs } from "./components/filter-tabs";
 import { InterventionRowCard } from "./components/intervention-row";
+import { InterventionsSkeleton } from "./components/InterventionsSkeleton";
 import { InterventionDetailOverlay } from "./components/intervention-detail-overlay";
+import {
+  DetectionFlowPanel,
+  type DetectionLaneId,
+} from "@/components/risk-dashboard/detection-flow-panel";
 import styles from "./components/interventions.module.css";
 
 type LevelFilter = "all" | AdvisoryInterventionLevel;
@@ -45,18 +49,6 @@ const FACTOR_LABELS: Record<FactorFilter, string> = {
   attendance: "Attendance",
   behavioral: "Anecdotal",
 };
-const OUTCOME_LABELS: Record<OutcomeFilter, string> = {
-  all: "All states",
-  ongoing: "Ongoing",
-  resolved: "Resolved",
-  unresolved: "Unresolved",
-  none: "No plan yet",
-};
-
-const LEVEL_OPTIONS = LEVEL_VALUES.map((value) => ({ value, label: LEVEL_LABELS[value] }));
-const FACTOR_OPTIONS = FACTOR_VALUES.map((value) => ({ value, label: FACTOR_LABELS[value] }));
-const OUTCOME_OPTIONS = OUTCOME_VALUES.map((value) => ({ value, label: OUTCOME_LABELS[value] }));
-
 // Same ordering the backend applies: risk level, then flag count, then name.
 const LEVEL_RANK: Record<string, number> = { High: 0, Moderate: 1, Low: 2 };
 
@@ -91,6 +83,54 @@ function AdviserInterventionsPageInner() {
   const allRows = React.useMemo(() => query.data?.data ?? [], [query.data]);
   const sections = query.data?.sections ?? [];
 
+  // Per-tab totals for the glass tags — each filter group counts the whole
+  // loaded board, so the chips never lie about what the tab can show.
+  const tabCounts = React.useMemo(() => {
+    const base = {
+      academic: 0,
+      attendance: 0,
+      behavioral: 0,
+      ongoing: 0,
+      resolved: 0,
+      unresolved: 0,
+      none: 0,
+    };
+    const bySection: Record<string, number> = {};
+    for (const row of allRows) {
+      if (row.factors.academic) base.academic += 1;
+      if (row.factors.attendance) base.attendance += 1;
+      if (row.factors.behavioral) base.behavioral += 1;
+      const outcome = row.intervention?.outcomeStatus;
+      if (!row.intervention) base.none += 1;
+      else if (outcome === "ongoing") base.ongoing += 1;
+      else if (outcome === "resolved") base.resolved += 1;
+      else if (outcome === "unresolved") base.unresolved += 1;
+      bySection[row.sectionId] = (bySection[row.sectionId] ?? 0) + 1;
+    }
+    return { base, bySection };
+  }, [allRows]);
+
+  const factorOptions = [
+    { value: "all" as FactorFilter, label: FACTOR_LABELS.all, count: allRows.length, tone: "neutral" as const },
+    {
+      value: "academic" as FactorFilter,
+      label: FACTOR_LABELS.academic,
+      count: tabCounts.base.academic,
+      tone: "amber" as const,
+    },
+    {
+      value: "attendance" as FactorFilter,
+      label: FACTOR_LABELS.attendance,
+      count: tabCounts.base.attendance,
+      tone: "blue" as const,
+    },
+    {
+      value: "behavioral" as FactorFilter,
+      label: FACTOR_LABELS.behavioral,
+      count: tabCounts.base.behavioral,
+      tone: "red" as const,
+    },
+  ];
   const filtered = React.useMemo(() => {
     const needle = queryInput.trim().toLowerCase();
     return allRows
@@ -154,10 +194,6 @@ function AdviserInterventionsPageInner() {
     if (page !== 1) setPage(1);
   };
 
-  const setLevel = (value: LevelFilter) => {
-    setLevelState(value);
-    pager.setFilters({ level: value === "all" ? undefined : value });
-  };
   const setFactor = (value: FactorFilter) => {
     setFactorState(value);
     pager.setFilters({ factor: value === "all" ? undefined : value });
@@ -173,10 +209,15 @@ function AdviserInterventionsPageInner() {
 
   const sectionOptions = React.useMemo(
     () => [
-      { value: "all", label: "All sections" },
-      ...sections.map((section) => ({ value: section.id, label: section.name })),
+      { value: "all", label: "All sections", count: allRows.length, tone: "neutral" as const },
+      ...sections.map((section) => ({
+        value: section.id,
+        label: section.name,
+        count: tabCounts.bySection[section.id] ?? 0,
+        tone: "neutral" as const,
+      })),
     ],
-    [sections],
+    [sections, tabCounts, allRows.length],
   );
 
   const [selected, setSelected] = React.useState<AdvisoryInterventionRow | null>(null);
@@ -185,12 +226,32 @@ function AdviserInterventionsPageInner() {
     ? allRows.find((row) => row.key === selected.key) ?? selected
     : null;
 
-  const hasActiveFilters =
-    queryInput.trim() !== "" ||
-    level !== "all" ||
-    factor !== "all" ||
-    outcome !== "all" ||
-    sectionId !== "all";
+  // The detection-flow panel mirrors the filters: a factor lane drives the
+  // factor tab, the two pipeline lanes drive the state tab.
+  const activeLane: DetectionLaneId | null =
+    factor !== "all"
+      ? factor
+      : outcome === "none"
+        ? "noPlan"
+        : outcome === "ongoing"
+          ? "followUp"
+          : null;
+
+  const handleLaneSelect = (lane: DetectionLaneId) => {
+    if (lane === "noPlan" || lane === "followUp") {
+      if (factor !== "all") setFactor("all");
+      const next = lane === "noPlan" ? "none" : "ongoing";
+      setOutcome(outcome === next ? "all" : next);
+      return;
+    }
+    if (outcome !== "all") setOutcome("all");
+    setFactor(factor === lane ? "all" : lane);
+  };
+
+  // The search field carries its own clear (X), so a no-match caused by typing
+  // gets the inline message only; the button exists for chip filters.
+  const hasFilterChips =
+    level !== "all" || factor !== "all" || outcome !== "all" || sectionId !== "all";
 
   const levelNoun =
     level === "High"
@@ -202,60 +263,7 @@ function AdviserInterventionsPageInner() {
           : "at-risk advisee";
 
   if (query.isPending && !query.data) {
-    return (
-      <section className={styles.page} aria-busy="true" aria-label="Loading interventions">
-        <div className="flex flex-col gap-2 rounded-xl border border-border p-2.5">
-          <div className="relative -mx-2.5 flex items-center gap-2 border-b border-border px-3.5 pb-2">
-            <span className="inline-flex min-w-0 flex-1 items-center gap-1.5">
-              <Skeleton className="size-3.5 shrink-0 rounded" />
-              <Skeleton className="h-3.5 w-32" />
-            </span>
-            <div className="pointer-events-none absolute left-1/2 top-1/2 flex -translate-x-1/2 -translate-y-1/2 items-center">
-              <Skeleton className="h-6 w-56 rounded-md" />
-            </div>
-            <span className="flex shrink-0 items-center justify-end gap-2">
-              <Skeleton className="h-8 w-64 max-w-full rounded-2xl" />
-            </span>
-          </div>
-          <div className="px-1">
-            <Skeleton className="h-3 w-72 max-w-[90%]" />
-          </div>
-          <div className={styles.caseList}>
-            {[0, 1, 2, 3, 4, 5, 6, 7].map((card) => (
-              <div key={card} className={styles.skelCaseRow}>
-                <div className="flex items-center gap-2">
-                  <Skeleton className={styles.skelAvatar} />
-                  <div className={styles.skelCaseLines}>
-                    <Skeleton className={styles.skelBar} style={{ width: "60%" }} />
-                    <div className="flex flex-wrap gap-1">
-                      <Skeleton className={styles.skelPill} />
-                      <Skeleton className={styles.skelPill} style={{ width: "2.75rem" }} />
-                    </div>
-                  </div>
-                  <Skeleton className={styles.skelPill} style={{ width: "3.5rem" }} />
-                </div>
-                <div className="mt-6 flex flex-wrap gap-1.5">
-                  <Skeleton className={styles.skelPill} style={{ width: "5rem" }} />
-                  <Skeleton className={styles.skelPill} style={{ width: "4rem" }} />
-                </div>
-                <div className="mt-auto flex items-center justify-between border-t border-border pt-2">
-                  <Skeleton className={styles.skelPill} style={{ width: "4rem" }} />
-                  <Skeleton className={styles.skelPill} style={{ width: "3.5rem" }} />
-                </div>
-              </div>
-            ))}
-          </div>
-          <div className={styles.skelPager}>
-            <Skeleton className={styles.skelRange} />
-            <div className={styles.skelPagerBtns}>
-              <Skeleton className={styles.skelPageBtn} />
-              <Skeleton className={styles.skelPageLabel} />
-              <Skeleton className={styles.skelPageBtn} />
-            </div>
-          </div>
-        </div>
-      </section>
-    );
+    return <InterventionsSkeleton />;
   }
 
   if (query.isError && !query.data) {
@@ -270,126 +278,151 @@ function AdviserInterventionsPageInner() {
     );
   }
 
-  if (allRows.length === 0) {
-    return (
-      <section className={styles.page} aria-label="Advisory interventions">
-        <div className="relative flex h-full min-h-[calc(100dvh-9rem)] w-full items-center justify-center">
-          <InsightCallout role="status" className="w-full max-w-xl self-center text-left">
-            <strong>No advisees flagged this term.</strong> Learners flagged by the risk
-            engine, or with a guidance follow-up, will appear here.
-          </InsightCallout>
-        </div>
-      </section>
-    );
-  }
-
   return (
     <section className={styles.page} aria-label="Advisory interventions">
-      <KanbanBoard
-        title="Intervention cases"
-        className={styles.boardIn}
-        icon={
-          <span className="text-amber-600 dark:text-amber-400" aria-hidden>
-            <HeartHandshake size={14} />
-          </span>
-        }
-        headerCenter={
-          <div className="flex flex-wrap items-center gap-2">
-            <FilterTabs
-              label="Filter cases by risk level"
-              options={LEVEL_OPTIONS}
-              value={level}
-              onChange={setLevel}
-              tone="blue"
-            />
-            {sections.length > 1 ? (
-              <>
-                <span className="h-4 w-px bg-border" aria-hidden />
-                <FilterTabs
-                  label="Filter cases by advisory section"
-                  options={sectionOptions}
-                  value={sectionId}
-                  onChange={setSection}
-                  tone="amber"
-                />
-              </>
-            ) : null}
+      <div className={styles.boardShell}>
+        <header className={styles.header}>
+          <div className={styles.headerText}>
+            <div className={styles.titleRow}>
+              <span className={styles.titleIcon} aria-hidden>
+                <HeartHandshake size={16} />
+              </span>
+              <h2 className={styles.title}>Intervention cases</h2>
+            </div>
+            <p className={styles.subtitle}>
+              {allRows.length === 0
+                ? "Risk flags and guidance follow-ups for your advisees appear here once the risk engine detects them."
+                : filtered.length === 0
+                  ? `No ${levelNoun}s match this view right now.`
+                  : "Risk flags and guidance follow-ups for your advisees this term — live, read-only from the guidance desk."}
+            </p>
           </div>
-        }
-        description={
-          filtered.length === 0
-            ? `No ${levelNoun}s right now`
-            : "Risk flags and guidance follow-ups for your advisees this term."
-        }
-        actions={
-          <div className={styles.headerActions}>
-            <div className={styles.searchWrap}>
-              <Search className={styles.searchIcon} aria-hidden />
-              <Input
-                className={styles.search}
-                style={{ height: "2rem", borderRadius: "16px" }}
-                placeholder="Search advisee or LRN…"
+          {allRows.length > 0 ? (
+            <div className={styles.headerActions}>
+              <Pill tone="amber" className={styles.countPill}>
+                {filtered.length} case{filtered.length === 1 ? "" : "s"}
+              </Pill>
+            </div>
+          ) : null}
+        </header>
+
+        {allRows.length > 0 ? (
+          <>
+            <div className={styles.toolbar}>
+              <div className={styles.toolbarFilters}>
+                {sections.length > 1 ? (
+                  <FilterTabs
+                    label="Filter cases by advisory section"
+                    options={sectionOptions}
+                    value={sectionId}
+                    onChange={setSection}
+                    variant="tags"
+                  />
+                ) : null}
+                <FilterTabs
+                  label="Filter cases by risk factor"
+                  options={factorOptions}
+                  value={factor}
+                  onChange={setFactor}
+                  variant="tags"
+                />
+              </div>
+              <TeacherSearchField
+                className="w-60 max-w-full"
+                placeholder="Search advisee, LRN, or section…"
                 value={queryInput}
-                onChange={(event) => handleQueryChange(event.target.value)}
+                onChange={handleQueryChange}
                 aria-label="Search advisee or LRN"
               />
             </div>
-          </div>
-        }
-        toolbar={
-          <div className="flex flex-wrap items-center justify-center gap-2 px-1">
-            <FilterTabs
-              label="Filter cases by risk factor"
-              options={FACTOR_OPTIONS}
-              value={factor}
-              onChange={setFactor}
-              tone="amber"
-            />
-            <span className="h-4 w-px bg-border" aria-hidden />
-            <FilterTabs
-              label="Filter cases by intervention state"
-              options={OUTCOME_OPTIONS}
-              value={outcome}
-              onChange={setOutcome}
-              tone="green"
-            />
-          </div>
-        }
-        footer={
-          filtered.length > 0 ? (
-            <Pagination
-              currentPage={safePage}
-              totalItems={filtered.length}
-              pageSize={ADVISORY_INTERVENTIONS_PAGE_SIZE}
-              onPageChange={setPage}
-            />
-          ) : null
-        }
-      >
-        {pageRows.length === 0 ? (
-          <div className="flex w-full justify-center py-6">
-            <InsightCallout role="status">
-              {hasActiveFilters
-                ? queryInput.trim()
-                  ? `No cases match “${queryInput.trim()}”.`
-                  : "No cases match your filters."
-                : "No advisees flagged this term. Learners flagged by the risk engine, or with a guidance follow-up, will appear here."}
-            </InsightCallout>
-          </div>
+          </>
+        ) : null}
+
+        {allRows.length === 0 || pageRows.length === 0 ? (
+          <PageEmptyCallout
+            fit={allRows.length === 0}
+            action={
+              hasFilterChips ? (
+                <button
+                  type="button"
+                  className="h-6 rounded-md border border-border bg-card px-2.5 text-[12px] text-foreground transition-colors hover:bg-muted"
+                  onClick={() => {
+                    setQueryInput("");
+                    setLevelState("all");
+                    setFactorState("all");
+                    setOutcomeState("all");
+                    setSectionIdState("all");
+                    pager.setFilters({
+                      level: undefined,
+                      factor: undefined,
+                      outcome: undefined,
+                      section: undefined,
+                    });
+                  }}
+                >
+                  Clear filters
+                </button>
+              ) : undefined
+            }
+          >
+            {allRows.length === 0 ? (
+              <>
+                <strong>No advisees flagged this term.</strong> Learners flagged by the risk
+                engine, or with a guidance follow-up, will appear here.
+              </>
+            ) : queryInput.trim() ? (
+              <>{searchEmptyMessage(queryInput, "cases", "Try another name, LRN, or section.")}</>
+            ) : (
+              <>{searchEmptyMessage("", "cases")}</>
+            )}
+          </PageEmptyCallout>
         ) : (
-          <ul className={styles.caseList} aria-label="Intervention cases on the advisory desk">
-            {pageRows.map((row, index) => (
-              <InterventionRowCard
-                key={row.key}
-                row={row}
-                index={index}
-                now={now}
-                onOpen={setSelected}
-              />
-            ))}
-          </ul>
+          <div className={styles.listPanel}>
+            <div className={styles.listHead} aria-hidden="true">
+              <span>Advisee</span>
+              <span>Risk</span>
+              <span className={styles.headSection}>Section</span>
+              <span>Factors</span>
+              <span>Pipeline</span>
+              <span className={styles.headSessions}>Sessions</span>
+              <span>Flagged</span>
+              <span />
+            </div>
+            <ul className={styles.listBody} aria-label="Intervention cases on the advisory desk">
+              {pageRows.map((row, index) => (
+                <InterventionRowCard
+                  key={row.key}
+                  row={row}
+                  index={index}
+                  now={now}
+                  onOpen={setSelected}
+                />
+              ))}
+            </ul>
+          </div>
         )}
-      </KanbanBoard>
+
+        {filtered.length > 0 ? (
+          <Pagination
+            currentPage={safePage}
+            totalItems={filtered.length}
+            pageSize={ADVISORY_INTERVENTIONS_PAGE_SIZE}
+            onPageChange={setPage}
+          />
+        ) : null}
+      </div>
+
+      {allRows.length > 0 && query.data ? (
+        <aside className={styles.flowAside} aria-label="Detection flow summary">
+          <DetectionFlowPanel
+            rows={allRows}
+            summary={query.data.summary}
+            now={now}
+            activeLane={activeLane}
+            onLaneSelect={handleLaneSelect}
+          />
+        </aside>
+      ) : null}
 
       <InterventionDetailOverlay row={selectedRow} onClose={() => setSelected(null)} />
     </section>

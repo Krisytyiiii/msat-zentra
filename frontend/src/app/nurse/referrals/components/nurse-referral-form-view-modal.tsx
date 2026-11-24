@@ -2,10 +2,10 @@
 import * as React from "react";
 import { Button } from "@/components/ui/button";
 import { KanbanModal } from "@/components/ui/kanban-modal";
-import { Skeleton } from "@/components/ui/skeleton";
 import { FileDown, ImageDown, Loader2, Printer } from "lucide-react";
 import type { GcForm03Data } from "@/services/guidance/gcform03.types";
 import sheetStyles from "@/app/guidance/adm/components/GcForm03PreviewDialog.module.css";
+import { GcForm03SheetSkeleton } from "@/app/guidance/adm/components/GcForm03SheetSkeleton";
 import { apiErrorMessage } from "@/lib/api/errors";
 import { forwardNurseAdmCase } from "@/services/nurse/referrals.service";
 import type { NurseQueueRow } from "@/services/nurse/nurse.types";
@@ -274,51 +274,7 @@ export function NurseReferralFormViewModal({
         </span>
       }
     >
-        {loading ? (
-          <div
-            aria-busy="true"
-            role="status"
-            aria-label="Loading referral form"
-          >
-            <div
-              className={`gcform03-print-sheet ${sheetStyles.exportWrap}`}
-              aria-hidden="true"
-            >
-              <div style={{ display: "flex", gap: "1rem", alignItems: "flex-start", marginBottom: "0.5rem" }}>
-                <Skeleton style={{ width: "9rem", height: "2rem", flexShrink: 0 }} />
-                <div style={{ display: "flex", flexDirection: "column", gap: "0.375rem", flex: 1 }}>
-                  <Skeleton style={{ width: "70%", height: "1.125rem" }} />
-                  <Skeleton style={{ width: "50%", height: "0.875rem" }} />
-                </div>
-              </div>
-              <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "0.5rem" }}>
-                {[0, 1, 2, 3].map((i) => (
-                  <div key={i} style={{ display: "flex", gap: "0.5rem", alignItems: "baseline" }}>
-                    <Skeleton style={{ width: "38%", height: "0.8125rem", flexShrink: 0 }} />
-                    <Skeleton style={{ width: "58%", height: "1.25rem" }} />
-                  </div>
-                ))}
-              </div>
-              <div style={{ display: "flex", flexWrap: "wrap", gap: "0.5rem", marginTop: "0.75rem" }}>
-                {[0, 1, 2, 3, 4].map((i) => (
-                  <Skeleton key={i} style={{ width: "7rem", height: "1.375rem", borderRadius: "4px" }} />
-                ))}
-              </div>
-              <div style={{ marginTop: "0.75rem" }}>
-                <Skeleton style={{ width: "45%", height: "0.8125rem" }} />
-                <Skeleton style={{ width: "100%", height: "4.5rem", marginTop: "0.3125rem" }} />
-              </div>
-              <div style={{ marginTop: "0.75rem" }}>
-                <Skeleton style={{ width: "55%", height: "0.8125rem" }} />
-                <Skeleton style={{ width: "100%", height: "4.5rem", marginTop: "0.3125rem" }} />
-              </div>
-              <div style={{ marginTop: "0.75rem" }}>
-                <Skeleton style={{ width: "60%", height: "0.8125rem" }} />
-                <Skeleton style={{ width: "100%", height: "1.5rem", marginTop: "0.3125rem" }} />
-              </div>
-            </div>
-          </div>
-        ) : null}
+        {loading ? <GcForm03SheetSkeleton /> : null}
         {loadError ? (
           <p className={styles.errorText} role="alert">{loadError}</p>
         ) : null}

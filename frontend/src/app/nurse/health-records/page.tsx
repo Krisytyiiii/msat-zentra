@@ -4,15 +4,13 @@ import { keepPreviousData, useQuery } from "@tanstack/react-query";
 import { Button } from "@/components/ui/button";
 import { FolderOpen, Loader2 } from "lucide-react";
 import { Skeleton } from "@/components/ui/skeleton";
-import { ZentraPaginationSkeleton } from "@/components/shared/zentra-skeletons/ZentraSkeletons";
+import { PolaroidStackSkeleton } from "@/components/aicanvas/polaroid-stack";
 import { NurseEmptyCard } from "../components/NurseEmptyCard";
 import { fetchNurseAlerts } from "@/services/nurse/alerts.service";
 import type { NurseAlertsPage } from "@/services/nurse/nurse.types";
 import { useTerm } from "@/lib/term/TermContext";
 import { liveQueryOptions } from "@/lib/api/live";
 import { NurseDocumentariesList } from "./components/NurseDocumentariesList";
-import { HealthRecordCardSkeleton } from "./components/HealthRecordCardSkeleton";
-import listStyles from "./components/NurseDocumentariesList.module.css";
 import styles from "./health-records-page.module.css";
 import pageStyles from "../pages.module.css";
 import { PAGE_SIZE } from "@/components/shared/pagination";
@@ -38,12 +36,7 @@ export default function NurseHealthRecordsPage() {
           <div className="flex flex-wrap items-center justify-end gap-2">
             <Skeleton className="h-8 w-56 max-w-full shrink-0 rounded-[16px]" />
           </div>
-          <div className={listStyles.grid}>
-            {Array.from({ length: 8 }).map((_, i) => (
-              <HealthRecordCardSkeleton key={i} />
-            ))}
-          </div>
-          <ZentraPaginationSkeleton />
+          <PolaroidStackSkeleton />
         </div>
       </section>
     );

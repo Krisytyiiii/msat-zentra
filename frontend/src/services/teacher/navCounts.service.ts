@@ -38,7 +38,7 @@ const ROUTE_KEYS: Record<string, keyof TeacherNavQueues> = {
   "/teacher/overview": "overview",
   "/teacher/advisory/list": "advisoryList",
   "/teacher/advisory/attendance": "adviseeAttendance",
-  "/teacher/advisory/students": "adviseeAcademic",
+  "/teacher/advisory/academics": "adviseeAcademic",
   "/teacher/anecdotal": "anecdotal",
   "/teacher/advisory/referrals": "referrals",
   "/teacher/advisory/interventions": "interventions",

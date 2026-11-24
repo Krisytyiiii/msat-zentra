@@ -3,6 +3,7 @@
 import * as React from "react";
 import { useRouter } from "next/navigation";
 import {
+  ArrowUpRight,
   CalendarClock,
   CalendarPlus,
   History,
@@ -13,7 +14,6 @@ import {
 import { Button } from "@/components/ui/button";
 import { FilterTabs } from "@/components/ui/filter-tabs";
 import { Pill, type PillTone } from "@/components/ui/pill";
-import { KanbanBoard } from "@/components/ui/kanban-board";
 import { InsightCallout } from "@/components/ui/insight-callout";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import {
@@ -22,6 +22,7 @@ import {
   TooltipProvider,
   TooltipTrigger,
 } from "@/components/ui/tooltip";
+import { ShimmerGroup } from "@/components/ui/shimmer-skeleton";
 import { StudentMascot } from "@/components/student-mascot/StudentMascot";
 import {
   admCaseStatusVariant,
@@ -36,12 +37,18 @@ import {
 } from "@/services/coordinator/labels";
 import { formatElapsedShort, msSinceDate } from "@/lib/clock";
 import { toSlug } from "@/lib/slug";
+import { usePersistentState } from "@/lib/hooks/usePersistentState";
 import type { AdmCaseRow } from "@/services/coordinator/coordinator.types";
 import type { HistoryTarget } from "../../components/CaseHistoryDialog";
 import { historyTargetFor } from "../../components/CaseHistoryDialog";
 import { CoordinatorEmptyState } from "../../components/CoordinatorEmptyCard";
-import { CoordinatorReferralsSkeleton, CoordinatorReferralsCardsSkeleton } from "./coordinator-referrals-skeleton";
-import { CoordinatorReferralsFilters } from "./coordinator-referrals-header";
+import {
+  CoordinatorReferralsSkeleton,
+  CoordinatorReferralsCardsSkeleton,
+  CoordinatorReferralsTableSkeleton,
+} from "./coordinator-referrals-skeleton";
+import { CoordinatorReferralsTable } from "./coordinator-referrals-table";
+import { CoordinatorReferralDetailOverlay } from "./coordinator-referral-detail-overlay";
 import {
   BookedMeetingInfoContent,
   type BookedMeetingInfo,
@@ -72,6 +79,18 @@ const STATUS_TONE: Record<
   red: "red",
 };
 
+/* Dot tone per status tab — the same glass-tag palette as the nurse case
+   boards (amber = needs a look, blue = scheduled, green = endorsed). */
+const STATUS_TAB_TONE: Record<
+  StatusTabKey,
+  "amber" | "blue" | "green" | "neutral"
+> = {
+  all: "neutral",
+  booked: "blue",
+  need_review: "amber",
+  endorsed: "green",
+};
+
 function rowMeetingInfo(r: AdmCaseRow): BookedMeetingInfo | null {
   const m = r.meeting;
   if (!m) return null;
@@ -97,7 +116,6 @@ interface CoordinatorReferralsBoardProps {
   isRefetching: boolean;
   total: number;
   query: string;
-  onQueryChange: (v: string) => void;
   hasActiveFilters: boolean;
 
   bookPendingId: string | null;
@@ -121,7 +139,6 @@ export function CoordinatorReferralsBoard({
   isError,
   isRefetching,
   query,
-  onQueryChange,
   hasActiveFilters,
   bookPendingId,
   now,
@@ -132,6 +149,13 @@ export function CoordinatorReferralsBoard({
   const router = useRouter();
 
   const [statusTab, setStatusTab] = React.useState<StatusTabKey>("all");
+  const [detailTarget, setDetailTarget] = React.useState<AdmCaseRow | null>(
+    null,
+  );
+  const [view, setView] = usePersistentState<"grid" | "table">(
+    "zentra.coordinator.referrals.view.v2",
+    "table",
+  );
 
   const counts = React.useMemo<Record<StatusTabKey, number>>(() => {
     let booked = 0;
@@ -179,28 +203,40 @@ export function CoordinatorReferralsBoard({
     );
   }, [rows, statusTab, searchTerm]);
 
-  const filters = (
-    <CoordinatorReferralsFilters
-      query={query}
-      onQueryChange={onQueryChange}
-    />
-  );
-
   const statusTabs = (
     <FilterTabs
       label="Filter cases by status"
+      variant="tags"
       options={STATUS_TABS.map((t) => ({
         value: t.key,
         label: t.label,
-        count: counts[t.key],
+        count: counts[t.key] > 0 ? counts[t.key] : undefined,
+        tone: STATUS_TAB_TONE[t.key],
       }))}
       value={statusTab}
       onChange={setStatusTab}
     />
   );
 
+  const viewToggle = (
+    <FilterTabs
+      label="Switch case layout"
+      variant="tags"
+      options={[
+        { value: "grid", label: "Grid", tone: "amber" },
+        { value: "table", label: "Table", tone: "blue" },
+      ]}
+      value={view}
+      onChange={setView}
+    />
+  );
+
   if (isInitialLoading) {
-    return <CoordinatorReferralsSkeleton rows={9} layout="board" />;
+    return (
+      <ShimmerGroup>
+        <CoordinatorReferralsSkeleton rows={12} layout="board" />
+      </ShimmerGroup>
+    );
   }
 
   if (isError) {
@@ -227,49 +263,48 @@ export function CoordinatorReferralsBoard({
 
   if (rows.length === 0 && !hasActiveFilters) {
     return (
-      <KanbanBoard
-        title="Referrals"
-        icon={
-          <span className="text-primary" aria-hidden>
-            <Share2 size={14} />
-          </span>
-        }
-        description="Every student referred for Alternative Delivery Mode."
-        ariaLabel="ADM referrals"
-        actions={filters}
-      >
+      <div className={styles.feed}>
         <CoordinatorEmptyState
           icon={Inbox}
           title="No referrals found"
           hint="New referrals will appear here once filed."
         />
-      </KanbanBoard>
+      </div>
     );
   }
 
   return (
-    <KanbanBoard
-      title="Referrals"
-      icon={
-        <span className="text-primary" aria-hidden>
-          <Share2 size={14} />
-        </span>
-      }
-      description="Every student referred for Alternative Delivery Mode."
-      ariaLabel="ADM referrals"
-      actions={filters}
-      headerCenter={statusTabs}
-    >
+    <div className={styles.feed}>
+      <div className={styles.toolbar}>
+        {statusTabs}
+        {viewToggle}
+      </div>
+
       {isPageLoading ? (
-        <CoordinatorReferralsCardsSkeleton rows={9} />
+        <ShimmerGroup>
+          {view === "table" ? (
+            <CoordinatorReferralsTableSkeleton rows={10} />
+          ) : (
+            <CoordinatorReferralsCardsSkeleton rows={12} />
+          )}
+        </ShimmerGroup>
       ) : rows.length === 0 || filteredRows.length === 0 ? (
-        <div className={styles.emptyCallout}>
+        <div className={styles.feedEmpty}>
           <InsightCallout role="status">
             {rows.length === 0 || searchTerm !== "" || hasActiveFilters
               ? "No referrals match your search or filters. Try a different name, LRN, or case ID."
               : "No cases in this view. Try a different status tab."}
           </InsightCallout>
         </div>
+      ) : view === "table" ? (
+        <CoordinatorReferralsTable
+          rows={filteredRows}
+          now={now}
+          bookPendingId={bookPendingId}
+          onHistory={onHistory}
+          onBook={onBook}
+          onOpenDetail={setDetailTarget}
+        />
       ) : (
         <ul className={styles.caseGrid} aria-label="ADM referrals">
           {filteredRows.map((r) => {
@@ -286,7 +321,10 @@ export function CoordinatorReferralsBoard({
             const bookable = isBookableRow(r);
             const closedRow =
               r.referralStatus === "dismissed" || r.referralStatus === "resolved";
-            const detailsHref = `/coordinator/referrals/${encodeURIComponent(toSlug(r.student))}`;
+            // Link by the row's own id (`referral:<uuid>` / profile uuid), not the
+            // learner-name slug: two referrals for the same learner slug would
+            // otherwise open a different case than the card that was clicked.
+            const detailsHref = `/coordinator/referrals/${encodeURIComponent(r.id)}`;
 
             return (
               <li
@@ -303,99 +341,152 @@ export function CoordinatorReferralsBoard({
                   }
                 }}
               >
-                <div className={styles.caseHead}>
-                  <StudentMascot name={r.student} seed={r.lrn} size={36} />
-                  <div className={styles.caseId}>
-                    <p className={styles.caseName} title={r.student}>
-                      {r.student}
-                    </p>
-                    <p className={styles.caseLrn}>{r.lrn}</p>
-                  </div>
-                </div>
-
-                <div className={styles.caseMeta}>
+                <header className={styles.caseHead}>
+                  <span className={styles.caseTitle}>
+                    <Share2 size={14} aria-hidden />
+                    <span className={styles.caseTitleText}>ADM case</span>
+                  </span>
                   <Pill
                     tone={STATUS_TONE[admCaseStatusVariant(caseStatus.key)]}
-                    className="shrink-0 rounded-md"
-                    label={stageLabel(r.stage)}
+                    className="ml-auto shrink-0"
+                    label="Case status"
                   >
                     {caseStatus.label}
                   </Pill>
-                  <Pill
-                    tone="neutral"
-                    label={`Eligibility: ${eligibilityLabel(r.eligibilityStatus)}`}
-                  >
-                    {eligibilityLabel(r.eligibilityStatus)}
-                  </Pill>
-                  {meeting ? (
-                    <>
-                      <Pill
-                        tone={meeting.attended ? "green" : "blue"}
-                        label={meeting.attended ? "Meeting attended" : "Booked meeting"}
-                      >
-                        <CalendarClock size={11} aria-hidden />
-                        {meeting.attended ? "Attended" : "Booked"}
-                      </Pill>
-                      <Pill tone="neutral" label="Meeting date">
-                        {formatManilaDateLong(meeting.datetime)}
-                      </Pill>
-                      <Pill tone="neutral" label="Meeting time">
-                        {formatManilaTime(meeting.datetime)}
-                      </Pill>
-                      <Pill tone="neutral" label="Venue">
-                        {venueLabel(meeting.venue)}
-                      </Pill>
-                    </>
-                  ) : (
-                    <Pill tone="neutral" label="Date referred">
-                      {rowDate ? formatManilaDateLong(rowDate) : "—"}
-                    </Pill>
-                  )}
-                </div>
-
-                <div className={styles.caseFoot}>
-                  <span className={styles.latestAction}>
-                    {r.lastActionType ? (
-                      <>
-                        <span className={styles.latestMain}>
-                          {friendlyActionType(r.lastActionType)}
-                        </span>
-                        <span className={styles.latestAt} aria-live="off">
-                          {(() => {
-                            const ms = r.lastActionAt
-                              ? msSinceDate(r.lastActionAt, now)
-                              : null;
-                            return ms === null
-                              ? "—"
-                              : `${formatElapsedShort(ms)} ago`;
-                          })()}
-                        </span>
-                      </>
-                    ) : (
-                      (() => {
-                        const fb = latestActionFallback(r);
-                        if (!fb) {
-                          return <span className={styles.latestMain}>—</span>;
-                        }
-                        const ms = msSinceDate(fb.at, now);
-                        return (
-                          <>
-                            <span className={styles.latestMain}>{fb.label}</span>
-                            <span className={styles.latestAt} aria-live="off">
-                              {ms === null
-                                ? "—"
-                                : `${formatElapsedShort(ms)} ago`}
-                            </span>
-                          </>
-                        );
-                      })()
-                    )}
-                  </span>
-                  <div
-                    className={styles.caseActions}
-                    onClick={(e) => e.stopPropagation()}
+                  <button
+                    type="button"
+                    className={styles.caseOpenBtn}
+                    title="Open case details"
+                    aria-label={`Open case details for ${r.student}`}
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      router.push(detailsHref);
+                    }}
                     onKeyDown={(e) => e.stopPropagation()}
                   >
+                    <ArrowUpRight size={14} aria-hidden="true" />
+                  </button>
+                </header>
+
+                <div className={styles.caseBody}>
+                  <span className={styles.identity}>
+                    <StudentMascot name={r.student} seed={r.lrn} size={36} />
+                    <span className={styles.idText}>
+                      <span className={styles.caseName} title={r.student}>
+                        {r.student}
+                      </span>
+                      <span className={styles.idPills}>
+                        <Pill label="LRN" className="tabular-nums">
+                          {r.lrn}
+                        </Pill>
+                        <Pill tone="blue" label="Grade level">
+                          {r.grade}
+                        </Pill>
+                      </span>
+                    </span>
+                  </span>
+
+                  <dl className={styles.factGrid}>
+                    <div className={styles.fact}>
+                      <dt className={styles.factLabel}>ADM stage</dt>
+                      <dd className={styles.factValue}>{stageLabel(r.stage)}</dd>
+                    </div>
+                    <div className={styles.fact}>
+                      <dt className={styles.factLabel}>Eligibility</dt>
+                      <dd className={styles.factValue}>
+                        {eligibilityLabel(r.eligibilityStatus)}
+                      </dd>
+                    </div>
+                  </dl>
+
+                  {meeting ? (
+                    <div className={styles.meeting}>
+                      <span className={styles.meetingIcon} aria-hidden>
+                        <CalendarClock size={15} />
+                      </span>
+                      <div className={styles.meetingBody}>
+                        <span className={styles.meetingTitle}>
+                          Parent meeting
+                          <Pill
+                            tone={meeting.attended ? "green" : "blue"}
+                            label={
+                              meeting.attended
+                                ? "Meeting attended"
+                                : "Booked meeting"
+                            }
+                          >
+                            {meeting.attended ? "Attended" : "Booked"}
+                          </Pill>
+                        </span>
+                        <span className={styles.meetingMeta}>
+                          {formatManilaDateLong(meeting.datetime)} ·{" "}
+                          {formatManilaTime(meeting.datetime)}
+                        </span>
+                        <span className={styles.meetingMeta}>
+                          {venueLabel(meeting.venue)}
+                        </span>
+                      </div>
+                    </div>
+                  ) : (
+                    <div className={styles.referred}>
+                      <CalendarPlus size={14} aria-hidden />
+                      <span>
+                        Referred{" "}
+                        {rowDate ? formatManilaDateLong(rowDate) : "—"}
+                      </span>
+                    </div>
+                  )}
+
+                  <div className={styles.caseFoot}>
+                    <div className={styles.latestAction}>
+                      <span className={styles.latestLabel}>Latest update</span>
+                      <span className={styles.latestRow}>
+                        {r.lastActionType ? (
+                          <>
+                            <span className={styles.latestMain}>
+                              {friendlyActionType(r.lastActionType)}
+                            </span>
+                            <span className={styles.latestAt} aria-live="off">
+                              {(() => {
+                                const ms = r.lastActionAt
+                                  ? msSinceDate(r.lastActionAt, now)
+                                  : null;
+                                return ms === null
+                                  ? "—"
+                                  : `${formatElapsedShort(ms)} ago`;
+                              })()}
+                            </span>
+                          </>
+                        ) : (
+                          (() => {
+                            const fb = latestActionFallback(r);
+                            if (!fb) {
+                              return (
+                                <span className={styles.latestMain}>—</span>
+                              );
+                            }
+                            const ms = msSinceDate(fb.at, now);
+                            return (
+                              <>
+                                <span className={styles.latestMain}>
+                                  {fb.label}
+                                </span>
+                                <span className={styles.latestAt} aria-live="off">
+                                  {ms === null
+                                    ? "—"
+                                    : `${formatElapsedShort(ms)} ago`}
+                                </span>
+                              </>
+                            );
+                          })()
+                        )}
+                      </span>
+                    </div>
+                    <div
+                      className={styles.caseActions}
+                      onClick={(e) => e.stopPropagation()}
+                      onKeyDown={(e) => e.stopPropagation()}
+                    >
                     {meetingInfo !== null ? (
                       <Popover>
                         <TooltipProvider delayDuration={100}>
@@ -473,11 +564,27 @@ export function CoordinatorReferralsBoard({
                     </Button>
                   </div>
                 </div>
+              </div>
               </li>
             );
           })}
         </ul>
       )}
-    </KanbanBoard>
+
+      <CoordinatorReferralDetailOverlay
+        row={detailTarget}
+        now={now}
+        bookPendingId={bookPendingId}
+        onClose={() => setDetailTarget(null)}
+        onHistory={(target) => {
+          setDetailTarget(null);
+          onHistory(target);
+        }}
+        onBook={(row) => {
+          setDetailTarget(null);
+          onBook(row);
+        }}
+      />
+    </div>
   );
 }

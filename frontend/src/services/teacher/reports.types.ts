@@ -94,8 +94,6 @@ export interface TeacherReportsPayload {
   };
   classes: TeacherReportClassRow[];
   distribution: { band: string; label: string; count: number; percent: number }[];
-  atRisk: TeacherReportAtRiskRow[];
-  pending: TeacherReportPendingRow[];
   activity: {
     anecdotal: number;
     referrals: { total: number; byStatus: { status: string; count: number }[] };

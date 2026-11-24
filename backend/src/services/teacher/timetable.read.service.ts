@@ -20,9 +20,15 @@ const VISIBLE_STATUSES = ["APPROVED", "SUBMITTED"] as const;
  * The teacher's timetable-linked subject/section pairs, deduped. Within one
  * school year the classes are shared by all three terms, so when the selected
  * term has no entries yet the most recent earlier term's pairs stand in —
- * grading and lock-grades must list the same classes as /teacher/classes.
+ * grading and lock-grades keep that year view. Pass `strictTerm` for the
+ * selected-term desks (My Classes, attendance), where a previous term's grid
+ * must not leak through.
  */
-export async function resolveTeacherClassPairs(teacherId: string, termId: string) {
+export async function resolveTeacherClassPairs(
+  teacherId: string,
+  termId: string,
+  opts: { strictTerm?: boolean } = {},
+) {
   const read = (t: string) =>
     prisma.sectionTimetableEntry.findMany({
       where: {
@@ -35,7 +41,7 @@ export async function resolveTeacherClassPairs(teacherId: string, termId: string
     });
 
   let rows = await read(termId);
-  if (rows.length === 0) {
+  if (rows.length === 0 && !opts.strictTerm) {
     const current = await prisma.term.findUnique({
       where: { id: termId },
       select: { termNumber: true, schoolYearId: true },
@@ -83,8 +89,18 @@ async function resolveLoadTermId(teacherId: string, termId: string) {
  * Attendance uses the meetup days + shared school-day shape to know when a
  * class is live; the absence sweep reads the same `SectionTimetableEntry` rows
  * server-side. The timetable editor lives on the administrator desk.
+ *
+ * `strictTerm` keeps `slots`/`config` on the selected term only. Attendance
+ * passes it: a sheet is written under the selected term and the hourly absence
+ * sweep only reads that term's grid, so falling back to an earlier term's
+ * slots there made the page list classes whose save the API then rejects
+ * (SUBJECT_NOT_OFFERED). The selected-term desks (attendance + My Classes)
+ * therefore ask for strict mode; grading/lock-grades keep the year fallback.
  */
-export async function getTeacherLoad(ctx: TeacherContext) {
+export async function getTeacherLoad(
+  ctx: TeacherContext,
+  opts: { strictTerm?: boolean } = {},
+) {
   const termId = ctx.termId;
   const empty = {
     classes: [],
@@ -94,9 +110,9 @@ export async function getTeacherLoad(ctx: TeacherContext) {
   };
   if (!termId) return empty;
 
-  const loadTermId = await resolveLoadTermId(ctx.userId, termId);
+  const loadTermId = opts.strictTerm ? termId : await resolveLoadTermId(ctx.userId, termId);
   const [classes, slots, configRow] = await Promise.all([
-    resolveTeacherClassPairs(ctx.userId, termId),
+    resolveTeacherClassPairs(ctx.userId, termId, { strictTerm: opts.strictTerm }),
     prisma.sectionTimetableEntry.findMany({
       where: {
         termId: loadTermId,

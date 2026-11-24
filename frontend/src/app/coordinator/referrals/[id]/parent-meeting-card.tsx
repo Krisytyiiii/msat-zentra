@@ -1,5 +1,4 @@
 "use client";
-import * as React from "react";
 import { Button } from "@/components/ui/button";
 import { Pill } from "@/components/ui/pill";
 import { friendlyWords, venueLabel } from "@/services/coordinator/labels";
@@ -28,18 +27,13 @@ export function ParentMeetingCard({
   onChanged: () => void;
   onAttendedConfirmed: () => void;
 }) {
-  const { timing, showCountdown, showOutcomeRecords, needsOutcome, needsAction } =
+  const { timing, showCountdown, showOutcomeRecords, needsOutcome } =
     useMeetingTiming(m, now, isLatest);
   const outcome = useMeetingOutcome(m, onChanged, onAttendedConfirmed);
-  const [wasNeedingOutcome, setWasNeedingOutcome] = React.useState(false);
-  if (needsAction !== wasNeedingOutcome) {
-    setWasNeedingOutcome(needsAction);
-    if (needsAction && !outcome.dialogOpen) {
-      outcome.setStep("idle");
-      outcome.setError(null);
-      outcome.setDialogOpen(true);
-    }
-  }
+  // Never force the outcome dialog open on a live/overdue meeting: it covers
+  // the card and hides "See attendance log", which is how the coordinator
+  // verifies the session before answering. The log modal itself carries the
+  // Yes / No outcome controls.
   return (
     <li
       className={styles.evidenceItem}

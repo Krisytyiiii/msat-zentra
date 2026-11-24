@@ -13,8 +13,7 @@ import {
   CommandInput,
 } from "@/components/ui/command";
 import { UserRound } from "lucide-react";
-import { KanbanAccountMenu } from "@/components/account/kanban-account-menu";
-import { useCollapsibleSidebar } from "@/components/nav/use-collapsible-sidebar";
+import { GlassUserMenu } from "@/components/account/glass-user-menu";
 import { useCoordinatorRealtime } from "@/lib/realtime/coordinatorChannel";
 import { useRoleGuard } from "@/lib/auth/useRoleGuard";
 import { CoordinatorNotificationsBell } from "./components/coordinator-notifications-bell";
@@ -35,8 +34,6 @@ function CoordinatorShell({ children }: { children: React.ReactNode }) {
   useCoordinatorRealtime(allowed);
   const [query, setQuery] = React.useState("");
   const profile = useCoordinatorProfileSettings();
-  const { collapsed: sidebarCollapsed } =
-    useCollapsibleSidebar("zentra.coordinator.sidebar.collapsed");
 
   const handleLogout = () => {
 
@@ -84,7 +81,7 @@ function CoordinatorShell({ children }: { children: React.ReactNode }) {
 
         <CoordinatorNotificationsBell />
 
-        <KanbanAccountMenu
+        <GlassUserMenu
           settingsHref="/coordinator/settings"
           onLogout={handleLogout}
         >
@@ -112,13 +109,11 @@ function CoordinatorShell({ children }: { children: React.ReactNode }) {
               </Avatar>
             )}
           </button>
-        </KanbanAccountMenu>
+        </GlassUserMenu>
       </header>
-      <CoordinatorSidebar collapsed={sidebarCollapsed} />
+      <CoordinatorSidebar />
       <div
-        className={`${styles.shell} ${styles.shellWithRail} ${
-          sidebarCollapsed ? styles.shellWithRailCollapsed : ""
-        }`}
+        className={`${styles.shell} ${styles.shellWithDock}`}
       >
         <main className={styles.main}>{children}</main>
       </div>

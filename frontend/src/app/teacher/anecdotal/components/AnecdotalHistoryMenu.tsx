@@ -5,12 +5,12 @@ import Link from "next/link";
 import { format, isToday, isYesterday } from "date-fns";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { TeacherSearchField, searchEmptyMessage } from "@/app/teacher/components/TeacherSearchField";
 import {
   Check,
   Folder,
   Pencil,
   Plus,
-  Search,
   Trash2,
   X,
 } from "lucide-react";
@@ -79,22 +79,19 @@ export function AnecdotalHistoryMenu({
         New chat
       </Button>
 
-      <div className={styles.searchWrap}>
-        <Search className={styles.searchIcon} aria-hidden />
-        <Input
-          value={query}
-          onChange={(e) => setQuery(e.target.value)}
-          placeholder="Search chats…"
-          aria-label="Search chat history"
-          className={styles.search}
-        />
-      </div>
+      <TeacherSearchField
+        className="w-full"
+        value={query}
+        onChange={setQuery}
+        placeholder="Search chats…"
+        aria-label="Search chat history"
+      />
 
       <div className={styles.listScroll}>
         {visible.length === 0 ? (
           <p className={styles.empty}>
             {needle
-              ? `No chats match "${query}".`
+              ? searchEmptyMessage(query, "chats", "Try a different title.")
               : "No conversations yet — start a new chat."}
           </p>
         ) : (

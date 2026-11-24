@@ -5,6 +5,7 @@ import { Button } from "@/components/ui/button";
 import { KanbanModal } from "@/components/ui/kanban-modal";
 import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
+import { ShimmerGroup } from "@/components/ui/shimmer-skeleton";
 import {
   Tooltip,
   TooltipContent,
@@ -507,10 +508,51 @@ export function OcForm01PreviewDialog({
       }
     >
       {loading ? (
-        <div className="flex flex-col gap-2 py-4" aria-busy="true" aria-label="Loading official template">
-          <Skeleton className="h-3.5 w-full" />
-          <Skeleton className="h-3.5 w-full" />
-          <Skeleton className="h-3.5 w-[55%]" />
+        <div
+          className="flex justify-center py-4"
+          aria-busy="true"
+          aria-label="Loading official template"
+        >
+          <ShimmerGroup className="w-full">
+            <div className={styles.sheetSkeleton} aria-hidden>
+              {/* DepEd letterhead: logos flanking the school block. */}
+              <div className="flex items-start justify-between gap-4">
+                <Skeleton className="h-12 w-24 shrink-0 rounded-md" />
+                <div className="flex min-w-0 flex-1 flex-col items-center gap-1.5">
+                  <Skeleton className="h-2.5 w-36" />
+                  <Skeleton className="h-2.5 w-44" />
+                  <Skeleton className="h-2.5 w-52" />
+                  <Skeleton className="h-3.5 w-60 max-w-full" />
+                  <Skeleton className="h-2.5 w-40" />
+                </div>
+                <Skeleton className="size-12 shrink-0 rounded-full" />
+              </div>
+
+              <Skeleton className="mt-5 h-[2px] w-full rounded-none" />
+              <Skeleton className="mt-3 h-4 w-44" />
+              <Skeleton className="mt-1.5 h-2.5 w-24" />
+              <Skeleton className="mx-auto mt-4 h-3 w-28" />
+
+              {/* Field rows of the form table. */}
+              <div className={styles.sheetSkeletonBody}>
+                {[0, 1, 2, 3].map((row) => (
+                  <div key={row} className="flex items-center gap-3">
+                    <Skeleton className="h-2.5 w-24 shrink-0" />
+                    <Skeleton className="h-2.5 flex-1" />
+                    <Skeleton className="h-2.5 w-24 shrink-0" />
+                    <Skeleton className="h-2.5 flex-1" />
+                  </div>
+                ))}
+                <div className="flex flex-col gap-2 pt-1">
+                  <Skeleton className="h-2.5 w-40" />
+                  {[0, 1, 2, 3].map((line) => (
+                    <Skeleton key={line} className="h-2.5 w-full" />
+                  ))}
+                  <Skeleton className="h-2.5 w-[62%]" />
+                </div>
+              </div>
+            </div>
+          </ShimmerGroup>
         </div>
       ) : error ? (
         <p className="text-sm text-destructive py-4">{error}</p>

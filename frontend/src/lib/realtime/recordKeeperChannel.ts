@@ -17,9 +17,6 @@ import {
 const RECORD_KEEPER_KEYS = [
   ["record-keeper-overview"],
   ["record-keeper-final-grades"],
-  ["record-keeper-pending-students"],
-  ["record-keeper-account-breakdown"],
-  ["record-keeper-accounts-audit"],
   ["record-keeper-sf10"],
   ["record-keeper-adviser-access"],
   ["record-keeper-subjects"],
@@ -34,13 +31,6 @@ function keysForNotification(
 ): KeyTuple[] {
   const bell: KeyTuple = ["record-keeper-notifications"];
   switch (row.sourceTable) {
-    case "users":
-      return [
-        ["record-keeper-pending-students"],
-        ["record-keeper-account-breakdown"],
-        ["record-keeper-overview"],
-        bell,
-      ];
     case "final_grades":
       return [["record-keeper-final-grades"], ["record-keeper-overview"], bell];
     case "adviser_sf10_access_requests":
@@ -50,12 +40,7 @@ function keysForNotification(
     case "subjects":
     case "sections":
     case "teacher_subject_assignments":
-      return [
-        ["record-keeper-overview"],
-        ["record-keeper-account-breakdown"],
-        ["record-keeper-subjects"],
-        bell,
-      ];
+      return [["record-keeper-overview"], ["record-keeper-subjects"], bell];
     default:
       return [...RECORD_KEEPER_KEYS];
   }

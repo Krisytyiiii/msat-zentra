@@ -3,6 +3,7 @@
 import * as React from "react";
 import {
   CalendarClock,
+  Check,
   ClipboardCheck,
   ListChecks,
   Loader2,
@@ -21,6 +22,7 @@ import {
   ClinicTimePicker,
 } from "@/app/nurse/overview/components/ClinicDateTimePicker";
 import styles from "./BookSessionDialog.module.css";
+import board from "./FinishSessionDialog.board.module.css";
 
 export interface FinishSessionFields {
   sessionNotes: string;
@@ -55,8 +57,27 @@ interface FinishSessionDialogProps {
   idPrefix?: string;
 }
 
+/** Local calendar day — follow-up values are local wall-clock time, so a UTC
+    key would let yesterday stay pickable for eight hours every evening. */
 function todayKey(): string {
-  return new Date().toISOString().slice(0, 10);
+  const n = new Date();
+  const m = String(n.getMonth() + 1).padStart(2, "0");
+  const d = String(n.getDate()).padStart(2, "0");
+  return `${n.getFullYear()}-${m}-${d}`;
+}
+
+/** Local current time as "HH:MM" — the floor for today's follow-up clock. */
+function currentTimeKey(): string {
+  const n = new Date();
+  return `${String(n.getHours()).padStart(2, "0")}:${String(n.getMinutes()).padStart(2, "0")}`;
+}
+
+/** True when `dateKey` + `HH:MM` is already behind us (this minute is fine). */
+function isPastMoment(dateKey: string, time: string): boolean {
+  if (!dateKey || !time) return false;
+  const at = new Date(`${dateKey}T${time}:00`).getTime();
+  if (!Number.isFinite(at)) return false;
+  return at < Math.floor(Date.now() / 60_000) * 60_000;
 }
 
 function toScheduledAt(date: string, time: string): string | null {
@@ -66,11 +87,56 @@ function toScheduledAt(date: string, time: string): string | null {
   return `${date}T${time}:00`;
 }
 
-const BOARD_ICON = "text-primary";
+/** One board lane inside the dialog — accent icon chip, title + hint, and the
+    matching control below, on a bordered tinted surface. */
+function Lane({
+  icon,
+  title,
+  hint,
+  tone = "amber",
+  required,
+  children,
+}: {
+  icon: React.ReactNode;
+  title: string;
+  hint?: React.ReactNode;
+  tone?: "amber" | "green" | "blue" | "violet";
+  required?: boolean;
+  children: React.ReactNode;
+}) {
+  const toneClass =
+    tone === "green"
+      ? board.toneGreen
+      : tone === "blue"
+        ? board.toneBlue
+        : tone === "violet"
+          ? board.toneViolet
+          : board.toneAmber;
+  return (
+    <section className={board.lane}>
+      <div className={board.laneHead}>
+        <span className={`${board.laneIcon} ${toneClass}`} aria-hidden>
+          {icon}
+        </span>
+        <span className={board.laneText}>
+          <p className={board.laneTitle}>{title}</p>
+          {hint ? <p className={board.laneHint}>{hint}</p> : null}
+        </span>
+        <span className={`${board.tag} ${required ? board.tagRequired : ""}`}>
+          {required ? "Required" : "Optional"}
+        </span>
+      </div>
+      {children}
+    </section>
+  );
+}
 
 /**
- * "Mark session done" — the same KanbanBoard overlay design as the other desk
- * confirmations (shared shell + one board per section, 24px footer buttons).
+ * "Mark session done" — a single focused board on a blurred backdrop (the same
+ * overlay shape as the teacher-shell dialogs). Each field group is its own
+ * lane card with an accent icon chip, mirroring the book-session board, and
+ * closing is the header X / backdrop / Escape — a Cancel button competing with
+ * the primary action is gone.
  */
 export function FinishSessionDialog({
   open,
@@ -148,6 +214,10 @@ export function FinishSessionDialog({
         setError("Pick both a date and a time for the follow-up — or leave both empty.");
         return;
       }
+      if (isPastMoment(followDate, followTime)) {
+        setError("Pick the current time or a later date and time for the follow-up.");
+        return;
+      }
       followUpSession = {
         scheduledAt,
         sessionType: followType,
@@ -169,7 +239,7 @@ export function FinishSessionDialog({
 
   return (
     <div
-      className="whitespace-normal fixed inset-0 z-50 flex items-center justify-center p-4"
+      className="whitespace-normal fixed inset-0 z-50 flex items-center justify-center overflow-y-auto p-4"
       role="dialog"
       aria-modal="true"
       aria-label="Mark session done"
@@ -177,17 +247,17 @@ export function FinishSessionDialog({
     >
       <button
         type="button"
-        aria-label="Cancel"
+        aria-label="Close dialog"
         onClick={closeDialog}
         disabled={busy}
-        className="absolute inset-0 cursor-default bg-black/50 backdrop-blur-[2px]"
+        className="absolute inset-0 cursor-default bg-black/55 backdrop-blur-[2px] animate-in fade-in-0 duration-150 dark:bg-black/70"
       />
       <div className="relative w-full max-w-2xl">
         <KanbanBoard
-          className={`bg-card max-h-[90vh] overflow-y-auto ${styles.dialogScrollHidden}`}
+          className={`bg-card max-h-[90vh] overflow-y-auto shadow-2xl ${styles.dialogScrollHidden}`}
           title="Mark session done"
           icon={
-            <span className={BOARD_ICON} aria-hidden>
+            <span className="text-amber-500" aria-hidden>
               <ClipboardCheck size={14} />
             </span>
           }
@@ -205,69 +275,39 @@ export function FinishSessionDialog({
             </button>
           }
           description={description}
-          footer={
-            /* 24px action buttons — same metric as the kanban boards. */
-            <div className="flex flex-wrap items-center justify-end gap-1.5 px-1 pb-1">
-              <Button
-                type="button"
-                variant="destructive"
-                size="sm"
-                className={`h-6 px-3 text-xs ${styles.btnRed}`}
-                onClick={closeDialog}
-                disabled={busy}
-              >
-                Cancel
-              </Button>
-              <Button
-                type="button"
-                size="sm"
-                className="h-6 px-3 text-xs"
-                onClick={save}
-                disabled={!canSave}
-                aria-busy={busy || undefined}
-              >
-                {busy ? <Loader2 className="animate-spin" aria-hidden /> : null}
-                {busy ? "Marking done…" : submitLabel}
-              </Button>
-            </div>
-          }
         >
-          <div className="flex flex-col gap-3 px-1 pb-1">
+          <div className={board.body}>
             {notStarted ? (
-              <p className="px-1 text-xs italic text-red-600 dark:text-red-400" role="alert">
+              <p className="text-xs italic text-red-600 dark:text-red-400" role="alert">
                 {notStartedMessage}
               </p>
             ) : null}
-            <KanbanBoard
-              className="flex-1"
-              title="Session notes (required)"
-              icon={
-                <span className={BOARD_ICON} aria-hidden>
-                  <NotebookPen size={14} />
-                </span>
-              }
+
+            <Lane
+              icon={<NotebookPen size={14} />}
+              title="Session notes"
+              hint="What happened and what was discussed."
+              tone="amber"
+              required
             >
-              <div className="px-1">
-                <Textarea
-                  id={`${idPrefix}-notes`}
-                  aria-label="Session notes (required)"
-                  value={notes}
-                  onChange={(e) => setNotes(e.target.value)}
-                  placeholder="What happened? What was discussed…"
-                  maxLength={5000}
-                />
-              </div>
-            </KanbanBoard>
-            <KanbanBoard
-              className="flex-1"
-              title="Outcome (optional)"
-              icon={
-                <span className={BOARD_ICON} aria-hidden>
-                  <ListChecks size={14} />
-                </span>
-              }
-            >
-              <div className="px-1">
+              <Textarea
+                id={`${idPrefix}-notes`}
+                aria-label="Session notes (required)"
+                value={notes}
+                onChange={(e) => setNotes(e.target.value)}
+                placeholder="What happened? What was discussed…"
+                maxLength={5000}
+                className="min-h-28 resize-y bg-card"
+              />
+            </Lane>
+
+            <div className={docsSection ? board.lanes : undefined}>
+              <Lane
+                icon={<ListChecks size={14} />}
+                title="Outcome"
+                hint="The result or the next step."
+                tone="green"
+              >
                 <Textarea
                   id={`${idPrefix}-outcome`}
                   aria-label="Outcome (optional)"
@@ -275,33 +315,32 @@ export function FinishSessionDialog({
                   onChange={(e) => setOutcome(e.target.value)}
                   placeholder="Result or next step…"
                   maxLength={2000}
+                  className="min-h-24 resize-y bg-card"
                 />
-              </div>
-            </KanbanBoard>
-            {docsSection ? (
-              <KanbanBoard
-                className="flex-1"
-                title="Documentation photos (optional)"
-                icon={
-                  <span className={BOARD_ICON} aria-hidden>
-                    <Paperclip size={14} />
-                  </span>
-                }
-              >
-                {docsSection}
-              </KanbanBoard>
-            ) : null}
-            <KanbanBoard
-              className="flex-1"
-              title={followUpTitle ?? "Follow-up session (optional)"}
-              description={followUpHint}
-              icon={
-                <span className={BOARD_ICON} aria-hidden>
-                  <CalendarClock size={14} />
-                </span>
+              </Lane>
+
+              {docsSection ? (
+                <Lane
+                  icon={<Paperclip size={14} />}
+                  title="Documentation photos"
+                  hint="Attach now, or file them later from the session list."
+                  tone="blue"
+                >
+                  {docsSection}
+                </Lane>
+              ) : null}
+            </div>
+
+            <Lane
+              icon={<CalendarClock size={14} />}
+              title={followUpTitle ?? "Follow-up session"}
+              hint={
+                followUpHint ??
+                "Book the next session while the details are fresh."
               }
+              tone="violet"
             >
-              <div className="grid gap-3 px-1 pb-1 sm:grid-cols-2">
+              <div className={board.grid}>
                 <ClinicDatePicker
                   id={`${idPrefix}-follow-date`}
                   label={followUpDateLabel}
@@ -314,6 +353,11 @@ export function FinishSessionDialog({
                   label={followUpTimeLabel}
                   value={followTime}
                   onChange={setFollowTime}
+                  minTime={
+                    followDate === "" || followDate === todayKey()
+                      ? currentTimeKey()
+                      : undefined
+                  }
                 />
                 {showSessionType && sessionTypeOptions.length > 0 ? (
                   <FormDropdown
@@ -334,16 +378,50 @@ export function FinishSessionDialog({
                       onChange={(e) => setVenue(e.target.value)}
                       placeholder={venuePlaceholder}
                       maxLength={200}
+                      className="bg-card"
                     />
                   </div>
                 ) : null}
               </div>
-            </KanbanBoard>
+            </Lane>
+
             {error || serverError ? (
-              <p className="px-1 text-xs italic text-red-600 dark:text-red-400" role="alert">
+              <p className="text-xs italic text-red-600 dark:text-red-400" role="alert">
                 {error ?? serverError}
               </p>
             ) : null}
+
+            <div className={board.footer}>
+              <div className={board.summary}>
+                <span
+                  className={`${board.chip} ${notes.trim() ? board.chipOn : ""}`}
+                >
+                  {notes.trim() ? <Check size={12} aria-hidden /> : null}
+                  Session notes
+                </span>
+                <span
+                  className={`${board.chip} ${
+                    followDate || followTime ? board.chipOn : ""
+                  }`}
+                >
+                  {followDate || followTime ? (
+                    <Check size={12} aria-hidden />
+                  ) : null}
+                  Follow-up
+                </span>
+              </div>
+              <Button
+                type="button"
+                size="sm"
+                className="h-8 px-4 text-xs"
+                onClick={save}
+                disabled={!canSave}
+                aria-busy={busy || undefined}
+              >
+                {busy ? <Loader2 className="animate-spin" aria-hidden /> : null}
+                {busy ? "Marking done…" : submitLabel}
+              </Button>
+            </div>
           </div>
         </KanbanBoard>
       </div>

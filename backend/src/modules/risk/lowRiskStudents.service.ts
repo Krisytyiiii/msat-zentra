@@ -1,6 +1,7 @@
 import { prisma } from "../../lib/prisma.js";
 import { attendanceTotalFor, computeRiskFactors, levelFromFlags, resolveActiveTermId, sectionAttendanceTotals } from "../../services/risk.js";
 import { sectionHeadcounts } from "../../services/enrollment.js";
+import { subjectAverageAttendance } from "../../services/attendance.js";
 import {
   archivedAdvisoryLearnerIds,
   excludeArchivedProfiles,
@@ -69,6 +70,7 @@ export async function getLowRiskStudents(
       orderBy: { lrn: "asc" },
       take: 5000,
       select: {
+        userId: true,
         lrn: true,
         user: { select: { fullName: true } },
         section: { select: { id: true } },
@@ -128,12 +130,17 @@ export async function getLowRiskStudents(
   const sectionTotals = termId
     ? await sectionAttendanceTotals(sectionIds, termId)
     : new Map<string, number>();
+  const subjectAvgs = termId
+    ? await subjectAverageAttendance(sectionIds, termId)
+    : new Map<string, { average: number; hasSubjectData: boolean }>();
 
   const lows: LowRiskStudent[] = [];
   for (const p of profiles) {
+    const subjAvg = subjectAvgs.get(p.userId);
     const flags = computeRiskFactors({
       finalGrades: p.finalGrades,
       attendance: p.attendanceRecords,
+      attendanceRate: subjAvg && subjAvg.hasSubjectData ? subjAvg.average : null,
       attendanceTotal: sectionTotals.get(p.section?.id ?? ""),
       anecdotalCount: p.anecdotalRecords.length,
       enrolled: headcounts.get(p.section?.id ?? "") ?? 0,
@@ -142,9 +149,11 @@ export async function getLowRiskStudents(
   }
   for (const r of rosters) {
     if (registered.has(r.lrn)) continue;
+    const subjAvg = subjectAvgs.get(`roster:${r.id}`);
     const flags = computeRiskFactors({
       finalGrades: r.finalGrades,
       attendance: r.attendanceRecords,
+      attendanceRate: subjAvg && subjAvg.hasSubjectData ? subjAvg.average : null,
       attendanceTotal: attendanceTotalFor(sectionTotals, r.sectionId, r.id),
       anecdotalCount: r.anecdotalRecords.length,
       enrolled: headcounts.get(r.sectionId) ?? 0,

@@ -1,15 +1,36 @@
-/* Priority queue — the command center's working surface. A single surface
-   over a vertical list of hand-off rows (no card grid, no data table). */
+/* Priority queue — the command center's working surface. A glass surface
+   holding a flat, responsive case-card grid (same anatomy as the teacher
+   student-overview section cards): head, divided metric strip, facts, actions. */
 
 .queue {
   display: flex;
   flex-direction: column;
   min-width: 0;
   overflow: hidden;
-  border: 1px solid var(--border);
+  border: 1px solid color-mix(in oklch, var(--border) 80%, transparent);
   border-radius: var(--radius-xl);
-  background-color: var(--card);
-  box-shadow: 0 1px 2px 0 color-mix(in oklch, var(--foreground), transparent 95%);
+  /* Glass card, same recipe as the teacher student-overview cards. */
+  background-color: color-mix(in oklch, var(--card) 72%, transparent);
+  background-image: linear-gradient(
+    160deg,
+    rgba(255, 255, 255, 0.45),
+    rgba(255, 255, 255, 0) 55%
+  );
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.5),
+    0 10px 24px -18px rgba(15, 23, 42, 0.28);
+  backdrop-filter: blur(14px) saturate(135%);
+  -webkit-backdrop-filter: blur(14px) saturate(135%);
+}
+
+:global(.dark) .queue {
+  /* Fully transparent in dark mode so the queue reads as glass on the canvas. */
+  background-color: transparent;
+  background-image: none;
+  border-color: color-mix(in oklch, var(--border) 70%, transparent);
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.06),
+    0 12px 28px -20px rgba(0, 0, 0, 0.6);
 }
 
 .queueHead {
@@ -73,65 +94,143 @@
 
 .queueActions {
   display: flex;
+  flex-wrap: wrap;
   align-items: center;
   gap: 0.5rem;
   flex-shrink: 0;
 }
 
-.queueCount {
-  font-size: 0.75rem;
-  color: var(--muted-foreground);
-  white-space: nowrap;
+/* ---- Case-card grid ------------------------------------------------------ */
+/* Flat responsive grid — cards flow and wrap like the principal academics
+   board instead of stacking into columns. */
+.cardGrid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(264px, 1fr));
+  gap: 0.75rem;
+  align-items: stretch;
+  min-width: 0;
+  margin: 0;
+  padding: 0.75rem;
+  list-style: none;
 }
 
-.queueCount strong {
-  font-size: 0.875rem;
-  font-weight: 700;
-  color: var(--foreground);
-  font-variant-numeric: tabular-nums;
+.cardItem {
+  display: flex;
+  min-width: 0;
 }
 
-.list {
+.glassWrap {
+  display: flex;
+  width: 100%;
+  min-width: 0;
+}
+
+.card {
+  position: relative;
+  z-index: 1;
   display: flex;
   flex-direction: column;
-  margin: 0;
-  padding: 0;
-  list-style: none;
+  width: 100%;
+  height: 100%;
   min-width: 0;
-}
-
-.item {
-  border-top: 1px solid color-mix(in oklch, var(--foreground), transparent 93%);
-}
-
-.item:first-child {
-  border-top: none;
-}
-
-.row {
-  display: grid;
-  grid-template-columns: auto minmax(0, 1.15fr) minmax(0, 1fr) auto;
-  grid-template-areas: "avatar identity route end";
-  align-items: center;
-  gap: 0.75rem;
-  min-width: 0;
-  padding: 0.625rem 1rem;
+  overflow: hidden;
   cursor: pointer;
-  transition: background-color 140ms ease-out;
+  color: var(--foreground);
+  border-radius: 0.75rem;
+  border: 1px solid color-mix(in oklch, var(--border) 80%, transparent);
+  background-color: color-mix(in oklch, var(--card) 72%, transparent);
+  background-image: linear-gradient(
+    160deg,
+    rgba(255, 255, 255, 0.45),
+    rgba(255, 255, 255, 0) 55%
+  );
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.5),
+    0 10px 24px -18px rgba(15, 23, 42, 0.28);
+  backdrop-filter: blur(14px) saturate(135%);
+  -webkit-backdrop-filter: blur(14px) saturate(135%);
+  transition:
+    border-color 160ms ease-out,
+    box-shadow 160ms ease-out;
 }
 
-.row:hover {
-  background-color: color-mix(in oklch, var(--foreground), transparent 96%);
+:global(.dark) .card {
+  /* Fully transparent in dark mode so the card reads as glass on the board. */
+  background-color: transparent;
+  background-image: none;
+  border-color: color-mix(in oklch, var(--border) 70%, transparent);
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.06),
+    0 12px 28px -20px rgba(0, 0, 0, 0.6);
 }
 
-.row:focus-visible {
-  outline: 2px solid var(--ring);
-  outline-offset: -2px;
+.card:hover {
+  border-color: color-mix(in oklch, var(--border) 45%, var(--foreground));
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.5),
+    0 16px 30px -20px rgba(15, 23, 42, 0.35);
 }
 
-.avatar {
+:global(.dark) .card:hover {
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.06),
+    0 16px 32px -20px rgba(0, 0, 0, 0.7);
+}
+
+.card:focus-visible {
+  outline: none;
+  border-color: var(--card-edge-hover, var(--ring));
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.5),
+    0 0 0 2px color-mix(in srgb, #f59e0b 55%, transparent);
+}
+
+.cardHead {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 0.5rem;
+  min-width: 0;
+  padding: 0.75rem 0.875rem 0.625rem;
+  border-bottom: 1px solid color-mix(in oklch, var(--border) 70%, transparent);
+}
+
+.cardHeading {
+  display: flex;
+  flex: 1 1 auto;
+  flex-direction: column;
+  gap: 0.3125rem;
+  min-width: 0;
+}
+
+.cardName {
+  max-width: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: 0.875rem;
+  font-weight: 700;
+  line-height: 1.25;
+  letter-spacing: -0.01em;
+}
+
+.cardMetaRow {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.25rem 0.375rem;
+  min-width: 0;
+}
+
+/* LRN identity pill pinned to the card's action strip. */
+.cardLrnPill {
   display: inline-flex;
-  grid-area: avatar;
+  min-width: 0;
+  overflow: hidden;
+}
+
+.cardAvatar {
+  display: inline-flex;
   flex-shrink: 0;
   overflow: hidden;
   border: 1px solid var(--border);
@@ -139,129 +238,99 @@
   background-color: color-mix(in oklch, var(--muted) 40%, transparent);
 }
 
-.identity {
+.cardMetrics {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  min-width: 0;
+}
+
+.cardMetric {
   display: flex;
-  grid-area: identity;
   flex-direction: column;
   gap: 0.125rem;
   min-width: 0;
+  padding: 0.625rem 0.875rem;
+  border-right: 1px solid color-mix(in oklch, var(--border) 70%, transparent);
 }
 
-.nameRow {
+.cardMetric:last-child {
+  border-right: 0;
+}
+
+.cardMetricLabel {
+  overflow: hidden;
+  font-size: 0.75rem;
+  font-weight: 500;
+  color: var(--muted-foreground);
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.cardMetricValue {
+  font-size: 1.5rem;
+  font-weight: 700;
+  line-height: 1.05;
+  letter-spacing: -0.02em;
+  font-variant-numeric: tabular-nums;
+}
+
+.cardMetricHint {
+  overflow: hidden;
+  font-size: 0.75rem;
+  line-height: 1.3;
+  color: var(--muted-foreground);
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.cardFacts {
   display: flex;
   flex-wrap: wrap;
-  align-items: center;
-  gap: 0.375rem;
-  min-width: 0;
+  gap: 0.25rem 1rem;
+  margin: 0;
+  margin-top: auto;
+  padding: 0.5rem 0.875rem 0.625rem;
+  border-top: 1px solid color-mix(in oklch, var(--border) 70%, transparent);
 }
 
-.name {
+.cardFact {
+  display: flex;
+  align-items: baseline;
+  gap: 0.3125rem;
+  min-width: 0;
+  max-width: 100%;
+}
+
+.cardFactLabel {
+  flex-shrink: 0;
+  font-size: 0.75rem;
+  color: var(--muted-foreground);
+  white-space: nowrap;
+}
+
+.cardFactValue {
   min-width: 0;
   overflow: hidden;
-  font-size: 0.8125rem;
+  font-size: 0.75rem;
   font-weight: 600;
   color: var(--foreground);
   text-overflow: ellipsis;
   white-space: nowrap;
 }
 
-.lrn {
-  font-size: 0.75rem;
+.cardFactAt {
+  font-weight: 500;
   color: var(--muted-foreground);
   font-variant-numeric: tabular-nums;
-  letter-spacing: 0.01em;
 }
 
-.route {
-  display: flex;
-  grid-area: route;
-  flex-direction: column;
-  gap: 0.125rem;
-  min-width: 0;
-}
-
-.chain {
+.cardActions {
   display: flex;
   align-items: center;
-  gap: 0.25rem;
-  min-width: 0;
-  overflow: hidden;
-  font-size: 0.75rem;
-  color: var(--muted-foreground);
-}
-
-.chainMascot {
-  display: inline-flex;
-  flex-shrink: 0;
-  overflow: hidden;
-  border: 1px solid var(--border);
-  border-radius: 9999px;
-  background-color: var(--card);
-}
-
-.chainName {
-  min-width: 0;
-  overflow: hidden;
-  font-weight: 500;
-  color: var(--foreground);
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
-.chainArrow {
-  flex-shrink: 0;
-  color: color-mix(in oklch, var(--foreground), transparent 62%);
-}
-
-.latest {
-  display: flex;
-  align-items: baseline;
-  gap: 0.25rem;
-  min-width: 0;
-  overflow: hidden;
-  font-size: 0.75rem;
-  white-space: nowrap;
-}
-
-.latestLabel {
-  flex-shrink: 0;
-  font-size: 0.75rem;
-  letter-spacing: 0.04em;
-  text-transform: uppercase;
-  color: var(--muted-foreground);
-}
-
-.latestValue {
-  min-width: 0;
-  overflow: hidden;
-  font-weight: 500;
-  color: var(--foreground);
-  text-overflow: ellipsis;
-}
-
-.latestAt {
-  flex-shrink: 0;
-  color: var(--muted-foreground);
-  font-variant-numeric: tabular-nums;
-}
-
-.end {
-  display: flex;
-  grid-area: end;
-  flex-direction: column;
-  align-items: flex-end;
-  gap: 0.25rem;
-  flex-shrink: 0;
-}
-
-.elapsed {
-  display: inline-flex;
-  align-items: center;
-  gap: 0.1875rem;
-  font-size: 0.75rem;
-  color: var(--muted-foreground);
-  font-variant-numeric: tabular-nums;
-  white-space: nowrap;
+  justify-content: space-between;
+  gap: 0.5rem;
+  padding: 0.4375rem 0.875rem 0.5625rem;
+  border-top: 1px solid color-mix(in oklch, var(--border) 70%, transparent);
 }
 
 .endActions {
@@ -277,49 +346,271 @@
   padding: 0;
 }
 
-/* Loading skeleton mirrors the row rhythm. */
-.skelRow {
+/* ---- Table view --------------------------------------------------------- */
+/* The default layout for the queue: the important columns only, on the same
+   hairline/amber-scrollbar table anatomy as the other desks. */
+.tableWrap {
+  overflow: hidden;
+  margin: 0.75rem;
+  border: 1px solid color-mix(in oklch, var(--border) 80%, transparent);
+  border-radius: var(--radius-md);
+  background-color: color-mix(in oklch, var(--card) 72%, transparent);
+}
+
+:global(.dark) .tableWrap {
+  background-color: transparent;
+}
+
+.tableWrap [data-slot="table-container"] {
+  border-radius: inherit;
+  scrollbar-width: thin;
+  scrollbar-color: color-mix(in oklch, #f59e0b 65%, transparent) transparent;
+}
+
+.tableWrap [data-slot="table-container"]::-webkit-scrollbar {
+  width: 3px;
+  height: 3px;
+}
+
+.tableWrap [data-slot="table-container"]::-webkit-scrollbar-button {
+  display: none;
+  width: 0;
+  height: 0;
+}
+
+.tableWrap [data-slot="table-container"]::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.tableWrap [data-slot="table-container"]::-webkit-scrollbar-thumb {
+  background: color-mix(in oklch, #f59e0b 65%, transparent);
+  border-radius: 999px;
+}
+
+.tableWrap th,
+.tableWrap td {
+  padding: 0.6875rem 0.75rem;
+}
+
+.tableWrap thead th {
+  font-size: 0.75rem;
+  font-weight: 500;
+  letter-spacing: 0.02em;
+  color: var(--muted-foreground);
+  border-bottom: 1px solid var(--border);
+  background-color: transparent;
+  white-space: nowrap;
+}
+
+.tableWrap tbody td {
+  font-size: 0.8125rem;
+  border-bottom: 1px solid
+    color-mix(in oklch, var(--border), transparent 35%);
+  vertical-align: middle;
+}
+
+.tableWrap tbody tr:last-child td {
+  border-bottom: none;
+}
+
+.row {
+  cursor: pointer;
+  transition: background-color 140ms ease-out;
+  animation: row-in 0.28s cubic-bezier(0.22, 1, 0.36, 1) backwards;
+}
+
+.row:hover {
+  background-color: color-mix(in oklch, var(--primary) 6%, transparent);
+}
+
+.row:focus-visible {
+  outline: none;
+  box-shadow: inset 0 0 0 2px var(--ring);
+}
+
+@keyframes row-in {
+  from {
+    opacity: 0;
+    transform: translateY(4px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.learnerCell {
   display: flex;
   align-items: center;
-  gap: 0.75rem;
-  padding: 0.75rem 1rem;
-  border-top: 1px solid color-mix(in oklch, var(--foreground), transparent 93%);
+  gap: 0.5rem;
+  min-width: 11rem;
 }
 
-.skelRow:first-child {
-  border-top: none;
-}
-
-.skelAvatar {
-  height: 2.375rem;
-  width: 2.375rem;
-  flex-shrink: 0;
-  border-radius: 9999px;
-}
-
-.skelLines {
+.learnerMeta {
   display: flex;
-  flex: 1;
   flex-direction: column;
-  gap: 0.25rem;
+  gap: 0.125rem;
   min-width: 0;
 }
 
-.skelLine {
+.learnerName {
+  font-size: 0.8125rem;
+  font-weight: 600;
+  color: var(--foreground);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.learnerLrn {
+  font-size: 0.75rem;
+  color: var(--muted-foreground);
+  font-variant-numeric: tabular-nums;
+}
+
+.cellText {
+  white-space: normal;
+  min-width: 8rem;
+  color: var(--foreground);
+}
+
+.updateCell {
+  display: flex;
+  flex-direction: column;
+  gap: 0.125rem;
+  min-width: 9rem;
+}
+
+.updateLabel {
+  font-size: 0.8125rem;
+  font-weight: 600;
+  color: var(--foreground);
+  white-space: normal;
+}
+
+.updateAt {
+  font-size: 0.75rem;
+  color: var(--muted-foreground);
+  font-variant-numeric: tabular-nums;
+}
+
+.actions {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 0.375rem;
+  margin-left: auto;
+}
+
+.actionsCell {
+  width: 1%;
+  white-space: nowrap;
+}
+
+/* Track stays the last control, pinned to the right edge of the cluster. */
+.trackBtn {
+  height: 1.75rem;
+  width: 1.75rem;
+  flex-shrink: 0;
+  padding: 0;
+  margin-left: 0.125rem;
+}
+
+/* Table skeleton — one hairline row per waiting case. */
+.tableSkeleton {
+  display: flex;
+  flex-direction: column;
+  margin: 0.75rem;
+  overflow: hidden;
+  border: 1px solid color-mix(in oklch, var(--border) 80%, transparent);
+  border-radius: var(--radius-md);
+  background-color: color-mix(in oklch, var(--card) 72%, transparent);
+}
+
+:global(.dark) .tableSkeleton {
+  background-color: transparent;
+}
+
+.skelRow {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  padding: 0.75rem;
+  border-bottom: 1px solid
+    color-mix(in oklch, var(--border), transparent 35%);
+}
+
+.skelRow:last-child {
+  border-bottom: none;
+}
+
+.skelRowName {
+  height: 0.875rem;
+  width: 16%;
+  min-width: 6rem;
+}
+
+.skelRowMd {
   height: 0.75rem;
-  width: 45%;
+  width: 12%;
+  min-width: 4rem;
 }
 
-.skelLineSm {
-  height: 0.625rem;
-  width: 30%;
+.skelRowSm {
+  height: 0.75rem;
+  width: 7%;
+  min-width: 3rem;
 }
 
-.skelPill {
-  height: 1.25rem;
-  width: 4.5rem;
+/* Loading skeleton mirrors the card anatomy. */
+.skelCard {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  min-height: 10.5rem;
+  padding: 0.75rem 0.875rem;
+  border: 1px solid color-mix(in oklch, var(--border) 80%, transparent);
+  border-radius: 0.75rem;
+  background-color: color-mix(in oklch, var(--card) 72%, transparent);
+}
+
+:global(.dark) .skelCard {
+  background-color: transparent;
+}
+
+.skelCardHead {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 0.5rem;
+}
+
+.skelLine {
+  height: 0.875rem;
+  width: 60%;
+}
+
+.skelAvatar {
+  width: 1.625rem;
+  height: 1.625rem;
   flex-shrink: 0;
   border-radius: 9999px;
+}
+
+.skelMetrics {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 0.5rem;
+}
+
+.skelMetric {
+  height: 3.25rem;
+  border-radius: var(--radius-md);
+}
+
+.skelFact {
+  height: 1rem;
+  width: 80%;
 }
 
 .errorBlock {
@@ -348,7 +639,7 @@
   }
 }
 
-/* "What it means" footer — the shared insight callout, pinned under the list. */
+/* "What it means" footer — the shared insight callout, pinned under the grid. */
 .footerSlot {
   display: flex;
   padding: 0.75rem 1rem;
@@ -370,32 +661,19 @@
   font-weight: 600;
 }
 
-@media (max-width: 900px) {
-  .row {
-    grid-template-columns: auto minmax(0, 1fr);
-    grid-template-areas:
-      "avatar identity"
-      "route route"
-      "end end";
-    align-items: start;
-    row-gap: 0.5rem;
-  }
-
-  .end {
-    flex-direction: row;
-    align-items: center;
-    justify-content: space-between;
-    gap: 0.5rem;
-  }
-
-  .chain {
-    flex-wrap: wrap;
-    overflow: visible;
+@media (max-width: 560px) {
+  .cardGrid {
+    grid-template-columns: minmax(0, 1fr);
   }
 }
 
 @media (prefers-reduced-motion: reduce) {
+  .card {
+    transition: none;
+  }
+
   .row {
+    animation: none;
     transition: none;
   }
 

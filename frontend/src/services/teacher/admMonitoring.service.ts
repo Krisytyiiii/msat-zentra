@@ -39,6 +39,11 @@ export interface AdmMonitoringCase {
     section: string;
     referralStatus: string;
     consultReviewer: string | null;
+    /** Anecdotal record behind the referral (GCForm-01 / GCForm-03 overlays). */
+    anecdotalRecordId: string | null;
+    referralReason: string | null;
+    referralNotes: string | null;
+    referredByName: string | null;
   };
   progress: {
     submitted: number;
@@ -70,6 +75,8 @@ export interface AdmMonitoringCase {
     title: string;
     status: string;
     uploadedAt: string | null;
+    fileUrl: string | null;
+    notes: string | null;
   }[];
   timeline: {
     label: string;

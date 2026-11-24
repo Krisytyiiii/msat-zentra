@@ -4,7 +4,10 @@ import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { apiClient } from "@/lib/api/client";
 import { toast } from "@/components/ui/sonner";
 import { useDock } from "@/components/dock/dock-store";
-import { refreshBookingReminders } from "@/components/notifications/BookingReminderStack";
+import {
+  clearBookingReminderForMeeting,
+  refreshBookingReminders,
+} from "@/components/notifications/BookingReminderStack";
 import { markSelfNotified } from "@/lib/realtime/coordinatorChannel";
 import { apiErrorMessage } from "@/lib/api/errors";
 import { inviteeToAttendee } from "@/services/coordinator/labels";
@@ -77,7 +80,8 @@ export function useCoordinatorOutcome({ invalidateReferrals, onMissed }: Args) {
       markSelfNotified(vars.target.id);
       void queryClient.invalidateQueries({ queryKey: ["coordinator-meetings"] });
       invalidateReferrals();
-      refreshBookingReminders();
+      if (outcomeAttended) clearBookingReminderForMeeting(vars.target.id);
+      refreshBookingReminders(true);
       if (vars.taskId) {
         dock.completeTask(
           vars.taskId,

@@ -14,7 +14,6 @@ export interface RecordKeeperNavEntry {
 export interface RecordKeeperNavQueues {
   overview: RecordKeeperNavEntry[];
   finalGrades: RecordKeeperNavEntry[];
-  accounts: RecordKeeperNavEntry[];
   adviserAccess: RecordKeeperNavEntry[];
   sf10: RecordKeeperNavEntry[];
   subjects: RecordKeeperNavEntry[];
@@ -33,7 +32,6 @@ const STORAGE_PREFIX = "zentra.record-keeper.nav.seen.";
 const ROUTE_KEYS: Record<string, keyof RecordKeeperNavQueues> = {
   "/record-keeper/overview": "overview",
   "/record-keeper/final-grades": "finalGrades",
-  "/record-keeper/accounts": "accounts",
   "/record-keeper/adviser-access": "adviserAccess",
   "/record-keeper/sf10": "sf10",
   "/record-keeper/academics": "subjects",
@@ -50,11 +48,6 @@ export const NAV_QUEUE_QUERY_KEYS: Record<
 > = {
   overview: [["record-keeper-overview"]],
   finalGrades: [["record-keeper-final-grades"]],
-  accounts: [
-    ["record-keeper-pending-students"],
-    ["record-keeper-account-breakdown"],
-    ["record-keeper-accounts-audit"],
-  ],
   adviserAccess: [["record-keeper-adviser-access"]],
   sf10: [["record-keeper-sf10"]],
   subjects: [["record-keeper-subjects"]],
@@ -106,7 +99,6 @@ function activeKey(pathname: string): keyof RecordKeeperNavQueues | null {
 const QUEUE_KEYS: (keyof RecordKeeperNavQueues)[] = [
   "overview",
   "finalGrades",
-  "accounts",
   "adviserAccess",
   "sf10",
   "subjects",

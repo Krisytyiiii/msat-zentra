@@ -1,7 +1,7 @@
 import { prisma } from "../../lib/prisma.js";
 import { phTodayKey } from "../attendance.date.utils.js";
 import { attendanceTotalFor, computeRiskFactors, levelFromFlags, sectionAttendanceTotals } from "../risk.js";
-import { ATTENDANCE_RISK_CUTOFF, subjectAverageAttendance, termHasStarted } from "../attendance.js";
+import { subjectAverageAttendance, termHasStarted } from "../attendance.js";
 import { admExemptStudentIds } from "../adm/attendancePolicy.js";
 import { sectionHeadcounts } from "../enrollment.js";
 import { archivedAdvisoryLearnerIds } from "../../lib/learnerVisibility.js";
@@ -456,12 +456,14 @@ export async function getOverviewInsights(
   for (const key of learnerKeys) {
     let level: string = "Low";
     if (started) {
+      const subjAvg = subjectAvgs.get(key);
       const flags = computeRiskFactors({
         finalGrades: finalsByKey.get(key) ?? [],
         rawAverages: Array.from(
           (rawBySubject.get(key) ?? new Map()).values(),
         ).map((cell) => cell.sum / cell.count),
         attendance: marksByKey.get(key) ?? [],
+        attendanceRate: subjAvg && subjAvg.hasSubjectData ? subjAvg.average : null,
         attendanceTotal: attendanceTotalFor(
           sectionTotals,
           sectionIdOf.get(key),
@@ -471,11 +473,6 @@ export async function getOverviewInsights(
         enrolled: enrolledBySection.get(sectionIdOf.get(key) ?? "") ?? 0,
         attendanceExempt: admExempt.has(key),
       });
-      // Subject-level attendance override, same gate as the advisory board.
-      const subjAvg = subjectAvgs.get(key);
-      if (subjAvg?.hasSubjectData) {
-        flags.attendanceFlag = subjAvg.average < ATTENDANCE_RISK_CUTOFF;
-      }
       level = levelFromFlags(flags);
     }
     currentLevelByLearner.set(key, level);

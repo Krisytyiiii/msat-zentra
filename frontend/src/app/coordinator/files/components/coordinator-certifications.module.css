@@ -29,10 +29,11 @@
 }
 
 .layout {
-  display: grid;
-  grid-template-columns: minmax(0, 1fr) 2.75rem;
+  display: flex;
+  flex-direction: column;
   gap: 1rem;
-  align-items: start;
+  align-items: stretch;
+  min-width: 0;
 }
 
 .side {
@@ -66,10 +67,7 @@
 }
 
 .railSkel {
-  display: flex;
-  flex-direction: column;
-  align-items: flex-end;
-  gap: 0.5rem;
+  display: none;
 }
 
 .railSkelIcon {
@@ -144,7 +142,7 @@
 
 @media (max-width: 1023px) {
   .layout {
-    grid-template-columns: 1fr;
+    gap: 0.75rem;
   }
 }
 
@@ -358,6 +356,39 @@
 
 .skelFolderSub {
   width: 65%;
+  height: 0.75rem;
+  border-radius: 0.25rem;
+}
+
+/* Pager mirror — the shared Pagination sits under the list. */
+.skelPager {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.5rem;
+}
+
+.skelRange {
+  width: 9rem;
+  height: 0.75rem;
+  border-radius: 0.25rem;
+}
+
+.skelPagerButtons {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.skelPageBtn {
+  width: 4.5rem;
+  height: 1.5rem;
+  border-radius: var(--radius-md);
+}
+
+.skelPageLabel {
+  width: 5.5rem;
   height: 0.75rem;
   border-radius: 0.25rem;
 }

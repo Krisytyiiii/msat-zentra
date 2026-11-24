@@ -15,21 +15,14 @@
   flex: 1;
   min-width: 0;
   margin-left: 0;
-  margin-top: 6rem;
+  margin-top: 3rem;
 }
 
-/* Sidebar layout: no top tab bar (3rem topbar only) and room for the 16rem
-   branched rail. Desktop only — small screens keep the tab bar layout
-   untouched (same as the nurse desk). */
-@media (min-width: 1024px) {
-  .shellWithRail {
-    margin-top: 3rem;
-    margin-left: 16rem;
-    transition: margin-left 240ms ease-out;
-  }
-  .shellWithRailCollapsed {
-    margin-left: 4rem;
-  }
+
+/* Floating dock layout: content clears the topbar and keeps a left gutter
+   for the glass rail on every breakpoint. */
+.shellWithDock {
+  padding-left: 5rem;
 }
 
 .main {
@@ -61,11 +54,9 @@
   background-color: transparent;
 }
 
-/* Same translucent bar as the landing nav so the hero glow reads through. */
+/* Solid bar so the page canvas never reads through the fixed topbar. */
 :global(.dark) .topbar {
-  background-color: rgba(5, 8, 7, 0.4);
-  backdrop-filter: blur(18px) saturate(140%);
-  -webkit-backdrop-filter: blur(18px) saturate(140%);
+  background-color: #050807;
 }
 
 .topbar {
@@ -84,11 +75,9 @@
   height: 3rem;
   padding-inline: 0.75rem;
   border-bottom: 1px solid var(--border);
-  /* Glass bar: the page canvas runs behind the fixed topbar instead of
-     stopping at a solid strip. */
-  background-color: color-mix(in oklch, var(--background) 72%, transparent);
-  backdrop-filter: blur(18px) saturate(140%);
-  -webkit-backdrop-filter: blur(18px) saturate(140%);
+  /* Solid bar: scrolling content stops cleanly at the fixed topbar instead
+     of reading through it. */
+  background-color: var(--background);
 }
 
 .brand {
@@ -213,10 +202,17 @@
 @media (max-width: 767px) {
   .shell {
     margin-left: 0;
-    margin-top: 6rem;
+    margin-top: 3rem;
   }
 
   .main {
     padding: 1rem 0.5rem 0.5rem;
+  }
+}
+
+/* Floating dock gutter on small screens. */
+@media (max-width: 767px) {
+  .shellWithDock {
+    padding-left: 4.25rem;
   }
 }

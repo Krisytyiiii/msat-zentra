@@ -306,7 +306,11 @@ export async function submitSubjectBulk(ctx: AttendanceContext, input: SubjectBu
         select: { id: true, subject: { select: { name: true, code: true } } },
       });
   if (offerings.length === 0 && !scheduled) {
-    throw new AppError(422, "SUBJECT_NOT_OFFERED", "Subject is not offered in this section for this term");
+    throw new AppError(
+      422,
+      "SUBJECT_NOT_OFFERED",
+      "Subject is not offered in this section for this term — the administrator needs to publish this term's timetable for it",
+    );
   }
   const subjectLabel = offerings[0]?.subject.name ?? scheduled?.subject.name ?? "the subject";
 

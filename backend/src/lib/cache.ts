@@ -93,18 +93,21 @@ export function cache(options: CacheOptions = {}) {
         // Fire-and-forget: the response must not wait on the cache write. The
         // timeout keeps a stalled Upstash from pinning a socket until the
         // request's keep-alive expires.
-        redisOp(
-          redis
-            .set(key, payload, { ex: ttl })
-            .then(() => {
-              if (options.tags?.length) {
-                return Promise.all(
-                  options.tags.map((t) => redis.sadd(tagKey(t), key).then(() => redis.expire(tagKey(t), ttl * 4))),
-                );
-              }
-            }),
-          3_000,
-        ).catch((err) => logger.warn({ err, key }, "cache write failed"));
+        //
+        // One pipelined round trip for the body + tag registrations: the old
+        // sequential set→sadd→expire chain cost 3–5 REST round trips (~1s each
+        // from PH), so the write budget often expired before the tag membership
+        // landed. The body stayed cached while no tag pointed at it, and the
+        // next `invalidateTags` could not delete it — it served pre-write data
+        // until its TTL ran out (e.g. the Bama anecdotal student picker listing
+        // a roster from before two learners were enlisted).
+        const writer = redis.multi();
+        writer.set(key, payload, { ex: ttl });
+        for (const tag of options.tags ?? []) {
+          writer.sadd(tagKey(tag), key);
+          writer.expire(tagKey(tag), ttl * 4);
+        }
+        redisOp(writer.exec(), 3_000).catch((err) => logger.warn({ err, key }, "cache write failed"));
       }
       return originalJson(body);
     } as Response["json"];

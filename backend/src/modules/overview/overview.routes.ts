@@ -14,6 +14,7 @@ import {
   sectionAttendanceTotals,
 } from "../../services/risk.js";
 import { meetsAcademicExcellenceAward } from "../../services/grading.js";
+import { subjectAverageAttendance } from "../../services/attendance.js";
 import { GRADE_LABELS, GRADE_ORDER } from "../../lib/grades.js";
 import {
   archivedAdvisoryLearnerIds,
@@ -83,6 +84,7 @@ router.get(
               ...excludeArchivedProfiles(archivedLearners),
             },
             select: {
+              userId: true,
               lrn: true,
               gradeLevel: true,
               section: { select: { id: true, _count: { select: { students: true } } } },
@@ -105,6 +107,7 @@ router.get(
               ...excludeArchivedRosters(archivedLearners),
             },
             select: {
+              id: true,
               lrn: true,
               gradeLevel: true,
               sectionId: true,
@@ -189,6 +192,12 @@ router.get(
             termId,
           )
         : new Map<string, number>();
+      const subjectAvgs = termId
+        ? await subjectAverageAttendance(
+            sectionPopulations.map((s) => s.id),
+            termId,
+          )
+        : new Map<string, { average: number; hasSubjectData: boolean }>();
 
       // The section's grade is the adviser's record of the learner; a
       // StudentProfile.gradeLevel can lag behind (e.g. re-enrolled learners),
@@ -199,6 +208,8 @@ router.get(
 
       const registeredLrns = new Set(students.map((s) => s.lrn));
       const riskCohort: {
+        /** `userId`, or `roster:<id>` — keys the term subject-average map. */
+        key: string;
         gradeLevel: string;
         sectionId: string;
         enrolledFallback: number;
@@ -212,6 +223,7 @@ router.get(
         anecdotalCount: number;
       }[] = [
         ...students.map((s) => ({
+          key: s.userId,
           gradeLevel:
             sectionGradeById.get(s.section?.id ?? "") ?? s.gradeLevel,
           sectionId: s.section?.id ?? "",
@@ -223,6 +235,7 @@ router.get(
         ...rosterCohort
           .filter((r) => !registeredLrns.has(r.lrn))
           .map((r) => ({
+            key: `roster:${r.id}`,
             gradeLevel: sectionGradeById.get(r.sectionId) ?? r.gradeLevel,
             sectionId: r.sectionId,
             enrolledFallback: 0,
@@ -240,9 +253,11 @@ router.get(
       const riskByLevel = { high: 0, moderate: 0, low: 0 };
       const riskByGrade = new Map<string, number>();
       for (const s of riskCohort) {
+        const subjAvg = subjectAvgs.get(s.key);
         const flags = computeRiskFactors({
           finalGrades: s.finalGrades,
           attendance: s.attendanceRecords,
+          attendanceRate: subjAvg && subjAvg.hasSubjectData ? subjAvg.average : null,
           attendanceTotal: sectionTotals.get(s.sectionId),
           anecdotalCount: s.anecdotalCount,
           enrolled: headcounts.get(s.sectionId) ?? s.enrolledFallback,

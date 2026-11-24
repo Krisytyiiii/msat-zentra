@@ -23,16 +23,16 @@ export type PillTone =
 
 const TONES: Record<PillTone, string> = {
   /* Plain grey chip — identity values such as section name. */
-  neutral: "bg-muted text-foreground",
-  amber: "bg-amber-500/20 text-amber-700 dark:text-amber-400",
-  red: "bg-red-500/20 text-red-700 dark:text-red-400",
-  green: "bg-green-500/20 text-green-700 dark:text-green-400",
-  blue: "bg-blue-500/20 text-blue-700 dark:text-blue-400",
-  violet: "bg-violet-500/20 text-violet-700 dark:text-violet-400",
-  teal: "bg-teal-500/20 text-teal-700 dark:text-teal-400",
-  indigo: "bg-indigo-500/20 text-indigo-700 dark:text-indigo-400",
-  rose: "bg-rose-500/20 text-rose-700 dark:text-rose-400",
-  sky: "bg-sky-500/20 text-sky-700 dark:text-sky-400",
+  neutral: "border-border text-foreground",
+  amber: "border-amber-500/45 text-amber-700 dark:text-amber-300",
+  red: "border-red-500/45 text-red-700 dark:text-red-300",
+  green: "border-green-500/45 text-green-700 dark:text-green-300",
+  blue: "border-blue-500/45 text-blue-700 dark:text-blue-300",
+  violet: "border-violet-500/45 text-violet-700 dark:text-violet-300",
+  teal: "border-teal-500/45 text-teal-700 dark:text-teal-300",
+  indigo: "border-indigo-500/45 text-indigo-700 dark:text-indigo-300",
+  rose: "border-rose-500/45 text-rose-700 dark:text-rose-300",
+  sky: "border-sky-500/45 text-sky-700 dark:text-sky-300",
 };
 
 /**
@@ -150,7 +150,7 @@ export function Pill({
   const pill = (
     <span
       className={cn(
-        "inline-flex shrink-0 items-center gap-1 whitespace-nowrap rounded-md px-2 py-0.5 text-[12px] font-semibold",
+        "inline-flex shrink-0 items-center gap-1 whitespace-nowrap rounded-md border bg-transparent px-2 py-0.5 text-[12px] font-semibold",
         TONES[resolvedTone],
         className
       )}

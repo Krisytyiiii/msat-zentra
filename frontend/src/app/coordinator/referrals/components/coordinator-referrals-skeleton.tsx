@@ -1,6 +1,7 @@
 "use client";
 
 import { Skeleton } from "@/components/ui/skeleton";
+import { ShimmerGroup } from "@/components/ui/shimmer-skeleton";
 import styles from "./coordinator-referrals-skeleton.module.css";
 
 function SkeletonCards({ rows }: { rows: number }) {
@@ -8,18 +9,42 @@ function SkeletonCards({ rows }: { rows: number }) {
     <div className={styles.grid}>
       {Array.from({ length: rows }).map((_, i) => (
         <div key={i} className={styles.skelCard}>
-          <div className={styles.skelHead}>
-            <Skeleton className={styles.skelAvatar} />
-            <div className={styles.skelId}>
-              <Skeleton className={styles.line} />
-              <Skeleton className={styles.lineSm} />
+          <div className={styles.skelTop}>
+            <Skeleton className={styles.skelTitle} />
+            <Skeleton className={styles.skelStatus} />
+          </div>
+          <div className={styles.skelInner}>
+            <div className={styles.skelHead}>
+              <Skeleton className={styles.skelAvatar} />
+              <div className={styles.skelId}>
+                <Skeleton className={styles.line} />
+                <Skeleton className={styles.lineSm} />
+              </div>
             </div>
+            <div className={styles.skelPills}>
+              <Skeleton className={styles.skelPill} />
+              <Skeleton className={styles.skelPillSm} />
+            </div>
+            <Skeleton className={styles.skelBlock} />
           </div>
-          <div className={styles.skelPills}>
-            <Skeleton className={styles.skelPill} />
-            <Skeleton className={styles.skelPillSm} />
-          </div>
-          <Skeleton className={styles.skelBlock} />
+        </div>
+      ))}
+    </div>
+  );
+}
+
+/** Table-view skeleton — same row rhythm as the data table. */
+function TableSkeletonBlock({ rows }: { rows: number }) {
+  return (
+    <div className={styles.tableShell} aria-hidden="true">
+      {Array.from({ length: rows }).map((_, i) => (
+        <div key={i} className={styles.tableRowSkel}>
+          <Skeleton className={styles.tableCellName} />
+          <Skeleton className={styles.tableCellSm} />
+          <Skeleton className={styles.tableCellMd} />
+          <Skeleton className={styles.tableCellSm} />
+          <Skeleton className={styles.tableCellMd} />
+          <Skeleton className={styles.tableCellMd} />
         </div>
       ))}
     </div>
@@ -35,21 +60,54 @@ export function CoordinatorReferralsCardsSkeleton({ rows = 9 }: { rows?: number 
   );
 }
 
+export function CoordinatorReferralsTableSkeleton({ rows = 10 }: { rows?: number }) {
+  return (
+    <div aria-busy="true" aria-label="Loading referrals">
+      <TableSkeletonBlock rows={rows} />
+    </div>
+  );
+}
+
 function BoardSkeleton({ rows }: { rows: number }) {
   return (
     <div className={styles.boardShell} aria-hidden="true">
-      <div className={styles.headRow}>
-        <div className={styles.headText}>
-          <Skeleton className={styles.title} />
-          <Skeleton className={styles.desc} />
-        </div>
-        <div className={styles.headActions}>
-          <Skeleton className={styles.search} />
-          <Skeleton className={styles.filterBtn} />
-        </div>
+      <div className={styles.tabRow}>
+        <Skeleton className={styles.tab} />
+        <Skeleton className={styles.tab} />
+        <Skeleton className={styles.tab} />
+        <Skeleton className={styles.tab} />
       </div>
-      <SkeletonCards rows={rows} />
-      <Skeleton className={styles.interpretation} />
+      <TableSkeletonBlock rows={rows} />
+    </div>
+  );
+}
+
+/** Desk-head mirror — badge, title, search; the figure strip sits underneath. */
+function DeskHeadSkeleton() {
+  return (
+    <div className={styles.deskHead} aria-hidden="true">
+      <Skeleton className={styles.deskBadge} />
+      <Skeleton className={styles.deskTitle} />
+      <div className={styles.deskTools}>
+        <Skeleton className={styles.search} />
+      </div>
+    </div>
+  );
+}
+
+function FiguresSkeleton() {
+  return (
+    <div className={styles.deck} aria-hidden="true">
+      {Array.from({ length: 6 }, (_, i) => (
+        <div key={i} className={styles.deckTile}>
+          <div className={styles.deckTileTop}>
+            <Skeleton className={styles.deckIcon} />
+            <Skeleton className={styles.deckLabel} />
+          </div>
+          <Skeleton className={styles.deckValue} />
+          <Skeleton className={styles.deckHint} />
+        </div>
+      ))}
     </div>
   );
 }
@@ -70,23 +128,23 @@ export function CoordinatorReferralsSkeleton({
   }
   return (
     <div aria-busy="true" aria-label="Loading referrals">
-      <div className={styles.body}>
-        <div className={styles.mainCol}>
-          <BoardSkeleton rows={rows} />
-          <div className={styles.pager}>
-            <Skeleton className={styles.range} />
-            <div className={styles.pagerButtons}>
-              <Skeleton className={styles.pageBtn} />
-              <Skeleton className={styles.pageLabel} />
-              <Skeleton className={styles.pageBtn} />
+      <ShimmerGroup>
+        <DeskHeadSkeleton />
+        <FiguresSkeleton />
+        <div className={styles.body}>
+          <div className={styles.mainCol}>
+            <BoardSkeleton rows={rows} />
+            <div className={styles.pager}>
+              <Skeleton className={styles.range} />
+              <div className={styles.pagerButtons}>
+                <Skeleton className={styles.pageBtn} />
+                <Skeleton className={styles.pageLabel} />
+                <Skeleton className={styles.pageBtn} />
+              </div>
             </div>
           </div>
         </div>
-        <div className={styles.railIcons} aria-hidden="true">
-          <Skeleton className={styles.railIcon} />
-          <Skeleton className={styles.railIcon} />
-        </div>
-      </div>
+      </ShimmerGroup>
     </div>
   );
 }

@@ -9,8 +9,8 @@ import {
   CardFooter,
 } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { CheckCircle2, Search, Pencil, Loader2 } from "lucide-react";
+import { CheckCircle2, Pencil, Loader2 } from "lucide-react";
+import { TeacherSearchField, searchEmptyMessage } from "@/app/teacher/components/TeacherSearchField";
 import { format } from "date-fns";
 import {
   submitSheet,
@@ -254,16 +254,12 @@ export function AttendanceSheet({
     <Card className={styles.card}>
       <CardHeader className={styles.header}>
         <div className={styles.headerActions}>
-          <div className={styles.searchWrap}>
-            <Search className={styles.searchIcon} aria-hidden />
-            <Input
-              value={query}
-              onChange={(e) => setQuery(e.target.value)}
-              placeholder="Search name or LRN…"
-              aria-label="Search advisees"
-              className={styles.search}
-            />
-          </div>
+          <TeacherSearchField
+            placeholder="Search name or LRN…"
+            value={query}
+            onChange={setQuery}
+            aria-label="Search advisees"
+          />
           <Button
             type="button"
             variant="outline"
@@ -286,7 +282,7 @@ export function AttendanceSheet({
         ) : visibleStudents.length === 0 ? (
           <p className={styles.empty}>
             {needle
-              ? `No advisees match "${query}".`
+              ? searchEmptyMessage(query, "advisees")
               : activeStudents.length === 0
                 ? "All advisees are ADM-exempt — nothing to mark on this sheet."
                 : "No advisees."}

@@ -2,44 +2,33 @@
 
 import {
   COMPONENT_LABELS,
-  COMPONENT_NAMES,
   COMPONENT_ORDER,
 } from "@/services/teacher/grading.compute";
 import type { ComponentType } from "@/services/teacher/grading.types";
-import {
-  Tooltip,
-  TooltipContent,
-  TooltipTrigger,
-} from "@/components/ui/tooltip";
-import styles from "./CategoryTabs.module.css";
+import { FilterTabs, type FilterTabOption } from "@/components/ui/filter-tabs";
 
 type Props = {
   value: ComponentType;
   onChange: (tab: ComponentType) => void;
+  className?: string;
 };
 
-export function CategoryTabs({ value, onChange }: Props) {
+const OPTIONS: ReadonlyArray<FilterTabOption<ComponentType>> = COMPONENT_ORDER.map(
+  (t) => ({ value: t, label: COMPONENT_LABELS[t] }),
+);
+
+/**
+ * Category selector — the shared segmented `FilterTabs` track, same control
+ * every desk filter uses.
+ */
+export function CategoryTabs({ value, onChange, className }: Props) {
   return (
-    <div className={styles.tabs} role="tablist" aria-label="Assessment category">
-      {COMPONENT_ORDER.map((t) => {
-        return (
-          <Tooltip key={t}>
-            <TooltipTrigger asChild>
-              <button
-                type="button"
-                role="tab"
-                aria-selected={value === t}
-                aria-label={COMPONENT_NAMES[t]}
-                className={`${styles.tab} ${value === t ? styles.tabActive : ""}`}
-                onClick={() => onChange(t)}
-              >
-                {COMPONENT_LABELS[t]}
-              </button>
-            </TooltipTrigger>
-            <TooltipContent side="top">{COMPONENT_NAMES[t]}</TooltipContent>
-          </Tooltip>
-        );
-      })}
-    </div>
+    <FilterTabs
+      label="Assessment category"
+      options={OPTIONS}
+      value={value}
+      onChange={onChange}
+      className={className}
+    />
   );
 }

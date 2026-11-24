@@ -6,7 +6,10 @@ import { CaseHistoryDialog } from "../components/CaseHistoryDialog";
 import { useCoordinatorReferrals } from "./components/use-coordinator-referrals";
 import { CoordinatorReferralsSkeleton } from "./components/coordinator-referrals-skeleton";
 import { CoordinatorReferralsBoard } from "./components/coordinator-referrals-board";
-import { CoordinatorReferralsRail } from "./components/coordinator-referrals-rail";
+import {
+  CoordinatorReferralsDeskHead,
+  CoordinatorReferralsFigures,
+} from "./components/coordinator-referrals-desk";
 import { CoordinatorReferralsPager } from "./components/coordinator-referrals-pager";
 import { CoordinatorReferralsCaseSheet } from "./components/coordinator-referrals-case-sheet";
 import {
@@ -53,6 +56,16 @@ function CoordinatorReferralsPageInner() {
       aria-label="Referrals"
       aria-busy={r.isInitialLoading || undefined}
     >
+      <CoordinatorReferralsDeskHead
+        query={r.query}
+        onQueryChange={r.setQuery}
+        loading={r.isSyncing}
+      />
+      <CoordinatorReferralsFigures
+        stageCounts={r.stageCounts}
+        loading={r.isInitialLoading}
+      />
+
       <div className={styles.body}>
         <div className={styles.mainCol}>
           <CoordinatorReferralsBoard
@@ -64,7 +77,6 @@ function CoordinatorReferralsPageInner() {
             isRefetching={r.referralsRefetching}
             total={r.total}
             query={r.query}
-            onQueryChange={r.setQuery}
             hasActiveFilters={r.hasActiveFilters}
             bookPendingId={r.bookPendingId}
             now={r.now}
@@ -84,12 +96,6 @@ function CoordinatorReferralsPageInner() {
             />
           ) : null}
         </div>
-
-        <CoordinatorReferralsRail
-          stageCounts={r.stageCounts}
-          totalReferred={r.totalReferred}
-          isLoading={r.isInitialLoading}
-        />
       </div>
 
       <CaseHistoryDialog

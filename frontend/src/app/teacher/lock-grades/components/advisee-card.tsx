@@ -1,10 +1,11 @@
 "use client";
 
 import * as React from "react";
-import { BookOpen } from "lucide-react";
+import { ArrowUpRight, BookOpen, Lock } from "lucide-react";
 import { Pill, type PillTone } from "@/components/ui/pill";
 import { Button } from "@/components/ui/button";
 import { KanbanOverlay } from "@/components/ui/kanban-overlay";
+import { StudentMascot } from "@/components/student-mascot/StudentMascot";
 import type {
   LockGradesAdviseeRow,
   LockGradesSubjectRow,
@@ -46,32 +47,49 @@ function subjectGrade(row: LockGradesSubjectRow): string {
   return row.transmutedGrade != null ? String(row.transmutedGrade) : "—";
 }
 
+function pct(value: number, total: number) {
+  if (total <= 0) return 0;
+  return Math.max(0, Math.min(100, (value / total) * 100));
+}
+
 export function LockGradesAdviseeCard({ row }: { row: LockGradesAdviseeRow }) {
   const [open, setOpen] = React.useState(false);
+  const total = row.summary.subjects;
+  const graded = row.summary.graded;
 
   return (
     <>
       <article className={styles.card} aria-label={row.name}>
-        <div className={styles.cardHead}>
-          <div className="min-w-0">
-            <h3 className={styles.cardTitle}>{row.name}</h3>
-            <p className={styles.cardMeta}>{row.section || "No section"}</p>
+        <header className={styles.cardHead}>
+          <StudentMascot name={row.name} seed={row.studentId} size={36} />
+          <div className={styles.cardId}>
+            <span className={styles.cardTitle} title={row.name}>
+              {row.name}
+            </span>
+            <span className={styles.cardMeta} title={row.section || undefined}>
+              {row.section || "No section"}
+            </span>
           </div>
-          <Pill tone="neutral" label="LRN">
+          <Pill field="lrn" className={styles.gradePill}>
             {row.lrn || "—"}
           </Pill>
-        </div>
+        </header>
 
-        <div className={styles.pills}>
+        <div className={styles.metaRow}>
           <Pill tone="blue" label="Subjects">
-            {row.summary.subjects} subject{row.summary.subjects === 1 ? "" : "s"}
+            {total} subject{total === 1 ? "" : "s"}
           </Pill>
-          <Pill tone="sky" label="With computed grade">
-            {row.summary.graded} graded
+          <Pill tone="sky" label="With a computed grade">
+            {graded} graded
           </Pill>
           <Pill tone="amber" label="Locked, awaiting approval">
             {row.summary.locked} locked
           </Pill>
+          {row.summary.approved > 0 ? (
+            <Pill tone="green" label="Approved by the adviser">
+              {row.summary.approved} approved
+            </Pill>
+          ) : null}
           {!row.hasAccount ? (
             <Pill tone="neutral" label="Account">
               Roster only
@@ -79,17 +97,47 @@ export function LockGradesAdviseeCard({ row }: { row: LockGradesAdviseeRow }) {
           ) : null}
         </div>
 
-        <div className={styles.cardFoot}>
-          <span className={`${styles.muted} text-xs`}>
-            {row.summary.graded} of {row.summary.subjects} graded
+        <div
+          className={styles.progress}
+          role="progressbar"
+          aria-valuemin={0}
+          aria-valuemax={100}
+          aria-valuenow={Math.round(pct(graded, total))}
+          aria-label={`${graded} of ${total} subjects graded`}
+        >
+          <span className={styles.segReady} style={{ width: `${pct(graded, total)}%` }} />
+        </div>
+
+        <p className={styles.progressLine}>
+          {graded} of {total} subject{total === 1 ? "" : "s"} graded
+        </p>
+
+        <div className={styles.linksRow}>
+          <span className={styles.linkStat}>
+            <BookOpen size={11} aria-hidden />
+            {total} subject{total === 1 ? "" : "s"}
+          </span>
+          <span className={styles.linkStat}>
+            <Lock size={11} aria-hidden />
+            {row.summary.locked + row.summary.approved} locked
+          </span>
+          <span className={styles.linkStat}>
+            {row.hasAccount ? "Has account" : "Roster only"}
+          </span>
+        </div>
+
+        <div className={styles.cardActions}>
+          <span className={styles.lockedHint}>
+            <Lock size={11} aria-hidden />
+            Read-only desk
           </span>
           <Button
-            size="sm"
-            variant="ghost"
-            className="h-6 px-2 text-xs"
+            variant="outline"
+            className="h-6 gap-1 bg-card px-2 text-[12px] text-foreground"
             onClick={() => setOpen(true)}
           >
             View grades
+            <ArrowUpRight size={12} aria-hidden />
           </Button>
         </div>
       </article>
@@ -106,11 +154,11 @@ export function LockGradesAdviseeCard({ row }: { row: LockGradesAdviseeRow }) {
         }
         description={
           <span className="flex flex-wrap items-center gap-1.5">
-            <Pill tone="neutral" label="Section">
+            <Pill field="section" label="Section">
               {row.section || "No section"}
             </Pill>
             <Pill tone="neutral" label="Subjects">
-              {row.summary.subjects} subject{row.summary.subjects === 1 ? "" : "s"}
+              {total} subject{total === 1 ? "" : "s"}
             </Pill>
             <Pill tone="amber" label="Locked, awaiting approval">
               {row.summary.locked} locked
@@ -126,7 +174,7 @@ export function LockGradesAdviseeCard({ row }: { row: LockGradesAdviseeRow }) {
             {row.subjects.map((subject) => (
               <div
                 key={subject.subjectId}
-                className="flex flex-col gap-1.5 rounded-lg border bg-card p-2.5"
+                className="flex flex-col gap-1.5 rounded-lg border bg-card p-2.5 transition-colors duration-150 ease-out hover:border-amber-500/40"
               >
                 <span className="truncate text-xs font-semibold" title={subject.subject}>
                   {subject.subject}

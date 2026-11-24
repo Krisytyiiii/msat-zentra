@@ -2,6 +2,7 @@
 import * as React from "react";
 import { Info } from "lucide-react";
 import { Skeleton } from "@/components/ui/skeleton";
+import { ShimmerGroup } from "@/components/ui/shimmer-skeleton";
 import { InsightCallout } from "@/components/ui/insight-callout";
 import type { ClassPick } from "@/services/teacher/studentList.types";
 import { useStudentRail } from "./components/use-student-rail";
@@ -20,7 +21,6 @@ export default function TeacherStudentListPage() {
     classes,
     advisorySections,
     rows,
-    liveCountByKey,
   } = useStudentRail();
   const [cardsVisible, setCardsVisible] = React.useState(true);
   const showCards = React.useCallback(() => setCardsVisible(true), []);
@@ -43,29 +43,46 @@ export default function TeacherStudentListPage() {
       <section className={styles.page} aria-busy="true" aria-label="Loading student list">
         <div className={styles.mainCol}>
           {/* Section/advisory cards: same grid and card anatomy as SectionCards. */}
-          <ul className={styles.sectionCardGrid} aria-hidden="true">
-            {Array.from({ length: 6 }).map((_, i) => (
-              <li key={i} className={styles.sectionCard}>
-                <span className={styles.sectionCardHead}>
-                  <span className={styles.sectionCardHeading}>
-                    <Skeleton className="h-4 w-3/4 rounded" />
-                    <span className={styles.sectionCardMetaRow}>
-                      <Skeleton className="h-4 w-16 rounded-full" />
-                      <Skeleton className="h-4 w-12 rounded-full" />
+          <ShimmerGroup>
+            <ul className={styles.sectionCardGrid} aria-hidden="true">
+              {Array.from({ length: 6 }).map((_, i) => (
+                <li key={i} className={styles.sectionCard}>
+                  <span className={styles.sectionCardHead}>
+                    <span className={styles.sectionCardHeading}>
+                      <Skeleton className="h-4 w-3/4 rounded" />
+                      <span className={styles.sectionCardMetaRow}>
+                        <Skeleton className="h-5 w-16 rounded-md" />
+                        <Skeleton className="h-3 w-20 rounded" />
+                      </span>
+                    </span>
+                    <Skeleton className={styles.sectionCardIcon} />
+                  </span>
+                  <span className={styles.sectionCardMetrics}>
+                    <span className={styles.sectionCardMetric}>
+                      <Skeleton className="h-3 w-14 rounded" />
+                      <Skeleton className="h-6 w-8 rounded" />
+                      <Skeleton className="h-3 w-20 rounded" />
+                    </span>
+                    <span className={styles.sectionCardMetric}>
+                      <Skeleton className="h-3 w-16 rounded" />
+                      <Skeleton className="h-6 w-6 rounded" />
+                      <Skeleton className="h-3 w-16 rounded" />
                     </span>
                   </span>
-                  <Skeleton className={styles.sectionCardIcon} />
-                </span>
-                <span className={styles.sectionCardPanel}>
-                  <span className={styles.sectionCardStat}>
-                    <Skeleton className={styles.sectionCardStatIcon} />
-                    <Skeleton className="h-4 w-10 rounded-full" />
-                    <Skeleton className="h-3 w-14 rounded" />
+                  <span className={styles.sectionCardFacts}>
+                    <span className={styles.sectionCardFact}>
+                      <Skeleton className="h-3 w-10 rounded" />
+                      <Skeleton className="h-3 w-16 rounded" />
+                    </span>
+                    <span className={styles.sectionCardFact}>
+                      <Skeleton className="h-3 w-8 rounded" />
+                      <Skeleton className="h-3 w-12 rounded" />
+                    </span>
                   </span>
-                </span>
-              </li>
-            ))}
-          </ul>
+                </li>
+              ))}
+            </ul>
+          </ShimmerGroup>
         </div>
       </section>
     );
@@ -131,13 +148,12 @@ export default function TeacherStudentListPage() {
           aria-hidden={!cardsVisible}
           inert={!cardsVisible ? true : undefined}
         >
-          <div className="min-h-0 overflow-hidden -mt-2 pt-2">
+          <div className="-mx-2 min-h-0 overflow-hidden -mt-2 px-2 pt-2">
             <SectionCards
               advisorySections={advisorySections}
               classes={classes}
               activePick={activePick}
               activeStudentCount={rows.length}
-              liveCountByKey={liveCountByKey}
               onSelect={handleSelect}
             />
           </div>
@@ -152,7 +168,7 @@ export default function TeacherStudentListPage() {
             aria-hidden={cardsVisible}
             inert={cardsVisible ? true : undefined}
           >
-            <div className="min-h-0 overflow-hidden">
+            <div className="-mx-2 -mt-2 min-h-0 overflow-hidden px-2 pt-2">
               <StudentTable
                 key={`${activePick.kind}:${activePick.id}`}
                 headerTitle={headerTitle}

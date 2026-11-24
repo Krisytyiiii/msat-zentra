@@ -1,8 +1,8 @@
 "use client";
 
-import { ChevronDown, Search, X } from "lucide-react";
+import { ChevronDown, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
+import { SearchField } from "@/components/ui/search-field";
 import {
   DropdownMenu,
   DropdownMenuCheckboxItem,
@@ -124,16 +124,13 @@ export function InterventionFilters({
 
   return (
     <div className={styles.filters}>
-      <div className={styles.searchWrap}>
-        <Search className={styles.searchIcon} aria-hidden />
-        <Input
-          className={styles.search}
-          placeholder="Search student…"
-          value={query}
-          onChange={(e) => onQueryChange(e.target.value)}
-          aria-label="Search at-risk students"
-        />
-      </div>
+      <SearchField
+        className="w-60"
+        placeholder="Search student…"
+        value={query}
+        onChange={(next) => onQueryChange(next)}
+        aria-label="Search at-risk students"
+      />
 
       <CompactFilter
         buttonLabel={levelLabel}

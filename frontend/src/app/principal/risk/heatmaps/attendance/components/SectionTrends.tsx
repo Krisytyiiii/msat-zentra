@@ -73,9 +73,9 @@ function todayKey() {
 interface BarDay {
   date: string;
   isoDate: string;
+  /** Learners present in every subject held that day. */
   present: number;
-  late: number;
-  excused: number;
+  /** Everyone else enrolled that day (late/excused fold in — only two series). */
   absent: number;
   /** Marks recorded that day (sum across the subjects held). */
   marked: number;
@@ -121,26 +121,27 @@ function buildModel(section: SubjectRow, today: string): SectionModel {
 
     const marked = day.cells.reduce((sum, cell) => sum + (cell.total ?? 0), 0);
     let present: number;
-    let late: number;
-    let excused: number;
     let absent: number;
     let capacity: number;
 
     if (day.counts) {
       // One status per learner (the API's daily rollup): 3 learners can never
-      // read as 9 absences because they also take 3 subjects.
-      ({ present, late, excused, absent } = day.counts);
+      // read as 9 absences because they also take 3 subjects. Only present vs
+      // not-present is charted — late/excused are folded into absent.
+      present = day.counts.present;
+      absent = day.counts.late + day.counts.excused + day.counts.absent;
       capacity = day.counts.learners;
     } else {
       // Fallback for older payloads: sum the per-subject cells.
       present = day.cells.reduce((sum, cell) => sum + (cell.present ?? 0), 0);
-      late = day.cells.reduce((sum, cell) => sum + (cell.late ?? 0), 0);
-      excused = day.cells.reduce((sum, cell) => sum + (cell.excused ?? 0), 0);
-      absent = day.cells.reduce((sum, cell) => sum + (cell.absent ?? 0), 0);
-      capacity = present + late + excused + absent;
+      absent = day.cells.reduce(
+        (sum, cell) => sum + (cell.late ?? 0) + (cell.excused ?? 0) + (cell.absent ?? 0),
+        0,
+      );
+      capacity = present + absent;
     }
 
-    bars.push({ date: day.date, isoDate: day.isoDate, present, late, excused, absent, marked });
+    bars.push({ date: day.date, isoDate: day.isoDate, present, absent, marked });
 
     if (capacity <= 0) continue;
     elapsedDays += 1;
@@ -151,8 +152,7 @@ function buildModel(section: SubjectRow, today: string): SectionModel {
 
   const rate = capacityTotal > 0 ? round1((presentTotal / capacityTotal) * 100) : 0;
   const maxCount = bars.reduce(
-    (max, bar) =>
-      Math.max(max, bar.present, bar.late, bar.excused, bar.absent),
+    (max, bar) => Math.max(max, bar.present, bar.absent),
     0,
   );
 
@@ -257,14 +257,6 @@ function SectionTrendRow({
                         style={{ height: scale(bar.present) }}
                       />
                       <span
-                        className={`${styles.bar} ${styles.barLate}`}
-                        style={{ height: scale(bar.late) }}
-                      />
-                      <span
-                        className={`${styles.bar} ${styles.barExcused}`}
-                        style={{ height: scale(bar.excused) }}
-                      />
-                      <span
                         className={`${styles.bar} ${styles.barAbsent}`}
                         style={{ height: scale(bar.absent) }}
                       />
@@ -281,23 +273,11 @@ function SectionTrendRow({
                   style={{ left: `${hoverX}%` }}
                 >
                   <span className={styles.tipDate}>{hoverBar.date}</span>
-                  {hoverBar.present +
-                    hoverBar.late +
-                    hoverBar.excused +
-                    hoverBar.absent >
-                  0 ? (
+                  {hoverBar.present + hoverBar.absent > 0 ? (
                     <span className={styles.tipRows}>
                       <span>
                         <span className={`${styles.dot} ${styles.dotPresent}`} />
                         Present <strong>{hoverBar.present}</strong>
-                      </span>
-                      <span>
-                        <span className={`${styles.dot} ${styles.dotLate}`} />
-                        Late <strong>{hoverBar.late}</strong>
-                      </span>
-                      <span>
-                        <span className={`${styles.dot} ${styles.dotExcused}`} />
-                        Excused <strong>{hoverBar.excused}</strong>
                       </span>
                       <span>
                         <span className={`${styles.dot} ${styles.dotAbsent}`} />
@@ -308,7 +288,7 @@ function SectionTrendRow({
                     <span className={styles.tipEmpty}>No learners enrolled</span>
                   )}
                   {hoverBar.marked === 0 &&
-                  hoverBar.present + hoverBar.late + hoverBar.excused + hoverBar.absent > 0 ? (
+                  hoverBar.present + hoverBar.absent > 0 ? (
                     <span className={styles.tipNote}>
                       No sheet taken — counted absent
                     </span>
@@ -412,7 +392,7 @@ export function SectionTrends() {
     <KanbanBoard
       title="Subject Trends"
       icon={<CalendarDays size={14} aria-hidden="true" />}
-      description="One row per section — grouped daily bars counting each learner once (present, late, excused or absent) from the term start to today. A day without a taken sheet counts as absent (transferee windows open at enlistment). Hover a day for its numbers."
+      description="One row per section — grouped daily bars counting each learner once (present vs absent) from the term start to today. A learner counts as present only when marked present in every subject held that day; late and excused are counted as not present, and a day without a taken sheet counts as absent (transferee windows open at enlistment). Hover a day for its numbers."
     >
       {isPending ? (
         <div className={styles.list} aria-hidden="true">
@@ -436,14 +416,6 @@ export function SectionTrends() {
                 <span>
                   <span className={`${styles.dot} ${styles.dotPresent}`} />
                   Present
-                </span>
-                <span>
-                  <span className={`${styles.dot} ${styles.dotLate}`} />
-                  Late
-                </span>
-                <span>
-                  <span className={`${styles.dot} ${styles.dotExcused}`} />
-                  Excused
                 </span>
                 <span>
                   <span className={`${styles.dot} ${styles.dotAbsent}`} />

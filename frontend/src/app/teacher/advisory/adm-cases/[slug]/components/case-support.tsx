@@ -2,10 +2,12 @@
 
 import * as React from "react";
 import { CalendarCheck2, FileText, Laptop, LifeBuoy } from "lucide-react";
+import { Button } from "@/components/ui/button";
 import { Pill } from "@/components/ui/pill";
 import { cn } from "@/lib/utils";
 import { formStatusLabel, formStatusTone } from "@/lib/labels/status-tone";
 import type { AdmMonitoringCase } from "@/services/teacher/admMonitoring.service";
+import { CaseDocumentOverlay } from "./case-document-overlay";
 
 const dayLabel = (iso: string | null) => {
   if (!iso) return "—";
@@ -32,6 +34,9 @@ type TabKey = "devices" | "meetings" | "documents";
 export function CaseSupport({ data }: { data: AdmMonitoringCase }) {
   const { devices, meetings, forms } = data;
   const [tab, setTab] = React.useState<TabKey>("devices");
+  const [previewForm, setPreviewForm] = React.useState<
+    AdmMonitoringCase["forms"][number] | null
+  >(null);
 
   const tabs = [
     { key: "devices" as const, label: "Devices", count: devices.length, icon: Laptop },
@@ -78,7 +83,7 @@ export function CaseSupport({ data }: { data: AdmMonitoringCase }) {
 
       {tab === "devices" ? (
         devices.length === 0 ? (
-          <p className="m-0 rounded-md border border-dashed px-3 py-6 text-center text-xs text-muted-foreground">
+          <p className="m-0 rounded-md border border-dashed px-3 py-6 text-center text-sm text-muted-foreground">
             No device issued yet.
           </p>
         ) : (
@@ -86,19 +91,19 @@ export function CaseSupport({ data }: { data: AdmMonitoringCase }) {
             {devices.map((d) => (
               <li key={d.id} className="flex flex-col gap-1 rounded-md border bg-background p-2.5">
                 <div className="flex items-center justify-between gap-2">
-                  <p className="m-0 truncate text-xs font-semibold text-foreground">
+                  <p className="m-0 truncate text-sm font-semibold text-foreground">
                     {d.deviceType}
                   </p>
                   <Pill tone={d.returnedDate ? "neutral" : "green"} label="Device status">
                     {d.returnedDate ? "Returned" : "Issued"}
                   </Pill>
                 </div>
-                <p className="m-0 text-[12px] text-muted-foreground">
+                <p className="m-0 text-[14px] text-muted-foreground">
                   Serial {d.deviceSerial} · issued {dayLabel(d.issuedDate)}
                   {d.returnedDate ? ` · returned ${dayLabel(d.returnedDate)}` : ""}
                 </p>
                 {d.conditionNotes ? (
-                  <p className="m-0 text-[12px] text-muted-foreground">{d.conditionNotes}</p>
+                  <p className="m-0 text-[14px] text-muted-foreground">{d.conditionNotes}</p>
                 ) : null}
               </li>
             ))}
@@ -108,7 +113,7 @@ export function CaseSupport({ data }: { data: AdmMonitoringCase }) {
 
       {tab === "meetings" ? (
         meetings.length === 0 ? (
-          <p className="m-0 rounded-md border border-dashed px-3 py-6 text-center text-xs text-muted-foreground">
+          <p className="m-0 rounded-md border border-dashed px-3 py-6 text-center text-sm text-muted-foreground">
             No parent meeting recorded yet.
           </p>
         ) : (
@@ -116,18 +121,18 @@ export function CaseSupport({ data }: { data: AdmMonitoringCase }) {
             {meetings.map((m) => (
               <li key={m.id} className="flex flex-col gap-1 rounded-md border bg-background p-2.5">
                 <div className="flex items-center justify-between gap-2">
-                  <p className="m-0 text-xs font-semibold text-foreground">
+                  <p className="m-0 text-sm font-semibold text-foreground">
                     {stampLabel(m.meetingDatetime)}
                   </p>
                   <Pill tone={m.attended ? "green" : "amber"} label="Attendance">
                     {m.attended ? "Attended" : "Missed"}
                   </Pill>
                 </div>
-                <p className="m-0 truncate text-[12px] text-muted-foreground" title={m.venue}>
+                <p className="m-0 truncate text-[14px] text-muted-foreground" title={m.venue}>
                   {m.venue}
                 </p>
                 {m.minutesOfMeeting ? (
-                  <p className="m-0 line-clamp-2 text-[12px] text-muted-foreground">
+                  <p className="m-0 whitespace-pre-line break-words text-[14px] text-muted-foreground">
                     {m.minutesOfMeeting}
                   </p>
                 ) : null}
@@ -139,7 +144,7 @@ export function CaseSupport({ data }: { data: AdmMonitoringCase }) {
 
       {tab === "documents" ? (
         forms.length === 0 ? (
-          <p className="m-0 rounded-md border border-dashed px-3 py-6 text-center text-xs text-muted-foreground">
+          <p className="m-0 rounded-md border border-dashed px-3 py-6 text-center text-sm text-muted-foreground">
             No linked forms yet.
           </p>
         ) : (
@@ -150,21 +155,40 @@ export function CaseSupport({ data }: { data: AdmMonitoringCase }) {
                 className="flex items-center justify-between gap-2 rounded-md border bg-background p-2.5"
               >
                 <div className="flex min-w-0 flex-col gap-0.5">
-                  <p className="m-0 truncate text-xs font-semibold text-foreground" title={f.title}>
+                  <p className="m-0 truncate text-sm font-semibold text-foreground" title={f.title}>
                     {f.title}
                   </p>
-                  <p className="m-0 text-[12px] text-muted-foreground">
+                  <p className="m-0 text-[14px] text-muted-foreground">
                     {dayLabel(f.uploadedAt)}
                   </p>
                 </div>
-                <Pill tone={formStatusTone(f.status)} label="Form status">
-                  {formStatusLabel(f.status)}
-                </Pill>
+                <div className="flex shrink-0 items-center gap-2">
+                  <Pill tone={formStatusTone(f.status)} label="Form status">
+                    {formStatusLabel(f.status)}
+                  </Pill>
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    className="gap-1"
+                    onClick={() => setPreviewForm(f)}
+                    aria-label={`Preview ${f.title}`}
+                  >
+                    <FileText size={13} aria-hidden />
+                    View
+                  </Button>
+                </div>
               </li>
             ))}
           </ul>
         )
       ) : null}
+
+      <CaseDocumentOverlay
+        data={data}
+        form={previewForm}
+        onClose={() => setPreviewForm(null)}
+      />
     </section>
   );
 }

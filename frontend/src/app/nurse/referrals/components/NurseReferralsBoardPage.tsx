@@ -8,8 +8,14 @@ import { Inbox, Loader2 } from "lucide-react";
 import { NurseEmptyCard } from "../../components/NurseEmptyCard";
 import { NurseAlertsTable } from "./NurseAlertsTable";
 import { NurseReferralsSkeleton } from "./NurseReferralsSkeleton";
+import { ShimmerGroup } from "@/components/ui/shimmer-skeleton";
+import { NurseBoardDeskHead, NurseBoardFigures } from "./NurseBoardDeskHead";
 import { fetchNurseAlerts } from "@/services/nurse/alerts.service";
-import type { NurseAlertsPage } from "@/services/nurse/nurse.types";
+import { fetchNurseOverview } from "@/services/nurse/overview.service";
+import type {
+  NurseAlertsPage,
+  NurseOverviewData,
+} from "@/services/nurse/nurse.types";
 import { useNurseInvalidate } from "../../overview/components/use-nurse-mutation";
 import { useDebouncedValue } from "@/lib/useDebouncedValue";
 import { useTerm } from "@/lib/term/TermContext";
@@ -68,8 +74,9 @@ const COPY: Record<
 
 /**
  * Shared nurse case board (/nurse/referrals/adm and /nurse/referrals/clinic):
- * one server-paged kanban grid with live search, so both desks stay
- * identical apart from their copy and track filter.
+ * one desk head (title, search + refresh), a whole-term figure
+ * strip, then the server-paged kanban grid — both desks stay identical apart
+ * from their copy and track filter.
  */
 function NurseReferralsBoard({ track }: { track: BoardTrack }) {
   const copy = COPY[track];
@@ -132,12 +139,38 @@ function NurseReferralsBoard({ track }: { track: BoardTrack }) {
       enabled: termReady,
     });
 
+  /* The figure strip reads the clinic overview (whole term scope, computed
+     server-side) and shares its cache key with /nurse/overview, so opening
+     either page warms the other. */
+  const overviewQuery = useQuery<NurseOverviewData>({
+    ...liveQueryOptions,
+    queryKey: ["nurse-overview", "preview", termKey],
+    queryFn: ({ signal }) => fetchNurseOverview(signal),
+    enabled: termReady,
+  });
+
+  const breakdown =
+    (track === "adm"
+      ? overviewQuery.data?.admStatusBreakdown
+      : overviewQuery.data?.clinicStatusBreakdown) ?? [];
+
   const totalPages = Math.max(1, data?.totalPages ?? 1);
   const safePage = Math.min(data?.page ?? page, totalPages);
 
   function refresh() {
     invalidateNurse();
   }
+
+  const head = (
+    <NurseBoardDeskHead
+      track={track}
+      title={copy.boardTitle}
+      query={queryInput}
+      onQueryChange={setQueryInput}
+      searchPlaceholder={copy.searchPlaceholder}
+      loading={isRefetching}
+    />
+  );
 
   /* First load and page flips show the skeleton: page changes drop the
      retained page (see `placeholderData`), so `isPending` covers navigation.
@@ -149,7 +182,11 @@ function NurseReferralsBoard({ track }: { track: BoardTrack }) {
         aria-busy="true"
         aria-label={copy.loadingLabel}
       >
-        <NurseReferralsSkeleton sideRows={6} />
+        {head}
+        <ShimmerGroup>
+          <NurseBoardFigures track={track} breakdown={[]} loading />
+          <NurseReferralsSkeleton />
+        </ShimmerGroup>
       </section>
     );
   }
@@ -157,6 +194,7 @@ function NurseReferralsBoard({ track }: { track: BoardTrack }) {
   if (isError || !data) {
     return (
       <section className={styles.page}>
+        {head}
         <div className={styles.pageError} role="alert">
           <p className={styles.pageErrorTitle}>{copy.errorTitle}</p>
           <p className={styles.pageErrorHint}>
@@ -187,6 +225,7 @@ function NurseReferralsBoard({ track }: { track: BoardTrack }) {
       aria-busy={refreshing}
       aria-label={copy.ariaLabel}
     >
+      {head}
       {isTrueEmpty ? (
         <NurseEmptyCard
           icon={Inbox}
@@ -197,28 +236,36 @@ function NurseReferralsBoard({ track }: { track: BoardTrack }) {
           layout="fit"
         />
       ) : (
-        <NurseAlertsTable
-          alerts={Array.isArray(data.alerts) ? data.alerts : []}
-          onChanged={refresh}
-          initialType={copy.initialType}
-          lockType
-          layout="kanban"
-          pageSize={NURSE_BOARD_PAGE_SIZE}
-          title={copy.boardTitle}
-          highlightId={highlightId}
-          autoViewFormId={autoViewFormId}
-          serverPage={safePage}
-          serverTotalPages={totalPages}
-          serverTotal={data.total}
-          serverUnfilteredTotal={data.unfilteredTotal}
-          onServerPageChange={(p) => {
-            setTakeover(true);
-            setPage(p);
-          }}
-          search={queryInput}
-          onSearchChange={setQueryInput}
-          searchPlaceholder={copy.searchPlaceholder}
-        />
+        <>
+          <NurseBoardFigures
+            track={track}
+            breakdown={breakdown}
+            loading={overviewQuery.isPending}
+          />
+          <NurseAlertsTable
+            alerts={Array.isArray(data.alerts) ? data.alerts : []}
+            onChanged={refresh}
+            initialType={copy.initialType}
+            lockType
+            layout="kanban"
+            pageSize={NURSE_BOARD_PAGE_SIZE}
+            title={copy.boardTitle}
+            highlightId={highlightId}
+            autoViewFormId={autoViewFormId}
+            serverPage={safePage}
+            serverTotalPages={totalPages}
+            serverTotal={data.total}
+            serverUnfilteredTotal={data.unfilteredTotal}
+            onServerPageChange={(p) => {
+              setTakeover(true);
+              setPage(p);
+            }}
+            search={queryInput}
+            onSearchChange={setQueryInput}
+            showSearch={false}
+            searchPlaceholder={copy.searchPlaceholder}
+          />
+        </>
       )}
     </section>
   );
@@ -230,7 +277,7 @@ export function NurseReferralsBoardPage({ track }: { track: BoardTrack }) {
     <React.Suspense
       fallback={
         <section className={styles.page}>
-          <NurseReferralsSkeleton sideRows={6} />
+          <NurseReferralsSkeleton />
         </section>
       }
     >

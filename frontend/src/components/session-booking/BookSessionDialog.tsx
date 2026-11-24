@@ -321,24 +321,40 @@ export function BookSessionDialog({
   const [prevOpenKey, setPrevOpenKey] = React.useState<string | null>(null);
   if (openKey !== prevOpenKey) {
     setPrevOpenKey(openKey);
-    setDate(initialDate);
-    const slotMatch = TIME_SLOTS.some((s) => s.key === initialTime);
-    setTime(slotMatch ? initialTime : "");
-    setCustomTime(slotMatch ? "" : initialTime);
+    // Seed only a bookable moment: a caller passing a past date/time (e.g.
+    // moving a session that already happened) opens on an empty picker instead
+    // of a value the desk could never legitimately submit.
+    const seedToday = todayKey();
+    const seededDate =
+      initialDate && parseDateKey(initialDate) && initialDate >= seedToday
+        ? initialDate
+        : "";
+    const seededTime =
+      seededDate && !isPastMoment(seededDate, initialTime) ? initialTime : "";
+    setDate(seededDate);
+    const slotMatch = TIME_SLOTS.some((s) => s.key === seededTime);
+    setTime(slotMatch ? seededTime : "");
+    setCustomTime(slotMatch ? "" : seededTime);
     setUseCustomDate(
-      initialDate !== "" && !nextDayCards(3, todayKey()).some((d) => d.key === initialDate),
+      seededDate !== "" && !nextDayCards(3, seedToday).some((d) => d.key === seededDate),
     );
     setVenue(initialVenue);
     setSessionType(initialSessionType ?? defaultSessionType);
     setInvites(initialInviteIds);
     setError(null);
     setTaken([]);
-    setTakenLoading(!!fetchTakenTimes && !!initialDate);
+    setTakenLoading(!!fetchTakenTimes && !!seededDate);
     setStep(1);
   }
 
   const dayCards = nextDayCards(3, todayKey());
   const today = todayKey();
+  /* A past clock time can never be booked. Before a day is picked the floor is
+     still "now" — every time that clears it is valid for any later day too —
+     so the dial can't hand back a value that is already behind us. */
+  const floorDate = date || today;
+  const timeFloor =
+    date === "" || date === today ? currentTimeKey() : undefined;
   const timeIsCustom = time !== "" && !TIME_SLOTS.some((s) => s.key === time);
 
   React.useEffect(() => {
@@ -404,6 +420,12 @@ export function BookSessionDialog({
   }
 
   function pickTime(key: string) {
+    if (isPastMoment(floorDate, key)) {
+      setTime("");
+      setCustomTime("");
+      setError("Pick the current time or a later date and time.");
+      return;
+    }
     setTime(key);
     setCustomTime("");
     setError(null);
@@ -422,7 +444,7 @@ export function BookSessionDialog({
 
   function pickCustomTime(value: string) {
     setError(null);
-    if (isPastMoment(date, value)) {
+    if (isPastMoment(floorDate, value)) {
       // Never hold a past time in the form — the footer error explains why.
       setTime("");
       setCustomTime("");
@@ -449,7 +471,7 @@ export function BookSessionDialog({
       setError(sessionConflictNote(clash));
       return;
     }
-    if (isPastMoment(date, value)) {
+    if (isPastMoment(floorDate, value)) {
       setTime("");
       setError("Pick the current time or a later date and time.");
       return;
@@ -463,7 +485,7 @@ export function BookSessionDialog({
     if (clash) {
       return `Overlaps the session booked at ${formatClockLabel(clash)}`;
     }
-    if (isPastMoment(date, slot.key)) return "Already passed";
+    if (isPastMoment(floorDate, slot.key)) return "Already passed";
     return null;
   }
 
@@ -683,7 +705,7 @@ export function BookSessionDialog({
                       value={time}
                       onChange={pickClockTime}
                       popoverClassName="z-[70]"
-                      minTime={date === today ? currentTimeKey() : undefined}
+                      minTime={timeFloor}
                     />
                   </div>
                 </div>
@@ -1047,7 +1069,7 @@ export function BookSessionDialog({
                       label="Custom time"
                       value={timeIsCustom ? time : customTime}
                       onChange={pickCustomTime}
-                      minTime={date === today ? currentTimeKey() : undefined}
+                      minTime={timeFloor}
                     />
                   </div>
                 ) : null}

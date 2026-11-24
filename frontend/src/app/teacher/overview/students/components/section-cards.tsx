@@ -1,8 +1,9 @@
 "use client";
 
 import { motion, useReducedMotion, type Variants } from "motion/react";
-import { BookOpen, GraduationCap, Users } from "lucide-react";
-import { Pill, type PillTone } from "@/components/ui/pill";
+import { BookOpen, GraduationCap } from "lucide-react";
+import { GlassCard } from "@/components/ui/glass-card";
+import { Pill } from "@/components/ui/pill";
 import type {
   AdvisorySectionItem,
   ClassPick,
@@ -34,8 +35,10 @@ const cardItemVariants: Variants = {
 
 function SectionCardButton({
   active,
+  kind,
   title,
-  meta,
+  kicker,
+  grade,
   section,
   count,
   icon,
@@ -45,8 +48,10 @@ function SectionCardButton({
   reduceMotion = false,
 }: {
   active: boolean;
+  kind: "advisory" | "class";
   title: string;
-  meta: { label: string; tone: PillTone; ariaLabel: string }[];
+  kicker: string;
+  grade: string;
   section?: string;
   count: number;
   icon: React.ReactNode;
@@ -55,6 +60,7 @@ function SectionCardButton({
   index?: number;
   reduceMotion?: boolean;
 }) {
+  const gradeValue = grade.replace(/^Grade\s+/i, "");
   return (
     <motion.li
       className="flex min-w-0"
@@ -62,61 +68,72 @@ function SectionCardButton({
       custom={index}
       style={{ willChange: "transform, opacity" }}
     >
-      <motion.button
-        type="button"
-        onClick={onSelect}
-        aria-pressed={active}
-        aria-label={ariaLabel}
-        initial={false}
-        whileHover={reduceMotion ? undefined : { y: -2 }}
-        whileTap={reduceMotion ? undefined : { scale: 0.985 }}
-        transition={{ type: "spring", stiffness: 400, damping: 28, mass: 0.6 }}
-        className={`${styles.sectionCard} ${active ? styles.sectionCardActive : ""}`}
-      >
-        <span className={styles.sectionCardHead}>
-          <span className={styles.sectionCardHeading}>
-            <span className={styles.sectionCardName} title={title}>
-              {title}
+      <GlassCard className="flex w-full min-w-0" disabled={reduceMotion}>
+        <motion.button
+          type="button"
+          onClick={onSelect}
+          aria-pressed={active}
+          aria-label={ariaLabel}
+          initial={false}
+          whileTap={reduceMotion ? undefined : { scale: 0.985 }}
+          transition={{ type: "spring", stiffness: 400, damping: 28, mass: 0.6 }}
+          className={`${styles.sectionCard} ${active ? styles.sectionCardActive : ""}`}
+        >
+          <span className={styles.sectionCardHead}>
+            <span className={styles.sectionCardHeading}>
+              <span className={styles.sectionCardName} title={title}>
+                {title}
+              </span>
+              <span className={styles.sectionCardMetaRow}>
+                <Pill
+                  tone="blue"
+                  label={kind === "advisory" ? "Card type" : "Subject code"}
+                  className="font-semibold uppercase tracking-[0.04em]"
+                >
+                  {kicker}
+                </Pill>
+              </span>
             </span>
-            <span className={styles.sectionCardMetaRow}>
-              {meta.map((tag) => (
-                <Pill key={tag.label} tone={tag.tone} label={tag.ariaLabel}>
-                  {tag.label}
-                </Pill>
-              ))}
-              {section ? (
-                <Pill tone="amber" label="Section">
-                  {section}
-                </Pill>
-              ) : (
-                <Pill tone="neutral" label="Students">
-                  {count} Student{count === 1 ? "" : "s"}
-                </Pill>
-              )}
+            <span className={styles.sectionCardIcon} aria-hidden>
+              {icon}
             </span>
           </span>
-          <span className={styles.sectionCardIcon} aria-hidden>
-            {icon}
-          </span>
-        </span>
-        <span className={styles.sectionCardPanel}>
-          <span className={styles.sectionCardStat}>
-            <span className={styles.sectionCardStatIcon} aria-hidden>
-              <Users />
+
+          <span className={styles.sectionCardMetrics}>
+            <span className={styles.sectionCardMetric}>
+              <span className={styles.sectionCardMetricLabel}>Students</span>
+              <span className={`${styles.sectionCardMetricValue} tabular-nums`}>{count}</span>
+              <span className={styles.sectionCardMetricHint}>
+                {kind === "advisory" ? "advised learners" : "enrolled learners"}
+              </span>
             </span>
-            <Pill
-              tone="blue"
-              label="Students"
-              className={`${styles.sectionCardStatValue} tabular-nums`}
-            >
-              {count}
-            </Pill>
-            <span className={styles.sectionCardStatLabel}>
-              Student{count === 1 ? "" : "s"}
+            <span className={styles.sectionCardMetric}>
+              <span className={styles.sectionCardMetricLabel}>Grade level</span>
+              <span className={`${styles.sectionCardMetricValue} tabular-nums`}>
+                {gradeValue}
+              </span>
+              <span className={styles.sectionCardMetricHint}>
+                {kind === "advisory" ? "advisory section" : "subject class"}
+              </span>
             </span>
           </span>
-        </span>
-      </motion.button>
+
+          <span className={styles.sectionCardFacts}>
+            <span className={styles.sectionCardFact}>
+              <span className={styles.sectionCardFactLabel}>Section</span>
+              <span className={styles.sectionCardFactValue} title={section ?? title}>
+                {section ?? title}
+              </span>
+            </span>
+            <span className={styles.sectionCardFact}>
+              <span className={styles.sectionCardFactLabel}>Type</span>
+              <span className={styles.sectionCardFactValue}>
+                {kind === "advisory" ? "Advisory" : "Subject"}
+              </span>
+            </span>
+          </span>
+        </motion.button>
+      </GlassCard>
     </motion.li>
   );
 }
@@ -126,23 +143,19 @@ export function SectionCards({
   classes,
   activePick,
   activeStudentCount,
-  liveCountByKey,
   onSelect,
 }: {
   advisorySections: AdvisorySectionItem[];
   classes: StudentListClassItem[];
   activePick: ClassPick | null;
   activeStudentCount: number;
-  liveCountByKey: Map<string, number>;
   onSelect: (pick: ClassPick) => void;
 }) {
   const empty = advisorySections.length === 0 && classes.length === 0;
 
-  // Card counts come from real student lists when available (prefetched in
-  // the background), falling back to the backend headcount until loaded.
+  // Counts come straight from the response's per-section headcount; the
+  // selected card keeps following the live list it just loaded.
   const resolveCount = (kind: ClassPick["kind"], id: string, headcount: number): number => {
-    const live = liveCountByKey.get(`${kind}:${id}`);
-    if (live !== undefined) return live;
     if (activePick?.kind === kind && activePick.id === id) return activeStudentCount;
     return headcount;
   };
@@ -153,7 +166,7 @@ export function SectionCards({
     <section aria-label="Sections" className="flex min-w-0 flex-col gap-3">
       {empty ? (
         <p className="rounded-xl border border-border px-3 py-8 text-center text-xs text-muted-foreground">
-          No sections match your search.
+          No sections for this term yet.
         </p>
       ) : (
         // Flat responsive grid — advisory and subject × section cards flow
@@ -174,11 +187,10 @@ export function SectionCards({
                 index={i}
                 reduceMotion={reduceMotion}
                 active={active}
+                kind="advisory"
                 title={s.name}
-                meta={[
-                  { label: "Advisory", tone: "blue", ariaLabel: "Section type" },
-                  { label: s.gradeLevel, tone: "neutral", ariaLabel: "Grade level" },
-                ]}
+                kicker="Advisory"
+                grade={s.gradeLevel}
                 count={count}
                 icon={<GraduationCap size={13} aria-hidden />}
                 onSelect={() => onSelect({ kind: "advisory", id: s.id })}
@@ -195,11 +207,10 @@ export function SectionCards({
                 index={advisorySections.length + i}
                 reduceMotion={reduceMotion}
                 active={active}
+                kind="class"
                 title={c.subject}
-                meta={[
-                  { label: c.code, tone: "blue", ariaLabel: "Subject code" },
-                  { label: c.gradeLevel, tone: "neutral", ariaLabel: "Grade level" },
-                ]}
+                kicker={c.code}
+                grade={c.gradeLevel}
                 section={c.section}
                 count={count}
                 icon={<BookOpen size={13} aria-hidden />}

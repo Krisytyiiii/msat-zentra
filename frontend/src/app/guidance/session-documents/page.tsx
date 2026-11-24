@@ -6,10 +6,11 @@ import { useQuery } from "@tanstack/react-query";
 import { ArrowUpRight, FolderOpen, Loader2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
+import { PolaroidStackSkeleton } from "@/components/aicanvas/polaroid-stack";
+import { ShimmerGroup } from "@/components/ui/shimmer-skeleton";
 import { ZentraPaginationSkeleton } from "@/components/shared/zentra-skeletons/ZentraSkeletons";
 import { GuidanceEmptyCard } from "../components/GuidanceEmptyCard";
 import { GuidanceSessionDocumentsFolders } from "./components/guidance-session-documents-folders";
-import { SessionDocumentCardSkeleton } from "./components/SessionDocumentCardSkeleton";
 import type { TypeFilter } from "@/app/guidance/anecdotal/components/guidance-anecdotal-filters";
 import { fetchAllGuidanceAnecdotal } from "@/services/guidance/anecdotal.service";
 import type {
@@ -19,12 +20,12 @@ import type {
 import { useTerm } from "@/lib/term/TermContext";
 import { liveQueryOptions } from "@/lib/api/live";
 import styles from "@/app/guidance/anecdotal/components/guidance-anecdotal.module.css";
-import listStyles from "./components/guidance-session-documents-folders.module.css";
-import { PAGE_SIZE } from "@/components/shared/pagination";
 import { useUrlPager } from "@/components/shared/pagination/useUrlPager";
 import { useSearchParams } from "next/navigation";
 
-const GUIDANCE_SESSION_DOCS_PAGE_SIZE = PAGE_SIZE;
+// The polaroid desk stacks a handful of records at a time (same rhythm as the
+// nurse health-records board), so page it 5 at a time instead of 15.
+const GUIDANCE_SESSION_DOCS_PAGE_SIZE = 5;
 
 function hasDocsCheck(record: { sessionDocs?: { files: { mimeType: string }[] }[] }): boolean {
   return (record.sessionDocs ?? []).some((s) =>
@@ -109,17 +110,15 @@ function GuidanceSessionDocumentsPageInner() {
   if (isPending) {
     return (
       <section className={styles.page} aria-busy="true" aria-label="Loading session documents">
-        <div className="flex flex-col gap-4">
-          <div className="flex flex-wrap items-center justify-end gap-2">
-            <Skeleton className="h-8 w-56 max-w-full shrink-0 rounded-[16px]" />
+        <ShimmerGroup>
+          <div className="flex flex-col gap-4">
+            <div className="flex flex-wrap items-center justify-end gap-2">
+              <Skeleton className="h-8 w-56 max-w-full shrink-0 rounded-[16px]" />
+            </div>
+            <PolaroidStackSkeleton />
+            <ZentraPaginationSkeleton />
           </div>
-          <div className={listStyles.studentGrid}>
-            {Array.from({ length: 8 }).map((_, i) => (
-              <SessionDocumentCardSkeleton key={i} />
-            ))}
-          </div>
-          <ZentraPaginationSkeleton />
-        </div>
+        </ShimmerGroup>
       </section>
     );
   }
@@ -148,21 +147,21 @@ function GuidanceSessionDocumentsPageInner() {
   const hasActiveFilters = queryInput.trim() !== "" || type !== "";
   if (allRecords.length === 0 && !hasActiveFilters) {
     return (
-      <section className={`${styles.page} relative`} aria-label="Session documents">
-        {/* Page-level action sits top-right, like the other desk empty states;
-            the callout itself stays centered. */}
-        <Button asChild size="sm" className="absolute right-0 top-0 h-6 gap-1 px-2 text-xs">
-          <Link href="/guidance/referrals">
-            <ArrowUpRight className="size-3.5" aria-hidden="true" />
-            View referrals
-          </Link>
-        </Button>
+      <section className={styles.page} aria-label="Session documents">
         <GuidanceEmptyCard
           icon={FolderOpen}
           title="No session files yet"
           hint="Images attached to counseling sessions — on referrals or interventions — will appear here."
           label="Session documents"
           centered
+          action={
+            <Button asChild size="sm" variant="outline" className="gap-1">
+              <Link href="/guidance/referrals">
+                <ArrowUpRight className="size-3.5" aria-hidden="true" />
+                View referrals
+              </Link>
+            </Button>
+          }
         />
       </section>
     );
@@ -173,6 +172,7 @@ function GuidanceSessionDocumentsPageInner() {
       <GuidanceSessionDocumentsFolders
         records={visible}
         page={safePage}
+        pageSize={GUIDANCE_SESSION_DOCS_PAGE_SIZE}
         total={filtered.length}
         onPageChange={setPage}
         query={queryInput}

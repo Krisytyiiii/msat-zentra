@@ -1187,30 +1187,6 @@ function TemplateInner() {
     <section className="flex w-full flex-col gap-5 lg:flex-row lg:gap-6">
       <TemplateNavRail view={view} onSelect={openView} />
       <div className="flex min-w-0 flex-1 flex-col gap-6">
-        {view === "grid" && !catalogMissing ? (
-          <div className="flex items-center justify-end gap-2">
-            <Button
-              variant="outline"
-              className="h-6 gap-1 px-2 text-[12px]"
-              onClick={() => setSectionAddOpen(true)}
-            >
-              <Layers size={12} aria-hidden />
-              New section
-            </Button>
-            <Button
-              variant="outline"
-              className="h-6 gap-1 px-2 text-[12px]"
-              onClick={openAddSubject}
-            >
-              <BookPlus size={12} aria-hidden />
-              Add subject
-            </Button>
-            <Button className="h-6 gap-1 px-2 text-[12px]" onClick={openAddTeacher}>
-              <UserPlus size={12} aria-hidden />
-              Add teacher
-            </Button>
-          </div>
-        ) : null}
         {view === "subjects" ? (
           <section id="subjects" aria-label="Subjects" className="flex scroll-mt-6 flex-col gap-4">
             <SubjectCatalogKanban
@@ -1672,11 +1648,29 @@ function TemplateInner() {
                 </PageEmptyCallout>
               ) : (
                 <div className="flex flex-col gap-3">
-                  <div className="flex flex-col items-center gap-2">
-                    <div className="flex flex-wrap items-center justify-center gap-2">
-                      <span className="flex items-center gap-2">
-                        <span className="text-xs text-muted-foreground">Section</span>
-                        <span className="inline-flex w-48 max-w-full">
+                  {/* Workspace bar: pick a section, see its size, jump into the
+                      catalog actions that feed the grid. */}
+                  <div className="flex flex-col gap-2.5 rounded-xl border border-border bg-card p-3">
+                    <div className="flex flex-wrap items-center justify-between gap-2">
+                      <div className="flex min-w-0 items-center gap-2">
+                        <span
+                          className="flex h-7 w-7 shrink-0 items-center justify-center rounded-lg border border-amber-500/25 bg-amber-500/10 text-amber-600 dark:text-amber-400"
+                          aria-hidden
+                        >
+                          <CalendarDays size={14} />
+                        </span>
+                        <div className="min-w-0">
+                          <p className="text-[13px] leading-tight font-semibold">
+                            Section workspace
+                          </p>
+                          <p className="truncate text-[12px] leading-tight text-muted-foreground">
+                            {sections.length} section{sections.length === 1 ? "" : "s"} this
+                            year — pick one to build its weekly grid.
+                          </p>
+                        </div>
+                      </div>
+                      <div className="flex flex-wrap items-center gap-1.5">
+                        <span className="hidden sm:inline-flex">
                           <DropdownSelect
                             value={sectionId}
                             onValueChange={handleSectionChange}
@@ -1689,26 +1683,95 @@ function TemplateInner() {
                             triggerClassName={dropdownStyles.dropdown32}
                           />
                         </span>
-                      </span>
+                        <Button
+                          variant="outline"
+                          className="h-6 gap-1 px-2 text-[12px]"
+                          onClick={() => setSectionAddOpen(true)}
+                        >
+                          <Layers size={12} aria-hidden />
+                          New section
+                        </Button>
+                        <Button
+                          variant="outline"
+                          className="h-6 gap-1 px-2 text-[12px]"
+                          onClick={openAddSubject}
+                        >
+                          <BookPlus size={12} aria-hidden />
+                          Add subject
+                        </Button>
+                        <Button className="h-6 gap-1 px-2 text-[12px]" onClick={openAddTeacher}>
+                          <UserPlus size={12} aria-hidden />
+                          Add teacher
+                        </Button>
+                      </div>
                     </div>
-                    {conflicts.data ? (
-                      <span className="flex flex-wrap items-center justify-center gap-1.5" role="status">
-                        <Pill tone="amber" label="Double-book warnings">
-                          <AlertTriangle size={12} aria-hidden className="text-amber-500" />
-                          {conflicts.data.conflicts.length} double-book warning
-                          {conflicts.data.conflicts.length === 1 ? "" : "s"}
-                        </Pill>
-                        <Pill tone="amber" label="Workload warnings">
-                          <Gauge size={12} aria-hidden className="text-amber-500" />
-                          {conflicts.data.workload.overDaily.length + conflicts.data.workload.overWeekly.length}{" "}
-                          overload warning
-                          {conflicts.data.workload.overDaily.length + conflicts.data.workload.overWeekly.length === 1
-                            ? ""
-                            : "s"}
-                        </Pill>
-                      </span>
-                    ) : null}
+
+                    <div
+                      className="flex gap-1.5 overflow-x-auto pb-1"
+                      role="listbox"
+                      aria-label="Choose a section"
+                    >
+                      {sections.map((s) => {
+                        const active = s.id === sectionId;
+                        const slotCount = s.timetableEntries?.length ?? 0;
+                        const published =
+                          slotCount > 0 &&
+                          s.timetableEntries.every((entry) => entry.status === "APPROVED");
+                        return (
+                          <button
+                            key={s.id}
+                            type="button"
+                            role="option"
+                            aria-selected={active}
+                            onClick={() => handleSectionChange(s.id)}
+                            className={`group flex shrink-0 items-center gap-1.5 rounded-lg border px-2 py-1.5 text-left transition-colors duration-150 ${
+                              active
+                                ? "border-amber-500/55 bg-amber-500/10"
+                                : "border-border bg-background hover:border-amber-500/40 hover:bg-muted/60"
+                            }`}
+                          >
+                            <span className="min-w-0">
+                              <span className="block max-w-40 truncate text-[12px] leading-tight font-semibold">
+                                {s.name}
+                              </span>
+                              <span className="block text-[12px] leading-tight text-muted-foreground tabular-nums">
+                                Grade {s.gradeLevel.replace("G", "")} · {slotCount} slot
+                                {slotCount === 1 ? "" : "s"}
+                              </span>
+                            </span>
+                            <span
+                              aria-hidden
+                              className={`h-1.5 w-1.5 shrink-0 rounded-full ${
+                                published
+                                  ? "bg-emerald-500"
+                                  : slotCount > 0
+                                    ? "bg-amber-500"
+                                    : "bg-border"
+                              }`}
+                            />
+                          </button>
+                        );
+                      })}
+                    </div>
                   </div>
+
+                  {conflicts.data ? (
+                    <span className="flex flex-wrap items-center justify-end gap-1.5" role="status">
+                      <Pill tone="amber" label="Double-book warnings">
+                        <AlertTriangle size={12} aria-hidden className="text-amber-500" />
+                        {conflicts.data.conflicts.length} double-book warning
+                        {conflicts.data.conflicts.length === 1 ? "" : "s"}
+                      </Pill>
+                      <Pill tone="amber" label="Workload warnings">
+                        <Gauge size={12} aria-hidden className="text-amber-500" />
+                        {conflicts.data.workload.overDaily.length + conflicts.data.workload.overWeekly.length}{" "}
+                        overload warning
+                        {conflicts.data.workload.overDaily.length + conflicts.data.workload.overWeekly.length === 1
+                          ? ""
+                          : "s"}
+                      </Pill>
+                    </span>
+                  ) : null}
 
                   {conflicts.data && conflicts.data.conflicts.length > 0 ? (
                     <ConflictsDock
@@ -1719,84 +1782,119 @@ function TemplateInner() {
 
                   {!section ? (
                     <p className="text-center text-sm text-muted-foreground">
-                      Pick a section to load its generic template grid.
+                      Pick a section above to load its generic template grid.
                     </p>
                   ) : !activeConfig ? (
                     <p className="text-sm text-muted-foreground">Loading day configuration…</p>
                   ) : (
                     <>
-                      <div className="flex flex-wrap items-center justify-end gap-2">
-                        {cellsHook.pendingSlots.length > 0 || cellsHook.saveProgress?.active ? (
-                          <>
-                            <span className="text-xs text-muted-foreground" aria-live="polite">
-                              {cellsHook.saveProgress?.active
-                                ? "Saving staged slots…"
-                                : `${cellsHook.pendingSlots.length} unsaved slot${cellsHook.pendingSlots.length === 1 ? "" : "s"}`}
+                      <div className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-border bg-card px-3.5 py-2.5">
+                        <div className="flex min-w-0 flex-col gap-1">
+                          <div className="flex flex-wrap items-center gap-1.5">
+                            <span className="truncate text-sm font-semibold">{section.name}</span>
+                            <Pill field="grade">
+                              Grade {section.gradeLevel.replace("G", "")}
+                            </Pill>
+                            {cellsHook.isLocked || cellsHook.serverLocked ? (
+                              <Pill tone="green" label="Timetable status">
+                                <Check size={11} aria-hidden />
+                                Published
+                              </Pill>
+                            ) : cellsHook.filledCount > 0 ? (
+                              <Pill tone="amber" label="Timetable status">
+                                <Pencil size={11} aria-hidden />
+                                {cellsHook.editMode ? "Editing draft" : "Draft"}
+                              </Pill>
+                            ) : (
+                              <Pill tone="neutral" label="Timetable status">
+                                Empty grid
+                              </Pill>
+                            )}
+                          </div>
+                          <p className="flex flex-wrap items-center gap-x-2 gap-y-0.5 text-[12px] text-muted-foreground">
+                            <span className="inline-flex items-center gap-1 tabular-nums">
+                              <CalendarDays size={11} aria-hidden />
+                              {cellsHook.filledCount} slot
+                              {cellsHook.filledCount === 1 ? "" : "s"} filled
                             </span>
-                            {!cellsHook.saveProgress?.active ? (
-                              <Button
-                                size="sm"
-                                variant="destructive"
-                                onClick={() => setConfirmClearAll(true)}
-                                title="Discard staged picks and revert to last-saved state"
-                                className="h-6 gap-1 px-2 text-[12px]"
-                              >
-                                <Trash2 size={12} aria-hidden />
-                                Clear all
-                              </Button>
+                            {section.adviser?.fullName ? (
+                              <span className="truncate">
+                                Adviser · {section.adviser.fullName}
+                              </span>
                             ) : null}
-                          </>
-                        ) : null}
-                        {cellsHook.isLocked || cellsHook.serverLocked ? (
+                            {cellsHook.pendingSlots.length > 0 || cellsHook.saveProgress?.active ? (
+                              <span className="text-amber-700 dark:text-amber-400" aria-live="polite">
+                                {cellsHook.saveProgress?.active
+                                  ? "Saving staged slots…"
+                                  : `${cellsHook.pendingSlots.length} unsaved slot${cellsHook.pendingSlots.length === 1 ? "" : "s"}`}
+                              </span>
+                            ) : null}
+                          </p>
+                        </div>
+                        <div className="flex flex-wrap items-center justify-end gap-2">
+                          {cellsHook.pendingSlots.length > 0 && !cellsHook.saveProgress?.active ? (
+                            <Button
+                              size="sm"
+                              variant="destructive"
+                              onClick={() => setConfirmClearAll(true)}
+                              title="Discard staged picks and revert to last-saved state"
+                              className="h-6 gap-1 px-2 text-[12px]"
+                            >
+                              <Trash2 size={12} aria-hidden />
+                              Clear all
+                            </Button>
+                          ) : null}
+                          {cellsHook.isLocked || cellsHook.serverLocked ? (
+                            <Button
+                              variant="outline"
+                              className="h-6 gap-1 px-2 text-[12px]"
+                              onClick={() => setPublishConfirm("unpublish")}
+                              disabled={publishMutation.isPending || !section}
+                              aria-busy={publishMutation.isPending || undefined}
+                              title="Move this timetable back to draft — teacher desks stop seeing it"
+                            >
+                              <Download size={12} aria-hidden />
+                              Draft
+                            </Button>
+                          ) : (
+                            <Button
+                              variant="outline"
+                              className="h-6 gap-1 px-2 text-[12px]"
+                              onClick={() => setPublishConfirm("unpublish")}
+                              disabled={
+                                publishMutation.isPending ||
+                                !section ||
+                                cellsHook.pendingSlots.length === 0
+                              }
+                              title="Save the staged slots as a draft — teachers do not see it until you publish"
+                            >
+                              <Download size={12} aria-hidden />
+                              Save draft
+                            </Button>
+                          )}
                           <Button
-                            variant="outline"
                             className="h-6 gap-1 px-2 text-[12px]"
-                            onClick={() => setPublishConfirm("unpublish")}
-                            disabled={publishMutation.isPending || !section}
-                            aria-busy={publishMutation.isPending || undefined}
-                            title="Move this timetable back to draft — teacher desks stop seeing it"
-                          >
-                            <Download size={12} aria-hidden />
-                            Draft
-                          </Button>
-                        ) : (
-                          <Button
-                            variant="outline"
-                            className="h-6 gap-1 px-2 text-[12px]"
-                            onClick={() => setPublishConfirm("unpublish")}
+                            onClick={() => setPublishConfirm("publish")}
                             disabled={
                               publishMutation.isPending ||
                               !section ||
-                              cellsHook.pendingSlots.length === 0
+                              cellsHook.filledCount === 0 ||
+                              cellsHook.isLocked ||
+                              cellsHook.serverLocked
                             }
-                            title="Save the staged slots as a draft — teachers do not see it until you publish"
+                            aria-busy={publishMutation.isPending || undefined}
+                            title={
+                              cellsHook.isLocked || cellsHook.serverLocked
+                                ? "Already published — move it to draft first to make changes"
+                                : cellsHook.pendingSlots.length > 0
+                                  ? "Saves the staged slots, then publishes this timetable for teachers"
+                                  : "Publish this timetable for teachers"
+                            }
                           >
-                            <Download size={12} aria-hidden />
-                            Save draft
+                            <Upload size={12} aria-hidden />
+                            Publish
                           </Button>
-                        )}
-                        <Button
-                          className="h-6 gap-1 px-2 text-[12px]"
-                          onClick={() => setPublishConfirm("publish")}
-                          disabled={
-                            publishMutation.isPending ||
-                            !section ||
-                            cellsHook.filledCount === 0 ||
-                            cellsHook.isLocked ||
-                            cellsHook.serverLocked
-                          }
-                          aria-busy={publishMutation.isPending || undefined}
-                          title={
-                            cellsHook.isLocked || cellsHook.serverLocked
-                              ? "Already published — move it to draft first to make changes"
-                              : cellsHook.pendingSlots.length > 0
-                                ? "Saves the staged slots, then publishes this timetable for teachers"
-                                : "Publish this timetable for teachers"
-                          }
-                        >
-                          <Upload size={12} aria-hidden />
-                          Publish
-                        </Button>
+                        </div>
                       </div>
                       <KanbanBoard
                         title={

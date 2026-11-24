@@ -7,7 +7,7 @@ import { useTerm } from "@/lib/term/TermContext";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Textarea } from "@/components/ui/textarea";
-import { Input } from "@/components/ui/input";
+import { TeacherSearchField, searchEmptyMessage } from "@/app/teacher/components/TeacherSearchField";
 import {
   Popover,
   PopoverTrigger,
@@ -252,12 +252,12 @@ export function RaiseFlagChat({ onHistory }: { onHistory: () => void }) {
                 </button>
               </PopoverTrigger>
               <PopoverContent className={styles.dropPanel} align="start">
-                <Input
+                <TeacherSearchField
+                  className="w-full"
                   value={studentQ}
-                  onChange={(e) => setStudentQ(e.target.value)}
+                  onChange={setStudentQ}
                   placeholder="Search students…"
                   aria-label="Search students"
-                  className={styles.dropSearch}
                 />
                 <table className={styles.dropTable}>
                   <thead>
@@ -317,7 +317,7 @@ export function RaiseFlagChat({ onHistory }: { onHistory: () => void }) {
                     ) : visibleStudents.length === 0 ? (
                       <tr>
                         <td colSpan={4} className={styles.dropDim}>
-                          No students match.
+                          {searchEmptyMessage(studentQ, "students")}
                         </td>
                       </tr>
                     ) : null}
@@ -343,12 +343,12 @@ export function RaiseFlagChat({ onHistory }: { onHistory: () => void }) {
                 </button>
               </PopoverTrigger>
               <PopoverContent className={styles.dropPanel} align="start">
-                <Input
+                <TeacherSearchField
+                  className="w-full"
                   value={classQ}
-                  onChange={(e) => setClassQ(e.target.value)}
+                  onChange={setClassQ}
                   placeholder="Search subjects…"
                   aria-label="Search student's subjects"
-                  className={styles.dropSearch}
                 />
                 <table className={styles.dropTable}>
                   <thead>
@@ -402,7 +402,7 @@ export function RaiseFlagChat({ onHistory }: { onHistory: () => void }) {
                       <tr>
                         <td colSpan={3} className={styles.dropDim}>
                           {student
-                            ? "No subjects for this student."
+                            ? searchEmptyMessage(classQ, "subjects")
                             : "Pick a student to see their subjects."}
                         </td>
                       </tr>

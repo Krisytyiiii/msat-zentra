@@ -118,10 +118,14 @@ router.get(
         typeof qRaw.highlight === "string" && qRaw.highlight.trim()
           ? qRaw.highlight.trim()
           : "";
+      const status =
+        qRaw.status === "open" || qRaw.status === "resolved" || qRaw.status === "closed"
+          ? qRaw.status
+          : "";
       res.json(
         await listMine(
           { userId: req.user!.id, role: req.user!.role, termId: req.termScope?.termId ?? null },
-          { hasPaginationParams, page, pageSize, q, highlight },
+          { hasPaginationParams, page, pageSize, q, highlight, status },
         ),
       );
     } catch (e) {

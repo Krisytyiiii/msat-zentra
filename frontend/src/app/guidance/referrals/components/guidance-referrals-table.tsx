@@ -1,14 +1,9 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { Inbox, Loader2, Search } from "lucide-react";
+import { Inbox, Loader2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { InsightCallout } from "@/components/ui/insight-callout";
-import {
-  InputGroup,
-  InputGroupAddon,
-  InputGroupInput,
-} from "@/components/ui/input-group";
 import { GuidanceEmptyState } from "../../components/GuidanceEmptyCard";
 import { GuidanceReferralsToolbar } from "./guidance-referrals-toolbar";
 import { GuidanceReferralsDialogsHost } from "./guidance-referrals-dialogs-host";
@@ -160,7 +155,7 @@ export function GuidanceReferralsTable({
       <div
         className={`${styles.feed} ${styles.layoutFeed}${isKanban ? ` ${styles.feedWide}` : ""}`}
       >
-        <h1 className={styles.srOnly}>Cases sent to guidance</h1>
+        {isKanban ? null : <h1 className={styles.srOnly}>Cases sent to guidance</h1>}
         {!lockType && (
           <GuidanceReferralsToolbar
             title={title}
@@ -191,25 +186,6 @@ export function GuidanceReferralsTable({
                 goToPage(1);
               }}
             />
-            <InputGroup className="max-w-40 shrink-0 rounded-[16px]">
-              <InputGroupInput
-                placeholder={
-                  typeFilter === "ADM"
-                    ? "Search ADM cases…"
-                    : "Search counseling cases…"
-                }
-                value={query}
-                onChange={(event) => onQueryChange(event.target.value)}
-                aria-label={
-                  typeFilter === "ADM"
-                    ? "Search ADM cases"
-                    : "Search counseling cases"
-                }
-              />
-              <InputGroupAddon>
-                <Search aria-hidden />
-              </InputGroupAddon>
-            </InputGroup>
           </div>
         ) : null}
 

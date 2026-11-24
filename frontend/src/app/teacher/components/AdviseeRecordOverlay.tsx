@@ -227,7 +227,7 @@ export function AdviseeRecordOverlay({
     if (!student) return;
     onClose();
     router.push(
-      `/teacher/advisory/students?highlight=${encodeURIComponent(student.studentId)}`,
+      `/teacher/advisory/academics?highlight=${encodeURIComponent(student.studentId)}`,
     );
   };
 

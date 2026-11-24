@@ -3,6 +3,10 @@ import * as React from "react";
 import { apiClient } from "@/lib/api/client";
 import { toast } from "@/components/ui/sonner";
 import { useDock } from "@/components/dock/dock-store";
+import {
+  clearBookingReminderForMeeting,
+  refreshBookingReminders,
+} from "@/components/notifications/BookingReminderStack";
 import { apiErrorMessage } from "@/lib/api/errors";
 import {
   formatManilaDate,
@@ -226,6 +230,10 @@ export function useMeetingOutcome(
               : "Attendance recorded",
           );
         }
+        // The booking reminder must not keep saying "still unattended" once the
+        // outcome is logged — clear it here instead of waiting for the 30s poll.
+        clearBookingReminderForMeeting(m.id);
+        refreshBookingReminders(true);
         onAttendedConfirmed();
       } else {
         toast.success({

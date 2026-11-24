@@ -14,19 +14,14 @@
   flex: 1;
   min-width: 0;
   margin-left: 0;
-  margin-top: 6rem;
+  margin-top: 3rem;
   transition: none;
 }
 
-@media (min-width: 1024px) {
-  .shellWithRail {
-    margin-top: 3rem;
-    margin-left: 16rem;
-    transition: margin-left 240ms ease-out;
-  }
-  .shellWithRailCollapsed {
-    margin-left: 4rem;
-  }
+/* Floating dock layout: content clears the topbar and keeps a left gutter
+   for the glass rail on every breakpoint. */
+.shellWithDock {
+  padding-left: 5rem;
 }
 
 .main {
@@ -52,9 +47,7 @@
 }
 
 :global(.dark) .topbar {
-  background-color: rgba(5, 8, 7, 0.4);
-  backdrop-filter: blur(18px) saturate(140%);
-  -webkit-backdrop-filter: blur(18px) saturate(140%);
+  background-color: #050807;
 }
 
 .topbar {
@@ -69,11 +62,9 @@
   height: 3rem;
   padding-inline: 0.75rem;
   border-bottom: 1px solid var(--border);
-  /* Glass bar: the page canvas runs behind the fixed topbar instead of
-     stopping at a solid strip. */
-  background-color: color-mix(in oklch, var(--background) 72%, transparent);
-  backdrop-filter: blur(18px) saturate(140%);
-  -webkit-backdrop-filter: blur(18px) saturate(140%);
+  /* Solid bar: scrolling content stops cleanly at the fixed topbar instead
+     of reading through it. */
+  background-color: var(--background);
   font-family: var(--font-inter), ui-sans-serif, system-ui, sans-serif;
 }
 
@@ -131,16 +122,13 @@
 @media (prefers-reduced-motion: reduce) {
   .shell {
     transition: none;
-  }
-  .shellWithRail {
-    transition: none;
-  }
+  }
 }
 
 @media (max-width: 767px) {
   .shell {
     margin-left: 0;
-    margin-top: 6rem;
+    margin-top: 3rem;
   }
 
   .main {
@@ -159,5 +147,12 @@
   .shellFull {
     margin-left: 0;
     margin-top: 3rem;
+  }
+}
+
+/* Floating dock gutter on small screens. */
+@media (max-width: 767px) {
+  .shellWithDock {
+    padding-left: 4.25rem;
   }
 }

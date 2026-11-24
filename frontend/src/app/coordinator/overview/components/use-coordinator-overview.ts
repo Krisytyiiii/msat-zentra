@@ -47,16 +47,7 @@ export interface CoordinatorOverviewModel {
     >;
     devicesOut: number | null;
   };
-  booked: {
-    rows: NonNullable<
-      Awaited<ReturnType<typeof fetchCoordinatorReferrals>>["rows"]
-    >;
-    isPending: boolean;
-    isRefetching: boolean;
-    refetch: () => void;
-  };
 }
-
 export function useCoordinatorOverview(): CoordinatorOverviewModel {
   const now = useNowTick();
 
@@ -79,15 +70,6 @@ export function useCoordinatorOverview(): CoordinatorOverviewModel {
     queryKey: ["coordinator-referrals", "preview", 1, "", "consultation", 15],
     queryFn: ({ signal }) =>
       fetchCoordinatorReferrals(1, { stage: "consultation", limit: 15, signal }),
-    placeholderData: keepPreviousData,
-    staleTime: 30_000,
-  });
-
-  // Endorsed intake cases for the "Booked meetings" rail board — rows that
-  // already carry a booked parent meeting.
-  const bookedQuery = useQuery({
-    queryKey: ["coordinator-referrals", "preview", "booked", 16],
-    queryFn: ({ signal }) => fetchCoordinatorReferrals(1, { limit: 16, signal }),
     placeholderData: keepPreviousData,
     staleTime: 30_000,
   });
@@ -161,12 +143,6 @@ export function useCoordinatorOverview(): CoordinatorOverviewModel {
     return rows.slice(0, 15);
   }, [devicesQuery.data]);
 
-  const bookedRows = React.useMemo(() => {
-    const raw = bookedQuery.data?.rows;
-    const rows = Array.isArray(raw) ? raw : [];
-    return rows.filter((r) => r.meeting != null);
-  }, [bookedQuery.data]);
-
   return {
     now,
     isPending,
@@ -201,14 +177,6 @@ export function useCoordinatorOverview(): CoordinatorOverviewModel {
       },
       oldestOut,
       devicesOut,
-    },
-    booked: {
-      rows: bookedRows,
-      isPending: bookedQuery.isPending,
-      isRefetching: bookedQuery.isRefetching,
-      refetch: () => {
-        void bookedQuery.refetch();
-      },
     },
   };
 }

@@ -2,7 +2,6 @@
 
 import * as React from "react";
 import { useQueryClient } from "@tanstack/react-query";
-import { ChevronLeft, ChevronRight, ShieldAlert, User } from "lucide-react";
 import { useSession } from "@/lib/auth/useSession";
 import { TeacherOverviewKanban } from "./components/teacher-overview-kanban";
 import { TeacherOverviewCharts } from "./components/teacher-overview-charts";
@@ -17,36 +16,26 @@ import { PageEmptyCallout } from "@/components/shared/page-empty-callout";
 import styles from "./components/teacher-overview.module.css";
 
 /** Right-rail width is user-resizable between these bounds (px). */
-
-/** Right-rail width is user-resizable between these bounds (px). */
 const RAIL_STORAGE_KEY = "teacher-overview-rail";
 const RAIL_DEFAULT_WIDTH = 320;
 const RAIL_MIN_WIDTH = 264;
 const RAIL_MAX_WIDTH = 480;
 
-interface RailPrefs {
-  collapsed: boolean;
-  width: number;
-}
-
 function clampRailWidth(width: number): number {
   return Math.min(RAIL_MAX_WIDTH, Math.max(RAIL_MIN_WIDTH, Math.round(width)));
 }
 
-function readRailPrefs(): RailPrefs {
+function readRailWidth(): number {
   try {
     const raw = window.localStorage.getItem(RAIL_STORAGE_KEY);
     if (raw) {
-      const parsed = JSON.parse(raw) as Partial<RailPrefs>;
-      return {
-        collapsed: parsed.collapsed === true,
-        width: clampRailWidth(Number(parsed.width) || RAIL_DEFAULT_WIDTH),
-      };
+      const parsed = JSON.parse(raw) as { width?: number };
+      return clampRailWidth(Number(parsed.width) || RAIL_DEFAULT_WIDTH);
     }
   } catch {
     // ignore corrupt/blocked storage
   }
-  return { collapsed: false, width: RAIL_DEFAULT_WIDTH };
+  return RAIL_DEFAULT_WIDTH;
 }
 
 export default function TeacherOverviewPage() {
@@ -79,46 +68,29 @@ export default function TeacherOverviewPage() {
     }
   }, [queryClient, prefetchTeacherId, termKey]);
 
-  // Right rail: horizontal collapse to an icon strip + drag-resizable width.
-  // Preferences load after mount so prerender/hydration stay deterministic.
-  const [rail, setRail] = React.useState<RailPrefs>({
-    collapsed: false,
-    width: RAIL_DEFAULT_WIDTH,
-  });
+  // Right rail: drag-resizable width only — intentionally not collapsible.
+  // The width loads after mount so prerender/hydration stay deterministic.
+  const [railWidth, setRailWidth] = React.useState(RAIL_DEFAULT_WIDTH);
   const railDrag = React.useRef<{ startX: number; startWidth: number } | null>(null);
   const [railResizing, setRailResizing] = React.useState(false);
 
   React.useEffect(() => {
     // eslint-disable-next-line react-hooks/set-state-in-effect -- one-shot read of a local UI preference
-    setRail(readRailPrefs());
+    setRailWidth(readRailWidth());
   }, []);
 
-  const persistRail = React.useCallback((next: RailPrefs) => {
+  const updateRailWidth = React.useCallback((next: number) => {
+    const width = clampRailWidth(next);
+    setRailWidth(width);
     try {
-      window.localStorage.setItem(RAIL_STORAGE_KEY, JSON.stringify(next));
+      window.localStorage.setItem(RAIL_STORAGE_KEY, JSON.stringify({ width }));
     } catch {
       // ignore quota/storage errors
     }
   }, []);
 
-  const updateRail = React.useCallback(
-    (updater: (prev: RailPrefs) => RailPrefs) => {
-      setRail((prev) => {
-        const next = updater(prev);
-        persistRail(next);
-        return next;
-      });
-    },
-    [persistRail],
-  );
-
-  const toggleRail = React.useCallback(() => {
-    updateRail((prev) => ({ ...prev, collapsed: !prev.collapsed }));
-  }, [updateRail]);
-
   const onRailResizeStart = (e: React.PointerEvent<HTMLDivElement>) => {
-    if (rail.collapsed) return;
-    railDrag.current = { startX: e.clientX, startWidth: rail.width };
+    railDrag.current = { startX: e.clientX, startWidth: railWidth };
     setRailResizing(true);
     e.currentTarget.setPointerCapture(e.pointerId);
   };
@@ -127,8 +99,7 @@ export default function TeacherOverviewPage() {
     const drag = railDrag.current;
     if (!drag) return;
     // Dragging left widens the rail.
-    const width = clampRailWidth(drag.startWidth + (drag.startX - e.clientX));
-    updateRail((prev) => ({ ...prev, width }));
+    updateRailWidth(drag.startWidth + (drag.startX - e.clientX));
   };
 
   const onRailResizeEnd = (e: React.PointerEvent<HTMLDivElement>) => {
@@ -144,7 +115,7 @@ export default function TeacherOverviewPage() {
     if (e.key !== "ArrowLeft" && e.key !== "ArrowRight") return;
     e.preventDefault();
     const delta = e.key === "ArrowLeft" ? 16 : -16;
-    updateRail((prev) => ({ ...prev, width: clampRailWidth(prev.width + delta) }));
+    updateRailWidth(railWidth + delta);
   };
 
   if (isPending) {
@@ -196,8 +167,8 @@ export default function TeacherOverviewPage() {
   return (
     <section className={styles.page}>
       <div
-        className={`${styles.body} ${rail.collapsed ? styles.bodyCollapsed : ""} ${railResizing ? styles.bodyResizing : ""}`}
-        style={{ ["--rail-width" as string]: `${rail.width}px` } as React.CSSProperties}
+        className={`${styles.body} ${railResizing ? styles.bodyResizing : ""}`}
+        style={{ ["--rail-width" as string]: `${railWidth}px` } as React.CSSProperties}
       >
         <div className={styles.mainCol}>
           <TeacherOverviewCharts
@@ -208,26 +179,10 @@ export default function TeacherOverviewPage() {
         </div>
 
         <aside
-          className={`${styles.sideCol} ${rail.collapsed ? styles.sideColCollapsed : ""}`}
-          style={{ top: "4rem" }}
+          className={styles.sideCol}
+          style={{ top: "calc(4rem + var(--term-banner-offset, 0rem))" }}
         >
-          <div
-            className={`${styles.railLayer} ${styles.railExpanded}`}
-            aria-hidden={rail.collapsed}
-            inert={rail.collapsed}
-          >
-            <div className={styles.railHead}>
-              <span className={styles.railTitle}>My day</span>
-              <button
-                type="button"
-                className={styles.railToggle}
-                onClick={toggleRail}
-                aria-label="Collapse side panel to icons"
-                title="Collapse to icons"
-              >
-                <ChevronRight size={16} aria-hidden />
-              </button>
-            </div>
+          <div className={`${styles.railLayer} ${styles.railExpanded}`}>
             <TeacherOverviewKanban
               teacherName={data.teacherName}
               advisorySection={data.advisorySection}
@@ -242,59 +197,20 @@ export default function TeacherOverviewPage() {
           </div>
 
           <div
-            className={`${styles.railLayer} ${styles.railIcons}`}
-            aria-hidden={!rail.collapsed}
-            inert={!rail.collapsed}
-          >
-            <div className={styles.railStack}>
-              <button
-                type="button"
-                className={`${styles.railCard} ${styles.railCardNeutral}`}
-                onClick={toggleRail}
-                aria-label="Expand side panel"
-                title="Expand side panel"
-              >
-                <ChevronLeft size={16} aria-hidden className={styles.railIcon} />
-              </button>
-              <button
-                type="button"
-                className={styles.railCard}
-                onClick={toggleRail}
-                aria-label="Expand side panel to profile"
-                title={data.teacherName}
-              >
-                <User size={16} aria-hidden className={styles.railIcon} />
-              </button>
-              <button
-                type="button"
-                className={styles.railCard}
-                onClick={toggleRail}
-                aria-label={`Expand side panel to needs attention, ${atRiskStudents} at risk`}
-                title={`Needs attention · ${atRiskStudents}`}
-              >
-                <ShieldAlert size={16} aria-hidden className={styles.railIcon} />
-                <span className={styles.railBadge}>{atRiskStudents}</span>
-              </button>
-            </div>
-          </div>
-
-          {!rail.collapsed ? (
-            <div
-              role="separator"
-              aria-orientation="vertical"
-              aria-label="Resize side panel"
-              aria-valuemin={RAIL_MIN_WIDTH}
-              aria-valuemax={RAIL_MAX_WIDTH}
-              aria-valuenow={rail.width}
-              tabIndex={0}
-              className={styles.railResize}
-              onPointerDown={onRailResizeStart}
-              onPointerMove={onRailResizeMove}
-              onPointerUp={onRailResizeEnd}
-              onPointerCancel={onRailResizeEnd}
-              onKeyDown={onRailResizeKeyDown}
-            />
-          ) : null}
+            role="separator"
+            aria-orientation="vertical"
+            aria-label="Resize side panel"
+            aria-valuemin={RAIL_MIN_WIDTH}
+            aria-valuemax={RAIL_MAX_WIDTH}
+            aria-valuenow={railWidth}
+            tabIndex={0}
+            className={styles.railResize}
+            onPointerDown={onRailResizeStart}
+            onPointerMove={onRailResizeMove}
+            onPointerUp={onRailResizeEnd}
+            onPointerCancel={onRailResizeEnd}
+            onKeyDown={onRailResizeKeyDown}
+          />
         </aside>
       </div>
     </section>

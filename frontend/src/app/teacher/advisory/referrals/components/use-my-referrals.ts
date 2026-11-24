@@ -67,11 +67,15 @@ export interface MyReferralsPage {
   referrals: ReferralRow[];
   total: number;
   unfilteredTotal: number;
+  /** Whole-term casebook totals for the status tabs (never search-narrowed). */
+  counts?: { all: number; open: number; resolved: number; closed: number };
   /** Server-clamped page (a `highlight` can land the row on a later page). */
   page?: number;
   pageSize?: number;
   totalPages?: number;
 }
+
+export type ReferralStatusFilter = "all" | "open" | "resolved" | "closed";
 /** A dismissed referral counts as withdrawn by the filer when the
     dismissal actor is a teacher role (or unknown — both writers audit,
     so a missing actor predates the distinction). Anything else means the
@@ -96,6 +100,28 @@ export function useMyReferrals(highlightId: string | null) {
 
   const pager = useUrlPager(0, {}, { searchParam: "q" });
   const page = pager.page;
+
+  // Status tab lives in the URL too, so a filtered casebook survives reload
+  // and the back button like the search box does.
+  const rawStatus = searchParams.get("status");
+  const status: ReferralStatusFilter =
+    rawStatus === "open" || rawStatus === "resolved" || rawStatus === "closed"
+      ? rawStatus
+      : "all";
+  const setStatus = React.useCallback(
+    (next: ReferralStatusFilter) => {
+      const params = new URLSearchParams(searchParams.toString());
+      if (next === "all") params.delete("status");
+      else params.set("status", next);
+      params.delete("page");
+      params.delete("highlight");
+      router.replace(
+        params.toString() ? `${pathname}?${params.toString()}` : pathname,
+        { scroll: false },
+      );
+    },
+    [router, pathname, searchParams],
+  );
 
   // A `?highlight=` landing (notification/deep link) pins the page that holds
   // the row, so the highlight wins over ?page until the user pages or searches.
@@ -124,7 +150,7 @@ export function useMyReferrals(highlightId: string | null) {
   }, []);
 
   const referralsQuery = useLiveQuery<MyReferralsPage>({
-    queryKey: ["myReferrals", termKey, page, debounced, highlight ?? ""],
+    queryKey: ["myReferrals", termKey, page, debounced, status, highlight ?? ""],
     queryFn: async ({ signal }) => {
       const { data } = await apiClient.get<
         MyReferralsPage | ReferralRow[] | { referrals: ReferralRow[] }
@@ -134,6 +160,7 @@ export function useMyReferrals(highlightId: string | null) {
           page,
           pageSize: PAGE_SIZE,
           ...(debounced ? { q: debounced } : {}),
+          ...(status !== "all" ? { status } : {}),
           ...(highlight ? { highlight } : {}),
         },
       });
@@ -142,6 +169,12 @@ export function useMyReferrals(highlightId: string | null) {
           referrals: data,
           total: data.length,
           unfilteredTotal: data.length,
+          counts: {
+            all: data.length,
+            open: data.length,
+            resolved: 0,
+            closed: 0,
+          },
           page,
           pageSize: PAGE_SIZE,
           totalPages: 1,
@@ -157,6 +190,7 @@ export function useMyReferrals(highlightId: string | null) {
         referrals,
         total: body.total ?? referrals.length,
         unfilteredTotal: body.unfilteredTotal ?? referrals.length,
+        counts: body.counts,
         page: body.page ?? page,
         pageSize: body.pageSize ?? PAGE_SIZE,
         totalPages: body.totalPages ?? 1,
@@ -198,9 +232,20 @@ export function useMyReferrals(highlightId: string | null) {
   const total = referralsQuery.data?.total ?? referrals.length;
   const unfilteredTotal =
     referralsQuery.data?.unfilteredTotal ?? referrals.length;
+  const counts = referralsQuery.data?.counts ?? {
+    all: unfilteredTotal,
+    open: 0,
+    resolved: 0,
+    closed: 0,
+  };
   return {
     query: queryInput,
     setQuery,
+    /** Search text the current server slice was fetched for. */
+    appliedQuery: debounced,
+    status,
+    setStatus,
+    counts,
     referralsQuery,
     referrals,
     total,

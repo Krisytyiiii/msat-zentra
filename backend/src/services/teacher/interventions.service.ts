@@ -13,6 +13,7 @@ import {
   sectionAttendanceTotals,
 } from "../../services/risk.js";
 import { sectionHeadcounts } from "../../services/enrollment.js";
+import { subjectAverageAttendance } from "../../services/attendance.js";
 import { admCaseSnapshot } from "../../services/adm/attendancePolicy.js";
 import type { AdvisoryContext } from "../../services/advisory/advisory.types.js";
 import type {
@@ -83,7 +84,10 @@ export interface AdvisoryInterventionsSummary {
   unresolved: number;
   /** Flagged advisees guidance has not opened an intervention for yet. */
   noPlan: number;
+  /** Flagged rows shown on the board. */
   total: number;
+  /** Every advisee in the section(s) — the board's headline figure. */
+  advisees: number;
 }
 
 export interface AdvisoryInterventionsQuery {
@@ -372,6 +376,7 @@ async function liveRiskByLearner(
     rosterAttendance,
     rosterAnecdotes,
     sectionTotals,
+    subjectAvgs,
     headcounts,
     admCases,
   ] = await Promise.all([
@@ -412,6 +417,7 @@ async function liveRiskByLearner(
         })
       : Promise.resolve([]),
     sectionAttendanceTotals(sectionIds, termId),
+    subjectAverageAttendance(sectionIds, termId),
     sectionHeadcounts(sectionIds),
     profileIds.length
       ? admCaseSnapshot(termId, profileIds)
@@ -454,9 +460,11 @@ async function liveRiskByLearner(
   const out = new Map<string, LearnerRisk>();
   for (const learner of learners) {
     const bucket = bucketFor(learner.key);
+    const subjAvg = subjectAvgs.get(learner.key);
     const flags = computeRiskFactors({
       finalGrades: bucket.grades,
       attendance: bucket.attendance,
+      attendanceRate: subjAvg && subjAvg.hasSubjectData ? subjAvg.average : null,
       attendanceTotal: attendanceTotalFor(
         sectionTotals,
         learner.sectionId,
@@ -566,7 +574,10 @@ export async function listAdvisoryInterventions(
       row.factors.behavioral,
   );
 
-  const summary = summarize(monitoredRows);
+  // `advisees` is the whole section roster (flagged or not) so the desk's
+  // detection-flow panel can show "N of M advisees flagged" without a second
+  // request.
+  const summary = summarize(monitoredRows, learners.length);
 
   const needle = (query.q ?? "").trim().toLowerCase();
   const filtered = monitoredRows.filter((row) => {
@@ -621,7 +632,10 @@ export async function listAdvisoryInterventions(
   };
 }
 
-function summarize(rows: AdvisoryInterventionRow[]): AdvisoryInterventionsSummary {
+function summarize(
+  rows: AdvisoryInterventionRow[],
+  advisees: number,
+): AdvisoryInterventionsSummary {
   return {
     high: rows.filter((row) => row.riskLevel === "High").length,
     moderate: rows.filter((row) => row.riskLevel === "Moderate").length,
@@ -631,6 +645,7 @@ function summarize(rows: AdvisoryInterventionRow[]): AdvisoryInterventionsSummar
     unresolved: rows.filter((row) => row.intervention?.outcomeStatus === "unresolved").length,
     noPlan: rows.filter((row) => !row.intervention).length,
     total: rows.length,
+    advisees,
   };
 }
 
@@ -644,5 +659,6 @@ function emptySummary(): AdvisoryInterventionsSummary {
     unresolved: 0,
     noPlan: 0,
     total: 0,
+    advisees: 0,
   };
 }

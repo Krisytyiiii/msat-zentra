@@ -17,9 +17,6 @@ import {
 const REGISTRAR_KEYS = [
   ["registrar-overview"],
   ["registrar-final-grades"],
-  ["pending-students"],
-  ["account-breakdown"],
-  ["accounts-audit"],
   ["registrar-sf10"],
   ["registrar-adviser-access"],
   ["registrar-notifications"],
@@ -33,8 +30,6 @@ function keysForNotification(
 ): KeyTuple[] {
   const bell: KeyTuple = ["registrar-notifications"];
   switch (row.sourceTable) {
-    case "users":
-      return [["pending-students"], ["account-breakdown"], ["registrar-overview"], bell];
     case "final_grades":
       return [["registrar-final-grades"], ["registrar-overview"], bell];
     case "adviser_sf10_access_requests":
@@ -44,7 +39,7 @@ function keysForNotification(
     case "subjects":
     case "sections":
     case "teacher_subject_assignments":
-      return [["registrar-overview"], ["account-breakdown"], bell];
+      return [["registrar-overview"], bell];
     default:
       return [...REGISTRAR_KEYS];
   }

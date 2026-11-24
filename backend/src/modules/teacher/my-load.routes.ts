@@ -24,7 +24,9 @@ router.get(
   requireRole("subject_teacher", "adviser"),
   async (req, res, next) => {
     try {
-      res.json(await getTeacherLoad(ctxOf(req)));
+      // Strict mode is for attendance: it must not list a previous term's
+      // timetable when the selected term has no published grid.
+      res.json(await getTeacherLoad(ctxOf(req), { strictTerm: req.query.strict === "1" }));
     } catch (e) {
       next(e);
     }

@@ -1,17 +1,22 @@
 "use client";
 
-import { Search } from "lucide-react";
 import { FilterTabs } from "@/components/ui/filter-tabs";
-import { Input } from "@/components/ui/input";
+import { SearchField } from "@/components/ui/search-field";
 import styles from "./guidance-anecdotal-filters.module.css";
 
 export type CategoryFilter = "";
 export type TypeFilter = "" | "ADM" | "Counseling";
 
-const TYPES: { value: TypeFilter; label: string }[] = [
-  { value: "", label: "All types" },
-  { value: "ADM", label: "ADM consultation" },
-  { value: "Counseling", label: "Counseling" },
+/* Same glass-tag filter bar as the alerts / interventions / referrals desks:
+   dot + label, amber active pill. */
+const TYPES: {
+  value: TypeFilter;
+  label: string;
+  tone: "neutral" | "blue" | "amber";
+}[] = [
+  { value: "", label: "All types", tone: "neutral" },
+  { value: "ADM", label: "ADM consultation", tone: "blue" },
+  { value: "Counseling", label: "Counseling", tone: "blue" },
 ];
 
 interface GuidanceAnecdotalFiltersProps {
@@ -30,6 +35,7 @@ export function GuidanceAnecdotalTypeTabs({
   return (
     <FilterTabs
       label="Filter records by case type"
+      variant="tags"
       options={TYPES}
       value={type}
       onChange={onTypeChange}
@@ -42,16 +48,13 @@ export function GuidanceAnecdotalSearch({
   onQueryChange,
 }: Pick<GuidanceAnecdotalFiltersProps, "query" | "onQueryChange">) {
   return (
-    <div className={styles.searchWrap}>
-      <Search className={styles.searchIcon} aria-hidden />
-      <Input
-        className={`${styles.search} focus-visible:ring-2 focus-visible:ring-inset`}
-        placeholder="Search student, LRN, observer…"
-        value={query}
-        onChange={(e) => onQueryChange(e.target.value)}
-        aria-label="Search anecdotal records"
-      />
-    </div>
+    <SearchField
+      className="w-60"
+      placeholder="Search student, LRN, observer…"
+      value={query}
+      onChange={(next) => onQueryChange(next)}
+      aria-label="Search anecdotal records"
+    />
   );
 }
 

@@ -14,9 +14,11 @@ import {
 import { Button } from "@/components/ui/button";
 import { KanbanOverlay } from "@/components/ui/kanban-overlay";
 import { Pill, type PillTone } from "@/components/ui/pill";
-import type {
-  AdvisoryModuleRow,
-  AdvisoryModuleStatus,
+import {
+  isUploadedModuleFile,
+  moduleFileName,
+  type AdvisoryModuleRow,
+  type AdvisoryModuleStatus,
 } from "@/services/teacher/advisoryModules.service";
 
 const STATUS: Record<
@@ -41,7 +43,15 @@ const dateLabel = (iso: string | null) => {
   return d.toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" });
 };
 
-/** Small bordered metric tile used across the details sheet. */
+const hostOf = (url: string) => {
+  try {
+    return new URL(url).hostname.replace(/^www\./, "");
+  } catch {
+    return url;
+  }
+};
+
+/** Bordered metric tile used across the details sheet. */
 function StatTile({
   icon,
   label,
@@ -56,7 +66,7 @@ function StatTile({
   children?: React.ReactNode;
 }) {
   return (
-    <div className="flex min-w-0 flex-col gap-1 rounded-lg border border-border bg-white p-2.5 shadow-sm dark:bg-card">
+    <div className="flex min-w-0 flex-col gap-1 rounded-md border bg-background/60 p-2.5">
       <span className="inline-flex items-center gap-1 text-[12px] font-semibold tracking-wide text-muted-foreground uppercase">
         {icon}
         {label}
@@ -110,35 +120,42 @@ export function ModuleDetailsOverlay({
       title="Module details"
       ariaLabel={module ? `Module details for ${module.moduleName}` : "Module details"}
       icon={<FileText size={16} aria-hidden />}
-      width="lg"
+      headerActions={
+        status ? (
+          <Pill tone={status.tone} label="Module status">
+            {StatusIcon ? <StatusIcon size={11} aria-hidden /> : null} {status.label}
+          </Pill>
+        ) : undefined
+      }
+      width="xl"
       footer={
         module ? (
-          <div className="flex flex-wrap items-center justify-end gap-2 px-1 pb-1">
+          <div className="flex w-full flex-wrap items-center justify-end gap-2 px-0.5 pb-0.5">
+            <Button
+              type="button"
+              variant="outline"
+              className="h-7 px-2.5 text-xs"
+              onClick={() => onEdit(module)}
+            >
+              Edit module
+            </Button>
             {tracked ? (
               <Button
                 type="button"
-                className="h-6 px-2.5 text-xs"
+                className="h-7 px-2.5 text-xs"
                 onClick={() => onViewSubmissions(module)}
               >
                 View submissions
               </Button>
             ) : null}
-            <Button
-              type="button"
-              variant="outline"
-              className="h-6 px-2.5 text-xs"
-              onClick={() => onEdit(module)}
-            >
-              Edit module
-            </Button>
           </div>
         ) : null
       }
     >
       {module && status ? (
-        <div className="flex min-w-0 flex-col gap-3 px-1 pb-1">
+        <div className="flex min-w-0 flex-col gap-3">
           {/* Hero: identity + the two things a teacher scans first. */}
-          <div className="flex min-w-0 items-start gap-3 rounded-lg border border-border bg-white p-3 shadow-sm dark:bg-card">
+          <div className="flex min-w-0 items-start gap-3 rounded-md border bg-background/60 p-3">
             <span
               className="flex h-10 w-10 shrink-0 items-center justify-center rounded-md text-white shadow-sm"
               style={{ backgroundColor: accent }}
@@ -148,14 +165,11 @@ export function ModuleDetailsOverlay({
             </span>
             <div className="flex min-w-0 flex-1 flex-col gap-1.5">
               <div className="flex min-w-0 flex-wrap items-center gap-1.5">
-                <h3 className="m-0 min-w-0 break-words text-[13px] font-semibold text-foreground">
+                <h3 className="m-0 min-w-0 break-words text-sm font-semibold text-foreground">
                   {module.moduleName}
                 </h3>
                 <Pill tone={module.kind === "adm" ? "violet" : "neutral"} label="Module type">
                   {module.kind === "adm" ? "ADM" : "General"}
-                </Pill>
-                <Pill tone={status.tone} label="Module status">
-                  {StatusIcon ? <StatusIcon size={11} aria-hidden /> : null} {status.label}
                 </Pill>
               </div>
               <p className="m-0 text-[12px] text-muted-foreground">
@@ -176,7 +190,9 @@ export function ModuleDetailsOverlay({
               icon={<CheckCircle2 size={11} aria-hidden />}
               label="Progress"
               value={tracked ? `${pct}%` : "—"}
-              caption={tracked ? `${Math.max(0, total - submitted)} still pending` : "No submission tracking"}
+              caption={
+                tracked ? `${Math.max(0, total - submitted)} still pending` : "No submission tracking"
+              }
             >
               {tracked ? (
                 <div
@@ -189,7 +205,7 @@ export function ModuleDetailsOverlay({
                 >
                   <div
                     className={`h-full rounded-full transition-[width] duration-150 ${
-                      pct >= 100 ? "bg-emerald-500" : "bg-primary"
+                      pct >= 100 ? "bg-emerald-500" : "bg-amber-500"
                     }`}
                     style={{ width: `${pct}%` }}
                   />
@@ -204,48 +220,62 @@ export function ModuleDetailsOverlay({
             />
           </div>
 
-          {/* Recap + instructions, in the same two-column rhythm as a desk card. */}
+          {/* Recap + handout, in the same two-column rhythm as a desk card. */}
           <div className="grid gap-2 sm:grid-cols-2">
-            <div className="flex min-w-0 flex-col rounded-lg border border-border bg-white p-2.5 shadow-sm dark:bg-card">
+            <div className="flex min-w-0 flex-col rounded-md border bg-background/60 p-2.5">
               <h4 className="m-0 mb-1 text-[12px] font-semibold tracking-wide text-muted-foreground uppercase">
                 Overview
               </h4>
-              <DetailRow label="Type">{module.kind === "adm" ? "ADM module" : "General post"}</DetailRow>
+              <DetailRow label="Type">
+                {module.kind === "adm" ? "ADM module" : "General post"}
+              </DetailRow>
               <DetailRow label="Status">{status.label}</DetailRow>
               <DetailRow label="Released">{dateLabel(module.releaseDate)}</DetailRow>
               <DetailRow label="Due">{dateLabel(module.dueDate)}</DetailRow>
             </div>
 
-            <div className="flex min-w-0 flex-col rounded-lg border border-border bg-white p-2.5 shadow-sm dark:bg-card">
+            <div className="flex min-w-0 flex-col rounded-md border bg-background/60 p-2.5">
               <h4 className="m-0 mb-1 text-[12px] font-semibold tracking-wide text-muted-foreground uppercase">
-                Module link
+                Module handout
               </h4>
               {module.moduleUrl ? (
                 <a
                   href={module.moduleUrl}
                   target="_blank"
                   rel="noreferrer noopener"
-                  className="group flex min-w-0 items-start gap-2 rounded-md border border-border/60 px-2 py-1.5 text-[12px] font-medium text-primary transition-colors hover:border-primary/40 hover:bg-primary/5"
+                  className="group flex min-w-0 items-center gap-2 rounded-md border border-border/60 bg-background/70 px-2 py-1.5 text-[12px] font-medium text-primary transition-colors hover:border-primary/40 hover:bg-primary/5"
                   title={module.moduleUrl}
                 >
-                  <ExternalLink size={12} className="mt-0.5 shrink-0" aria-hidden />
-                  <span className="min-w-0 flex-1 break-all">{module.moduleUrl}</span>
+                  {isUploadedModuleFile(module.moduleUrl) ? (
+                    <FileText size={12} className="shrink-0" aria-hidden />
+                  ) : (
+                    <ExternalLink size={12} className="shrink-0" aria-hidden />
+                  )}
+                  <span className="min-w-0 flex-1 truncate">
+                    {isUploadedModuleFile(module.moduleUrl)
+                      ? (moduleFileName(module.moduleUrl) ?? "Attached file")
+                      : hostOf(module.moduleUrl)}
+                  </span>
                   <span className="shrink-0 text-[12px] text-muted-foreground group-hover:text-primary">
                     Open
                   </span>
                 </a>
               ) : (
                 <p className="m-0 rounded-md border border-dashed px-2 py-3 text-center text-[12px] text-muted-foreground">
-                  No link posted for this module yet.
+                  No handout attached to this module yet.
                 </p>
               )}
-              <h4 className="m-0 mb-1 mt-2 text-[12px] font-semibold tracking-wide text-muted-foreground uppercase">
-                Instructions
-              </h4>
-              <p className="m-0 max-h-24 overflow-y-auto whitespace-pre-wrap break-words text-[12px] leading-relaxed text-foreground">
-                {module.description?.trim() || "No instructions were added to this module."}
-              </p>
             </div>
+          </div>
+
+          {/* Instructions — full width so long briefs read without a nested scroll. */}
+          <div className="flex min-w-0 flex-col rounded-md border bg-background/60 p-2.5">
+            <h4 className="m-0 mb-1 text-[12px] font-semibold tracking-wide text-muted-foreground uppercase">
+              Instructions
+            </h4>
+            <p className="m-0 whitespace-pre-wrap break-words text-[12px] leading-relaxed text-foreground">
+              {module.description?.trim() || "No instructions were added to this module."}
+            </p>
           </div>
         </div>
       ) : null}

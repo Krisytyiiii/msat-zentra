@@ -5,6 +5,10 @@ import type {
   AdmMeetingInvitee,
   MeetingAttendee,
 } from "@/services/coordinator/coordinator.types";
+import {
+  MEETING_LENGTH_MS,
+  meetingPhase,
+} from "@/lib/meetings/phase";
 export interface ParentMeetingItem {
   id: string;
   meetingDatetime: string;
@@ -17,8 +21,6 @@ export interface ParentMeetingItem {
   attachments?: AdmMeetingAttachment[];
   recordedBy: string;
 }
-const JOIN_EARLY_MS = 15 * 60_000;
-const MEETING_LEN_MS = 60 * 60_000;
 export type MeetingTiming =
   | { state: "done" }
   | { state: "upcoming"; msUntil: number }
@@ -28,11 +30,11 @@ export type MeetingTiming =
 export function timingOf(m: ParentMeetingItem, now: number): MeetingTiming {
   if (m.attended) return { state: "done" };
   const start = new Date(m.meetingDatetime).getTime();
-  if (!Number.isFinite(start)) return { state: "unknown" };
-  const msUntil = start - now;
-  if (msUntil > JOIN_EARLY_MS) return { state: "upcoming", msUntil };
-  if (now <= start + MEETING_LEN_MS) return { state: "live" };
-  return { state: "overdue", msOverdue: now - (start + MEETING_LEN_MS) };
+  const phase = meetingPhase(start, now);
+  if (phase === null) return { state: "unknown" };
+  if (phase === "upcoming") return { state: "upcoming", msUntil: start - now };
+  if (phase === "live") return { state: "live" };
+  return { state: "overdue", msOverdue: now - (start + MEETING_LENGTH_MS) };
 }
 export function formatCountdown(ms: number): string {
   const totalSeconds = Math.max(0, Math.floor(ms / 1000));
@@ -78,16 +80,11 @@ export function useMeetingTiming(
     meeting.attended ||
     timing.state === "live" ||
     timing.state === "overdue";
-  const needsAction =
-    isLatest &&
-    !meeting.attended &&
-    (timing.state === "live" || timing.state === "overdue");
   return {
     timing,
     needsOutcome,
     showCountdown,
     showOutcomeRecords,
-    needsAction,
     effectiveNow: ticking ? nowMs : now,
   };
 }

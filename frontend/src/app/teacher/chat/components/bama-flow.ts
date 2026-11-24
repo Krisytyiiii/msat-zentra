@@ -35,6 +35,8 @@ export const CATEGORIES = Object.entries(ANEC_CATEGORY_LABELS) as [AnecdotalCate
 export const TIERS = Object.entries(ANEC_TIER_LABELS) as [AnecdotalTier, string][];
 
 export const CATEGORY_TONES: Record<string, 1 | 2 | 3 | 4 | 5> = {
+  // Display label used by the Bama chat cards ("Anecdotal" = behavioral).
+  anecdotal: 1,
   behavioral: 1,
   bullying: 2,
   academic: 3,

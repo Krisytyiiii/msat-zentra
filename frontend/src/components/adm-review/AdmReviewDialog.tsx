@@ -17,6 +17,7 @@ import {
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
 import { Pill } from "@/components/ui/pill";
+import { StudentMascot } from "@/components/student-mascot/StudentMascot";
 import { InsightCallout } from "@/components/ui/insight-callout";
 import { KanbanBoard } from "@/components/ui/kanban-board";
 import { Textarea } from "@/components/ui/textarea";
@@ -74,6 +75,7 @@ export function AdmReviewDialog({
   onClose,
   student,
   lrn,
+  mascot,
   sectionLine,
   observed,
   category,
@@ -101,6 +103,8 @@ export function AdmReviewDialog({
   onClose: () => void;
   student: string;
   lrn: string;
+  /** Stored roster mascot — a derived sprite is used when omitted. */
+  mascot?: string | null;
   sectionLine: string;
   observed: string;
   category: string;
@@ -279,7 +283,7 @@ export function AdmReviewDialog({
               /* 24px action buttons — same metric as the kanban boards. A
                  finished review shows the lock message instead. */
               lockedReason ? (
-                <div className="flex items-center justify-end px-1 pb-1">
+                <div className="flex items-center justify-end border-t border-border px-1 pt-2.5">
                   <Button
                     type="button"
                     variant="outline"
@@ -292,7 +296,7 @@ export function AdmReviewDialog({
                   </Button>
                 </div>
               ) : (
-                <div className="flex flex-wrap items-center justify-end gap-1.5 px-1 pb-1">
+                <div className="flex flex-wrap items-center justify-end gap-1.5 border-t border-border px-1 pt-2.5">
                   <Button
                     type="button"
                     variant="destructive"
@@ -343,47 +347,78 @@ export function AdmReviewDialog({
                   </span>
                 }
               >
-                <div className="px-1">
-                  <dl className={styles.intakeSummary}>
-                    <div className={styles.intakeRow}>
-                      <dt className={styles.intakeLabel}>Name</dt>
-                      <dd className={`${styles.intakeValue} text-[14px] font-semibold`}>
-                        {student}
-                      </dd>
-                    </div>
-                    <div className={styles.intakeRow}>
-                      <dt className={styles.intakeLabel}>LRN</dt>
-                      <dd className={styles.intakeValue}>
-                        <Pill label="LRN" className="tabular-nums">
+                <div className="flex min-w-0 flex-col gap-2.5 px-1">
+                  {/* Identity strip — mascot + name + the record's identity
+                      pills, the same header every teacher desk overlay uses. */}
+                  <div className="flex min-w-0 items-center gap-2.5 rounded-lg border border-border bg-muted/30 p-2.5">
+                    <span className="flex size-11 shrink-0 items-center justify-center overflow-hidden rounded-full border border-border bg-card">
+                      <StudentMascot
+                        name={student}
+                        seed={lrn}
+                        character={mascot ?? undefined}
+                        size={34}
+                      />
+                    </span>
+                    <div className="flex min-w-0 flex-1 flex-col gap-1">
+                      <p
+                        className="m-0 truncate text-[14px] font-bold leading-tight text-foreground"
+                        title={student}
+                      >
+                        {student || "—"}
+                      </p>
+                      <div className="flex min-w-0 flex-wrap items-center gap-1">
+                        <Pill field="lrn" className="tabular-nums">
                           {lrn}
                         </Pill>
-                      </dd>
-                    </div>
-                    <div className={styles.intakeRow}>
-                      <dt className={styles.intakeLabel}>Section</dt>
-                      <dd className={styles.intakeValue}>
+                        {sectionGrade ? (
+                          <Pill
+                            field="grade"
+                            className="min-w-0 max-w-full overflow-hidden"
+                          >
+                            <span className="truncate">{sectionGrade}</span>
+                          </Pill>
+                        ) : null}
                         <Pill
-                          tone="amber"
-                          aria-label={`Section ${sectionName}`}
-                          label={sectionGrade || "Grade level"}
+                          field="section"
                           className="min-w-0 max-w-full overflow-hidden"
                         >
                           <span className="truncate">{sectionName || "—"}</span>
                         </Pill>
+                      </div>
+                    </div>
+                    {waiting ? (
+                      <Pill
+                        tone="red"
+                        label="Time in queue"
+                        className="shrink-0 self-start"
+                      >
+                        {waiting}
+                      </Pill>
+                    ) : null}
+                  </div>
+                  {/* Case facts — quiet bordered tiles, one fact each. */}
+                  <dl className="m-0 grid grid-cols-2 gap-2">
+                    <div className="flex min-w-0 flex-col gap-0.5 rounded-lg border border-border bg-background/60 px-2.5 py-2">
+                      <dt className="text-[12px] font-semibold uppercase tracking-[0.04em] text-muted-foreground">
+                        Observed
+                      </dt>
+                      <dd
+                        className="m-0 truncate text-[13px] font-semibold text-foreground"
+                        title={observed}
+                      >
+                        {observed}
                       </dd>
                     </div>
-                    <div className={styles.intakeRow}>
-                      <dt className={styles.intakeLabel}>Observed</dt>
-                      <dd className={styles.intakeValue}>{observed}</dd>
-                    </div>
-                    <div className={styles.intakeRow}>
-                      <dt className={styles.intakeLabel}>Referred</dt>
-                      <dd className={styles.intakeValue}>{referred}</dd>
-                      {waiting ? (
-                        <span className="ml-auto shrink-0 self-center whitespace-nowrap text-[12px] italic text-red-600 dark:text-red-400">
-                          {waiting}
-                        </span>
-                      ) : null}
+                    <div className="flex min-w-0 flex-col gap-0.5 rounded-lg border border-border bg-background/60 px-2.5 py-2">
+                      <dt className="text-[12px] font-semibold uppercase tracking-[0.04em] text-muted-foreground">
+                        Referred
+                      </dt>
+                      <dd
+                        className="m-0 truncate text-[13px] font-semibold text-foreground"
+                        title={referred}
+                      >
+                        {referred}
+                      </dd>
                     </div>
                   </dl>
                 </div>
@@ -473,7 +508,7 @@ export function AdmReviewDialog({
                       </span>
                     }
                   >
-                    <div className="px-1">
+                    <div className="flex flex-col gap-1.5 px-1">
                       <Textarea
                         id="shared-adm-review-rec"
                         aria-label="Your recommendation (required)"
@@ -482,6 +517,9 @@ export function AdmReviewDialog({
                         placeholder={recommendationPlaceholder}
                         maxLength={500}
                       />
+                      <span className="self-end text-[12px] tabular-nums text-muted-foreground">
+                        {recommendation.length}/500
+                      </span>
                     </div>
                   </KanbanBoard>
                 </>

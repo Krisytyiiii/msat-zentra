@@ -5,7 +5,6 @@ import { combineDateTime } from "../../referrals/components/guidance-referrals-t
 import type {
   AtRiskStudentItem,
   CounselingSessionType,
-  GuidanceInterventionsSummary,
 } from "@/services/guidance/interventions.types";
 import type { InterventionStatusFilter } from "./intervention-row-helpers";
 import {
@@ -16,7 +15,6 @@ import { useInterventionActions } from "./use-intervention-actions";
 import { InterventionTableView } from "./intervention-table-view";
 
 export function GuidanceInterventionsTable({
-  summary,
   students,
   page,
   pageSize,
@@ -90,7 +88,6 @@ export function GuidanceInterventionsTable({
   return (
     <>
       <InterventionTableView
-        summary={summary}
         students={students}
         page={page}
         pageSize={pageSize}
@@ -292,7 +289,6 @@ export function GuidanceInterventionsTable({
   );
 }
 interface GuidanceInterventionsTableProps {
-  summary: GuidanceInterventionsSummary;
   students: AtRiskStudentItem[];
   page: number;
   pageSize: number;

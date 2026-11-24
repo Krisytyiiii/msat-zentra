@@ -1,7 +1,20 @@
 "use client";
 
 import * as React from "react";
-import { Check, Copy, Layers, Loader2, Lock, Plus, Search, Trash2, Users, X } from "lucide-react";
+import {
+  Check,
+  CircleDashed,
+  Copy,
+  Layers,
+  Loader2,
+  Lock,
+  Plus,
+  Search,
+  Trash2,
+  Upload,
+  Users,
+  X,
+} from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { FilterTabs } from "@/components/ui/filter-tabs";
 import {
@@ -237,6 +250,11 @@ export function SectionsBoard({
             const adviserName = s.adviser?.fullName ?? s.adviserLabel ?? "";
             const learners = s._count.students;
             const slots = s.timetableEntries?.length ?? 0;
+            const approved = (s.timetableEntries ?? []).filter(
+              (entry) => entry.status === "APPROVED",
+            ).length;
+            const gridState =
+              slots === 0 ? "empty" : approved === slots ? "published" : "draft";
             const locked = Boolean(s.locked);
             const lockLabel = sectionLinkLabel(s.links);
 
@@ -267,6 +285,34 @@ export function SectionsBoard({
                 </header>
 
                 <div className={styles.metaRow}>
+                  <Pill
+                    tone={
+                      gridState === "published"
+                        ? "green"
+                        : gridState === "draft"
+                          ? "amber"
+                          : "neutral"
+                    }
+                    label="Timetable status"
+                  >
+                    {gridState === "published" ? (
+                      <>
+                        <Upload size={11} aria-hidden />
+                        Published
+                      </>
+                    ) : gridState === "draft" ? (
+                      <>
+                        <CircleDashed size={11} aria-hidden />
+                        Draft grid
+                      </>
+                    ) : (
+                      <>
+                        <CircleDashed size={11} aria-hidden />
+                        No grid yet
+                      </>
+                    )}
+                  </Pill>
+
                   {claimed ? (
                     <Pill tone="green" label="Adviser status">
                       <Check size={11} aria-hidden />
@@ -319,6 +365,19 @@ export function SectionsBoard({
                     {slots} slot{slots === 1 ? "" : "s"} this term
                   </span>
                 </div>
+
+                {slots > 0 ? (
+                  <div
+                    className={styles.gridProgress}
+                    title={`${approved} of ${slots} slots published`}
+                    aria-hidden
+                  >
+                    <span
+                      className={styles.gridProgressFill}
+                      style={{ width: `${Math.round((approved / slots) * 100)}%` }}
+                    />
+                  </div>
+                ) : null}
 
                 {claimed ? (
                   <p className={`${styles.notice} ${styles.claimedNotice}`}>

@@ -1,0 +1,45 @@
+/* Left-to-right sheen shared by ShimmerSkeleton and ShimmerGroup. */
+
+/* A group is a pure styling wrapper: it never takes part in layout, so the
+   caller's grid/flex rhythm is untouched. */
+.group {
+  display: contents;
+}
+
+.skeleton,
+.group [data-slot="skeleton"] {
+  position: relative;
+  overflow: hidden;
+  animation: none;
+}
+
+.skeleton::after,
+.group [data-slot="skeleton"]::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  transform: translateX(-100%);
+  background: linear-gradient(
+    90deg,
+    transparent 0%,
+    color-mix(in oklch, var(--foreground) 12%, transparent) 50%,
+    transparent 100%
+  );
+  animation: shimmer-sweep 1.4s ease-in-out infinite;
+}
+
+@keyframes shimmer-sweep {
+  from {
+    transform: translateX(-100%);
+  }
+  to {
+    transform: translateX(100%);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .skeleton::after,
+  .group [data-slot="skeleton"]::after {
+    animation: none;
+  }
+}

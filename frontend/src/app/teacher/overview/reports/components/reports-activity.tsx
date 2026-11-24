@@ -1,10 +1,8 @@
 "use client";
 
-import { Activity } from "lucide-react";
 import { Cell, Pie, PieChart, ResponsiveContainer, Tooltip } from "recharts";
 import { KanbanBoard } from "@/components/ui/kanban-board";
 import { InsightCallout } from "@/components/ui/insight-callout";
-import { Pill } from "@/components/ui/pill";
 import type { TeacherReportsPayload } from "@/services/teacher/reports.types";
 import { REFERRAL_STATUS_LABELS } from "./reports-format";
 import styles from "./reports.module.css";
@@ -83,26 +81,22 @@ export function ReportsActivity({
   return (
     <KanbanBoard
       title="Case activity"
-      icon={
-        <span className={styles.boardIcon} aria-hidden>
-          <Activity size={14} />
-        </span>
-      }
       count={<span className={styles.amberNumber}>{total}</span>}
       description="Records and referrals you filed this term."
       className="flex-1"
+      showHeader={false}
     >
       {total > 0 ? (
         <div className={styles.activityBody}>
           <div className={styles.donutWrap}>
-            <ResponsiveContainer width="100%" height={176}>
+            <ResponsiveContainer width="100%" height={180}>
               <PieChart>
                 <Pie
                   data={slices}
                   dataKey="value"
                   nameKey="label"
-                  innerRadius="62%"
-                  outerRadius="92%"
+                  innerRadius="64%"
+                  outerRadius="94%"
                   paddingAngle={2}
                   stroke="transparent"
                   strokeWidth={2}
@@ -126,31 +120,50 @@ export function ReportsActivity({
             </div>
           </div>
 
-          <ul className={styles.activityLegend}>
-            {slices.map((slice) => (
-              <li key={slice.key} className={styles.activityLegendItem}>
-                <span className={styles.legendSwatch} style={{ background: slice.fill }} aria-hidden />
-                <span className={styles.legendLabel}>{slice.label}</span>
-                <Pill tone={slice.value > 0 ? "amber" : "neutral"} label={slice.label}>
-                  {slice.value} · {slice.percent}%
-                </Pill>
-              </li>
-            ))}
-          </ul>
-
-          {activity.referrals.byStatus.length > 0 ? (
-            <div className={styles.chips}>
-              {activity.referrals.byStatus.map((item) => (
-                <Pill
-                  key={item.status}
-                  tone={item.count > 0 ? "amber" : "neutral"}
-                  label="Referral status"
-                >
-                  {REFERRAL_STATUS_LABELS[item.status] ?? item.status}: {item.count}
-                </Pill>
+          <div className={styles.activityLegendCol}>
+            <ul className={styles.activityLegend}>
+              {slices.map((slice) => (
+                <li key={slice.key} className={styles.activityLegendItem}>
+                  <div className={styles.legendRow}>
+                    <span
+                      className={styles.legendSwatch}
+                      style={{ background: slice.fill }}
+                      aria-hidden
+                    />
+                    <span className={styles.legendLabel}>{slice.label}</span>
+                    <span className={styles.legendValue}>
+                      {slice.value.toLocaleString()}
+                    </span>
+                  </div>
+                  <span className={styles.legendTrack} aria-hidden>
+                    <span
+                      className={styles.legendFill}
+                      style={{ width: `${slice.percent}%`, background: slice.fill }}
+                    />
+                  </span>
+                </li>
               ))}
-            </div>
-          ) : null}
+            </ul>
+
+            {activity.referrals.byStatus.length > 0 ? (
+              <div className={styles.legendFootnotes}>
+                <span className={styles.footnoteLabel}>Referrals by status</span>
+                <span className={styles.footnoteItems}>
+                  {activity.referrals.byStatus.map((item, i) => (
+                    <span key={item.status} className={styles.footnoteItem}>
+                      {i > 0 ? (
+                        <span className={styles.footnoteSep} aria-hidden>
+                          ·
+                        </span>
+                      ) : null}
+                      <span>{REFERRAL_STATUS_LABELS[item.status] ?? item.status}</span>
+                      <span className={styles.footnoteCount}>{item.count}</span>
+                    </span>
+                  ))}
+                </span>
+              </div>
+            ) : null}
+          </div>
         </div>
       ) : null}
       <div className={styles.footerSlot}>

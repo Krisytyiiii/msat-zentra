@@ -8,150 +8,65 @@
   font-family: var(--font-sans), system-ui, sans-serif;
 }
 
-/* Skeleton mirrors the command-center layout (hero + metrics, pipeline
-   strip, queue + watchlist) so the swap to content does not shift. */
-.hero {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: stretch;
-  justify-content: space-between;
-  gap: 1.25rem 2rem;
-  padding: 1.125rem 1.25rem;
-  border: 1px solid var(--border);
+/* Skeleton mirrors the desk layout (stat strip, pipeline chart + queue,
+   watchlist) so the swap to content does not shift. */
+.deck {
+  display: grid;
+  grid-template-columns: repeat(5, minmax(0, 1fr));
+  overflow: hidden;
+  border: 1px solid color-mix(in oklch, var(--border) 80%, transparent);
   border-radius: var(--radius-xl);
-  background-color: var(--card);
+  background-color: color-mix(in oklch, var(--card) 72%, transparent);
+  backdrop-filter: blur(14px) saturate(135%);
+  -webkit-backdrop-filter: blur(14px) saturate(135%);
 }
 
-.heroCopy {
+.deckTile {
   display: flex;
-  flex: 1 1 24rem;
   flex-direction: column;
   gap: 0.5rem;
-  min-width: 0;
-  max-width: 46rem;
+  padding: 0.75rem 0.875rem;
+  border-right: 1px solid color-mix(in oklch, var(--border) 70%, transparent);
 }
 
-.skelEyebrow {
-  height: 0.625rem;
-  width: 9rem;
+.deckTile:last-child {
+  border-right: none;
 }
 
-.skelTitle {
-  height: 1.375rem;
-  width: 60%;
-  max-width: 24rem;
-}
-
-.skelSub {
-  height: 0.75rem;
-  width: 80%;
-  max-width: 30rem;
-}
-
-.skelActions {
-  display: flex;
-  gap: 0.375rem;
-  margin-top: 0.375rem;
-}
-
-.skelButton {
-  height: 1.75rem;
-  width: 6.5rem;
-  border-radius: var(--radius-md);
-}
-
-.metrics {
-  display: flex;
-  flex: 1 1 17rem;
-  flex-direction: column;
-  justify-content: center;
-  max-width: 22rem;
-}
-
-.metricRow {
+.deckTileTop {
   display: flex;
   align-items: center;
-  gap: 0.5rem;
-  padding: 0.4375rem 0.375rem;
-  border-top: 1px solid color-mix(in oklch, var(--foreground), transparent 93%);
-}
-
-.metricRow:first-child {
-  border-top: none;
-}
-
-.skelIcon {
-  width: 0.9375rem;
-  height: 0.9375rem;
-  flex-shrink: 0;
-  border-radius: 0.25rem;
+  gap: 0.375rem;
 }
 
 .skelMetricLabel {
   height: 0.625rem;
   flex: 1;
-  max-width: 9rem;
+  max-width: 7rem;
 }
 
 .skelMetricValue {
-  height: 0.875rem;
-  width: 1.75rem;
-  flex-shrink: 0;
+  height: 1.125rem;
+  width: 2rem;
 }
 
-/* Pipeline strip. */
-.flow {
-  display: flex;
-  flex-direction: column;
-  gap: 0.625rem;
-  padding: 0.875rem 1rem 0.75rem;
-  border: 1px solid var(--border);
-  border-radius: var(--radius-xl);
-  background-color: var(--card);
+.skelMetricHint {
+  height: 0.5625rem;
+  width: 80%;
 }
 
-.flowHead {
-  display: flex;
-  align-items: baseline;
-  justify-content: space-between;
-  gap: 0.75rem;
-}
-
-.skelFlowTitle {
-  height: 0.75rem;
-  width: 8rem;
-}
-
-.skelFlowTotal {
-  height: 0.625rem;
-  width: 6rem;
-}
-
-.skelFlowBar {
-  height: 0.4375rem;
-  width: 100%;
-  border-radius: 9999px;
-}
-
-.flowSteps {
-  display: flex;
-  gap: 0.375rem;
-  overflow: hidden;
-}
-
-.skelStep {
-  height: 1.5rem;
-  width: 5.5rem;
-  flex-shrink: 0;
-  border-radius: var(--radius-md);
-}
-
-/* Queue + watchlist. */
 .workGrid {
   display: grid;
-  grid-template-columns: minmax(0, 1.9fr) minmax(0, 1fr);
+  grid-template-columns: minmax(0, 1fr) minmax(220px, 20%);
   align-items: start;
   gap: 0.75rem;
+}
+
+.mainCol {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+  min-width: 0;
 }
 
 @media (max-width: 1080px) {
@@ -160,11 +75,88 @@
   }
 }
 
+@media (max-width: 900px) {
+  .deck {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .deckTile {
+    border-bottom: 1px solid color-mix(in oklch, var(--border) 70%, transparent);
+  }
+}
+
+/* Pipeline chart placeholders. */
+.chartCard {
+  display: flex;
+  flex-direction: column;
+  gap: 0.625rem;
+  padding: 0.75rem 0.875rem;
+  border: 1px solid color-mix(in oklch, var(--border) 80%, transparent);
+  border-radius: var(--radius-xl);
+  background-color: color-mix(in oklch, var(--card) 72%, transparent);
+  backdrop-filter: blur(14px) saturate(135%);
+  -webkit-backdrop-filter: blur(14px) saturate(135%);
+}
+
+.cardHead {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 0.75rem;
+  padding-bottom: 0.5rem;
+  border-bottom: 1px solid var(--border);
+}
+
+.chartRow {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+}
+
+.skelDonut {
+  width: 9.5rem;
+  height: 9.5rem;
+  flex-shrink: 0;
+  border-radius: 9999px;
+}
+
+.skelLegend {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 0.3125rem 0.75rem;
+  flex: 1;
+  min-width: 0;
+}
+
+.skelLegendRow {
+  height: 1rem;
+  width: 100%;
+}
+
+.skelInterpretation {
+  height: 2.375rem;
+  width: 100%;
+  border-radius: var(--radius-lg);
+}
+
+.skelFlowTitle {
+  height: 0.75rem;
+  width: 7rem;
+}
+
+.skelFlowTotal {
+  height: 0.625rem;
+  width: 5rem;
+}
+
+/* Queue + watchlist. */
 .queue {
   overflow: hidden;
-  border: 1px solid var(--border);
+  border: 1px solid color-mix(in oklch, var(--border) 80%, transparent);
   border-radius: var(--radius-xl);
-  background-color: var(--card);
+  background-color: color-mix(in oklch, var(--card) 72%, transparent);
+  backdrop-filter: blur(14px) saturate(135%);
+  -webkit-backdrop-filter: blur(14px) saturate(135%);
 }
 
 .queueHead {
@@ -178,28 +170,164 @@
   background-color: color-mix(in oklch, var(--muted) 42%, transparent);
 }
 
-.queueRows {
+/* Table mirror — the default queue layout (one row per waiting case). */
+.queueTable {
   display: flex;
   flex-direction: column;
+  margin: 0.75rem;
+  overflow: hidden;
+  border: 1px solid color-mix(in oklch, var(--border) 80%, transparent);
+  border-radius: var(--radius-md);
+  background-color: color-mix(in oklch, var(--card) 72%, transparent);
 }
 
-.queueRow {
+.queueTableHead {
   display: flex;
   align-items: center;
+  gap: 1rem;
+  padding: 0.75rem;
+  border-bottom: 1px solid var(--border);
+}
+
+.queueTableHeadCell {
+  height: 0.625rem;
+  width: 8%;
+  min-width: 3rem;
+}
+
+.queueTableRow {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  padding: 0.75rem;
+  border-bottom: 1px solid
+    color-mix(in oklch, var(--border), transparent 35%);
+}
+
+.queueTableRow:last-child {
+  border-bottom: none;
+}
+
+.queueTableCellName {
+  height: 0.875rem;
+  width: 16%;
+  min-width: 6rem;
+}
+
+.queueTableCellMd {
+  height: 0.75rem;
+  width: 12%;
+  min-width: 4rem;
+}
+
+.queueTableCellSm {
+  height: 0.75rem;
+  width: 7%;
+  min-width: 3rem;
+}
+
+.queueGrid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(264px, 1fr));
   gap: 0.75rem;
-  padding: 0.75rem 1rem;
-  border-top: 1px solid color-mix(in oklch, var(--foreground), transparent 93%);
+  padding: 0.75rem;
 }
 
-.queueRow:first-child {
-  border-top: none;
+.skelQueueCard {
+  display: flex;
+  flex-direction: column;
+  min-height: 10.5rem;
+  overflow: hidden;
+  border: 1px solid color-mix(in oklch, var(--border) 80%, transparent);
+  border-radius: 0.75rem;
+  background-color: color-mix(in oklch, var(--card) 72%, transparent);
 }
 
-.skelAvatar {
-  width: 2.375rem;
-  height: 2.375rem;
+.skelQueueHead {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 0.5rem;
+  padding: 0.75rem 0.875rem 0.625rem;
+  border-bottom: 1px solid color-mix(in oklch, var(--border) 70%, transparent);
+}
+
+.skelQueueHeading {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  gap: 0.375rem;
+  min-width: 0;
+}
+
+.skelQueueTitle {
+  height: 0.875rem;
+  width: 62%;
+}
+
+.skelQueuePill {
+  height: 1.125rem;
+  width: 5.5rem;
+  border-radius: 9999px;
+}
+
+.skelQueueAvatar {
+  width: 1.625rem;
+  height: 1.625rem;
   flex-shrink: 0;
   border-radius: 9999px;
+}
+
+.skelQueueMetrics {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 0.5rem;
+  padding: 0.625rem 0.875rem;
+}
+
+.skelQueueMetric {
+  height: 2.5rem;
+  border-radius: var(--radius-md);
+}
+
+.skelQueueFacts {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.375rem 1rem;
+  padding: 0.5rem 0.875rem 0.625rem;
+  border-top: 1px solid color-mix(in oklch, var(--border) 70%, transparent);
+}
+
+.skelQueueFact {
+  height: 0.75rem;
+  width: 38%;
+}
+
+.skelQueueFactSm {
+  height: 0.75rem;
+  width: 30%;
+}
+
+.skelQueueActions {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.5rem;
+  margin-top: auto;
+  padding: 0.4375rem 0.875rem 0.5625rem;
+  border-top: 1px solid color-mix(in oklch, var(--border) 70%, transparent);
+}
+
+.skelQueueLrn {
+  height: 1.25rem;
+  width: 5.75rem;
+  border-radius: var(--radius-md);
+}
+
+.skelQueueBtn {
+  height: 1.75rem;
+  width: 4.5rem;
+  border-radius: var(--radius-md);
 }
 
 .skelLines {
@@ -220,11 +348,11 @@
   width: 30%;
 }
 
-.skelPill {
-  height: 1.25rem;
-  width: 4.5rem;
+.skelIcon {
+  width: 0.9375rem;
+  height: 0.9375rem;
   flex-shrink: 0;
-  border-radius: 9999px;
+  border-radius: 0.25rem;
 }
 
 .rail {
@@ -239,9 +367,11 @@
   flex-direction: column;
   gap: 0.5rem;
   padding: 0.875rem 1rem 0.75rem;
-  border: 1px solid var(--border);
+  border: 1px solid color-mix(in oklch, var(--border) 80%, transparent);
   border-radius: var(--radius-xl);
-  background-color: var(--card);
+  background-color: color-mix(in oklch, var(--card) 72%, transparent);
+  backdrop-filter: blur(14px) saturate(135%);
+  -webkit-backdrop-filter: blur(14px) saturate(135%);
 }
 
 .panelHead {
@@ -250,10 +380,59 @@
   gap: 0.5rem;
 }
 
-.skelPanelRow {
-  height: 2rem;
-  width: 100%;
+.skelPanelCards {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.skelPanelCard {
+  display: flex;
+  flex-direction: column;
+  min-height: 9rem;
+  overflow: hidden;
+  border: 1px solid color-mix(in oklch, var(--border) 80%, transparent);
+  border-radius: 0.75rem;
+  background-color: color-mix(in oklch, var(--card) 72%, transparent);
+}
+
+.skelPanelCardHead {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 0.5rem;
+  padding: 0.75rem 0.875rem 0.625rem;
+  border-bottom: 1px solid color-mix(in oklch, var(--border) 70%, transparent);
+}
+
+.skelPanelCardTitle {
+  height: 0.875rem;
+  width: 60%;
+}
+
+.skelAvatar {
+  width: 1.625rem;
+  height: 1.625rem;
+  flex-shrink: 0;
+  border-radius: 9999px;
+}
+
+.skelPanelCardMetric {
+  height: 3rem;
+  margin: 0.625rem 0.875rem;
   border-radius: var(--radius-md);
+}
+
+.skelPanelCardMeter {
+  height: 0.1875rem;
+  margin: 0 0.875rem 0.625rem;
+  border-radius: 9999px;
+}
+
+.skelPanelCardFact {
+  height: 0.75rem;
+  width: 55%;
+  margin: 0.5rem 0.875rem 0.75rem;
 }
 
 .errorBlock {
@@ -291,8 +470,19 @@
   }
 }
 
-/* Dark mode: let the aurora canvas painted by the shell show through the
-   page surface instead of a flat --background fill. */
+/* Dark mode: every card drops its fill so the aurora canvas painted by the
+   shell reads through the glass instead of a flat slab. */
 :global(.dark) .page {
   background-color: transparent;
+}
+
+:global(.dark) .deck,
+:global(.dark) .chartCard,
+:global(.dark) .queue,
+:global(.dark) .queueTable,
+:global(.dark) .panel,
+:global(.dark) .skelQueueCard,
+:global(.dark) .skelPanelCard {
+  background-color: transparent;
+  border-color: color-mix(in oklch, var(--border) 70%, transparent);
 }

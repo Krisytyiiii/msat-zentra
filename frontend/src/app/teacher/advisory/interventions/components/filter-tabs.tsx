@@ -15,11 +15,14 @@ export function FilterTabs<T extends string>({
   options,
   value,
   onChange,
+  variant,
 }: {
   label: string;
   options: ReadonlyArray<FilterTabOption<T>>;
   value: T;
   onChange: (next: T) => void;
+  /** Rendering variant forwarded to the shared tabs (segmented | tags). */
+  variant?: "segmented" | "tags";
   /** Accepted for backwards compatibility; the shared tabs use one accent. */
   tone?: string;
 }) {
@@ -29,6 +32,7 @@ export function FilterTabs<T extends string>({
       options={options}
       value={value}
       onChange={onChange}
+      variant={variant}
     />
   );
 }

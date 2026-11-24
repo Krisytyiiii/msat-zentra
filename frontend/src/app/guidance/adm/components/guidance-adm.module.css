@@ -623,6 +623,22 @@
   gap: 1rem;
 }
 
+/* The reports page's key-findings deck sits on the dark desk canvas. The
+   shared deck is glass (55% card + blur) in dark mode; this page wants the
+   cards fully transparent so the canvas glows read straight through. */
+:global(.dark) .statsDeck.statsDeck {
+  background-color: transparent;
+  backdrop-filter: none;
+  -webkit-backdrop-filter: none;
+  box-shadow: none;
+}
+
+/* Same treatment for every board on the page in dark mode — the global
+   `.dark .board-surface` fill would otherwise read as a grey panel. */
+:global(.dark) .page :global(.board-surface) {
+  background-color: transparent;
+}
+
 .insightCard {
   position: relative;
   display: flex;

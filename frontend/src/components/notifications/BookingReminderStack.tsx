@@ -4,6 +4,7 @@ import * as React from "react";
 import { useRouter } from "next/navigation";
 import { CalendarClock, X } from "lucide-react";
 import { apiClient } from "@/lib/api/client";
+import { meetingPhase, type MeetingPhase } from "@/lib/meetings/phase";
 import {
   guidanceNotificationTarget,
   nurseNotificationTarget,
@@ -17,7 +18,8 @@ export interface BookingReminder {
   title: string;
   message: string;
   href: string | null;
-  overdue: boolean;
+  /** Same 15-minute join / 60-minute length clock the meeting cards use. */
+  phase: MeetingPhase;
   /** Structured pieces so the name and date can be highlighted inline. */
   student: string;
   kind: string;
@@ -99,10 +101,13 @@ const SESSION_KIND_LABELS: Record<string, string> = {
 
 function sessionMessage(p: SessionText): string {
   const venue = p.venue ? ` · ${p.venue}` : "";
-  if (!p.overdue) {
-    return `${p.student} — upcoming ${p.kind} meetup, ${p.when}${venue}`;
+  if (p.phase === "live") {
+    return `${p.student} — ${p.kind} meetup in progress, ${p.when}${venue}`;
   }
-  return `${p.student} — overdue ${p.kind} meetup, ${p.when}${venue} — still unattended`;
+  if (p.phase === "overdue") {
+    return `${p.student} — overdue ${p.kind} meetup, ${p.when}${venue} — still unattended`;
+  }
+  return `${p.student} — upcoming ${p.kind} meetup, ${p.when}${venue}`;
 }
 
 interface SessionText {
@@ -110,7 +115,7 @@ interface SessionText {
   kind: string;
   when: string;
   venue: string;
-  overdue: boolean;
+  phase: MeetingPhase;
 }
 
 function sessionParts(s: DeskSession, now: number): SessionText {
@@ -127,15 +132,15 @@ function sessionParts(s: DeskSession, now: number): SessionText {
   startOfToday.setHours(0, 0, 0, 0);
   const startOfDay = new Date(d);
   startOfDay.setHours(0, 0, 0, 0);
-  const overdue = d.getTime() <= now;
+  const phase = meetingPhase(d.getTime(), now) ?? "upcoming";
   let when: string;
-  if (!overdue) {
+  if (phase !== "overdue") {
     const diffDays = Math.round((startOfDay.getTime() - startOfToday.getTime()) / 86_400_000);
     when = diffDays === 0 ? `today at ${time}` : `${day} at ${time}`;
   } else {
     when = `${day} at ${time}`;
   }
-  return { student: s.student, kind, when, venue, overdue };
+  return { student: s.student, kind, when, venue, phase };
 }
 
 function evaluateSessions(desk: ReminderDesk): void {
@@ -150,16 +155,37 @@ function evaluateSessions(desk: ReminderDesk): void {
       let changed = false;
       for (const s of due) {
         const id = sessionKey(s);
-        if (reminders.some((x) => x.id === id)) continue;
-        if (isHandled(id)) continue;
         const parts = sessionParts(s, now);
+        const message = sessionMessage(parts);
+        const existing = reminders.find((x) => x.id === id);
+        if (existing) {
+          // Re-derive the state each poll so a meeting that starts (or runs
+          // past its hour) changes label instead of freezing at its first text.
+          if (existing.phase === parts.phase && existing.message === message) continue;
+          reminders = reminders.map((x) =>
+            x.id === id
+              ? {
+                  ...x,
+                  message,
+                  phase: parts.phase,
+                  student: parts.student,
+                  kind: parts.kind,
+                  when: parts.when,
+                  venue: parts.venue,
+                }
+              : x,
+          );
+          changed = true;
+          continue;
+        }
+        if (isHandled(id)) continue;
         reminders = [
           {
             id,
             title: "Upcoming session",
-            message: sessionMessage(parts),
+            message,
             href: hrefFor(desk, s),
-            overdue: parts.overdue,
+            phase: parts.phase,
             student: parts.student,
             kind: parts.kind,
             when: parts.when,
@@ -168,6 +194,17 @@ function evaluateSessions(desk: ReminderDesk): void {
           ...reminders,
         ];
         changed = true;
+      }
+      // A reminder whose meeting is attended, cancelled or closed drops out of
+      // the desk feed — drop the floating card with it, otherwise it keeps
+      // claiming "still unattended" after the case card says Done.
+      if (reminders.length > 0) {
+        const dueIds = new Set(due.map(sessionKey));
+        const kept = reminders.filter((r) => dueIds.has(r.id));
+        if (kept.length !== reminders.length) {
+          reminders = kept;
+          changed = true;
+        }
       }
       if (changed) emit();
     })
@@ -266,6 +303,16 @@ export function dismissBookingReminder(id: string, how: HandledHow = "dismissed"
   }
 }
 
+/**
+ * Drop the floating reminder for a meeting the desk just settled (attendance
+ * logged). Marking it handled keeps a stale desk feed from re-adding it before
+ * the next poll sees the attended row disappear.
+ */
+export function clearBookingReminderForMeeting(meetingId: string): void {
+  if (!meetingId) return;
+  dismissBookingReminder(`sess:${meetingId}`, "acted");
+}
+
 export function useBookingReminders(): BookingReminder[] {
   return React.useSyncExternalStore(subscribe, snapshot, snapshot);
 }
@@ -298,9 +345,10 @@ export function BookingReminderStack({ desk }: { desk: ReminderDesk }) {
   const renderCard = (id: string, isTop: boolean) => {
     const r = byId.get(id);
     if (!r) return null;
+    const overdue = r.phase === "overdue";
     return (
       <div
-        className={`${styles.tile} ${r.overdue ? styles.tileOverdue : ""}`}
+        className={`${styles.tile} ${overdue ? styles.tileOverdue : ""}`}
         role="alert"
         aria-hidden={!isTop}
       >
@@ -310,7 +358,7 @@ export function BookingReminderStack({ desk }: { desk: ReminderDesk }) {
               <CalendarClock size={12} strokeWidth={2.25} />
             </span>
             <span className={styles.statusDot} aria-hidden="true" />
-            {r.overdue ? "Overdue" : "Upcoming"}
+            {overdue ? "Overdue" : r.phase === "live" ? "In progress" : "Upcoming"}
           </span>
           <div className={styles.actions}>
             {r.href ? (
@@ -340,10 +388,12 @@ export function BookingReminderStack({ desk }: { desk: ReminderDesk }) {
         </div>
         <p className={styles.message}>
           <span className={styles.pill}>{r.student}</span>
-          {` — ${r.overdue ? "overdue" : "upcoming"} ${r.kind} meetup, `}
+          {r.phase === "live"
+            ? ` — ${r.kind} meetup in progress, `
+            : ` — ${overdue ? "overdue" : "upcoming"} ${r.kind} meetup, `}
           <span className={styles.pill}>{r.when}</span>
           {r.venue ? ` · ${r.venue}` : null}
-          {r.overdue ? " — still unattended" : null}
+          {overdue ? " — still unattended" : null}
         </p>
       </div>
     );

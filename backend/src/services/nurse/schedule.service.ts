@@ -23,6 +23,8 @@ export interface NurseCalendarEvent {
   learner: string;
   lrn: string;
   section: string;
+  /** Stored sprite mascot, so the card matches every other desk surface. */
+  mascot: string | null;
   sessionType: string;
   /** ISO instant — the client renders it in the browser's local time. */
   start: string;
@@ -51,6 +53,7 @@ export interface NurseCalendarData {
 
 const STUDENT_SELECT = {
   lrn: true,
+  mascot: true,
   user: { select: { fullName: true } },
   section: { select: { name: true } },
 } as const;
@@ -58,12 +61,18 @@ const STUDENT_SELECT = {
 const ROSTER_SELECT = {
   lrn: true,
   fullName: true,
+  mascot: true,
   section: { select: { name: true } },
 } as const;
 
 type LearnerHolder = {
-  student?: { lrn: string; user: { fullName: string } | null; section: { name: string } | null } | null;
-  roster?: { lrn: string; fullName: string; section: { name: string } | null } | null;
+  student?: {
+    lrn: string;
+    mascot: string | null;
+    user: { fullName: string } | null;
+    section: { name: string } | null;
+  } | null;
+  roster?: { lrn: string; fullName: string; mascot: string | null; section: { name: string } | null } | null;
 };
 
 /** The nurse desk scope, mirrored from `listQueue` in `queues.desk.service.ts`. */
@@ -100,6 +109,7 @@ function learnerOf(holder: LearnerHolder | null | undefined) {
     learner: holder?.student?.user?.fullName ?? holder?.roster?.fullName ?? "Unknown learner",
     lrn: holder?.student?.lrn ?? holder?.roster?.lrn ?? "",
     section: holder?.student?.section?.name ?? holder?.roster?.section?.name ?? "",
+    mascot: holder?.student?.mascot ?? holder?.roster?.mascot ?? null,
   };
 }
 

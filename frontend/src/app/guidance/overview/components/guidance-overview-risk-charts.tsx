@@ -1,7 +1,7 @@
 "use client";
 
 import { Flag, GraduationCap, HeartPulse } from "lucide-react";
-import { GuidanceBarPanel, GuidanceDonutPanel } from "./guidance-overview-panels";
+import { GuidanceGaugePanel, GuidanceDonutPanel } from "./guidance-overview-panels";
 import type {
   GuidanceCategoryRow,
   GuidanceRiskByGradeRow,
@@ -15,7 +15,7 @@ interface GuidanceOverviewRiskChartsProps {
 }
 
 /**
- * Risk section — three kanban boards (donut + two bar charts) in the same
+ * Risk section — three kanban boards (one donut + two gauges) in the same
  * 3-up grid and amber palette as the nurse breakdown boards.
  */
 export function GuidanceOverviewRiskCharts({
@@ -73,21 +73,21 @@ export function GuidanceOverviewRiskCharts({
         sortDescending={false}
         interpretation={levelsText}
       />
-      <GuidanceBarPanel
+      <GuidanceGaugePanel
         title="Risk factors"
         description="Students tripping each flag this term."
         rows={factorRows}
-        seriesName="Students"
+        unit="students"
         emptyTitle="No risk flags this term"
         emptyText="No risk flags tripped this term — every student clears all three checks."
         icon={Flag}
         interpretation={factorsText}
       />
-      <GuidanceBarPanel
+      <GuidanceGaugePanel
         title="At-risk by grade"
         description="Moderate + High students per grade level."
         rows={gradeRows}
-        seriesName="At-risk"
+        unit="students"
         emptyTitle="No at-risk students"
         emptyText="No grade level has at-risk students right now."
         icon={GraduationCap}

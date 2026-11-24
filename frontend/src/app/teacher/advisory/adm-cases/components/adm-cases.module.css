@@ -1,191 +1,633 @@
+/* Split ADM desk — left pane: the case list; right pane: the adviser overview
+   or the opened case's monitoring workspace. Both panes are the same width and
+   scroll independently on desktop. */
+
 .page {
-  display: flex;
-  flex-direction: column;
-  gap: 1.25rem;
-  min-width: 0;
-  min-height: calc(100vh - 3rem - 2rem);
-}
-
-.body {
-  display: flex;
-  flex-direction: column;
-  gap: 1.25rem;
-  min-width: 0;
-  flex: 1;
-}
-
-.toolbar {
-  display: flex;
-  align-items: center;
-  gap: 0.75rem;
-  min-width: 0;
-  flex-wrap: wrap;
-}
-
-.filters {
-  display: flex;
-  align-items: center;
-  gap: 0.5rem;
-  flex-wrap: wrap;
-}
-
-.searchWrap {
-  position: relative;
-  margin-left: auto;
-  min-width: 12rem;
-  flex: 1;
-  max-width: 22rem;
-}
-
-.searchIcon {
-  position: absolute;
-  left: 0.625rem;
-  top: 50%;
-  width: 1rem;
-  height: 1rem;
-  transform: translateY(-50%);
-  color: var(--muted-foreground);
-  pointer-events: none;
-}
-
-.search {
-  width: 240px;
-  max-width: 100%;
-  height: 2rem;
-  padding-left: 2rem;
-  border-radius: 1rem;
-}
-
-.grid {
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(16.5rem, 1fr));
+  grid-template-columns: minmax(0, 1fr);
+  align-items: start;
   gap: 1rem;
   min-width: 0;
 }
 
-.empty {
+.panel {
   display: flex;
   flex-direction: column;
-  align-items: center;
-  gap: 0.5rem;
-  padding: 3rem 1rem;
-  border: 1px dashed var(--border);
-  border-radius: var(--radius-lg);
-  text-align: center;
+  min-width: 0;
+  min-height: 0;
+  overflow: hidden;
+  border: 1px solid color-mix(in oklch, var(--border) 80%, transparent);
+  border-radius: 0.75rem;
+  background-color: color-mix(in oklch, var(--card) 68%, transparent);
+  background-image: linear-gradient(
+    160deg,
+    rgb(255 255 255 / 0.45),
+    rgb(255 255 255 / 0) 55%
+  );
+  box-shadow:
+    inset 0 1px 0 rgb(255 255 255 / 0.5),
+    0 10px 24px -18px rgb(15 23 42 / 0.28);
+  backdrop-filter: blur(14px) saturate(135%);
+  -webkit-backdrop-filter: blur(14px) saturate(135%);
 }
 
-.emptyTitle {
+:global(.dark) .panel {
+  background-color: transparent;
+  background-image: none;
+  box-shadow:
+    inset 0 1px 0 rgb(255 255 255 / 0.06),
+    0 12px 28px -20px rgb(0 0 0 / 0.6);
+}
+
+/* Fixed-height, independently scrolling panes on desktop. */
+@media (min-width: 1024px) {
+  .page {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    align-items: stretch;
+    min-height: calc(100dvh - 5rem - var(--term-banner-offset, 0rem));
+  }
+
+  .panel {
+    position: sticky;
+    top: calc(4rem + var(--term-banner-offset, 0rem));
+    height: calc(100dvh - 5rem - var(--term-banner-offset, 0rem));
+  }
+}
+
+/* ---- Shared pane chrome ------------------------------------------------- */
+.panelHead {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 0.5rem 0.75rem;
+  padding: 0.75rem 0.875rem;
+  border-bottom: 1px solid var(--border);
+}
+
+.titleRow {
+  display: flex;
+  min-width: 0;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.titleIcon {
+  display: inline-flex;
+  flex: none;
+  align-items: center;
+  justify-content: center;
+  width: 1.625rem;
+  height: 1.625rem;
+  border: 1px solid var(--border);
+  border-radius: 0.5rem;
+  background-color: color-mix(in oklch, var(--muted) 55%, transparent);
+  color: color-mix(in oklch, #f59e0b 80%, var(--muted-foreground));
+}
+
+.titleText {
+  display: flex;
+  flex-direction: column;
+  gap: 0.125rem;
+  min-width: 0;
+}
+
+.title {
   margin: 0;
-  font-size: 1rem;
-  font-weight: 600;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: 0.9375rem;
+  font-weight: 700;
+  letter-spacing: -0.015em;
   color: var(--foreground);
 }
 
-.emptyBody {
+.subtitle {
   margin: 0;
-  max-width: 46ch;
-  font-size: 0.875rem;
-  line-height: 1.55;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: 0.75rem;
   color: var(--muted-foreground);
 }
 
-.pageError {
-  margin: 0;
-  padding: 2rem 1rem;
-  text-align: center;
-  font-size: 0.875rem;
-  color: var(--muted-foreground);
+.countPill {
+  font-variant-numeric: tabular-nums;
 }
 
-/* ---- Loading skeletons mirroring the profile cards ---- */
-.skelCard {
+.panelToolbar {
   display: flex;
-  flex-direction: column;
+  flex-wrap: wrap;
   align-items: center;
-  gap: 0.625rem;
-  padding: 1.125rem 1rem 1rem;
-  border: 1px solid var(--border);
-  border-radius: var(--radius-lg);
-  background-color: var(--card);
-}
-
-.skelTop {
-  display: flex;
-  align-items: center;
-  gap: 0.625rem;
-  width: 100%;
-}
-
-.skelMini {
-  width: 2rem;
-  height: 2rem;
-  border-radius: 999px;
-  flex-shrink: 0;
-}
-
-.skelLines {
-  display: flex;
-  flex-direction: column;
-  gap: 0.375rem;
-  flex: 1;
-}
-
-.skelLine {
-  width: 70%;
-  height: 0.75rem;
-}
-
-.skelLineShort {
-  width: 45%;
-  height: 0.75rem;
-}
-
-.skelDot {
-  width: 0.625rem;
-  height: 0.625rem;
-  border-radius: 999px;
-  flex-shrink: 0;
-}
-
-.skelAvatar {
-  width: 5.5rem;
-  height: 5.5rem;
-  border-radius: 999px;
-}
-
-.skelName {
-  width: 55%;
-  height: 1.125rem;
-}
-
-.skelSub {
-  width: 40%;
-  height: 0.875rem;
-}
-
-.skelBar {
-  width: 100%;
-  height: 0.875rem;
-}
-
-.skelActions {
-  display: flex;
-  justify-content: space-between;
   gap: 0.5rem;
-  width: 100%;
-  margin-top: 0.375rem;
-  padding-top: 0.75rem;
+  padding: 0.5rem 0.875rem;
+  border-bottom: 1px solid var(--border);
+}
+
+.panelScroll {
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow-y: auto;
+  /* Thin amber rail, only once the panel is hovered — the scrollbar stays
+     invisible at rest so the desk reads as one clean surface. */
+  scrollbar-width: thin;
+  scrollbar-color: transparent transparent;
+  transition: scrollbar-color 160ms ease-out;
+}
+
+.panelScroll:hover {
+  scrollbar-color: color-mix(in srgb, #f59e0b 70%, transparent) transparent;
+}
+
+.panelScroll::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+
+.panelScroll::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.panelScroll::-webkit-scrollbar-thumb {
+  border-radius: 999px;
+  background-color: transparent;
+  background-clip: padding-box;
+  border: 1px solid transparent;
+  transition: background-color 160ms ease-out;
+}
+
+.panelScroll:hover::-webkit-scrollbar-thumb {
+  background-color: color-mix(in srgb, #f59e0b 65%, transparent);
+}
+
+.panelScroll::-webkit-scrollbar-thumb:hover {
+  background-color: #f59e0b;
+}
+
+.panelFoot {
+  flex: none;
+  padding: 0.5rem 0.875rem;
   border-top: 1px solid var(--border);
 }
 
-.skelBtn {
-  width: 6rem;
-  height: 2rem;
+.workspacePad {
+  padding: 0.875rem;
 }
 
-@media (max-width: 767px) {
-  .searchWrap {
-    margin-left: 0;
-    max-width: none;
+/* ---- Left pane: case list ------------------------------------------------ */
+/* DOM order already puts the list first, so it is the first column on desktop
+   and the first block on phones (pick a learner, then read the report). */
+.listPane {
+  min-width: 0;
+}
+
+.listPanel {
+  container-type: inline-size;
+  min-width: 0;
+}
+
+.listHead {
+  position: sticky;
+  top: 0;
+  z-index: 1;
+  display: grid;
+  grid-template-columns:
+    minmax(0, 1.7fr) minmax(5.5rem, 1fr) minmax(4.5rem, 0.8fr) 1.75rem;
+  align-items: center;
+  gap: 0.625rem;
+  padding: 0.4375rem 0.875rem;
+  border-bottom: 1px solid var(--border);
+  background-color: color-mix(in oklch, var(--card) 94%, transparent);
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+  font-size: 0.75rem;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--muted-foreground);
+}
+
+.listBody {
+  min-width: 0;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+/* Vertical column rules — one hairline between each column. */
+.listHead > span:not(:last-child),
+.row > .cell:not(:last-child) {
+  border-right: 1px solid color-mix(in oklch, var(--border) 65%, transparent);
+  padding-right: 0.5rem;
+}
+
+.row {
+  --stage: #f59e0b;
+  display: grid;
+  grid-template-columns:
+    minmax(0, 1.7fr) minmax(5.5rem, 1fr) minmax(4.5rem, 0.8fr) 1.75rem;
+  align-items: center;
+  gap: 0.625rem;
+  padding: 0.5rem 0.875rem;
+  border-top: 1px solid color-mix(in oklch, var(--border) 70%, transparent);
+  box-shadow: inset 2px 0 0 color-mix(in oklch, var(--stage) 65%, transparent);
+  cursor: pointer;
+  outline: none;
+  transition:
+    background-color 150ms ease-out,
+    box-shadow 150ms ease-out;
+}
+
+.row:first-child {
+  border-top: 0;
+}
+
+.row:hover {
+  background-color: color-mix(in oklch, var(--muted) 40%, transparent);
+}
+
+.row:focus-visible {
+  box-shadow:
+    inset 2px 0 0 var(--stage),
+    inset 0 0 0 2px var(--ring);
+}
+
+.rowSelected,
+.rowSelected:hover {
+  background-color: color-mix(in srgb, #f59e0b 8%, transparent);
+  box-shadow:
+    inset 3px 0 0 var(--stage),
+    inset 0 0 0 1px color-mix(in srgb, #f59e0b 22%, transparent);
+}
+
+.cell {
+  display: flex;
+  align-items: center;
+  min-width: 0;
+}
+
+.cellPerson {
+  gap: 0.5rem;
+}
+
+.personText {
+  display: flex;
+  flex-direction: column;
+  gap: 0.0625rem;
+  min-width: 0;
+}
+
+.personName {
+  margin: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: 0.8125rem;
+  font-weight: 700;
+  letter-spacing: -0.01em;
+  color: var(--foreground);
+}
+
+/* The LRN pill hugs its own value — it must not stretch to the name's width. */
+.personLrn {
+  align-self: flex-start;
+  max-width: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  font-variant-numeric: tabular-nums;
+}
+
+.cellStage {
+  justify-content: flex-start;
+  overflow: hidden;
+}
+
+.stagePill {
+  max-width: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.cellModules {
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 0.1875rem;
+}
+
+.moduleValue {
+  font-size: 0.75rem;
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+  color: var(--foreground);
+  white-space: nowrap;
+}
+
+.moduleTrack {
+  width: 100%;
+  height: 0.25rem;
+  overflow: hidden;
+  border-radius: 999px;
+  background-color: color-mix(in oklch, var(--muted) 85%, transparent);
+}
+
+.moduleFill {
+  height: 100%;
+  border-radius: 999px;
+  background-color: #22c55e;
+  transition: width 200ms ease-out;
+}
+
+.cellAction {
+  justify-content: flex-end;
+}
+
+.rowChevron {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--muted-foreground);
+  transition: transform 150ms ease-out, color 150ms ease-out;
+}
+
+.row:hover .rowChevron,
+.rowSelected .rowChevron {
+  color: #b45309;
+  transform: translateX(2px);
+}
+
+:global(.dark) .row:hover .rowChevron,
+:global(.dark) .rowSelected .rowChevron {
+  color: #fcd34d;
+}
+
+@container (max-width: 26rem) {
+  .listHead {
+    display: none;
   }
+
+  .row {
+    grid-template-columns: minmax(0, 1fr) 1.75rem;
+    grid-template-areas:
+      "person chevron"
+      "stage modules";
+    row-gap: 0.375rem;
+    padding-block: 0.625rem;
+  }
+
+  .cellPerson {
+    grid-area: person;
+  }
+
+  .cellStage {
+    grid-area: stage;
+  }
+
+  .cellModules {
+    grid-area: modules;
+  }
+
+  .cellAction {
+    grid-area: chevron;
+  }
+
+  /* Stacked rows drop the vertical rules — they only make sense in a column grid. */
+  .row > .cell:not(:last-child) {
+    border-right: 0;
+    padding-right: 0;
+  }
+}
+
+/* ---- Right pane: adviser overview --------------------------------------- */
+.overview {
+  display: flex;
+  flex-direction: column;
+  gap: 0.875rem;
+  padding: 0.875rem;
+}
+
+.overviewLead {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+}
+
+.overviewEyebrow {
+  margin: 0;
+  font-size: 0.75rem;
+  font-weight: 600;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--muted-foreground);
+}
+
+.overviewTitle {
+  margin: 0;
+  font-size: 1.0625rem;
+  font-weight: 700;
+  letter-spacing: -0.015em;
+  color: var(--foreground);
+}
+
+.overviewCopy {
+  margin: 0;
+  font-size: 0.75rem;
+  line-height: 1.5;
+  color: var(--muted-foreground);
+}
+
+.statHint {
+  margin: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: 0.75rem;
+  color: var(--muted-foreground);
+}
+
+.card {
+  display: flex;
+  min-width: 0;
+  flex-direction: column;
+  gap: 0.625rem;
+  padding: 0.75rem;
+  border: 1px solid color-mix(in oklch, var(--border) 85%, transparent);
+  border-radius: 0.625rem;
+  background-color: color-mix(in oklch, var(--card) 82%, transparent);
+}
+
+.cardHead {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.5rem;
+}
+
+.cardTitle {
+  display: flex;
+  align-items: center;
+  gap: 0.375rem;
+  margin: 0;
+  font-size: 0.8125rem;
+  font-weight: 700;
+  color: var(--foreground);
+}
+
+.cardNote {
+  margin: 0;
+  font-size: 0.75rem;
+  color: var(--muted-foreground);
+  font-variant-numeric: tabular-nums;
+}
+
+/* Latest referrals: three glass cards on one row, same surface recipe as the
+   adviser's section cards (translucent fill, sheen, hairline edge, soft lift)
+   wrapped by <GlassCard> for the tilt/glare. */
+.recentGrid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 0.5rem;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+@media (max-width: 640px) {
+  .recentGrid {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
+
+.recentCard {
+  position: relative;
+  z-index: 1;
+  display: flex;
+  height: 100%;
+  width: 100%;
+  min-width: 0;
+  flex-direction: column;
+  gap: 0.1875rem;
+  padding: 0.625rem 0.75rem;
+  overflow: hidden;
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+  color: var(--foreground);
+  border-radius: 0.75rem;
+  border: 1px solid color-mix(in oklch, var(--border) 80%, transparent);
+  background-color: color-mix(in oklch, var(--card) 72%, transparent);
+  background-image: linear-gradient(
+    160deg,
+    rgba(255, 255, 255, 0.45),
+    rgba(255, 255, 255, 0) 55%
+  );
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.5),
+    0 10px 24px -18px rgba(15, 23, 42, 0.28);
+  backdrop-filter: blur(14px) saturate(135%);
+  -webkit-backdrop-filter: blur(14px) saturate(135%);
+  transition:
+    border-color 160ms ease-out,
+    box-shadow 160ms ease-out;
+}
+
+:global(.dark) .recentCard {
+  background-color: color-mix(in oklch, var(--card) 60%, transparent);
+  background-image: linear-gradient(
+    160deg,
+    rgba(255, 255, 255, 0.07),
+    rgba(255, 255, 255, 0) 55%
+  );
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.08),
+    0 12px 26px -20px rgba(0, 0, 0, 0.65);
+}
+
+.recentCard:hover {
+  border-color: color-mix(in srgb, #f59e0b 45%, var(--border));
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.5),
+    0 14px 28px -20px rgba(15, 23, 42, 0.35);
+}
+
+.recentCard:focus-visible {
+  outline: 2px solid var(--amber-500, #f59e0b);
+  outline-offset: 2px;
+}
+
+.recentHead {
+  display: flex;
+  align-items: center;
+  gap: 0.4375rem;
+  min-width: 0;
+}
+
+.recentIdentity {
+  display: flex;
+  min-width: 0;
+  flex-direction: column;
+  gap: 0.0625rem;
+}
+
+.recentName {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: 0.875rem;
+  font-weight: 700;
+  letter-spacing: -0.01em;
+  color: var(--foreground);
+}
+
+.recentMeta {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: 0.75rem;
+  color: var(--muted-foreground);
+}
+
+.recentStamp {
+  display: flex;
+  align-items: center;
+  gap: 0.25rem;
+  min-width: 0;
+  margin-left: auto;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  text-align: right;
+  font-size: 0.75rem;
+  color: var(--muted-foreground);
+  font-variant-numeric: tabular-nums;
+}
+
+.recentStamp > svg {
+  flex: none;
+}
+
+.recentFoot {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.25rem 0.375rem;
+  margin-top: auto;
+  padding-top: 0.25rem;
+}
+
+.recentPill {
+  max-width: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* Loading placeholders reuse the pane chrome; no extra chrome. */
+.skeletonStack {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+  padding: 0.875rem;
 }

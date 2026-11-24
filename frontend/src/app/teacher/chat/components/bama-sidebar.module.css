@@ -9,8 +9,8 @@
   align-self: start;
   position: sticky;
   /* Level with the thread panel: 3rem navbar + 1rem main padding. */
-  top: 4rem;
-  max-height: calc(100dvh - 5rem);
+  top: calc(4rem + var(--term-banner-offset, 0rem));
+  max-height: calc(100dvh - 5rem - var(--term-banner-offset, 0rem));
   background: transparent;
   border: none;
   box-shadow: none;

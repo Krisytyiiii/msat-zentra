@@ -2,7 +2,7 @@
 
 import * as React from "react";
 import { createPortal } from "react-dom";
-import { ClipboardList, FileText, Loader2, PenLine, Trash2 } from "lucide-react";
+import { ClipboardList, FileText, Loader2, Lock, PenLine, Plus, Trash2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { KanbanBoard } from "@/components/ui/kanban-board";
 import { InsightCallout } from "@/components/ui/insight-callout";
@@ -44,9 +44,11 @@ type Props = {
   audience: "regular" | "adm";
   onSelect: (category: ComponentType, assessmentId: string) => void;
   onDeleted: (assessmentId: string) => void;
+  /** Opens the Add assessment tool (rendered in the empty states). */
+  onAddAssessment?: () => void;
 };
 
-export function AssessmentList({ students, components, query, audience, onSelect, onDeleted }: Props) {
+export function AssessmentList({ students, components, query, audience, onSelect, onDeleted, onAddAssessment }: Props) {
   const [pendingDelete, setPendingDelete] = React.useState<{
     assessment: ClassAssessment;
     type: ComponentType;
@@ -101,13 +103,25 @@ export function AssessmentList({ students, components, query, audience, onSelect
 
   if (unfilteredTotal === 0) {
     // Empty stage: the shared amber insight callout, centered in the content
-    // area — no board/card chrome of its own.
+    // area, with the one action that fills it.
     return (
       <div className={emptyStyles.emptyWrap}>
-        <InsightCallout className="mx-auto w-full max-w-md text-center">
-          No assessments yet — use the Add assessment card to create your first quiz,
-          activity, or exam.
-        </InsightCallout>
+        <div className="mx-auto flex w-full max-w-md flex-col items-center gap-3">
+          <InsightCallout className="w-full text-center">
+            No assessments yet — create the first quiz, activity, or exam for this class.
+          </InsightCallout>
+          {onAddAssessment ? (
+            <Button
+              type="button"
+              size="sm"
+              className="h-7 gap-1 px-3 text-xs"
+              onClick={onAddAssessment}
+            >
+              <Plus size={14} aria-hidden />
+              Add assessment
+            </Button>
+          ) : null}
+        </div>
       </div>
     );
   }
@@ -116,11 +130,22 @@ export function AssessmentList({ students, components, query, audience, onSelect
     <>
     <div className="min-w-0 flex-1" aria-label="Select assessment">
       {audienceTotal === 0 ? (
-        <div className="mx-auto mt-2 w-full max-w-md">
-          <InsightCallout className="text-center">
+        <div className="mx-auto mt-2 flex w-full max-w-md flex-col items-center gap-3">
+          <InsightCallout className="w-full text-center">
             No {audience === "adm" ? "ADM" : "regular"} assessments yet — switch the type
-            above or add one from the dock.
+            above or add one.
           </InsightCallout>
+          {onAddAssessment ? (
+            <Button
+              type="button"
+              size="sm"
+              className="h-7 gap-1 px-3 text-xs"
+              onClick={onAddAssessment}
+            >
+              <Plus size={14} aria-hidden />
+              Add assessment
+            </Button>
+          ) : null}
         </div>
       ) : total === 0 ? (
         <div className="mx-auto mt-2 w-full max-w-md">
@@ -156,6 +181,7 @@ export function AssessmentList({ students, components, query, audience, onSelect
                     style={{ animationDelay: `${secIdx * 70 + Math.min(cardIdx, 8) * 35}ms` }}
                   >
                     <KanbanBoard
+                      className={styles.board}
                       title={a.title}
                       icon={(() => {
                         const Icon =
@@ -170,37 +196,45 @@ export function AssessmentList({ students, components, query, audience, onSelect
                         );
                       })()}
                       count={`${a.maxScore} max`}
-                      style={{
-                        borderColor: `color-mix(in oklch, ${CATEGORY_COLOR[g.type] ?? "#f59e0b"} 45%, transparent)`,
-                        background: `color-mix(in oklch, ${CATEGORY_COLOR[g.type] ?? "#f59e0b"} 7%, transparent)`,
-                      }}
                       description={
-                        <span className="flex flex-wrap items-center gap-1">
-                          <Pill tone={a.audience === "adm" ? "amber" : "neutral"} label="Assessment type">
+                        <span className="flex flex-wrap items-center gap-x-2 gap-y-1">
+                          <Pill
+                            tone={a.audience === "adm" ? "amber" : "neutral"}
+                            label="Assessment type"
+                          >
                             {a.audience === "adm" ? "ADM" : "Regular"}
                           </Pill>
-                          <Pill tone="amber" label="Date added">Added {a.createdAt}</Pill>
-                          <Pill tone="amber" label="Encoding progress">
-                            {scored}/{poolSize} scored
-                          </Pill>
+                          <span className="text-[12px] text-muted-foreground">
+                            Added {a.createdAt}
+                          </span>
                         </span>
                       }
                       footer={
                         <div className="flex items-center justify-between gap-2 px-1 pb-1">
-                          <button
-                            type="button"
-                            onClick={() => setPendingDelete({ assessment: a, type: g.type })}
-                            disabled={busy}
-                            aria-label={`Delete ${a.title}`}
-                            title="Delete assessment"
-                            className="shrink-0 rounded-md p-1.5 transition-colors hover:bg-muted hover:text-red-500"
-                          >
-                            {busy ? (
-                              <Loader2 size={14} className="animate-spin" aria-hidden />
-                            ) : (
-                              <Trash2 size={14} aria-hidden />
-                            )}
-                          </button>
+                          {scored > 0 ? (
+                            <span
+                              className="flex min-w-0 items-center gap-1 text-[12px] text-muted-foreground"
+                              title="Encoded scores keep this assessment in the class record — it cannot be deleted."
+                            >
+                              <Lock size={11} className="shrink-0" aria-hidden />
+                              <span className="truncate">Locked — scores encoded</span>
+                            </span>
+                          ) : (
+                            <button
+                              type="button"
+                              onClick={() => setPendingDelete({ assessment: a, type: g.type })}
+                              disabled={busy}
+                              aria-label={`Delete ${a.title}`}
+                              title="Delete assessment"
+                              className="shrink-0 rounded-md p-1.5 transition-colors hover:bg-muted hover:text-red-500"
+                            >
+                              {busy ? (
+                                <Loader2 size={14} className="animate-spin" aria-hidden />
+                              ) : (
+                                <Trash2 size={14} aria-hidden />
+                              )}
+                            </button>
+                          )}
                           <Button
                             type="button"
                             size="sm"
@@ -213,13 +247,36 @@ export function AssessmentList({ students, components, query, audience, onSelect
                         </div>
                       }
                     >
-                      <div className="px-1" aria-hidden="true">
-                        <div className="h-1.5 overflow-hidden rounded-full bg-muted">
-                          <div
-                            className="h-full rounded-full bg-primary transition-[width] duration-300"
-                            style={{ width: `${pct}%` }}
-                          />
+                      <div className="flex items-end justify-between gap-3 px-1 pt-1 pb-0.5">
+                        <div className="flex min-w-0 flex-1 flex-col gap-1.5">
+                          <span className="text-[12px] font-medium tracking-[0.08em] text-muted-foreground uppercase">
+                            Encoding progress
+                          </span>
+                          <div className="h-1.5 overflow-hidden rounded-full bg-muted" aria-hidden>
+                            <div
+                              className="h-full rounded-full transition-[width] duration-300 ease-out"
+                              style={{
+                                width: `${pct}%`,
+                                backgroundColor: CATEGORY_COLOR[g.type] ?? "#f59e0b",
+                              }}
+                            />
+                          </div>
+                          <span className="text-[12px] text-muted-foreground tabular-nums">
+                            {scored} of {poolSize} scored
+                          </span>
                         </div>
+                        <span
+                          className={`shrink-0 text-2xl leading-none font-bold tabular-nums ${
+                            scored > 0 ? "" : "text-muted-foreground"
+                          }`}
+                          style={
+                            scored > 0
+                              ? { color: CATEGORY_COLOR[g.type] ?? "#f59e0b" }
+                              : undefined
+                          }
+                        >
+                          {pct}%
+                        </span>
                       </div>
                     </KanbanBoard>
                   </li>
@@ -296,17 +353,9 @@ function DeleteAssessmentOverlay({
         <KanbanBoard
           title="Delete assessment?"
           icon={<Trash2 size={14} className="text-red-500" aria-hidden />}
-          description={`"${title}" and all of its encoded scores will be permanently removed.`}
+          description={`"${title}" will be permanently removed. Close the panel or press Escape to keep it.`}
           footer={
-            <div className="flex justify-end gap-2 px-1 pb-1">
-              <Button
-                type="button"
-                size="sm"
-                className="h-6 bg-red-500 px-3 text-xs text-white hover:bg-red-600"
-                onClick={onClose}
-              >
-                Cancel
-              </Button>
+            <div className="flex justify-end px-1 pb-1">
               <Button
                 type="button"
                 size="sm"
@@ -318,12 +367,7 @@ function DeleteAssessmentOverlay({
             </div>
           }
           className="bg-card shadow-2xl"
-        >
-          <p className="px-1 text-xs text-muted-foreground">
-            Encoded scores for this assessment will be removed as well. This
-            cannot be undone.
-          </p>
-        </KanbanBoard>
+        >{null}</KanbanBoard>
       </div>
     </div>,
     document.body,

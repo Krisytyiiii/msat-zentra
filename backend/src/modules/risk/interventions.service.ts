@@ -9,6 +9,7 @@ import {
   sectionAttendanceTotals,
 } from "../../services/risk.js";
 import { sectionHeadcounts } from "../../services/enrollment.js";
+import { subjectAverageAttendance } from "../../services/attendance.js";
 import {
   archivedAdvisoryLearnerIds,
   excludeArchivedProfiles,
@@ -457,9 +458,10 @@ export async function getInterventionStudents(
   const deduped = [...byStudent.values()].map((v) => v.row);
 
   const sectionIds = Array.from(new Set(deduped.map((r) => r.sectionId).filter(Boolean)));
-  const [headcounts, sectionTotals] = await Promise.all([
+  const [headcounts, sectionTotals, subjectAvgs] = await Promise.all([
     sectionHeadcounts(sectionIds),
     sectionAttendanceTotals(sectionIds, termId),
+    subjectAverageAttendance(sectionIds, termId),
   ]);
 
   const highModerate = deduped.length;
@@ -467,12 +469,14 @@ export async function getInterventionStudents(
   const mapped: RiskSnapshotStudent[] = deduped.map((st) => {
     const enrolled = headcounts.get(st.sectionId) ?? st.enrolledFallback;
     const rosterId = st.studentId.startsWith("roster:") ? st.studentId.slice("roster:".length) : null;
+    const subjAvg = subjectAvgs.get(st.studentId);
     const flags = computeRiskFactors({
       finalGrades: st.finalGrades.map((g) => ({
         computedAverage: g.computedAverage,
         transmutedGrade: g.transmutedGrade,
       })),
       attendance: st.attendanceRecords.map((a) => ({ status: a.status, subjectId: a.subjectId })),
+      attendanceRate: subjAvg && subjAvg.hasSubjectData ? subjAvg.average : null,
       attendanceTotal: attendanceTotalFor(sectionTotals, st.sectionId, rosterId),
       anecdotalCount: st.anecdotalCount,
       enrolled,
@@ -1090,7 +1094,10 @@ async function loadLiveCohort(
     ])
   );
   const headcounts = await sectionHeadcounts(sectionIds);
-  const sectionTotals = await sectionAttendanceTotals(sectionIds, termId);
+  const [sectionTotals, subjectAvgs] = await Promise.all([
+    sectionAttendanceTotals(sectionIds, termId),
+    subjectAverageAttendance(sectionIds, termId),
+  ]);
 
   type LiveInput = {
     studentId: string;
@@ -1115,12 +1122,14 @@ async function loadLiveCohort(
 
   const toStudent = (st: LiveInput): RiskSnapshotStudent | null => {
     const enrolled = headcounts.get(st.sectionId) ?? st.enrolledFallback;
+    const subjAvg = subjectAvgs.get(st.studentId);
     const flags = computeRiskFactors({
       finalGrades: st.finalGrades.map((g) => ({
         computedAverage: g.computedAverage,
         transmutedGrade: g.transmutedGrade,
       })),
       attendance: st.attendanceRecords.map((a) => ({ status: a.status, subjectId: a.subjectId })),
+      attendanceRate: subjAvg && subjAvg.hasSubjectData ? subjAvg.average : null,
       attendanceTotal: attendanceTotalFor(sectionTotals, st.sectionId, st.rosterId),
       anecdotalCount: st.anecdotalCount,
       enrolled,

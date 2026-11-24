@@ -8,6 +8,7 @@ import {
   type GradeMode,
 } from "../../services/risk.js";
 import { sectionHeadcounts } from "../../services/enrollment.js";
+import { subjectAverageAttendance } from "../../services/attendance.js";
 import { gradeLabel } from "../../lib/grades.js";
 import {
   archivedAdvisoryLearnerIds,
@@ -212,11 +213,14 @@ async function getRiskStudentsLive(
       ...rosterEntries.map((r) => r.sectionId),
     ]),
   ) as string[];
-  const [headcounts, sectionTotals] = await Promise.all([
+  const [headcounts, sectionTotals, subjectAvgs] = await Promise.all([
     sectionHeadcounts(sectionIds),
     termId
       ? sectionAttendanceTotals(sectionIds, termId)
       : Promise.resolve(new Map<string, number>()),
+    termId
+      ? subjectAverageAttendance(sectionIds, termId)
+      : Promise.resolve(new Map<string, { average: number; hasSubjectData: boolean }>()),
   ]);
 
   type Candidate = {
@@ -268,9 +272,11 @@ async function getRiskStudentsLive(
 
   const students: RiskStudentRow[] = candidates.map((s) => {
 
+    const subjAvg = subjectAvgs.get(s.studentId);
     const flags = computeRiskFactors({
       finalGrades: s.finalGrades,
       attendance: s.attendanceRecords,
+      attendanceRate: subjAvg && subjAvg.hasSubjectData ? subjAvg.average : null,
       attendanceTotal: attendanceTotalFor(sectionTotals, s.sectionId, s.rosterId),
       anecdotalCount: s.anecdotalCount,
       enrolled: s.enrolled,

@@ -1,22 +1,46 @@
 "use client";
 
+import * as React from "react";
+import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import { Loader2 } from "lucide-react";
-import { Skeleton } from "@/components/ui/skeleton";
-import { KanbanBoardSkeleton } from "@/components/shared/zentra-skeletons/ZentraSkeletons";
-import { GuidanceOverviewKpiRail } from "./components/guidance-overview-kpi-rail";
+import { StatDeck } from "@/components/ui/stat-deck";
+import {
+  GuidanceOverviewSkeleton,
+  DetectionFlowSkeleton,
+} from "./components/guidance-overview-skeleton";
+import {
+  ClipboardList,
+  FileClock,
+  HeartPulse,
+  Inbox,
+  MessageSquare,
+  Send,
+} from "lucide-react";
 import { GuidanceOverviewGradeTable } from "./components/guidance-overview-grade-table";
 import { GuidanceOverviewRiskCharts } from "./components/guidance-overview-risk-charts";
 import { GuidanceOverviewCaseloadCharts } from "./components/guidance-overview-caseload-charts";
 import { fetchGuidanceOverview } from "@/services/guidance/overview.service";
 import type { GuidanceOverviewData } from "@/services/guidance/overview.types";
+import { fetchAllGuidanceInterventions } from "@/services/guidance/interventions.service";
+import type { GuidanceInterventionsData } from "@/services/guidance/interventions.types";
 import { keepPreviousData, useQuery } from "@tanstack/react-query";
 import { useTerm } from "@/lib/term/TermContext";
-import { liveQueryOptions } from "@/lib/api/live";
+import { useNowTick } from "@/lib/clock";
+import { guidanceLiveQueryOptions, liveQueryOptions } from "@/lib/api/live";
 import { PageEmptyCallout } from "@/components/shared/page-empty-callout";
+import {
+  DetectionFlowPanel,
+  type DetectionLaneId,
+} from "@/components/risk-dashboard/detection-flow-panel";
 import styles from "./components/guidance-overview.module.css";
 
+/** The guidance shell's shared interventions cache key (same as the shell poll). */
+const INTERVENTIONS_BOARD_KEY = ["guidance-interventions", "queue"] as const;
+
 export default function GuidanceOverviewPage() {
+  const router = useRouter();
+  const now = useNowTick();
   const { activeTerm, termReady } = useTerm();
   const termKey = `${activeTerm?.schoolYearId ?? ""}:${activeTerm?.termId ?? ""}`;
   const { data, isPending, isError, refetch, isFetching } =
@@ -28,118 +52,38 @@ export default function GuidanceOverviewPage() {
       enabled: termReady,
     });
 
-  if (isPending) {
-    return (
-      <section
-        className={styles.page}
-        aria-busy="true"
-        aria-label="Loading guidance overview"
-      >
-        <div className={styles.body}>
-          <div className={styles.mainCol}>
-            {/* Grade attention — real KanbanBoard shell + flat grade rows. */}
-            <KanbanBoardSkeleton
-              titleWidth="14rem"
-              rows={0}
-              showDescription
-              actions={<Skeleton className="h-4 w-12 shrink-0" />}
-            >
-              <ul className={styles.caseList}>
-                {[0, 1, 2, 3, 4].map((i) => (
-                  <li
-                    key={i}
-                    className={styles.caseRow}
-                    style={{ animationDelay: `${450 + Math.min(i, 11) * 140}ms` }}
-                    aria-hidden="true"
-                  >
-                    <div className={styles.rowLink}>
-                      <div className={styles.caseInfo}>
-                        <Skeleton className="size-8 shrink-0 rounded-md" />
-                        <Skeleton className="h-4 w-24 min-w-0" />
-                        <Skeleton className="h-5 w-20 shrink-0 rounded-md" />
-                      </div>
-                      <div className={styles.sectionGroup}>
-                        <Skeleton className="h-5 w-24 shrink-0 rounded-md" />
-                        <Skeleton className="h-5 w-24 shrink-0 rounded-md" />
-                      </div>
-                      <div className={styles.cellActions}>
-                        <Skeleton className="h-5 w-16 shrink-0 rounded-md" />
-                        <Skeleton className="h-5 w-16 shrink-0 rounded-md" />
-                      </div>
-                    </div>
-                  </li>
-                ))}
-              </ul>
-            </KanbanBoardSkeleton>
+  // Same cache entry the interventions desk and the shell's risk monitor use,
+  // so the detection panel costs no extra request on this page.
+  const { data: board } = useQuery<GuidanceInterventionsData>({
+    ...guidanceLiveQueryOptions,
+    queryKey: [...INTERVENTIONS_BOARD_KEY, termKey],
+    queryFn: ({ signal }) => fetchAllGuidanceInterventions({ signal }),
+    enabled: termReady,
+  });
 
-            <div className={styles.threeCol}>
-              {[0, 1, 2].map((col) => (
-                <KanbanBoardSkeleton
-                  key={col}
-                  titleWidth="10rem"
-                  rows={0}
-                  showCount
-                  showDescription
-                  className="flex-1"
-                >
-                  {col === 0 ? (
-                    <div className={styles.skelChartRow} aria-hidden="true">
-                      <Skeleton className={styles.skelDonut} />
-                      <div className={styles.skelLegend}>
-                        {[0, 1, 2, 3].map((i) => (
-                          <Skeleton key={i} className={styles.skelLegendRow} />
-                        ))}
-                      </div>
-                    </div>
-                  ) : (
-                    <div className={styles.skelBars} aria-hidden="true">
-                      {[0, 1, 2].map((i) => (
-                        <div key={i} className={styles.skelBarRowWrap}>
-                          <Skeleton className={styles.skelBarYLabel} />
-                          <Skeleton className={styles.skelBarRow} />
-                        </div>
-                      ))}
-                    </div>
-                  )}
-                </KanbanBoardSkeleton>
-              ))}
-            </div>
+  const flowRows = React.useMemo(() => board?.students ?? [], [board]);
+  const flowSummary = React.useMemo(
+    () => ({
+      total: flowRows.length,
+      ongoing: flowRows.filter(
+        (row) => row.intervention?.outcomeStatus === "ongoing",
+      ).length,
+    }),
+    [flowRows],
+  );
 
-            <div className={styles.twoCol}>
-              {[0, 1].map((col) => (
-                <KanbanBoardSkeleton
-                  key={col}
-                  titleWidth="10rem"
-                  rows={0}
-                  showCount
-                  showDescription
-                  className="flex-1"
-                >
-                  {col === 0 ? (
-                    <div className={styles.skelChartRow} aria-hidden="true">
-                      <Skeleton className={styles.skelDonut} />
-                      <div className={styles.skelLegend}>
-                        {[0, 1].map((i) => (
-                          <Skeleton key={i} className={styles.skelLegendRow} />
-                        ))}
-                      </div>
-                    </div>
-                  ) : (
-                    <Skeleton className={styles.skelLine} aria-hidden="true" />
-                  )}
-                </KanbanBoardSkeleton>
-              ))}
-            </div>
-          </div>
-
-          <div className={styles.skelRail}>
-            {[0, 1, 2, 3, 4].map((i) => (
-              <Skeleton key={i} className={styles.skelRailIcon} aria-hidden="true" />
-            ))}
-          </div>
-        </div>
-      </section>
+  const openLane = (lane: DetectionLaneId) => {
+    const status =
+      lane === "noPlan" ? "no_action" : lane === "followUp" ? "booked" : null;
+    router.push(
+      status
+        ? `/guidance/interventions?status=${status}`
+        : "/guidance/interventions",
     );
+  };
+
+  if (isPending) {
+    return <GuidanceOverviewSkeleton />;
   }
 
   if (isError || !data) {
@@ -181,7 +125,8 @@ export default function GuidanceOverviewPage() {
     data.kpis.admHandoffs === 0 &&
     data.gradeAttention.length === 0 &&
     data.sectionHeat.length === 0 &&
-    data.referralsByType.length === 0;
+    data.referralsByType.length === 0 &&
+    flowRows.length === 0;
 
   if (isEmpty) {
     return (
@@ -200,12 +145,74 @@ export default function GuidanceOverviewPage() {
       aria-busy={refreshing}
       aria-label="Guidance overview"
     >
+      <StatDeck
+        columns={6}
+        ariaLabel="Guidance queue figures"
+        items={[
+          {
+            key: "referred",
+            icon: Inbox,
+            label: "Referred to me",
+            unit: "cases",
+            value: data.kpis.referredToMe,
+            hint: "ADM + counseling on your desk",
+            href: "/guidance/referrals",
+            tone: "amber",
+          },
+          {
+            key: "highrisk",
+            icon: HeartPulse,
+            label: "High-risk students",
+            unit: "students",
+            value: data.kpis.highRisk,
+            hint: "Two or more flags this term",
+            href: "/guidance/reports",
+            tone: "red",
+          },
+          {
+            key: "interventions",
+            icon: ClipboardList,
+            label: "Open interventions",
+            unit: "cases",
+            value: data.kpis.openInterventions,
+            hint: `${data.kpis.myInterventions} assigned to me`,
+            href: "/guidance/interventions",
+          },
+          {
+            key: "counseling",
+            icon: MessageSquare,
+            label: "Pending counseling",
+            unit: "cases",
+            value: data.kpis.pendingCounseling,
+            hint: "Awaiting a session",
+            href: "/guidance/referrals/counseling",
+          },
+          {
+            key: "pendingAdm",
+            icon: FileClock,
+            label: "Pending ADM",
+            unit: "cases",
+            value: data.kpis.pendingAdm,
+            hint: "Awaiting endorsement",
+            href: "/guidance/reports",
+          },
+          {
+            key: "handoffs",
+            icon: Send,
+            label: "ADM hand-offs",
+            unit: "cases",
+            value: data.kpis.admHandoffs,
+            hint: "Endorsed · with coordinator",
+            href: "/guidance/reports",
+            tone: "green",
+          },
+        ]}
+      />
+
       <div className={styles.body}>
         <div className={styles.mainCol}>
           <GuidanceOverviewGradeTable rows={data.gradeAttention} />
 
-          {/* Charts stay inside the left column — the sticky icon rail owns
-              the right strip, so no section may cross into it. */}
           <GuidanceOverviewRiskCharts
             riskByLevel={data.riskByLevel}
             factorTotals={data.factorTotals}
@@ -218,10 +225,26 @@ export default function GuidanceOverviewPage() {
           />
         </div>
 
-        <GuidanceOverviewKpiRail
-          kpis={data.kpis}
-          referralsQueue={data.referralsQueue ?? []}
-        />
+        <aside className={styles.flowAside} aria-label="Detection flow summary">
+          {board ? (
+            <DetectionFlowPanel
+              rows={flowRows}
+              summary={flowSummary}
+              now={now}
+              activeLane={null}
+              onLaneSelect={openLane}
+              scopeLabel="Students"
+              unitOne="student"
+              unitMany="students"
+              emptyHint="No students flagged this term."
+              footNote=" Point at a lane to isolate it; click to open the interventions desk."
+            />
+          ) : (
+            <div aria-busy="true" aria-label="Loading detection flow">
+              <DetectionFlowSkeleton />
+            </div>
+          )}
+        </aside>
       </div>
     </section>
   );

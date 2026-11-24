@@ -1,8 +1,8 @@
 "use client";
 
-import { ChevronDown, Search, X } from "lucide-react";
+import { ChevronDown, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
+import { SearchField } from "@/components/ui/search-field";
 import {
   DropdownMenu,
   DropdownMenuCheckboxItem,
@@ -41,16 +41,13 @@ export function GuidanceReferralsFilters({
 
   return (
     <div className={styles.filters}>
-      <div className={styles.searchWrap}>
-        <Search className={styles.searchIcon} aria-hidden />
-        <Input
-          className={styles.search}
-          placeholder="Search by student name or keyword…"
-          value={query}
-          onChange={(e) => onQueryChange(e.target.value)}
-          aria-label="Search your cases"
-        />
-      </div>
+      <SearchField
+        className="w-60"
+        placeholder="Search by student name or keyword…"
+        value={query}
+        onChange={(next) => onQueryChange(next)}
+        aria-label="Search your cases"
+      />
 
       <DropdownMenu>
         <DropdownMenuTrigger asChild>

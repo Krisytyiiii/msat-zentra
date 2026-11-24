@@ -552,6 +552,16 @@ export async function deleteAssessment(ctx: GradingContext, assessmentId: string
     where: { assessmentId: assessment.id },
     select: { studentId: true, rosterId: true },
   });
+  // An assessment that already carries grade entries is part of the class
+  // record — it can be re-scored but never deleted (same lock rule as the
+  // admin catalog: linked records block deletion).
+  if (scored.length > 0) {
+    throw new AppError(
+      409,
+      "ASSESSMENT_HAS_SCORES",
+      "This assessment already has encoded scores and cannot be deleted.",
+    );
+  }
   await prisma.assessment.delete({ where: { id: assessment.id } });
   await refreshFinals(
     assessment.gradeComponent.subjectId,

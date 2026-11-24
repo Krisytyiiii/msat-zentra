@@ -2,6 +2,7 @@
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { FolderCard } from "@/components/ui/FolderCard";
+import { TeacherSearchField, searchEmptyMessage } from "@/app/teacher/components/TeacherSearchField";
 import styles from "./ReferralComposer.module.css";
 import {
   CATEGORY_LABELS,
@@ -64,14 +65,13 @@ export function Step1RecordPicker({
             <>
               {studentFolders.length > 1 ? (
                 <div className={styles.folderSearch}>
-                  <input
-                    type="search"
-                    className={styles.folderSearchInput}
-                    placeholder="Search student or LRN…"
-                    value={folderQuery}
-                    onChange={(e) => setFolderQuery(e.target.value)}
-                    aria-label="Search students with anecdotal records"
-                  />
+                <TeacherSearchField
+                  className="w-full min-w-0 flex-1"
+                  placeholder="Search student or LRN…"
+                  value={folderQuery}
+                  onChange={setFolderQuery}
+                  aria-label="Search students with anecdotal records"
+                />
                   <span className={styles.folderCount}>
                     {filteredFolders.length} of {studentFolders.length} students ·{" "}
                     {totalReferable} referable
@@ -85,7 +85,7 @@ export function Step1RecordPicker({
               )}
               {filteredFolders.length === 0 ? (
                 <p className={styles.empty}>
-                  No students match “{folderQuery.trim()}”.
+                  {searchEmptyMessage(folderQuery, "students")}
                 </p>
               ) : (
                 <div className={styles.folderGrid}>

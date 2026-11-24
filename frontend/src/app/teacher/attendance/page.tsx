@@ -10,9 +10,8 @@ import { toast } from "@/components/ui/sonner";
 import { AttendanceRosterSkeleton, AttendanceRosterTable } from "./components/AttendanceRosterTable";
 import { Skeleton } from "@/components/ui/skeleton";
 import { AttendanceTermGate, AttendanceLinkGate } from "./components/AttendanceTermGate";
-import { SheetDatePicker } from "./components/sheet-date-picker";
 import { VerifyCodeCard } from "./components/verify-code-card";
-import { AttendanceSidebar } from "./components/attendance-sidebar";
+import { AttendanceRail } from "./components/attendance-rail";
 import { SectionTabs } from "./components/section-tabs";
 import { useAttendancePairs, type LinkedName } from "./components/use-attendance-pairs";
 import { useSlotCards } from "./components/use-slot-cards";
@@ -351,17 +350,30 @@ export default function TeacherAdvisoryAttendancePage() {
     return (
       <section className={styles.page} aria-busy="true" aria-label="Loading attendance">
         <div className={styles.layout}>
+          <aside className={styles.railColumn} aria-hidden="true">
+            <div className={styles.railInner}>
+              <div className={styles.railTop}>
+                <Skeleton className="h-12 w-full rounded-md" />
+                <Skeleton className="h-14 w-full rounded-md" />
+              </div>
+              <div className={styles.railHead}>
+                <Skeleton className="h-4 w-24" />
+                <Skeleton className="h-5 w-8 rounded-md" />
+              </div>
+              <Skeleton className="h-3 w-44" />
+              <Skeleton className="h-8 w-full rounded-[16px]" />
+              <div className={styles.railGroup}>
+                <Skeleton className="mb-1 h-3 w-20" />
+                {[0, 1, 2, 3, 4].map((i) => (
+                  <Skeleton key={i} className="h-12 w-full rounded-md" />
+                ))}
+              </div>
+            </div>
+          </aside>
           <div className={styles.main}>
-            <div className="flex flex-wrap items-center justify-between gap-2" aria-hidden="true">
-              <div className="flex flex-wrap items-center gap-2">
-                <Skeleton className="h-12 w-40 rounded-lg" />
-                <Skeleton className="h-8 w-32 rounded-md" />
-              </div>
-              <div className="flex items-center gap-2">
-                <Skeleton className="h-9 w-9 rounded-xl" />
-                <Skeleton className="h-9 w-9 rounded-xl" />
-                <Skeleton className="h-9 w-9 rounded-xl" />
-              </div>
+            <div className="flex flex-wrap items-center justify-between gap-2">
+              <Skeleton className="h-8 w-56 rounded-[16px]" />
+              <Skeleton className="h-4 w-40" />
             </div>
             <div className={styles.body}>
               <AttendanceRosterSkeleton />
@@ -401,6 +413,22 @@ export default function TeacherAdvisoryAttendancePage() {
         </div>
       ) : (
         <div className={styles.layout}>
+          <AttendanceRail
+            date={date}
+            onDateChange={setDate}
+            meetupDates={meetupDateKeys}
+            slotCards={slotCards}
+            hasSubjects={pairs.some((p) => p.subject)}
+            activeSlotKey={activeSlotKey}
+            slotQuery={slotQuery}
+            onSlotQueryChange={setSlotQuery}
+            onSelect={(card) => {
+              setPairKey(card.pairKey);
+              setSlotKey(card.key);
+            }}
+            blocksMode={blocksMode}
+            onToggleBlocks={() => setBlocksMode((v) => !v)}
+          />
           <div className={styles.main}>
             <div className="flex flex-wrap items-center justify-between gap-2">
               <div className="min-w-0 flex-1">
@@ -410,26 +438,6 @@ export default function TeacherAdvisoryAttendancePage() {
                   onSelect={handleSectionSelect}
                 />
               </div>
-              <AttendanceSidebar
-                placement="top"
-                date={date}
-                onDateChange={setDate}
-                meetupDates={meetupDateKeys}
-                slotCards={slotCards}
-                hasSubjects={pairs.some((p) => p.subject)}
-                activeSlotKey={activeSlotKey}
-                slotQuery={slotQuery}
-                onSlotQueryChange={setSlotQuery}
-                onSelect={(card) => {
-                  setPairKey(card.pairKey);
-                  setSlotKey(card.key);
-                }}
-                blocksMode={blocksMode}
-                onToggleBlocks={() => setBlocksMode((v) => !v)}
-              />
-            </div>
-            <div className="flex flex-wrap items-center justify-start gap-2 lg:hidden" aria-label="Sheet toolbar">
-              <SheetDatePicker date={date} onChange={setDate} meetupDates={meetupDateKeys} />
               {gate.live.message && gate.live.tone !== "lock" ? (
                 <SheetLiveNotice
                   title={gate.live.message.includes("live now") ? "Live now" : "Editable"}

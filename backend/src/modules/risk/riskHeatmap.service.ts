@@ -2,6 +2,7 @@ import { prisma } from "../../lib/prisma.js";
 import type { RiskLevel } from "../../generated/prisma/client.js";
 import { computeRiskFactors, levelFromFlags, sectionAttendanceTotals, type GradeMode } from "../../services/risk.js";
 import { sectionHeadcounts } from "../../services/enrollment.js";
+import { subjectAverageAttendance } from "../../services/attendance.js";
 import {
   archivedAdvisoryLearnerIds,
   excludeArchivedProfiles,
@@ -59,6 +60,7 @@ export async function getRiskHeatmap(
           where: { sectionId: { in: sectionIds }, ...excludeArchivedProfiles(archivedLearners) },
           take: 5000,
           select: {
+            userId: true,
             lrn: true,
             sectionId: true,
             finalGrades: {
@@ -78,6 +80,7 @@ export async function getRiskHeatmap(
           where: { sectionId: { in: sectionIds }, ...excludeArchivedRosters(archivedLearners) },
           take: 5000,
           select: {
+            id: true,
             lrn: true,
             sectionId: true,
             finalGrades: {
@@ -96,8 +99,11 @@ export async function getRiskHeatmap(
 
   const headcounts = await sectionHeadcounts(sectionIds);
   const sectionTotals = await sectionAttendanceTotals(sectionIds, termId);
+  const subjectAvgs = await subjectAverageAttendance(sectionIds, termId);
 
   type BulkRow = {
+    userId?: string;
+    id?: string;
     lrn: string;
     sectionId: string | null;
     finalGrades: { computedAverage: number | null; transmutedGrade: number | null }[];
@@ -122,9 +128,12 @@ export async function getRiskHeatmap(
     let attendance = 0;
     let behavioral = 0;
     for (const s of [...bucket.profiles, ...rosterOnly]) {
+      const key = s.userId ?? (s.id ? `roster:${s.id}` : null);
+      const subjAvg = key ? subjectAvgs.get(key) : undefined;
       const flags = computeRiskFactors({
         finalGrades: s.finalGrades,
         attendance: s.attendanceRecords,
+        attendanceRate: subjAvg && subjAvg.hasSubjectData ? subjAvg.average : null,
         attendanceTotal: sectionTotals.get(sec.id),
         anecdotalCount: s.anecdotalRecords.length,
         enrolled,
@@ -167,6 +176,7 @@ export async function getSectionFactorStudents(
     prisma.studentProfile.findMany({
       where: { sectionId, ...excludeArchivedProfiles(archivedLearners) },
       select: {
+        userId: true,
         lrn: true,
         user: { select: { fullName: true } },
         finalGrades: {
@@ -180,6 +190,7 @@ export async function getSectionFactorStudents(
     prisma.studentRoster.findMany({
       where: { sectionId, ...excludeArchivedRosters(archivedLearners) },
       select: {
+        id: true,
         lrn: true,
         fullName: true,
         finalGrades: {
@@ -196,6 +207,7 @@ export async function getSectionFactorStudents(
   const enrolled = headcounts.get(sectionId) ?? students.length + rosterEntries.length;
   const sectionTotals = await sectionAttendanceTotals([sectionId], termId);
   const attendanceTotal = sectionTotals.get(sectionId);
+  const subjectAvgs = await subjectAverageAttendance([sectionId], termId);
 
   type FactorStudent = {
     lrn: string;
@@ -206,9 +218,11 @@ export async function getSectionFactorStudents(
 
   const cohort: FactorStudent[] = [
     ...students.map((s) => {
+      const subjAvg = subjectAvgs.get(s.userId);
       const flags = computeRiskFactors({
         finalGrades: s.finalGrades,
         attendance: s.attendanceRecords,
+        attendanceRate: subjAvg && subjAvg.hasSubjectData ? subjAvg.average : null,
         attendanceTotal,
         anecdotalCount: s.anecdotalRecords.length,
         enrolled,
@@ -223,9 +237,11 @@ export async function getSectionFactorStudents(
     ...rosterEntries
       .filter((r) => !registeredLrns.has(r.lrn))
       .map((r) => {
+        const subjAvg = subjectAvgs.get(`roster:${r.id}`);
         const flags = computeRiskFactors({
           finalGrades: r.finalGrades,
           attendance: r.attendanceRecords,
+          attendanceRate: subjAvg && subjAvg.hasSubjectData ? subjAvg.average : null,
           attendanceTotal,
           anecdotalCount: r.anecdotalRecords.length,
           enrolled,

@@ -60,19 +60,57 @@
   line-height: 1.3;
 }
 
-.lane {
+/* Glass status card in the board header: attendance status + meetup window.
+   Replaces the old pill row + plain right-aligned hint. */
+.statusCard {
+  --glass-fill-1: var(--card);
+  --glass-fill-2: color-mix(in oklch, var(--card) 94%, var(--foreground));
+  --glass-top: color-mix(in srgb, #fff 70%, transparent);
   display: flex;
   flex-direction: column;
-  gap: 0.625rem;
+  gap: 0.0625rem;
   min-width: 0;
-  padding: 0.75rem;
-  border: 1px solid var(--border);
-  border-radius: var(--radius-md);
-  background-color: color-mix(in oklch, var(--muted) 60%, transparent);
+  padding: 0.4375rem 0.75rem 0.5rem;
+  border: 1px solid color-mix(in srgb, #f59e0b 55%, transparent);
+  border-radius: 0.625rem;
+  background-image: linear-gradient(145deg, var(--glass-fill-1), var(--glass-fill-2));
+  box-shadow:
+    inset 0 1px 0 var(--glass-top),
+    0 12px 26px -22px color-mix(in srgb, #000 55%, transparent);
+  backdrop-filter: blur(14px) saturate(135%);
+  -webkit-backdrop-filter: blur(14px) saturate(135%);
 }
 
-:global(.dark) .lane {
-  background-color: color-mix(in oklch, var(--muted) 20%, transparent);
+:global(.dark) .statusCard {
+  --glass-fill-2: color-mix(in oklch, var(--card) 92%, var(--foreground));
+  --glass-top: color-mix(in srgb, #fff 12%, transparent);
+  border-color: color-mix(in srgb, #fbbf24 55%, transparent);
+  box-shadow:
+    inset 0 1px 0 var(--glass-top),
+    0 12px 26px -20px color-mix(in srgb, #000 70%, transparent);
+  /* Transparent glass in dark mode, like the advisory list cards. */
+  background-color: transparent;
+  background-image: none;
+}
+
+.statusLabel {
+  font-size: 0.75rem;
+  line-height: 1.2;
+  color: var(--muted-foreground);
+}
+
+.statusValue {
+  font-size: 0.875rem;
+  font-weight: 700;
+  line-height: 1.2;
+  letter-spacing: -0.01em;
+}
+
+.statusMeta {
+  font-size: 0.75rem;
+  line-height: 1.3;
+  color: var(--muted-foreground);
+  white-space: nowrap;
 }
 
 .laneHead {
@@ -103,121 +141,141 @@
   min-width: 0;
 }
 
-/* Kanban column head: amber icon + semibold title + muted count.
-   Full-bleed divider — no gap from the lane gutters. */
-.colHead {
-  display: flex;
-  align-items: center;
-  gap: 0.5rem;
-  min-width: 0;
-  margin-inline: -0.75rem;
-  padding: 0.125rem 0.75rem 0.625rem;
-  border-bottom: 1px solid var(--border);
-}
-
-.colIcon {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  width: 1.375rem;
-  height: 1.375rem;
-  color: #f59e0b;
-  flex-shrink: 0;
-}
-
-.colIcon svg {
-  width: 1rem;
-  height: 1rem;
-}
-
-.colTitle {
-  margin: 0;
-  font-size: 0.8125rem;
-  font-weight: 700;
-  letter-spacing: -0.01em;
-  color: var(--foreground);
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-  flex: 1;
-  min-width: 0;
-}
-
-/* Kanban card: amber pill + circle icon, muted label, bold title + big number. */
+/* Card surface — mirrors the /teacher/overview/students section cards:
+   translucent glass fill, hairline edge, inset top highlight, soft lift. */
 .kCard {
+  position: relative;
   display: flex;
   flex-direction: column;
-  gap: 0.375rem;
+  height: 100%;
   min-width: 0;
-  padding: 0.625rem 0.75rem;
-  border: 1px solid var(--border);
-  border-radius: var(--radius-md);
-  background-color: var(--card);
+  overflow: hidden;
+  border-radius: 0.75rem;
+  border: 1px solid color-mix(in oklch, var(--border) 80%, transparent);
+  background-color: color-mix(in oklch, var(--card) 72%, transparent);
+  background-image: linear-gradient(
+    160deg,
+    rgba(255, 255, 255, 0.45),
+    rgba(255, 255, 255, 0) 55%
+  );
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.5),
+    0 10px 24px -18px rgba(15, 23, 42, 0.28);
+  backdrop-filter: blur(14px) saturate(135%);
+  -webkit-backdrop-filter: blur(14px) saturate(135%);
+  transition:
+    border-color 160ms ease-out,
+    box-shadow 160ms ease-out;
 }
 
-.kTop {
+:global(.dark) .kCard {
+  background-color: transparent;
+  background-image: none;
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.06),
+    0 12px 28px -20px rgba(0, 0, 0, 0.6);
+}
+
+.kCard:hover {
+  border-color: color-mix(in oklch, var(--border) 45%, var(--foreground));
+}
+
+/* Card head: name + kicker pill on the left, icon chip on the right. */
+.kHead {
   display: flex;
-  align-items: center;
+  align-items: flex-start;
   justify-content: space-between;
   gap: 0.5rem;
   min-width: 0;
+  padding: 0.75rem 0.875rem 0.625rem;
+  border-bottom: 1px solid color-mix(in oklch, var(--border) 70%, transparent);
 }
 
-.kCircle {
+.kHeading {
+  display: flex;
+  flex: 1 1 auto;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 0.3125rem;
+  min-width: 0;
+}
+
+.kName {
+  max-width: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: 0.875rem;
+  font-weight: 700;
+  line-height: 1.25;
+  letter-spacing: -0.01em;
+}
+
+.kIconChip {
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  width: 1.75rem;
-  height: 1.75rem;
-  border-radius: 999px;
-  background-color: var(--muted);
-  color: var(--muted-foreground);
+  width: 1.625rem;
+  height: 1.625rem;
   flex-shrink: 0;
+  border-radius: 0.5rem;
+  color: #60a5fa;
+  background: color-mix(in srgb, #3b82f6 14%, transparent);
+  border: 1px solid color-mix(in srgb, #3b82f6 30%, transparent);
 }
 
-.kCircle svg {
-  width: 0.875rem;
-  height: 0.875rem;
+/* Inner metric panel. */
+.kMetrics {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  min-width: 0;
 }
 
-.kLabel {
-  margin: 0;
-  font-size: 0.75rem;
-  color: var(--muted-foreground);
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
-.kBottom {
+.kMetric {
   display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 0.5rem;
+  flex-direction: column;
+  gap: 0.25rem;
   min-width: 0;
+  padding: 0.75rem 0.875rem 0.625rem;
 }
 
-.kTitle {
-  margin: 0;
-  font-size: 0.8125rem;
-  font-weight: 700;
-  letter-spacing: -0.01em;
-  color: var(--foreground);
+.kMetricLabel {
   overflow: hidden;
+  font-size: 0.75rem;
+  font-weight: 500;
+  color: var(--muted-foreground);
   text-overflow: ellipsis;
   white-space: nowrap;
-  flex: 1;
-  min-width: 0;
 }
 
-.kBig {
+.kLevelValue {
   margin: 0;
-  font-size: 1.375rem;
-  font-weight: 800;
-  line-height: 1;
+  font-size: 1.5rem;
+  font-weight: 700;
+  line-height: 1.05;
+  letter-spacing: -0.02em;
   font-variant-numeric: tabular-nums;
   color: var(--foreground);
-  flex-shrink: 0;
+}
+
+.kLevelValue[data-level="High"] {
+  color: #f87171;
+}
+
+.kLevelValue[data-level="Moderate"] {
+  color: #fbbf24;
+}
+
+.kLevelValue[data-level="Low"] {
+  color: #4ade80;
+}
+
+.kMetricHint {
+  overflow: hidden;
+  font-size: 0.75rem;
+  line-height: 1.3;
+  color: var(--muted-foreground);
+  text-overflow: ellipsis;
   white-space: nowrap;
 }
 
@@ -226,6 +284,80 @@
   font-size: 0.75rem;
   font-weight: 500;
   color: var(--muted-foreground);
+}
+
+/* Slim signal bar under the metric. */
+.kBar {
+  height: 4px;
+  margin-top: 0.375rem;
+  border-radius: 999px;
+  background-color: color-mix(in oklch, var(--foreground) 10%, transparent);
+  overflow: hidden;
+}
+
+.kBarFill {
+  display: block;
+  height: 100%;
+  border-radius: inherit;
+  background: linear-gradient(90deg, #f59e0b, #fbbf24);
+  transition: width 180ms ease;
+}
+
+.kBarFill[data-risk="true"] {
+  background: linear-gradient(90deg, #dc2626, #f87171);
+}
+
+/* Footer fact row (like the section cards' facts strip). */
+.kFacts {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.25rem 1rem;
+  margin: 0;
+  margin-top: auto;
+  padding: 0.5rem 0.875rem 0.625rem;
+  border-top: 1px solid color-mix(in oklch, var(--border) 70%, transparent);
+}
+
+.kFact {
+  display: flex;
+  align-items: baseline;
+  gap: 0.3125rem;
+  min-width: 0;
+  max-width: 100%;
+  flex-wrap: wrap;
+}
+
+.kFactLabel {
+  flex-shrink: 0;
+  font-size: 0.75rem;
+  color: var(--muted-foreground);
+  white-space: nowrap;
+}
+
+.kFactValue {
+  min-width: 0;
+  overflow: hidden;
+  font-size: 0.75rem;
+  font-weight: 600;
+  color: var(--foreground);
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-variant-numeric: tabular-nums;
+}
+
+.kBody {
+  min-width: 0;
+  padding: 0.625rem 0.875rem 0.75rem;
+}
+
+.kEmpty {
+  margin: 0;
+  padding: 0.75rem 0.25rem;
+  font-size: 0.75rem;
+  text-align: center;
+  color: var(--muted-foreground);
+  border: 1px dashed var(--border);
+  border-radius: var(--radius-md);
 }
 
 .laneBody {
@@ -246,10 +378,11 @@
   min-width: 0;
 }
 
+/* Three insight cards share the top row; Anecdotal spans the row below. */
 .cardGrid {
   display: grid;
-  grid-template-columns: repeat(4, minmax(0, 1fr));
-  gap: 0.5rem;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 0.75rem;
   min-width: 0;
   margin: 0;
   padding: 0;
@@ -269,17 +402,20 @@
   }
 }
 
-.cardMeta {
-  margin: 0;
-  font-size: 0.75rem;
-  color: var(--muted-foreground);
-  line-height: 1.4;
+/* Anecdotal lane spans the board width beneath the three insight lanes. */
+.laneWide {
+  grid-column: 1 / -1;
 }
 
-.skel {
-  display: flex;
-  flex-direction: column;
+/* Per-record folder layout inside the anecdotal lane. */
+.folderGrid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(17rem, 1fr));
   gap: 0.5rem;
+  min-width: 0;
+  margin: 0;
+  padding: 0;
+  list-style: none;
 }
 
 .empty {
@@ -292,13 +428,7 @@
   border-radius: var(--radius-md);
 }
 
-.actions {
-  display: flex;
-  gap: 0.5rem;
-  flex-wrap: wrap;
-}
-
-/* Grid cells stretch so each kanban column fills its 2-per-row slot. */
+/* Grid cells stretch so each card fills its slot. */
 .cardGrid > li {
   min-width: 0;
   animation: board-card-in 0.7s cubic-bezier(0.22, 1, 0.36, 1) both;
@@ -336,6 +466,176 @@
   }
 }
 
-.cardGrid .lane {
-  height: 100%;
+/* ---- Subject lane cards ------------------------------------------------- */
+/* Advisory attendance / academics boards render one lane per subject. These
+   were dropped during the insight-board refactor and left the subject cards
+   unstyled; restored here on the same glass surface as the overview student
+   cards (amber edge, sheen, soft lift) so both boards match the advisory
+   list's insight cards. */
+.lane {
+  --card-edge: #f59e0b;
+  --card-edge-hover: #d97706;
+  --card-wash: color-mix(in srgb, #f59e0b 8%, transparent);
+  --glass-fill-1: var(--card);
+  --glass-fill-2: color-mix(in oklch, var(--card) 94%, var(--foreground));
+  --glass-top: color-mix(in srgb, #fff 70%, transparent);
+  --glass-bottom: color-mix(in srgb, #000 7%, transparent);
+  --card-glow: 0 18px 34px -26px color-mix(in srgb, #000 55%, transparent);
+  position: relative;
+  z-index: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 0.625rem;
+  min-width: 0;
+  padding: 0.75rem;
+  border: 1px solid var(--card-edge);
+  border-radius: 0.75rem;
+  background-image: linear-gradient(145deg, var(--glass-fill-1), var(--glass-fill-2));
+  box-shadow:
+    inset 0 1px 0 var(--glass-top),
+    inset 0 -1px 0 var(--glass-bottom),
+    var(--card-glow);
+  transition:
+    border-color 160ms ease-out,
+    background-image 160ms ease-out,
+    box-shadow 160ms ease-out;
+}
+
+:global(.dark) .lane {
+  --card-edge: #fbbf24;
+  --card-edge-hover: #fcd34d;
+  --card-wash: color-mix(in srgb, #f59e0b 12%, transparent);
+  --glass-fill-2: color-mix(in oklch, var(--card) 92%, var(--foreground));
+  --glass-top: color-mix(in srgb, #fff 12%, transparent);
+  --glass-bottom: transparent;
+  --card-glow: 0 18px 34px -22px color-mix(in srgb, #000 70%, transparent);
+  /* Transparent in dark mode — the subject lanes read as glass over the
+     board, matching the advisory list's insight cards. */
+  background-color: transparent;
+  background-image: none;
+}
+
+.lane:hover {
+  border-color: var(--card-edge-hover);
+  background-image: linear-gradient(145deg, var(--card-wash), var(--glass-fill-2));
+}
+
+:global(.dark) .lane:hover {
+  background-image: linear-gradient(145deg, var(--card-wash), transparent);
+}
+
+/* The metric card sits inside the lane — flatten its own glass so the lane
+   reads as the outer card and this becomes the inner metric panel. */
+.lane .kCard {
+  gap: 0.375rem;
+  padding: 0.625rem 0.75rem;
+  background-color: color-mix(in oklch, var(--card) 55%, transparent);
+  background-image: none;
+  box-shadow: none;
+  backdrop-filter: none;
+  -webkit-backdrop-filter: none;
+}
+
+:global(.dark) .lane .kCard {
+  background-color: transparent;
+  box-shadow: none;
+}
+
+.colHead {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  min-width: 0;
+  margin-inline: -0.75rem;
+  padding: 0 0.75rem 0.625rem;
+  border-bottom: 1px solid color-mix(in oklch, var(--border) 70%, transparent);
+}
+
+.colIcon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 1.375rem;
+  height: 1.375rem;
+  flex-shrink: 0;
+  color: #f59e0b;
+}
+
+.colIcon svg {
+  width: 1rem;
+  height: 1rem;
+}
+
+.colTitle {
+  margin: 0;
+  min-width: 0;
+  flex: 1;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: 0.8125rem;
+  font-weight: 700;
+  letter-spacing: -0.01em;
+  color: var(--foreground);
+}
+
+.colCount {
+  flex-shrink: 0;
+  font-size: 0.75rem;
+  color: var(--muted-foreground);
+  font-variant-numeric: tabular-nums;
+}
+
+.kLabel {
+  margin: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: 0.75rem;
+  color: var(--muted-foreground);
+}
+
+.kBottom {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.5rem;
+  min-width: 0;
+}
+
+.kTitle {
+  margin: 0;
+  min-width: 0;
+  flex: 1;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: 0.8125rem;
+  font-weight: 700;
+  letter-spacing: -0.01em;
+  color: var(--foreground);
+}
+
+.kBig {
+  margin: 0;
+  flex-shrink: 0;
+  white-space: nowrap;
+  font-size: 1.375rem;
+  font-weight: 800;
+  line-height: 1;
+  font-variant-numeric: tabular-nums;
+  color: var(--foreground);
+}
+
+.cardMeta {
+  margin: 0;
+  font-size: 0.75rem;
+  line-height: 1.4;
+  color: var(--muted-foreground);
+}
+
+.skel {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
 }

@@ -7,6 +7,7 @@ import { Loader2 } from "lucide-react";
 import {
   NurseAlertsBoard,
   NurseAlertsBoardSkeleton,
+  matchesAlertFilters,
   type TypeTrack,
 } from "./components/NurseAlertsBoard";
 import { fetchNurseAlerts } from "@/services/nurse/alerts.service";
@@ -20,6 +21,7 @@ import { useDebouncedValue } from "@/lib/useDebouncedValue";
 import { useTerm } from "@/lib/term/TermContext";
 import { liveQueryOptions } from "@/lib/api/live";
 import styles from "./components/nurse-alerts.module.css";
+import pageStyles from "../pages.module.css";
 import { PAGE_SIZE } from "@/components/shared/pagination";
 import { useUrlPager } from "@/components/shared/pagination/useUrlPager";
 import { useSearchParams } from "next/navigation";
@@ -41,13 +43,21 @@ function NurseAlertsPageInner() {
   const { activeTerm, termReady } = useTerm();
   const termKey = `${activeTerm?.schoolYearId ?? ""}:${activeTerm?.termId ?? ""}`;
   const [queryInput, setQueryInput] = React.useState(searchParams.get("q") ?? "");
-  const pager = useUrlPager(0, {}, { searchParam: "q", extraParams: ["q", "track"] });
+  const pager = useUrlPager(0, {}, { searchParam: "q" });
   const page = pager.page;
   const setPage = pager.setPage;
-  const trackRaw = pager.extras.track;
-  // ADM is the desk default — the tab strip opens on it; picking Clinic is the
-  // only other state (the filter is never "both").
-  const track: TypeTrack = trackRaw === "clinic" ? "clinic" : "adm";
+  // The desk type tabs are a view-only filter on the rows already loaded —
+  // never a URL param and never a refetch, so switching is instant.
+  const [track, setTrack] = React.useState<TypeTrack>("all");
+
+  // Drop a legacy ?track=… from the URL (it used to drive a server refetch).
+  const cleanedTrackParam = React.useRef(false);
+  React.useEffect(() => {
+    if (cleanedTrackParam.current) return;
+    cleanedTrackParam.current = true;
+    if (searchParams.has("track")) pager.setFilters({ track: undefined });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   const query = useDebouncedValue(queryInput.trim(), 300);
   const debounced = query;
@@ -66,26 +76,22 @@ function NurseAlertsPageInner() {
   const { data, isPending, isError, refetch, isFetching } =
     useQuery<NurseAlertsPage>({
       ...liveQueryOptions,
-      queryKey: ["nurse-alerts", page, debounced, track, termKey],
+      queryKey: ["nurse-alerts", page, debounced, termKey],
       queryFn: ({ signal }) =>
         fetchNurseAlerts({
           q: debounced || undefined,
-          track,
           page,
           pageSize: NURSE_ALERTS_PAGE_SIZE,
           signal,
         }),
 
-      // Pagination (page/track changes) shows the kanban skeleton until its own
-      // payload lands; a same-page search refresh keeps the previous rows so
-      // typing doesn't flash the whole board. The next page is prefetched
-      // below, so most page flips resolve straight from cache.
-      placeholderData: (previousData, previousQuery) => {
-        const key = previousQuery?.queryKey;
-        const samePage = key?.[1] === page;
-        const sameTrack = (key?.[3] ?? "") === track;
-        return previousData && samePage && sameTrack ? previousData : undefined;
-      },
+      // Page flips show the skeleton until their own payload lands; a
+      // same-page search refresh keeps the previous rows so typing doesn't
+      // flash the whole board. The next page is prefetched below.
+      placeholderData: (previousData, previousQuery) =>
+        previousData && previousQuery?.queryKey?.[1] === page
+          ? previousData
+          : undefined,
       staleTime: 60_000,
       enabled: termReady,
     });
@@ -96,11 +102,10 @@ function NurseAlertsPageInner() {
     const next = page + 1;
     if (next > (data.totalPages ?? 1)) return;
     void queryClient.prefetchQuery({
-      queryKey: ["nurse-alerts", next, debounced, track, termKey],
+      queryKey: ["nurse-alerts", next, debounced, termKey],
       queryFn: ({ signal }) =>
         fetchNurseAlerts({
           q: debounced || undefined,
-          track,
           page: next,
           pageSize: NURSE_ALERTS_PAGE_SIZE,
           signal,
@@ -170,10 +175,20 @@ function NurseAlertsPageInner() {
   }
 
   const refreshing = isFetching && !isPending;
+  // No rows are visible (empty desk, no search match, or the type tab hides
+  // this page's rows): give the page the viewport height so the centered
+  // message truly sits mid-page. Decided with the same predicate the board
+  // uses on the rows it renders, so `pageFit` flips on the very keystroke the
+  // callout appears — the message never renders inline first and then hops to
+  // the center when the debounced server query returns empty.
+  const visibleCount = (data.alerts ?? []).filter((a) =>
+    matchesAlertFilters(a, queryInput, track)
+  ).length;
+  const isEmpty = data.total === 0 || visibleCount === 0;
 
   return (
     <section
-      className={styles.page}
+      className={isEmpty ? `${styles.page} ${pageStyles.pageFit}` : styles.page}
       aria-busy={refreshing}
       aria-label="Referred cases"
     >
@@ -199,9 +214,7 @@ function NurseAlertsPageInner() {
           setQueryInput(v);
         }}
         track={track}
-        onTrackChange={(next) => {
-          pager.setFilters({ track: next });
-        }}
+        onTrackChange={setTrack}
         page={safePage}
         total={data.total}
         unfilteredTotal={data.unfilteredTotal}

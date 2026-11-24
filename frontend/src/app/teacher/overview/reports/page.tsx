@@ -4,7 +4,6 @@ import { Loader2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { PageEmptyCallout } from "@/components/shared/page-empty-callout";
 import { useTeacherReports } from "@/services/teacher/reports.service";
-import { ReportsScopeBar } from "./components/reports-scope-bar";
 import { ReportsKpiStrip } from "./components/reports-kpi-strip";
 import { ReportsClassTable } from "./components/reports-class-table";
 import { ReportsDistribution } from "./components/reports-distribution";
@@ -15,7 +14,10 @@ import styles from "./components/reports.module.css";
 export default function TeacherReportsPage() {
   const report = useTeacherReports();
 
-  if (report.isPending && !report.data) {
+  // Shimmer skeleton for the first paint and for a scope switch (a term change
+  // starts a brand-new query with no data yet). Background live refetches keep
+  // the current report on screen instead of flashing the placeholder.
+  if (!report.data && (report.isPending || report.isFetching)) {
     return <ReportsSkeleton />;
   }
 
@@ -62,7 +64,6 @@ export default function TeacherReportsPage() {
         </PageEmptyCallout>
       ) : (
         <>
-          <ReportsScopeBar data={data} />
           <ReportsKpiStrip summary={data.summary} />
 
           <div className={styles.panels}>

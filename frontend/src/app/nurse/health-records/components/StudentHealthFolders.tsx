@@ -1,8 +1,7 @@
 "use client";
 
 import * as React from "react";
-import { Search } from "lucide-react";
-import { Input } from "@/components/ui/input";
+import { SearchField } from "@/components/ui/search-field";
 import { FolderCard, type FolderFile } from "@/components/ui/FolderCard";
 import {
   entryStatusLabel,
@@ -65,20 +64,16 @@ export function StudentHealthFolders({
           </p>
         </div>
         {folders.length > 0 && (
-          <div className={styles.searchWrap}>
-            <Search className={styles.searchIcon} aria-hidden />
-            <Input
-              className={styles.search}
-              style={{ height: "2rem" }}
-              placeholder="Search student, LRN, section…"
-              value={query}
-              onChange={(e) => {
-                setQuery(e.target.value);
-                setPage(1);
-              }}
-              aria-label="Search student folders"
-            />
-          </div>
+          <SearchField
+            className="w-60"
+            placeholder="Search student, LRN, section…"
+            value={query}
+            onChange={(next) => {
+              setQuery(next);
+              setPage(1);
+            }}
+            aria-label="Search student folders"
+          />
         )}
       </div>
 

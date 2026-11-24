@@ -3,14 +3,12 @@
 import * as React from "react";
 import { keepPreviousData, useQuery } from "@tanstack/react-query";
 import { Button } from "@/components/ui/button";
-import { BellRing, Loader2 } from "lucide-react";
-import { GuidanceEmptyCard } from "../components/GuidanceEmptyCard";
+import { Loader2 } from "lucide-react";
 import {
   GuidanceAlertsTable,
-  type RiskFilter,
 } from "./components/guidance-alerts-table";
-import { GuidanceAlertsSideRail } from "./components/GuidanceAlertsSideRail";
 import { GuidanceAlertsSkeleton } from "./components/GuidanceAlertsSkeleton";
+import { rowSearchText, rowType } from "./components/guidance-alerts-helpers";
 import { fetchGuidanceAlertCases } from "@/services/guidance/alerts.service";
 import type {
   AlertCaseType,
@@ -44,7 +42,6 @@ async function fetchAllAlertCases(signal?: AbortSignal): Promise<GuidanceAlertCa
 export default function GuidanceAlertsPage() {
   const { activeTerm, termReady } = useTerm();
   const termKey = `${activeTerm?.schoolYearId ?? ""}:${activeTerm?.termId ?? ""}`;
-  const [riskFilter, setRiskFilter] = React.useState<RiskFilter>("");
   const [typeFilter, setTypeFilter] = React.useState<AlertCaseType>("");
   const [queryInput, setQueryInput] = React.useState("");
 
@@ -62,14 +59,12 @@ export default function GuidanceAlertsPage() {
 
   const isFetching = casesQuery.isFetching;
   const data = casesQuery.data;
-  const summary = data?.summary;
-  const isTrueEmpty = (summary?.total ?? 0) === 0;
 
   if (casesQuery.isPending) {
     return <GuidanceAlertsSkeleton />;
   }
 
-  if (casesQuery.isError || !data || !summary) {
+  if (casesQuery.isError || !data || !data.summary) {
     return (
       <section className={styles.page}>
         <div className={styles.pageError} role="alert">
@@ -95,43 +90,31 @@ export default function GuidanceAlertsPage() {
     );
   }
 
+  // Same predicate the board uses, so `pageFit` flips on the very keystroke
+  // the empty callout appears (mirrors /nurse/alerts).
+  const needle = queryInput.trim().toLowerCase();
+  const visibleCount = data.cases.filter((row) => {
+    if (typeFilter && rowType(row) !== typeFilter) return false;
+    if (needle && !rowSearchText(row).toLowerCase().includes(needle)) return false;
+    return true;
+  }).length;
+  const isEmpty = data.summary.total === 0 || visibleCount === 0;
+
   return (
     <section
-      className={isTrueEmpty ? `${styles.page} ${pageStyles.pageFit}` : styles.page}
+      className={isEmpty ? `${styles.page} ${pageStyles.pageFit}` : styles.page}
       aria-busy={isFetching || undefined}
-      aria-label="Alerts"
+      aria-label="Referred cases"
     >
-      {isTrueEmpty ? (
-        <GuidanceEmptyCard
-          icon={BellRing}
-          title="No referred cases"
-          hint="New ADM, counseling, and intervention cases will appear here."
-          label="Referred cases"
-          centered
-          layout="fit"
-        />
-      ) : (
-        <div className={styles.body}>
-          <div className={styles.mainCol}>
-            <GuidanceAlertsTable
-              rows={data.cases}
-              riskByStudent={data.riskByStudent}
-              summary={summary}
-              query={queryInput}
-              type={typeFilter}
-              risk={riskFilter}
-              onQueryChange={setQueryInput}
-              onTypeChange={setTypeFilter}
-              onRiskChange={setRiskFilter}
-            />
-          </div>
-          <GuidanceAlertsSideRail
-            summary={summary}
-            activeRisk={riskFilter}
-            onRiskFilterChange={setRiskFilter}
-          />
-        </div>
-      )}
+      <GuidanceAlertsTable
+        rows={data.cases}
+        riskByStudent={data.riskByStudent}
+        summary={data.summary}
+        query={queryInput}
+        type={typeFilter}
+        onQueryChange={setQueryInput}
+        onTypeChange={setTypeFilter}
+      />
     </section>
   );
 }

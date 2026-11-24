@@ -1,34 +1,34 @@
 "use client";
 
-import { KanbanBoard } from "@/components/ui/kanban-board";
 import { Skeleton } from "@/components/ui/skeleton";
+import { ShimmerGroup } from "@/components/ui/shimmer-skeleton";
 import { ZentraPaginationSkeleton } from "@/components/shared/zentra-skeletons/ZentraSkeletons";
 import pageStyles from "./guidance-alerts.module.css";
 import rowStyles from "./guidance-alerts-table.module.css";
 
 /**
- * Loading shell for /guidance/alerts. It renders the real board chrome —
- * KanbanBoard header (title, description, centered type/risk tabs, search),
- * the shared pagination footer, the kanban case-row grid and the icon rail —
- * so nothing moves when the merged desk data lands.
+ * Loading shell for /guidance/alerts. It renders the same board chrome as the
+ * loaded page — the full-width type/risk tabs + search toolbar, the column
+ * head, the hairline case rows and the pager — so nothing moves when the
+ * merged desk data lands. The whole tree shimmer-sweeps together (same
+ * treatment as /nurse/alerts).
  */
 
-const ROWS = 8;
-/** Same pill labels as the live tabs: All types · ADM · Counseling · Intervention. */
-const TYPE_PILL_WIDTHS = ["4.4rem", "2.1rem", "4.9rem", "5.6rem"];
-/** All risks · High risk · Moderate risk. */
-const RISK_PILL_WIDTHS = ["4.2rem", "4.3rem", "5.7rem"];
+const ROWS = 6;
 
-function HeaderTabsSkeleton() {
+function HeaderToolbarSkeleton() {
   return (
-    <div className={rowStyles.headerTabs} aria-hidden="true">
-      {TYPE_PILL_WIDTHS.map((width) => (
-        <Skeleton key={width} className="h-5 rounded-md" style={{ width }} />
-      ))}
-      <span className={rowStyles.tabDivider} />
-      {RISK_PILL_WIDTHS.map((width) => (
-        <Skeleton key={width} className="h-5 rounded-md" style={{ width }} />
-      ))}
+    <div
+      className="flex w-full flex-wrap items-center justify-between gap-2"
+      aria-hidden="true"
+    >
+      <div className={`${rowStyles.filterRow} ${rowStyles.filterRowScroll}`}>
+        <Skeleton className={rowStyles.skelTab} />
+        <Skeleton className={rowStyles.skelTab} />
+        <Skeleton className={rowStyles.skelTab} />
+        <Skeleton className={rowStyles.skelTab} />
+      </div>
+      <Skeleton className={rowStyles.skelSearch} />
     </div>
   );
 }
@@ -36,30 +36,42 @@ function HeaderTabsSkeleton() {
 /** One placeholder case row on the real `.caseRow` grid tracks. */
 function CaseRowSkeleton() {
   return (
-    <li className={rowStyles.caseRow}>
-      <div className={rowStyles.caseStudent}>
+    <li className={rowStyles.skeletonRow} aria-hidden="true">
+      <div className={`${rowStyles.cell} ${rowStyles.cellType}`}>
         <Skeleton className={rowStyles.skelTypePill} />
-        <span className={rowStyles.caseSeparator} aria-hidden="true">
-          |
-        </span>
-        <Skeleton className="size-8 shrink-0 rounded-full" />
+      </div>
+      <div className={`${rowStyles.cell} ${rowStyles.cellLearner}`}>
+        <Skeleton className={rowStyles.skelAvatar} />
         <div className={rowStyles.caseIdentity}>
-          <Skeleton className="h-[0.8125rem] w-32 max-w-full" />
-          <p className={rowStyles.cellSub}>
-            <Skeleton className="h-[1.125rem] w-20 rounded-md" />
-            <Skeleton className="h-[1.125rem] w-16 rounded-md" />
-          </p>
+          <Skeleton className={rowStyles.skelCaseName} />
+          <div className={rowStyles.cellSub}>
+            <Skeleton className={rowStyles.skelPillShort} />
+          </div>
         </div>
       </div>
-      <div className={rowStyles.caseStatusCell}>
-        <Skeleton className={rowStyles.skelSplitPill} />
+      <div className={`${rowStyles.cell} ${rowStyles.cellStack} ${rowStyles.colGrade}`}>
+        <Skeleton className={rowStyles.skelLine} />
+        <Skeleton className={rowStyles.skelLineShort} />
       </div>
-      <div className={rowStyles.caseTimeCell}>
+      <div className={`${rowStyles.cell} ${rowStyles.colConcern}`}>
+        <Skeleton className={rowStyles.skelConcernPill} />
+      </div>
+      <div className={`${rowStyles.cell} ${rowStyles.cellStatus}`}>
+        <Skeleton className={rowStyles.skelPill} />
+      </div>
+      <div className={`${rowStyles.cell} ${rowStyles.colRisk}`}>
+        <Skeleton className={rowStyles.skelPillShort} />
+      </div>
+      <div className={`${rowStyles.cell} ${rowStyles.cellStack} ${rowStyles.colSessions}`}>
+        <Skeleton className={rowStyles.skelLineShort} />
+        <Skeleton className={rowStyles.skelLineShort} />
+      </div>
+      <div className={`${rowStyles.cell} ${rowStyles.colReferred}`}>
         <Skeleton className={rowStyles.skelTimePill} />
       </div>
       <div className={rowStyles.caseActions}>
-        <Skeleton className="size-6 rounded-md" />
         <Skeleton className={rowStyles.skelBookPill} />
+        <Skeleton className={rowStyles.skelBtnSm} />
       </div>
     </li>
   );
@@ -68,42 +80,30 @@ function CaseRowSkeleton() {
 export function GuidanceAlertsSkeleton() {
   return (
     <section className={pageStyles.page} aria-busy="true" aria-label="Loading referred cases">
-      <div className={pageStyles.body}>
-        <div className={pageStyles.mainCol}>
-          <KanbanBoard
-            title={
-              <span className="inline-flex min-w-0 items-center gap-1.5">
-                <Skeleton className="size-3.5 rounded" />
-                <Skeleton className="h-3.5 w-28" />
-              </span>
-            }
-            description={<Skeleton className="h-3 w-[19rem] max-w-full" />}
-            headerCenter={<HeaderTabsSkeleton />}
-            actions={
-              <div className={rowStyles.headerControls}>
-                <div className={rowStyles.searchWrap}>
-                  <Skeleton className="h-8 w-full" style={{ borderRadius: 16 }} />
-                </div>
-              </div>
-            }
-            footer={<ZentraPaginationSkeleton />}
-          >
-            <ul className={rowStyles.caseList} aria-hidden="true">
+      <ShimmerGroup>
+        <div className={`flex min-w-0 flex-col gap-3 ${rowStyles.boardIn}`}>
+          <HeaderToolbarSkeleton />
+          <div className={rowStyles.listPanel}>
+            <div className={rowStyles.listHead} aria-hidden="true">
+              <Skeleton className={rowStyles.skelHeadLabel} />
+              <Skeleton className={rowStyles.skelHeadLabel} />
+              <Skeleton className={`${rowStyles.skelHeadLabel} ${rowStyles.colGrade}`} />
+              <Skeleton className={`${rowStyles.skelHeadLabel} ${rowStyles.colConcern}`} />
+              <Skeleton className={rowStyles.skelHeadLabel} />
+              <Skeleton className={rowStyles.skelHeadLabel} />
+              <Skeleton className={`${rowStyles.skelHeadLabel} ${rowStyles.colSessions}`} />
+              <Skeleton className={`${rowStyles.skelHeadLabel} ${rowStyles.colReferred}`} />
+              <Skeleton className={rowStyles.skelHeadLabel} />
+            </div>
+            <ul className={rowStyles.caseList}>
               {Array.from({ length: ROWS }, (_, i) => (
                 <CaseRowSkeleton key={i} />
               ))}
             </ul>
-          </KanbanBoard>
-        </div>
-
-        <aside className="self-start lg:sticky lg:top-16">
-          <div className={pageStyles.skelRail} aria-hidden="true">
-            {[0, 1, 2].map((i) => (
-              <Skeleton key={i} className={pageStyles.skelRailIcon} />
-            ))}
           </div>
-        </aside>
-      </div>
+          <ZentraPaginationSkeleton />
+        </div>
+      </ShimmerGroup>
     </section>
   );
 }

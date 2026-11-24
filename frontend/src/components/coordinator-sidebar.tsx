@@ -1,15 +1,12 @@
 "use client";
 
 import * as React from "react";
-import Link from "next/link";
-import { usePathname, useRouter } from "next/navigation";
+import { usePathname } from "next/navigation";
 import type { LucideIcon } from "lucide-react";
 
 import styles from "./coordinator-sidebar.module.css";
-import BranchedMenu from "./nav/BranchedMenu";
+import { GlassDock } from "./nav/GlassDock";
 import { NAV_ICONS } from "./nav/sidebar-icons";
-import { SidebarIconRail } from "./nav/SidebarIconRail";
-import { CoordinatorSidebarReminder } from "./coordinator-sidebar-reminder";
 import { CoordinatorSidebarDeviceReminder } from "./coordinator-sidebar-device-reminder";
 import {
   useCoordinatorNavDotInvalidation,
@@ -89,121 +86,26 @@ function withDots(groups: NavGroup[], dots: CoordinatorNavDots): NavGroup[] {
   }));
 }
 
-function useIsActive() {
+/**
+ * Coordinator desk navigation host: the shared floating glass dock, plus the
+ * live needs-device reminder card docked at the bottom-left (the rail used to
+ * hold it at its foot).
+ */
+export function CoordinatorSidebar() {
   const pathname = usePathname();
-  return React.useCallback(
-    (href: string) =>
-      href === "/coordinator/overview"
-        ? pathname === href
-        : pathname === href || pathname.startsWith(`${href}/`),
-    [pathname],
-  );
-}
-
-function CoordinatorNavbar({ tabs }: { tabs: NavItem[] }) {
-  const isActive = useIsActive();
-
-  return (
-    <nav className={styles.navbar} aria-label="Coordinator sections">
-      <ul className={styles.tabs}>
-        {tabs.map((item) => {
-          const active = isActive(item.href);
-          return (
-            <li key={item.href} className={styles.tabItem}>
-              <Link
-                href={item.href}
-                className={`${styles.tab} ${active ? styles.tabActive : ""}`}
-                aria-current={active ? "page" : undefined}
-              >
-                <item.icon className={styles.tabIcon} aria-hidden="true" />
-                <span className={styles.tabLabel}>{item.title}</span>
-                {item.dot ? <span className={styles.dot} aria-hidden="true" /> : null}
-                {item.dot ? <span className="sr-only">New activity</span> : null}
-                {item.badge ? <span className={styles.badge}>{item.badge}</span> : null}
-              </Link>
-            </li>
-          );
-        })}
-      </ul>
-    </nav>
-  );
-}
-
-function CoordinatorRail({ groups }: { groups: NavGroup[] }) {
-  const pathname = usePathname();
-  const router = useRouter();
-  const isActive = React.useCallback(
-    (href: string) =>
-      href === "/coordinator/overview"
-        ? pathname === href
-        : pathname === href || pathname.startsWith(`${href}/`),
-    [pathname],
-  );
-  const tabs = groups.flatMap((group) => group.items);
-  const activeHref = tabs.find((t) => isActive(t.href))?.href ?? "/coordinator/overview";
-  const defaultOpen = groups.map((_, i) => i);
-  return (
-    <BranchedMenu
-      items={groups.map((group) => ({
-        label: group.label,
-        children: group.items.map((t) => ({
-          value: t.href,
-          label: t.title,
-          href: t.href,
-          dot: t.dot,
-          icon: <t.icon size={16} strokeWidth={1.8} aria-hidden="true" />,
-        })),
-      }))}
-      defaultOpen={defaultOpen.length > 0 ? defaultOpen : [0]}
-      defaultActive={activeHref}
-      activeValue={activeHref}
-      onSelect={(_value, item) => {
-        if ("href" in item && item.href) router.push(item.href);
-      }}
-      width={208}
-    />
-  );
-}
-
-export function CoordinatorSidebar({
-  collapsed = true,
-}: {
-  collapsed?: boolean;
-} = {}) {
-  const isActive = useIsActive();
   const dots = useCoordinatorNavDots();
   useCoordinatorNavDotInvalidation(dots);
   const nav = React.useMemo(() => withDots(NAV, dots), [dots]);
-  const tabs = React.useMemo(() => nav.flatMap((group) => group.items), [nav]);
-  const activeHref =
-    tabs.find((t) => isActive(t.href))?.href ?? "/coordinator/overview";
 
   return (
     <>
-      <aside
-        className={`${styles.rail} ${styles.railDesktop} ${collapsed ? styles.railCollapsed : ""}`}
-        aria-label="Coordinator sections"
-      >
-        {collapsed ? (
-          <SidebarIconRail
-            groups={nav}
-            ariaLabel="Coordinator sections, icon only"
-            activeHref={activeHref}
-          />
-        ) : (
-          <>
-            <div className={styles.railScroll}>
-              <CoordinatorRail groups={nav} />
-            </div>
-            <div className={styles.reminderWrap}>
-              <CoordinatorSidebarReminder />
-              <CoordinatorSidebarDeviceReminder />
-            </div>
-          </>
-        )}
-      </aside>
-      <div className={styles.tabsMobile}>
-        <CoordinatorNavbar tabs={tabs} />
+      <GlassDock
+        groups={nav}
+        pathname={pathname ?? ""}
+        ariaLabel="Coordinator sections"
+      />
+      <div className={styles.reminderWrap}>
+        <CoordinatorSidebarDeviceReminder />
       </div>
     </>
   );

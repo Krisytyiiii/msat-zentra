@@ -9,8 +9,7 @@ import { RecordKeeperSidebar } from "@/components/record-keeper-sidebar";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { StudentMascot } from "@/components/student-mascot/StudentMascot";
 import { UserRound } from "lucide-react";
-import { KanbanAccountMenu } from "@/components/account/kanban-account-menu";
-import { useCollapsibleSidebar } from "@/components/nav/use-collapsible-sidebar";
+import { GlassUserMenu } from "@/components/account/glass-user-menu";
 import { ActiveTermBadge } from "@/components/term/ActiveTermBadge";
 import { AppBreadcrumbs } from "@/components/nav/AppBreadcrumbs";
 import {
@@ -26,8 +25,6 @@ function RecordKeeperShell({ children }: { children: React.ReactNode }) {
   const router = useRouter();
   const queryClient = useQueryClient();
   const profile = useRecordKeeperProfileSettings();
-  const { collapsed: sidebarCollapsed } =
-    useCollapsibleSidebar("zentra.record-keeper.sidebar.collapsed");
 
   useRecordKeeperRealtime();
 
@@ -62,7 +59,7 @@ function RecordKeeperShell({ children }: { children: React.ReactNode }) {
 
         <RecordKeeperNotificationsBell />
 
-        <KanbanAccountMenu
+        <GlassUserMenu
           settingsHref="/record-keeper/settings"
           onLogout={handleLogout}
         >
@@ -90,13 +87,11 @@ function RecordKeeperShell({ children }: { children: React.ReactNode }) {
               </Avatar>
             )}
           </button>
-        </KanbanAccountMenu>
+        </GlassUserMenu>
       </header>
-      <RecordKeeperSidebar collapsed={sidebarCollapsed} />
+      <RecordKeeperSidebar />
       <div
-        className={`${styles.shell} ${styles.shellWithRail} ${
-          sidebarCollapsed ? styles.shellWithRailCollapsed : ""
-        }`}
+        className={`${styles.shell} ${styles.shellWithDock}`}
       >
         <main className={styles.main}>{children}</main>
       </div>

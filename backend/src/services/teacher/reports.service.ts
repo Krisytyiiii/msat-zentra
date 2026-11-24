@@ -1,8 +1,8 @@
 import { prisma } from "../../lib/prisma.js";
 import { sectionHeadcounts } from "../enrollment.js";
-import { ATTENDANCE_RISK_CUTOFF, termHasStarted } from "../attendance.js";
+import { ATTENDANCE_RISK_CUTOFF, subjectAverageAttendance, termHasStarted } from "../attendance.js";
 import { computeRiskFactors, levelFromFlags, sectionAttendanceTotals } from "../risk.js";
-import { COMPONENT_TYPE_LABEL, GRADE_LABELS } from "../../modules/teacher/teacher.repository.js";
+import { GRADE_LABELS } from "../../modules/teacher/teacher.repository.js";
 import {
   archivedAdvisoryLearnerIds,
   excludeArchivedLearnerRows,
@@ -39,27 +39,6 @@ export interface TeacherReportClass {
   attendanceRate: number | null;
   belowAttendance: number;
   lockStatus: "unlocked" | "locked" | "adviser_approved" | null;
-}
-
-export interface TeacherReportPending {
-  id: string;
-  subject: string;
-  section: string;
-  title: string;
-  type: "WW" | "PT" | "E";
-  dateGiven: string;
-  scored: number;
-  learners: number;
-}
-
-export interface TeacherReportAtRisk {
-  studentId: string;
-  name: string;
-  section: string;
-  riskLevel: "Low" | "Moderate" | "High";
-  flags: ("academic" | "attendance" | "behavioral")[];
-  average: number | null;
-  attendanceRate: number | null;
 }
 
 export interface TeacherReportsPayload {
@@ -101,8 +80,6 @@ export interface TeacherReportsPayload {
   };
   classes: TeacherReportClass[];
   distribution: { band: string; label: string; count: number; percent: number }[];
-  atRisk: TeacherReportAtRisk[];
-  pending: TeacherReportPending[];
   activity: {
     anecdotal: number;
     referrals: { total: number; byStatus: { status: string; count: number }[] };
@@ -141,8 +118,6 @@ const EMPTY: TeacherReportsPayload = {
   },
   classes: [],
   distribution: [],
-  atRisk: [],
-  pending: [],
   activity: { anecdotal: 0, referrals: { total: 0, byStatus: [] } },
   generatedAt: new Date().toISOString(),
 };
@@ -296,12 +271,11 @@ export async function getTeacherReports(ctx: TeacherContext): Promise<TeacherRep
         userId: true,
         lrn: true,
         sectionId: true,
-        user: { select: { fullName: true } },
       },
     }),
     prisma.studentRoster.findMany({
       where: { sectionId: { in: sectionIds }, ...excludeArchivedRosters(archivedLearners) },
-      select: { id: true, lrn: true, fullName: true, sectionId: true },
+      select: { id: true, lrn: true, sectionId: true },
     }),
     prisma.assessment.findMany({
       where: {
@@ -309,11 +283,8 @@ export async function getTeacherReports(ctx: TeacherContext): Promise<TeacherRep
         OR: [{ sectionId: { in: sectionIds } }, { sectionId: null }],
       },
       select: {
-        id: true,
-        title: true,
-        dateGiven: true,
         sectionId: true,
-        gradeComponent: { select: { subjectId: true, componentType: true } },
+        gradeComponent: { select: { subjectId: true } },
         studentGrades: { select: { studentId: true, rosterId: true } },
       },
     }),
@@ -343,9 +314,7 @@ export async function getTeacherReports(ctx: TeacherContext): Promise<TeacherRep
   // --- learner index (profiles + roster-only enlistments, deduped by LRN) ---
   type Learner = {
     key: string;
-    name: string;
     sectionId: string;
-    section: string;
     profileId: string | null;
     rosterId: string | null;
   };
@@ -355,9 +324,7 @@ export async function getTeacherReports(ctx: TeacherContext): Promise<TeacherRep
       .filter((p): p is typeof p & { sectionId: string } => p.sectionId !== null)
       .map((p) => ({
         key: p.userId,
-        name: p.user.fullName,
         sectionId: p.sectionId,
-        section: sectionMeta.get(p.sectionId)?.name ?? "",
         profileId: p.userId,
         rosterId: null,
       })),
@@ -366,9 +333,7 @@ export async function getTeacherReports(ctx: TeacherContext): Promise<TeacherRep
       .filter((r) => !registeredLrns.has(r.lrn))
       .map((r) => ({
         key: `roster:${r.id}`,
-        name: r.fullName,
         sectionId: r.sectionId,
-        section: sectionMeta.get(r.sectionId)?.name ?? "",
         profileId: null,
         rosterId: r.id,
       })),
@@ -385,7 +350,7 @@ export async function getTeacherReports(ctx: TeacherContext): Promise<TeacherRep
     ...(profileIds.length > 0 ? [{ studentId: { in: profileIds } }] : []),
     ...(rosterIds.length > 0 ? [{ rosterId: { in: rosterIds } }] : []),
   ];
-  const [finals, rawScores, attendance, sectionTotals] = await Promise.all([
+  const [finals, rawScores, attendance, sectionTotals, subjectAvgs] = await Promise.all([
     learnerOr.length > 0
       ? prisma.finalGrade.findMany({
           where: { termId, subjectId: { in: subjectIds }, OR: learnerOr },
@@ -430,6 +395,7 @@ export async function getTeacherReports(ctx: TeacherContext): Promise<TeacherRep
       select: { studentId: true, rosterId: true, sectionId: true, subjectId: true, status: true },
     }),
     sectionAttendanceTotals(sectionIds, termId),
+    subjectAverageAttendance(sectionIds, termId),
   ]);
 
   // --- per-class accumulators ---
@@ -481,14 +447,15 @@ export async function getTeacherReports(ctx: TeacherContext): Promise<TeacherRep
     }
   }
 
-  // --- assessments: completion per class + pending list ---
+  // --- assessments: completion per class (the pending-assessment list is not
+  // part of this report's response — the page only renders the completion
+  // figures, so nothing per-assessment is serialized) ---
   const sectionsBySubject = new Map<string, Set<string>>();
   for (const p of pairs) {
     const set = sectionsBySubject.get(p.subjectId) ?? new Set<string>();
     set.add(p.sectionId);
     sectionsBySubject.set(p.subjectId, set);
   }
-  const pending: TeacherReportPending[] = [];
   for (const as of assessments) {
     const subjectId = as.gradeComponent.subjectId;
     const visibleSections = as.sectionId
@@ -506,18 +473,6 @@ export async function getTeacherReports(ctx: TeacherContext): Promise<TeacherRep
       }).length;
       entry.assessTotal += 1;
       if (learnersInSection > 0 && scored >= learnersInSection) entry.assessGraded += 1;
-      if (scored < learnersInSection) {
-        pending.push({
-          id: `${as.id}:${sectionId}`,
-          subject: pairMap.get(`${subjectId}|${sectionId}`)?.subject ?? "",
-          section: sectionMeta.get(sectionId)?.name ?? "",
-          title: as.title,
-          type: COMPONENT_TYPE_LABEL[as.gradeComponent.componentType] ?? "WW",
-          dateGiven: as.dateGiven ? as.dateGiven.toISOString().slice(0, 10) : "",
-          scored,
-          learners: learnersInSection,
-        });
-      }
     }
   }
 
@@ -628,7 +583,9 @@ export async function getTeacherReports(ctx: TeacherContext): Promise<TeacherRep
     anecdotalByLearner.set(key, (anecdotalByLearner.get(key) ?? 0) + 1);
   }
 
-  const atRisk: TeacherReportAtRisk[] = [];
+  // --- at-risk tally (live, same rule as the overview risk table). Only the
+  // counts are part of this report, so no per-learner rows are serialized. ---
+  let atRiskCount = 0;
   let highRisk = 0;
   let highRiskAdvisees = 0;
   let highRiskSubjectStudents = 0;
@@ -637,16 +594,19 @@ export async function getTeacherReports(ctx: TeacherContext): Promise<TeacherRep
     const rawAverages = [...(rawByLearner.get(learner.key)?.values() ?? [])].map(
       (cell) => cell.sum / cell.count,
     );
+    const subjAvg = subjectAvgs.get(learner.key);
     const flags = computeRiskFactors({
       finalGrades: finalsByLearner.get(learner.key) ?? [],
       rawAverages,
       attendance: attendanceRows,
+      attendanceRate: subjAvg && subjAvg.hasSubjectData ? subjAvg.average : null,
       attendanceTotal: sectionTotals.get(learner.sectionId),
       anecdotalCount: anecdotalByLearner.get(learner.key) ?? 0,
       enrolled: headcounts.get(learner.sectionId) ?? 0,
     });
     const riskLevel = levelFromFlags(flags);
     if (riskLevel === "Low") continue;
+    atRiskCount += 1;
     if (riskLevel === "High") {
       highRisk += 1;
       // An advisee stays an advisee even when the teacher also handles a
@@ -654,28 +614,7 @@ export async function getTeacherReports(ctx: TeacherContext): Promise<TeacherRep
       if (advisedSectionIds.has(learner.sectionId)) highRiskAdvisees += 1;
       else highRiskSubjectStudents += 1;
     }
-    const activeFlags: ("academic" | "attendance" | "behavioral")[] = [];
-    if (flags.academicFlag) activeFlags.push("academic");
-    if (flags.attendanceFlag) activeFlags.push("attendance");
-    if (flags.behavioralFlag) activeFlags.push("behavioral");
-    const present = attendanceRows.filter((r) => r.status === "present").length;
-    const graded = (finalsByLearner.get(learner.key) ?? [])
-      .map((f) => f.transmutedGrade)
-      .filter((v): v is number => v != null);
-    atRisk.push({
-      studentId: learner.key,
-      name: learner.name,
-      section: learner.section,
-      riskLevel,
-      flags: activeFlags,
-      average: mean(graded),
-      attendanceRate: rate(present, attendanceRows.length),
-    });
   }
-  const riskRank = { High: 0, Moderate: 1, Low: 2 } as const;
-  atRisk.sort(
-    (a, b) => riskRank[a.riskLevel] - riskRank[b.riskLevel] || a.name.localeCompare(b.name),
-  );
 
   // --- distribution + summary ---
   const gradedTotal = [...distributionCounts.values()].reduce((sum, n) => sum + n, 0);
@@ -735,7 +674,7 @@ export async function getTeacherReports(ctx: TeacherContext): Promise<TeacherRep
       attendancePresent,
       attendanceTotal,
       attendanceRate: rate(attendancePresent, attendanceTotal),
-      atRisk: atRisk.length,
+      atRisk: atRiskCount,
       highRisk,
       highRiskAdvisees,
       highRiskSubjectStudents,
@@ -745,8 +684,6 @@ export async function getTeacherReports(ctx: TeacherContext): Promise<TeacherRep
     },
     classes,
     distribution,
-    atRisk,
-    pending: pending.sort((a, b) => b.learners - b.scored - (a.learners - a.scored)),
     activity: {
       anecdotal: anecdotalMine,
       referrals: {
@@ -793,8 +730,6 @@ export async function getTeacherReports(ctx: TeacherContext): Promise<TeacherRep
         lockStatus: null,
       })),
       distribution: payload.distribution.map((d) => ({ ...d, count: 0, percent: 0 })),
-      atRisk: [],
-      pending: [],
       activity: { anecdotal: 0, referrals: { total: 0, byStatus: [] } },
       generatedAt: new Date().toISOString(),
     };

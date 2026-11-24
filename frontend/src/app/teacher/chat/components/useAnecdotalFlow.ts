@@ -484,6 +484,7 @@ export function useAnecdotalFlow({
         preview: {
           studentName: student?.name ?? editIdentityRef.current.studentName,
           lrn: student?.lrn ?? editIdentityRef.current.lrn,
+          mascot: student?.mascot ?? null,
           section:
             (student ? sectionNameById.get(student.sectionId ?? "") : editIdentityRef.current.section) ?? "—",
           category: ANEC_CATEGORY_LABELS[category],

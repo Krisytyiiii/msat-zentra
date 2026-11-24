@@ -26,8 +26,6 @@ export interface RegistryNavQueues {
   overview: RegistryNavEntry[];
   /** Final grades filed for this desk's band, one entry per section. */
   finalGrades: RegistryNavEntry[];
-  /** Pending account approvals (students in band + self-registered teachers). */
-  accounts: RegistryNavEntry[];
   /** Adviser SF10 access requests filed for this desk's band. */
   adviserAccess: RegistryNavEntry[];
   /** SF10 files filed on this desk. */
@@ -79,25 +77,7 @@ export async function getRegistryNavQueues(
 
   const rows = await prisma.$queryRaw<{ q: string; id: string; v: string }[]>(
     Prisma.sql`
-      WITH accounts AS (
-        SELECT u.id,
-               u.xmin::text || ':' || COALESCE(p.xmin::text, '0') AS v
-        FROM "User" u
-        LEFT JOIN "StudentProfile" p ON p."userId" = u.id
-        WHERE u.status = 'pending'
-          AND (
-            -- Bare sign-ups (no profile yet) show on both desks; profiled
-            -- students belong to the desk that owns their band.
-            (u.role = 'student' AND p."userId" IS NULL)
-            OR (
-              u.role = 'student'
-              AND p."gradeLevel" IN (${gradeList})
-            )
-            -- Self-registered teachers are not banded: both desks review them.
-            OR (u.role IN ('subject_teacher','adviser') AND p."userId" IS NULL)
-          )
-      ),
-      access AS (
+      WITH access AS (
         SELECT r.id,
                r.xmin::text || ':' ||
                COALESCE(array_length(r."approvedLrns", 1), 0)::text || ':' ||
@@ -135,14 +115,12 @@ export async function getRegistryNavQueues(
         FROM "Notification"
         WHERE "userId" = ${userId} AND "isRead" = false
       )
-      SELECT 'overview'::text AS q, id, v FROM accounts
-      UNION ALL SELECT 'overview', id, v FROM access
+      SELECT 'overview'::text AS q, id, v FROM access
       UNION ALL SELECT 'overview', id, v FROM sf10
       UNION ALL SELECT 'overview', id, v FROM finals
       UNION ALL SELECT 'overview', id, v FROM subjects
       UNION ALL SELECT 'overview', id, v FROM notifications
       UNION ALL SELECT 'finalGrades', id, v FROM finals
-      UNION ALL SELECT 'accounts', id, v FROM accounts
       UNION ALL SELECT 'adviserAccess', id, v FROM access
       UNION ALL SELECT 'sf10', id, v FROM sf10
       UNION ALL SELECT 'subjects', id, v FROM subjects
@@ -152,7 +130,6 @@ export async function getRegistryNavQueues(
   const queues: RegistryNavQueues = {
     overview: [],
     finalGrades: [],
-    accounts: [],
     adviserAccess: [],
     sf10: [],
     subjects: [],
@@ -167,7 +144,6 @@ export async function getRegistryNavQueues(
     ...queues,
     overview: mergeEntries(queues.overview),
     finalGrades: mergeEntries(queues.finalGrades),
-    accounts: mergeEntries(queues.accounts),
     adviserAccess: mergeEntries(queues.adviserAccess),
     sf10: mergeEntries(queues.sf10),
     subjects: mergeEntries(queues.subjects),

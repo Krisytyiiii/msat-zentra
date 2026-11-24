@@ -7,6 +7,7 @@ import { apiClient } from "@/lib/api/client";
 import { liveQueryOptions } from "@/lib/api/live";
 import { RowList, type RowListItem, type RowTone } from "@/components/ui/row-list";
 import { KanbanBoard, KanbanBoardEmpty } from "@/components/ui/kanban-board";
+import { searchEmptyMessage } from "@/app/teacher/components/TeacherSearchField";
 import { KanbanBoardSkeleton, RowListSkeleton } from "@/components/shared/zentra-skeletons/ZentraSkeletons";
 import { PAGE_SIZE, Pagination } from "@/components/shared/pagination";
 import { useTerm } from "@/lib/term/TermContext";
@@ -160,7 +161,7 @@ export function TeacherOverviewAttendanceTable({ sectionId }: { sectionId: strin
     >
       {pageItems.length === 0 ? (
         <KanbanBoardEmpty>
-          {data.length === 0 ? "No students in this section yet." : "No students match."}
+          {data.length === 0 ? "No students in this section yet." : searchEmptyMessage("", "students")}
         </KanbanBoardEmpty>
       ) : (
         <RowList

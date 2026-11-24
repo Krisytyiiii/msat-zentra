@@ -31,6 +31,25 @@
   background: color-mix(in oklch, #f59e0b 85%, transparent);
 }
 
+/* Assessment board card — sits on the page (transparent in dark mode) and
+   lifts a hair on hover so the encode action reads as the next step. The
+   doubled class beats the global `.dark .board-surface` fill. */
+.board {
+  transition:
+    border-color 150ms ease-out,
+    background-color 150ms ease-out;
+}
+
+/* Colour-only hover: the card sits in a horizontal scroll row (`overflow-x`
+   also clips the vertical axis), so any translate would clip the top border. */
+.board:hover {
+  border-color: color-mix(in oklch, #f59e0b 45%, transparent);
+}
+
+:global(.dark) .board.board {
+  background-color: transparent;
+}
+
 /* Smooth enter: sections fade/rise in stagger, boards slide in stagger.
    Same motion language as the schedule kanban. Respects reduced motion. */
 

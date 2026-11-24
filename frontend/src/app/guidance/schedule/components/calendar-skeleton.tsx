@@ -2,6 +2,7 @@
 
 import { addDays, isSameMonth, startOfMonth, startOfWeek } from "date-fns";
 import { Skeleton } from "@/components/ui/skeleton";
+import { ShimmerGroup } from "@/components/ui/shimmer-skeleton";
 import { KanbanBoard } from "@/components/ui/kanban-board";
 import styles from "./guidance-calendar.module.css";
 import type { CalendarView } from "./calendar-toolbar";
@@ -30,9 +31,15 @@ const WEEK_PLACEHOLDERS: { top: number; height: number }[][] = [
   [],
 ];
 
-function ToolbarSkeleton() {
+function ToolbarSkeleton({
+  showViewToggle = true,
+  align = "end",
+}: {
+  showViewToggle?: boolean;
+  align?: "start" | "end";
+}) {
   return (
-    <div className={styles.toolbar} aria-hidden="true">
+    <div className={`${styles.toolbar} ${align === "start" ? styles.toolbarStart : ""}`} aria-hidden="true">
       <div className={styles.navGroup}>
         <Skeleton className={styles.navButton} />
         <span className={styles.monthLabel}>
@@ -42,12 +49,14 @@ function ToolbarSkeleton() {
         <Skeleton className="h-7 w-14 rounded-md" />
       </div>
 
-      <div className={styles.segmented}>
-        <Skeleton className="h-5 w-[3.6rem] rounded-full" />
-        <Skeleton className="h-5 w-[3.4rem] rounded-full" />
-      </div>
+      {showViewToggle ? (
+        <div className={styles.segmented}>
+          <Skeleton className="h-5 w-[3.6rem] rounded-full" />
+          <Skeleton className="h-5 w-[3.4rem] rounded-full" />
+        </div>
+      ) : null}
 
-      <div className={styles.searchWrap}>
+      <div className={styles.searchWrap} style={align === "start" ? { marginLeft: "auto" } : undefined}>
         <Skeleton className={`${styles.search} w-full`} />
       </div>
     </div>
@@ -161,7 +170,6 @@ function RailSkeleton() {
   return (
     <aside className={styles.rail} aria-hidden="true">
       <div className={styles.railHead}>
-        <Skeleton className="h-2.5 w-20" />
         <Skeleton className="h-4 w-36" />
         <Skeleton className="h-3 w-24" />
       </div>
@@ -171,28 +179,34 @@ function RailSkeleton() {
           <li key={i}>
             <div className={styles.railCard}>
               <div className={styles.railCardTop}>
-                <div className={styles.railPerson}>
-                  <Skeleton className="size-[34px] shrink-0 rounded-full" />
-                  <div className={styles.railPersonText}>
-                    <Skeleton className="h-3.5 w-28" />
-                    <div className={styles.railPills}>
-                      <Skeleton className="h-4 w-16 rounded-md" />
-                      <Skeleton className="h-4 w-20 rounded-md" />
-                    </div>
+                <Skeleton className="size-8 shrink-0 rounded-full" />
+                <div className={styles.railIdentity}>
+                  <Skeleton className="h-3.5 w-28 max-w-full" />
+                  <div className={styles.railTags}>
+                    <Skeleton className="h-5 w-20 rounded-md" />
+                    <Skeleton className="h-5 w-16 rounded-md" />
                   </div>
                 </div>
-                <div className={styles.railWhen}>
-                  <Skeleton className="h-4 w-16 rounded-md" />
-                  <Skeleton className="h-4 w-14 rounded-md" />
+                <Skeleton className="h-6 w-16 shrink-0 rounded-md" />
+              </div>
+
+              <div className={styles.railMetrics}>
+                <div className={styles.railMetric}>
+                  <Skeleton className="h-3 w-12" />
+                  <Skeleton className="h-4 w-16" />
+                  <Skeleton className="h-3 w-20" />
+                </div>
+                <div className={styles.railMetric}>
+                  <Skeleton className="h-3 w-12" />
+                  <Skeleton className="h-4 w-16" />
+                  <Skeleton className="h-3 w-20" />
                 </div>
               </div>
 
-              <div className={styles.railPills}>
-                <Skeleton className="h-4 w-24 rounded-md" />
-                <Skeleton className="h-4 w-20 rounded-md" />
+              <div className={styles.railFoot}>
+                <Skeleton className="h-5 w-24 rounded-md" />
+                <Skeleton className="h-3 w-16" />
               </div>
-
-              <Skeleton className="h-6 w-24 rounded-md" />
             </div>
           </li>
         ))}
@@ -205,31 +219,51 @@ export function GuidanceScheduleSkeleton({
   view = "month",
   cursor,
   filterPills = FILTER_PILLS,
+  showTitle = true,
+  showViewToggle = true,
+  showFilters = true,
+  toolbarAlign = "end",
 }: {
   view?: CalendarView;
   cursor: Date;
   /** One pill per track + the status pill (the nurse desk has one fewer). */
   filterPills?: number[];
+  /** Render the board-title placeholder. */
+  showTitle?: boolean;
+  /** Render the Month/Week switcher placeholder. */
+  showViewToggle?: boolean;
+  /** Render the filter pill row placeholder (off when the page has no filters). */
+  showFilters?: boolean;
+  /** Toolbar alignment, mirroring the live toolbar. */
+  toolbarAlign?: "start" | "end";
 }) {
   return (
     <div className={styles.body} aria-busy="true" aria-label="Loading schedule">
-      <div className={styles.mainCol}>
-        <KanbanBoard
-          title={
-            <span className={styles.boardTitle}>
-              <Skeleton className="size-3.5 rounded" />
-              <Skeleton className="h-3 w-24" />
-            </span>
-          }
-          description={<Skeleton className="h-3 w-[26rem] max-w-full" />}
-          headerToolbar={<ToolbarSkeleton />}
-          toolbar={<FiltersSkeleton pills={filterPills} />}
-        >
-          {view === "week" ? <WeekSkeleton /> : <MonthSkeleton cursor={cursor} />}
-        </KanbanBoard>
-      </div>
+      <ShimmerGroup>
+        <div className={styles.mainCol}>
+          <KanbanBoard
+            className={styles.boardSurface}
+            headerDivider={false}
+            title={
+              showTitle ? (
+                <span className={styles.boardTitle}>
+                  <Skeleton className="size-3.5 rounded" />
+                  <Skeleton className="h-3 w-24" />
+                </span>
+              ) : undefined
+            }
+            headerToolbarAlign={toolbarAlign}
+            headerToolbar={
+              <ToolbarSkeleton showViewToggle={showViewToggle} align={toolbarAlign} />
+            }
+            toolbar={showFilters ? <FiltersSkeleton pills={filterPills} /> : undefined}
+          >
+            {view === "week" ? <WeekSkeleton /> : <MonthSkeleton cursor={cursor} />}
+          </KanbanBoard>
+        </div>
 
-      <RailSkeleton />
+        <RailSkeleton />
+      </ShimmerGroup>
     </div>
   );
 }

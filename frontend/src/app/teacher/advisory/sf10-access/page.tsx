@@ -162,10 +162,10 @@ export default function TeacherSf10AccessPage() {
   }
 
   // True empty desk: no granted folders, no rejected requests and no learners
-  // missing an SF10 record. Nothing to lay out — show one centered callout and
-  // keep the Bama shortcut on the top-right gutter (same 24px pill as the
-  // referrals desk). Skipped while a grant lookup is still resolving so the
-  // empty state never flashes over data on its way in.
+  // missing an SF10 record. Nothing to lay out — show one centered callout with
+  // the Bama shortcut stacked beneath it (same 24px pill as the referrals desk).
+  // Skipped while a grant lookup is still resolving so the empty state never
+  // flashes over data on its way in.
   const grantsLoading = unionVerifications.some((q) => q.isPending);
   if (
     grantedRows.length === 0 &&
@@ -175,26 +175,24 @@ export default function TeacherSf10AccessPage() {
   ) {
     return (
       <section className={styles.page} aria-label="SF10 access">
-        <div className="relative flex h-full min-h-[calc(100dvh-9rem)] w-full items-center justify-center">
-          <div className="absolute right-0 top-0 flex items-center gap-2">
-            <Button asChild size="sm" className="h-6 px-2 text-xs">
-              <Link
-                href="/teacher/chat?standalone=1"
-                target="_blank"
-                rel="noopener noreferrer"
-              >
-                <span className="inline-flex shrink-0 items-center" aria-hidden>
-                  <StudentMascot name="Bama" character="crt" size={14} />
-                </span>
-                Chat with Bama
-              </Link>
-            </Button>
-          </div>
+        <div className="flex h-full min-h-[calc(100dvh-9rem)] w-full flex-col items-center justify-center gap-3">
           <InsightCallout role="status" className="w-full max-w-xl self-center text-left">
             <strong>No SF10 records yet.</strong> Approved students appear here as folders
             once the registrar or record keeper grants access — or run an auto-fill from
             Chat with Bama using your adviser-approved finals.
           </InsightCallout>
+          <Button asChild size="sm" className="h-6 px-2 text-xs">
+            <Link
+              href="/teacher/chat?standalone=1"
+              target="_blank"
+              rel="noopener noreferrer"
+            >
+              <span className="inline-flex shrink-0 items-center" aria-hidden>
+                <StudentMascot name="Bama" character="crt" size={14} />
+              </span>
+              Chat with Bama
+            </Link>
+          </Button>
         </div>
       </section>
     );

@@ -3,16 +3,8 @@
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { CalendarClock, ChevronRight, X } from "lucide-react";
-import {
-  Dialog,
-  DialogClose,
-  DialogContent,
-  DialogDescription,
-  DialogTitle,
-} from "@/components/ui/dialog";
+import { CalendarClock, ChevronRight } from "lucide-react";
 import { FolderCard } from "@/components/ui/FolderCard";
-import { KanbanBoard } from "@/components/ui/kanban-board";
 import { NurseAdmReviewDialog } from "../../overview/components/NurseAdmReviewDialog";
 import type {
   NurseQueueRow,
@@ -42,6 +34,7 @@ import {
   SessionPlanCard,
   sessionBoardDialogWidth,
 } from "@/components/session-plan/SessionPlanCard";
+import { SessionBoardOverlay } from "@/components/session-plan/SessionBoardOverlay";
 import assign from "@/app/principal/academics/assign/components/section-assignments.module.css";
 import styles from "./NurseReferralEntry.module.css";
 
@@ -339,59 +332,36 @@ export function NurseReferralEntry({
                     className={styles.sessChevron}
                   />
                 </button>
-                <Dialog open={boardOpen} onOpenChange={onBoardChange}>
-                  <DialogContent
-                    showCloseButton={false}
-                    className={`${styles.modalCard} max-h-[85vh] overflow-y-auto shadow-none ${sessionBoardDialogWidth(row.sessions.length)}`}
+                {boardOpen ? (
+                  <SessionBoardOverlay
+                    title={`Clinic sessions for ${row.student}`}
+                    icon={<CalendarClock className="size-3.5" aria-hidden="true" />}
+                    description={`${row.sessions.length} ${
+                      row.sessions.length === 1 ? "session" : "sessions"
+                    } on this case.`}
+                    widthClass={sessionBoardDialogWidth(row.sessions.length)}
+                    onClose={() => onBoardChange(false)}
                   >
-                    {/* Title/description live on the kanban board below (the
-                        sr-only pair keeps the dialog labelled for screen
-                        readers). */}
-                    <DialogTitle className="sr-only">
-                      Clinic sessions for {row.student}
-                    </DialogTitle>
-                    <DialogDescription className="sr-only">
-                      {row.sessions.length} {row.sessions.length === 1 ? "session" : "sessions"} on this case.
-                    </DialogDescription>
-                    <KanbanBoard
-                      className="relative bg-card"
-                      title={`Clinic sessions for ${row.student}`}
-                      icon={<CalendarClock className="size-3.5" aria-hidden="true" />}
-                      actions={
-                        <DialogClose asChild>
-                          <Button
-                            type="button"
-                            variant="ghost"
-                            size="icon-sm"
-                            className="size-6"
-                            aria-label="Close"
-                          >
-                            <X className="size-4" aria-hidden="true" />
-                          </Button>
-                        </DialogClose>
+                    <SessionPlanCard
+                      title="Clinic sessions"
+                      sessions={row.sessions.map((s) => ({
+                        ...s,
+                        attachmentsCount: s.attachments?.length ?? 0,
+                      }))}
+                      now={now}
+                      closed={isClosed}
+                      closedHint="This case is closed — the sessions below are kept as history and can't be changed."
+                      emptyHint="No clinic sessions booked on this case."
+                      kindLabel={sessionKindLabel}
+                      docsSupported
+                      gateOnStart
+                      manageable={canManageSessions}
+                      onAction={(s, action) =>
+                        action === "docs" ? onDocs(row, s) : onSession(row, s, action)
                       }
-                    >
-                      <SessionPlanCard
-                        title="Clinic sessions"
-                        sessions={row.sessions.map((s) => ({
-                          ...s,
-                          attachmentsCount: s.attachments?.length ?? 0,
-                        }))}
-                        now={now}
-                        closed={isClosed}
-                        closedHint="This case is closed — the sessions below are kept as history and can't be changed."
-                        emptyHint="No clinic sessions booked on this case."
-                        kindLabel={sessionKindLabel}
-                        docsSupported
-                        gateOnStart
-                        manageable={canManageSessions}
-                        onAction={(s, action) =>
-                          action === "docs" ? onDocs(row, s) : onSession(row, s, action)
-                        }
-                      />
-                    </KanbanBoard>
-                  </DialogContent>
-                </Dialog>
+                    />
+                  </SessionBoardOverlay>
+                ) : null}
               </div>
             ) : null}
           </aside>

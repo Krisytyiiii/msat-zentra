@@ -3,6 +3,7 @@ import { z } from "zod";
 import { prisma } from "../../lib/prisma.js";
 import { requireAuth, requireRole } from "../../middleware/auth.js";
 import { validate } from "../../middleware/validate.js";
+import { matchLrn } from "../../lib/lrnMatch.js";
 import {
   paginated,
   paginationQuerySchema,
@@ -10,8 +11,19 @@ import {
 } from "../../lib/pagination.js";
 import { writeAudit } from "../../lib/audit.js";
 import { AppError } from "../../lib/errors.js";
-import { listAudit } from "../../services/audit/audit.service.js";
+import { listAudit, summarizeAudit } from "../../services/audit/audit.service.js";
 import { listActivePresence, listLoginActivity } from "../../services/presence.service.js";
+import {
+  approveAccount,
+  listPending,
+  rejectAccount,
+} from "../../services/auth/approval.service.js";
+import {
+  approveSchema,
+  pendingAccountsQuerySchema,
+  rejectSchema,
+} from "../auth/auth.schemas.js";
+import type { GradeLevel } from "../../generated/prisma/client.js";
 
 const router = Router();
 
@@ -211,7 +223,7 @@ router.patch(
         throw new AppError(
           409,
           "PENDING_ACCOUNT",
-          "Pending sign-ups are approved from the registrar or record keeper desk.",
+          "Pending sign-ups are approved from the pending approvals queue on this page.",
         );
       }
 
@@ -239,18 +251,122 @@ router.patch(
   },
 );
 
+/* ---- Account approvals ---------------------------------------------------
+ * Self-registered students, parents and teachers all land here. The registry
+ * desks no longer review sign-ups: identity approval is a system decision, so
+ * the administrator owns the queue (and the LRN verification behind it).
+ */
+const ALL_GRADES: GradeLevel[] = ["G7", "G8", "G9", "G10", "G11", "G12"];
+
+router.get(
+  "/account-approvals",
+  validate("query", pendingAccountsQuerySchema),
+  async (req, res, next) => {
+    try {
+      const q = req.query as Record<string, unknown>;
+      const roleFilter = typeof q.role === "string" && q.role ? q.role : "student";
+      const search = typeof q.q === "string" ? q.q.trim().toLowerCase() : "";
+      res.json(
+        await listPending({
+          band: ALL_GRADES,
+          roleFilter,
+          q: search,
+          page: q.page !== undefined ? Number(q.page) : 1,
+          pageSize: q.pageSize !== undefined ? Number(q.pageSize) : 15,
+          hasPaging: true,
+        }),
+      );
+    } catch (e) {
+      next(e);
+    }
+  },
+);
+
+router.get("/account-approvals/lrn-match", async (req, res, next) => {
+  try {
+    const lrn = typeof req.query.lrn === "string" ? req.query.lrn.trim() : "";
+    const name = typeof req.query.name === "string" ? req.query.name : "";
+    if (!lrn) throw new AppError(400, "LRN_REQUIRED", "lrn query parameter is required");
+    res.json(await matchLrn(lrn, name));
+  } catch (e) {
+    next(e);
+  }
+});
+
+router.post(
+  "/account-approvals/:userId/approve",
+  validate("params", approveSchema),
+  async (req, res, next) => {
+    try {
+      res.json(
+        await approveAccount(
+          { userId: req.user!.id, role: req.user!.role },
+          String(req.params.userId),
+        ),
+      );
+    } catch (e) {
+      next(e);
+    }
+  },
+);
+
+router.post(
+  "/account-approvals/:userId/reject",
+  validate("params", approveSchema),
+  validate("body", rejectSchema),
+  async (req, res, next) => {
+    try {
+      res.json(
+        await rejectAccount(
+          { userId: req.user!.id, role: req.user!.role },
+          String(req.params.userId),
+          (req.body as { reason: string }).reason,
+        ),
+      );
+    } catch (e) {
+      next(e);
+    }
+  },
+);
+
 const auditQuerySchema = paginationQuerySchema().extend({
   actionType: z.string().trim().max(80).optional(),
   sourceTable: z.string().trim().max(80).optional(),
+  from: z.string().trim().max(30).optional(),
+  to: z.string().trim().max(30).optional(),
   q: z.string().trim().max(200).optional(),
 });
+
+router.get(
+  "/audit/summary",
+  validate("query", auditQuerySchema),
+  async (req, res, next) => {
+    try {
+      const { actionType, sourceTable, from, to, q } = req.query as Record<
+        string,
+        string | undefined
+      >;
+      res.json(
+        await summarizeAudit({
+          actionType: actionType == null ? undefined : String(actionType),
+          sourceTable: sourceTable == null ? undefined : String(sourceTable),
+          from: from == null ? undefined : String(from),
+          to: to == null ? undefined : String(to),
+          q: q == null ? undefined : String(q),
+        }),
+      );
+    } catch (e) {
+      next(e);
+    }
+  },
+);
 
 router.get(
   "/audit",
   validate("query", auditQuerySchema),
   async (req, res, next) => {
     try {
-      const { actionType, sourceTable, q, page, pageSize } = req.query as Record<
+      const { actionType, sourceTable, from, to, q, page, pageSize } = req.query as Record<
         string,
         string | number | undefined
       >;
@@ -258,6 +374,8 @@ router.get(
         await listAudit({
           actionType: actionType == null ? undefined : String(actionType),
           sourceTable: sourceTable == null ? undefined : String(sourceTable),
+          from: from == null ? undefined : String(from),
+          to: to == null ? undefined : String(to),
           q: q == null ? undefined : String(q),
           page: String(page ?? "1"),
           pageSize: String(pageSize ?? "15"),

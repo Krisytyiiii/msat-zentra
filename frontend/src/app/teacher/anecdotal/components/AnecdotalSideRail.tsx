@@ -16,6 +16,8 @@ import {
 import menuStyles from "@/app/teacher/classes/components/timetable-menu.module.css";
 
 export const CATEGORY_COLORS: Record<string, string> = {
+  // Display label used by the Bama chat cards ("Anecdotal" = behavioral).
+  anecdotal: "#f59e0b",
   behavioral: "#f59e0b",
   bullying: "#ef4444",
   academic: "#3b82f6",

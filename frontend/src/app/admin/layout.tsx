@@ -6,8 +6,7 @@ import { useQueryClient } from "@tanstack/react-query";
 import { ShieldCheck } from "lucide-react";
 import { logout } from "@/lib/api/client";
 import { AdminSidebar } from "@/components/admin-sidebar";
-import { KanbanAccountMenu } from "@/components/account/kanban-account-menu";
-import { useCollapsibleSidebar } from "@/components/nav/use-collapsible-sidebar";
+import { GlassUserMenu } from "@/components/account/glass-user-menu";
 import { AppBreadcrumbs } from "@/components/nav/AppBreadcrumbs";
 import { useRoleGuard } from "@/lib/auth/useRoleGuard";
 import { ActiveTermBadge } from "@/components/term/ActiveTermBadge";
@@ -19,9 +18,6 @@ function AdminShell({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
   const queryClient = useQueryClient();
   const { allowed } = useRoleGuard(["admin"]);
-  const { collapsed: sidebarCollapsed } = useCollapsibleSidebar(
-    "zentra.admin.sidebar.collapsed",
-  );
   // The timetable template workspace brings its own left nav (Back to schedule,
   // Timetable / Subjects / Teachers / Configure / Publish), so the desk rail is
   // hidden there and the workspace spans the full width.
@@ -66,7 +62,7 @@ function AdminShell({ children }: { children: React.ReactNode }) {
 
         <AdminBell />
 
-        <KanbanAccountMenu
+        <GlassUserMenu
           settingsHref="/admin/settings"
           onLogout={handleLogout}
         >
@@ -77,15 +73,13 @@ function AdminShell({ children }: { children: React.ReactNode }) {
           >
             <ShieldCheck className={styles.avatarIcon} aria-hidden="true" />
           </button>
-        </KanbanAccountMenu>
+        </GlassUserMenu>
       </header>
 
-      {workspace ? null : <AdminSidebar collapsed={sidebarCollapsed} />}
+      {workspace ? null : <AdminSidebar />}
 
       <div
-        className={`${styles.shell} ${workspace ? styles.shellFull : styles.shellWithRail} ${
-          !workspace && sidebarCollapsed ? styles.shellWithRailCollapsed : ""
-        }`}
+        className={`${styles.shell} ${workspace ? styles.shellFull : styles.shellWithDock}`}
       >
         <main className={styles.main}>{children}</main>
       </div>

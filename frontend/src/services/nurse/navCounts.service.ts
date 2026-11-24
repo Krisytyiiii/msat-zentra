@@ -36,7 +36,7 @@ const ROUTE_KEYS: Record<string, keyof NurseNavQueues> = {
   "/nurse/referrals/adm": "adm",
   "/nurse/referrals/clinic": "clinic",
   "/nurse/health-records": "records",
-  "/nurse/adm": "report",
+  "/nurse/reports": "report",
 };
 
 /**

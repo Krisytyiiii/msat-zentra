@@ -8,8 +8,7 @@ import { NurseSidebar } from "@/components/nurse-sidebar";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { StudentMascot } from "@/components/student-mascot/StudentMascot";
 import { UserRound } from "lucide-react";
-import { KanbanAccountMenu } from "@/components/account/kanban-account-menu";
-import { useCollapsibleSidebar } from "@/components/nav/use-collapsible-sidebar";
+import { GlassUserMenu } from "@/components/account/glass-user-menu";
 import { NURSE_REFERRAL_DRAFT_KEY } from "@/services/nurse/referrals.service";
 import { useNurseRealtime } from "@/lib/realtime/nurseChannel";
 import { useRoleGuard } from "@/lib/auth/useRoleGuard";
@@ -29,8 +28,6 @@ function NurseShell({ children }: { children: React.ReactNode }) {
   const { allowed } = useRoleGuard(["nurse"]);
   useNurseRealtime(allowed);
   const profile = useNurseProfileSettings();
-  const { collapsed: sidebarCollapsed } =
-    useCollapsibleSidebar("zentra.nurse.sidebar.collapsed");
 
   const handleLogout = () => {
 
@@ -73,7 +70,7 @@ function NurseShell({ children }: { children: React.ReactNode }) {
 
         <NurseNotificationsBell />
 
-        <KanbanAccountMenu
+        <GlassUserMenu
           settingsHref="/nurse/settings"
           onLogout={handleLogout}
         >
@@ -101,14 +98,12 @@ function NurseShell({ children }: { children: React.ReactNode }) {
               </Avatar>
             )}
           </button>
-        </KanbanAccountMenu>
+        </GlassUserMenu>
       </header>
       <NursePaletteGate />
-      <NurseSidebar collapsed={sidebarCollapsed} />
+      <NurseSidebar />
       <div
-        className={`${styles.shell} ${styles.shellWithRail} ${
-          sidebarCollapsed ? styles.shellWithRailCollapsed : ""
-        }`}
+        className={`${styles.shell} ${styles.shellWithDock}`}
       >
         <main className={styles.main}>{children}</main>
       </div>

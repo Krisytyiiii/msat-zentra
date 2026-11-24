@@ -24,10 +24,12 @@ import { apiErrorMessage } from "@/lib/api/errors";
 import type { AdmDeviceRow } from "@/services/coordinator/coordinator.types";
 import {
   CoordinatorDevicesBoard,
+  CoordinatorDevicesBoardSkeleton,
   type DeviceFilter,
 } from "./components/coordinator-devices-board";
 import { CoordinatorDevicesIssueDialog } from "./components/coordinator-devices-issue-dialog";
 import { CoordinatorDeviceReturnOverlay } from "./components/coordinator-device-return-overlay";
+import { CoordinatorDeviceDetailOverlay } from "./components/coordinator-device-detail-overlay";
 import { InsightCallout } from "@/components/ui/insight-callout";
 import pageStyles from "../pages.module.css";
 import { PAGE_SIZE, Pagination } from "@/components/shared/pagination";
@@ -67,6 +69,7 @@ function CoordinatorDevicesPageInner() {
     () => searchParams.get("issue") === "1",
   );
   const [returnTarget, setReturnTarget] = React.useState<AdmDeviceRow | null>(null);
+  const [detailTarget, setDetailTarget] = React.useState<AdmDeviceRow | null>(null);
 
   const [returningId, setReturningId] = React.useState<string | null>(null);
   const issueParamCleared = React.useRef(false);
@@ -183,12 +186,6 @@ function CoordinatorDevicesPageInner() {
 
   const hasActiveFilters = filter !== "all" || debounced !== "";
 
-  const clearFilters = () => {
-    setFilter("all");
-    setQuery("");
-    setPage(1);
-  };
-
   const confirmReturn = () => {
     if (!returnTarget || returnMutation.isPending) return;
     dockTaskRef.current = startTask({
@@ -254,13 +251,13 @@ function CoordinatorDevicesPageInner() {
               setFilter(v);
               setPage(1);
             }}
-            onClear={clearFilters}
             returningId={returningId}
             issuedCount={devicesQuery.data?.issued}
             returnedCount={devicesQuery.data?.returned}
             onRetry={() => devicesQuery.refetch()}
             onRecordReturn={setReturnTarget}
             onIssueDevice={() => setIssueOpen(true)}
+            onOpenDetail={setDetailTarget}
           />
 
           {deviceTotal > 0 ? (
@@ -281,6 +278,15 @@ function CoordinatorDevicesPageInner() {
         onIssued={invalidate}
       />
 
+      <CoordinatorDeviceDetailOverlay
+        row={detailTarget}
+        onClose={() => setDetailTarget(null)}
+        onRecordReturn={(row) => {
+          setDetailTarget(null);
+          setReturnTarget(row);
+        }}
+      />
+
       <CoordinatorDeviceReturnOverlay
         row={returnTarget}
         pending={returnMutation.isPending}
@@ -293,7 +299,13 @@ function CoordinatorDevicesPageInner() {
 
 export default function CoordinatorDevicesPage() {
   return (
-    <React.Suspense>
+    <React.Suspense
+      fallback={
+        <section className={pageStyles.page} aria-busy="true">
+          <CoordinatorDevicesBoardSkeleton />
+        </section>
+      }
+    >
       <CoordinatorDevicesPageInner />
     </React.Suspense>
   );

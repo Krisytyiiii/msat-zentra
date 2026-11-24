@@ -50,6 +50,7 @@ export function GuidanceAdmStats({ data }: { data: GuidanceAdmInsightsData }) {
       title="Key findings"
       icon={Activity}
       ariaLabel="Key findings"
+      className={styles.statsDeck}
       items={data.findings.map((f) => {
         const meta = FINDING_META[f.key] ?? FINDING_META.total;
         return {

@@ -3,6 +3,7 @@ import type { GradeLevel } from "../../generated/prisma/client.js";
 import { meetsAcademicExcellenceAward } from "../../services/grading.js";
 import { attendanceTotalFor, computeRiskFactors, levelFromFlags, sectionAttendanceTotals } from "../../services/risk.js";
 import { sectionHeadcounts } from "../../services/enrollment.js";
+import { subjectAverageAttendance } from "../../services/attendance.js";
 import { mascotFor } from "../../services/mascot.js";
 import { gradeToNumber as gradeNumber } from "../../lib/grades.js";
 import {
@@ -135,7 +136,7 @@ export async function getLiveHonorRoll(scope?: {
     s.rosterEntries.filter((r) => !registeredLrns.has(r.lrn)).map((r) => r.id),
   );
 
-  const [gradeRows, attendanceRows, anecdotalRows, headcounts, sectionTotals] = await Promise.all([
+  const [gradeRows, attendanceRows, anecdotalRows, headcounts, sectionTotals, subjectAvgs] = await Promise.all([
     profileIds.length + rosterIds.length > 0
       ? prisma.studentGrade.findMany({
           where: {
@@ -182,6 +183,7 @@ export async function getLiveHonorRoll(scope?: {
     }),
     sectionHeadcounts(sectionIds),
     sectionAttendanceTotals(sectionIds, termId),
+    subjectAverageAttendance(sectionIds, termId),
   ]);
 
   const liveByKey = new Map<
@@ -272,6 +274,10 @@ export async function getLiveHonorRoll(scope?: {
         finalGrades: [],
         rawAverages: subjects.map((s) => s.average),
         attendance: attendanceByKey.get(key) ?? [],
+        attendanceRate: (() => {
+          const subjAvg = subjectAvgs.get(key);
+          return subjAvg && subjAvg.hasSubjectData ? subjAvg.average : null;
+        })(),
         attendanceTotal: attendanceTotalFor(sectionTotals, meta.sectionId, rosterId),
         anecdotalCount: anecdotalByKey.get(key) ?? 0,
         enrolled: headcounts.get(meta.sectionId) ?? 0,

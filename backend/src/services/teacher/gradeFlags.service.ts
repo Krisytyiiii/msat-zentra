@@ -145,6 +145,7 @@ export async function getFlagOptions(ctx: TeacherContext, query: FlagOptionsQuer
         userId: true,
         lrn: true,
         sectionId: true,
+        mascot: true,
         user: { select: { fullName: true } },
       },
       orderBy: { user: { fullName: "asc" } },
@@ -152,7 +153,7 @@ export async function getFlagOptions(ctx: TeacherContext, query: FlagOptionsQuer
 
     prisma.studentRoster.findMany({
       where: { sectionId: { in: sectionIds }, ...excludeArchivedRosters(archivedLearners) },
-      select: { id: true, lrn: true, fullName: true, sectionId: true },
+      select: { id: true, lrn: true, fullName: true, sectionId: true, mascot: true },
       orderBy: { fullName: "asc" },
     }),
     prisma.teacherSubjectAssignment.findMany({
@@ -222,6 +223,7 @@ export async function getFlagOptions(ctx: TeacherContext, query: FlagOptionsQuer
         name: s.user.fullName,
         lrn: s.lrn,
         sectionId: s.sectionId,
+        mascot: s.mascot,
         hasAccount: true as const,
       })),
       ...rosterEntries
@@ -231,6 +233,7 @@ export async function getFlagOptions(ctx: TeacherContext, query: FlagOptionsQuer
           name: r.fullName,
           lrn: r.lrn,
           sectionId: r.sectionId,
+          mascot: r.mascot,
           hasAccount: false as const,
         })),
     ],

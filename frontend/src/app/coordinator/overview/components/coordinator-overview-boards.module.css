@@ -1,5 +1,5 @@
-/* Right rail — two quiet panels (devices out, parent meetings) instead of a
-   three-board grid. Panels stack on every breakpoint by design. */
+/* Right rail — the devices board wears the same glass card anatomy as the
+   "Needs you next" case cards. */
 
 .rail {
   display: flex;
@@ -14,9 +14,30 @@
   gap: 0.5rem;
   min-width: 0;
   padding: 0.875rem 1rem 0.75rem;
-  border: 1px solid var(--border);
+  /* Glass card, same recipe as the teacher student-overview cards. */
+  border: 1px solid color-mix(in oklch, var(--border) 80%, transparent);
   border-radius: var(--radius-xl);
-  background-color: var(--card);
+  background-color: color-mix(in oklch, var(--card) 72%, transparent);
+  background-image: linear-gradient(
+    160deg,
+    rgba(255, 255, 255, 0.45),
+    rgba(255, 255, 255, 0) 55%
+  );
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.5),
+    0 10px 24px -18px rgba(15, 23, 42, 0.28);
+  backdrop-filter: blur(14px) saturate(135%);
+  -webkit-backdrop-filter: blur(14px) saturate(135%);
+}
+
+:global(.dark) .panel {
+  /* Fully transparent in dark mode so the panel reads as glass on the canvas. */
+  background-color: transparent;
+  background-image: none;
+  border-color: color-mix(in oklch, var(--border) 70%, transparent);
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.06),
+    0 12px 28px -20px rgba(0, 0, 0, 0.6);
 }
 
 .panelHead {
@@ -56,54 +77,159 @@
   color: var(--muted-foreground);
 }
 
-.rows {
+/* ---- Device cards -------------------------------------------------------- */
+.cardList {
   display: flex;
   flex-direction: column;
+  gap: 0.5rem;
+  min-width: 0;
   margin: 0;
   padding: 0;
   list-style: none;
+}
+
+.cardItem {
+  display: flex;
   min-width: 0;
 }
 
-.rows > li {
-  border-top: 1px solid color-mix(in oklch, var(--foreground), transparent 93%);
+.glassWrap {
+  display: flex;
+  width: 100%;
+  min-width: 0;
 }
 
-.rows > li:first-child {
-  border-top: none;
-}
-
-.deviceRow {
+.card {
+  position: relative;
+  z-index: 1;
   display: flex;
   flex-direction: column;
-  gap: 0.3125rem;
-  padding: 0.4375rem 0;
+  width: 100%;
+  min-width: 0;
+  overflow: hidden;
+  border-radius: 0.75rem;
+  border: 1px solid color-mix(in oklch, var(--border) 80%, transparent);
+  background-color: color-mix(in oklch, var(--card) 72%, transparent);
+  background-image: linear-gradient(
+    160deg,
+    rgba(255, 255, 255, 0.45),
+    rgba(255, 255, 255, 0) 55%
+  );
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.5),
+    0 10px 24px -18px rgba(15, 23, 42, 0.28);
+  backdrop-filter: blur(14px) saturate(135%);
+  -webkit-backdrop-filter: blur(14px) saturate(135%);
+  transition:
+    border-color 160ms ease-out,
+    box-shadow 160ms ease-out;
 }
 
-.rowTop {
+:global(.dark) .card {
+  /* Fully transparent in dark mode so the card reads as glass on the panel. */
+  background-color: transparent;
+  background-image: none;
+  border-color: color-mix(in oklch, var(--border) 70%, transparent);
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.06),
+    0 12px 28px -20px rgba(0, 0, 0, 0.6);
+}
+
+.card:hover {
+  border-color: color-mix(in oklch, var(--border) 45%, var(--foreground));
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.5),
+    0 16px 30px -20px rgba(15, 23, 42, 0.35);
+}
+
+:global(.dark) .card:hover {
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.06),
+    0 16px 32px -20px rgba(0, 0, 0, 0.7);
+}
+
+.cardHead {
   display: flex;
-  align-items: baseline;
+  align-items: flex-start;
   justify-content: space-between;
   gap: 0.5rem;
   min-width: 0;
+  padding: 0.75rem 0.875rem 0.625rem;
+  border-bottom: 1px solid color-mix(in oklch, var(--border) 70%, transparent);
 }
 
-.rowName {
+.cardHeading {
+  display: flex;
+  flex: 1 1 auto;
+  flex-direction: column;
+  gap: 0.3125rem;
   min-width: 0;
+}
+
+.cardName {
+  max-width: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: 0.875rem;
+  font-weight: 700;
+  line-height: 1.25;
+  letter-spacing: -0.01em;
+}
+
+.cardMetaRow {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.25rem 0.375rem;
+  min-width: 0;
+}
+
+.cardAvatar {
+  display: inline-flex;
+  flex-shrink: 0;
+  overflow: hidden;
+  border: 1px solid var(--border);
+  border-radius: 9999px;
+  background-color: color-mix(in oklch, var(--muted) 40%, transparent);
+}
+
+.cardMetric {
+  display: flex;
+  flex-direction: column;
+  gap: 0.125rem;
+  min-width: 0;
+  padding: 0.625rem 0.875rem;
+}
+
+.cardMetricLabel {
   overflow: hidden;
   font-size: 0.75rem;
-  font-weight: 600;
-  color: var(--foreground);
+  font-weight: 500;
+  color: var(--muted-foreground);
   text-overflow: ellipsis;
   white-space: nowrap;
 }
 
-.rowMeta {
-  flex-shrink: 0;
-  font-size: 0.75rem;
-  color: var(--muted-foreground);
+.cardMetricValue {
+  font-size: 1.5rem;
+  font-weight: 700;
+  line-height: 1.05;
+  letter-spacing: -0.02em;
   font-variant-numeric: tabular-nums;
+}
+
+.cardMetricHint {
+  overflow: hidden;
+  font-size: 0.75rem;
+  line-height: 1.3;
+  color: var(--muted-foreground);
+  text-overflow: ellipsis;
   white-space: nowrap;
+}
+
+.meterWrap {
+  padding: 0 0.875rem 0.625rem;
 }
 
 .meter {
@@ -126,52 +252,54 @@
   transition: width 400ms cubic-bezier(0.22, 1, 0.36, 1);
 }
 
-.meetRow {
+.cardFacts {
   display: flex;
-  flex-direction: column;
-  gap: 0.125rem;
-  width: 100%;
+  flex-wrap: wrap;
+  gap: 0.25rem 1rem;
   margin: 0;
-  padding: 0.5rem 0.375rem;
-  border: none;
-  border-radius: var(--radius-md);
-  background: transparent;
-  color: inherit;
-  font: inherit;
-  text-align: left;
-  cursor: pointer;
-  transition: background-color 140ms ease-out;
+  margin-top: auto;
+  padding: 0.5rem 0.875rem 0.625rem;
+  border-top: 1px solid color-mix(in oklch, var(--border) 70%, transparent);
 }
 
-.meetRow:hover {
-  background-color: color-mix(in oklch, var(--foreground), transparent 95%);
+.cardFact {
+  display: flex;
+  align-items: baseline;
+  gap: 0.3125rem;
+  min-width: 0;
+  max-width: 100%;
 }
 
-.meetRow:focus-visible {
-  outline: 2px solid var(--ring);
-  outline-offset: 1px;
-}
-
-.meetWhen {
+.cardFactLabel {
+  flex-shrink: 0;
   font-size: 0.75rem;
   color: var(--muted-foreground);
-  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
 }
 
-.attended {
-  flex-shrink: 0;
-  padding: 0.0625rem 0.375rem;
-  border-radius: 9999px;
-  background-color: color-mix(in oklch, oklch(0.72 0.17 150), transparent 84%);
-  color: oklch(0.55 0.13 152);
+.cardFactValue {
+  min-width: 0;
+  overflow: hidden;
   font-size: 0.75rem;
   font-weight: 600;
-  line-height: 1.4;
+  color: var(--foreground);
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
-:global(.dark) .attended {
-  background-color: color-mix(in oklch, oklch(0.79 0.16 152), transparent 82%);
-  color: oklch(0.84 0.15 152);
+.cardActions {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.5rem;
+  padding: 0.4375rem 0.875rem 0.5625rem;
+  border-top: 1px solid color-mix(in oklch, var(--border) 70%, transparent);
+}
+
+.cardLrnPill {
+  display: inline-flex;
+  min-width: 0;
+  overflow: hidden;
 }
 
 .empty {
@@ -199,30 +327,63 @@
   color: var(--muted-foreground);
 }
 
-.skelRow {
-  height: 2rem;
-  margin: 0.25rem 0;
-  border-radius: var(--radius-md);
-  background-color: color-mix(in oklch, var(--muted) 70%, transparent);
-  animation: coord-skel-pulse 1.6s ease-in-out infinite;
+/* Loading skeleton mirrors the card anatomy. */
+.skelCard {
+  display: flex;
+  flex-direction: column;
+  min-height: 9rem;
+  overflow: hidden;
+  border: 1px solid color-mix(in oklch, var(--border) 80%, transparent);
+  border-radius: 0.75rem;
+  background-color: color-mix(in oklch, var(--card) 72%, transparent);
 }
 
-@keyframes coord-skel-pulse {
-  0%,
-  100% {
-    opacity: 0.6;
-  }
-  50% {
-    opacity: 1;
-  }
+:global(.dark) .skelCard {
+  background-color: transparent;
+}
+
+.skelCardHead {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 0.5rem;
+  padding: 0.75rem 0.875rem 0.625rem;
+  border-bottom: 1px solid color-mix(in oklch, var(--border) 70%, transparent);
+}
+
+.skelLine {
+  height: 0.875rem;
+  width: 60%;
+}
+
+.skelAvatar {
+  width: 1.625rem;
+  height: 1.625rem;
+  flex-shrink: 0;
+  border-radius: 9999px;
+}
+
+.skelMetric {
+  height: 3rem;
+  margin: 0.625rem 0.875rem;
+  border-radius: var(--radius-md);
+}
+
+.skelMeter {
+  height: 0.1875rem;
+  margin: 0 0.875rem 0.625rem;
+  border-radius: 9999px;
+}
+
+.skelFact {
+  height: 0.75rem;
+  width: 55%;
+  margin: 0.5rem 0.875rem 0.75rem;
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .meterFill {
+  .meterFill,
+  .card {
     transition: none;
-  }
-
-  .skelRow {
-    animation: none;
   }
 }

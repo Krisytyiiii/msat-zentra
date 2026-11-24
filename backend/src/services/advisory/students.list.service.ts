@@ -1,8 +1,10 @@
 import { prisma } from "../../lib/prisma.js";
+import { AppError } from "../../lib/errors.js";
+import { isArchivedAdvisoryLearner } from "../../lib/learnerVisibility.js";
 import { attendanceTotalFor, computeRiskFactors, levelFromFlags, sectionAttendanceTotals } from "../risk.js";
-import { ATTENDANCE_RISK_CUTOFF, subjectAverageAttendance, termHasStarted } from "../attendance.js";
+import { learnerSubjectAverageAttendance, subjectAverageAttendance, termHasStarted } from "../attendance.js";
 import { sectionHeadcounts } from "../enrollment.js";
-import { admExemptStudentIds } from "../adm/attendancePolicy.js";
+import { admExemptStudentIds, isAdmExempt } from "../adm/attendancePolicy.js";
 import { adviserSectionsOr404 } from "../../modules/teacher/advisory.repository.js";
 import type { AdvisoryContext } from "./advisory.types.js";
 
@@ -226,18 +228,13 @@ export async function getStudents(ctx: AdvisoryContext) {
     return active;
   };
 
-  const withSubjectAverage = <T extends { attendanceFlag: boolean }>(
-    key: string,
-    flags: T,
-  ): T => {
+  // The engine rates attendance on the term subject-average (per-subject
+  // present %, averaged) — the same figure the attendance column renders. A
+  // learner without subject marks yet keeps the section-meetup fallback
+  // instead of having an empty record set read as 0%.
+  const attendanceRateFor = (key: string): number | null => {
     const subjAvg = subjectAvgs.get(key);
-    // Only override when the learner actually has subject attendance marks —
-    // a roster transferee enlisted a day ago has no signal yet, and their
-    // empty record set must not be read as 0%.
-    if (subjAvg && subjAvg.hasSubjectData) {
-      flags.attendanceFlag = subjAvg.average < ATTENDANCE_RISK_CUTOFF;
-    }
-    return flags;
+    return subjAvg && subjAvg.hasSubjectData ? subjAvg.average : null;
   };
 
   // A term that has not started yet is outside its scope period: staged or
@@ -255,18 +252,16 @@ export async function getStudents(ctx: AdvisoryContext) {
   const students = [
     ...visibleAdvisees.map((s) => {
       const enrolled = enrolledBySection.get(s.sectionId!) ?? 0;
-      const factors = withSubjectAverage(
-        s.userId,
-        computeRiskFactors({
-          finalGrades: s.finalGrades,
-          rawAverages: rawAveragesFor(s.userId),
-          attendance: s.attendanceRecords,
-          attendanceTotal: sectionTotals.get(s.sectionId ?? ""),
-          anecdotalCount: s.anecdotalRecords.length,
-          enrolled,
-          attendanceExempt: admExempt.has(s.userId),
-        }),
-      );
+      const factors = computeRiskFactors({
+        finalGrades: s.finalGrades,
+        rawAverages: rawAveragesFor(s.userId),
+        attendance: s.attendanceRecords,
+        attendanceRate: attendanceRateFor(s.userId),
+        attendanceTotal: sectionTotals.get(s.sectionId ?? ""),
+        anecdotalCount: s.anecdotalRecords.length,
+        enrolled,
+        attendanceExempt: admExempt.has(s.userId),
+      });
       const activeFlags = toActiveFlags(factors);
       const present = s.attendanceRecords.filter((r) => r.status === "present").length;
       const total = Math.max(sectionTotals.get(s.sectionId ?? "") ?? 0, s.attendanceRecords.length);
@@ -311,17 +306,15 @@ export async function getStudents(ctx: AdvisoryContext) {
       const anec = anecdotalByRoster.get(r.id) ?? [];
       const enrolled = enrolledBySection.get(r.sectionId) ?? 0;
       const attTotal = attendanceTotalFor(sectionTotals, r.sectionId, r.id);
-      const factors = withSubjectAverage(
-        key,
-        computeRiskFactors({
-          finalGrades: finals,
-          rawAverages: rawAveragesFor(key),
-          attendance: att,
-          attendanceTotal: attTotal,
-          anecdotalCount: anec.length,
-          enrolled,
-        }),
-      );
+      const factors = computeRiskFactors({
+        finalGrades: finals,
+        rawAverages: rawAveragesFor(key),
+        attendance: att,
+        attendanceRate: attendanceRateFor(key),
+        attendanceTotal: attTotal,
+        anecdotalCount: anec.length,
+        enrolled,
+      });
       const activeFlags = toActiveFlags(factors);
       const present = att.filter((a) => a.status === "present").length;
       const ratedTotal = Math.max(attTotal ?? 0, att.length);
@@ -367,5 +360,258 @@ export async function getStudents(ctx: AdvisoryContext) {
     subjects: [...new Map(
       [...assignSubjects, ...entrySubjects].map((s) => [s.subject.name, s.subject]),
     ).values()].sort((a, b) => a.name.localeCompare(b.name)),
+  };
+}
+
+/**
+ * Identity-only advisory roster for boards that render just the learner's name
+ * and LRN (the advisory list). It skips every per-learner metric query — final
+ * grades, attendance, anecdote, raw scores, section meetups — that `getStudents`
+ * needs for its risk/grade columns. The one learner the adviser inspects gets
+ * those figures from `getAdvisoryStudentRisk` instead, so the list paints as
+ * soon as the identity rows land.
+ */
+export async function getAdvisoryIdentityList(ctx: AdvisoryContext) {
+  const termId = ctx.termId;
+  const sections = await adviserSectionsOr404(ctx.userId, ctx.schoolYearId);
+  if (!termId) {
+    return { advisorySections: sections, termId: null, students: [], subjects: [] };
+  }
+
+  const sectionIds = sections.map((s) => s.id);
+  const [advisees, rosterEntries, archived] = await Promise.all([
+    prisma.studentProfile.findMany({
+      where: { sectionId: { in: sectionIds } },
+      select: {
+        userId: true,
+        lrn: true,
+        mascot: true,
+        birthdate: true,
+        gender: true,
+        sectionId: true,
+        user: { select: { fullName: true } },
+        section: { select: { name: true } },
+      },
+      orderBy: { user: { fullName: "asc" } },
+    }),
+    prisma.studentRoster.findMany({
+      where: { sectionId: { in: sectionIds } },
+      select: {
+        id: true,
+        lrn: true,
+        fullName: true,
+        mascot: true,
+        sectionId: true,
+        learnerType: true,
+        section: { select: { name: true } },
+      },
+      orderBy: { fullName: "asc" },
+    }),
+    // Adviser-scoped soft delete: hidden learners stay off the board.
+    prisma.adviserArchivedStudent.findMany({
+      where: { teacherId: ctx.userId },
+      select: { studentId: true, rosterId: true },
+    }),
+  ]);
+
+  const archivedStudentIds = new Set(
+    archived.map((a) => a.studentId).filter((id): id is string => !!id),
+  );
+  const archivedRosterIds = new Set(
+    archived.map((a) => a.rosterId).filter((id): id is string => !!id),
+  );
+  const visibleAdvisees = advisees.filter((s) => !archivedStudentIds.has(s.userId));
+  const visibleRosterEntries = rosterEntries.filter((r) => !archivedRosterIds.has(r.id));
+  const registeredLrns = new Set(visibleAdvisees.map((s) => s.lrn));
+  const rosterOnly = visibleRosterEntries.filter((r) => !registeredLrns.has(r.lrn));
+
+  // The risk/grade fields are intentionally blank: the insight panel loads the
+  // selected learner's live figures from its own endpoint.
+  const students = [
+    ...visibleAdvisees.map((s) => ({
+      studentId: s.userId,
+      name: s.user.fullName,
+      lrn: s.lrn,
+      mascot: s.mascot ?? null,
+      birthdate: s.birthdate,
+      gender: s.gender,
+      section: s.section?.name ?? "",
+      riskLevel: "Low" as const,
+      flags: [] as ("academic" | "attendance" | "behavioral")[],
+      attendanceRate: 0,
+      anecdotalCount: 0,
+      confidentialityTiers: [] as string[],
+      hasOpenFlag: false,
+      openFlagCount: 0,
+      hasAccount: true,
+      learnerType: "regular" as const,
+      admExempt: false,
+      grades: [] as { subject: string; code: string; computedAverage: number | null; transmutedGrade: number | null }[],
+      liveGrades: [] as { subject: string; code: string; average: number }[],
+    })),
+    ...rosterOnly.map((r) => ({
+      studentId: `roster:${r.id}`,
+      name: r.fullName,
+      lrn: r.lrn,
+      mascot: r.mascot ?? null,
+      birthdate: null,
+      gender: null,
+      section: r.section.name,
+      riskLevel: "Low" as const,
+      flags: [] as ("academic" | "attendance" | "behavioral")[],
+      attendanceRate: 0,
+      anecdotalCount: 0,
+      confidentialityTiers: [] as string[],
+      hasOpenFlag: false,
+      openFlagCount: 0,
+      hasAccount: false,
+      learnerType: r.learnerType,
+      admExempt: false,
+      grades: [] as { subject: string; code: string; computedAverage: number | null; transmutedGrade: number | null }[],
+      liveGrades: [] as { subject: string; code: string; average: number }[],
+    })),
+  ];
+
+  return { advisorySections: sections, termId, students, subjects: [] };
+}
+
+/**
+ * The live risk figures for one advisory learner (risk level, active factors
+ * and the attendance rate the insight panel shows). Mirrors the computation in
+ * `getStudents` exactly, but scoped to a single learner — so the advisory list
+ * never has to recompute the whole section to badge the one row being opened.
+ */
+export async function getAdvisoryStudentRisk(ctx: AdvisoryContext, rawId: string) {
+  const termId = ctx.termId;
+  if (!termId) throw new AppError(404, "NO_ACTIVE_TERM", "No active term");
+
+  const isRoster = rawId.startsWith("roster:");
+  let sectionId: string;
+  let key: string;
+  let attendanceWhere: { studentId?: string; rosterId?: string };
+  let rosters: { id: string; sectionId: string; learnerType: string; createdAt: Date } | null = null;
+
+  if (isRoster) {
+    const rosterId = rawId.slice("roster:".length);
+    const entry = await prisma.studentRoster.findUnique({
+      where: { id: rosterId },
+      select: {
+        id: true,
+        sectionId: true,
+        learnerType: true,
+        createdAt: true,
+        section: { select: { adviserId: true } },
+      },
+    });
+    if (
+      !entry ||
+      entry.section.adviserId !== ctx.userId ||
+      (await isArchivedAdvisoryLearner({ rosterId: entry.id }))
+    ) {
+      throw new AppError(404, "STUDENT_NOT_FOUND", "Student not found");
+    }
+    rosters = entry;
+    sectionId = entry.sectionId;
+    key = `roster:${entry.id}`;
+    attendanceWhere = { rosterId: entry.id };
+  } else {
+    const profile = await prisma.studentProfile.findUnique({
+      where: { userId: rawId },
+      select: { userId: true, sectionId: true, section: { select: { adviserId: true } } },
+    });
+    if (
+      !profile ||
+      profile.section?.adviserId !== ctx.userId ||
+      !profile.sectionId ||
+      (await isArchivedAdvisoryLearner({ studentId: rawId }))
+    ) {
+      throw new AppError(404, "STUDENT_NOT_FOUND", "Student not found");
+    }
+    sectionId = profile.sectionId;
+    key = profile.userId;
+    attendanceWhere = { studentId: profile.userId };
+  }
+
+  const [term, finals, attendance, anecdotalCount, subjectRate, attendanceExempt, rawRows] =
+    await Promise.all([
+      prisma.term.findUnique({ where: { id: termId }, select: { startDate: true } }),
+      isRoster
+        ? prisma.finalGrade.findMany({
+            where: { rosterId: rosters!.id, termId },
+            select: { computedAverage: true, transmutedGrade: true },
+          })
+        : prisma.finalGrade.findMany({
+            where: { studentId: key, termId },
+            select: { computedAverage: true, transmutedGrade: true },
+          }),
+      prisma.attendanceRecord.findMany({
+        where: { ...attendanceWhere, termId },
+        select: { status: true },
+      }),
+      prisma.anecdotalRecord.count({
+        where: { ...attendanceWhere, termId, deletedAt: null },
+      }),
+      learnerSubjectAverageAttendance(
+        isRoster ? { rosterId: rosters!.id } : { studentId: key },
+        sectionId,
+        termId,
+      ),
+      isRoster ? Promise.resolve(false) : isAdmExempt(key, termId),
+      prisma.studentGrade.findMany({
+        where: {
+          ...attendanceWhere,
+          assessment: { gradeComponent: { termId } },
+        },
+        select: {
+          percentageScore: true,
+          assessment: { select: { gradeComponent: { select: { subjectId: true } } } },
+        },
+      }),
+    ]);
+
+  // Per-subject raw averages — the same input `getStudents` feeds the engine.
+  const perSubject = new Map<string, { sum: number; count: number }>();
+  for (const row of rawRows) {
+    const subjectId = row.assessment.gradeComponent.subjectId;
+    const cell = perSubject.get(subjectId) ?? { sum: 0, count: 0 };
+    cell.sum += row.percentageScore;
+    cell.count += 1;
+    perSubject.set(subjectId, cell);
+  }
+  const rawAverages = [...perSubject.values()].map((cell) => cell.sum / cell.count);
+
+  const [sectionTotals, headcounts] = await Promise.all([
+    sectionAttendanceTotals([sectionId], termId),
+    sectionHeadcounts([sectionId]),
+  ]);
+  const enrolled = headcounts.get(sectionId) ?? 0;
+
+  const present = attendance.filter((r) => r.status === "present").length;
+  const attendanceTotal = isRoster
+    ? attendanceTotalFor(sectionTotals, sectionId, rosters!.id)
+    : sectionTotals.get(sectionId);
+  const ratedTotal = Math.max(attendanceTotal ?? 0, attendance.length);
+
+  const started = termHasStarted(term?.startDate);
+  const factors = computeRiskFactors({
+    finalGrades: finals,
+    rawAverages,
+    attendance,
+    attendanceRate: subjectRate && subjectRate.hasSubjectData ? subjectRate.average : null,
+    attendanceTotal,
+    anecdotalCount,
+    enrolled,
+    attendanceExempt,
+  });
+
+  const flags: ("academic" | "attendance" | "behavioral")[] = [];
+  if (factors.academicFlag) flags.push("academic");
+  if (factors.attendanceFlag) flags.push("attendance");
+  if (factors.behavioralFlag) flags.push("behavioral");
+
+  return {
+    riskLevel: started ? levelFromFlags(factors) : "Low",
+    flags: started ? flags : [],
+    attendanceRate: started ? (ratedTotal === 0 ? 1 : present / ratedTotal) : 0,
   };
 }

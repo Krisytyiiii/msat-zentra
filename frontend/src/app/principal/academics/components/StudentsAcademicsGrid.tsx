@@ -2,12 +2,12 @@
 
 import * as React from "react";
 import { useQuery } from "@tanstack/react-query";
-import { ArrowLeft, SearchIcon, X } from "lucide-react";
+import { ArrowLeft } from "lucide-react";
 import { useBreadcrumbExtra } from "@/components/nav/BreadcrumbExtra";
 import { apiClient } from "@/lib/api/client";
 import { useTerm } from "@/lib/term/TermContext";
 import { Button } from "@/components/ui/button";
-import { InputGroup, InputGroupAddon, InputGroupInput } from "@/components/ui/input-group";
+import { SearchField } from "@/components/ui/search-field";
 import { cn } from "@/lib/utils";
 import { AcademicsSummary } from "./AcademicsSummary";
 import { SectionCardGrid } from "./SectionCardGrid";
@@ -183,17 +183,13 @@ export function StudentsAcademicsGrid() {
             </div>
             {/* No roster to filter — hide the search bar with the empty state. */}
             {(selectedSection.students?.length ?? 0) > 0 && (
-              <InputGroup className={cn(styles.detailSearch, "rounded-[16px]")}>
-                <InputGroupAddon>
-                  <SearchIcon />
-                </InputGroupAddon>
-                <InputGroupInput
-                  placeholder="Find a learner by name or LRN…"
-                  value={query}
-                  onChange={(event) => setQuery(event.target.value)}
-                  aria-label="Filter students"
-                />
-              </InputGroup>
+              <SearchField
+                className="w-60"
+                placeholder="Find a learner by name or LRN…"
+                value={query}
+                onChange={(next) => setQuery(next)}
+                aria-label="Filter students"
+              />
             )}
           </div>
           <SectionStudentsTable section={selectedSection} query={query} />
@@ -209,27 +205,13 @@ export function StudentsAcademicsGrid() {
                 : `Showing ${visibleSections.length} of ${sections.length} sections`}
             </span>
 
-            <InputGroup className={cn(styles.toolbarSearch, "rounded-[16px]")}>
-              <InputGroupAddon>
-                <SearchIcon />
-              </InputGroupAddon>
-              <InputGroupInput
-                placeholder="Find a section…"
-                value={query}
-                onChange={(event) => setQuery(event.target.value)}
-                aria-label="Search sections"
-              />
-              {query ? (
-                <button
-                  type="button"
-                  className={styles.clearSearch}
-                  onClick={() => setQuery("")}
-                  aria-label="Clear section search"
-                >
-                  <X aria-hidden />
-                </button>
-              ) : null}
-            </InputGroup>
+            <SearchField
+              className="w-60"
+              placeholder="Find a section…"
+              value={query}
+              onChange={(next) => setQuery(next)}
+              aria-label="Search sections"
+            />
           </div>
 
           <SectionCardGrid

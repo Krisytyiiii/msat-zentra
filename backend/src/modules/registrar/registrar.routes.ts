@@ -63,7 +63,7 @@ router.get(
     try {
       const schoolYearId = req.termScope?.schoolYearId ?? null;
       res.json(
-        await getOverview(ctxOf(req), { attachTake: 15, missingTake: 15, pendingTake: 15, bareTake: 15 }, schoolYearId),
+        await getOverview(ctxOf(req), { attachTake: 15, missingTake: 15 }, schoolYearId),
       );
     } catch (e) {
       next(e);

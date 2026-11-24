@@ -13,12 +13,12 @@ import {
   type ColumnFiltersState,
   type SortingState,
 } from "@tanstack/react-table";
-import { CalendarClock, Loader2, SearchIcon, Users } from "lucide-react";
+import { CalendarClock, Loader2, Users } from "lucide-react";
 import { apiClient } from "@/lib/api/client";
 import { useTerm } from "@/lib/term/TermContext";
 import { Button } from "@/components/ui/button";
 import { InsightCallout } from "@/components/ui/insight-callout";
-import { InputGroup, InputGroupInput, InputGroupAddon } from "@/components/ui/input-group";
+import { TeacherSearchField, searchEmptyMessage } from "@/app/teacher/components/TeacherSearchField";
 import { Pill } from "@/components/ui/pill";
 import {
   Select,
@@ -44,7 +44,6 @@ import listStyles from "../list/components/advisory-list.module.css";
 import {
   AdvisoryAttendanceBoard,
   attendanceOverall,
-  attendanceRateClass,
   type AttendanceMatrixStudent,
   type AttendanceMatrixSubject,
 } from "./components/AdvisoryAttendanceBoard";
@@ -62,6 +61,14 @@ interface SectionSubjectMatrix {
 interface AttendanceRow {
   student: AttendanceMatrixStudent;
   avg: number | null;
+}
+
+/** Present-rate pill tone — same thresholds as the attendance board. */
+function presentTone(rate: number | null): "neutral" | "green" | "amber" | "red" {
+  if (rate === null) return "neutral";
+  if (rate >= 0.9) return "green";
+  if (rate >= 0.75) return "amber";
+  return "red";
 }
 
 export default function AdvisoryAttendancePage() {
@@ -142,59 +149,55 @@ export default function AdvisoryAttendancePage() {
         id: "name",
         accessorFn: (row) => `${formatSurnameFirst(row.student.name)} ${row.student.lrn}`,
         header: "Student",
-        size: 170,
-        minSize: 150,
-        maxSize: 200,
-        cell: ({ row }) => (
-          <div className="flex min-w-0 items-center gap-2">
-            <StudentMascot
-              name={row.original.student.name}
-              seed={row.original.student.lrn}
-              character={row.original.student.mascot ?? undefined}
-              size={32}
-            />
-            <div className="min-w-0 flex-1">
-              <span
-                className="block truncate text-[13px] font-semibold text-primary"
-                title={row.original.student.name}
-              >
-                {formatSurnameFirst(row.original.student.name)}
-              </span>
-              <span className="mt-1 flex max-w-full flex-col items-start gap-1">
-                <Pill
-                  tone="neutral"
-                  label="LRN"
-                  className="max-w-full truncate"
-                  title={row.original.student.lrn}
+        size: 250,
+        minSize: 230,
+        maxSize: 300,
+        cell: ({ row }) => {
+          const pct =
+            row.original.avg === null ? null : Math.round(row.original.avg * 100);
+          return (
+            <div className="flex min-w-0 items-center gap-2">
+              <StudentMascot
+                name={row.original.student.name}
+                seed={row.original.student.lrn}
+                character={row.original.student.mascot ?? undefined}
+                size={32}
+              />
+              <div className="min-w-0 flex-1">
+                <span
+                  className="block truncate text-[13px] font-semibold text-primary"
+                  title={row.original.student.name}
                 >
-                  {row.original.student.lrn}
-                </Pill>
-                {row.original.student.learnerType === "transferee" ? (
-                  <Pill tone="amber" label="Learner type">
-                    Transferee
+                  {formatSurnameFirst(row.original.student.name)}
+                </span>
+                <span className="mt-1 flex max-w-full items-center justify-between gap-1.5">
+                  <span className="flex min-w-0 flex-wrap items-center gap-1.5">
+                    <Pill
+                      className="h-6 max-w-full truncate leading-none"
+                      tone="neutral"
+                      label="LRN"
+                      title={row.original.student.lrn}
+                    >
+                      {row.original.student.lrn}
+                    </Pill>
+                    {row.original.student.learnerType === "transferee" ? (
+                      <Pill className="h-6 leading-none" tone="amber" label="Learner type">
+                        Transferee
+                      </Pill>
+                    ) : null}
+                  </span>
+                  <Pill
+                    className="h-6 shrink-0 leading-none tabular-nums"
+                    tone={presentTone(row.original.avg)}
+                    label="Present rate"
+                  >
+                    {pct === null ? "—" : `${pct}%`}
                   </Pill>
-                ) : null}
-              </span>
+                </span>
+              </div>
             </div>
-          </div>
-        ),
-      },
-      {
-        id: "rate",
-        accessorFn: (row) => row.avg,
-        header: "Present",
-        size: 100,
-        minSize: 90,
-        maxSize: 120,
-        cell: ({ row }) => (
-          <span
-            className={`text-[13px] font-semibold tabular-nums ${attendanceRateClass(row.original.avg)}`}
-          >
-            {row.original.avg === null
-              ? "—"
-              : `${Math.round(row.original.avg * 100)}%`}
-          </span>
-        ),
+          );
+        },
       },
     ],
     [],
@@ -300,9 +303,6 @@ export default function AdvisoryAttendancePage() {
             </span>
             <div className="min-w-0 flex-1">
               <h2 className={listStyles.boardTitle}>Advisory attendance</h2>
-              <p className={listStyles.boardSub}>
-                {`Click a row to inspect — ${rows.length} student${rows.length === 1 ? "" : "s"}${sectionLabel ? ` · ${sectionLabel}` : ""}.`}
-              </p>
             </div>
           </header>
 
@@ -314,19 +314,13 @@ export default function AdvisoryAttendancePage() {
                   <h3 className={listStyles.laneTitle}>Advisory list</h3>
                 </header>
                 <div className={listStyles.toolbar}>
-                  <InputGroup className="w-32 min-w-0 flex-1 rounded-[16px]">
-                    <InputGroupInput
-                      placeholder="Filter students..."
-                      value={(table.getColumn("name")?.getFilterValue() as string) ?? ""}
-                      onChange={(event) =>
-                        table.getColumn("name")?.setFilterValue(event.target.value)
-                      }
-                      aria-label="Filter students"
-                    />
-                    <InputGroupAddon>
-                      <SearchIcon />
-                    </InputGroupAddon>
-                  </InputGroup>
+                  <TeacherSearchField
+                    className="w-full min-w-0 flex-1"
+                    placeholder="Search students…"
+                    value={(table.getColumn("name")?.getFilterValue() as string) ?? ""}
+                    onChange={(next) => table.getColumn("name")?.setFilterValue(next)}
+                    aria-label="Filter students"
+                  />
                   {sections.length > 1 ? (
                     <Select
                       value={resolvedSectionId ?? ""}
@@ -410,8 +404,10 @@ export default function AdvisoryAttendancePage() {
                           <TableCell colSpan={columns.length} className="h-40 whitespace-normal">
                             <div className="flex w-full justify-center">
                               <InsightCallout role="status" className="w-full max-w-xl text-left">
-                                <strong>No students match your search.</strong> Try a different
-                                name or LRN — or clear the filter to see every advisee.
+                                {searchEmptyMessage(
+                                  (table.getColumn("name")?.getFilterValue() as string) ?? "",
+                                  "students",
+                                )}
                               </InsightCallout>
                             </div>
                           </TableCell>

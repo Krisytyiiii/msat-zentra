@@ -1,26 +1,113 @@
 "use client";
 
 import { KanbanSquare } from "lucide-react";
+import type { ReactNode } from "react";
 import { Skeleton } from "@/components/ui/skeleton";
+import { ShimmerGroup } from "@/components/ui/shimmer-skeleton";
 import listStyles from "./advisory-list.module.css";
 import insightStyles from "./advisory-insight-board.module.css";
 
 const TABLE_ROWS = 8;
-const LANES = 4;
+const INSIGHT_CARDS = 3;
 
 function ListRowSkeleton() {
   return (
     <div className="flex items-center border-t px-4 py-3">
-      <div className="flex min-w-0 items-center gap-2" style={{ width: 170 }}>
+      <div className="flex min-w-0 items-center gap-2" style={{ width: 250 }}>
         <Skeleton className="size-8 shrink-0 rounded-full" />
         <div className="flex min-w-0 flex-1 flex-col gap-1.5">
           <Skeleton className="h-3.5 w-4/5" />
-          <Skeleton className="h-4 w-24 rounded-full" />
+          <div className="flex items-center justify-between gap-2">
+            <Skeleton className="h-6 w-24 rounded-full" />
+            <Skeleton className="h-6 w-16 shrink-0 rounded-full" />
+          </div>
         </div>
       </div>
-      <div className="pl-2" style={{ width: 100 }}>
+    </div>
+  );
+}
+
+/** One insight card placeholder — same head / metric / facts anatomy as the board. */
+function InsightCardSkeleton({ folders }: { folders?: ReactNode }) {
+  return (
+    <div className={insightStyles.kCard}>
+      <div className={insightStyles.kHead}>
+        <div className={insightStyles.kHeading}>
+          <Skeleton className="h-3.5 w-24" />
+        </div>
+        <Skeleton className="size-6 shrink-0 rounded-lg" />
+      </div>
+      {folders ? (
+        <div className={`${insightStyles.kBody} ${insightStyles.folderGrid}`}>
+          {folders}
+        </div>
+      ) : (
+        <>
+          <div className={insightStyles.kMetrics}>
+            <div className={insightStyles.kMetric}>
+              <Skeleton className="h-3 w-28" />
+              <Skeleton className="h-6 w-16" />
+              <Skeleton className="h-3 w-36" />
+            </div>
+          </div>
+          <div className={insightStyles.kFacts}>
+            <Skeleton className="h-3 w-24" />
+          </div>
+        </>
+      )}
+    </div>
+  );
+}
+
+/** One anecdotal folder placeholder — same shell as the record folder card. */
+function FolderCardSkeleton() {
+  return (
+    <div className="flex min-w-0 flex-col gap-2 rounded-xl border border-border bg-muted/60 p-2.5 dark:bg-muted/20">
+      <div className="flex items-center justify-between gap-1.5 border-b border-border pb-2">
+        <Skeleton className="h-3.5 w-20" />
         <Skeleton className="h-5 w-16 rounded-full" />
       </div>
+      <div className="flex min-w-0 flex-row items-center gap-3 rounded-lg border bg-white p-3 dark:bg-card">
+        <Skeleton className="h-16 w-[112px] shrink-0 rounded-md" />
+        <div className="flex min-w-0 flex-1 flex-col gap-1.5">
+          <Skeleton className="h-3.5 w-3/4" />
+          <Skeleton className="h-5 w-20 rounded-full" />
+        </div>
+      </div>
+    </div>
+  );
+}
+
+/**
+ * The insight board's placeholder body. Shared by the page-load shell and by
+ * the board's own per-student fetch, so a fetch always shows one skeleton UI
+ * (and the same one) instead of two different treatments.
+ */
+export function InsightBoardSkeleton() {
+  return (
+    <div className={insightStyles.plainSection} aria-hidden>
+      <header className={insightStyles.laneHead}>
+        <span className={insightStyles.laneDot} style={{ background: "var(--border)" }} />
+        <Skeleton className="h-3 w-24" />
+      </header>
+      <ul className={insightStyles.cardGrid}>
+        {Array.from({ length: INSIGHT_CARDS }).map((_, i) => (
+          <li key={i} className="min-w-0">
+            <InsightCardSkeleton />
+          </li>
+        ))}
+        <li className={`min-w-0 ${insightStyles.laneWide}`}>
+          <InsightCardSkeleton
+            folders={
+              <>
+                <FolderCardSkeleton />
+                <FolderCardSkeleton />
+                <FolderCardSkeleton />
+              </>
+            }
+          />
+        </li>
+      </ul>
     </div>
   );
 }
@@ -35,41 +122,10 @@ function InsightSkeleton() {
         </span>
         <div className="min-w-0 flex-1">
           <Skeleton className="h-4 w-28" />
-          <div className="mt-1 flex flex-wrap gap-1">
-            <Skeleton className="h-5 w-20 rounded-full" />
-            <Skeleton className="h-5 w-14 rounded-full" />
-            <Skeleton className="h-5 w-16 rounded-full" />
-          </div>
         </div>
       </header>
 
-      <div className={insightStyles.plainSection}>
-        <header className={insightStyles.laneHead}>
-          <span className={insightStyles.laneDot} style={{ background: "var(--border)" }} />
-          <Skeleton className="h-3 w-24" />
-        </header>
-        <ul className={insightStyles.cardGrid}>
-          {Array.from({ length: LANES }).map((_, i) => (
-            <li key={i} className="min-w-0">
-              <section className={insightStyles.lane}>
-                <header className={insightStyles.colHead}>
-                  <Skeleton className="size-4 shrink-0 rounded-sm" />
-                  <Skeleton className="h-3.5 w-20" />
-                  <Skeleton className="ml-auto h-5 w-14 rounded-full" />
-                </header>
-                <div className={insightStyles.kCard}>
-                  <Skeleton className="h-3 w-16" />
-                  <Skeleton className="h-4 w-3/4" />
-                  <div className="flex items-center justify-between gap-2">
-                    <Skeleton className="h-3.5 w-24" />
-                    <Skeleton className="h-6 w-10" />
-                  </div>
-                </div>
-              </section>
-            </li>
-          ))}
-        </ul>
-      </div>
+      <InsightBoardSkeleton />
     </div>
   );
 }
@@ -81,72 +137,67 @@ function InsightSkeleton() {
  */
 export function AdvisoryListSkeleton() {
   return (
-    <section
-      className={`${listStyles.pageLock} flex min-w-0 flex-col gap-3`}
-      aria-busy="true"
-      aria-label="Loading advisory list"
-    >
-      <div className="grid w-full items-start gap-4">
-        <div className={listStyles.panel} aria-hidden>
-          <header className={listStyles.boardHead}>
-            <span className={listStyles.boardIcon} aria-hidden>
-              <KanbanSquare size={18} />
-            </span>
-            <div className="min-w-0 flex-1">
-              <Skeleton className="h-4 w-32" />
-              <Skeleton className="mt-1 h-3 w-56" />
-            </div>
-            <div className="flex shrink-0 items-center gap-1.5">
-              <Skeleton className="h-6 w-16 rounded-md" />
-              <Skeleton className="h-6 w-20 rounded-md" />
-              <Skeleton className="h-6 w-20 rounded-md" />
-              <Skeleton className="h-6 w-24 rounded-md" />
-            </div>
-          </header>
+    <ShimmerGroup>
+      <section
+        className={`${listStyles.pageLock} flex min-w-0 flex-col gap-3`}
+        aria-busy="true"
+        aria-label="Loading advisory list"
+      >
+        <div className="grid w-full items-start gap-4">
+          <div className={listStyles.panel} aria-hidden>
+            <header className={listStyles.boardHead}>
+              <span className={listStyles.boardIcon} aria-hidden>
+                <KanbanSquare size={18} />
+              </span>
+              <div className="min-w-0 flex-1">
+                <Skeleton className="h-4 w-32" />
+              </div>
+              <div className="flex shrink-0 items-center gap-1.5">
+                <Skeleton className="h-6 w-24 rounded-md" />
+                <Skeleton className="h-6 w-28 rounded-md" />
+              </div>
+            </header>
 
-          <div className={listStyles.split}>
-            <div className={listStyles.left}>
-              <section className={listStyles.lane}>
-                <header className={listStyles.laneHead}>
-                  <span className={listStyles.laneDot} style={{ background: "#f59e0b" }} />
-                  <Skeleton className="h-3 w-24" />
-                </header>
+            <div className={listStyles.split}>
+              <div className={listStyles.left}>
+                <section className={listStyles.lane}>
+                  <header className={listStyles.laneHead}>
+                    <span className={listStyles.laneDot} style={{ background: "#f59e0b" }} />
+                    <Skeleton className="h-3 w-24" />
+                    <div className="ml-auto flex shrink-0 items-center gap-1">
+                      <Skeleton className="size-6 rounded-md" />
+                      <Skeleton className="size-6 rounded-md" />
+                    </div>
+                  </header>
 
-                <Skeleton className="h-8 w-full rounded-[16px]" />
+                  <Skeleton className="h-8 w-full rounded-[16px]" />
 
-                <div className={listStyles.tableWrap}>
-                  <div className="flex items-center bg-muted/50 px-4 py-3">
-                    <Skeleton className="h-3 w-[7.5rem]" />
-                    <Skeleton className="ml-2 h-3 w-10" />
+                  <div className={listStyles.tableWrap}>
+                    <div className="flex items-center bg-muted/50 px-4 py-3">
+                      <Skeleton className="h-3 w-[7.5rem]" />
+                    </div>
+                    {Array.from({ length: TABLE_ROWS }).map((_, i) => (
+                      <ListRowSkeleton key={i} />
+                    ))}
                   </div>
-                  {Array.from({ length: TABLE_ROWS }).map((_, i) => (
-                    <ListRowSkeleton key={i} />
-                  ))}
-                </div>
 
-                <div className="flex items-center justify-between gap-2">
-                  <Skeleton className="h-3 w-28" />
-                  <div className="flex items-center gap-2">
-                    <Skeleton className="h-8 w-8 rounded-md" />
-                    <Skeleton className="h-8 w-8 rounded-md" />
+                  <div className="flex items-center justify-between gap-2">
+                    <Skeleton className="h-3 w-28" />
+                    <div className="flex items-center gap-2">
+                      <Skeleton className="h-8 w-8 rounded-md" />
+                      <Skeleton className="h-8 w-8 rounded-md" />
+                    </div>
                   </div>
-                </div>
-              </section>
-            </div>
+                </section>
+              </div>
 
-            <div className={listStyles.right}>
-              <InsightSkeleton />
+              <div className={listStyles.right}>
+                <InsightSkeleton />
+              </div>
             </div>
           </div>
         </div>
-
-        {/* Action gutter — same horizontal 24px buttons as the loaded page. */}
-        <div className="flex flex-row items-center justify-end gap-1.5 self-start">
-          <Skeleton className="h-6 w-6 rounded-md" />
-          <Skeleton className="h-6 w-6 rounded-md" />
-          <Skeleton className="h-6 w-6 rounded-md" />
-        </div>
-      </div>
-    </section>
+      </section>
+    </ShimmerGroup>
   );
 }

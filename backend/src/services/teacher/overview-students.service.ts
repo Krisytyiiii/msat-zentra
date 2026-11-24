@@ -1,7 +1,7 @@
 import { prisma } from "../../lib/prisma.js";
 import { AppError } from "../../lib/errors.js";
 import { termHasStarted } from "../attendance.date.utils.js";
-import { sectionHeadcounts } from "../enrollment.js";
+import { sectionEnrollmentCounts } from "../enrollment.js";
 import { advisoryRoster, GRADE_LABELS } from "../../modules/teacher/teacher.repository.js";
 import {
   archivedAdvisoryLearnerIds,
@@ -77,19 +77,22 @@ export async function getStudentList(ctx: TeacherContext, query: StudentListQuer
     };
   }
 
-  const headcountsPromise = sectionHeadcounts(railSectionIds);
+  const headcountsPromise = sectionEnrollmentCounts(railSectionIds);
   const advisedIds = new Set(advisedSections.map((s) => s.id));
-  const advisoryId =
-    advisorySectionParam ||
-    (!classIdParam && advisedSections.length > 0 ? advisedSections[0].id : "");
+  // Without an explicit pick the page only paints the section cards, so stop at
+  // the rail metadata (counts + labels). Pulling a full roster, finals,
+  // attendance meetups and anecdotes here made the first paint wait on every
+  // term query for a list nobody was looking at yet.
+  const hasPick = Boolean(classIdParam || advisorySectionParam);
   const rosterPromise = (async () => {
-    if (advisoryId) {
-      if (!advisedIds.has(advisoryId)) {
+    if (!hasPick) return null;
+    if (advisorySectionParam) {
+      if (!advisedIds.has(advisorySectionParam)) {
         throw new AppError(404, "SECTION_NOT_FOUND", "Advisory section not found");
       }
       return {
         kind: "advisory" as const,
-        students: await advisoryRoster(termId, advisoryId),
+        students: await advisoryRoster(termId, advisorySectionParam),
       };
     }
     const resolvePair = (classId: string): { subjectId: string; sectionId: string } | null => {
@@ -100,10 +103,7 @@ export async function getStudentList(ctx: TeacherContext, query: StudentListQuer
       return null;
     };
 
-    const activeId =
-      classIdParam ||
-      (linkedPairs.length > 0 ? `${linkedPairs[0].subjectId}|${linkedPairs[0].sectionId}` : "");
-    const pair = resolvePair(activeId);
+    const pair = resolvePair(classIdParam);
     const owns =
       !!pair &&
       linkedPairs.some(
@@ -112,6 +112,7 @@ export async function getStudentList(ctx: TeacherContext, query: StudentListQuer
     if (!pair || !owns) {
       throw new AppError(404, "CLASS_NOT_FOUND", "Class not found");
     }
+    const activeId = classIdParam;
     const [subject, section, profiles, rosterEntries] = await Promise.all([
       prisma.subject.findUnique({
         where: { id: pair.subjectId },
@@ -175,12 +176,24 @@ export async function getStudentList(ctx: TeacherContext, query: StudentListQuer
     };
   }
 
+  if (!roster) {
+    return {
+      classes,
+      advisorySections,
+      class: null,
+      advisorySection: null,
+      anecdotalVisible: false,
+      students: [],
+    };
+  }
+
   if (roster.kind === "advisory") {
     return {
       classes,
       advisorySections,
       class: null,
-      advisorySection: advisorySections.find((s) => s.id === advisoryId) ?? null,
+      advisorySection:
+        advisorySections.find((s) => s.id === advisorySectionParam) ?? null,
       anecdotalVisible: true,
       students: roster.students,
     };

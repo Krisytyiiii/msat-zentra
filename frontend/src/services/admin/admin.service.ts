@@ -41,6 +41,23 @@ export interface AdminAuditEntry {
   sourceId: string;
   reason: string;
   sourceLabel: string;
+  /** Field-level payloads captured by the write (may be null). */
+  oldValue?: Record<string, unknown> | null;
+  newValue?: Record<string, unknown> | null;
+}
+
+export interface AdminAuditFacet {
+  value: string;
+  count: number;
+}
+
+export interface AdminAuditSummary {
+  total: number;
+  last24h: number;
+  last7d: number;
+  actors: number;
+  actions: AdminAuditFacet[];
+  sources: AdminAuditFacet[];
 }
 
 export interface AdminAuditPage {
@@ -176,6 +193,8 @@ export async function fetchAdminAudit(params: {
   q?: string;
   actionType?: string;
   sourceTable?: string;
+  from?: string;
+  to?: string;
   signal?: AbortSignal;
 }): Promise<AdminAuditPage> {
   const { data } = await apiClient.get<AdminAuditPage>("/api/admin/audit", {
@@ -185,6 +204,30 @@ export async function fetchAdminAudit(params: {
       ...(params.q ? { q: params.q } : {}),
       ...(params.actionType ? { actionType: params.actionType } : {}),
       ...(params.sourceTable ? { sourceTable: params.sourceTable } : {}),
+      ...(params.from ? { from: params.from } : {}),
+      ...(params.to ? { to: params.to } : {}),
+    },
+    signal: params.signal,
+  });
+  return data;
+}
+
+/** Facet counts for the audit stat strip + filter menus, scoped by the same filters. */
+export async function fetchAdminAuditSummary(params: {
+  q?: string;
+  actionType?: string;
+  sourceTable?: string;
+  from?: string;
+  to?: string;
+  signal?: AbortSignal;
+}): Promise<AdminAuditSummary> {
+  const { data } = await apiClient.get<AdminAuditSummary>("/api/admin/audit/summary", {
+    params: {
+      ...(params.q ? { q: params.q } : {}),
+      ...(params.actionType ? { actionType: params.actionType } : {}),
+      ...(params.sourceTable ? { sourceTable: params.sourceTable } : {}),
+      ...(params.from ? { from: params.from } : {}),
+      ...(params.to ? { to: params.to } : {}),
     },
     signal: params.signal,
   });

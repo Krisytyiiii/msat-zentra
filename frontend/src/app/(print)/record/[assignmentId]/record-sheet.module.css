@@ -6,6 +6,12 @@
   font-family: var(--font-inter), ui-sans-serif, system-ui, sans-serif;
 }
 
+/* Record sheet sits on the page (transparent in dark mode) like the other
+   grading cards. Doubled class beats the global `.dark .board-surface` fill. */
+:global(.dark) .board.board {
+  background-color: transparent;
+}
+
 .toolbar {
   display: flex;
   align-items: center;

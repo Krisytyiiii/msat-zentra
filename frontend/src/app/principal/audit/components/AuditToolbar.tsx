@@ -1,11 +1,10 @@
 import * as React from "react";
 import {
   ChevronDown,
-  Search,
   FileSpreadsheet,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
+import { SearchField } from "@/components/ui/search-field";
 import { Spinner } from "@/components/ui/spinner";
 import {
   DropdownMenu,
@@ -150,18 +149,13 @@ export function AuditToolbar({
 
   return (
     <div className={styles.toolbar}>
-      <div className={styles.search}>
-        <Search className={styles.searchIcon} aria-hidden />
-        <Input
-          type="search"
-          value={query}
-          onChange={(e) => onQueryChange(e.target.value)}
-          placeholder="Search user, reason, or id…"
-          className={`${styles.searchInput} rounded-[16px]`}
-          style={{ height: "2rem" }}
-          aria-label="Search audit entries"
-        />
-      </div>
+      <SearchField
+        className="w-60"
+        value={query}
+        onChange={(next) => onQueryChange(next)}
+        placeholder="Search user, reason, or id…"
+        aria-label="Search audit entries"
+      />
 
       <FilterDropdown
         label="Actor"

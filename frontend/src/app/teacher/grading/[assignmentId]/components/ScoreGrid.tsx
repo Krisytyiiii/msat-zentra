@@ -1,10 +1,10 @@
 "use client";
 import * as React from "react";
 import { useSession } from "@/lib/auth/useSession";
-import { ClipboardList, FileText, Loader2, PenLine, SearchIcon } from "lucide-react";
+import { ClipboardList, FileText, Loader2, PenLine } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { InputGroup, InputGroupInput, InputGroupAddon } from "@/components/ui/input-group";
 import { KanbanBoard, KanbanBoardEmpty } from "@/components/ui/kanban-board";
+import { TeacherSearchField } from "@/app/teacher/components/TeacherSearchField";
 import { Pill } from "@/components/ui/pill";
 import { formatSurnameFirst } from "@/lib/names";
 import { CardModal } from "@/components/ui/CardModal";
@@ -67,6 +67,11 @@ export function ScoreGrid({ queryKeyId, sectionName, students, components, categ
     [students, selected],
   );
   const selectedKey = selected?.id ?? "";
+  const scoredCount = selected
+    ? pool.filter((s) => selected.scores[s.id] != null).length
+    : 0;
+  const scoredPct =
+    pool.length > 0 ? Math.round((scoredCount / pool.length) * 100) : 0;
   const { scores, recovered, restoredMax, onDraft, clear, writeMax, maxRef } = useScoreDrafts(teacherId, selectedKey);
   /* eslint-disable react-hooks/set-state-in-effect */
   React.useEffect(() => {
@@ -74,6 +79,20 @@ export function ScoreGrid({ queryKeyId, sectionName, students, components, categ
     setError(null);
   }, [selectedKey]);
   /* eslint-enable react-hooks/set-state-in-effect */
+  // Escape leaves encode mode without saving — same affordance as the
+  // delete overlay, so the desk never traps the teacher in edit state.
+  React.useEffect(() => {
+    if (!editing || saving) return;
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === "Escape") {
+        setError(null);
+        setEditing(false);
+        clear();
+      }
+    };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [editing, saving, clear]);
   const startEdit = () => {
     if (!selected) return;
     setError(null);
@@ -274,6 +293,7 @@ export function ScoreGrid({ queryKeyId, sectionName, students, components, categ
   return (
     <div key={selected?.id ?? "empty"} className={styles.enter}>
     <KanbanBoard
+      className={styles.board}
       title={selected ? selected.title : COMPONENT_NAMES[category]}
       icon={(() => {
         const Icon = CATEGORY_ICON[category] ?? ClipboardList;
@@ -283,32 +303,50 @@ export function ScoreGrid({ queryKeyId, sectionName, students, components, categ
           </span>
         );
       })()}
-      count={
-        selected ? `${pool.filter((s) => selected.scores[s.id] != null).length}/${pool.length} scored` : undefined
-      }
+      count={undefined}
       description={
         selected ? (
-          <span className="flex items-center justify-between gap-2">
-            <span className="flex flex-wrap items-center gap-1">
-              <Pill tone="amber" label="Assessment category">{COMPONENT_NAMES[category]}</Pill>
-              <Pill tone={selected.audience === "adm" ? "amber" : "neutral"} label="Assessment type">
-                {selected.audience === "adm" ? "ADM" : "Regular"}
-              </Pill>
-              <Pill tone="amber" label="Maximum score">Max {selected.maxScore}</Pill>
-              <Pill tone="amber" label="Section">{sectionName}</Pill>
-            </span>
-            <InputGroup className="max-w-40 shrink-0 rounded-[16px]">
-              <InputGroupInput
-                placeholder="Search..."
-                value={nameFilter}
-                onChange={(event) => setNameFilter(event.target.value)}
-                aria-label="Filter students"
-              />
-              <InputGroupAddon>
-                <SearchIcon />
-              </InputGroupAddon>
-            </InputGroup>
+          <span className="flex flex-wrap items-center gap-1">
+            <Pill tone="amber" label="Assessment category">{COMPONENT_NAMES[category]}</Pill>
+            <Pill tone={selected.audience === "adm" ? "amber" : "neutral"} label="Assessment type">
+              {selected.audience === "adm" ? "ADM" : "Regular"}
+            </Pill>
+            <Pill tone="amber" label="Maximum score">Max {selected.maxScore}</Pill>
+            <Pill tone="amber" label="Section">{sectionName}</Pill>
           </span>
+        ) : null
+      }
+      toolbar={
+        selected ? (
+          <div className="flex flex-wrap items-center justify-between gap-2 px-1 pt-0.5">
+            <div className="flex min-w-0 flex-1 items-center gap-2.5">
+              <div
+                className="h-1.5 min-w-20 flex-1 overflow-hidden rounded-full bg-muted"
+                aria-hidden
+              >
+                <div
+                  className="h-full rounded-full transition-[width] duration-300 ease-out"
+                  style={{
+                    width: `${scoredPct}%`,
+                    backgroundColor: CATEGORY_COLOR[category] ?? "#f59e0b",
+                  }}
+                />
+              </div>
+              <span className="shrink-0 text-[12px] whitespace-nowrap text-muted-foreground tabular-nums">
+                <span className="font-semibold text-foreground">{scoredCount}</span>
+                {" / "}
+                {pool.length} scored
+                <span className="ml-1 text-muted-foreground/70">({scoredPct}%)</span>
+              </span>
+            </div>
+            <TeacherSearchField
+              className="w-full max-w-56"
+              placeholder="Search name or LRN…"
+              value={nameFilter}
+              onChange={setNameFilter}
+              aria-label="Filter students"
+            />
+          </div>
         ) : null
       }
       actions={
@@ -322,12 +360,19 @@ export function ScoreGrid({ queryKeyId, sectionName, students, components, categ
             ) : null}
             {editing ? (
               <>
-                <Button size="sm" className="h-6 px-3 text-xs" onClick={() => void handleSaveAll()} disabled={saving} aria-busy={saving || undefined}>
-                  {saving ? (<><Loader2 className="animate-spin" aria-hidden size={14} />Saving scores…</>) : ("Save")}
+                <Button
+                  size="sm"
+                  className="h-6 gap-1 rounded-lg bg-black px-3 text-xs text-white hover:bg-neutral-800 dark:bg-white dark:text-black dark:hover:bg-neutral-200"
+                  onClick={() => void handleSaveAll()}
+                  disabled={saving}
+                  aria-busy={saving || undefined}
+                >
+                  {saving ? (<><Loader2 className="animate-spin" aria-hidden size={14} />Saving scores…</>) : ("Save scores")}
                 </Button>
                 <Button
                   size="sm"
-                  className="h-6 bg-red-500 px-3 text-xs text-white hover:bg-red-600"
+                  variant="outline"
+                  className="h-6 px-3 text-xs"
                   onClick={cancelEdit}
                   disabled={saving}
                 >
@@ -339,7 +384,12 @@ export function ScoreGrid({ queryKeyId, sectionName, students, components, categ
                 <Loader2 className="animate-spin" aria-hidden size={14} />Saving…
               </Button>
             ) : (
-              <Button size="sm" variant="outline" className="h-6 px-3 text-xs" onClick={startEdit}>
+              <Button
+                size="sm"
+                className="h-6 gap-1 rounded-lg bg-black px-3 text-xs text-white hover:bg-neutral-800 dark:bg-white dark:text-black dark:hover:bg-neutral-200"
+                onClick={startEdit}
+              >
+                <PenLine size={14} aria-hidden />
                 Edit scores
               </Button>
             )}

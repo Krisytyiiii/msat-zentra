@@ -39,6 +39,8 @@ export interface BamaRecordCard {
   studentName: string;
   lrn: string;
   section: string;
+  /** Persisted sprite mascot for the learner (null/undefined = derived). */
+  mascot?: string | null;
   category: string;
   tier: string;
   location: string;

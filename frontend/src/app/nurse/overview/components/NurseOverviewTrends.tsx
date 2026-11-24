@@ -157,8 +157,8 @@ function WaitingTimeLine({ rows }: { rows: NurseQueueRow[] }) {
   return (
     <>
       <p className={styles.legendTotal}>
-        Average {formatElapsedLong(averageMs)} across {waited}{" "}
-        {waited === 1 ? "waiting case" : "waiting cases"}
+        Average {formatElapsedLong(averageMs)} across the {waited} longest-waiting{" "}
+        {waited === 1 ? "case" : "cases"}
       </p>
       <div
         className={styles.lineChart}
@@ -210,9 +210,12 @@ function WaitingTimeLine({ rows }: { rows: NurseQueueRow[] }) {
 export function NurseOverviewTrends({
   dailyTrend,
   needsReview,
+  waitingTotal,
 }: {
   dailyTrend: NurseTrendPoint[];
   needsReview: NurseQueueRow[];
+  /** Full pending count (the list carries only the longest-waiting sample). */
+  waitingTotal?: number;
 }) {
   const caseTotal = dailyTrend.reduce((n, d) => n + d.adm + d.clinic, 0);
   const caseEmpty = caseTotal === 0;
@@ -267,8 +270,8 @@ export function NurseOverviewTrends({
       <KanbanBoard
         title="Waiting time"
         icon={<BoardIcon icon={Hourglass} />}
-        count={waited}
-        description="Time elapsed from referred to now."
+        count={waitingTotal ?? waited}
+        description="The longest-waiting cases — time elapsed from referred to now."
         className="flex-1"
       >
         {waitEmpty ? (

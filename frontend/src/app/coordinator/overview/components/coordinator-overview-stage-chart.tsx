@@ -1,27 +1,35 @@
 "use client";
 
-import { PieChart as PieChartIcon } from "lucide-react";
+import Link from "next/link";
+import { ArrowUpRight, PieChart as PieChartIcon } from "lucide-react";
 import { Cell, Pie, PieChart } from "recharts";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
+import { InsightCallout } from "@/components/ui/insight-callout";
+import { KanbanBoard } from "@/components/ui/kanban-board";
+import { Pill } from "@/components/ui/pill";
 import {
   ChartContainer,
   ChartTooltip,
   ChartTooltipContent,
   type ChartConfig,
 } from "@/components/ui/chart";
-import type { StageDonutEntry } from "./coordinator-overview-helpers";
-import { AMBER_RAMP } from "./coordinator-overview-helpers";
 import { CoordinatorEmptyState } from "../../components/CoordinatorEmptyCard";
+import { AMBER_RAMP, type StageDonutEntry } from "./coordinator-overview-helpers";
 import styles from "./coordinator-overview-stage-chart.module.css";
 
 function buildInterpretation(slices: StageDonutEntry[], total: number): string {
   if (total === 0) {
-    return "No cases are in the pipeline yet — new referrals will appear here by stage.";
+    return "No cases are in the pipeline yet — new referrals will appear here stage by stage.";
   }
   const top = [...slices].sort((a, b) => b.value - a.value)[0];
-  return `${total} case${total === 1 ? "" : "s"} in the pipeline, most sitting at ${top.full} (${top.value}).`;
+  return `${total} case${total === 1 ? "" : "s"} in flight, most sitting at ${top.full} (${top.value}).`;
 }
 
+/**
+ * Pipeline chart — the desk's whole ADM caseload as one donut plus a stage
+ * legend, closed by the shared "what it means" callout. Same board shell,
+ * amber ramp and footer as the guidance / nurse overview charts.
+ */
 export function CoordinatorOverviewStageChart({
   stageDonut,
 }: {
@@ -32,34 +40,47 @@ export function CoordinatorOverviewStageChart({
     fill: AMBER_RAMP[i % AMBER_RAMP.length] ?? d.fill,
   }));
   const total = slices.reduce((n, d) => n + d.value, 0);
-  const isEmpty = total === 0;
   const chartConfig = Object.fromEntries(
     slices.map((s) => [s.name, { label: s.full, color: s.fill }]),
   ) as ChartConfig;
 
   return (
-    <Card className={styles.card}>
-      <span className={styles.glowClip} aria-hidden="true">
-        <span className={styles.cardGlow} />
-      </span>
-      {!isEmpty && (
-        <CardHeader>
-          <CardTitle className={styles.sectionTitle}>Cases by stage</CardTitle>
-          <CardDescription className={styles.sectionDesc}>
-            Live pipeline distribution.
-          </CardDescription>
-        </CardHeader>
-      )}
-      <CardContent className={styles.body}>
-        {isEmpty ? (
-          <CoordinatorEmptyState
-            icon={PieChartIcon}
-            title="No cases in the pipeline"
-            hint="New referrals will appear here by stage."
-          />
-        ) : (
-          <>
-            <div className={styles.donutWrap}>
+    <KanbanBoard
+      title="Pipeline by stage"
+      icon={
+        <span className={styles.titleIcon} aria-hidden>
+          <PieChartIcon size={14} />
+        </span>
+      }
+      description="Every live ADM case, from intake through completion."
+      count={
+        total === 0 ? undefined : `${total} in flight`
+      }
+      actions={
+        <Button
+          asChild
+          size="sm"
+          variant="ghost"
+          className="h-7 shrink-0 px-2 text-xs"
+        >
+          <Link href="/coordinator/referrals">
+            Open queue
+            <ArrowUpRight aria-hidden="true" />
+          </Link>
+        </Button>
+      }
+      ariaLabel="Pipeline by stage"
+    >
+      {total === 0 ? (
+        <CoordinatorEmptyState
+          icon={PieChartIcon}
+          title="No cases in the pipeline"
+          hint="New referrals will appear here by stage."
+        />
+      ) : (
+        <>
+          <div className={styles.chartRow}>
+            <div className={styles.chartWrap}>
               <ChartContainer config={chartConfig} className={styles.donut}>
                 <PieChart>
                   <ChartTooltip
@@ -77,10 +98,10 @@ export function CoordinatorOverviewStageChart({
                     nameKey="name"
                     cx="50%"
                     cy="50%"
-                    innerRadius={44}
-                    outerRadius={70}
+                    innerRadius="64%"
+                    outerRadius="100%"
                     paddingAngle={2}
-                    strokeWidth={0}
+                    stroke="transparent"
                   >
                     {slices.map((entry) => (
                       <Cell key={entry.name} fill={entry.fill} />
@@ -88,18 +109,51 @@ export function CoordinatorOverviewStageChart({
                   </Pie>
                 </PieChart>
               </ChartContainer>
-              <div className={styles.donutCenter} aria-hidden="true">
-                <span className={styles.donutTotal}>{total}</span>
-                <span className={styles.donutLabel}>cases</span>
+              <div className={styles.center} aria-hidden="true">
+                <span className={styles.centerValue}>{total}</span>
+                <span className={styles.centerLabel}>
+                  case{total === 1 ? "" : "s"}
+                </span>
               </div>
             </div>
-            <p className={styles.interpretation}>
+
+            <ul className={styles.legend}>
+              {slices.map((s) => {
+                const percent = total > 0 ? Math.round((s.value / total) * 100) : 0;
+                return (
+                  <li key={s.name} className={styles.legendItem}>
+                    <span
+                      className={styles.swatch}
+                      style={{ background: s.fill }}
+                      aria-hidden="true"
+                    />
+                    <span className={styles.legendLabel}>{s.full}</span>
+                    <span className={styles.legendValue}>
+                      <Pill label="Case count and share of the pipeline">
+                        <span
+                          className={`${styles.legendCount} ${
+                            s.value === 0 ? styles.legendCountZero : ""
+                          }`}
+                        >
+                          {s.value}
+                        </span>
+                        <span className={styles.legendPercent}>{percent}%</span>
+                      </Pill>
+                    </span>
+                  </li>
+                );
+              })}
+            </ul>
+          </div>
+
+          <div className={styles.footerSlot}>
+            <InsightCallout className={styles.interpretation} role="status">
               <span className={styles.interpretationLabel}>What it means · </span>
               {buildInterpretation(slices, total)}
-            </p>
-          </>
-        )}
-      </CardContent>
-    </Card>
+            </InsightCallout>
+          </div>
+        </>
+      )}
+    </KanbanBoard>
   );
 }

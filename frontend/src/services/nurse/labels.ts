@@ -1,11 +1,9 @@
 import { formatGrade, formatSection } from "@/lib/utils";
 import type {
   NurseBreakdownRow,
-  NurseKpis,
   NurseOverviewData,
   NurseQueueRow,
   NurseSessionItem,
-  NurseTrendPoint,
   RawReferral,
   RawSession,
 } from "./nurse.types";
@@ -35,25 +33,6 @@ function parseDate(value: string | null | undefined): Date | null {
 
 function wholeDaysBetween(from: Date, to: Date): number {
   return Math.floor((to.getTime() - from.getTime()) / DAY_MS);
-}
-
-function referredTimeMs(value: string | null | undefined): number {
-  const d = parseDate(value);
-  return d ? d.getTime() : Number.POSITIVE_INFINITY;
-}
-
-/** Newest-first ordering for the "Latest referred students" feed — rows
-    without a parseable referred time sink to the bottom instead of jumping
-    to the top like the Infinity sentinel would. */
-function newestReferredFirst(a: NurseQueueRow, b: NurseQueueRow): number {
-  const at = referredTimeMs(a.referredAt);
-  const bt = referredTimeMs(b.referredAt);
-  const aKnown = Number.isFinite(at);
-  const bKnown = Number.isFinite(bt);
-  if (aKnown && bKnown) return bt - at;
-  if (aKnown) return -1;
-  if (bKnown) return 1;
-  return 0;
 }
 
 function titleCase(raw: string): string {
@@ -276,81 +255,4 @@ export function toQueueRow(r: RawReferral): NurseQueueRow {
         }
       : null,
   };
-}
-
-/** The main board shows only the latest five students referred to the desk. */
-export const LATEST_REFERRALS_LIMIT = 5;
-
-export function buildNurseOverview(referrals: RawReferral[]): NurseOverviewData {
-  const scoped = referrals.filter(isNurseScope);
-
-  const kpis: NurseKpis = {
-    needsReview: scoped.filter((r) => r.status === "pending").length,
-    bookedSession: scoped.filter((r) =>
-      (r.counselingSessions ?? []).some((s) => s.status === "scheduled"),
-    ).length,
-    endorsedToAdm: scoped.filter(
-      (r) => r.consultReviewer && r.status === "in_progress",
-    ).length,
-    followUp: scoped.filter((r) => r.status === "follow_up").length,
-    doneSession: scoped.filter((r) =>
-      (r.counselingSessions ?? []).some((s) => s.status === "completed"),
-    ).length,
-    total: scoped.length,
-  };
-
-  const needsReview = scoped
-    .filter((r) => r.status === "pending" || (r.status === "escalated" && r.escalatedTo === "nurse"))
-    .map(toQueueRow)
-    .sort((a, b) => referredTimeMs(a.referredAt) - referredTimeMs(b.referredAt));
-
-  // The main board's feed: the latest five nurse-scoped cases, newest
-  // referral first. Needs-review (oldest first) stays as-is for the KPI
-  // rail preview, the waiting-time chart, and the optimistic endorse patch.
-  const latestReferrals = scoped
-    .map(toQueueRow)
-    .sort(newestReferredFirst)
-    .slice(0, LATEST_REFERRALS_LIMIT);
-
-  const actionStatusBreakdown = (referrals: RawReferral[]): NurseBreakdownRow[] => {
-    const counts = new Map<string, { label: string; count: number }>();
-    for (const r of referrals) {
-      const type = r.consultReviewer ? "ADM" : "Clinic";
-      const sessions = r.counselingSessions ?? [];
-      const action = chartBucketFor(type, r.status ?? "pending", sessions, r.dismissedByRole);
-      const existing = counts.get(action.key);
-      if (existing) {
-        existing.count++;
-      } else {
-        counts.set(action.key, { label: action.label, count: 1 });
-      }
-    }
-    return [...counts.entries()]
-      .map(([key, { label, count }]) => ({ key, label, count }))
-      .sort((a, b) => b.count - a.count);
-  };
-
-  const statusBreakdown = actionStatusBreakdown(scoped);
-  const clinicStatusBreakdown = actionStatusBreakdown(scoped.filter((r) => !r.consultReviewer));
-  const admStatusBreakdown = actionStatusBreakdown(scoped.filter((r) => r.consultReviewer));
-
-  const nowMs = Date.now();
-  const dailyTrend: NurseTrendPoint[] = [];
-  const trendIndex = new Map<string, number>();
-  for (let i = 13; i >= 0; i--) {
-    const date = new Date(nowMs - i * DAY_MS).toISOString().slice(0, 10);
-    if (trendIndex.has(date)) continue;
-    trendIndex.set(date, dailyTrend.length);
-    dailyTrend.push({ date, adm: 0, clinic: 0 });
-  }
-  for (const r of scoped) {
-    const at = parseDate(r.referredAt);
-    if (!at) continue;
-    const idx = trendIndex.get(at.toISOString().slice(0, 10));
-    if (idx === undefined) continue;
-    if (r.consultReviewer) dailyTrend[idx].adm += 1;
-    else dailyTrend[idx].clinic += 1;
-  }
-
-  return { kpis, needsReview, latestReferrals, statusBreakdown, clinicStatusBreakdown, admStatusBreakdown, dailyTrend };
 }

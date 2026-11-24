@@ -8,8 +8,7 @@ import { PrincipalSidebar } from "@/components/principal-sidebar";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { StudentMascot } from "@/components/student-mascot/StudentMascot";
 import { UserRound } from "lucide-react";
-import { KanbanAccountMenu } from "@/components/account/kanban-account-menu";
-import { useCollapsibleSidebar } from "@/components/nav/use-collapsible-sidebar";
+import { GlassUserMenu } from "@/components/account/glass-user-menu";
 import { ActiveTermBadge } from "@/components/term/ActiveTermBadge";
 import { AppBreadcrumbs } from "@/components/nav/AppBreadcrumbs";
 import { BreadcrumbExtraProvider } from "@/components/nav/BreadcrumbExtra";
@@ -24,9 +23,6 @@ import styles from "./principal.module.css";
 
 function PrincipalShell({ children }: { children: React.ReactNode }) {
   const router = useRouter();
-
-  const { collapsed: sidebarCollapsed } =
-    useCollapsibleSidebar("zentra.principal.sidebar.collapsed");
 
   usePrincipalRealtime();
   const profile = usePrincipalProfileSettings();
@@ -61,7 +57,7 @@ function PrincipalShell({ children }: { children: React.ReactNode }) {
 
         <PrincipalBell />
 
-        <KanbanAccountMenu
+        <GlassUserMenu
           settingsHref="/principal/settings"
           onLogout={handleLogout}
         >
@@ -89,13 +85,11 @@ function PrincipalShell({ children }: { children: React.ReactNode }) {
               </Avatar>
             )}
           </button>
-        </KanbanAccountMenu>
+        </GlassUserMenu>
       </header>
-      <PrincipalSidebar collapsed={sidebarCollapsed} />
+      <PrincipalSidebar />
       <div
-        className={`${styles.shell} ${styles.shellWithRail} ${
-          sidebarCollapsed ? styles.shellWithRailCollapsed : ""
-        }`}
+        className={`${styles.shell} ${styles.shellWithDock}`}
       >
         <main className={styles.main}>{children}</main>
       </div>

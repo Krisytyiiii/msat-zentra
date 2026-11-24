@@ -1,5 +1,6 @@
 "use client";
 
+import * as React from "react";
 import {
   Bar,
   BarChart,
@@ -130,11 +131,6 @@ function GuidanceChartTooltip({
   );
 }
 
-/** Board header count — amber figures, readable in both themes. */
-function amberCount(value: number) {
-  return <span className={styles.amberNumber}>{value}</span>;
-}
-
 /** Uniform "What it means" footer — the shared insight callout, pinned low. */
 function Interpretation({ children }: { children: React.ReactNode }) {
   return (
@@ -177,7 +173,6 @@ export function GuidanceDonutPanel({
     <KanbanBoard
       title={title}
       icon={<BoardIcon icon={Icon} />}
-      count={amberCount(total)}
       description={description}
       className="flex-1"
     >
@@ -273,7 +268,6 @@ export function GuidanceBarPanel({
     <KanbanBoard
       title={title}
       icon={<BoardIcon icon={Icon} />}
-      count={amberCount(total)}
       description={description}
       className="flex-1"
     >
@@ -306,6 +300,160 @@ export function GuidanceBarPanel({
               </Bar>
             </BarChart>
           </ResponsiveContainer>
+        </div>
+      )}
+      <Interpretation>{interpretation}</Interpretation>
+    </KanbanBoard>
+  );
+}
+
+/* Semicircular gauge geometry: one arc, r=80 in a 200×118 viewBox. */
+const GAUGE_RADIUS = 80;
+const GAUGE_ARC = Math.PI * GAUGE_RADIUS;
+const GAUGE_PATH = `M 20 104 A ${GAUGE_RADIUS} ${GAUGE_RADIUS} 0 0 1 180 104`;
+
+/**
+ * Semicircular gauge board — the rows are drawn as arcs sized by their share of
+ * the board total, so "Risk factors" and "At-risk by grade" read as one dial
+ * instead of a bar-by-bar chart. Same shell, palette and footer as the other
+ * overview boards (count removed from the header).
+ */
+export function GuidanceGaugePanel({
+  title,
+  description,
+  rows,
+  unit,
+  emptyTitle,
+  emptyText,
+  icon: Icon,
+  sortDescending = true,
+  interpretation,
+}: {
+  title: string;
+  description: string;
+  rows: ChartRow[];
+  unit: string;
+  emptyTitle: string;
+  emptyText: string;
+  icon: LucideIcon;
+  sortDescending?: boolean;
+  interpretation: string;
+}) {
+  const { slices, total } = buildSlices(rows, sortDescending);
+  const isEmpty = total === 0;
+  const wrapRef = React.useRef<HTMLDivElement>(null);
+  const [tip, setTip] = React.useState<{ key: string; x: number; y: number } | null>(
+    null,
+  );
+
+  const showTip =
+    (key: string) => (event: React.MouseEvent<SVGPathElement>) => {
+      const rect = wrapRef.current?.getBoundingClientRect();
+      if (!rect) return;
+      setTip({
+        key,
+        x: event.clientX - rect.left,
+        y: event.clientY - rect.top,
+      });
+    };
+
+  const lengths = slices.map((s) =>
+    total > 0 ? (s.count / total) * GAUGE_ARC : 0,
+  );
+  const segments = slices.map((s, i) => {
+    const length = lengths[i];
+    // A hairline between neighbouring arcs keeps the shades legible; a lone
+    // segment stays unbroken.
+    const gap = slices.length > 1 ? Math.min(3, length / 3) : 0;
+    return {
+      ...s,
+      dash: `${Math.max(0.5, length - gap)} ${GAUGE_ARC}`,
+      offset: -lengths.slice(0, i).reduce((sum, prev) => sum + prev, 0),
+    };
+  });
+
+  const hovered = tip ? slices.find((s) => s.key === tip.key) : undefined;
+
+  return (
+    <KanbanBoard
+      title={title}
+      icon={<BoardIcon icon={Icon} />}
+      description={description}
+      className="flex-1"
+    >
+      {isEmpty ? (
+        <GuidanceEmptyState icon={Icon} title={emptyTitle} hint={emptyText} />
+      ) : (
+        <div
+          className={styles.gaugeChart}
+          role="img"
+          aria-label={`${title}: ${slices.map((s) => `${s.label} ${s.count} (${s.percent}%)`).join(", ")}`}
+        >
+          <div className={styles.gaugeWrap} ref={wrapRef}>
+            <svg
+              className={styles.gaugeSvg}
+              viewBox="0 0 200 118"
+              aria-hidden="true"
+              focusable="false"
+              onMouseLeave={() => setTip(null)}
+            >
+              <path className={styles.gaugeTrack} d={GAUGE_PATH} />
+              {segments.map((s) => (
+                <path
+                  key={s.key}
+                  className={styles.gaugeSegment}
+                  d={GAUGE_PATH}
+                  stroke={s.fill}
+                  strokeDasharray={s.dash}
+                  strokeDashoffset={s.offset}
+                  onMouseEnter={showTip(s.key)}
+                  onMouseMove={showTip(s.key)}
+                />
+              ))}
+            </svg>
+            <div className={styles.gaugeCenter} aria-hidden="true">
+              <span className={styles.gaugeValue}>{total}</span>
+              <span className={styles.gaugeLabel}>{unit}</span>
+            </div>
+            {tip && hovered ? (
+              <div
+                className={styles.gaugeTip}
+                style={{
+                  left: `clamp(4.75rem, ${tip.x}px, calc(100% - 4.75rem))`,
+                  top: tip.y,
+                }}
+              >
+                <GuidanceChartTooltip
+                  active
+                  label={hovered.label}
+                  payload={[
+                    {
+                      name: unit,
+                      value: `${hovered.count} (${hovered.percent}%)`,
+                      payload: { fill: hovered.fill },
+                    },
+                  ]}
+                />
+              </div>
+            ) : null}
+          </div>
+
+          <ul className={styles.gaugeLegend}>
+            {slices.map((s) => (
+              <li key={s.key} className={styles.gaugeLegendItem}>
+                <span
+                  className={styles.swatch}
+                  style={{ background: s.fill }}
+                  aria-hidden="true"
+                />
+                <span className={styles.gaugeLegendLabel}>{s.label}</span>
+                <span className={styles.gaugeLegendValue}>
+                  <span className={styles.gaugeLegendCount}>{s.count}</span>
+                  <span className={styles.gaugeLegendPercent}>{s.percent}%</span>
+                </span>
+              </li>
+            ))}
+          </ul>
         </div>
       )}
       <Interpretation>{interpretation}</Interpretation>
@@ -356,7 +504,6 @@ export function GuidanceSectionsLinePanel({
     <KanbanBoard
       title={title}
       icon={<BoardIcon icon={Icon} />}
-      count={amberCount(total)}
       description={description}
       className="flex-1"
     >

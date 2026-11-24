@@ -2,12 +2,13 @@
 
 import type * as React from "react";
 import { Skeleton } from "@/components/ui/skeleton";
+import { ShimmerGroup } from "@/components/ui/shimmer-skeleton";
 import { KanbanBoardSkeleton } from "@/components/shared/zentra-skeletons/ZentraSkeletons";
 import reportStyles from "./guidance-adm-reports.module.css";
 import styles from "./guidance-adm.module.css";
 
 /**
- * Loading skeleton for /guidance/adm — one shimmer board per live board, in
+ * Loading skeleton for /guidance/reports — one shimmer board per live board, in
  * the same order and grids as the loaded page: findings strip → report charts
  * (category bars, referred-actions donut, referral trend) → bottlenecks /
  * recommendations → risk boards → trend → watchlist. Board shells come from
@@ -161,47 +162,50 @@ function AttentionBoard() {
 /** Risk section: two boards, then the trend and the watchlist. */
 export function GuidanceAdmRiskSkeleton() {
   return (
-    <div
-      className={styles.insights}
-      aria-busy="true"
-      aria-label="Loading risk dashboard"
-    >
-      <div className={styles.insightsGrid} aria-hidden="true">
-        <DonutBoard legendRows={4} />
+    <ShimmerGroup>
+      <div
+        className={styles.insights}
+        aria-busy="true"
+        aria-label="Loading risk dashboard"
+      >
+        <div className={styles.insightsGrid} aria-hidden="true">
+          <DonutBoard legendRows={4} />
+          <KanbanBoardSkeleton
+            titleWidth="60%"
+            showCount
+            showDescription
+            className="flex-1"
+            footer={<InterpSkeleton />}
+          >
+            <BarRowsSkeleton />
+          </KanbanBoardSkeleton>
+        </div>
+
         <KanbanBoardSkeleton
-          titleWidth="60%"
+          titleWidth="52%"
           showCount
           showDescription
           className="flex-1"
           footer={<InterpSkeleton />}
         >
-          <BarRowsSkeleton />
+          <Skeleton className="h-[240px] w-full rounded-md" />
         </KanbanBoardSkeleton>
+
+        <AttentionBoard />
       </div>
-
-      <KanbanBoardSkeleton
-        titleWidth="52%"
-        showCount
-        showDescription
-        className="flex-1"
-        footer={<InterpSkeleton />}
-      >
-        <Skeleton className="h-[240px] w-full rounded-md" />
-      </KanbanBoardSkeleton>
-
-      <AttentionBoard />
-    </div>
+    </ShimmerGroup>
   );
 }
 
-/** Full /guidance/adm skeleton, in live render order. */
+/** Full /guidance/reports skeleton, in live render order. */
 export function GuidanceAdmSkeleton(): React.ReactElement {
   return (
-    <section
-      className={styles.page}
-      aria-busy="true"
-      aria-label="Loading referrals report"
-    >
+    <ShimmerGroup>
+      <section
+        className={styles.page}
+        aria-busy="true"
+        aria-label="Loading referrals report"
+      >
       {/* Key findings — four KPI boards. */}
       <div className={styles.findings} aria-hidden="true">
         {[0, 1, 2, 3].map((i) => (
@@ -255,6 +259,7 @@ export function GuidanceAdmSkeleton(): React.ReactElement {
       </div>
 
       <GuidanceAdmRiskSkeleton />
-    </section>
+      </section>
+    </ShimmerGroup>
   );
 }

@@ -1,6 +1,9 @@
 "use client";
 
-import { LayoutGrid } from "lucide-react";
+import {
+  FilterTabs,
+  type FilterTabOption,
+} from "@/components/ui/filter-tabs";
 import {
   ADM_MENU,
   CLINIC_MENU,
@@ -8,20 +11,33 @@ import {
   type ActionValue,
   type TypeFilter,
 } from "./nurse-referrals-format";
-import { ACTION_ACCENTS, ACTION_ICONS } from "./NurseActionMenu";
 
-const PILL =
-  "inline-flex h-7 cursor-pointer items-center gap-1.5 rounded-full border px-2.5 text-[12px] font-semibold transition-colors duration-150";
-const PILL_ACTIVE = "border-amber-500/60 bg-amber-500/10 text-foreground";
-const PILL_IDLE =
-  "border-border bg-card text-muted-foreground hover:border-amber-500/60 hover:bg-amber-500/10 hover:text-foreground";
+/* Dot tone per action — the same palette the alerts desk's type tags use
+   (amber = needs a look, green = cleared/endorsed, blue = scheduled,
+   red = rejected, neutral = closed out). */
+const ACTION_TONES: Record<ActionValue, FilterTabOption<string>["tone"]> = {
+  adm_needs: "amber",
+  endorse: "green",
+  followup: "neutral",
+  booked: "blue",
+  reject: "red",
+  adm_cancelled: "neutral",
+  clinic_needs: "amber",
+  clinic_booked: "blue",
+  clinic_done: "green",
+  clinic_followup: "neutral",
+  clinic_reject: "red",
+  clinic_cancelled: "neutral",
+};
 
 /**
- * Pill-tab filter bar for the nurse kanban boards (ADM cases / Clinic
- * matters) — the right-side action rail turned into horizontal tabs above
- * the records: one pill per action filter with its count, plus an "All
- * cases" pill that shows everything. Clicking the active pill clears the
- * filter, same as the rail.
+ * Tag filter bar for the nurse case desks — the same glass-tag bar the alerts
+ * desk uses (dot + label + count, amber active pill): one tag per action
+ * filter with its count, plus an "All cases" tag that shows everything.
+ * Clicking the active tag clears the filter, same as the action rail.
+ *
+ * Shared by the split ADM / clinic boards (locked to one track) and any desk
+ * that shows both groups at once (each label then carries its track prefix).
  */
 export function NurseActionTabs({
   actionFilter,
@@ -36,72 +52,43 @@ export function NurseActionTabs({
   onPick: (value: ActionValue, type: "ADM" | "Clinic") => void;
   onClear: () => void;
 }) {
-  function renderPill(
-    item: { value: ActionValue; label: string },
-    type: "ADM" | "Clinic"
-  ) {
-    const active = actionFilter === item.value;
-    const count = counts[item.value] ?? 0;
-    const Icon = ACTION_ICONS[item.value];
+  const options: FilterTabOption<ActionFilter>[] = [
+    { value: "", label: "All cases", tone: "neutral" },
+  ];
+
+  const pushGroup = (menu: { value: ActionValue; label: string }[], type: "ADM" | "Clinic") => {
     const prefix = typeFilter === "" ? `${type} · ` : "";
-    const hint = active
-      ? "Showing these — click to clear"
-      : count > 0
-        ? `${count} ${count === 1 ? "case" : "cases"}`
-        : "No cases";
-    return (
-      <button
-        key={item.value}
-        type="button"
-        onClick={() => onPick(item.value, type)}
-        aria-pressed={active}
-        title={`${prefix}${item.label} — ${hint}`}
-        aria-label={`${prefix}${item.label} — ${count} ${count === 1 ? "case" : "cases"}`}
-        className={`${PILL} ${active ? PILL_ACTIVE : PILL_IDLE}`}
-      >
-        <span className={ACTION_ACCENTS[item.value]} aria-hidden>
-          <Icon size={13} />
-        </span>
-        {item.label}
-        {count > 0 ? (
-          <span
-            className={`inline-flex h-4 min-w-4 items-center justify-center rounded-full px-1 text-[12px] font-bold tabular-nums ${
-              active
-                ? "bg-amber-500/25 text-amber-900 dark:text-amber-200"
-                : "bg-secondary text-secondary-foreground"
-            }`}
-            aria-hidden="true"
-          >
-            {count}
-          </span>
-        ) : null}
-      </button>
-    );
-  }
+    for (const item of menu) {
+      options.push({
+        value: item.value,
+        label: `${prefix}${item.label}`,
+        count: counts[item.value] > 0 ? counts[item.value] : undefined,
+        tone: ACTION_TONES[item.value],
+      });
+    }
+  };
+
+  if (typeFilter !== "Clinic") pushGroup(ADM_MENU, "ADM");
+  if (typeFilter !== "ADM") pushGroup(CLINIC_MENU, "Clinic");
 
   return (
-    <div
-      className="flex flex-wrap items-center gap-1.5"
-      role="group"
-      aria-label="Action filters"
-    >
-      <button
-        type="button"
-        onClick={onClear}
-        aria-pressed={actionFilter === ""}
-        title="Show every case"
-        aria-label={`All cases — ${
-          actionFilter === "" ? "showing all" : "click to clear the filter"
-        }`}
-        className={`${PILL} ${actionFilter === "" ? PILL_ACTIVE : PILL_IDLE}`}
-      >
-        <span className="text-muted-foreground" aria-hidden>
-          <LayoutGrid size={13} />
-        </span>
-        All cases
-      </button>
-      {typeFilter !== "Clinic" && ADM_MENU.map((item) => renderPill(item, "ADM"))}
-      {typeFilter !== "ADM" && CLINIC_MENU.map((item) => renderPill(item, "Clinic"))}
-    </div>
+    <FilterTabs
+      label="Filter cases by action"
+      variant="tags"
+      value={actionFilter}
+      onChange={(next) => {
+        if (next === "") {
+          onClear();
+          return;
+        }
+        // Clicking the tag that is already active clears the filter.
+        if (next === actionFilter) {
+          onClear();
+          return;
+        }
+        onPick(next, next.startsWith("clinic") ? "Clinic" : "ADM");
+      }}
+      options={options}
+    />
   );
 }

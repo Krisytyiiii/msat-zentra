@@ -5,7 +5,6 @@ import {
   Check,
   FileSignature,
   FileStack,
-  GraduationCap,
   ShieldQuestion,
 } from "lucide-react";
 import { StatDeck, type StatDeckItem } from "@/components/ui/stat-deck";
@@ -31,15 +30,6 @@ export function RegistryAttentionDeck({ desk }: { desk: RegistryDesk }) {
       hint: "Adviser-approved finals waiting for the desk",
       value: data?.lockedFinalsAwaiting ?? 0,
       href: `${base}/final-grades`,
-    },
-    {
-      key: "students",
-      icon: GraduationCap,
-      label: "Pending students",
-      unit: "accounts",
-      hint: "LRN verification before the account goes live",
-      value: data?.pendingStudents.length ?? 0,
-      href: `${base}/accounts`,
     },
     {
       key: "adviser",

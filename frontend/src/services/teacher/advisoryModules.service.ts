@@ -99,6 +99,60 @@ export interface AdvisorySubmissionPayload {
   remarks?: string | null;
 }
 
+export interface ModuleAttachmentUpload {
+  url: string;
+  fileName: string;
+  fileMimeType: string;
+  fileSize: number;
+}
+
+/** Extensions an uploaded handout can carry (mirrors the API allow-list). */
+const FILE_URL_PATTERN = /\.(pdf|docx?)(?:$|[?#])/i;
+
+/** True when the module's link points at a file the adviser uploaded here. */
+export function isUploadedModuleFile(url: string | null | undefined): boolean {
+  return typeof url === "string" && FILE_URL_PATTERN.test(url);
+}
+
+/**
+ * Readable file name from a storage public URL. Uploaded objects are stored as
+ * `<timestamp>-<slug>.<ext>`, so the timestamp prefix is stripped for display.
+ */
+export function moduleFileName(url: string | null | undefined): string | null {
+  if (!url || !isUploadedModuleFile(url)) return null;
+  const clean = url.split(/[?#]/)[0] ?? "";
+  const segment = clean.slice(clean.lastIndexOf("/") + 1);
+  const name = segment.replace(/^\d{10,}-/, "");
+  if (!name) return null;
+  try {
+    return decodeURIComponent(name);
+  } catch {
+    return name;
+  }
+}
+
+/** Upload the adviser's module handout (PDF/Word) and return its stored URL. */
+export async function uploadAdvisoryModuleAttachment(
+  file: File,
+): Promise<ModuleAttachmentUpload> {
+  const form = new FormData();
+  form.append("file", file);
+  const { data } = await apiClient.post<ModuleAttachmentUpload>(
+    "/api/teacher/advisory/modules/upload",
+    form,
+    { headers: { "Content-Type": "multipart/form-data" } },
+  );
+  return data;
+}
+
+/** Human-readable file size for the attachment chip. */
+export function formatFileSize(bytes: number): string {
+  if (!Number.isFinite(bytes) || bytes <= 0) return "";
+  if (bytes < 1024) return `${bytes} B`;
+  if (bytes < 1024 * 1024) return `${Math.round(bytes / 1024)} KB`;
+  return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
+}
+
 const MODULE_KEY = "advisory-modules";
 
 type ListSnapshot = { key: QueryKey; data: AdvisoryModulesResponse | undefined };

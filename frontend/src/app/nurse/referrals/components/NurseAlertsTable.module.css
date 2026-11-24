@@ -8,8 +8,8 @@
   /* Fill the page so an empty board centers its message vertically. */
   flex: 1 1 auto;
   width: 100%;
-  max-width: 90rem;
-  margin: 0 auto;
+  max-width: none;
+  margin: 0;
 }
 
 .feed {
@@ -36,13 +36,12 @@
   padding: 2.5rem 0;
 }
 
-/* Kanban boards get the wider feed — four folder cards per row need more
-   room than the single-column list. Centered in the page (the layout's
-   90rem is wider than the board's 84rem) so extra-wide desks don't hang
-   the board off to the left with the slack all on one side. */
+/* Kanban boards fill the panel edge-to-edge so the pill bar and the card grid
+   line up with the desk head and the figure strip above them (no centred feed
+   that insets the board by a few dozen pixels). */
 .feedWide {
-  max-width: 84rem;
-  margin-inline: auto;
+  max-width: none;
+  margin-inline: 0;
 }
 
 /* Card list — one section card per case with breathing room. */

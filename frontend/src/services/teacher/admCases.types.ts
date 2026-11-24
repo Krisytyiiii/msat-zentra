@@ -1,5 +1,7 @@
 export interface AdmCase {
   id: string;
+  /** True once guidance has opened the case file (AdmLearnerProfile). */
+  hasCase: boolean;
   studentId: string;
   studentName: string;
   lrn: string;
@@ -10,7 +12,14 @@ export interface AdmCase {
   photoUrl: string | null;
   referralId: string;
 
-  referralStatus: "pending" | "in_progress" | "resolved";
+  referralStatus:
+    | "pending"
+    | "in_progress"
+    | "escalated"
+    | "info_requested"
+    | "follow_up"
+    | "resolved"
+    | "dismissed";
   consultReviewer?: string | null;
   stage: string;
   stageLabel: string;
@@ -19,6 +28,8 @@ export interface AdmCase {
   approvedAt: string | null;
   /** Term the case was filed in — the desk shows every term of the school year. */
   termNumber: number;
+  /** When the referral was filed (ISO). */
+  referredAt?: string | null;
   datePrepared: string | null;
   meetingAttended: boolean | null;
   lastMeetingAt?: string | null;
@@ -43,6 +54,17 @@ export interface AdmCase {
   }[];
 }
 
+export interface MyAdmCasesSummary {
+  total: number;
+  filtered: number;
+  approved?: number;
+  monitoring?: number;
+  closed?: number;
+  modulesSubmitted?: number;
+  modulesTotal?: number;
+  devicesOut?: number;
+}
+
 export interface MyAdmCasesPage {
   cases: AdmCase[];
   total: number;
@@ -50,4 +72,10 @@ export interface MyAdmCasesPage {
   page: number;
   totalPages: number;
   pageSize: number;
+  /** School-year aggregates for the adviser's overview panel. */
+  summary?: MyAdmCasesSummary;
+  /** Case count per ADM stage key. */
+  stageCounts?: Record<string, number>;
+  /** Newest cases in scope (3), any status — the overview's recent list. */
+  recent?: AdmCase[];
 }

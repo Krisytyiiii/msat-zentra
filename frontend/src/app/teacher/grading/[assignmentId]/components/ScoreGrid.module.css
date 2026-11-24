@@ -28,6 +28,13 @@
   border-radius: var(--radius-lg);
 }
 
+/* Encode board — transparent in dark mode like the subject/assessment cards;
+   the rows carry their own hover surface. Doubled class beats the global
+   `.dark .board-surface` fill regardless of CSS order. */
+:global(.dark) .board.board {
+  background-color: transparent;
+}
+
 .header {
   display: flex;
   align-items: flex-start;

@@ -37,7 +37,6 @@ export function WeightsEditor({ detail, onConfirm, onSaved }: Props) {
       ]),
     ) as Record<ComponentType, string>,
   );
-  const [editingField, setEditingField] = React.useState<ComponentType | null>(null);
   const [saving, setSaving] = React.useState(false);
   const [error, setError] = React.useState<string | null>(null);
 
@@ -80,10 +79,8 @@ export function WeightsEditor({ detail, onConfirm, onSaved }: Props) {
             pt={pt}
             exam={exam}
             inputs={inputs}
-            editing={editingField}
-            onStartEdit={setEditingField}
+            editAll
             onInputChange={(t, v) => setInputs((prev) => ({ ...prev, [t]: v }))}
-            onEndEdit={() => setEditingField(null)}
           />
         ) : (
           <WeightsVisual ww={ww} pt={pt} exam={exam} />

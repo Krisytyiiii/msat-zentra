@@ -1,8 +1,6 @@
 import { Router } from "express";
-import { requireAuth, requireRole } from "../../middleware/auth.js";
-import { gradeBandGuard } from "../../middleware/gradeBand.js";
+import { requireAuth } from "../../middleware/auth.js";
 import { validate } from "../../middleware/validate.js";
-import { matchLrn } from "../../lib/lrnMatch.js";
 import { AppError } from "../../lib/errors.js";
 import { REALTIME_TOKEN_TTL_SECONDS, signRealtimeToken, verifyAccess, verifyRefresh } from "../../lib/jwt.js";
 import {
@@ -11,17 +9,13 @@ import {
   isSecureContext,
   setRefreshCookie,
 } from "../../lib/cookies.js";
-import type { GradeLevel } from "../../generated/prisma/client.js";
 import {
-  approveSchema,
   changePasswordSchema,
   googleCompleteSchema,
   googleCompleteStaffSchema,
   googleExchangeSchema,
   loginSchema,
-  pendingAccountsQuerySchema,
   registerSchema,
-  rejectSchema,
 } from "./auth.schemas.js";
 import {
   changePassword,
@@ -35,7 +29,6 @@ import {
   exchangeGoogleSession,
   type GooglePortalRole,
 } from "../../services/auth/google.service.js";
-import { approveAccount, listPending, rejectAccount } from "../../services/auth/approval.service.js";
 import { clearPresence, clientIp, recordLogout } from "../../services/presence.service.js";
 
 const router = Router();
@@ -70,23 +63,6 @@ router.post("/register/:kind", validate("body", registerSchema), async (req, res
     next(e);
   }
 });
-
-router.get(
-  "/match-lrn",
-  requireAuth,
-  requireRole("record_keeper", "registrar"),
-  async (req, res, next) => {
-    try {
-      const lrn = typeof req.query.lrn === "string" ? req.query.lrn.trim() : "";
-      const name = typeof req.query.name === "string" ? req.query.name : "";
-      if (!lrn) throw new AppError(400, "LRN_REQUIRED", "lrn query parameter is required");
-      const result = await matchLrn(lrn, name);
-      res.json(result);
-    } catch (e) {
-      next(e);
-    }
-  }
-);
 
 router.post("/login", validate("body", loginSchema), async (req, res, next) => {
   try {
@@ -250,77 +226,5 @@ router.get("/realtime-token", requireAuth, (req, res, next) => {
     next(e);
   }
 });
-
-router.post(
-  "/approve/:userId",
-  requireAuth,
-  requireRole("record_keeper", "registrar"),
-  // Parents have no LRN/roster entry, so the band check only applies to
-  // students; the approval service itself provisions student profiles.
-  gradeBandGuard(async (req) => String(req.params.userId), { allowNonStudent: true }),
-  validate("params", approveSchema),
-  async (req, res, next) => {
-    try {
-      res.json(await approveAccount({ userId: req.user!.id, role: req.user!.role }, String(req.params.userId)));
-    } catch (e) {
-      next(e);
-    }
-  }
-);
-
-router.get(
-  "/pending",
-  requireAuth,
-  requireRole("record_keeper", "registrar"),
-  validate("query", pendingAccountsQuerySchema),
-  async (req, res, next) => {
-    try {
-      const band: GradeLevel[] =
-        req.user!.role === "registrar" ? ["G11", "G12"] : ["G7", "G8", "G9", "G10"];
-      const q = req.query as Record<string, unknown>;
-      const roleFilter = typeof q.role === "string" && q.role ? q.role : "student";
-      const search = typeof q.q === "string" ? q.q.trim().toLowerCase() : "";
-      const rawPage = q.page !== undefined ? Number(q.page) : NaN;
-      const rawSize = q.pageSize !== undefined ? Number(q.pageSize) : NaN;
-      const hasPaging = !!search || Number.isFinite(rawPage) || Number.isFinite(rawSize);
-      res.json(
-        await listPending({
-          band,
-          roleFilter,
-          q: search,
-          page: rawPage,
-          pageSize: rawSize,
-          hasPaging,
-        }),
-      );
-    } catch (e) {
-      next(e);
-    }
-  }
-);
-
-router.post(
-  "/reject/:userId",
-  requireAuth,
-  requireRole("record_keeper", "registrar"),
-  // Bogus sign-ups (LRN not in any roster) can't be approved but must still
-  // be rejectable with a reason — skip the band check for unresolvable grades.
-  gradeBandGuard(async (req) => String(req.params.userId), { allowUnresolved: true }),
-  validate("params", approveSchema),
-  validate("body", rejectSchema),
-  async (req, res, next) => {
-    try {
-      res.json(
-        await rejectAccount(
-          { userId: req.user!.id, role: req.user!.role },
-          String(req.params.userId),
-          (req.body as { reason: string }).reason,
-        ),
-      );
-    } catch (e) {
-      next(e);
-    }
-  }
-);
 
 export default router;

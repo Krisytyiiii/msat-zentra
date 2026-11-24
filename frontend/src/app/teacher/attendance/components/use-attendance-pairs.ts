@@ -33,7 +33,10 @@ export function useAttendancePairs(termKey: string, linked: LinkedName | null) {
   const loadQuery = useLiveQuery<MyLoad>({
     queryKey: ["teacher-my-load", termKey],
     queryFn: async () => {
-      const { data } = await apiClient.get<MyLoad>("/api/teacher/my-load");
+      // strict=1: attendance is term-scoped (records + the absence sweep both
+      // read only the selected term's grid), so never show a class that came
+      // from an earlier term's fallback — saving it would 422 SUBJECT_NOT_OFFERED.
+      const { data } = await apiClient.get<MyLoad>("/api/teacher/my-load?strict=1");
       return data;
     },
     enabled: linked !== null,

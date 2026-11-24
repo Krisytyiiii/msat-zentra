@@ -5,7 +5,7 @@ import { invalidateTags } from "../../lib/cache.js";
 import { CACHE_TAGS } from "../../lib/cacheTags.js";
 import { paginated, clampPage } from "../../lib/pagination.js";
 import { adviserSectionsOr404 } from "../../modules/teacher/advisory.repository.js";
-import { advisorySubmissionObjectPath, uploadFile } from "../../lib/storage.js";
+import { advisoryModuleObjectPath, advisorySubmissionObjectPath, uploadFile } from "../../lib/storage.js";
 import {
   archivedAdvisoryLearnerIds,
   excludeArchivedProfiles,
@@ -523,6 +523,43 @@ export interface SubmissionFile {
   size: number;
 }
 
+/** PDF/Word only — the same allow-list the submission upload uses. */
+const ATTACHMENT_MIME_TYPES = [
+  "application/pdf",
+  "application/msword",
+  "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+];
+const ATTACHMENT_EXTENSIONS = ["pdf", "doc", "docx"];
+
+function assertAttachment(file: SubmissionFile) {
+  const ext = file.originalname.split(".").pop()?.toLowerCase() ?? "";
+  if (!ATTACHMENT_MIME_TYPES.includes(file.mimetype) && !ATTACHMENT_EXTENSIONS.includes(ext)) {
+    throw new AppError(400, "INVALID_FILE", "Only PDF or Word files are accepted");
+  }
+}
+
+/**
+ * Upload the adviser's module handout and hand back the stored public URL.
+ * Nothing is written to the module row here — the form passes the returned URL
+ * as `moduleUrl` when the module is created (or edited), so abandoning the
+ * dialog never leaves a half-released module behind.
+ */
+export async function uploadModuleAttachment(file: SubmissionFile | undefined) {
+  if (!file) {
+    throw new AppError(400, "BAD_REQUEST", "Attach the module file");
+  }
+  assertAttachment(file);
+
+  const path = advisoryModuleObjectPath(file.originalname);
+  const url = await uploadFile(file.buffer, path, file.mimetype);
+  return {
+    url,
+    fileName: file.originalname.slice(0, 200),
+    fileMimeType: file.mimetype,
+    fileSize: file.size,
+  };
+}
+
 /** Upload the learner's answered module (PDF/Word) and record it as a submission. */
 export async function uploadSubmissionFile(
   ctx: AdvisoryContext,
@@ -534,15 +571,7 @@ export async function uploadSubmissionFile(
     throw new AppError(400, "BAD_REQUEST", "Attach the answered module file");
   }
   // Validated by multer's filter; guard here too so the service stays safe.
-  const allowed = [
-    "application/pdf",
-    "application/msword",
-    "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
-  ];
-  const ext = file.originalname.split(".").pop()?.toLowerCase() ?? "";
-  if (!allowed.includes(file.mimetype) && !["pdf", "doc", "docx"].includes(ext)) {
-    throw new AppError(400, "INVALID_FILE", "Only PDF or Word files are accepted");
-  }
+  assertAttachment(file);
 
   const path = advisorySubmissionObjectPath(moduleId, file.originalname);
   const fileUrl = await uploadFile(file.buffer, path, file.mimetype);

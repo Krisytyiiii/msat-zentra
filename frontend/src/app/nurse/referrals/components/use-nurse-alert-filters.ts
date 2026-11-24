@@ -2,13 +2,9 @@
 import * as React from "react";
 import type { NurseAlertItem } from "@/services/nurse/nurse.types";
 import {
-  isEndorsed,
-  isWithdrawn,
-  isCaseDone,
-  hasOpenBooking,
+  countActions,
   matchesActionFilter,
   type ActionFilter,
-  type ActionValue,
   type TypeFilter,
 } from "./nurse-referrals-format";
 import { PAGE_SIZE } from "@/components/shared/pagination";
@@ -82,45 +78,7 @@ export function useNurseAlertFilters({
     });
     return rows;
   }, [alerts, typeFilter, actionFilter, search]);
-  const actionCounts = React.useMemo(() => {
-    const counts: Record<ActionValue, number> = {
-      adm_needs: 0,
-      endorse: 0,
-      followup: 0,
-      booked: 0,
-      reject: 0,
-      adm_cancelled: 0,
-      clinic_needs: 0,
-      clinic_booked: 0,
-      clinic_done: 0,
-      clinic_followup: 0,
-      clinic_reject: 0,
-      clinic_cancelled: 0,
-    };
-    for (const a of alerts) {
-      if (a.row.type === "ADM") {
-        if (a.row.status === "pending") counts.adm_needs += 1;
-        if (isEndorsed(a.row.type, a.row.status)) counts.endorse += 1;
-        if (a.row.status === "follow_up") counts.followup += 1;
-        if (hasOpenBooking(a.row)) counts.booked += 1;
-        if (a.row.status === "dismissed" && !isWithdrawn(a.row)) counts.reject += 1;
-        if (isWithdrawn(a.row)) counts.adm_cancelled += 1;
-      } else if (a.row.type === "Clinic") {
-        if (a.row.status === "pending") counts.clinic_needs += 1;
-        if (hasOpenBooking(a.row)) counts.clinic_booked += 1;
-        if (isCaseDone(a.row)) counts.clinic_done += 1;
-        if (a.row.status === "follow_up") counts.clinic_followup += 1;
-        if (
-          (a.row.status === "dismissed" || a.row.status === "rejected") &&
-          !isWithdrawn(a.row)
-        ) {
-          counts.clinic_reject += 1;
-        }
-        if (isWithdrawn(a.row)) counts.clinic_cancelled += 1;
-      }
-    }
-    return counts;
-  }, [alerts]);
+  const actionCounts = React.useMemo(() => countActions(alerts), [alerts]);
   const total = serverDriven
     ? actionFilter !== ""
       ? filtered.length

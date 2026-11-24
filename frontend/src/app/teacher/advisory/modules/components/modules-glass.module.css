@@ -1,0 +1,263 @@
+/* Adviser Modules desk — glass surfaces matching the teacher student-list
+   section cards (`/teacher/overview/students`): a translucent card fill with a
+   thin gradient sheen, hairline border, soft lift, and an amber selected edge.
+   One module so the Modules panel, its cards, the general-post note and the
+   submissions panel all read as the same material. */
+
+.panel {
+  position: relative;
+  min-width: 0;
+  overflow: hidden;
+  border: 1px solid color-mix(in oklch, var(--border) 80%, transparent);
+  border-radius: 0.75rem;
+  background-color: color-mix(in oklch, var(--card) 72%, transparent);
+  background-image: linear-gradient(
+    160deg,
+    rgb(255 255 255 / 0.45),
+    rgb(255 255 255 / 0) 55%
+  );
+  box-shadow:
+    inset 0 1px 0 rgb(255 255 255 / 0.5),
+    0 10px 24px -18px rgb(15 23 42 / 0.28);
+  backdrop-filter: blur(14px) saturate(135%);
+  -webkit-backdrop-filter: blur(14px) saturate(135%);
+}
+
+:global(.dark) .panel {
+  background-color: transparent;
+  background-image: none;
+  box-shadow:
+    inset 0 1px 0 rgb(255 255 255 / 0.06),
+    0 12px 28px -20px rgb(0 0 0 / 0.6);
+}
+
+.card {
+  position: relative;
+  z-index: 1;
+  display: flex;
+  flex-direction: column;
+  width: 100%;
+  height: 100%;
+  min-width: 0;
+  overflow: hidden;
+  cursor: pointer;
+  border: 1px solid color-mix(in oklch, var(--border) 80%, transparent);
+  border-radius: 0.75rem;
+  background-color: color-mix(in oklch, var(--card) 72%, transparent);
+  background-image: linear-gradient(
+    160deg,
+    rgb(255 255 255 / 0.45),
+    rgb(255 255 255 / 0) 55%
+  );
+  box-shadow:
+    inset 0 1px 0 rgb(255 255 255 / 0.5),
+    0 10px 24px -18px rgb(15 23 42 / 0.28);
+  backdrop-filter: blur(14px) saturate(135%);
+  -webkit-backdrop-filter: blur(14px) saturate(135%);
+  transition:
+    border-color 160ms ease-out,
+    box-shadow 160ms ease-out;
+}
+
+:global(.dark) .card {
+  background-color: transparent;
+  background-image: none;
+  box-shadow:
+    inset 0 1px 0 rgb(255 255 255 / 0.06),
+    0 12px 28px -20px rgb(0 0 0 / 0.6);
+}
+
+.card:hover {
+  border-color: color-mix(in oklch, var(--border) 45%, var(--foreground));
+  box-shadow:
+    inset 0 1px 0 rgb(255 255 255 / 0.5),
+    0 16px 30px -20px rgb(15 23 42 / 0.35);
+}
+
+:global(.dark) .card:hover {
+  box-shadow:
+    inset 0 1px 0 rgb(255 255 255 / 0.06),
+    0 16px 32px -20px rgb(0 0 0 / 0.7);
+}
+
+.card:focus-within {
+  border-color: #d97706;
+  box-shadow:
+    inset 0 1px 0 rgb(255 255 255 / 0.5),
+    0 0 0 2px color-mix(in srgb, #f59e0b 55%, transparent);
+}
+
+.cardSelected {
+  border-color: color-mix(in srgb, #f59e0b 65%, transparent);
+  background-color: color-mix(in oklch, var(--card) 82%, transparent);
+  box-shadow:
+    inset 0 1px 0 rgb(255 255 255 / 0.5),
+    inset 0 0 0 1px color-mix(in srgb, #f59e0b 40%, transparent),
+    0 16px 30px -20px color-mix(in srgb, #f59e0b 45%, transparent);
+}
+
+:global(.dark) .cardSelected {
+  background-color: transparent;
+}
+
+.cardHead {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 0.5rem;
+  min-width: 0;
+  padding: 0.75rem 0.875rem 0.625rem;
+  border-bottom: 1px solid color-mix(in oklch, var(--border) 70%, transparent);
+}
+
+.cardHeading {
+  display: flex;
+  flex: 1 1 auto;
+  flex-direction: column;
+  gap: 0.3125rem;
+  min-width: 0;
+}
+
+.cardName {
+  max-width: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: 0.875rem;
+  font-weight: 700;
+  letter-spacing: -0.01em;
+  color: var(--foreground);
+}
+
+.cardNameButton {
+  display: block;
+  max-width: 100%;
+  padding: 0;
+  overflow: hidden;
+  font: inherit;
+  font-size: 0.875rem;
+  font-weight: 700;
+  letter-spacing: -0.01em;
+  text-align: left;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  color: var(--foreground);
+  background: none;
+  border: 0;
+  cursor: pointer;
+}
+
+.cardNameButton:hover {
+  color: var(--primary);
+}
+
+.cardMetaRow {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.25rem;
+  min-width: 0;
+}
+
+.cardIcon {
+  display: flex;
+  flex-shrink: 0;
+  align-items: center;
+  justify-content: center;
+  width: 2.25rem;
+  height: 2.25rem;
+  border-radius: 0.5rem;
+  color: #fff;
+  box-shadow:
+    inset 0 1px 0 rgb(255 255 255 / 0.35),
+    0 6px 12px -10px rgb(0 0 0 / 0.5);
+}
+
+.cardMetrics {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  min-width: 0;
+}
+
+.cardMetric {
+  display: flex;
+  flex-direction: column;
+  gap: 0.125rem;
+  min-width: 0;
+  padding: 0.625rem 0.875rem;
+  border-right: 1px solid color-mix(in oklch, var(--border) 70%, transparent);
+}
+
+.cardMetric:last-child {
+  border-right: 0;
+}
+
+.metricLabel {
+  overflow: hidden;
+  font-size: 0.75rem;
+  font-weight: 500;
+  color: var(--muted-foreground);
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.metricValue {
+  overflow: hidden;
+  font-size: 1.375rem;
+  font-weight: 700;
+  line-height: 1.05;
+  letter-spacing: -0.02em;
+  font-variant-numeric: tabular-nums;
+  color: var(--foreground);
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.metricValueDate {
+  font-size: 0.9375rem;
+  line-height: 1.3;
+}
+
+.metricHint {
+  overflow: hidden;
+  font-size: 0.75rem;
+  line-height: 1.3;
+  color: var(--muted-foreground);
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.metricTrack {
+  width: 100%;
+  height: 0.25rem;
+  margin-top: 0.3125rem;
+  overflow: hidden;
+  border-radius: 999px;
+  background-color: color-mix(in oklch, var(--border) 70%, transparent);
+}
+
+.metricFill {
+  display: block;
+  height: 100%;
+  border-radius: 999px;
+  transition: width 300ms ease-out;
+}
+
+.cardFoot {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.5rem;
+  min-width: 0;
+  margin-top: auto;
+  padding: 0.5rem 0.875rem 0.625rem;
+  border-top: 1px solid color-mix(in oklch, var(--border) 70%, transparent);
+}
+
+.cardActions {
+  display: flex;
+  flex-shrink: 0;
+  align-items: center;
+  gap: 0.125rem;
+}

@@ -183,10 +183,9 @@ export function GuidanceAnecdotalFolders({
           </div>
         </div>
         <div className={styles.content}>
-          <div className={styles.scrollArea}>
           {records.length === 0 ? (
-            <div className="flex w-full justify-center py-6">
-              <InsightCallout role="status" className="w-full max-w-xl text-left">
+            <div className="flex min-h-[60vh] w-full flex-1 items-center justify-center py-6">
+              <InsightCallout role="status" className="w-full max-w-xl text-center">
                 {query.trim() !== ""
                   ? `No referred records match “${query.trim()}”${
                       activeTypeLabel ? ` in ${activeTypeLabel}` : ""
@@ -197,52 +196,55 @@ export function GuidanceAnecdotalFolders({
               </InsightCallout>
             </div>
           ) : (
-            <div className={styles.studentGrid}>
-              {records.map((record) => (
-                <AnecdotalRecordKanbanCard
-                  key={record.referralId}
-                  category={record.category}
-                  studentName={record.student}
-                  plainName
-                  mascotSeed={record.lrn}
-                  mascotCharacter={record.mascot ?? undefined}
-                  lrn={record.lrn}
-                  metaText={record.section}
-                  metaTitle={`Section ${record.section}`}
-                  metaLabel={record.grade || "Grade level"}
-                  metaTone="amber"
-                  fileName={`GCForm-01_${record.date}`}
-                  fileTag={`${humanizeCategory(record.category)} • ${timeAgo(record.date)}`}
-                  headerRight={
-                    <TooltipProvider delayDuration={150}>
-                      <Tooltip>
-                        <TooltipTrigger asChild>
-                          <Badge
-                            variant={statusVariant(record)}
-                            className="shrink-0 rounded-md"
-                          >
-                            {statusLabel(record)}
-                          </Badge>
-                        </TooltipTrigger>
-                        <TooltipContent side="top">
-                          {statusHelp(record)}
-                        </TooltipContent>
-                      </Tooltip>
-                    </TooltipProvider>
-                  }
-                  openLabel={`Preview ${record.student}'s record from ${record.date}`}
-                  onOpen={() => openRecord(record)}
-                />
-              ))}
-            </div>
+            <>
+              <div className={styles.scrollArea}>
+                <div className={styles.studentGrid}>
+                  {records.map((record) => (
+                    <AnecdotalRecordKanbanCard
+                      key={record.referralId}
+                      category={record.category}
+                      studentName={record.student}
+                      plainName
+                      mascotSeed={record.lrn}
+                      mascotCharacter={record.mascot ?? undefined}
+                      lrn={record.lrn}
+                      metaText={record.section}
+                      metaTitle={`Section ${record.section}`}
+                      metaLabel={record.grade || "Grade level"}
+                      metaTone="amber"
+                      fileName={`GCForm-01_${record.date}`}
+                      fileTag={`${humanizeCategory(record.category)} • ${timeAgo(record.date)}`}
+                      headerRight={
+                        <TooltipProvider delayDuration={150}>
+                          <Tooltip>
+                            <TooltipTrigger asChild>
+                              <Badge
+                                variant={statusVariant(record)}
+                                className="shrink-0 rounded-md"
+                              >
+                                {statusLabel(record)}
+                              </Badge>
+                            </TooltipTrigger>
+                            <TooltipContent side="top">
+                              {statusHelp(record)}
+                            </TooltipContent>
+                          </Tooltip>
+                        </TooltipProvider>
+                      }
+                      openLabel={`Preview ${record.student}'s record from ${record.date}`}
+                      onOpen={() => openRecord(record)}
+                    />
+                  ))}
+                </div>
+              </div>
+              <Pagination
+                currentPage={page}
+                totalItems={total}
+                pageSize={pageSize}
+                onPageChange={onPageChange}
+              />
+            </>
           )}
-          </div>
-          <Pagination
-            currentPage={page}
-            totalItems={total}
-            pageSize={pageSize}
-            onPageChange={onPageChange}
-          />
         </div>
       </div>
 

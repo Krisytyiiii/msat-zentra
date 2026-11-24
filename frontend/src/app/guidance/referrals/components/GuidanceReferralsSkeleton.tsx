@@ -111,9 +111,11 @@ export function GuidanceReferralsSkeleton({
   );
 }
 
-/* Mirrors the real guidance kanban board: action-tab pills + search row,
-   4×4 folder cards (the page size), then the shared pager. The caller wraps
-   this in the referrals page <section>, so no extra page padding here. */
+/* Mirrors the real guidance kanban board: the glass tag bar, 4×4 folder
+   cards (the page size), then the shared pager. The desk head and figure
+   strip are rendered by the page itself, so they are not repeated here. The
+   caller wraps this in the referrals page <section>, so no extra page
+   padding here. */
 function GuidanceBoardSkeleton() {
   return (
     <div
@@ -122,20 +124,17 @@ function GuidanceBoardSkeleton() {
       aria-label="Loading your cases"
     >
       <div className={`${tableStyles.feed} ${tableStyles.feedWide}`}>
+        {/* Tag-filter bar — "All cases" plus six action tags. */}
         <div
-          className="flex flex-wrap items-center justify-between gap-2"
+          className="flex flex-wrap items-center gap-1.5"
           aria-hidden="true"
         >
-          <div className="flex flex-wrap items-center gap-1.5">
-            {[72, 96, 84, 92, 74, 78, 84].map((width, index) => (
-              <Skeleton
-                key={index}
-                className="h-7 rounded-full"
-                style={{ width }}
-              />
-            ))}
-          </div>
-          <Skeleton className="h-8 w-40 max-w-full shrink-0 rounded-[16px]" />
+          {Array.from({ length: 7 }).map((_, index) => (
+            <Skeleton
+              key={index}
+              className="h-[1.875rem] w-[6.5rem] rounded-full"
+            />
+          ))}
         </div>
         <div className={tableStyles.kanbanGrid} aria-hidden="true">
           {Array.from({ length: 16 }).map((_, i) => (

@@ -2,9 +2,8 @@
 
 import Link from "next/link";
 import { format } from "date-fns";
-import { ArrowRight, CalendarClock, MapPin } from "lucide-react";
-import { Button } from "@/components/ui/button";
-import { Pill } from "@/components/ui/pill";
+import { ArrowRight, CalendarClock } from "lucide-react";
+import { Pill, type PillTone } from "@/components/ui/pill";
 import { InsightCallout } from "@/components/ui/insight-callout";
 import { StudentMascot } from "@/components/student-mascot/StudentMascot";
 import {
@@ -14,7 +13,6 @@ import styles from "./guidance-calendar.module.css";
 import {
   eventHref as defaultEventHref,
   formatTime,
-  isClosed,
   sessionTypeLabel,
   trackLabel as defaultTrackLabel,
   type CalendarEvent,
@@ -41,7 +39,6 @@ export function CalendarDayRail({
   return (
     <aside className={styles.rail} aria-label="Day agenda">
       <div className={styles.railHead}>
-        <p className={styles.railEyebrow}>Day agenda</p>
         <h2 className={styles.railTitle}>{format(day, "EEEE, MMMM d")}</h2>
         <p className={styles.railCount}>
           {events.length === 0
@@ -58,7 +55,15 @@ export function CalendarDayRail({
         <ul className={styles.railList}>
           {events.map((event) => {
             const href = eventHref(event);
-            const closed = isClosed(event);
+            const statusTone: PillTone =
+              event.status === "cancelled"
+                ? "red"
+                : event.status === "scheduled"
+                  ? "blue"
+                  : "green";
+            const statusText = event.status
+              ? event.status.charAt(0).toUpperCase() + event.status.slice(1)
+              : "Scheduled";
             return (
               <li key={event.id}>
                 <div
@@ -76,75 +81,66 @@ export function CalendarDayRail({
                   }}
                 >
                   <div className={styles.railCardTop}>
-                    <div className={styles.railPerson}>
-                      <StudentMascot
-                        name={event.learner}
-                        seed={event.lrn}
-                        size={34}
-                      />
-                      <div className={styles.railPersonText}>
-                        <p className={styles.railLearner}>{event.learner}</p>
-                        <div className={styles.railPills}>
-                          {event.lrn ? (
-                            <Pill label="LRN" className="tabular-nums">
-                              {event.lrn}
-                            </Pill>
-                          ) : null}
-                          {event.section ? (
-                            <Pill tone="amber" label="Section">
-                              {event.section}
-                            </Pill>
-                          ) : null}
-                        </div>
+                    <StudentMascot
+                      name={event.learner}
+                      seed={event.lrn}
+                      character={event.mascot ?? undefined}
+                      size={32}
+                    />
+                    <div className={styles.railIdentity}>
+                      <p className={styles.railLearner}>{event.learner}</p>
+                      <div className={styles.railTags}>
+                        <Pill tone={tones[event.track] ?? "neutral"} label="Case type">
+                          {trackLabel(event.track)}
+                        </Pill>
+                        <Pill label="Session type">{sessionTypeLabel(event.sessionType)}</Pill>
+                        {event.invited ? (
+                          <Pill tone="green" label="Invitation">
+                            Invited
+                          </Pill>
+                        ) : null}
                       </div>
                     </div>
-                    <div className={styles.railWhen}>
-                      <Pill tone={tones[event.track] ?? "neutral"} label="Case type">
-                        {trackLabel(event.track)}
-                      </Pill>
-                      <Pill tone="neutral" label="Scheduled at" className="tabular-nums">
-                        <CalendarClock size={10} aria-hidden="true" />
-                        {formatTime(event.start)}
-                      </Pill>
+                    <Pill tone={statusTone} label="Session status" className="shrink-0">
+                      <CalendarClock size={11} aria-hidden="true" /> {statusText}
+                    </Pill>
+                  </div>
+
+                  <div className={styles.railMetrics}>
+                    <div className={styles.railMetric}>
+                      <span className={styles.railMetricLabel}>Starts</span>
+                      <span className={styles.railMetricValue}>{formatTime(event.start)}</span>
+                      <span className={styles.railMetricHint}>scheduled time</span>
+                    </div>
+                    <div className={styles.railMetric}>
+                      <span className={styles.railMetricLabel}>Venue</span>
+                      <span className={styles.railMetricValue}>
+                        {event.venue || "—"}
+                      </span>
+                      <span className={styles.railMetricHint}>
+                        {event.venue ? "meeting place" : "no venue set"}
+                      </span>
                     </div>
                   </div>
 
-                  <div className={styles.railPills}>
-                    <Pill label="Session type">{sessionTypeLabel(event.sessionType)}</Pill>
-                    {event.venue ? (
-                      <Pill label="Venue">
-                        <MapPin size={10} aria-hidden="true" />
-                        {event.venue}
-                      </Pill>
-                    ) : null}
-                    {closed ? (
-                      <Pill
-                        tone={event.status === "cancelled" ? "red" : "green"}
-                        label="Session status"
-                      >
-                        {event.status === "cancelled" ? "Cancelled" : "Completed"}
-                      </Pill>
-                    ) : null}
-                    {event.invited ? (
-                      <Pill tone="green" label="Invitation">
-                        Invited
-                      </Pill>
-                    ) : null}
-                  </div>
-
-                  {href ? (
-                    <Button
-                      asChild
-                      variant="outline"
-                      size="xs"
-                      className={styles.railAction}
-                      style={{ height: 24 }}
-                    >
-                      <Link href={href} onClick={(e) => e.stopPropagation()}>
-                        Open case
-                        <ArrowRight size={12} aria-hidden="true" />
-                      </Link>
-                    </Button>
+                  {event.lrn || href ? (
+                    <div className={styles.railFoot}>
+                      {event.lrn ? (
+                        <Pill label="LRN" className="tabular-nums">
+                          {event.lrn}
+                        </Pill>
+                      ) : null}
+                      {href ? (
+                        <Link
+                          href={href}
+                          className={styles.railAction}
+                          onClick={(e) => e.stopPropagation()}
+                        >
+                          Open case
+                          <ArrowRight size={12} aria-hidden="true" />
+                        </Link>
+                      ) : null}
+                    </div>
                   ) : null}
                 </div>
               </li>

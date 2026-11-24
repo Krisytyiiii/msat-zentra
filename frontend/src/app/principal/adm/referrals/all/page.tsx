@@ -1,7 +1,6 @@
 "use client";
 import * as React from "react";
-import { SearchIcon } from "lucide-react";
-import { InputGroup, InputGroupInput, InputGroupAddon } from "@/components/ui/input-group";
+import { SearchField } from "@/components/ui/search-field";
 import { useQueryClient } from "@tanstack/react-query";
 import { apiClient } from "@/lib/api/client";
 import type {
@@ -229,19 +228,13 @@ function PrincipalAdmReferralsAllPageInner() {
                 />
               }
               actions={
-                <InputGroup className="w-60 max-w-full shrink-0 rounded-[16px]">
-                  <InputGroupInput
-                    placeholder="Search name, LRN, or ID…"
-                    value={searchInput}
-                    onChange={(e) => {
-                      setSearchInput(e.target.value);
-                    }}
-                    aria-label="Search referrals"
-                  />
-                  <InputGroupAddon>
-                    <SearchIcon />
-                  </InputGroupAddon>
-                </InputGroup>
+                <SearchField
+                  className="w-60"
+                  placeholder="Search name, LRN, or ID…"
+                  value={searchInput}
+                  onChange={(next) => setSearchInput(next)}
+                  aria-label="Search referrals"
+                />
               }
               footer={
                 <Pagination

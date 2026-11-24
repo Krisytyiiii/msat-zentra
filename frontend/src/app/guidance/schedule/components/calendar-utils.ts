@@ -17,6 +17,8 @@ export interface CalendarEvent {
   learner: string;
   lrn: string;
   section: string;
+  /** Stored sprite mascot (roster/profile); null falls back to the derived one. */
+  mascot?: string | null;
   sessionType: string;
   /** ISO instant — render it in the browser's local time. */
   start: string;

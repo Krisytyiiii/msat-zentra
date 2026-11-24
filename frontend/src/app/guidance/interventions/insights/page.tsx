@@ -10,11 +10,6 @@ import {
 import { Button } from "@/components/ui/button";
 import { Pill } from "@/components/ui/pill";
 import { KanbanBoard } from "@/components/ui/kanban-board";
-import { Skeleton } from "@/components/ui/skeleton";
-import {
-  KanbanBoardSkeleton,
-  ZentraPageHeaderSkeleton,
-} from "@/components/shared/zentra-skeletons/ZentraSkeletons";
 import { GuidancePageHeader } from "../../components/GuidancePageHeader";
 import { fetchGuidanceInterventionInsights } from "@/services/guidance/insights.service";
 import type { InterventionInsightsData } from "@/services/guidance/insights.types";
@@ -25,6 +20,7 @@ import { InsightsTrendBoard } from "./components/insights-trend-board";
 import { InsightsSessionBoard } from "./components/insights-session-board";
 import { InsightsOutcomeBoard } from "./components/insights-outcome-board";
 import { InsightsHeatmap } from "./components/insights-heatmap";
+import { InsightsSkeleton } from "./components/insights-skeleton";
 import pageStyles from "../../pages.module.css";
 import styles from "./components/insights.module.css";
 
@@ -41,48 +37,7 @@ export default function GuidanceInterventionInsightsPage() {
     });
 
   if (isPending) {
-    return (
-      <section
-        className={pageStyles.page}
-        aria-busy="true"
-        aria-label="Loading intervention insights"
-      >
-        <ZentraPageHeaderSkeleton withActions actionCount={1} />
-        <div className={pageStyles.kpiGrid}>
-          {[0, 1, 2, 3].map((i) => (
-            <Skeleton key={i} className="h-24 w-full rounded-md" aria-hidden="true" />
-          ))}
-        </div>
-        <div className={pageStyles.grid2}>
-          {[0, 1].map((i) => (
-            <KanbanBoardSkeleton
-              key={i}
-              titleWidth="10rem"
-              rows={0}
-              showCount
-              showDescription
-              className="flex-1"
-            >
-              <Skeleton className="h-64 w-full rounded-md" aria-hidden="true" />
-            </KanbanBoardSkeleton>
-          ))}
-        </div>
-        <div className="grid gap-3 lg:grid-cols-2">
-          {[0, 1].map((i) => (
-            <KanbanBoardSkeleton
-              key={i}
-              titleWidth="10rem"
-              rows={0}
-              showCount
-              showDescription
-              className="flex-1"
-            >
-              <Skeleton className="h-48 w-full rounded-md" aria-hidden="true" />
-            </KanbanBoardSkeleton>
-          ))}
-        </div>
-      </section>
-    );
+    return <InsightsSkeleton />;
   }
 
   if (isError || !data) {
@@ -113,7 +68,7 @@ export default function GuidanceInterventionInsightsPage() {
 
   return (
     <section
-      className={pageStyles.page}
+      className={`${pageStyles.page} ${styles.darkGlass}`}
       aria-busy={refreshing}
       aria-label="Intervention insights"
     >

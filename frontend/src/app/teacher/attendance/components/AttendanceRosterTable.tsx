@@ -9,12 +9,12 @@ import {
   type ColumnFiltersState,
   type VisibilityState,
 } from "@tanstack/react-table";
-import { SearchIcon, Users } from "lucide-react";
+import { Users } from "lucide-react";
 import { StudentMascot } from "@/components/student-mascot/StudentMascot";
 import { assignUniqueMascots } from "@/app/teacher/grading/[assignmentId]/components/mascot-assignment";
 import { compareSurnameFirst, formatSurnameFirst } from "@/lib/names";
 import { Button } from "@/components/ui/button";
-import { InputGroup, InputGroupInput, InputGroupAddon } from "@/components/ui/input-group";
+import { TeacherSearchField, searchEmptyMessage } from "@/app/teacher/components/TeacherSearchField";
 import { Skeleton } from "@/components/ui/skeleton";
 import { toast } from "@/components/ui/sonner";
 import { useDock } from "@/components/dock/dock-store";
@@ -31,6 +31,7 @@ import type { SheetContext, SheetStatus } from "@/services/teacher/attendance.ty
 import { MeetupBlocksCell, StatusBoxes } from "./status-boxes";
 import { useRosterMarks } from "./use-roster-marks";
 import { SaveAttendanceKanban } from "./save-attendance-dialog";
+import boardStyles from "./attendance-sheet.module.css";
 interface RosterRow {
   id: string;
   name: string;
@@ -88,6 +89,7 @@ export function AttendanceRosterSkeleton({ rows = 8 }: { rows?: number }) {
   return (
     <KanbanBoard
       title="Class attendance"
+      className={boardStyles.board}
       icon={
         <span className="text-amber-500" aria-hidden>
           <Users size={14} />
@@ -384,21 +386,19 @@ export function AttendanceRosterTable({ date, subjectId, assignmentId, slot, ros
     return (<p role="alert" className="text-sm text-destructive">Could not load the class roster.</p>);
   }
   const headerActions = (
-    <InputGroup className="h-8 w-40 shrink-0 rounded-[16px] text-xs sm:w-48">
-      <InputGroupInput
-        placeholder="Filter students..."
-        value={(table.getColumn("name")?.getFilterValue() as string) ?? ""}
-        onChange={(event) => table.getColumn("name")?.setFilterValue(event.target.value)}
-        aria-label="Filter students"
-        className="h-8 text-xs"
-      />
-      <InputGroupAddon><SearchIcon size={13} /></InputGroupAddon>
-    </InputGroup>
+    <TeacherSearchField
+      className="w-60"
+      placeholder="Search students…"
+      value={(table.getColumn("name")?.getFilterValue() as string) ?? ""}
+      onChange={(next) => table.getColumn("name")?.setFilterValue(next)}
+      aria-label="Filter students"
+    />
   );
   return (
     <section aria-label="Class attendance" className="flex min-w-0 flex-col gap-3">
       <KanbanBoard
         title="Class attendance"
+        className={boardStyles.board}
         icon={boardIcon}
         actions={data.length === 0 ? undefined : headerActions}
         description={sheetDesc}
@@ -422,8 +422,7 @@ export function AttendanceRosterTable({ date, subjectId, assignmentId, slot, ros
         ) : rows.length === 0 ? (
           <div className="flex w-full justify-center px-1 py-6">
             <InsightCallout role="status" className="w-full max-w-xl text-left">
-              <strong>No students match your search.</strong> Try a different name
-              or LRN — or clear the filter to see everyone.
+              {searchEmptyMessage(nameFilter, "students")}
             </InsightCallout>
           </div>
         ) : (

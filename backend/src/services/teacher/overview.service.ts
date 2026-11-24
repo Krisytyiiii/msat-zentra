@@ -1,7 +1,7 @@
 import { prisma } from "../../lib/prisma.js";
 import { findTeacherTermGrant } from "../../lib/teacherGrant.js";
 import { sectionHeadcounts } from "../enrollment.js";
-import { ATTENDANCE_RISK_CUTOFF, subjectAverageAttendance } from "../attendance.js";
+import { subjectAverageAttendance } from "../attendance.js";
 import { attendanceTotalFor, computeRiskFactors, levelFromFlags, sectionAttendanceTotals } from "../risk.js";
 import {
   ACTION_LABEL,
@@ -165,26 +165,43 @@ export async function getOverview(
   const sectionIds = Array.from(
     new Set([...assignments.map((a) => a.section.id), ...linkedPairs.map((s) => s.sectionId)]),
   );
+  // Class-wide learners only feed the critical payload (risk mix + roster).
+  // Advisers get their roster from the advisory block below, and the
+  // secondary/gradebook scopes need only the section→student mapping — so the
+  // full class roster query is skipped on the adviser overview request.
+  const needsClassLearners = scope !== "critical" || !isAdviser;
+  // Live class-wide risk is only serialized by the critical/full payload for
+  // non-advisers; secondary/gradebook never return those flags.
+  const needsClassRisk = scope === "full" || (isCriticalOnly && !isAdviser);
   const [sectionCounts, sectionStudents, openFlags, classRoster] = await Promise.all([
     prisma.studentProfile.groupBy({
       by: ["sectionId"],
       where: { sectionId: { in: handledSectionIds }, ...excludeArchivedProfiles(archivedLearners) },
       _count: { _all: true },
     }),
-    prisma.studentProfile.findMany({
-      where: { sectionId: { in: handledSectionIds }, ...excludeArchivedProfiles(archivedLearners) },
-      select: {
-        userId: true,
-        lrn: true,
-        mascot: true,
-        sectionId: true,
-        user: { select: { fullName: true } },
-        section: { select: { name: true } },
-      },
-    }),
+    needsClassLearners
+      ? prisma.studentProfile.findMany({
+          where: { sectionId: { in: handledSectionIds }, ...excludeArchivedProfiles(archivedLearners) },
+          select: {
+            userId: true,
+            lrn: true,
+            mascot: true,
+            sectionId: true,
+            user: { select: { fullName: true } },
+            section: { select: { name: true } },
+          },
+        })
+      : Promise.resolve([] as {
+          userId: string;
+          lrn: string;
+          mascot: string | null;
+          sectionId: string | null;
+          user: { fullName: string };
+          section: { name: string } | null;
+        }[]),
     prisma.anecdotalRecord.count({ where: { observerId: teacherId, termId, deletedAt: null } }),
 
-    handledSectionIds.length > 0
+    needsClassLearners && handledSectionIds.length > 0
       ? prisma.studentRoster.findMany({
           where: {
             sectionId: { in: handledSectionIds },
@@ -322,7 +339,7 @@ export async function getOverview(
 
   const classRiskByKey = new Map<string, { riskLevel: "Low" | "Moderate" | "High"; flags: ("academic" | "attendance")[] }>();
 
-  if (!isGradebookOnly && classStudentBases.length > 0 && handledSubjectIds.length > 0) {
+  if (needsClassRisk && classStudentBases.length > 0 && handledSubjectIds.length > 0) {
     const profileIds = sectionStudents.map((p) => p.userId);
     const rosterIds = classRoster.map((r) => r.id);
     const orClauses = [
@@ -363,6 +380,7 @@ export async function getOverview(
     const keyOf = (studentId: string | null, rosterId: string | null): string | null =>
       studentId ?? (rosterId ? `roster:${rosterId}` : null);
     const sectionTotals = await sectionAttendanceTotals(handledSectionIds, termId);
+    const classSubjectAvgs = await subjectAverageAttendance(handledSectionIds, termId);
     const finalsByKey = new Map<string, { computedAverage: number | null; transmutedGrade: number | null }[]>();
     for (const f of classFinals) {
       const key = keyOf(f.studentId, f.rosterId);
@@ -395,10 +413,13 @@ export async function getOverview(
       const rawAverages = Array.from((rawBySubject.get(b.studentId) ?? new Map()).values()).map(
         (cell) => cell.sum / cell.count,
       );
+      const classSubjAvg = classSubjectAvgs.get(b.studentId);
       const flags = computeRiskFactors({
         finalGrades: finalsByKey.get(b.studentId) ?? [],
         rawAverages,
         attendance: attByKey.get(b.studentId) ?? [],
+        attendanceRate:
+          classSubjAvg && classSubjAvg.hasSubjectData ? classSubjAvg.average : null,
         attendanceTotal: sectionTotals.get(b.sectionId),
         anecdotalCount: 0,
         enrolled: 0,
@@ -778,20 +799,20 @@ export async function getOverview(
       enrolled: number,
     ) => {
       const rosterId = key.startsWith("roster:") ? key.slice("roster:".length) : null;
+      const subjAvg = subjectAvgs.get(key);
       const flags = computeRiskFactors({
         finalGrades,
         rawAverages: rawAveragesFor(key),
         attendance,
+        // Term subject-average presence decides the attendance factor; the
+        // section-meetup total is only the legacy/no-signal fallback.
+        attendanceRate: subjAvg && subjAvg.hasSubjectData ? subjAvg.average : null,
         // Transferees count only the meetups elapsed after their enlistment day.
         attendanceTotal: attendanceTotalFor(sectionTotals, advisorySection.id, rosterId),
         anecdotalCount,
         enrolled,
       });
 
-      const subjAvg = subjectAvgs.get(key);
-      if (subjAvg && subjAvg.hasSubjectData) {
-        flags.attendanceFlag = subjAvg.average < ATTENDANCE_RISK_CUTOFF;
-      }
       const activeFlags: ("academic" | "attendance" | "behavioral")[] = [];
       if (flags.academicFlag) activeFlags.push("academic");
       if (flags.attendanceFlag) activeFlags.push("attendance");

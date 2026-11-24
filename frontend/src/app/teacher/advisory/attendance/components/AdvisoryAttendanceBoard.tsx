@@ -1,6 +1,7 @@
 "use client";
 
 import { BookOpen, CalendarClock, KanbanSquare } from "lucide-react";
+import { GlassCard } from "@/components/ui/glass-card";
 import { Pill } from "@/components/ui/pill";
 import boardStyles from "../../list/components/advisory-insight-board.module.css";
 
@@ -92,13 +93,8 @@ export function AdvisoryAttendanceBoard({
   }
 
   const overall = attendanceOverall(student.rates, subjects.length);
-  const overallPct = overall === null ? null : Math.round(overall * 100);
   const hasMarks = overall !== null;
   const atRisk = overall !== null && overall < 0.75;
-  // Same total the advisory-list card reports: every subject's elapsed meetups
-  // in this learner's window (transferees start the day after enlistment).
-  const totalMeetups = Object.values(student.meetups ?? {}).reduce((a, b) => a + b, 0);
-  const totalPresent = Object.values(student.presentMeetups ?? {}).reduce((a, b) => a + b, 0);
 
   return (
     <div
@@ -111,32 +107,25 @@ export function AdvisoryAttendanceBoard({
         </span>
         <div className="min-w-0 flex-1">
           <h2 className={boardStyles.boardTitle}>Student attendance</h2>
-          <span className="mt-1 flex max-w-full flex-wrap items-center gap-1">
-            <Pill tone="amber" label="Overall present rate">
-              {overallPct !== null ? `${overallPct}% overall` : "No marks yet"}
-            </Pill>
-            <Pill tone="amber" label="Subjects measured">
-              {`${subjects.length} subject${subjects.length === 1 ? "" : "s"}`}
-            </Pill>
-            <Pill tone="neutral" label="Meetups">
-              {`${totalPresent} of ${totalMeetups} meetups`}
-            </Pill>
-            <Pill
-              tone={!hasMarks ? "neutral" : atRisk ? "red" : "green"}
-              label="Attendance status"
+          <p className={boardStyles.boardSub}>
+            Overall present rate and meetups per subject
+          </p>
+        </div>
+        <GlassCard className="shrink-0" intensity={4}>
+          <div className={boardStyles.statusCard}>
+            <span className={boardStyles.statusLabel}>Attendance status</span>
+            <span
+              className={`${boardStyles.statusValue} ${attendanceRateClass(overall)}`}
             >
               {!hasMarks ? "No data" : atRisk ? "At risk" : "On track"}
-            </Pill>
-            <Pill
-              tone={student.learnerType === "transferee" ? "amber" : "neutral"}
-              label="Meetup window"
-            >
+            </span>
+            <span className={boardStyles.statusMeta}>
               {student.learnerType === "transferee"
                 ? "Transferee · counted since enlistment"
                 : "Regular · counted from term start"}
-            </Pill>
-          </span>
-        </div>
+            </span>
+          </div>
+        </GlassCard>
       </header>
 
       <section className={boardStyles.plainSection} aria-label="Present rate per subject">

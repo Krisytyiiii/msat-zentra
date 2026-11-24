@@ -1,0 +1,247 @@
+/* ADM case queue — table view alongside the card board. Mirrors the shared
+   roster tables (thin amber scrollbar, hairline row rules, clickable rows). */
+
+.tableWrap {
+  overflow: hidden;
+  border-radius: var(--radius-md);
+  border: 1px solid var(--border);
+  background-color: var(--card);
+}
+
+:global(.dark) .tableWrap {
+  background-color: transparent;
+  border-color: color-mix(in oklch, var(--border) 70%, transparent);
+}
+
+/* The Table primitive renders its own inner scroll container. */
+.tableWrap [data-slot="table-container"] {
+  border-radius: inherit;
+  scrollbar-width: thin;
+  scrollbar-color: color-mix(in oklch, #f59e0b 65%, transparent) transparent;
+}
+
+.tableWrap [data-slot="table-container"]::-webkit-scrollbar {
+  width: 3px;
+  height: 3px;
+}
+
+.tableWrap [data-slot="table-container"]::-webkit-scrollbar-button {
+  display: none;
+  width: 0;
+  height: 0;
+}
+
+.tableWrap [data-slot="table-container"]::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.tableWrap [data-slot="table-container"]::-webkit-scrollbar-thumb {
+  background: color-mix(in oklch, #f59e0b 65%, transparent);
+  border-radius: 999px;
+}
+
+.tableWrap [data-slot="table-container"]::-webkit-scrollbar-thumb:hover {
+  background: color-mix(in oklch, #f59e0b 85%, transparent);
+}
+
+.tableWrap th,
+.tableWrap td {
+  padding: 0.6875rem 0.75rem;
+}
+
+.tableWrap thead th {
+  font-size: 0.75rem;
+  font-weight: 500;
+  letter-spacing: 0.02em;
+  color: var(--muted-foreground);
+  border-bottom: 1px solid var(--border);
+  background-color: transparent;
+  white-space: nowrap;
+}
+
+.tableWrap tbody td {
+  font-size: 0.8125rem;
+  border-bottom: 1px solid color-mix(in oklch, var(--border), transparent 35%);
+  vertical-align: middle;
+}
+
+.tableWrap tbody tr:last-child td {
+  border-bottom: none;
+}
+
+.row {
+  cursor: pointer;
+  transition: background-color 140ms ease-out;
+}
+
+.row:hover {
+  background-color: color-mix(in oklch, var(--primary) 6%, transparent);
+}
+
+.row:focus-visible {
+  outline: none;
+  background-color: color-mix(in oklch, var(--primary) 6%, transparent);
+  box-shadow: inset 0 0 0 2px var(--ring);
+}
+
+@keyframes row-in {
+  from {
+    opacity: 0;
+    transform: translateY(4px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.row {
+  animation: row-in 0.28s cubic-bezier(0.22, 1, 0.36, 1) backwards;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .row {
+    animation: none;
+  }
+}
+
+.learnerCell {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  min-width: 12rem;
+}
+
+.learnerMeta {
+  display: flex;
+  flex-direction: column;
+  gap: 0.125rem;
+  min-width: 0;
+}
+
+.learnerName {
+  font-size: 0.8125rem;
+  font-weight: 600;
+  color: var(--foreground);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.learnerLrn {
+  font-size: 0.75rem;
+  color: var(--muted-foreground);
+  font-variant-numeric: tabular-nums;
+}
+
+.stageCell {
+  white-space: normal;
+  min-width: 10rem;
+  color: var(--foreground);
+}
+
+.meetingCell {
+  display: flex;
+  flex-direction: column;
+  gap: 0.125rem;
+  min-width: 10rem;
+}
+
+.meetingWhen {
+  font-size: 0.8125rem;
+  color: var(--foreground);
+  font-variant-numeric: tabular-nums;
+}
+
+.meetingMeta {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.375rem;
+  font-size: 0.75rem;
+  color: var(--muted-foreground);
+}
+
+.meetingState {
+  display: inline-flex;
+  align-items: center;
+  padding: 0.0625rem 0.375rem;
+  border-radius: 9999px;
+  border: 1px solid color-mix(in oklch, var(--border) 80%, transparent);
+  font-size: 0.6875rem;
+  font-weight: 600;
+}
+
+.meetingState[data-attended] {
+  color: var(--primary);
+  border-color: color-mix(in oklch, var(--primary) 45%, transparent);
+}
+
+.muted {
+  font-size: 0.75rem;
+  color: var(--muted-foreground);
+}
+
+.updateCell {
+  display: flex;
+  flex-direction: column;
+  gap: 0.125rem;
+  min-width: 8rem;
+}
+
+.updateLabel {
+  font-size: 0.8125rem;
+  font-weight: 600;
+  color: var(--foreground);
+  white-space: normal;
+}
+
+.updateAt {
+  font-size: 0.75rem;
+  color: var(--muted-foreground);
+  font-variant-numeric: tabular-nums;
+}
+
+.actionsCell {
+  width: 1%;
+  white-space: nowrap;
+}
+
+.actions {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 0.375rem;
+  margin-left: auto;
+}
+
+.iconBtn {
+  height: 1.75rem;
+  width: 1.75rem;
+  padding: 0;
+  flex-shrink: 0;
+}
+
+/* Track stays the last element in the row, pinned to the right edge of the
+   action cluster. */
+.trackBtn {
+  flex-shrink: 0;
+  margin-left: 0.125rem;
+}
+
+.spin {
+  width: 0.875rem;
+  height: 0.875rem;
+  animation: table-spin 1s linear infinite;
+}
+
+@keyframes table-spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .spin {
+    animation: none;
+  }
+}

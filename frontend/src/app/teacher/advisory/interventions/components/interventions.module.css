@@ -1,241 +1,557 @@
-/* Adviser intervention board — mirrors the guidance interventions desk
-   (4×4 card grid, same card anatomy and motion) without the write actions. */
+/* Adviser intervention board — a flat, auto-fill card grid in the same shape
+   as the administrator's schedule-template sections workspace (one card kit:
+   identity row, state pills, meta line, then a footer action). */
 
-/* Page shell — same flex column as the guidance interventions page. */
-.page {
+.boardShell {
   display: flex;
   flex-direction: column;
-  gap: 1rem;
+  gap: 0.875rem;
+  min-width: 0;
+}
+
+/* Page shell — two columns on wide screens (board + detection-flow rail). */
+.page {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  align-content: start;
+  align-items: start;
+  gap: 0.875rem;
   min-height: 100%;
 }
 
-/* Board header search — same rounded field as the guidance desk. */
+.flowAside {
+  min-width: 0;
+}
+
+/* The rail only earns its own column when the board still fits a 3-up grid. */
+@media (min-width: 1180px) {
+  .page {
+    grid-template-columns: minmax(0, 1fr) minmax(20rem, 30%);
+  }
+
+  .flowAside {
+    position: sticky;
+    top: calc(4rem + var(--term-banner-offset, 0rem));
+    height: calc(100dvh - 5rem - var(--term-banner-offset, 0rem));
+    overflow-y: auto;
+    scrollbar-width: none;
+    -ms-overflow-style: none;
+  }
+
+  .flowAside::-webkit-scrollbar {
+    display: none;
+  }
+}
+
+/* ── Header ───────────────────────────────────────────────────────────────── */
+.header {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 0.75rem 1rem;
+  min-width: 0;
+}
+
+.headerText {
+  display: flex;
+  flex-direction: column;
+  gap: 0.1875rem;
+  min-width: 0;
+}
+
+.titleRow {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  min-width: 0;
+}
+
+.titleIcon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 1.625rem;
+  height: 1.625rem;
+  border: 1px solid var(--border);
+  border-radius: 0.5rem;
+  background-color: color-mix(in oklch, var(--muted) 55%, transparent);
+  color: color-mix(in oklch, #f59e0b 80%, var(--muted-foreground));
+}
+
+.title {
+  margin: 0;
+  font-size: 1rem;
+  font-weight: 700;
+  letter-spacing: -0.015em;
+  color: var(--foreground);
+}
+
+.subtitle {
+  margin: 0;
+  max-width: 46rem;
+  font-size: 0.75rem;
+  line-height: 1.45;
+  color: var(--muted-foreground);
+}
+
 .headerActions {
   display: flex;
   align-items: center;
-  gap: 0.5rem;
-  flex-wrap: wrap;
+  gap: 0.375rem;
 }
 
-.searchWrap {
+.countPill {
+  font-variant-numeric: tabular-nums;
+}
+
+/* ── Toolbar: filters + search ────────────────────────────────────────────── */
+.toolbar {
+  display: flex;
+  flex-wrap: nowrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.5rem 0.75rem;
+  min-width: 0;
+}
+
+.toolbarFilters {
+  display: flex;
+  flex-wrap: nowrap;
+  align-items: center;
+  gap: 0.5rem 0.75rem;
+  min-width: 0;
+  overflow-x: auto;
+  scrollbar-width: none;
+}
+
+.toolbarFilters::-webkit-scrollbar {
+  display: none;
+}
+
+/* ── Case list: one glass panel, one row per case (no card grid) ───────────── */
+.listPanel {
+  --list-cols:
+    minmax(8rem, 1.7fr) minmax(4.25rem, 0.55fr) minmax(5.25rem, 0.9fr)
+    minmax(6.5rem, 1.5fr) minmax(5rem, 1fr) minmax(4.5rem, 0.65fr)
+    minmax(4rem, 0.7fr) 6.5rem;
   position: relative;
-  width: 16rem;
-  max-width: 100%;
+  min-width: 0;
+  overflow: hidden;
+  border: 1px solid color-mix(in oklch, var(--border) 80%, transparent);
+  border-radius: 0.75rem;
+  background-color: color-mix(in oklch, var(--card) 68%, transparent);
+  background-image: linear-gradient(
+    160deg,
+    rgb(255 255 255 / 0.45),
+    rgb(255 255 255 / 0) 55%
+  );
+  box-shadow:
+    inset 0 1px 0 rgb(255 255 255 / 0.5),
+    0 10px 24px -18px rgb(15 23 42 / 0.28);
+  backdrop-filter: blur(14px) saturate(135%);
+  -webkit-backdrop-filter: blur(14px) saturate(135%);
 }
 
-.searchIcon {
-  position: absolute;
-  left: 0.625rem;
-  top: 50%;
-  transform: translateY(-50%);
-  width: 1rem;
-  height: 1rem;
-  color: var(--muted-foreground);
-  pointer-events: none;
+:global(.dark) .listPanel {
+  background-color: transparent;
+  background-image: none;
+  box-shadow:
+    inset 0 1px 0 rgb(255 255 255 / 0.06),
+    0 12px 28px -20px rgb(0 0 0 / 0.6);
 }
 
-.search {
-  width: 240px;
-  max-width: 100%;
-  height: 2rem;
-  padding-left: 2rem;
-  border-radius: 1rem;
-}
-
-.caseList {
+.listHead {
   display: grid;
-  grid-template-columns: repeat(4, minmax(0, 1fr));
+  grid-template-columns: var(--list-cols);
+  align-items: center;
   gap: 0.75rem;
+  padding: 0.4375rem 0.875rem;
+  border-bottom: 1px solid var(--border);
+  font-size: 0.75rem;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--muted-foreground);
+}
+
+.listBody {
+  min-width: 0;
   margin: 0;
   padding: 0;
   list-style: none;
+}
+
+.listHead > span {
   min-width: 0;
 }
 
-@media (max-width: 1280px) {
-  .caseList {
-    grid-template-columns: repeat(3, minmax(0, 1fr));
-  }
-}
-
-@media (max-width: 1024px) {
-  .caseList {
-    grid-template-columns: repeat(2, minmax(0, 1fr));
-  }
-}
-
-@media (max-width: 640px) {
-  .caseList {
-    grid-template-columns: minmax(0, 1fr);
-  }
-}
-
-/* One card: identity + risk, pills, then detected + details hint. */
-.caseRow {
-  display: flex;
-  flex-direction: column;
-  gap: 0.5rem;
+.headSection,
+.headSessions {
   min-width: 0;
-  padding: 0.75rem;
-  border: 1px solid var(--border);
-  border-radius: var(--radius-lg);
-  background-color: var(--card);
-  box-shadow: 0 1px 2px 0 color-mix(in oklch, var(--foreground), transparent 95%);
+}
+
+/* Vertical column rules — every column but the last is divided by a hairline. */
+.listHead > span:not(:last-child),
+.row > .cell:not(:last-child),
+.skelCaseRow > .cell:not(:last-child) {
+  border-right: 1px solid color-mix(in oklch, var(--border) 65%, transparent);
+  padding-right: 0.75rem;
+}
+
+/* One case row: risk level paints the vertical accent only. */
+.row {
+  --risk: var(--muted-foreground);
+  display: grid;
+  grid-template-columns: var(--list-cols);
+  align-items: center;
+  gap: 0.75rem;
+  padding: 0.5rem 0.875rem;
+  border-top: 1px solid color-mix(in oklch, var(--border) 70%, transparent);
+  box-shadow: inset 2px 0 0 color-mix(in oklch, var(--risk) 70%, transparent);
   cursor: pointer;
   outline: none;
-  scroll-margin-top: 7rem;
+  animation: card-in 320ms cubic-bezier(0.22, 1, 0.36, 1) backwards;
   transition:
-    transform 160ms ease-out,
-    box-shadow 160ms ease-out,
-    border-color 160ms ease-out;
+    background-color 150ms ease-out,
+    box-shadow 150ms ease-out;
 }
 
-.caseRow:hover {
-  transform: translateY(-2px);
-  border-color: color-mix(in oklch, oklch(0.769 0.188 70.08), transparent 45%);
-  box-shadow: 0 12px 32px -12px color-mix(in oklch, oklch(0.769 0.188 70.08), transparent 45%);
+.row:first-child {
+  border-top: 0;
 }
 
-.caseRow:focus-visible {
-  outline: 2px solid var(--ring);
-  outline-offset: 2px;
+.row:hover {
+  background-color: color-mix(in oklch, var(--muted) 40%, transparent);
 }
 
-.caseRowActive {
-  border-color: color-mix(in oklch, oklch(0.769 0.188 70.08), transparent 30%);
+.row:focus-visible {
+  box-shadow:
+    inset 2px 0 0 var(--risk),
+    inset 0 0 0 2px var(--ring);
 }
 
-.boardIn {
-  animation: board-in 0.9s cubic-bezier(0.22, 1, 0.36, 1) backwards;
-  /* Clip the entrance motion so translated cards can't flash a page scrollbar. */
-  overflow: clip;
+.rowHigh {
+  --risk: #ef4444;
 }
 
-@keyframes board-in {
-  from {
-    opacity: 0;
-    transform: translateY(14px) scale(0.985);
-  }
-  to {
-    opacity: 1;
-    transform: translateY(0) scale(1);
-  }
+.rowModerate {
+  --risk: #f59e0b;
 }
 
-@keyframes card-in {
-  from {
-    opacity: 0;
-    transform: translateY(8px);
-  }
-  to {
-    opacity: 1;
-    transform: translateY(0);
-  }
+.rowLow {
+  --risk: #94a3b8;
 }
 
-.caseList > .caseRow {
-  animation: card-in 1s cubic-bezier(0.22, 1, 0.36, 1) backwards;
-}
-
-.caseCardHead {
+.cell {
   display: flex;
   align-items: center;
-  gap: 0.5rem;
   min-width: 0;
 }
 
-.caseCardId {
+.cellPerson {
+  gap: 0.5rem;
+}
+
+.personText {
   display: flex;
   flex-direction: column;
+  gap: 0.0625rem;
   min-width: 0;
-  flex: 1;
 }
 
-.caseCardName {
+.personName {
   margin: 0;
-  min-width: 0;
-  font-size: 0.875rem;
-  font-weight: 600;
-  color: var(--foreground);
-  white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: 0.8125rem;
+  font-weight: 700;
+  letter-spacing: -0.01em;
+  color: var(--foreground);
 }
 
-.caseCardMeta {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  gap: 0.25rem;
+.personLrn {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: 0.75rem;
+  color: var(--muted-foreground);
+  font-variant-numeric: tabular-nums;
 }
 
-/* The card's 8px column gap plus this 24px margin gives the 32px
-   separation from the LRN/section pills above. */
-.caseCardPills {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  gap: 0.375rem;
-  margin-top: 1.5rem;
+.cellRisk {
+  justify-content: flex-start;
 }
 
-/* Card footer: detected timestamp. */
-.caseCardFoot {
-  display: flex;
-  align-items: center;
-  gap: 0.5rem;
-  margin-top: auto;
-  padding-top: 0.5rem;
-  border-top: 1px solid var(--border);
-  min-width: 0;
+.cellFactors {
+  flex-wrap: nowrap;
+  gap: 0.1875rem;
+  overflow: hidden;
 }
 
-/* Skeleton mirrors the loaded board: header, description, 4×4 card grid, pager. */
-.skelCaseRow {
-  display: flex;
+/* Compact factor chips — 3-letter codes so the cell never wraps a row. */
+.factorPill {
+  padding-inline: 0.3125rem;
+  letter-spacing: 0.02em;
+}
+
+.cellStatus {
+  justify-content: flex-start;
+}
+
+.cellMuted {
+  font-size: 0.75rem;
+  color: var(--muted-foreground);
+}
+
+.cellMetaRow {
   flex-direction: column;
-  align-items: stretch;
-  gap: 0.5rem;
-  padding: 0.75rem;
-  border: 1px solid var(--border);
-  border-radius: var(--radius-lg);
-  background-color: var(--card);
+  align-items: flex-start;
+  gap: 0.0625rem;
+}
+
+.cellLabel {
+  display: none;
+  font-size: 0.75rem;
+  color: var(--muted-foreground);
+}
+
+.cellValue {
+  font-size: 0.75rem;
+  color: var(--foreground);
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+
+.cellSub {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.1875rem;
+  max-width: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: 0.75rem;
+  color: var(--muted-foreground);
+  font-variant-numeric: tabular-nums;
+}
+
+.cellSub svg {
+  flex-shrink: 0;
+}
+.cellAction {
+  justify-content: flex-end;
+}
+
+/* The board's own column budget: drop the section column first, since the
+   advisee cell still names the learner and the pipeline carries the state. */
+@media (max-width: 1280px) {
+  .listPanel {
+    --list-cols:
+      minmax(8rem, 1.7fr) minmax(4.25rem, 0.55fr) minmax(6.5rem, 1.5fr)
+      minmax(5rem, 1fr) minmax(4.5rem, 0.65fr) minmax(4rem, 0.7fr) 6.5rem;
+  }
+
+  .headSection,
+  .cellSection {
+    display: none !important;
+  }
+}
+
+/* Narrow boards stack each case into short labelled lines instead of scrolling. */
+@media (max-width: 860px) {
+  .listHead {
+    display: none;
+  }
+
+  .row,
+  .skelCaseRow {
+    grid-template-columns: minmax(0, 1fr) auto;
+    grid-template-areas:
+      "person risk"
+      "section section"
+      "factors factors"
+      "status sessions"
+      "flagged flagged"
+      "action action";
+    row-gap: 0.5rem;
+    align-items: center;
+    padding: 0.625rem 0.75rem 0.6875rem;
+  }
+
+  /* Stacked rows drop the vertical rules — they only make sense in a column grid. */
+  .row > .cell:not(:last-child),
+  .skelCaseRow > .cell:not(:last-child) {
+    border-right: 0;
+    padding-right: 0;
+  }
+
+  .cellPerson {
+    grid-area: person;
+  }
+
+  .cellRisk {
+    grid-area: risk;
+    justify-content: flex-end;
+  }
+
+  .cellSection {
+    grid-area: section;
+    display: flex !important;
+    flex-direction: row;
+    align-items: center;
+    gap: 0.375rem;
+  }
+
+  .cellFactors {
+    grid-area: factors;
+    flex-wrap: wrap;
+    overflow: visible;
+  }
+
+  .cellStatus {
+    grid-area: status;
+  }
+
+  .cellSessions {
+    grid-area: sessions;
+    align-items: flex-end;
+  }
+
+  .cellFlagged {
+    grid-area: flagged;
+    flex-direction: row;
+    align-items: center;
+    gap: 0.25rem;
+    justify-content: flex-end;
+  }
+
+  .cellAction {
+    grid-area: action;
+    justify-content: flex-end;
+  }
+
+  .cellLabel {
+    display: inline;
+  }
+}
+
+/* ── Loading skeleton (mirrors the live layout, shimmer-swept) ────────────── */
+.skelTitleIcon {
+  width: 1.625rem;
+  height: 1.625rem;
+  flex-shrink: 0;
+  border-radius: 0.5rem;
+}
+
+.skelTitle {
+  width: 11rem;
+  max-width: 100%;
+  height: 1rem;
+}
+
+.skelDescription {
+  width: min(26rem, 80%);
+  height: 0.75rem;
+}
+
+.skelCountPill {
+  width: 5.5rem;
+  height: 1.5rem;
+  flex-shrink: 0;
+  border-radius: 999px;
+}
+
+.skelTag {
+  height: 1.875rem;
+  flex-shrink: 0;
+  border-radius: 999px;
+}
+
+.skelSearch {
+  width: 15rem;
+  max-width: 100%;
+  height: 1.75rem;
+  flex-shrink: 0;
+  border-radius: 0.5rem;
+}
+
+.skelHeadLabel {
+  width: 4.75rem;
+  height: 0.6875rem;
+}
+
+/* Same grid as `.row`, so every placeholder sits in its real column. */
+.skelCaseRow {
+  display: grid;
+  grid-template-columns: var(--list-cols);
+  align-items: center;
+  gap: 0.75rem;
+  padding: 0.5rem 0.875rem;
+  border-top: 1px solid color-mix(in oklch, var(--border) 70%, transparent);
+}
+
+.skelCaseRow:first-child {
+  border-top: 0;
+}
+
+.skelCaseRow .cell {
+  pointer-events: none;
 }
 
 .skelAvatar {
-  width: 2.25rem;
-  height: 2.25rem;
+  width: 1.875rem;
+  height: 1.875rem;
   flex-shrink: 0;
-  border-radius: 9999px;
+  border-radius: 999px;
 }
 
-.skelCaseLines {
+.skelPersonLines {
   display: flex;
-  flex-direction: column;
-  gap: 0.375rem;
-  flex: 1;
   min-width: 0;
+  flex-direction: column;
+  gap: 0.1875rem;
 }
 
 .skelBar {
-  height: 0.8125rem;
+  height: 0.6875rem;
   border-radius: var(--radius-md);
 }
 
 .skelPill {
-  width: 6rem;
+  height: 1.25rem;
+  border-radius: 999px;
+}
+
+.skelFactor {
+  width: 2rem;
   height: 1.25rem;
   flex-shrink: 0;
+  border-radius: 999px;
+}
+
+.skelMeta {
+  height: 0.75rem;
+}
+
+.skelSub {
+  height: 0.6875rem;
+  margin-top: 0.125rem;
+}
+
+.skelAction {
+  width: 5.75rem;
+  height: 1.5rem;
   border-radius: var(--radius-md);
 }
 
 .skelPager {
   display: flex;
+  flex-wrap: wrap;
   align-items: center;
   justify-content: space-between;
   gap: 0.5rem;
-  flex-wrap: wrap;
-  margin-top: 0.75rem;
 }
 
 .skelRange {
@@ -262,13 +578,98 @@
   border-radius: var(--radius-md);
 }
 
-@media (prefers-reduced-motion: reduce) {
-  .boardIn,
-  .caseList > .caseRow {
-    animation: none;
-  }
+/* Detection-flow rail — same head, five lanes, mesh block, total and foot. */
+.skelFlow {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+  height: 100%;
+  min-width: 0;
+  padding: 0.25rem 0 0;
+}
 
-  .caseRow {
+.skelFlowHead {
+  display: flex;
+  flex-direction: column;
+  gap: 0.3125rem;
+}
+
+.skelEyebrow {
+  width: 7.5rem;
+  height: 0.6875rem;
+}
+
+.skelFlowTitle {
+  width: 12rem;
+  max-width: 100%;
+  height: 0.8125rem;
+}
+
+.skelFlowColumns {
+  display: grid;
+  grid-template-columns: repeat(5, minmax(0, 1fr));
+  min-width: 0;
+}
+
+.skelFlowColumn {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.25rem;
+  min-width: 0;
+  padding: 0.375rem 0.5rem 0.5rem;
+  border-right: 1px solid var(--border);
+}
+
+.skelFlowColumn:last-child {
+  border-right: 0;
+}
+
+.skelFlowCount {
+  width: 1.75rem;
+  height: 1.375rem;
+  margin-top: 0.125rem;
+}
+
+.skelFlowMesh {
+  flex: 1;
+  min-height: 15rem;
+  border-radius: 0.75rem;
+  opacity: 0.55;
+}
+
+.skelFlowTotal {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.25rem;
+}
+
+.skelFlowTotalValue {
+  width: 4.5rem;
+  height: 1.75rem;
+}
+
+.skelFlowFoot {
+  width: 100%;
+  height: 0.75rem;
+}
+
+/* ── Motion ────────────────────────────────────────────────────────────────── */
+@keyframes card-in {
+  from {
+    opacity: 0;
+    transform: translateY(10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .row {
+    animation: none;
     transition: none;
   }
 }

@@ -804,8 +804,8 @@
   /* Fill the page so an empty board centers its message vertically. */
   flex: 1 1 auto;
   width: 100%;
-  max-width: 90rem;
-  margin: 0 auto;
+  max-width: none;
+  margin: 0;
 }
 
 .layoutFeed {
@@ -814,11 +814,12 @@
   margin: 0;
 }
 
-/* ADM kanban board — the wider feed and four folder cards per row, same
-   rhythm as the nurse ADM cases board. */
+/* ADM / Counseling kanban boards fill the panel edge-to-edge so the tag bar
+   and the card grid line up with the desk head and the figure strip above
+   them (same as the nurse ADM / clinic boards). */
 .feedWide {
-  max-width: 84rem;
-  margin-inline: auto;
+  max-width: none;
+  margin-inline: 0;
 }
 
 .kanbanGrid {

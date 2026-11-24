@@ -4,7 +4,7 @@ import * as React from "react";
 import { FileText, FolderOpen } from "lucide-react";
 import { FilterTabs } from "@/components/ui/filter-tabs";
 import { FolderCard } from "@/components/ui/FolderCard";
-import { Input } from "@/components/ui/input";
+import { TeacherSearchField, searchEmptyMessage } from "@/app/teacher/components/TeacherSearchField";
 import { InsightCallout } from "@/components/ui/insight-callout";
 import { Pill } from "@/components/ui/pill";
 import { SharedTermPill } from "@/components/shared/shared-term-pill";
@@ -111,12 +111,12 @@ export function Sf10RepoFolders({
           onChange={switchSource}
         />
         <div className={`${styles.headerActions} sm:justify-self-end`}>
-          <Input
-            className={`${styles.search} h-8 rounded-[16px]`}
+          <TeacherSearchField
+            className="w-64 max-w-full"
             placeholder="Search folders…"
             value={query}
-            onChange={(e) => {
-              onQueryChange(e.target.value);
+            onChange={(next) => {
+              onQueryChange(next);
               setPage(1);
             }}
             aria-label="Search folders"
@@ -141,8 +141,7 @@ export function Sf10RepoFolders({
           ) : pageRows.length === 0 && needle ? (
             <div className="flex w-full justify-center px-1 py-10">
               <InsightCallout role="status" className="w-full max-w-xl text-left">
-                <strong>No folders match “{query}”.</strong> Try a different name or LRN — or
-                clear the search to see every {source === "original" ? "original" : "auto-fill"} SF10 file.
+                {searchEmptyMessage(query, "folders")}
               </InsightCallout>
             </div>
           ) : pageRows.length === 0 ? (

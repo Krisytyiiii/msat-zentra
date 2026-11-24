@@ -41,6 +41,11 @@ interface CaseHeader {
   section: string;
   referralStatus: string;
   consultReviewer: string | null;
+  /** Anecdotal record behind the referral — drives the GCForm-01 / GCForm-03 overlays. */
+  anecdotalRecordId: string | null;
+  referralReason: string | null;
+  referralNotes: string | null;
+  referredByName: string | null;
 }
 
 const stageLabelOf = (stage: string) =>
@@ -158,6 +163,9 @@ function loadCaseById(id: string) {
           consultReviewer: true,
           referredBy: true,
           referredByUser: { select: { fullName: true } },
+          anecdotalRecordId: true,
+          reason: true,
+          notes: true,
         },
       },
     },
@@ -301,7 +309,7 @@ async function buildCasePayload(profile: LoadedCase) {
     }),
     prisma.admForm.findMany({
       where: { admLearnerProfileId: profile.id },
-      select: { id: true, formType: true, title: true, status: true, uploadedAt: true },
+      select: { id: true, formType: true, title: true, status: true, uploadedAt: true, fileUrl: true, notes: true },
       orderBy: { uploadedAt: "desc" },
     }),
   ]);
@@ -389,6 +397,10 @@ async function buildCasePayload(profile: LoadedCase) {
     section: profile.student.section?.name ?? "",
     referralStatus: profile.referral.status,
     consultReviewer: profile.referral.consultReviewer ?? null,
+    anecdotalRecordId: profile.referral.anecdotalRecordId ?? null,
+    referralReason: profile.referral.reason ?? null,
+    referralNotes: profile.referral.notes ?? null,
+    referredByName: profile.referral.referredByUser?.fullName ?? null,
   };
 
   return {
@@ -438,6 +450,8 @@ async function buildCasePayload(profile: LoadedCase) {
       title: f.title,
       status: f.status,
       uploadedAt: iso(f.uploadedAt),
+      fileUrl: f.fileUrl ?? null,
+      notes: f.notes ?? null,
     })),
     timeline: timelines.get(profile.referralId) ?? [],
   };

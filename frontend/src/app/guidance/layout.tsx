@@ -9,8 +9,7 @@ import { GuidanceSidebar } from "@/components/guidance-sidebar";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { StudentMascot } from "@/components/student-mascot/StudentMascot";
 import { UserRound } from "lucide-react";
-import { KanbanAccountMenu } from "@/components/account/kanban-account-menu";
-import { useCollapsibleSidebar } from "@/components/nav/use-collapsible-sidebar";
+import { GlassUserMenu } from "@/components/account/glass-user-menu";
 import { ActiveTermBadge } from "@/components/term/ActiveTermBadge";
 import { AppBreadcrumbs } from "@/components/nav/AppBreadcrumbs";
 import { useGuidanceRealtime } from "@/lib/realtime/guidanceChannel";
@@ -32,8 +31,6 @@ function GuidanceShell({ children }: { children: React.ReactNode }) {
 
   useGuidanceRealtime(allowed);
   const profile = useGuidanceProfileSettings();
-  const { collapsed: sidebarCollapsed } =
-    useCollapsibleSidebar("zentra.guidance.sidebar.collapsed");
 
   const handleLogout = () => {
 
@@ -77,7 +74,7 @@ function GuidanceShell({ children }: { children: React.ReactNode }) {
 
         <GuidanceNotificationsBell />
 
-        <KanbanAccountMenu
+        <GlassUserMenu
           settingsHref="/guidance/settings"
           onLogout={handleLogout}
         >
@@ -105,14 +102,12 @@ function GuidanceShell({ children }: { children: React.ReactNode }) {
               </Avatar>
             )}
           </button>
-        </KanbanAccountMenu>
+        </GlassUserMenu>
       </header>
       <GuidancePaletteGate />
-      <GuidanceSidebar collapsed={sidebarCollapsed} />
+      <GuidanceSidebar />
       <div
-        className={`${styles.shell} ${styles.shellWithRail} ${
-          sidebarCollapsed ? styles.shellWithRailCollapsed : ""
-        }`}
+        className={`${styles.shell} ${styles.shellWithDock}`}
       >
         <main className={styles.main}>{children}</main>
       </div>

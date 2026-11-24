@@ -3,8 +3,11 @@
 import { Button } from "@/components/ui/button";
 import { Loader2 } from "lucide-react";
 import { Skeleton } from "@/components/ui/skeleton";
-import { KanbanBoardSkeleton } from "@/components/shared/zentra-skeletons/ZentraSkeletons";
-import { NurseOverviewKpiRail } from "./components/NurseOverviewKpiRail";
+import { ShimmerGroup } from "@/components/ui/shimmer-skeleton";
+import {
+  NurseOverviewCommandBar,
+  NurseOverviewCommandSkeleton,
+} from "./components/NurseOverviewCommandBar";
 import { NurseLatestReferralsPanel } from "./components/NurseOverviewQueues";
 import { NurseOverviewBreakdown } from "./components/NurseOverviewBreakdown";
 import { NurseOverviewTrends } from "./components/NurseOverviewTrends";
@@ -15,6 +18,7 @@ import { useTerm } from "@/lib/term/TermContext";
 import { liveQueryOptions } from "@/lib/api/live";
 import { PageEmptyCallout } from "@/components/shared/page-empty-callout";
 import styles from "./components/nurse-overview.module.css";
+import cardStyles from "./components/nurse-referral-card.module.css";
 
 export default function NurseOverviewPage() {
   const { activeTerm, termReady } = useTerm();
@@ -30,96 +34,71 @@ export default function NurseOverviewPage() {
 
   if (isPending) {
     return (
-      <section className={styles.page} aria-busy="true" aria-label="Loading clinic overview">
-        <div className={styles.body}>
-          <div className={styles.mainCol}>
-            {/* Latest referred students — real KanbanBoard shell + flat case rows. */}
-            <KanbanBoardSkeleton
-              titleWidth="12rem"
-              rows={0}
-              showDescription
-              actions={<Skeleton className="h-4 w-12 shrink-0" />}
-            >
-              <ul className={styles.caseList}>
-                {[0, 1, 2, 3, 4].map((i) => (
-                  <li key={i} className={styles.caseRow} aria-hidden="true">
-                    <div className={styles.caseInfo}>
-                      <Skeleton className="size-8 shrink-0 rounded-full" />
-                      <div className={styles.caseNameBlock}>
-                        <Skeleton className="h-4 w-40 min-w-0" />
-                        <div className={styles.caseMeta}>
-                          <Skeleton className="h-5 w-24 shrink-0 rounded-md" />
-                          <Skeleton className="h-5 w-10 shrink-0 rounded-md" />
-                          <Skeleton className="h-5 w-20 shrink-0 rounded-md" />
-                        </div>
-                      </div>
-                    </div>
-                    <div className={styles.cellActions}>
-                      <Skeleton className="h-5 w-16 shrink-0 rounded-md" />
-                      <Skeleton className="h-5 w-16 shrink-0 rounded-md" />
-                      <Skeleton className="h-5 w-12 shrink-0 rounded-md" />
-                      <Skeleton className="size-7 shrink-0 rounded-md" />
-                    </div>
-                  </li>
+      <section
+        className={styles.page}
+        aria-busy="true"
+        aria-label="Loading clinic overview"
+      >
+        <ShimmerGroup>
+          <NurseOverviewCommandSkeleton />
+
+          <div className={styles.body}>
+            <div className={styles.chartsCol}>
+              <div className={styles.threeCol}>
+                {[0, 1, 2].map((i) => (
+                  <div key={i} className={styles.skeletonBoard}>
+                    <Skeleton className="h-4 w-32" />
+                    <Skeleton className={styles.skelChartBlock} />
+                  </div>
                 ))}
-              </ul>
-            </KanbanBoardSkeleton>
+              </div>
 
-            <div className={styles.threeCol}>
-              {[0, 1, 2].map((col) => (
-                <KanbanBoardSkeleton
-                  key={col}
-                  titleWidth="10rem"
-                  rows={0}
-                  showCount
-                  showDescription
-                  className="flex-1"
-                >
-                  {col === 0 ? (
-                    <div className={styles.skelChartRow} aria-hidden="true">
-                      <Skeleton className={styles.skelDonut} />
-                      <div className={styles.skelLegend}>
-                        {[0, 1, 2, 3].map((i) => (
-                          <Skeleton key={i} className={styles.skelLegendRow} />
-                        ))}
+              <div className={styles.twoCol}>
+                {[0, 1].map((i) => (
+                  <div key={i} className={styles.skeletonBoard}>
+                    <Skeleton className="h-4 w-28" />
+                    <Skeleton className={styles.skelLine} />
+                  </div>
+                ))}
+              </div>
+            </div>
+
+            <aside className={styles.railCol} aria-hidden="true">
+              <div className={styles.gridHeader}>
+                <div className={styles.gridHeaderText}>
+                  <Skeleton className="h-4 w-44" />
+                  <Skeleton className="h-3 w-48" />
+                </div>
+              </div>
+              <div className={styles.referralGrid}>
+                {[0, 1, 2].map((i) => (
+                  <div key={i} className={styles.skeletonBoard}>
+                    <div className={styles.caseInfoSkeleton}>
+                      <Skeleton className="size-9 shrink-0 rounded-lg" />
+                      <div className={styles.caseNameBlock}>
+                        <Skeleton className="h-4 w-32 min-w-0" />
+                        <Skeleton className="h-3 w-20" />
+                      </div>
+                      <Skeleton className="h-5 w-16 shrink-0 rounded-md" />
+                    </div>
+                    <div className={cardStyles.cardMetrics}>
+                      <div className={cardStyles.cardMetric}>
+                        <Skeleton className="h-3 w-14" />
+                        <Skeleton className="mt-1 h-5 w-16" />
+                        <Skeleton className="mt-1 h-3 w-20" />
+                      </div>
+                      <div className={cardStyles.cardMetric}>
+                        <Skeleton className="h-3 w-16" />
+                        <Skeleton className="mt-1 h-4 w-12" />
+                        <Skeleton className="mt-1 h-3 w-16" />
                       </div>
                     </div>
-                  ) : (
-                    <div className={styles.skelBars} aria-hidden="true">
-                      {[0, 1, 2, 3].map((i) => (
-                        <div key={i} className={styles.skelBarRowWrap}>
-                          <Skeleton className={styles.skelBarYLabel} />
-                          <Skeleton className={styles.skelBarRow} />
-                        </div>
-                      ))}
-                    </div>
-                  )}
-                </KanbanBoardSkeleton>
-              ))}
-            </div>
-
-            <div className={styles.twoCol}>
-              {[0, 1].map((col) => (
-                <KanbanBoardSkeleton
-                  key={col}
-                  titleWidth="10rem"
-                  rows={0}
-                  showCount
-                  showDescription
-                  className="flex-1"
-                >
-                  <Skeleton className={styles.skelLine} aria-hidden="true" />
-                </KanbanBoardSkeleton>
-              ))}
-            </div>
+                  </div>
+                ))}
+              </div>
+            </aside>
           </div>
-
-          <div className={styles.skelRail}>
-            {[0, 1, 2, 3, 4].map((i) => (
-              <Skeleton key={i} className={styles.skelRailIcon} aria-hidden="true" />
-            ))}
-          </div>
-        </div>
+        </ShimmerGroup>
       </section>
     );
   }
@@ -128,7 +107,9 @@ export default function NurseOverviewPage() {
     return (
       <section className={styles.page}>
         <div className={styles.pageError} role="alert">
-          <p className={styles.pageErrorTitle}>We couldn&apos;t load the clinic overview</p>
+          <p className={styles.pageErrorTitle}>
+            We couldn&apos;t load the clinic overview
+          </p>
           <p className={styles.pageErrorHint}>
             Please check your internet connection and try again.
           </p>
@@ -150,7 +131,7 @@ export default function NurseOverviewPage() {
 
   const refreshing = isFetching && !isPending;
 
-  // No clinic cases at all → one centered callout instead of empty boards.
+  // No clinic cases at all — one centered callout instead of empty boards.
   const isEmpty =
     data.kpis.total === 0 &&
     (data.latestReferrals ?? []).length === 0 &&
@@ -168,28 +149,41 @@ export default function NurseOverviewPage() {
   }
 
   return (
-    <section className={styles.page} aria-busy={refreshing} aria-label="Clinic overview">
-      <div className={styles.body}>
-        <div className={styles.mainCol}>
-          {/* ?? [] guards a stale in-memory cache entry built before the
-              latestReferrals feed existed (dev hot reload / open tab). */}
-          <NurseLatestReferralsPanel latestReferrals={data.latestReferrals ?? []} />
+    <section
+      className={styles.page}
+      aria-busy={refreshing}
+      aria-label="Clinic overview"
+    >
+      <NurseOverviewCommandBar
+        kpis={data.kpis}
+        needsReview={data.needsReview ?? []}
+      />
 
-          {/* Charts stay inside the left column — the sticky icon rail owns
-              the right strip, so no section may cross into it. */}
+      <div className={styles.body}>
+        {/* Left: every chart. Right: the newest referrals rail (20% wide). */}
+        <div className={styles.chartsCol}>
           <NurseOverviewBreakdown
             statusBreakdown={data.statusBreakdown}
             clinicStatusBreakdown={data.clinicStatusBreakdown}
             admStatusBreakdown={data.admStatusBreakdown}
           />
 
-          <NurseOverviewTrends dailyTrend={data.dailyTrend} needsReview={data.needsReview} />
+          <NurseOverviewTrends
+            dailyTrend={data.dailyTrend}
+            needsReview={data.needsReview}
+            waitingTotal={data.kpis.needsReview}
+          />
         </div>
 
-        <NurseOverviewKpiRail
-          kpis={data.kpis}
-          needsReview={data.needsReview}
-        />
+        {/* Hidden entirely until the desk has referrals — an empty rail is
+            noise on a command page. */}
+        {(data.latestReferrals ?? []).length > 0 ? (
+          <aside className={styles.railCol}>
+            <NurseLatestReferralsPanel
+              latestReferrals={data.latestReferrals ?? []}
+            />
+          </aside>
+        ) : null}
       </div>
     </section>
   );

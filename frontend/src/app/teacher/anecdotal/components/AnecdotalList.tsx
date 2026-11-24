@@ -10,8 +10,8 @@ import {
   CardContent,
 } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
+import { TeacherSearchField, searchEmptyMessage } from "@/app/teacher/components/TeacherSearchField";
 import {
   DropdownMenu,
   DropdownMenuTrigger,
@@ -30,7 +30,6 @@ import {
   TableCell,
 } from "@/components/ui/table";
 import {
-  Search,
   MoreHorizontal,
   ChevronDown,
   X,
@@ -94,19 +93,15 @@ export function AnecdotalList({ records, onSelect }: AnecdotalListProps) {
           </CardDescription>
         </div>
         <CardAction className={styles.headerActions}>
-          <div className={styles.searchWrap}>
-            <Search className={styles.searchIcon} aria-hidden />
-            <Input
-              className={styles.search}
-              placeholder="Search student or incident…"
-              value={query}
-              onChange={(e) => {
-                setQuery(e.target.value);
-                setPage(1);
-              }}
-              aria-label="Search anecdotal records"
-            />
-          </div>
+          <TeacherSearchField
+            placeholder="Search student or incident…"
+            value={query}
+            onChange={(next) => {
+              setQuery(next);
+              setPage(1);
+            }}
+            aria-label="Search anecdotal records"
+          />
 
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
@@ -181,9 +176,9 @@ export function AnecdotalList({ records, onSelect }: AnecdotalListProps) {
               <TableRow>
                 <TableCell colSpan={7} className={styles.empty}>
                   {needle
-                    ? `No records match "${query}".`
+                    ? searchEmptyMessage(query, "records", "Try a different student or incident.")
                     : hasActiveFilters
-                      ? "No records match the selected filters."
+                      ? searchEmptyMessage("", "records")
                       : "No anecdotal records yet — file the first one."}
                 </TableCell>
               </TableRow>

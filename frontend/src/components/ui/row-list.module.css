@@ -108,6 +108,25 @@
   min-width: 0;
 }
 
+/* Title with a secondary line (name over email). Both lines truncate, so the
+   right-hand meta/actions never get pushed out of the row. */
+.titleStack {
+  display: flex;
+  flex-direction: column;
+  gap: 0.0625rem;
+  min-width: 0;
+}
+
+.subtitle {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: 0.75rem;
+  font-weight: 400;
+  color: var(--muted-foreground);
+  min-width: 0;
+}
+
 .metaCell {
   display: flex;
   align-items: center;

@@ -1,11 +1,14 @@
 "use client";
 import * as React from "react";
 import { motion, useReducedMotion } from "motion/react";
-import { BookOpen, CalendarClock, ClipboardList, SearchIcon, Users } from "lucide-react";
+import { BookOpen, CalendarClock, ClipboardList, Users } from "lucide-react";
 import { InsightCallout } from "@/components/ui/insight-callout";
+import { GlassCard } from "@/components/ui/glass-card";
 import { Pill, type PillTone } from "@/components/ui/pill";
 import { StudentMascot } from "@/components/student-mascot/StudentMascot";
-import { InputGroup, InputGroupInput, InputGroupAddon } from "@/components/ui/input-group";
+import { TeacherSearchField, searchEmptyMessage } from "@/app/teacher/components/TeacherSearchField";
+import { Skeleton } from "@/components/ui/skeleton";
+import { ShimmerGroup } from "@/components/ui/shimmer-skeleton";
 import type { StudentListRow } from "@/services/teacher/studentList.types";
 import styles from "./student-list.module.css";
 
@@ -31,84 +34,86 @@ function StudentCard({ row, showAnecdotal }: { row: StudentListRow; showAnecdota
   const grade = row.academicGrade;
   const hasMeetups = row.attendanceTotal > 0;
   return (
-    <article className={styles.studentCard} aria-label={`${row.name}, ${row.lrn}`}>
-      <header className={styles.studentCardHead}>
-        <StudentMascot
-          name={row.name}
-          seed={row.lrn}
-          character={row.mascot ?? undefined}
-          size={32}
-        />
-        <div className="flex min-w-0 flex-1 flex-col items-start gap-1">
-          <p className={styles.studentCardName} title={row.name}>
-            {row.name}
-          </p>
-          <Pill
-            tone="neutral"
-            label="LRN"
-            className={`${styles.studentCardLrn} tabular-nums`}
-          >
-            {row.lrn}
-          </Pill>
-        </div>
-      </header>
-      <div className={styles.studentCardBody}>
-        <div
-          className={`${styles.studentCardStats}${showAnecdotal ? "" : ` ${styles.studentCardStatsTwo}`}`}
-        >
-          <div className={styles.studentCardStat}>
-            <span className={styles.sectionCardStatIcon} aria-hidden>
-              <CalendarClock />
-            </span>
+    <GlassCard className="h-full min-w-0">
+      <article className={styles.studentCard} aria-label={`${row.name}, ${row.lrn}`}>
+        <header className={styles.studentCardHead}>
+          <StudentMascot
+            name={row.name}
+            seed={row.lrn}
+            character={row.mascot ?? undefined}
+            size={32}
+          />
+          <div className="flex min-w-0 flex-1 flex-col items-start gap-1">
+            <p className={styles.studentCardName} title={row.name}>
+              {row.name}
+            </p>
             <Pill
-              tone={attendanceTone(pct)}
-              label="Attendance"
-              className="tabular-nums"
+              tone="neutral"
+              label="LRN"
+              className={`${styles.studentCardLrn} tabular-nums`}
             >
-              {pct === null ? "—" : `${pct}%`}
+              {row.lrn}
             </Pill>
-            <span
-              className={styles.studentCardStatLabel}
-              title={
-                hasMeetups
-                  ? `${row.attendancePresent} of ${row.attendanceTotal} meetups present`
-                  : "No attendance meetups yet"
-              }
-            >
-              {hasMeetups ? `${row.attendancePresent}/${row.attendanceTotal}` : "No meetups"}
-            </span>
           </div>
-          <div className={styles.studentCardStat}>
-            <span className={styles.sectionCardStatIcon} aria-hidden>
-              <BookOpen />
-            </span>
-            <Pill tone={gradeTone(grade)} label="Academic grade" className="tabular-nums">
-              {grade === null ? "—" : grade}
-            </Pill>
-            <span className={styles.studentCardStatLabel}>
-              {row.computedAverage !== null
-                ? `Avg ${Math.round(row.computedAverage * 10) / 10}`
-                : "No average"}
-            </span>
-          </div>
-          {showAnecdotal ? (
+        </header>
+        <div className={styles.studentCardBody}>
+          <div
+            className={`${styles.studentCardStats}${showAnecdotal ? "" : ` ${styles.studentCardStatsTwo}`}`}
+          >
             <div className={styles.studentCardStat}>
               <span className={styles.sectionCardStatIcon} aria-hidden>
-                <ClipboardList />
+                <CalendarClock />
               </span>
               <Pill
-                tone={row.anecdotalCount > 0 ? "amber" : "neutral"}
-                label="Anecdotal"
+                tone={attendanceTone(pct)}
+                label="Attendance"
                 className="tabular-nums"
               >
-                {row.anecdotalCount}
+                {pct === null ? "—" : `${pct}%`}
               </Pill>
-              <span className={styles.studentCardStatLabel}>Anecdotal</span>
+              <span
+                className={styles.studentCardStatLabel}
+                title={
+                  hasMeetups
+                    ? `${row.attendancePresent} of ${row.attendanceTotal} meetups present`
+                    : "No attendance meetups yet"
+                }
+              >
+                {hasMeetups ? `${row.attendancePresent}/${row.attendanceTotal}` : "No meetups"}
+              </span>
             </div>
-          ) : null}
+            <div className={styles.studentCardStat}>
+              <span className={styles.sectionCardStatIcon} aria-hidden>
+                <BookOpen />
+              </span>
+              <Pill tone={gradeTone(grade)} label="Academic grade" className="tabular-nums">
+                {grade === null ? "—" : grade}
+              </Pill>
+              <span className={styles.studentCardStatLabel}>
+                {row.computedAverage !== null
+                  ? `Avg ${Math.round(row.computedAverage * 10) / 10}`
+                  : "No average"}
+              </span>
+            </div>
+            {showAnecdotal ? (
+              <div className={styles.studentCardStat}>
+                <span className={styles.sectionCardStatIcon} aria-hidden>
+                  <ClipboardList />
+                </span>
+                <Pill
+                  tone={row.anecdotalCount > 0 ? "amber" : "neutral"}
+                  label="Anecdotal"
+                  className="tabular-nums"
+                >
+                  {row.anecdotalCount}
+                </Pill>
+                <span className={styles.studentCardStatLabel}>Anecdotal</span>
+              </div>
+            ) : null}
+          </div>
         </div>
-      </div>
-    </article>
+      </article>
+    </GlassCard>
   );
 }
 
@@ -152,31 +157,52 @@ export function StudentTable({
           <Users size={14} aria-hidden className="shrink-0 text-blue-500" />
           <span className="min-w-0">{headerTitle}</span>
         </p>
-        <InputGroup className="w-36 shrink-0 rounded-[16px] sm:w-44">
-          <InputGroupInput
-            placeholder="Filter students..."
-            value={query}
-            onChange={(event) => {
-              setQuery(event.target.value);
-            }}
-            aria-label="Filter students"
-          />
-          <InputGroupAddon>
-            <SearchIcon />
-          </InputGroupAddon>
-        </InputGroup>
+        <TeacherSearchField
+          className="w-60"
+          placeholder="Search students…"
+          value={query}
+          onChange={setQuery}
+          aria-label="Filter students"
+        />
       </div>
       {rosterPending ? (
-        <p className="flex min-h-24 items-center justify-center px-1 py-8 text-center text-xs text-muted-foreground">
-          Loading students…
-        </p>
+        <ShimmerGroup>
+          <div
+            className={styles.studentCardGrid}
+            role="status"
+            aria-label="Loading students"
+          >
+            {Array.from({ length: 5 }).map((_, i) => (
+              <div key={i} className={styles.studentCard} aria-hidden="true">
+                <header className={styles.studentCardHead}>
+                  <Skeleton className="size-8 rounded-full" />
+                  <div className="flex min-w-0 flex-1 flex-col items-start gap-1">
+                    <Skeleton className="h-3.5 w-3/4 rounded" />
+                    <Skeleton className="h-4 w-24 rounded-full" />
+                  </div>
+                </header>
+                <div className={styles.studentCardBody}>
+                  <div className={styles.studentCardStats}>
+                    {Array.from({ length: 3 }).map((__, j) => (
+                      <div key={j} className={styles.studentCardStat}>
+                        <Skeleton className="size-6 rounded-md" />
+                        <Skeleton className="h-4 w-8 rounded-full" />
+                        <Skeleton className="h-3 w-12 rounded" />
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              </div>
+            ))}
+          </div>
+        </ShimmerGroup>
       ) : rosterError ? (
         <p role="alert" className="flex min-h-24 items-center justify-center px-1 py-8 text-center text-xs text-destructive">
           Could not load students for this class.
         </p>
       ) : rows.length === 0 ? (
-        <div className="flex w-full justify-center px-1 py-6">
-          <InsightCallout role="status" className="w-full max-w-xl text-left">
+        <div className="flex min-h-[calc(100dvh-14rem)] w-full items-center justify-center px-1 py-10">
+          <InsightCallout role="status" className="w-fit max-w-xl text-center">
             <strong>No students in this section yet.</strong>{" "}
             {emptySectionName
               ? `${emptySectionName} has no enrolled learners this term.`
@@ -184,10 +210,9 @@ export function StudentTable({
           </InsightCallout>
         </div>
       ) : filtered.length === 0 ? (
-        <div className="flex w-full justify-center px-1 py-6">
-          <InsightCallout role="status" className="w-full max-w-xl text-left">
-            <strong>No students match your search.</strong> Try a different name
-            or LRN — or clear the filter to see everyone.
+        <div className="flex min-h-[calc(100dvh-14rem)] w-full items-center justify-center px-1 py-10">
+          <InsightCallout role="status" className="w-fit max-w-xl text-center">
+            {searchEmptyMessage(query, "students")}
           </InsightCallout>
         </div>
       ) : (

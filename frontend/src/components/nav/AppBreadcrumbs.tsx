@@ -43,7 +43,7 @@ const WORKSPACE_LABELS: Record<string, string> = {
 const PATH_LABELS: Record<string, string> = {
   "/record-keeper/academics": "Subjects",
   "/teacher/advisory/list": "Advisory List",
-  "/teacher/advisory/students": "Students",
+  "/teacher/advisory/academics": "Academics",
   "/teacher/advisory/attendance": "Attendance",
   "/teacher/advisory/referrals": "Referrals",
   "/teacher/advisory/adm-cases": "ADM Cases",

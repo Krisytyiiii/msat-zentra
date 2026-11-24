@@ -6,11 +6,6 @@ import { useQuery } from "@tanstack/react-query";
 import { ArrowUpRight, FolderOpen, Loader2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { GuidanceEmptyCard } from "../components/GuidanceEmptyCard";
-import { FolderLegendCard } from "@/app/teacher/anecdotal/components/AnecdotalSideRail";
-import {
-  GuidanceAnecdotalSidebar,
-  TopReferredCard,
-} from "./components/guidance-anecdotal-siderail";
 import { GuidanceAnecdotalFolders } from "./components/guidance-anecdotal-folders";
 import { GuidanceAnecdotalSkeleton } from "./components/GuidanceAnecdotalSkeleton";
 import type { TypeFilter } from "./components/guidance-anecdotal-filters";
@@ -23,11 +18,12 @@ import { useTerm } from "@/lib/term/TermContext";
 import { liveQueryOptions } from "@/lib/api/live";
 import styles from "./components/guidance-anecdotal.module.css";
 import { useUrlPager } from "@/components/shared/pagination/useUrlPager";
+import { PAGE_SIZE } from "@/components/shared/pagination";
 import { useSearchParams } from "next/navigation";
 
-// Guidance folder boards lay out a 4×4 card grid, so they page at 16 instead of
-// the global 15 (same exception as the referrals/interventions guidance queues).
-const GUIDANCE_ANECDOTAL_PAGE_SIZE = 16;
+// Match the sibling session-documents board: a clean 3×5 folder grid on wide
+// desks (the global 15/page size), so no orphan card spills onto a fourth row.
+const GUIDANCE_ANECDOTAL_PAGE_SIZE = PAGE_SIZE;
 
 function readTypeParam(raw: string | null): TypeFilter {
   if (raw === "adm" || raw === "ADM") return "ADM";
@@ -133,21 +129,21 @@ function GuidanceAnecdotalPageInner() {
   const hasActiveFilters = queryInput.trim() !== "" || type !== "";
   if (allRecords.length === 0 && !hasActiveFilters) {
     return (
-      <section className={`${styles.page} relative`} aria-label="Anecdotal records">
-        {/* Page-level action sits top-right, like the other desk empty states;
-            the callout itself stays centered. */}
-        <Button asChild size="sm" className="absolute right-0 top-0 h-6 gap-1 px-2 text-xs">
-          <Link href="/guidance/referrals">
-            <ArrowUpRight className="size-3.5" aria-hidden="true" />
-            View referrals
-          </Link>
-        </Button>
+      <section className={styles.page} aria-label="Anecdotal records">
         <GuidanceEmptyCard
           icon={FolderOpen}
           title="No referred files yet"
           hint="Every ADM and counseling case advisers refer to you will appear here as its own folder."
           label="Anecdotal records"
           centered
+          action={
+            <Button asChild size="sm" variant="outline" className="gap-1">
+              <Link href="/guidance/referrals">
+                <ArrowUpRight className="size-3.5" aria-hidden="true" />
+                View referrals
+              </Link>
+            </Button>
+          }
         />
       </section>
     );
@@ -155,27 +151,18 @@ function GuidanceAnecdotalPageInner() {
 
   return (
     <section className={styles.page} aria-label="Anecdotal records">
-      <div className="grid flex-1 items-start gap-4 lg:grid-cols-[minmax(0,1fr)_2.75rem]">
-        <div className={`${styles.main} flex min-w-0 flex-col`}>
-          <GuidanceAnecdotalFolders
-            records={pageRecords}
-            page={safePage}
-            pageSize={GUIDANCE_ANECDOTAL_PAGE_SIZE}
-            total={filtered.length}
-            totalPages={totalPages}
-            onPageChange={setPage}
-            query={queryInput}
-            onQueryChange={handleQueryChange}
-            type={type}
-            onTypeChange={handleTypeChange}
-          />
-        </div>
-        <GuidanceAnecdotalSidebar items={data.summary.topStudents ?? []} />
-      </div>
-      <div className="flex min-w-0 flex-col gap-4 lg:hidden">
-        <TopReferredCard items={data.summary.topStudents ?? []} />
-        <FolderLegendCard />
-      </div>
+      <GuidanceAnecdotalFolders
+        records={pageRecords}
+        page={safePage}
+        pageSize={GUIDANCE_ANECDOTAL_PAGE_SIZE}
+        total={filtered.length}
+        totalPages={totalPages}
+        onPageChange={setPage}
+        query={queryInput}
+        onQueryChange={handleQueryChange}
+        type={type}
+        onTypeChange={handleTypeChange}
+      />
     </section>
   );
 }

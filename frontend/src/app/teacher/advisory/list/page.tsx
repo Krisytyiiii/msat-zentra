@@ -12,16 +12,27 @@ import {
   type ColumnFiltersState,
   type SortingState,
 } from "@tanstack/react-table";
-import { ArchiveRestore, KanbanSquare, Loader2, Pencil, RotateCcw, SearchIcon, Trash2, UserPlus } from "lucide-react";
+import {
+  ArchiveRestore,
+  CalendarClock,
+  KanbanSquare,
+  Loader2,
+  Pencil,
+  RotateCcw,
+  Trash2,
+  UserPlus,
+  X,
+} from "lucide-react";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { apiClient } from "@/lib/api/client";
 import { useTeacherInvalidate } from "../../components/use-teacher-invalidate";
 import { markSelfNotified } from "@/lib/realtime/teacherChannel";
 import { Button } from "@/components/ui/button";
 import { KanbanOverlay } from "@/components/ui/kanban-overlay";
+import { FormOverlay } from "./components/form-overlay";
 import { useDock } from "@/components/dock/dock-store";
 import { Input } from "@/components/ui/input";
-import { InputGroup, InputGroupInput, InputGroupAddon } from "@/components/ui/input-group";
+import { TeacherSearchField, searchEmptyMessage } from "@/app/teacher/components/TeacherSearchField";
 import { Label } from "@/components/ui/label";
 import {
   Select,
@@ -40,15 +51,19 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { Pill } from "@/components/ui/pill";
+import { GlassCard } from "@/components/ui/glass-card";
 import { Checkbox } from "@/components/ui/checkbox";
 import { InsightCallout } from "@/components/ui/insight-callout";
+import { ShimmerGroup, ShimmerSkeleton } from "@/components/ui/shimmer-skeleton";
 import { Pagination } from "@/components/shared/pagination";
 import {
-  useAdvisoryRoster,
+  useAdvisoryListRoster,
   useArchivedAdvisoryStudents,
 } from "@/services/teacher/advisory.service";
 import type { AdviseeRow, AdvisoryRoster, ArchivedAdvisee } from "@/services/teacher/advisory.types";
 import { compareSurnameFirst, formatSurnameFirst } from "@/lib/names";
+import { formatManilaDateLong } from "@/lib/labels/datetime";
+import { riskBadgeVariant } from "@/lib/risk/status";
 import { PAGE_SIZE } from "@/components/shared/pagination";
 import { AdvisoryInsightBoard } from "./components/advisory-insight-board";
 import { AdvisoryListSkeleton } from "./components/advisory-list-skeleton";
@@ -64,7 +79,7 @@ function getErrorMessage(err: unknown, fallback: string): string {
 }
 
 export default function TeacherAdvisoryListPage() {
-  const rosterQuery = useAdvisoryRoster();
+  const rosterQuery = useAdvisoryListRoster();
   const queryClient = useQueryClient();
   const invalidateTeacher = useTeacherInvalidate();
   const students = React.useMemo(
@@ -123,15 +138,24 @@ export default function TeacherAdvisoryListPage() {
               >
                 {formatSurnameFirst(row.original.name)}
               </span>
-              <span className="mt-1 flex max-w-full flex-col items-start gap-1">
-                <Pill tone="neutral" label="LRN">
-                  {row.original.lrn}
-                </Pill>
-                {row.original.learnerType === "transferee" ? (
-                  <Pill tone="amber" label="Learner type">
-                    Transferee
+              <span className="mt-1 flex max-w-full items-center justify-between gap-1.5">
+                <span className="flex min-w-0 flex-wrap items-center gap-1.5">
+                  <Pill className="h-6 leading-none" tone="neutral" label="LRN">
+                    {row.original.lrn}
                   </Pill>
-                ) : null}
+                  {row.original.learnerType === "transferee" ? (
+                    <Pill className="h-6 leading-none" tone="amber" label="Learner type">
+                      Transferee
+                    </Pill>
+                  ) : null}
+                </span>
+                <Pill
+                  className="h-6 shrink-0 leading-none"
+                  tone={riskBadgeVariant(row.original.riskLevel)}
+                  label="Risk level"
+                >
+                  {row.original.riskLevel}
+                </Pill>
               </span>
             </div>
           </div>
@@ -559,15 +583,8 @@ export default function TeacherAdvisoryListPage() {
   }
 
   const archivedStudents = archivedQuery.data?.students ?? [];
-  // Keep ticks honest when the list refetches (restored rows leave the board).
-  React.useEffect(() => {
-    setRestoreSelected((prev) => {
-      if (prev.size === 0) return prev;
-      const ids = new Set(archivedStudents.map((s) => s.archiveId));
-      const next = new Set([...prev].filter((id) => ids.has(id)));
-      return next.size === prev.size ? prev : next;
-    });
-  }, [archivedStudents]);
+  // Ticks are read against the live list only (restored learners leave the
+  // board on the next refetch), so no effect has to prune the selection.
   const restoreSelectedCount = archivedStudents.filter((s) =>
     restoreSelected.has(s.archiveId),
   ).length;
@@ -772,87 +789,33 @@ export default function TeacherAdvisoryListPage() {
       className={`${listStyles.pageLock} flex min-w-0 flex-col gap-3`}
     >
       {students.length === 0 ? (
-        <div className="relative flex h-full min-h-[calc(100dvh-9rem)] w-full items-center justify-center">
-          <div className="absolute right-0 top-0 flex items-center gap-2">
-            {archivedStudents.length > 0 ? (
-              <Button
-                size="sm"
-                variant="outline"
-                className="h-6 px-2 text-xs"
-                onClick={() => { setRestoreSelected(new Set()); setRestoreOpen(true); }}
-              >
-                <ArchiveRestore size={14} aria-hidden />
-                Archived students
-              </Button>
-            ) : null}
-            <Button size="sm" className="h-6 px-2 text-xs" onClick={openAdd}>
-              <UserPlus size={14} aria-hidden />
-              Add student
-            </Button>
-          </div>
+        <div className="flex h-full min-h-[calc(100dvh-9rem)] w-full flex-col items-center justify-center gap-3">
           <InsightCallout role="status" className="w-full max-w-xl self-center text-left">
             <strong>No advisory students yet.</strong>{" "}
             {sectionLabel
               ? `${sectionLabel} has no enlisted learners this term.`
               : "Students enlisted in your advisory section will appear here."}
           </InsightCallout>
-        </div>
-      ) : (
-        <div className={listStyles.boardLayout}>
-          {/* Page actions live on the page's top-right gutter — outside the
-              kanban board card, not inside its header. */}
-          <div className={listStyles.pageActions}>
-            <Button
-              type="button"
-              size="sm"
-              variant="outline"
-              className="h-6 px-2 text-xs"
-              onClick={() => {
-                if (editArmed) exitEditMode();
-                else enterEditMode();
-              }}
-              aria-pressed={editArmed}
-              aria-expanded={editArmed && editIntroOpen}
-            >
-              <Pencil size={14} aria-hidden />
-              {editArmed ? "Editing" : "Edit"}
-            </Button>
-            <Button
-              type="button"
-              size="sm"
-              variant="outline"
-              className="h-6 px-2 text-xs"
-              onClick={() => {
-                exitEditMode();
-                if (removeArmed) exitRemoveMode();
-                else enterRemoveMode();
-              }}
-              aria-pressed={removeArmed}
-              aria-expanded={removeArmed && removeIntroOpen}
-            >
-              <Trash2 size={14} aria-hidden />
-              Remove
-            </Button>
-            <Button
-              type="button"
-              size="sm"
-              variant="outline"
-              className="h-6 px-2 text-xs"
-              onClick={() => { setRestoreSelected(new Set()); setRestoreOpen(true); }}
-            >
-              <ArchiveRestore size={14} aria-hidden />
-              Archive{archivedStudents.length > 0 ? ` (${archivedStudents.length})` : ""}
-            </Button>
-            <Button
-              size="sm"
-              className="h-6 shrink-0 px-2 text-xs"
-              onClick={openAdd}
-            >
+          <div className="flex items-center justify-center gap-2">
+            {archivedStudents.length > 0 ? (
+              <Button
+                size="sm"
+                variant="outline"
+                className="px-2 text-xs"
+                onClick={() => { setRestoreSelected(new Set()); setRestoreOpen(true); }}
+              >
+                <ArchiveRestore size={14} aria-hidden />
+                Archived students
+              </Button>
+            ) : null}
+            <Button size="sm" className="px-2 text-xs" onClick={openAdd}>
               <UserPlus size={14} aria-hidden />
               Add student
             </Button>
           </div>
-
+        </div>
+      ) : (
+        <div className={listStyles.boardLayout}>
           <div className={listStyles.panel} aria-label="Advisory board">
           <header className={listStyles.boardHead}>
             <span className={listStyles.boardIcon} aria-hidden>
@@ -860,9 +823,26 @@ export default function TeacherAdvisoryListPage() {
             </span>
             <div className="min-w-0 flex-1">
               <h2 className={listStyles.boardTitle}>Advisory board</h2>
-              <p className={listStyles.boardSub}>
-                {`${removeArmed ? "Tick a student to remove." : editArmed ? "Tick a student to edit." : "Click a row to inspect"} — ${students.length} student${students.length === 1 ? "" : "s"}${sectionLabel ? ` · ${sectionLabel}` : ""}.`}
-              </p>
+            </div>
+            <div className={listStyles.pageActions}>
+              <Button
+                type="button"
+                size="sm"
+                variant="outline"
+                className="px-2 text-xs"
+                onClick={() => { setRestoreSelected(new Set()); setRestoreOpen(true); }}
+              >
+                <ArchiveRestore size={14} aria-hidden />
+                Archive{archivedStudents.length > 0 ? ` (${archivedStudents.length})` : ""}
+              </Button>
+              <Button
+                size="sm"
+                className="shrink-0 px-2 text-xs"
+                onClick={openAdd}
+              >
+                <UserPlus size={14} aria-hidden />
+                Add student
+              </Button>
             </div>
           </header>
 
@@ -872,26 +852,59 @@ export default function TeacherAdvisoryListPage() {
                 <header className={listStyles.laneHead}>
                   <span className={listStyles.laneDot} style={{ background: "#f59e0b" }} aria-hidden />
                   <h3 className={listStyles.laneTitle}>Advisory list</h3>
+                  <div className="flex shrink-0 items-center gap-1">
+                    <Button
+                      type="button"
+                      size="icon-sm"
+                      variant={editArmed ? "secondary" : "outline"}
+                      className={editArmed ? "text-amber-600 dark:text-amber-400" : ""}
+                      onClick={() => {
+                        if (editArmed) exitEditMode();
+                        else enterEditMode();
+                      }}
+                      aria-pressed={editArmed}
+                      aria-expanded={editArmed && editIntroOpen}
+                      aria-label={editArmed ? "Stop editing" : "Edit a student"}
+                      title={editArmed ? "Stop editing" : "Edit"}
+                    >
+                      <Pencil size={14} aria-hidden />
+                    </Button>
+                    <Button
+                      type="button"
+                      size="icon-sm"
+                      variant={removeArmed ? "secondary" : "outline"}
+                      className={
+                        removeArmed
+                          ? "border-red-600 bg-red-600 text-white hover:bg-red-700 dark:bg-red-600 dark:text-white dark:hover:bg-red-700"
+                          : "border-red-500/40 text-red-600 hover:bg-red-500/10 hover:text-red-600 dark:text-red-400 dark:hover:bg-red-500/15 dark:hover:text-red-400"
+                      }
+                      onClick={() => {
+                        exitEditMode();
+                        if (removeArmed) exitRemoveMode();
+                        else enterRemoveMode();
+                      }}
+                      aria-pressed={removeArmed}
+                      aria-expanded={removeArmed && removeIntroOpen}
+                      aria-label={removeArmed ? "Stop removing" : "Remove students"}
+                      title={removeArmed ? "Stop removing" : "Remove"}
+                    >
+                      <Trash2 size={14} aria-hidden />
+                    </Button>
+                  </div>
                 </header>
                 <div className={listStyles.toolbar}>
-                  <InputGroup className="w-32 min-w-0 flex-1 rounded-[16px]">
-                    <InputGroupInput
-                      placeholder="Filter students..."
-                      value={(table.getColumn("name")?.getFilterValue() as string) ?? ""}
-                      onChange={(event) =>
-                        table.getColumn("name")?.setFilterValue(event.target.value)
-                      }
-                      aria-label="Filter students"
-                    />
-                    <InputGroupAddon>
-                      <SearchIcon />
-                    </InputGroupAddon>
-                  </InputGroup>
+                  <TeacherSearchField
+                    className="w-full min-w-0 flex-1"
+                    placeholder="Search students…"
+                    value={(table.getColumn("name")?.getFilterValue() as string) ?? ""}
+                    onChange={(next) => table.getColumn("name")?.setFilterValue(next)}
+                    aria-label="Filter students"
+                  />
                 </div>
 
                 {selectionMode ? (
-                  <div className="flex min-w-0 flex-wrap items-center justify-between gap-2 rounded-md border border-destructive/40 bg-destructive/5 px-2.5 py-1.5">
-                    <span className="text-[12px] font-medium text-muted-foreground">
+                  <div className="flex min-w-0 items-center justify-between gap-2 rounded-md border border-destructive/40 bg-destructive/5 px-2.5 py-1.5">
+                    <span className="min-w-0 flex-1 truncate text-[12px] font-medium text-muted-foreground">
                       {selectionCount === 0
                         ? removeArmed
                           ? "Tick the students to remove."
@@ -900,7 +913,7 @@ export default function TeacherAdvisoryListPage() {
                           ? `${selectionCount} selected`
                           : "1 selected"}
                     </span>
-                    <div className="flex items-center gap-1.5">
+                    <div className="flex shrink-0 items-center gap-1.5">
                       <Button
                         type="button"
                         size="sm"
@@ -927,7 +940,9 @@ export default function TeacherAdvisoryListPage() {
                         >
                           <Trash2 size={14} aria-hidden />
                           Remove selected
-                          {removeSelected.size > 0 ? ` (${removeSelected.size})` : ""}
+                          <span className="inline-block w-7 text-right tabular-nums">
+                            {removeSelected.size > 0 ? `(${removeSelected.size})` : ""}
+                          </span>
                         </Button>
                       ) : (
                         <Button
@@ -1004,7 +1019,7 @@ export default function TeacherAdvisoryListPage() {
                                 ? `${row.original.name} — tick to select for removal`
                                 : editArmed
                                   ? `${row.original.name} — tick to select for editing`
-                                  : `${row.original.name}, ${row.original.riskLevel} risk — open insight`
+                                  : `${row.original.name} — open insight`
                             }
                             className={`${listStyles.row} ${isSelected ? listStyles.selected : ""}`}
                           >
@@ -1040,8 +1055,10 @@ export default function TeacherAdvisoryListPage() {
                         >
                           <div className="flex w-full justify-center">
                             <InsightCallout role="status" className="w-full max-w-xl text-left">
-                              <strong>No students match your search.</strong> Try a different
-                              name or LRN — or clear the filter to see every advisee.
+                              {searchEmptyMessage(
+                                (table.getColumn("name")?.getFilterValue() as string) ?? "",
+                                "students",
+                              )}
                             </InsightCallout>
                           </div>
                         </TableCell>
@@ -1083,15 +1100,6 @@ export default function TeacherAdvisoryListPage() {
             <Button
               type="button"
               size="sm"
-              variant="outline"
-              className="h-6 px-2 text-xs"
-              onClick={exitEditMode}
-            >
-              Cancel
-            </Button>
-            <Button
-              type="button"
-              size="sm"
               className="h-6 px-2 text-xs"
               onClick={() => setEditIntroOpen(false)}
               autoFocus
@@ -1125,15 +1133,6 @@ export default function TeacherAdvisoryListPage() {
             <Button
               type="button"
               size="sm"
-              variant="outline"
-              className="h-6 px-2 text-xs"
-              onClick={exitRemoveMode}
-            >
-              Cancel
-            </Button>
-            <Button
-              type="button"
-              size="sm"
               className="h-6 px-2 text-xs"
               onClick={() => setRemoveIntroOpen(false)}
               autoFocus
@@ -1163,150 +1162,179 @@ export default function TeacherAdvisoryListPage() {
         </ol>
       </KanbanOverlay>
 
-      <KanbanOverlay
+      <FormOverlay
         open={addOpen}
         onClose={() => {
           if (!addSaving) setAddOpen(false);
         }}
-        dismissable={!addSaving}
-        busy={addSaving}
-        width="sm"
-        title="Add student"
-        icon={
-          <span className="text-primary" aria-hidden>
-            <UserPlus size={14} />
-          </span>
-        }
-        description={
-          <>
-            Enlist a student into your advisory section
-            {advisorySections.length === 1 && advisorySections[0]
-              ? ` (${advisorySections[0].name})`
-              : ""}
-            .
-          </>
-        }
-        footer={
-          <div className="flex items-center justify-end gap-1.5 px-1 pb-1">
-            <Button
-              type="button"
-              size="sm"
-              className="h-6 px-3 text-xs"
-              onClick={() => void handleAddStudent()}
-              disabled={addSaving}
-              aria-busy={addSaving || undefined}
-              autoFocus
-            >
-              {addSaving ? (
-                <>
-                  <Loader2 size={14} className="animate-spin" aria-hidden />
-                  <span aria-live="polite">Enlisting…</span>
-                </>
-              ) : (
-                "Enlist student"
-              )}
-            </Button>
-          </div>
-        }
+        label="Add student"
+        widthClassName="max-w-md"
       >
-        <div className="flex min-w-0 flex-col gap-3 px-1">
-          <div className="flex min-w-0 flex-col gap-1.5">
-            <Label htmlFor="advisory-add-name">Full name</Label>
-            <Input
-              id="advisory-add-name"
-              value={addName}
-              onChange={(e) => {
-                setAddName(e.target.value);
-                setAddError(null);
-              }}
-              placeholder="e.g. Juan Garcia"
-              maxLength={120}
-            />
-          </div>
-          <div className="flex min-w-0 flex-col gap-1.5">
-            <Label htmlFor="advisory-add-lrn">LRN</Label>
-            <Input
-              id="advisory-add-lrn"
-              value={addLrn}
-              onChange={(e) => {
-                // Digits only — a DepEd LRN is exactly 12 numbers.
-                setAddLrn(e.target.value.replace(/\D/g, "").slice(0, 12));
-                setAddError(null);
-              }}
-              placeholder="12-digit LRN"
-              inputMode="numeric"
-              pattern="[0-9]{12}"
-              autoComplete="off"
-              maxLength={12}
-            />
-          </div>
-          <div className="flex min-w-0 flex-col gap-2">
-            <Label>Learner type</Label>
-            <div
-              role="radiogroup"
-              aria-label="Learner type"
-              className="grid gap-2 sm:grid-cols-2"
+        <div className="overflow-hidden rounded-xl border border-border bg-card shadow-2xl">
+          <header className="flex items-start gap-2.5 border-b border-border px-4 py-3">
+            <span
+              className="mt-0.5 flex h-7 w-7 shrink-0 items-center justify-center rounded-md bg-amber-500/10 text-amber-500"
+              aria-hidden
             >
-              {(
-                [
-                  {
-                    value: "regular" as const,
-                    label: "Regular student",
-                    hint: "Attendance is rated from the start of the term.",
-                  },
-                  {
-                    value: "transferee" as const,
-                    label: "Transferee",
-                    hint: "Attendance starts on the day this student is enlisted, not the term start.",
-                  },
-                ]
-              ).map((option) => {
-                const active = addLearnerType === option.value;
-                return (
-                  <button
-                    key={option.value}
-                    type="button"
-                    role="radio"
-                    aria-checked={active}
-                    disabled={addSaving}
-                    onClick={() => setAddLearnerType(option.value)}
-                    className={`flex flex-col items-start gap-1 rounded-md border px-2.5 py-2 text-left transition-colors ${
-                      active
-                        ? "border-primary/40 bg-primary/10 text-primary"
-                        : "border-border bg-card text-muted-foreground hover:bg-muted/60 hover:text-foreground"
-                    }`}
-                  >
-                    <span className="text-xs font-semibold">{option.label}</span>
-                    <span className="text-[12px] leading-tight">{option.hint}</span>
-                  </button>
-                );
-              })}
+              <UserPlus size={15} />
+            </span>
+            <div className="min-w-0 flex-1">
+              <h2 className="text-sm font-semibold leading-tight text-foreground">
+                Add student
+              </h2>
+              <p className="mt-0.5 text-[12px] leading-snug text-muted-foreground">
+                Enlist a student into your advisory section
+                {advisorySections.length === 1 && advisorySections[0]
+                  ? ` (${advisorySections[0].name})`
+                  : ""}
+                .
+              </p>
             </div>
-          </div>
-          {advisorySections.length > 1 ? (
-            <div className="flex min-w-0 flex-col gap-1.5">
-              <Label htmlFor="advisory-add-section">Section</Label>
-              <Select value={addSectionId} onValueChange={setAddSectionId}>
-                <SelectTrigger id="advisory-add-section" className="w-full">
-                  <SelectValue placeholder="Pick a section" />
-                </SelectTrigger>
-                <SelectContent>
-                  {advisorySections.map((s) => (
-                    <SelectItem key={s.id} value={s.id}>
-                      {s.name}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
+            <button
+              type="button"
+              onClick={() => {
+                if (!addSaving) setAddOpen(false);
+              }}
+              disabled={addSaving}
+              aria-label="Close add student"
+              className="-mr-1 flex h-7 w-7 shrink-0 items-center justify-center rounded-md text-muted-foreground transition-colors duration-150 hover:bg-muted hover:text-foreground disabled:pointer-events-none disabled:opacity-50"
+            >
+              <X size={15} aria-hidden />
+            </button>
+          </header>
+
+          <form
+            onSubmit={(event) => {
+              event.preventDefault();
+              void handleAddStudent();
+            }}
+          >
+            <div className="flex max-h-[60dvh] min-w-0 flex-col gap-3 overflow-y-auto px-4 py-4">
+              <div className="flex min-w-0 flex-col gap-1.5">
+                <Label htmlFor="advisory-add-name">Full name</Label>
+                <Input
+                  id="advisory-add-name"
+                  className="h-8 text-[13px]"
+                  value={addName}
+                  onChange={(e) => {
+                    setAddName(e.target.value);
+                    setAddError(null);
+                  }}
+                  placeholder="e.g. Juan Garcia"
+                  maxLength={120}
+                  autoFocus
+                  autoComplete="off"
+                />
+              </div>
+
+              <div className="flex min-w-0 flex-col gap-1.5">
+                <Label htmlFor="advisory-add-lrn">LRN</Label>
+                <Input
+                  id="advisory-add-lrn"
+                  className="h-8 text-[13px]"
+                  value={addLrn}
+                  onChange={(e) => {
+                    // Digits only — a DepEd LRN is exactly 12 numbers.
+                    setAddLrn(e.target.value.replace(/\D/g, "").slice(0, 12));
+                    setAddError(null);
+                  }}
+                  placeholder="12-digit LRN"
+                  inputMode="numeric"
+                  pattern="[0-9]{12}"
+                  autoComplete="off"
+                  maxLength={12}
+                />
+              </div>
+
+              <div className="flex min-w-0 flex-col gap-2">
+                <Label>Learner type</Label>
+                <div
+                  role="radiogroup"
+                  aria-label="Learner type"
+                  className="grid gap-2 sm:grid-cols-2"
+                >
+                  {(
+                    [
+                      {
+                        value: "regular" as const,
+                        label: "Regular student",
+                        hint: "Attendance is rated from the start of the term.",
+                      },
+                      {
+                        value: "transferee" as const,
+                        label: "Transferee",
+                        hint: "Attendance starts on the day this student is enlisted, not the term start.",
+                      },
+                    ]
+                  ).map((option) => {
+                    const active = addLearnerType === option.value;
+                    return (
+                      <button
+                        key={option.value}
+                        type="button"
+                        role="radio"
+                        aria-checked={active}
+                        disabled={addSaving}
+                        onClick={() => setAddLearnerType(option.value)}
+                        className={`flex flex-col items-start gap-1 rounded-md border px-2.5 py-2 text-left transition-colors ${
+                          active
+                            ? "border-amber-500/50 bg-amber-500/10 text-amber-600 dark:text-amber-400"
+                            : "border-border bg-card text-muted-foreground hover:bg-muted/60 hover:text-foreground"
+                        }`}
+                      >
+                        <span className="text-xs font-semibold">{option.label}</span>
+                        <span className="text-[12px] leading-tight">{option.hint}</span>
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
+
+              {advisorySections.length > 1 ? (
+                <div className="flex min-w-0 flex-col gap-1.5">
+                  <Label htmlFor="advisory-add-section">Section</Label>
+                  <Select value={addSectionId} onValueChange={setAddSectionId}>
+                    <SelectTrigger id="advisory-add-section" className="w-full">
+                      <SelectValue placeholder="Pick a section" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {advisorySections.map((s) => (
+                        <SelectItem key={s.id} value={s.id}>
+                          {s.name}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+              ) : null}
+
+              {addError ? (
+                <p role="alert" className="text-[12px] leading-snug text-destructive">
+                  {addError}
+                </p>
+              ) : null}
             </div>
-          ) : null}
-          {addError ? (
-            <p role="alert" className="text-sm text-destructive">
-              {addError}
-            </p>
-          ) : null}
+
+            <div className="flex items-center justify-end gap-2 border-t border-border px-4 py-3">
+              <Button
+                type="submit"
+                disabled={addSaving}
+                aria-busy={addSaving || undefined}
+                className="h-6 gap-1.5 px-2.5 text-[12px]"
+              >
+                {addSaving ? (
+                  <>
+                    <Loader2 size={12} className="animate-spin" aria-hidden />
+                    <span aria-live="polite">Enlisting…</span>
+                  </>
+                ) : (
+                  "Enlist student"
+                )}
+              </Button>
+            </div>
+          </form>
         </div>
-      </KanbanOverlay>
+      </FormOverlay>
 
       <KanbanOverlay
         open={editOpen && editTarget !== null}
@@ -1447,7 +1475,7 @@ export default function TeacherAdvisoryListPage() {
         }
       >
         <div className="flex min-w-0 flex-col gap-2 px-1">
-          {/* Same row card as the Archived students (restore) overlay. */}
+          {/* Compact row cards for the remove confirmation list. */}
           <ul
             className={`${listStyles.thinScrollbar} flex max-h-48 min-w-0 flex-col gap-2 overflow-y-auto pr-1`}
           >
@@ -1495,7 +1523,7 @@ export default function TeacherAdvisoryListPage() {
           setRestoreOpen(false);
           setRestoreSelected(new Set());
         }}
-        width="sm"
+        width="lg"
         title="Archived students"
         icon={
           <span className="text-primary" aria-hidden>
@@ -1508,12 +1536,12 @@ export default function TeacherAdvisoryListPage() {
             <span className="text-xs text-muted-foreground">
               {restoreSelectedCount > 0
                 ? `${restoreSelectedCount} selected`
-                : `${archivedStudents.length} archived`}
+                : "Click a card to tick it"}
             </span>
             <Button
               type="button"
               size="sm"
-              className="h-6 gap-1 px-2 text-xs"
+              className="gap-1"
               disabled={restoreSelectedCount === 0 || restoreMutation.isPending}
               onClick={() =>
                 handleRestoreStudents(
@@ -1533,7 +1561,30 @@ export default function TeacherAdvisoryListPage() {
       >
         <div className="flex min-w-0 flex-col gap-2 px-1">
           {archivedQuery.isPending ? (
-            <p className="text-xs text-muted-foreground">Loading archived students…</p>
+            <ShimmerGroup>
+              <div
+                className="flex min-w-0 flex-col gap-2"
+                role="status"
+                aria-label="Loading archived students"
+              >
+                {Array.from({ length: 3 }).map((_, index) => (
+                  <div key={index} className={listStyles.archiveCard} aria-hidden>
+                    <div className={listStyles.archiveCardHead}>
+                      <ShimmerSkeleton className="size-4 rounded" />
+                      <ShimmerSkeleton className="size-8 rounded-full" />
+                      <div className="flex min-w-0 flex-1 flex-col items-start gap-1.5">
+                        <ShimmerSkeleton className="h-3.5 w-3/4 rounded" />
+                        <ShimmerSkeleton className="h-5 w-28 rounded-md" />
+                      </div>
+                    </div>
+                    <div className={listStyles.archiveCardFoot}>
+                      <ShimmerSkeleton className="h-3 w-32 rounded" />
+                      <ShimmerSkeleton className="h-6 w-20 rounded-md" />
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </ShimmerGroup>
           ) : archivedStudents.length === 0 ? (
             <p className="text-xs text-muted-foreground">
               No students archived yet. Archiving a student from the advisory
@@ -1551,49 +1602,90 @@ export default function TeacherAdvisoryListPage() {
               </label>
               {archivedStudents.map((entry) => {
                 const checked = restoreSelected.has(entry.archiveId);
+                const restoring =
+                  restoreMutation.isPending &&
+                  !!restoreMutation.variables?.includes(entry.archiveId);
                 return (
-                  <div
+                  <GlassCard
                     key={entry.archiveId}
-                    className="flex min-w-0 items-center gap-2 rounded-md border border-border bg-card px-2.5 py-2"
+                    intensity={4}
+                    className="min-w-0"
                   >
-                    <Checkbox
-                      checked={checked}
-                      onCheckedChange={() => toggleRestoreSelected(entry.archiveId)}
-                      aria-label={`Select ${entry.name} for restoring`}
-                    />
-                    <StudentMascot name={entry.name} seed={entry.lrn} size={28} />
-                    <div className="min-w-0 flex-1">
-                      <span className="block truncate text-[13px] font-semibold text-primary">
-                        {formatSurnameFirst(entry.name)}
-                      </span>
-                      <span className="mt-1 flex max-w-full flex-wrap items-center gap-1">
-                        <Pill tone="neutral" label="LRN">
-                          {entry.lrn}
-                        </Pill>
-                        {entry.section ? (
-                          <Pill tone="neutral" label="Section">
-                            {entry.section}
-                          </Pill>
-                        ) : null}
-                      </span>
-                    </div>
-                    <Button
-                      type="button"
-                      size="sm"
-                      variant="outline"
-                      className="h-6 shrink-0 px-2 text-xs"
-                      onClick={() => handleRestoreStudents([entry])}
-                      disabled={restoreMutation.isPending}
+                    <article
+                      className={`${listStyles.archiveCard}${
+                        checked ? ` ${listStyles.archiveCardSelected}` : ""
+                      }`}
+                      aria-label={`${entry.name}, ${entry.lrn}`}
+                      role="checkbox"
+                      aria-checked={checked}
+                      tabIndex={0}
+                      onClick={() => toggleRestoreSelected(entry.archiveId)}
+                      onKeyDown={(event) => {
+                        if (event.target !== event.currentTarget) return;
+                        if (event.key === "Enter" || event.key === " ") {
+                          event.preventDefault();
+                          toggleRestoreSelected(entry.archiveId);
+                        }
+                      }}
                     >
-                      {restoreMutation.isPending &&
-                      restoreMutation.variables?.includes(entry.archiveId) ? (
-                        <Loader2 size={14} className="animate-spin" aria-hidden />
-                      ) : (
-                        <RotateCcw size={14} aria-hidden />
-                      )}
-                      Restore
-                    </Button>
-                  </div>
+                      <header className={listStyles.archiveCardHead}>
+                        <span
+                          onClick={(event) => event.stopPropagation()}
+                          onKeyDown={(event) => event.stopPropagation()}
+                        >
+                          <Checkbox
+                            checked={checked}
+                            onCheckedChange={() => toggleRestoreSelected(entry.archiveId)}
+                            aria-label={`Select ${entry.name} for restoring`}
+                          />
+                        </span>
+                        <StudentMascot
+                          name={entry.name}
+                          seed={entry.lrn}
+                          character={entry.mascot ?? undefined}
+                          size={32}
+                        />
+                        <div className="flex min-w-0 flex-1 flex-col items-start gap-1">
+                          <p
+                            className={listStyles.archiveCardName}
+                            title={entry.name}
+                          >
+                            {formatSurnameFirst(entry.name)}
+                          </p>
+                          <span className="flex max-w-full flex-wrap items-center gap-1">
+                            <Pill label="LRN" className="tabular-nums">
+                              {entry.lrn}
+                            </Pill>
+                          </span>
+                        </div>
+                      </header>
+                      <div className={listStyles.archiveCardFoot}>
+                        <span className={listStyles.archiveCardMeta}>
+                          <CalendarClock size={12} aria-hidden />
+                          Archived {formatManilaDateLong(entry.archivedAt)}
+                        </span>
+                        <Button
+                          type="button"
+                          size="sm"
+                          variant="outline"
+                          className="shrink-0 gap-1"
+                          onClick={(event) => {
+                            event.stopPropagation();
+                            handleRestoreStudents([entry]);
+                          }}
+                          onKeyDown={(event) => event.stopPropagation()}
+                          disabled={restoreMutation.isPending}
+                        >
+                          {restoring ? (
+                            <Loader2 size={14} className="animate-spin" aria-hidden />
+                          ) : (
+                            <RotateCcw size={14} aria-hidden />
+                          )}
+                          Restore
+                        </Button>
+                      </div>
+                    </article>
+                  </GlassCard>
                 );
               })}
             </>

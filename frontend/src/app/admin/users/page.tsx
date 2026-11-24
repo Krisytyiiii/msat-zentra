@@ -1,9 +1,11 @@
 "use client";
 
 import * as React from "react";
+import Link from "next/link";
 import { keepPreviousData, useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import {
-  ChevronDown,
+  ArrowRight,
+  Clock,
   Loader2,
   Search,
   ShieldCheck,
@@ -12,27 +14,26 @@ import {
   UserX,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import {
-  DropdownMenu,
-  DropdownMenuCheckboxItem,
-  DropdownMenuContent,
-  DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu";
 import { InsightCallout } from "@/components/ui/insight-callout";
+import { FilterTabs } from "@/components/ui/filter-tabs";
 import { InputGroup, InputGroupAddon, InputGroupInput } from "@/components/ui/input-group";
+import { StatDeck } from "@/components/ui/stat-deck";
 import { toast } from "@/components/ui/sonner";
 import { KanbanBoard } from "@/components/ui/kanban-board";
+import { KanbanOverlay } from "@/components/ui/kanban-overlay";
 import { RowList, type RowListItem, type RowTone } from "@/components/ui/row-list";
 import { RowListSkeleton } from "@/components/shared/zentra-skeletons/ZentraSkeletons";
-import { ZentraPageHeader } from "@/components/shared/zentra-page-header/ZentraPageHeader";
 import { PAGE_SIZE, Pagination } from "@/components/shared/pagination";
 import { useUrlPager } from "@/components/shared/pagination/useUrlPager";
-import { roleLabel, ROLES } from "@/lib/auth/roles";
+import { roleLabel } from "@/lib/auth/roles";
 import {
+  fetchAdminOverview,
   fetchAdminUsers,
   updateAdminUserStatus,
+  type AdminOverview,
   type AdminUser,
 } from "@/services/admin/admin.service";
+import type { PaginatedEnvelope } from "@/lib/api/usePaginatedQuery";
 import styles from "./users.module.css";
 
 function formatDate(value: string): string {
@@ -65,56 +66,13 @@ const ROLE_TONE: Record<string, RowTone> = {
   admin: "green",
 };
 
-/** Filter button + checkbox dropdown menu (same pattern as the audit desk). */
-function FilterMenu({
-  label,
-  active,
-  items,
-  allLabel,
-  onSelect,
-}: {
-  label: string;
-  active: string;
-  items: { value: string; label: string }[];
-  allLabel: string;
-  onSelect: (value: string) => void;
-}) {
-  return (
-    <DropdownMenu>
-      <DropdownMenuTrigger asChild>
-        <Button
-          variant="outline"
-          size="sm"
-          className={`${styles.filterBtn} ${active !== "all" ? styles.filterActive : ""}`}
-        >
-          {label}
-          {active !== "all" ? <span className={styles.filterDot} aria-hidden /> : null}
-          <ChevronDown size={14} aria-hidden />
-        </Button>
-      </DropdownMenuTrigger>
-      <DropdownMenuContent
-        align="end"
-        className={styles.filterMenu}
-      >
-        <DropdownMenuCheckboxItem
-          checked={active === "all"}
-          onCheckedChange={() => onSelect("all")}
-        >
-          {allLabel}
-        </DropdownMenuCheckboxItem>
-        {items.map((item) => (
-          <DropdownMenuCheckboxItem
-            key={item.value}
-            checked={active === item.value}
-            onCheckedChange={() => onSelect(item.value)}
-          >
-            {item.label}
-          </DropdownMenuCheckboxItem>
-        ))}
-      </DropdownMenuContent>
-    </DropdownMenu>
-  );
-}
+type StatusFilter = "" | "active" | "suspended";
+
+const STATUS_FILTERS: ReadonlyArray<{ value: StatusFilter; label: string }> = [
+  { value: "", label: "All accounts" },
+  { value: "active", label: "Active" },
+  { value: "suspended", label: "Suspended" },
+];
 
 export default function AdminUsersPage() {
   return (
@@ -127,34 +85,40 @@ export default function AdminUsersPage() {
 function AdminUsersPageInner() {
   const queryClient = useQueryClient();
   const [queryInput, setQueryInput] = React.useState("");
-  const [role, setRole] = React.useState("");
-  const [status, setStatus] = React.useState("");
+  // The directory is the "live accounts" view — pending sign-ups have their own
+  // page, so this list opens on active accounts.
+  const [status, setStatus] = React.useState<StatusFilter>("active");
 
-  const pager = useUrlPager(0, {}, { extraParams: ["role", "status"] });
+  const pager = useUrlPager(0, {}, { extraParams: ["status"] });
 
-  // Role / status are server filters — keep them in the URL without clobbering
-  // one another. The search box filters the loaded rows instantly (no fetch).
+  // Status is a server filter — keep it in the URL. The search box filters the
+  // loaded rows instantly (no fetch).
   React.useEffect(() => {
-    pager.setFilters({
-      role: role || undefined,
-      status: status || undefined,
-    });
+    pager.setFilters({ status: status || undefined });
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [role, status]);
+  }, [status]);
 
   const query = useQuery({
-    queryKey: ["admin", "users", pager.page, role, status],
+    queryKey: ["admin", "users", pager.page, status],
     queryFn: ({ signal }) =>
       fetchAdminUsers({
         page: pager.page,
         pageSize: PAGE_SIZE,
-        role: role || undefined,
         status: status || undefined,
         signal,
       }),
     placeholderData: keepPreviousData,
     staleTime: 15_000,
   });
+
+  // Roll-up counts for the stat strip; shares the `["admin","overview"]` cache
+  // entry that every account mutation already invalidates.
+  const overview = useQuery({
+    queryKey: ["admin", "overview"],
+    queryFn: fetchAdminOverview,
+    staleTime: 20_000,
+  });
+  const counts = overview.data?.users;
 
   const total = query.data?.total ?? 0;
   const rows = React.useMemo(() => query.data?.data ?? [], [query.data]);
@@ -173,23 +137,70 @@ function AdminUsersPageInner() {
   const statusMutation = useMutation({
     mutationFn: ({ id, next }: { id: string; next: "active" | "suspended" }) =>
       updateAdminUserStatus(id, next),
+    // The row and the stat tiles flip the moment the administrator confirms —
+    // no waiting on the round trip. Any drift is corrected by the refetch in
+    // `onSettled`; a failure rolls the optimistic write back.
+    onMutate: async ({ id, next }) => {
+      await queryClient.cancelQueries({ queryKey: ["admin", "users"] });
+
+      const previousLists = queryClient.getQueriesData<PaginatedEnvelope<AdminUser>>({
+        queryKey: ["admin", "users"],
+      });
+      const previousOverview = queryClient.getQueryData<AdminOverview>(["admin", "overview"]);
+
+      queryClient.setQueriesData<PaginatedEnvelope<AdminUser>>(
+        { queryKey: ["admin", "users"] },
+        (old) =>
+          old
+            ? { ...old, data: old.data.map((u) => (u.id === id ? { ...u, status: next } : u)) }
+            : old,
+      );
+
+      if (previousOverview) {
+        const prev = previousOverview;
+        queryClient.setQueryData<AdminOverview>(["admin", "overview"], {
+          ...prev,
+          users: {
+            ...prev.users,
+            active: prev.users.active + (next === "active" ? 1 : -1),
+            suspended: prev.users.suspended + (next === "suspended" ? 1 : -1),
+          },
+          recentUsers: prev.recentUsers.map((u) => (u.id === id ? { ...u, status: next } : u)),
+        });
+      }
+
+      return { previousLists, previousOverview };
+    },
     onSuccess: (updated) => {
       toast.success({
         title: "Account updated",
         description: `The account is now ${updated.status}.`,
       });
-      void queryClient.invalidateQueries({ queryKey: ["admin", "users"] });
-      void queryClient.invalidateQueries({ queryKey: ["admin", "overview"] });
     },
-    onError: (error) => {
+    onError: (error, _vars, context) => {
+      context?.previousLists?.forEach(([key, data]) => queryClient.setQueryData(key, data));
+      if (context?.previousOverview) {
+        queryClient.setQueryData(["admin", "overview"], context.previousOverview);
+      }
       const message =
         (error as { response?: { data?: { message?: string } } })?.response?.data?.message ??
         "Could not update the account.";
       toast.error({ title: "Update failed", description: message });
     },
+    onSettled: () => {
+      void queryClient.invalidateQueries({ queryKey: ["admin", "users"] });
+      void queryClient.invalidateQueries({ queryKey: ["admin", "overview"] });
+    },
   });
 
   const actingId = statusMutation.isPending ? statusMutation.variables?.id : undefined;
+
+  // Suspend/restore is destructive-ish, so it always passes through a confirm
+  // overlay instead of firing straight off the row button.
+  const [confirmTarget, setConfirmTarget] = React.useState<{
+    user: AdminUser;
+    next: "active" | "suspended";
+  } | null>(null);
 
   const rowItems = React.useMemo<RowListItem[]>(
     () =>
@@ -201,9 +212,7 @@ function AdminUsersPageInner() {
         },
         statusTitle: "Account status",
         title: user.fullName,
-        idLabel: user.email,
-        idLabelTitle: "Email",
-        idLabelClassName: "text-[12px] font-medium",
+        subtitle: user.email,
         leadPill: {
           label: roleLabel(user.role),
           tone: ROLE_TONE[user.role] ?? "muted",
@@ -225,14 +234,20 @@ function AdminUsersPageInner() {
         ariaLabel: `${user.fullName}, ${roleLabel(user.role)}, ${user.status} account`,
         actions: (
           <span className={styles.rowAction}>
-            {user.role === "admin" || user.status === "pending" ? (
+            {user.role === "admin" ? (
               <span className={styles.muted}>—</span>
+            ) : user.status === "pending" ? (
+              <Link href="/admin/users/pending" className={styles.reviewLink}>
+                Review
+                <ArrowRight size={12} aria-hidden />
+              </Link>
             ) : user.status === "suspended" ? (
               <button
                 type="button"
                 className={styles.actionBtn}
                 disabled={statusMutation.isPending}
-                onClick={() => statusMutation.mutate({ id: user.id, next: "active" })}
+                onClick={() => setConfirmTarget({ user, next: "active" })}
+                aria-label={`Restore ${user.fullName}`}
               >
                 {actingId === user.id ? (
                   <Loader2 size={12} className={styles.spin} aria-hidden="true" />
@@ -246,7 +261,8 @@ function AdminUsersPageInner() {
                 type="button"
                 className={styles.actionBtnDanger}
                 disabled={statusMutation.isPending}
-                onClick={() => statusMutation.mutate({ id: user.id, next: "suspended" })}
+                onClick={() => setConfirmTarget({ user, next: "suspended" })}
+                aria-label={`Suspend ${user.fullName}`}
               >
                 {actingId === user.id ? (
                   <Loader2 size={12} className={styles.spin} aria-hidden="true" />
@@ -259,21 +275,72 @@ function AdminUsersPageInner() {
           </span>
         ),
       })),
-    // eslint-disable-next-line react-hooks/exhaustive-deps
     [visibleRows, actingId, statusMutation.isPending],
   );
 
+  const filtersDirty = status !== "active" || queryInput.trim().length > 0;
+
   return (
     <section className={styles.page}>
-      <ZentraPageHeader
-        title="User accounts"
-        description="Every account in Zentra. Suspend or restore access; pending sign-ups are approved at the registrar or record keeper desk."
+      <StatDeck
+        title="Account overview"
+        icon={Users}
+        ariaLabel="Account totals"
+        loading={overview.isPending}
+        error={overview.isError}
+        items={[
+          {
+            key: "total",
+            icon: Users,
+            label: "Total accounts",
+            unit: "",
+            value: counts?.total ?? 0,
+            hint: "All statuses",
+            onClick: () => setStatus(""),
+            active: status === "",
+            indicator: "none",
+          },
+          {
+            key: "active",
+            icon: UserCheck,
+            label: "Active",
+            unit: "",
+            value: counts?.active ?? 0,
+            hint: "Signed-in ready",
+            onClick: () => setStatus("active"),
+            active: status === "active",
+            indicator: "none",
+          },
+          {
+            key: "suspended",
+            icon: UserX,
+            label: "Suspended",
+            unit: "",
+            value: counts?.suspended ?? 0,
+            hint: "Access revoked",
+            onClick: () => setStatus("suspended"),
+            active: status === "suspended",
+            indicator: "none",
+            tone: "red",
+          },
+          {
+            key: "pending",
+            icon: Clock,
+            label: "Pending",
+            unit: "",
+            value: counts?.pending ?? 0,
+            hint: "Awaiting approval",
+            href: "/admin/users/pending",
+            tone: "amber",
+          },
+        ]}
       />
 
       <KanbanBoard
-        title="User accounts"
+        title="Accounts"
         icon={<Users size={14} className="text-primary" aria-hidden />}
-        description="Search every account, filter by role or status, then suspend or restore access."
+        className={styles.boardTransparent}
+        description="Search every account, then suspend or restore access."
         ariaLabel="User accounts"
         headerToolbar={
           <>
@@ -289,26 +356,35 @@ function AdminUsersPageInner() {
               </InputGroupAddon>
             </InputGroup>
 
-            <FilterMenu
-              label="Role"
-              active={role || "all"}
-              allLabel="All roles"
-              items={ROLES.map((r) => ({ value: r, label: roleLabel(r) }))}
-              onSelect={(v) => setRole(v === "all" ? "" : v)}
-            />
-
-            <FilterMenu
-              label="Status"
-              active={status || "all"}
-              allLabel="All statuses"
-              items={[
-                { value: "active", label: "Active" },
-                { value: "pending", label: "Pending" },
-                { value: "suspended", label: "Suspended" },
-              ]}
-              onSelect={(v) => setStatus(v === "all" ? "" : v)}
-            />
+            {filtersDirty ? (
+              <Button
+                variant="ghost"
+                size="sm"
+                className="h-8 text-[12px]"
+                onClick={() => {
+                  setStatus("active");
+                  setQueryInput("");
+                }}
+              >
+                Reset
+              </Button>
+            ) : null}
           </>
+        }
+        toolbar={
+          <FilterTabs
+            label="Account status filter"
+            value={status}
+            onChange={setStatus}
+            className="w-fit self-start"
+            options={STATUS_FILTERS.map((item) => ({
+              value: item.value,
+              label: item.label,
+              ...(item.value === "active" ? { count: counts?.active } : {}),
+              ...(item.value === "suspended" ? { count: counts?.suspended } : {}),
+              ...(item.value === "" ? { count: counts?.total } : {}),
+            }))}
+          />
         }
         footer={
           <Pagination
@@ -343,7 +419,12 @@ function AdminUsersPageInner() {
             </InsightCallout>
           </div>
         ) : rows.length === 0 ? (
-          <p className={styles.empty}>No accounts match these filters.</p>
+          <div className="flex w-full justify-center py-4">
+            <InsightCallout role="status" className="w-full max-w-xl text-left">
+              No accounts in this view.{" "}
+              {status === "active" ? "Every live account is suspended." : "Try another filter."}
+            </InsightCallout>
+          </div>
         ) : (
           <RowList
             bleed
@@ -357,12 +438,75 @@ function AdminUsersPageInner() {
         )}
       </KanbanBoard>
 
-      {role === "admin" ? (
-        <p className={styles.note}>
-          <ShieldCheck size={14} aria-hidden="true" /> Administrator accounts are protected and
-          cannot be suspended from this console.
-        </p>
-      ) : null}
+      <p className={styles.note}>
+        <ShieldCheck size={14} aria-hidden="true" /> Administrator accounts are protected and cannot
+        be suspended from this console.
+      </p>
+
+      <KanbanOverlay
+        open={confirmTarget !== null}
+        onClose={() => {
+          if (!statusMutation.isPending) setConfirmTarget(null);
+        }}
+        title={confirmTarget?.next === "suspended" ? "Suspend account" : "Restore account"}
+        description={
+          confirmTarget
+            ? confirmTarget.next === "suspended"
+              ? `${confirmTarget.user.fullName} will be signed out and blocked from signing in until restored.`
+              : `${confirmTarget.user.fullName} will be able to sign in again.`
+            : undefined
+        }
+        icon={
+          confirmTarget?.next === "suspended" ? (
+            <UserX size={14} className="text-red-500" aria-hidden />
+          ) : (
+            <UserCheck size={14} className="text-emerald-500" aria-hidden />
+          )
+        }
+        busy={statusMutation.isPending}
+        dismissable={!statusMutation.isPending}
+        footer={
+          <div className="flex w-full justify-end gap-2">
+            <Button
+              type="button"
+              size="sm"
+              className={[
+                "h-6 px-2.5 text-[12px]",
+                confirmTarget?.next === "suspended"
+                  ? "bg-red-600 text-white hover:bg-red-700"
+                  : "bg-emerald-600 text-white hover:bg-emerald-700",
+              ].join(" ")}
+              disabled={statusMutation.isPending}
+              onClick={() => {
+                const target = confirmTarget;
+                if (!target) return;
+                // Close first: the optimistic write already flipped the row.
+                setConfirmTarget(null);
+                statusMutation.mutate({ id: target.user.id, next: target.next });
+              }}
+            >
+              {confirmTarget?.next === "suspended" ? "Suspend account" : "Restore account"}
+            </Button>
+          </div>
+        }
+      >
+        {confirmTarget ? (
+          <dl className={styles.confirmSummary}>
+            <div>
+              <dt>Name</dt>
+              <dd>{confirmTarget.user.fullName}</dd>
+            </div>
+            <div>
+              <dt>Email</dt>
+              <dd>{confirmTarget.user.email}</dd>
+            </div>
+            <div>
+              <dt>Role</dt>
+              <dd>{roleLabel(confirmTarget.user.role)}</dd>
+            </div>
+          </dl>
+        ) : null}
+      </KanbanOverlay>
     </section>
   );
 }

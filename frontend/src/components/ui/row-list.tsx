@@ -36,6 +36,8 @@ export interface RowListItem {
   statusTitle?: string;
   /** Primary text (e.g. student name). */
   title: string;
+  /** Secondary line rendered under the title (e.g. an email address). */
+  subtitle?: string;
   /** Rectangle id pill rendered after the title (e.g. LRN). */
   idLabel?: string;
   /** Field name shown in the id pill's tooltip (defaults to "LRN"). */
@@ -188,8 +190,15 @@ function RowListRow({
             size={item.avatarMascot.size ?? 28}
           />
         ) : null}
-        <span className={styles.title} title={item.title}>
-          {item.title}
+        <span className={styles.titleStack}>
+          <span className={styles.title} title={item.title}>
+            {item.title}
+          </span>
+          {item.subtitle ? (
+            <span className={styles.subtitle} title={item.subtitle}>
+              {item.subtitle}
+            </span>
+          ) : null}
         </span>
         {item.idLabel ? (
           <Pill

@@ -9,6 +9,7 @@ import {
   sectionAttendanceTotals,
 } from "../../services/risk.js";
 import { sectionHeadcounts } from "../../services/enrollment.js";
+import { subjectAverageAttendance } from "../../services/attendance.js";
 import {
   archivedAdvisoryLearnerIds,
   excludeArchivedProfiles,
@@ -103,14 +104,17 @@ export async function getBatchLevels(
       ];
       const pHeadcounts = await sectionHeadcounts(pSectionIds);
       const pTotals = await sectionAttendanceTotals(pSectionIds, termId);
+      const pSubjectAvgs = await subjectAverageAttendance(pSectionIds, termId);
       for (const pr of profileRows) {
         const enrolled = pHeadcounts.get(pr.section?.id ?? "") ?? 0;
+        const subjAvg = pSubjectAvgs.get(pr.userId);
         const flags = computeRiskFactors({
           finalGrades: pr.finalGrades,
           attendance: pr.attendanceRecords.map((a) => ({
             status: a.status,
             subjectId: a.subjectId,
           })),
+          attendanceRate: subjAvg && subjAvg.hasSubjectData ? subjAvg.average : null,
           attendanceTotal: pTotals.get(pr.section?.id ?? ""),
           anecdotalCount: pr.anecdotalRecords.length,
           enrolled,
@@ -163,12 +167,15 @@ export async function getBatchLevels(
       }
       const rosterSectionIds = [...new Set(rosterSection.values())];
       const rosterTotals = await sectionAttendanceTotals(rosterSectionIds, termId);
+      const rosterSubjectAvgs = await subjectAverageAttendance(rosterSectionIds, termId);
       for (const rid of rosterIds) {
         const sectionId = rosterSection.get(rid);
         const enrolled = sectionId ? (headcounts.get(sectionId) ?? 0) : 0;
+        const subjAvg = rosterSubjectAvgs.get(`roster:${rid}`);
         const flags = computeRiskFactors({
           finalGrades: gradesBy.get(rid) ?? [],
           attendance: attBy.get(rid) ?? [],
+          attendanceRate: subjAvg && subjAvg.hasSubjectData ? subjAvg.average : null,
           attendanceTotal: attendanceTotalFor(rosterTotals, sectionId, rid),
           anecdotalCount: anecBy.get(rid) ?? 0,
           enrolled,

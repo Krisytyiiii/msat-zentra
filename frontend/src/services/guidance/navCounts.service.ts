@@ -44,7 +44,7 @@ const ROUTE_KEYS: Record<string, keyof GuidanceNavQueues> = {
   "/guidance/referrals/counseling": "counseling",
   "/guidance/anecdotal": "anecdotal",
   "/guidance/session-documents": "documents",
-  "/guidance/adm": "report",
+  "/guidance/reports": "report",
 };
 
 /**

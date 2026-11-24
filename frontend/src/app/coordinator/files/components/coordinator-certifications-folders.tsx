@@ -3,8 +3,8 @@
 import * as React from "react";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { Button } from "@/components/ui/button";
-import { Award, ChevronRight, HelpCircle, Loader2 } from "lucide-react";
-import { InsightCallout } from "@/components/ui/insight-callout";
+import { ArrowUpRight, Award, HelpCircle, Loader2 } from "lucide-react";
+import { PageEmptyCallout } from "@/components/shared/page-empty-callout";
 import { FilterTabs } from "@/components/ui/filter-tabs";
 import { Pill, type PillTone } from "@/components/ui/pill";
 import { KanbanOverlay } from "@/components/ui/kanban-overlay";
@@ -22,9 +22,9 @@ import type {
   CertStatus,
   CertStatusFilter,
 } from "@/services/coordinator/certifications.types";
-import { CoordinatorCertificationsFilters } from "./coordinator-certifications-filters";
 import { CoordinatorCertificationsEndorseConfirm } from "./coordinator-certifications-endorse-confirm";
 import { CoordinatorEmptyCard } from "../../components/CoordinatorEmptyCard";
+import { SearchField } from "@/components/ui/search-field";
 import { PAGE_SIZE, Pagination } from "@/components/shared/pagination";
 import styles from "./coordinator-certifications-folders.module.css";
 
@@ -68,6 +68,89 @@ const STATUS_TONE: Record<CertStatus, PillTone> = {
   revision: "red",
   approved: "green",
 };
+
+/* Glass-tag dot tones — the same palette the referrals / interventions desks
+   use for their status filters. */
+const STATUS_TAB_TONE: Record<
+  CertStatusFilter,
+  "neutral" | "amber" | "blue" | "red" | "green"
+> = {
+  all: "neutral",
+  prepared: "amber",
+  awaiting: "blue",
+  revision: "red",
+  approved: "green",
+};
+
+/* Row accent + status hint — the same read-only vocabulary the case file uses. */
+const ROW_ACCENT: Record<CertStatus, string> = {
+  prepared: styles.rowPrepared,
+  awaiting: styles.rowAwaiting,
+  revision: styles.rowRevision,
+  approved: styles.rowApproved,
+};
+
+const STATUS_HINT: Record<CertStatus, string> = {
+  prepared: "Ready to endorse",
+  awaiting: "Locked · awaiting signature",
+  revision: "Revise evidence, then forward",
+  approved: "Signed",
+};
+
+/* Help legend — one entry per certification status, in the order a file moves
+   through the desk. The pill uses the same tone as the list so the legend and
+   the rows read as one vocabulary. */
+const HELP_ITEMS: {
+  status: CertStatus;
+  title: string;
+  text: string;
+}[] = [
+  {
+    status: "prepared",
+    title: "Ready to endorse",
+    text: "The recommendation is recorded. Press Endorse under the folder to lock it and send it to the Principal for final signature.",
+  },
+  {
+    status: "awaiting",
+    title: "With the Principal",
+    text: "The case is locked and waiting for the Principal's signature. Only the Principal can sign — you prepare and forward.",
+  },
+  {
+    status: "revision",
+    title: "Fix first",
+    text: "The evidence chain is incomplete or the Principal returned the case. Open the case file, revise the evidence, then forward it again.",
+  },
+  {
+    status: "approved",
+    title: "Signed",
+    text: "Signed by the Principal. Monitoring continues on the Enrolled Students page.",
+  },
+];
+
+const ELIGIBILITY_LABEL = {
+  eligible: "Eligible",
+  ineligible: "Ineligible",
+  pending: "For review",
+} as const;
+
+const ELIGIBILITY_TONE: Record<"eligible" | "ineligible" | "pending", PillTone> = {
+  eligible: "green",
+  ineligible: "red",
+  pending: "amber",
+};
+
+/** Full date for a row tooltip (the cell itself shows a relative age). */
+function fullDate(iso: string | null): string {
+  if (!iso) return "—";
+  const date = new Date(iso);
+  return Number.isFinite(date.getTime())
+    ? date.toLocaleDateString(undefined, {
+        month: "short",
+        day: "numeric",
+        year: "numeric",
+      })
+    : "—";
+}
 
 export function CoordinatorCertificationsFolders({
   records,
@@ -189,10 +272,7 @@ export function CoordinatorCertificationsFolders({
   const nowTick = useNowTick();
   const visible = React.useMemo(
     () =>
-      filtered.slice(start - 1, end).map((record) => ({
-        record,
-        date: record.datePrepared ?? record.approvalDate,
-      })),
+      filtered.slice(start - 1, end).map((record) => ({ record })),
     // eslint-disable-next-line react-hooks/exhaustive-deps
     [filtered, start, end, nowTick],
   );
@@ -228,27 +308,34 @@ export function CoordinatorCertificationsFolders({
             Files
           </span>
 
-          <FilterTabs
-            label="Filter certifications by status"
-            options={STATUS_TABS.map((tab) => ({
-              value: tab.value,
-              label: tab.label,
-              count: counts[tab.value],
-            }))}
-            value={status}
-            onChange={(next) => {
-              setPage(1);
-              onStatusChange(next);
-            }}
-          />
+          <div className={styles.filterRow}>
+            <FilterTabs
+              label="Filter certifications by status"
+              variant="tags"
+              options={STATUS_TABS.map((tab) => ({
+                value: tab.value,
+                label: tab.label,
+                count: counts[tab.value],
+                tone: STATUS_TAB_TONE[tab.value],
+              }))}
+              value={status}
+              onChange={(next) => {
+                setPage(1);
+                onStatusChange(next);
+              }}
+            />
+          </div>
 
           <div className={styles.headerActions}>
-            <CoordinatorCertificationsFilters
-              query={query}
-              onQueryChange={(v) => {
+            <SearchField
+              className="w-60 max-w-full"
+              placeholder="Search student, LRN, or grade…"
+              value={query}
+              onChange={(v) => {
                 setPage(1);
                 onQueryChange(v);
               }}
+              aria-label="Search certifications"
             />
             <button
               type="button"
@@ -263,61 +350,77 @@ export function CoordinatorCertificationsFolders({
         </div>
 
         {visible.length === 0 ? (
-          <div className={styles.emptyCallout}>
-            <InsightCallout role="status">
-              {searchTerm !== "" || status !== "all"
-                ? "No certification files match your search or filters. Try a different name, LRN, or status."
-                : "No certification files to show."}
-            </InsightCallout>
-          </div>
+          <PageEmptyCallout>
+            {searchTerm !== "" || status !== "all"
+              ? "No certification files match your search or filters. Try a different name, LRN, or status."
+              : "No certification files to show."}
+          </PageEmptyCallout>
         ) : (
-          <ul className={styles.fileList}>
-            {visible.map(({ record, date }, index) => {
-              const meta = CERT_STATUS_META[record.status];
-              return (
-                <li
-                  key={record.id}
-                  className={styles.fileRow}
-                  data-status={record.status}
-                  style={{ animationDelay: `${Math.min(index, 14) * 35}ms` }}
-                >
-                  <button
-                    type="button"
-                    className={styles.fileMain}
-                    onClick={() => openRecord(record)}
+          <div className={styles.listPanel}>
+            <div className={styles.listHead} aria-hidden="true">
+              <span>Learner</span>
+              <span>Grade</span>
+              <span>Eligibility</span>
+              <span>Certification</span>
+              <span className={styles.headFiles}>Files</span>
+              <span className={styles.headPrepared}>Prepared</span>
+              <span className={styles.headApproved}>Approved</span>
+              <span />
+            </div>
+            <ul className={styles.listBody} aria-label="Certification files">
+              {visible.map(({ record }, index) => {
+                const meta = CERT_STATUS_META[record.status];
+                return (
+                  <li
+                    key={record.id}
+                    className={`${styles.row} ${ROW_ACCENT[record.status]}`}
+                    style={{ animationDelay: `${Math.min(index, 14) * 35}ms` }}
+                    role="button"
+                    tabIndex={0}
                     aria-label={`Open ${record.student}'s certification file`}
+                    onClick={() => openRecord(record)}
+                    onKeyDown={(event) => {
+                      if (event.target !== event.currentTarget) return;
+                      if (event.key === "Enter" || event.key === " ") {
+                        event.preventDefault();
+                        openRecord(record);
+                      }
+                    }}
                   >
-                    <span className={styles.fileGlyph} aria-hidden="true">
+                    <div className={`${styles.cell} ${styles.cellPerson}`}>
                       <StudentMascot
                         name={record.student}
                         seed={record.lrn}
-                        size={34}
+                        size={30}
                       />
-                    </span>
-                    <span className={styles.fileIdentity}>
-                      <span
-                        className={styles.studentName}
-                        title={record.student}
+                      <div className={styles.personText}>
+                        <p className={styles.personName} title={record.student}>
+                          {record.student}
+                        </p>
+                        <span className={styles.personLrn}>{record.lrn || "—"}</span>
+                      </div>
+                    </div>
+
+                    <div
+                      className={`${styles.cell} ${styles.cellPill} ${styles.cellGrade}`}
+                    >
+                      <Pill tone="blue" label="Grade level">
+                        {record.grade}
+                      </Pill>
+                    </div>
+
+                    <div
+                      className={`${styles.cell} ${styles.cellPill} ${styles.cellEligibility}`}
+                    >
+                      <Pill
+                        tone={ELIGIBILITY_TONE[record.eligibilityStatus]}
+                        label="Eligibility"
                       >
-                        {record.student}
-                      </span>
-                      <span className={styles.identityMeta}>
-                        <Pill tone="amber" label="LRN">
-                          {record.lrn}
-                        </Pill>
-                        <Pill tone="blue" label="Grade level">
-                          {record.grade}
-                        </Pill>
-                      </span>
-                    </span>
-                    <span className={styles.fileMeta}>
-                      <span className={styles.evidenceCount}>
-                        {record.formsCount} file
-                        {record.formsCount === 1 ? "" : "s"}
-                      </span>
-                      <span className={styles.fileAge}>{timeAgo(date)}</span>
-                    </span>
-                    <span className={styles.fileStatus}>
+                        {ELIGIBILITY_LABEL[record.eligibilityStatus]}
+                      </Pill>
+                    </div>
+
+                    <div className={`${styles.cell} ${styles.cellStatus}`}>
                       <Pill
                         tone={STATUS_TONE[record.status]}
                         label="Certification status"
@@ -325,64 +428,101 @@ export function CoordinatorCertificationsFolders({
                         <Award size={12} aria-hidden />
                         {meta.label}
                       </Pill>
-                    </span>
-                    <span className={styles.openHint} aria-hidden="true">
-                      <ChevronRight size={15} />
-                    </span>
-                  </button>
-                  <div className={styles.fileAction}>
-                    {record.status === "prepared" ? (
-                      <Button
-                        size="xs"
-                        variant="outline"
-                        className="h-6 px-2 text-xs"
-                        disabled={forwardingId === record.id}
-                        onClick={() => setForwardTarget(record)}
-                      >
-                        {forwardingId === record.id ? (
-                          <span
-                            style={{
-                              display: "inline-flex",
-                              alignItems: "center",
-                              gap: "0.375rem",
-                            }}
-                          >
-                            <Loader2
-                              className="animate-spin"
-                              aria-hidden
-                              style={{ width: "0.875rem", height: "0.875rem" }}
-                            />
-                            Endorsing…
-                          </span>
-                        ) : (
-                          "Endorse"
-                        )}
-                      </Button>
-                    ) : record.status === "awaiting" ? (
-                      <p className={styles.lockedNote}>
-                        Locked · awaiting signature
-                      </p>
-                    ) : record.status === "revision" ? (
-                      <p className={styles.lockedNote}>
-                        Revise evidence, then forward
-                      </p>
-                    ) : (
-                      <span className={styles.signedRow}>
-                        <Pill tone="green" label="Signature">
-                          Signed
-                        </Pill>
-                        {record.approvedBy ? (
-                          <Pill tone="neutral" label="Signed by">
-                            {record.approvedBy}
-                          </Pill>
-                        ) : null}
+                      <span className={styles.cellMuted}>
+                        {record.status === "approved" && record.approvedBy
+                          ? `Signed by ${record.approvedBy}`
+                          : STATUS_HINT[record.status]}
                       </span>
-                    )}
-                  </div>
-                </li>
-              );
-            })}
-          </ul>
+                    </div>
+
+                    <div
+                      className={`${styles.cell} ${styles.cellMetaRow} ${styles.cellFiles}`}
+                    >
+                      <span className={styles.cellLabel}>Files</span>
+                      <span className={styles.cellValue}>
+                        {record.formsCount} file{record.formsCount === 1 ? "" : "s"}
+                      </span>
+                    </div>
+
+                    <div
+                      className={`${styles.cell} ${styles.cellMetaRow} ${styles.cellPrepared}`}
+                    >
+                      <span className={styles.cellLabel}>Prepared</span>
+                      <span
+                        className={styles.cellValue}
+                        title={fullDate(record.datePrepared)}
+                      >
+                        {timeAgo(record.datePrepared)}
+                      </span>
+                    </div>
+
+                    <div
+                      className={`${styles.cell} ${styles.cellMetaRow} ${styles.cellApproved}`}
+                    >
+                      <span className={styles.cellLabel}>Approved</span>
+                      <span
+                        className={styles.cellValue}
+                        title={fullDate(record.approvalDate)}
+                      >
+                        {record.approvalDate ? timeAgo(record.approvalDate) : "—"}
+                      </span>
+                    </div>
+
+                    <div className={`${styles.cell} ${styles.cellAction}`}>
+                      {record.status === "prepared" ? (
+                        <Button
+                          size="xs"
+                          variant="outline"
+                          className="h-6 gap-1 bg-card px-2 text-xs text-foreground"
+                          disabled={forwardingId === record.id}
+                          onClick={(event) => {
+                            event.stopPropagation();
+                            setForwardTarget(record);
+                          }}
+                        >
+                          {forwardingId === record.id ? (
+                            <span
+                              style={{
+                                display: "inline-flex",
+                                alignItems: "center",
+                                gap: "0.375rem",
+                              }}
+                            >
+                              <Loader2
+                                className="animate-spin"
+                                aria-hidden
+                                style={{ width: "0.875rem", height: "0.875rem" }}
+                              />
+                              Endorsing…
+                            </span>
+                          ) : (
+                            "Endorse"
+                          )}
+                        </Button>
+                      ) : (
+                        <Button
+                          variant="outline"
+                          className="h-6 gap-1 bg-card px-2 text-[12px] text-foreground"
+                          aria-label={`View ${record.student}'s case`}
+                          onClick={(event) => {
+                            event.stopPropagation();
+                            openRecord(record);
+                          }}
+                        >
+                          <ArrowUpRight
+                            size={12}
+                            className="text-amber-500"
+                            aria-hidden
+                          />
+                          View file
+                        </Button>
+                      )}
+                    </div>
+                  </li>
+                );
+              })}
+            </ul>
+          </div>
         )}
       </section>
 
@@ -405,14 +545,14 @@ export function CoordinatorCertificationsFolders({
       <KanbanOverlay
         open={helpOpen}
         onClose={() => setHelpOpen(false)}
-        width="sm"
+        width="lg"
         title="What do the certification status labels mean?"
         icon={
           <span className="text-primary" aria-hidden>
             <HelpCircle size={14} />
           </span>
         }
-        description="Every amber folder is a certification you issued. The label on top is its current status — click the folder to open the full case file."
+        description="Every amber folder is a certification file. Its pill shows the state it is in — open the folder to work on the case."
         footer={
           <div className="flex items-center justify-end gap-1.5 px-1 pb-1">
             <Button
@@ -427,39 +567,26 @@ export function CoordinatorCertificationsFolders({
           </div>
         }
       >
-          <ul className={styles.helpList}>
-            <li>
-              <p className={styles.helpItemTitle}>Prepared — ready to endorse</p>
-              <p className={styles.helpItemText}>
-                The recommendation is recorded. Press Endorse under the folder
-                to lock it and send it to the Principal for final signature.
-              </p>
+        <ul className={styles.helpList}>
+          {HELP_ITEMS.map((item) => (
+            <li
+              key={item.status}
+              className={styles.helpItem}
+              data-status={item.status}
+            >
+              <span className={styles.helpPill}>
+                <Pill tone={STATUS_TONE[item.status]} label="Certification status">
+                  <Award size={12} aria-hidden />
+                  {CERT_STATUS_META[item.status].label}
+                </Pill>
+              </span>
+              <span className={styles.helpItemBody}>
+                <span className={styles.helpItemTitle}>{item.title}</span>
+                <span className={styles.helpItemText}>{item.text}</span>
+              </span>
             </li>
-            <li>
-              <p className={styles.helpItemTitle}>
-                Awaiting signature — with the Principal
-              </p>
-              <p className={styles.helpItemText}>
-                The case is locked and waiting for the Principal&apos;s
-                signature. Only the Principal can sign — you prepare and
-                forward.
-              </p>
-            </li>
-            <li>
-              <p className={styles.helpItemTitle}>Needs revision — fix first</p>
-              <p className={styles.helpItemText}>
-                The evidence chain is incomplete or the Principal returned the
-                case. Open the case file, revise the evidence, then forward.
-              </p>
-            </li>
-            <li>
-              <p className={styles.helpItemTitle}>Approved — signed</p>
-              <p className={styles.helpItemText}>
-                Signed by the Principal. Monitoring continues on the Enrolled
-                Students page.
-              </p>
-            </li>
-          </ul>
+          ))}
+        </ul>
       </KanbanOverlay>
     </>
   );

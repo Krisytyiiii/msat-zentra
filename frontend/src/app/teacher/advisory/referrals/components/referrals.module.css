@@ -3,7 +3,7 @@
   flex-direction: column;
   min-width: 0;
   /* Shell offsets mirror the teacher shell: 3rem topbar + 2rem main
-     padding on desktop ≥1024px (sidebar rail, no tab navbar), 6rem + 2rem
+     padding on desktop â‰¥1024px (sidebar rail, no tab navbar), 6rem + 2rem
      below that, 6rem + 1.5rem on mobile (main padding shrinks). The 16px
      bottom gutter comes from main's own padding alone (no extra page
      padding), so the starter strip sits exactly 16px above the gutter. */
@@ -48,10 +48,10 @@
   min-width: 0;
   position: sticky;
   /* Level with the left data-table card: 3rem navbar + 1rem main padding. */
-  top: 4rem;
-  max-height: calc(100dvh - 5rem);
+  top: calc(4rem + var(--term-banner-offset, 0rem));
+  max-height: calc(100dvh - 5rem - var(--term-banner-offset, 0rem));
   overflow-y: auto;
-  /* Scrollable without visible chrome — same pattern as the attendance rail. */
+  /* Scrollable without visible chrome â€” same pattern as the attendance rail. */
   scrollbar-width: none;
   -ms-overflow-style: none;
 }
@@ -72,7 +72,7 @@
 }
 
 /* Hidden scroll chrome for the page's scroll containers (dropdown menus,
-   rail lists, wide table) — scrollable by touch, wheel, and keyboard without
+   rail lists, wide table) â€” scrollable by touch, wheel, and keyboard without
    visible bars, same pattern as the attendance rail. */
 .noScrollbar {
   scrollbar-width: none;
@@ -136,7 +136,7 @@
   /* Below the fixed 3rem topbar (+1rem gap) so the navbar never covers it.
      Portaled to document.body, above navbars (35/40/41) and dropdowns (50),
      below modal dialogs. */
-  top: 4rem;
+  top: calc(4rem + var(--term-banner-offset, 0rem));
   right: 1rem;
   z-index: 70;
   display: flex;
@@ -228,16 +228,964 @@
   display: flex;
   flex-direction: column;
   min-width: 0;
-  /* Hug content height — do not stretch the kanban to fill the page. */
+  /* Hug content height â€” do not stretch the kanban to fill the page. */
   flex: 0 1 auto;
   min-height: 0;
 }
 
-/* The referral table blends into the page — no card tint behind the rows
-   (same background-free treatment as the overview chart kanban boards).
-   Doubled class keeps this ahead of the shared `.tableWrap` card fill. */
-.flatTable.flatTable {
+/* ---- Casebook panel ----------------------------------------------------
+   The casebook is no longer framed: the lane header, filters, card wall and
+   pager sit directly on the page canvas, with the right-hand rail as the
+   only card surface. */
+.panel {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+
+.laneHead {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.625rem 1rem;
+  padding: 0 0 0.625rem;
+  border-bottom: 1px solid var(--border);
+}
+
+.laneTitle {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  margin: 0;
+  font-size: 0.8125rem;
+  font-weight: 700;
+  letter-spacing: 0.02em;
+  text-transform: uppercase;
+  color: var(--foreground);
+  line-height: 1.2;
+}
+
+.laneDot {
+  width: 0.5rem;
+  height: 0.5rem;
+  border-radius: 999px;
+  background-color: #f59e0b;
+  flex-shrink: 0;
+}
+
+/* Inner table: the panel already carries the border/radius. */
+.panelBody.panelBody {
+  border: 0;
+  border-radius: 0;
   background-color: transparent;
+}
+
+.panelFooter {
+  border-top: 1px solid var(--border);
+  padding: 0.5rem 0;
+}
+
+/* ---- Case card wall -----------------------------------------------------
+   The casebook reads as a wall of glass cards instead of a table: one card
+   per referral, painted on the same amber-edged surface as the advisory list
+   and the ADM case board (<GlassCard> only supplies the tilt/glare wrapper,
+   so the surface is drawn here). */
+.panelToolbar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.5rem 0.75rem;
+  padding: 0.5rem 0;
+  border-bottom: 1px solid var(--border);
+}
+
+.cardArea {
+  min-width: 0;
+  padding: 0.75rem 0 1rem;
+  /* The grid steps 1 → 2 → 3 columns off the panel's own width, so three
+     cards per row land as soon as the casebook is wide enough for them. */
+  container-type: inline-size;
+}
+
+.cardGrid {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: 0.75rem;
+  min-width: 0;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  /* Cards hug their own content instead of stretching to the tallest cell. */
+  align-items: start;
+}
+
+@container (min-width: 34rem) {
+  .cardGrid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+@container (min-width: 54rem) {
+  .cardGrid {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+}
+
+.cardGrid > li {
+  min-width: 0;
+  animation: board-card-in 0.7s cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+
+/* Staggered slow-mo rise-in so the cards display one after another. */
+.cardGrid > li:nth-child(1) { animation-delay: 0.03s; }
+.cardGrid > li:nth-child(2) { animation-delay: 0.12s; }
+.cardGrid > li:nth-child(3) { animation-delay: 0.21s; }
+.cardGrid > li:nth-child(4) { animation-delay: 0.3s; }
+.cardGrid > li:nth-child(5) { animation-delay: 0.39s; }
+.cardGrid > li:nth-child(6) { animation-delay: 0.48s; }
+.cardGrid > li:nth-child(7) { animation-delay: 0.57s; }
+.cardGrid > li:nth-child(8) { animation-delay: 0.66s; }
+.cardGrid > li:nth-child(9) { animation-delay: 0.75s; }
+.cardGrid > li:nth-child(10) { animation-delay: 0.84s; }
+.cardGrid > li:nth-child(11) { animation-delay: 0.93s; }
+.cardGrid > li:nth-child(12) { animation-delay: 1.02s; }
+.cardGrid > li:nth-child(n + 13) { animation-delay: 1.05s; }
+
+@media (prefers-reduced-motion: reduce) {
+  .cardGrid > li {
+    animation: none;
+  }
+}
+
+.cardCell {
+  display: flex;
+  width: 100%;
+  min-width: 0;
+  height: 100%;
+}
+
+/* The glass wrapper must take the whole cell — a content-sized flex item made
+   each card as wide as its own text, so a row's cards came out uneven. */
+.cardCell > * {
+  width: 100%;
+  min-width: 0;
+}
+
+.card {
+  --card-edge: #f59e0b;
+  --card-edge-hover: #d97706;
+  --card-wash: color-mix(in srgb, #f59e0b 8%, transparent);
+  --glass-fill-1: var(--card);
+  --glass-fill-2: color-mix(in oklch, var(--card) 94%, var(--foreground));
+  --glass-top: color-mix(in srgb, #fff 70%, transparent);
+  --glass-bottom: color-mix(in srgb, #000 7%, transparent);
+  --card-glow: 0 18px 34px -26px color-mix(in srgb, #000 55%, transparent);
+  position: relative;
+  z-index: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 0.625rem;
+  width: 100%;
+  height: 100%;
+  min-width: 0;
+  overflow: hidden;
+  padding: 0.75rem 0.875rem;
+  border: 1px solid var(--card-edge);
+  border-radius: 0.75rem;
+  background-image: linear-gradient(145deg, var(--glass-fill-1), var(--glass-fill-2));
+  box-shadow:
+    inset 0 1px 0 var(--glass-top),
+    inset 0 -1px 0 var(--glass-bottom),
+    var(--card-glow);
+  transition:
+    border-color 160ms ease-out,
+    background-image 160ms ease-out,
+    box-shadow 160ms ease-out;
+  cursor: pointer;
+  outline: none;
+}
+
+:global(.dark) .card {
+  --card-edge: #fbbf24;
+  --card-edge-hover: #fcd34d;
+  --card-wash: color-mix(in srgb, #f59e0b 10%, transparent);
+  /* Dark mode reads as an amber-edged outline, not a filled panel: the card
+     surface stays transparent so the desk shows through. */
+  --glass-fill-1: transparent;
+  --glass-fill-2: transparent;
+  --glass-top: color-mix(in srgb, #fff 8%, transparent);
+  --glass-bottom: transparent;
+  --card-glow: 0 18px 34px -22px color-mix(in srgb, #000 70%, transparent);
+}
+
+.card:hover,
+.card:focus-visible {
+  border-color: var(--card-edge-hover);
+  background-image: linear-gradient(145deg, var(--card-wash), var(--glass-fill-2));
+  box-shadow:
+    inset 0 1px 0 var(--glass-top),
+    inset 0 -1px 0 var(--glass-bottom),
+    0 22px 40px -24px color-mix(in srgb, #f59e0b 45%, transparent);
+}
+
+.card:focus-visible {
+  box-shadow:
+    inset 0 1px 0 var(--glass-top),
+    0 0 0 2px color-mix(in srgb, #f59e0b 55%, transparent),
+    var(--card-glow);
+}
+
+/* Case opened from a notification (?highlight=) â€” hold the amber ring until
+   the teacher moves away. */
+.cardHighlighted,
+.cardHighlighted:hover {
+  border-color: color-mix(in srgb, #f59e0b 75%, transparent);
+  background-image: linear-gradient(145deg, var(--card-wash), var(--glass-fill-2));
+  box-shadow:
+    inset 0 1px 0 var(--glass-top),
+    inset 0 0 0 1px color-mix(in srgb, #f59e0b 35%, transparent),
+    var(--card-glow);
+}
+
+/* Card whose tracking is open in the right-hand rail. */
+.cardSelected,
+.cardSelected:hover {
+  border-color: color-mix(in srgb, #f59e0b 92%, transparent);
+  background-image: linear-gradient(145deg, var(--card-wash), var(--glass-fill-2));
+  box-shadow:
+    inset 0 1px 0 var(--glass-top),
+    inset 0 0 0 2px color-mix(in srgb, #f59e0b 42%, transparent),
+    0 22px 40px -26px color-mix(in srgb, #f59e0b 55%, transparent);
+}
+
+/* ---- Split casebook + tracking rail ------------------------------------
+   Left column holds the casebook cards (~70%); the right rail follows the
+   selected case with a source-rail-style update list and quoted note. */
+.splitLayout {
+  display: grid;
+  grid-template-columns: minmax(0, 7fr) minmax(0, 3fr);
+  gap: 1rem;
+  align-items: start;
+  min-width: 0;
+}
+
+.splitMain {
+  min-width: 0;
+}
+
+.trackRail {
+  position: sticky;
+  top: calc(4rem + var(--term-banner-offset, 0rem));
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  /* Fill the desk from just under the chrome to the bottom gutter. */
+  height: calc(100dvh - 5rem - var(--term-banner-offset, 0rem));
+  overflow: hidden;
+  border: 1px solid var(--border);
+  border-radius: 16px;
+  background-color: color-mix(in oklch, var(--card) 84%, transparent);
+  backdrop-filter: blur(6px);
+  box-shadow:
+    0 0 0 1px color-mix(in oklch, var(--foreground), transparent 96%),
+    0 12px 30px -24px color-mix(in oklch, var(--foreground), transparent 60%);
+}
+
+/* Dark mode: the rail is an outline only — its fill would read as a solid
+   panel against the desk. */
+:global(.dark) .trackRail {
+  background-color: transparent;
+}
+
+.trackHead {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  padding: 0.75rem 0.875rem;
+  border-bottom: 1px solid var(--border);
+}
+
+.trackIdentity {
+  display: flex;
+  align-items: center;
+  gap: 0.625rem;
+  min-width: 0;
+}
+
+/* Student identity sits on the same glass card surface as the overview
+   student board: amber edge, gradient fill and inset highlights. */
+.trackIdentityGlass {
+  min-width: 0;
+}
+
+.trackIdentityCard {
+  --card-edge: #f59e0b;
+  --card-edge-hover: #d97706;
+  --card-wash: color-mix(in srgb, #f59e0b 8%, transparent);
+  --card-glow: 0 18px 34px -26px color-mix(in srgb, #000 55%, transparent);
+  --glass-fill-1: var(--card);
+  --glass-fill-2: color-mix(in oklch, var(--card) 94%, var(--foreground));
+  --glass-top: color-mix(in srgb, #fff 70%, transparent);
+  --glass-bottom: color-mix(in srgb, #000 7%, transparent);
+  position: relative;
+  z-index: 1;
+  width: 100%;
+  overflow: hidden;
+  padding: 0.625rem 0.75rem;
+  border: 1px solid var(--card-edge);
+  border-radius: 0.75rem;
+  background-image: linear-gradient(
+    145deg,
+    var(--glass-fill-1),
+    var(--glass-fill-2)
+  );
+  box-shadow:
+    inset 0 1px 0 var(--glass-top),
+    inset 0 -1px 0 var(--glass-bottom),
+    var(--card-glow);
+  transition:
+    border-color 160ms ease-out,
+    background-image 160ms ease-out,
+    box-shadow 160ms ease-out;
+}
+
+.trackIdentityGlass:hover .trackIdentityCard {
+  border-color: var(--card-edge-hover);
+  background-image: linear-gradient(
+    145deg,
+    var(--card-wash),
+    var(--glass-fill-2)
+  );
+  box-shadow:
+    inset 0 1px 0 var(--glass-top),
+    inset 0 -1px 0 var(--glass-bottom),
+    0 22px 40px -24px color-mix(in srgb, #f59e0b 45%, transparent);
+}
+
+:global(.dark) .trackIdentityCard {
+  --card-edge: #fbbf24;
+  --card-edge-hover: #fcd34d;
+  --card-wash: color-mix(in srgb, #f59e0b 10%, transparent);
+  --card-glow: 0 18px 34px -22px color-mix(in srgb, #000 70%, transparent);
+  /* Same transparent treatment as the casebook cards in dark mode. */
+  --glass-fill-1: transparent;
+  --glass-fill-2: transparent;
+  --glass-top: color-mix(in srgb, #fff 8%, transparent);
+  --glass-bottom: transparent;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .trackIdentityCard {
+    transition: none;
+  }
+}
+
+.trackIdentityText {
+  display: flex;
+  flex-direction: column;
+  gap: 0.125rem;
+  min-width: 0;
+}
+
+.trackEyebrow {
+  display: flex;
+  align-items: center;
+  gap: 0.25rem;
+  margin: 0;
+  font-size: 0.75rem;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--muted-foreground);
+}
+
+.trackName {
+  margin: 0;
+  overflow: hidden;
+  font-size: 0.9375rem;
+  font-weight: 600;
+  line-height: 1.25;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  color: var(--foreground);
+}
+
+/* Compact LRN chip under the name — same treatment as the student board. */
+.trackLrnPill {
+  align-self: flex-start;
+  max-width: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.trackPills {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.25rem;
+}
+
+.trackHeldBy {
+  display: flex;
+  align-items: center;
+  gap: 0.3125rem;
+  min-width: 0;
+  font-size: 0.75rem;
+  color: var(--muted-foreground);
+}
+
+.trackDot {
+  opacity: 0.6;
+}
+
+/* Booked session card in the rail head — the adviser sees the slot the
+   receiving desk set (type, date/time, venue) without opening anything. */
+.trackBooking {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.5rem;
+  min-width: 0;
+  padding: 0.4375rem 0.5rem;
+  border: 1px solid color-mix(in srgb, #14b8a6 35%, var(--border));
+  border-radius: 0.5rem;
+  background-color: color-mix(in srgb, #14b8a6 8%, transparent);
+}
+
+.trackBookingIcon {
+  display: inline-flex;
+  flex: none;
+  align-items: center;
+  justify-content: center;
+  width: 1.125rem;
+  height: 1.125rem;
+  margin-top: 0.0625rem;
+  border-radius: 999px;
+  background-color: color-mix(in srgb, #14b8a6 16%, transparent);
+  color: #0d9488;
+}
+
+:global(.dark) .trackBookingIcon {
+  color: #2dd4bf;
+}
+
+.trackBookingBody {
+  display: flex;
+  flex-direction: column;
+  gap: 0.0625rem;
+  min-width: 0;
+}
+
+.trackBookingLabel {
+  margin: 0;
+  font-size: 0.75rem;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: #0f766e;
+}
+
+:global(.dark) .trackBookingLabel {
+  color: #5eead4;
+}
+
+.trackBookingValue {
+  display: flex;
+  align-items: center;
+  gap: 0.25rem;
+  margin: 0;
+  font-size: 0.75rem;
+  font-weight: 600;
+  color: var(--foreground);
+}
+
+.trackBookingMeta {
+  display: flex;
+  align-items: center;
+  gap: 0.25rem;
+  margin: 0;
+  font-size: 0.75rem;
+  color: var(--muted-foreground);
+}
+
+/* Segmented plan bar — one segment per stage/update, like a run plan. */
+.trackSegments {
+  display: flex;
+  gap: 0.1875rem;
+}
+
+.trackSegment {
+  flex: 1 1 0;
+  height: 0.25rem;
+  border-radius: 999px;
+  background-color: color-mix(in oklch, var(--border) 80%, transparent);
+  transition: background-color 180ms ease-out;
+}
+
+.trackSegment[data-state="done"] {
+  background-color: color-mix(in srgb, #f59e0b 70%, transparent);
+}
+
+.trackSegment[data-state="current"] {
+  background-color: #f59e0b;
+}
+
+.trackSteps {
+  display: flex;
+  flex-direction: column;
+  gap: 0.125rem;
+  margin: 0;
+  padding: 0.375rem;
+  list-style: none;
+}
+
+/* Steps + desk activity share one scroll area so the feed never fights the
+   fixed rail height. */
+.trackScroll {
+  display: flex;
+  flex: 1 1 auto;
+  flex-direction: column;
+  min-height: 0;
+  overflow-y: auto;
+  scrollbar-width: none;
+  -ms-overflow-style: none;
+}
+
+.trackScroll::-webkit-scrollbar {
+  display: none;
+}
+
+.trackStep {
+  display: flex;
+  width: 100%;
+  align-items: flex-start;
+  gap: 0.5rem;
+  padding: 0.4375rem 0.5rem;
+  border: 1px solid transparent;
+  border-radius: 0.5rem;
+  background: transparent;
+  color: inherit;
+  text-align: left;
+  cursor: pointer;
+  transition:
+    background-color 140ms ease-out,
+    border-color 140ms ease-out;
+}
+
+.trackStep:hover {
+  background-color: color-mix(in oklch, var(--foreground) 5%, transparent);
+}
+
+.trackStepActive,
+.trackStepActive:hover {
+  background-color: color-mix(in srgb, #f59e0b 10%, transparent);
+}
+
+/* Upcoming pipeline stages: present but clearly not reached yet. */
+.trackStepTodo,
+.trackStepTodo:hover {
+  background-color: transparent;
+  opacity: 0.5;
+}
+
+.trackStepTodo .trackStepLabel {
+  color: var(--muted-foreground);
+  font-weight: 500;
+}
+
+.trackStepTodo.trackStepActive {
+  background-color: color-mix(in srgb, #f59e0b 8%, transparent);
+  opacity: 0.85;
+}
+
+.trackStepMarker {
+  display: inline-flex;
+  flex: none;
+  align-items: center;
+  justify-content: center;
+  width: 1rem;
+  height: 1rem;
+  margin-top: 0.0625rem;
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  background-color: var(--background);
+  color: var(--muted-foreground);
+}
+
+.trackStepMarker[data-state="done"] {
+  border-color: color-mix(in srgb, #f59e0b 55%, transparent);
+  background-color: color-mix(in srgb, #f59e0b 18%, transparent);
+  color: #b45309;
+}
+
+:global(.dark) .trackStepMarker[data-state="done"] {
+  color: #fbbf24;
+}
+
+.trackStepMarker[data-state="current"] {
+  border-color: #f59e0b;
+}
+
+.trackStepPulse {
+  width: 0.3125rem;
+  height: 0.3125rem;
+  border-radius: 999px;
+  background-color: #f59e0b;
+  animation: trackPulse 1.6s ease-in-out infinite;
+}
+
+@keyframes trackPulse {
+  0%,
+  100% {
+    opacity: 1;
+    transform: scale(1);
+  }
+
+  50% {
+    opacity: 0.45;
+    transform: scale(0.72);
+  }
+}
+
+.trackStepText {
+  display: flex;
+  flex-direction: column;
+  gap: 0.125rem;
+  min-width: 0;
+}
+
+.trackStepLabel {
+  overflow: hidden;
+  font-size: 0.75rem;
+  font-weight: 600;
+  line-height: 1.3;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  color: var(--foreground);
+}
+
+.trackStepMeta {
+  font-size: 0.75rem;
+  line-height: 1.2;
+  color: var(--muted-foreground);
+}
+
+/* Live activity under the open step — the plan-runner's running detail. */
+.trackActivities {
+  display: flex;
+  flex-direction: column;
+  gap: 0.375rem;
+  margin: 0.25rem 0 0.375rem 1.375rem;
+  padding: 0.5rem 0.625rem;
+  border-left: 2px solid color-mix(in srgb, #f59e0b 45%, transparent);
+  border-radius: 0 0.375rem 0.375rem 0;
+  background-color: color-mix(in oklch, var(--muted) 45%, transparent);
+}
+
+.trackActivity {
+  display: grid;
+  grid-template-columns: auto auto minmax(0, 1fr);
+  align-items: start;
+  gap: 0.3125rem;
+  font-size: 0.75rem;
+  line-height: 1.4;
+}
+
+.trackActivityIcon {
+  display: inline-flex;
+  align-items: center;
+  color: var(--muted-foreground);
+}
+
+.trackActivityLabel {
+  font-weight: 600;
+  color: var(--muted-foreground);
+}
+
+.trackActivityValue {
+  min-width: 0;
+  color: var(--foreground);
+  overflow-wrap: anywhere;
+}
+
+.trackActivityValue[data-muted] {
+  color: var(--muted-foreground);
+  font-style: italic;
+}
+
+/* Pinned footer: the recorded reason, always visible at the rail's base. */
+.trackFoot {
+  display: flex;
+  flex-direction: column;
+  gap: 0.1875rem;
+  margin-top: auto;
+  padding: 0.625rem 0.875rem 0.75rem;
+  border-top: 1px solid var(--border);
+  background-color: color-mix(in oklch, var(--muted) 40%, transparent);
+}
+
+.trackFootLabel {
+  margin: 0;
+  font-size: 0.75rem;
+  font-weight: 600;
+  letter-spacing: 0.03em;
+  text-transform: uppercase;
+  color: var(--muted-foreground);
+}
+
+.trackFootText {
+  margin: 0;
+  font-size: 0.75rem;
+  line-height: 1.4;
+  color: var(--foreground);
+  overflow-wrap: anywhere;
+}
+
+/* Desk activity (ADM): the logged updates that belong to one pipeline stage,
+   nested under the expanded step — one row per action, newest first. */
+.trackStageFeed {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  margin: 0;
+  padding: 0.4375rem 0 0;
+  border-top: 1px dashed var(--border);
+  list-style: none;
+}
+
+.trackStageEmpty {
+  margin: 0;
+  padding-top: 0.375rem;
+  border-top: 1px dashed var(--border);
+  font-size: 0.75rem;
+  color: var(--muted-foreground);
+}
+
+.trackStepCount {
+  display: inline-flex;
+  flex: none;
+  align-items: center;
+  justify-content: center;
+  min-width: 1.125rem;
+  height: 1.125rem;
+  margin-left: auto;
+  padding: 0 0.25rem;
+  border-radius: 999px;
+  background-color: color-mix(in srgb, #f59e0b 16%, transparent);
+  font-size: 0.75rem;
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+  color: #b45309;
+}
+
+:global(.dark) .trackStepCount {
+  background-color: color-mix(in srgb, #fbbf24 18%, transparent);
+  color: #fcd34d;
+}
+
+.trackFeedItem {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.5rem;
+  min-width: 0;
+}
+
+.trackFeedDot {
+  flex: none;
+  width: 0.4375rem;
+  height: 0.4375rem;
+  margin-top: 0.3125rem;
+  border-radius: 999px;
+  background-color: var(--muted-foreground);
+}
+
+.trackFeedDot[data-source="counseling_sessions"] {
+  background-color: #14b8a6;
+}
+
+.trackFeedDot[data-source="adm_parent_meetings"] {
+  background-color: #8b5cf6;
+}
+
+.trackFeedDot[data-source="referrals"] {
+  background-color: #f59e0b;
+}
+
+.trackFeedBody {
+  display: flex;
+  flex-direction: column;
+  gap: 0.0625rem;
+  min-width: 0;
+}
+
+.trackFeedLabel {
+  margin: 0;
+  font-size: 0.75rem;
+  font-weight: 600;
+  line-height: 1.35;
+  color: var(--foreground);
+  overflow-wrap: anywhere;
+}
+
+.trackFeedDetail {
+  margin: 0;
+  font-size: 0.75rem;
+  line-height: 1.4;
+  color: var(--muted-foreground);
+  overflow-wrap: anywhere;
+}
+
+.trackFeedMeta {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.25rem;
+  margin: 0;
+  font-size: 0.75rem;
+  color: var(--muted-foreground);
+}
+
+.trackEmpty,
+.trackNoSteps {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 0.375rem;
+  min-height: 16rem;
+  padding: 1.5rem 1.25rem;
+  text-align: center;
+}
+
+.trackEmptyIcon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 2rem;
+  height: 2rem;
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  background-color: var(--background);
+  color: var(--muted-foreground);
+}
+
+.trackEmptyTitle {
+  margin: 0;
+  font-size: 0.8125rem;
+  font-weight: 600;
+  color: var(--foreground);
+}
+
+.trackEmptyCopy {
+  margin: 0;
+  max-width: 15rem;
+  font-size: 0.75rem;
+  line-height: 1.4;
+  color: var(--muted-foreground);
+}
+
+@media (max-width: 1023px) {
+  .splitLayout {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .trackRail {
+    position: static;
+    height: auto;
+    max-height: none;
+  }
+
+  .trackSteps {
+    max-height: 22rem;
+  }
+}
+
+.cardHead {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.5rem;
+  min-width: 0;
+}
+
+.cardName {
+  margin: 0 0 0.25rem;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: 0.875rem;
+  font-weight: 600;
+  line-height: 1.25;
+  letter-spacing: -0.01em;
+  color: var(--primary);
+}
+
+.cardTags {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.375rem;
+  min-width: 0;
+}
+
+.cardFacts {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 0.5rem;
+  margin: 0;
+  min-width: 0;
+}
+
+.cardFacts > div {
+  display: flex;
+  flex-direction: column;
+  gap: 0.125rem;
+  min-width: 0;
+}
+
+.cardFacts dt {
+  margin: 0;
+  font-size: 0.75rem;
+  font-weight: 500;
+  letter-spacing: 0.02em;
+  text-transform: uppercase;
+  color: var(--muted-foreground);
+}
+
+.cardFacts dd {
+  display: flex;
+  align-items: center;
+  gap: 0.25rem;
+  margin: 0;
+  min-width: 0;
+  font-size: 0.8125rem;
+  font-weight: 500;
+  line-height: 1.35;
+  color: var(--foreground);
+}
+
+.cardFoot {
+  display: flex;
+  align-items: center;
+  gap: 0.375rem;
+  min-width: 0;
+  margin-top: auto;
+  padding-top: 0.625rem;
+  border-top: 1px solid color-mix(in oklch, var(--border) 70%, transparent);
+}
+
+/* Loading shell for one card â€” same footprint while a page/filter lands. */
+.cardSkeleton {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+  width: 100%;
+  height: 100%;
+  min-width: 0;
+  padding: 0.75rem 0.875rem;
+  border: 1px solid var(--border);
+  border-radius: 0.75rem;
+  background-color: color-mix(in oklch, var(--card) 72%, transparent);
 }
 
 .workspace {
@@ -301,7 +1249,7 @@
   background-color: color-mix(in oklch, var(--primary), black 8%);
 }
 
-/* Empty-state kanban — 2x2 starter board mirroring /teacher/anecdotal,
+/* Empty-state kanban â€” 2x2 starter board mirroring /teacher/anecdotal,
    with the same staggered rise-in as the advisory students cards. */
 .kanbanGrid {
   display: grid;
@@ -333,7 +1281,7 @@
   }
 }
 
-/* Bottom strip on the filled view — the same four starter cards in one row. */
+/* Bottom strip on the filled view â€” the same four starter cards in one row. */
 .stripGrid {
   display: grid;
   grid-template-columns: repeat(4, minmax(0, 1fr));
@@ -370,7 +1318,7 @@
   }
 }
 
-/* Date-column card stack: all cards render in full — no inner scroll.
+/* Date-column card stack: all cards render in full â€” no inner scroll.
    The page scrolls instead, so every referred card stays visible. */
 .cardScroll {
   display: flex;
@@ -379,7 +1327,7 @@
   flex-direction: column;
 }
 
-/* New-referral kanban overlay — plain board panel (no modal chrome),
+/* New-referral kanban overlay â€” plain board panel (no modal chrome),
    theme-aware via design tokens for light and dark mode. */
 .overlay {
   position: fixed;
@@ -428,7 +1376,7 @@
   }
 }
 
-/* Filled-state kanban — one column per referral (newest first),
+/* Filled-state kanban â€” one column per referral (newest first),
    same staggered rise-in as the advisory students cards. */
 .recordGrid {
   display: grid;
@@ -486,10 +1434,54 @@
   animation: board-card-in 0.7s cubic-bezier(0.22, 1, 0.36, 1) both;
 }
 
+/* Reason board spans the full width under the 2×2 step grid. */
+.formWide {
+  grid-column: 1 / -1;
+  min-width: 0;
+}
+
+/* Step index chip in a board header ("01" … "05"). */
+.formStep {
+  display: inline-grid;
+  place-items: center;
+  width: 1.25rem;
+  height: 1.25rem;
+  flex-shrink: 0;
+  border: 1px solid var(--border);
+  border-radius: 0.375rem;
+  background-color: color-mix(in oklch, var(--muted) 60%, transparent);
+  font-size: 0.75rem;
+  font-weight: 600;
+  line-height: 1;
+  font-variant-numeric: tabular-nums;
+}
+
+/* Submit strip: quiet destination summary on the left, actions on the right. */
+.formFooter {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+  min-width: 0;
+  padding-top: 0.75rem;
+  border-top: 1px solid var(--border);
+}
+
 .formGrid > section:nth-child(1) { animation-delay: 0.03s; }
 .formGrid > section:nth-child(2) { animation-delay: 0.12s; }
 .formGrid > section:nth-child(3) { animation-delay: 0.21s; }
 .formGrid > section:nth-child(n + 4) { animation-delay: 0.3s; }
+
+.formGrid > .formWide {
+  animation: board-card-in 0.7s cubic-bezier(0.22, 1, 0.36, 1) 0.39s both;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .formGrid > .formWide {
+    animation: none;
+  }
+}
 
 @keyframes board-card-in {
   from {
@@ -511,141 +1503,5 @@
 @media (prefers-reduced-motion: reduce) {
   .formGrid > section {
     animation: none;
-  }
-}
-
-/* ---- Loading skeletons (shown while fetching, prevents empty flash) ---- */
-.skelHeader {
-  display: flex;
-  align-items: flex-start;
-  justify-content: space-between;
-  gap: 1rem;
-  min-width: 0;
-}
-
-.skelHeaderText {
-  display: flex;
-  flex-direction: column;
-  gap: 0.5rem;
-  min-width: 0;
-  flex: 1;
-}
-
-.skelTitle {
-  width: 11rem;
-  max-width: 40%;
-  height: 1.625rem;
-}
-
-.skelSubtitle {
-  width: 24rem;
-  max-width: 100%;
-  height: 0.875rem;
-}
-
-.skelAction {
-  width: 7.5rem;
-  height: 2rem;
-  flex-shrink: 0;
-}
-
-.skelCanvas {
-  display: flex;
-  flex-direction: column;
-  gap: 0.75rem;
-  min-width: 0;
-  width: 100%;
-  flex: 1;
-  min-height: 22rem;
-  padding: 1rem;
-  border: 1px solid var(--border);
-  border-radius: var(--radius-lg);
-  background-color: var(--card);
-}
-
-.skelCanvasHead {
-  display: flex;
-  align-items: flex-start;
-  justify-content: space-between;
-  gap: 0.75rem;
-}
-
-.skelCanvasId {
-  display: flex;
-  flex-direction: column;
-  gap: 0.5rem;
-  min-width: 0;
-  flex: 1;
-}
-
-.skelCanvasTitle {
-  width: 12rem;
-  max-width: 60%;
-  height: 1.375rem;
-}
-
-.skelCanvasSub {
-  width: 9rem;
-  max-width: 45%;
-  height: 0.875rem;
-}
-
-.skelCanvasBadge {
-  width: 5rem;
-  height: 1.375rem;
-  border-radius: 999px;
-  flex-shrink: 0;
-}
-
-.skelNodes {
-  display: grid;
-  grid-template-columns: repeat(4, minmax(0, 1fr));
-  gap: 0.5rem;
-  flex: 1;
-  min-height: 0;
-  min-width: 0;
-}
-
-.skelNode {
-  width: 100%;
-  height: 5.5rem;
-}
-
-.skelCaseFile {
-  display: grid;
-  grid-template-columns: repeat(6, minmax(0, 1fr));
-  gap: 0.625rem;
-  min-width: 0;
-}
-
-.skelCaseCellWide {
-  grid-column: span 4;
-  height: 4.5rem;
-}
-
-.skelCaseCellNarrow {
-  grid-column: span 2;
-  height: 4.5rem;
-}
-
-@media (max-width: 700px) {
-  .skelCaseFile {
-    grid-template-columns: minmax(0, 1fr);
-  }
-
-  .skelCaseCellWide,
-  .skelCaseCellNarrow {
-    grid-column: auto;
-    height: 4rem;
-  }
-}
-
-@media (max-width: 767px) {
-  .skelNodes {
-    grid-template-columns: minmax(0, 1fr);
-  }
-
-  .skelNode {
-    min-height: 4rem;
   }
 }

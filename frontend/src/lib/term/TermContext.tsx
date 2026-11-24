@@ -107,6 +107,12 @@ export function TermProvider({ children }: { children: React.ReactNode }) {
     enabled: hasToken,
     staleTime: 60_000,
     retry: 1,
+    // The global default turns focus refetching off, but this list is the only
+    // way a desk learns the admin created/activated a school year or term. It
+    // is fetched once at app mount, so without this a tab opened before the
+    // admin's write kept an empty/stale scope forever (only a hard reload
+    // refreshed it).
+    refetchOnWindowFocus: true,
   });
 
   React.useEffect(() => {

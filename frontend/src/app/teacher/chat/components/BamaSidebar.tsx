@@ -1,8 +1,9 @@
 "use client";
 
 import { useMemo } from "react";
-import { FileSpreadsheet, FileText, Flag, FolderOpen, Plus, Search, Trash2 } from "lucide-react";
+import { FileSpreadsheet, FileText, Flag, FolderOpen, Plus, Trash2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { TeacherSearchField, searchEmptyMessage } from "@/app/teacher/components/TeacherSearchField";
 import {
   BAMA_CHAT_TYPES,
   type BamaChatType,
@@ -87,21 +88,19 @@ export function BamaSidebar({
         <Plus size={14} aria-hidden />
         New chat
       </Button>
-      <div className={styles.searchRow}>
-        <Search className={styles.searchIcon} aria-hidden />
-        <input
-          type="search"
-          className={styles.search}
-          placeholder="Search chats…"
-          value={query}
-          onChange={(e) => onQueryChange(e.target.value)}
-          aria-label="Search chats"
-        />
-      </div>
+      <TeacherSearchField
+        className="w-full"
+        placeholder="Search chats…"
+        value={query}
+        onChange={onQueryChange}
+        aria-label="Search chats"
+      />
       {totalChats === 0 || groups.every((g) => g.items.length === 0) ? (
         <div className={styles.emptyWrap}>
           <p className={styles.empty}>
-            {totalChats === 0 ? "No chats yet — start one below." : `No chats match “${query.trim()}”.`}
+            {totalChats === 0
+              ? "No chats yet — start one below."
+              : searchEmptyMessage(query, "chats", "Try a different title.")}
           </p>
         </div>
       ) : (

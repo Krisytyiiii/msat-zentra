@@ -394,6 +394,8 @@ export function registryNotificationTitle(
 ): string {
   void desk;
   const msg = n.message ?? "";
+  if (/teacher sign-up/i.test(msg)) return "New teacher sign-up";
+  if (/parent\/guardian sign-up/i.test(msg)) return "New parent sign-up";
   if (/sign-up.*awaiting approval/i.test(msg)) return "New student sign-up";
   if (/sf10 access requested/i.test(msg)) return "SF10 access requested";
   if (/grades locked/i.test(msg) || n.type === "grade_locked") return gradeLockedTitle(msg);
@@ -432,7 +434,6 @@ export function registrarNotificationTarget(n: {
   sourceId: string | null;
   message?: string | null;
 }): BellNotificationTarget {
-  if (n.sourceTable === "users") return { href: "/registrar/accounts" };
   if (n.sourceTable === "final_grades") return { href: "/registrar/final-grades" };
   if (n.sourceTable === "adviser_sf10_access_requests") return { href: "/registrar/adviser-access" };
   if (n.sourceTable === "sf10_records") return { href: "/registrar/sf10" };
@@ -452,11 +453,30 @@ export function recordKeeperNotificationTarget(n: {
   sourceId: string | null;
   message?: string | null;
 }): BellNotificationTarget {
-  if (n.sourceTable === "users") return { href: "/record-keeper/accounts" };
   if (n.sourceTable === "final_grades") return { href: "/record-keeper/final-grades" };
   if (n.sourceTable === "adviser_sf10_access_requests") return { href: "/record-keeper/adviser-access" };
   if (n.sourceTable === "sf10_records") return { href: "/record-keeper/sf10" };
   if (n.sourceTable === "subjects" || n.sourceTable === "sections" || n.sourceTable === "teacher_subject_assignments")
     return { href: "/record-keeper/academics" };
+  return null;
+}
+
+/**
+ * Administrator bell. The admin shell owns every account approval now, so a
+ * pending sign-up notice deep-links into the administrator approval board.
+ */
+export function adminNotificationTitle(n: {
+  type: string;
+  sourceTable?: string | null;
+  message: string;
+}): string {
+  return registryNotificationTitle("admin", n);
+}
+export function adminNotificationTarget(n: {
+  sourceTable: string | null;
+  sourceId: string | null;
+  message?: string | null;
+}): BellNotificationTarget {
+  if (n.sourceTable === "users") return { href: "/admin/users/pending" };
   return null;
 }

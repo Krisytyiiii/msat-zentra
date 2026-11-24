@@ -13,8 +13,6 @@ import type { RegistryContext } from "./registry.types.js";
 export interface OverviewTakes {
   attachTake?: number;
   missingTake?: number;
-  pendingTake?: number;
-  bareTake?: number;
 }
 
 /* ---- SF10 access-request daily activity ---------------------------------- */
@@ -254,72 +252,6 @@ export async function getOverview(ctx: RegistryContext, takes: OverviewTakes, sc
     section: s.section?.name ?? "—",
   }));
 
-  const [profiledPending, barePending] = await Promise.all([
-    prisma.studentProfile.findMany({
-      where: {
-        gradeLevel: { in: band },
-        user: { status: "pending" },
-        ...excludeArchivedProfiles(archivedLearners),
-      },
-      ...(takes.pendingTake !== undefined ? { take: takes.pendingTake } : {}),
-      select: {
-        lrn: true,
-        gradeLevel: true,
-        user: { select: { fullName: true } },
-        parentLinks: {
-          take: 1,
-          select: { parent: { select: { user: { select: { fullName: true } } } } },
-        },
-      },
-    }),
-    prisma.user.findMany({
-      where: { status: "pending", role: "student", studentProfile: null },
-      ...(takes.bareTake !== undefined ? { take: takes.bareTake } : {}),
-      select: { fullName: true, lrn: true },
-    }),
-  ]);
-
-  const bareLrns = [...new Set(barePending.map((u) => u.lrn).filter((l): l is string => !!l))];
-  const bareRosters =
-    bareLrns.length > 0
-      ? await prisma.studentRoster.findMany({
-          where: { lrn: { in: bareLrns }, ...excludeArchivedRosters(archivedLearners) },
-          select: { lrn: true, gradeLevel: true, schoolYearId: true },
-        })
-      : [];
-  const latestRosterByLrn = new Map<string, (typeof bareRosters)[number]>();
-  for (const r of bareRosters) {
-    const prev = latestRosterByLrn.get(r.lrn);
-    if (!prev || r.schoolYearId > prev.schoolYearId) latestRosterByLrn.set(r.lrn, r);
-  }
-  const bareRows: { name: string; lrn: string; gradeLevel: string }[] = [];
-  for (const u of barePending) {
-    if (!u.lrn) continue;
-    const roster = latestRosterByLrn.get(u.lrn);
-    if (roster) {
-      if (!band.includes(roster.gradeLevel)) continue;
-      bareRows.push({ name: u.fullName, lrn: u.lrn, gradeLevel: roster.gradeLevel });
-    } else {
-
-      bareRows.push({ name: u.fullName, lrn: u.lrn, gradeLevel: "—" });
-    }
-  }
-
-  const pendingStudents = [
-    ...profiledPending.map((s) => ({
-      name: s.user.fullName,
-      lrn: s.lrn,
-      grade: gradeLabel(s.gradeLevel),
-      parent: s.parentLinks[0]?.parent.user.fullName ?? "—",
-    })),
-    ...bareRows.map((r) => ({
-      name: r.name,
-      lrn: r.lrn,
-      grade: gradeLabel(r.gradeLevel),
-      parent: "—",
-    })),
-  ];
-
   const sf10StudentRows = await prisma.sf10Record.findMany({
     where: sf10WhereBase,
     take: 5,
@@ -336,10 +268,7 @@ export async function getOverview(ctx: RegistryContext, takes: OverviewTakes, sc
     grade: s.gradeLevel ? gradeLabel(s.gradeLevel) : "—",
   }));
 
-  const pendingAccounts = pendingStudents.length + pendingAdviserAccess;
-
   return {
-    pendingAccounts,
     pendingAdviserAccess,
     lockedFinalsAwaiting: awaitingRows,
     sf10Released,
@@ -348,7 +277,6 @@ export async function getOverview(ctx: RegistryContext, takes: OverviewTakes, sc
     reportCards,
     latestAttachments,
     missingSf10,
-    pendingStudents,
     sf10Students,
     finals: {
       total: reportCards,

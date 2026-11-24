@@ -1,6 +1,5 @@
 "use client";
 
-import { BarChart3 } from "lucide-react";
 import {
   Bar,
   BarChart,
@@ -85,14 +84,10 @@ export function ReportsDistribution({
   return (
     <KanbanBoard
       title="Grade distribution"
-      icon={
-        <span className={styles.boardIcon} aria-hidden>
-          <BarChart3 size={14} />
-        </span>
-      }
       count={<span className={styles.amberNumber}>{total}</span>}
       description="DepEd bands across every final grade you recorded this term."
       className="flex-1"
+      showHeader={false}
     >
       {total === 0 ? null : (
         <div

@@ -17,7 +17,6 @@ import {
   CalendarClock,
   ColumnsIcon,
   MoreHorizontal,
-  SearchIcon,
   ShieldAlert,
 } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
@@ -53,7 +52,7 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import { InputGroup, InputGroupInput, InputGroupAddon } from "@/components/ui/input-group";
+import { TeacherSearchField, searchEmptyMessage } from "@/app/teacher/components/TeacherSearchField";
 import {
   Table,
   TableBody,
@@ -342,18 +341,13 @@ export function TeacherOverviewAdvisory({ students }: TeacherOverviewAdvisoryPro
         ) : (
           <div className="w-full min-w-0 space-y-4">
             <div className="flex items-center gap-2">
-              <InputGroup className="max-w-56">
-                <InputGroupInput
-                  placeholder="Filter students..."
-                  value={(table.getColumn("name")?.getFilterValue() as string) ?? ""}
-                  onChange={(event) =>
-                    table.getColumn("name")?.setFilterValue(event.target.value)
-                  }
-                />
-                <InputGroupAddon>
-                  <SearchIcon />
-                </InputGroupAddon>
-              </InputGroup>
+              <TeacherSearchField
+                className="max-w-56"
+                placeholder="Search students…"
+                value={(table.getColumn("name")?.getFilterValue() as string) ?? ""}
+                onChange={(next) => table.getColumn("name")?.setFilterValue(next)}
+                aria-label="Filter students"
+              />
               <div className="ml-auto flex items-center gap-2">
                 <DropdownMenu>
                   <DropdownMenuTrigger asChild>
@@ -415,7 +409,10 @@ export function TeacherOverviewAdvisory({ students }: TeacherOverviewAdvisoryPro
                     ) : (
                       <TableRow>
                         <TableCell colSpan={columns.length} className="h-24 text-center">
-                          No students match your search and filters.
+                          {searchEmptyMessage(
+                            (table.getColumn("name")?.getFilterValue() as string) ?? "",
+                            "students",
+                          )}
                         </TableCell>
                       </TableRow>
                     )}

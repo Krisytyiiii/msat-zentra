@@ -4,7 +4,7 @@ import {
   meetsAcademicExcellenceAward,
 } from "../../services/grading.js";
 import { attendanceTotalFor, computeRiskFactors, levelFromFlags, sectionAttendanceTotals } from "../../services/risk.js";
-import { schoolDaysToDate } from "../../services/attendance.js";
+import { schoolDaysToDate, subjectAverageAttendance } from "../../services/attendance.js";
 import { gradeLabel } from "../../lib/grades.js";
 import {
   archivedAdvisoryLearnerIds,
@@ -224,6 +224,12 @@ export async function getAcademicsSummary(
         termId,
       )
     : new Map<string, number>();
+  const subjectAvgs = termId
+    ? await subjectAverageAttendance(
+        sections.map((s) => s.id),
+        termId,
+      )
+    : new Map<string, { average: number; hasSubjectData: boolean }>();
 
   for (const section of sections) {
     const grade = gradeLabel(section.gradeLevel);
@@ -334,6 +340,10 @@ export async function getAcademicsSummary(
             transmutedGrade: f.transmutedGrade,
           })),
           attendance: student.attendanceRecords,
+          attendanceRate: (() => {
+            const subjAvg = subjectAvgs.get(student.userId);
+            return subjAvg && subjAvg.hasSubjectData ? subjAvg.average : null;
+          })(),
           attendanceTotal: sectionTotals.get(section.id),
           anecdotalCount: student.anecdotalCount,
           enrolled,

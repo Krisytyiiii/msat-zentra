@@ -1,12 +1,13 @@
 "use client";
 
 import * as React from "react";
-import { Users } from "lucide-react";
+import { ArrowUpRight, CircleDashed, ClipboardCheck, Lock, Users } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { KanbanOverlay } from "@/components/ui/kanban-overlay";
 import { Pill, type PillTone } from "@/components/ui/pill";
 import { Skeleton } from "@/components/ui/skeleton";
 import { ChartTooltip } from "@/components/ui/chart-tooltip";
+import { StudentMascot } from "@/components/student-mascot/StudentMascot";
 import {
   Tooltip,
   TooltipContent,
@@ -106,23 +107,43 @@ export function LockGradesClassCard({
 
   return (
     <article className={styles.card} aria-label={`${row.subject}, ${row.section}`}>
-      <div className={styles.cardHead}>
-        <div className="min-w-0">
-          <h3 className={styles.cardTitle}>{row.subject}</h3>
-          <p className={styles.cardMeta}>
-            {row.section} · {row.gradeLevel} · {row.learners} learner{row.learners === 1 ? "" : "s"}
-          </p>
+      <header className={styles.cardHead}>
+        <StudentMascot name={row.subject} seed={row.id} size={36} />
+        <div className={styles.cardId}>
+          <span className={styles.cardTitle} title={row.subject}>
+            {row.subject}
+          </span>
+          <span className={styles.cardMeta} title={`${row.section} · ${row.subjectCode}`}>
+            {row.section} · {total} learner{total === 1 ? "" : "s"}
+          </span>
         </div>
+        <Pill field="grade" className={styles.gradePill}>
+          {row.gradeLevel}
+        </Pill>
+      </header>
+
+      <div className={styles.metaRow}>
         <Pill tone="neutral" label="Subject code">
           {row.subjectCode}
         </Pill>
+        <Pill tone="sky" label="Ready to lock">
+          {row.ready} ready
+        </Pill>
+        <Pill tone="amber" label="Locked, awaiting approval">
+          {row.locked} locked
+        </Pill>
+        {row.approved > 0 ? (
+          <Pill tone="green" label="Approved by the adviser">
+            {row.approved} approved
+          </Pill>
+        ) : null}
       </div>
 
       <TooltipProvider delayDuration={100}>
         <Tooltip>
           <TooltipTrigger asChild>
             <div
-              className={styles.segments}
+              className={styles.progress}
               tabIndex={0}
               role="img"
               aria-label={`${row.ready} ready, ${row.locked} locked, ${row.approved} approved`}
@@ -150,34 +171,46 @@ export function LockGradesClassCard({
         </Tooltip>
       </TooltipProvider>
 
-      <div className={styles.segmentRow}>
-        <span>{row.computed} with grade</span>
-        <span className={styles.pills}>
-          <Pill tone="sky" label="Ready to lock">
-            {row.ready} ready
-          </Pill>
-          <Pill tone="amber" label="Locked, awaiting approval">
-            {row.locked} locked
-          </Pill>
+      <p className={styles.progressLine}>
+        {row.computed} of {total} learner{total === 1 ? "" : "s"} with a computed grade
+      </p>
+
+      <div className={styles.linksRow}>
+        <span className={styles.linkStat}>
+          <Users size={11} aria-hidden />
+          {total} learner{total === 1 ? "" : "s"}
+        </span>
+        <span className={styles.linkStat}>
+          <ClipboardCheck size={11} aria-hidden />
+          {row.computed} computed
+        </span>
+        <span className={styles.linkStat}>
+          <Lock size={11} aria-hidden />
+          {row.locked + row.approved} locked
         </span>
       </div>
 
-      <div className={styles.cardFoot}>
-        <Button size="sm" variant="ghost" className="h-6 px-2 text-xs" onClick={() => setOpen(true)}>
+      {nothingReady ? (
+        <p className={`${styles.notice} ${styles.noticeNeutral}`}>
+          <CircleDashed size={12} aria-hidden />
+          Nothing ready to lock yet — no computed final grades in this class.
+        </p>
+      ) : null}
+
+      <div className={styles.cardActions}>
+        <span className={styles.lockedHint}>
+          <Lock size={11} aria-hidden />
+          Read-only desk
+        </span>
+        <Button
+          variant="outline"
+          className="h-6 gap-1 bg-card px-2 text-[12px] text-foreground"
+          onClick={() => setOpen(true)}
+        >
           View learners
+          <ArrowUpRight size={12} aria-hidden />
         </Button>
       </div>
-
-      {nothingReady ? (
-        <div className="flex justify-center pt-1">
-          <Pill
-            tone="neutral"
-            label="No computed final grades are ready to lock in this class yet."
-          >
-            Nothing ready to lock yet
-          </Pill>
-        </div>
-      ) : null}
 
       <KanbanOverlay
         open={open}
@@ -191,7 +224,7 @@ export function LockGradesClassCard({
         }
         description={
           <span className="flex flex-wrap items-center gap-1.5">
-            <Pill tone="neutral" label="Grade level">
+            <Pill field="grade" label="Grade level">
               {row.gradeLevel}
             </Pill>
             <Pill tone="neutral" label="Learners">

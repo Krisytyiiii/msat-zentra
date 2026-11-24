@@ -89,22 +89,6 @@ export async function notifyPendingSignup(user: {
   lrn?: string | null;
 }) {
   try {
-    // Teachers self-register too, but they have no LRN/grade band: both
-    // accounts desks see the request and either may activate it.
-    if (user.role === "subject_teacher" || user.role === "adviser") {
-      const staffNotify = {
-        sourceTable: "users",
-        action: "pending_signup",
-        message: `New teacher sign-up: ${user.fullName} (${user.email}) — awaiting administrator approval.`,
-        sourceId: user.id,
-      };
-      await Promise.all([
-        fanoutToRole("record_keeper", staffNotify),
-        fanoutToRole("registrar", staffNotify),
-      ]);
-      return;
-    }
-
     const lrn = user.lrn ?? null;
     let gradeLevel: string | null = null;
     if (lrn) {
@@ -115,31 +99,23 @@ export async function notifyPendingSignup(user: {
       });
       gradeLevel = roster?.gradeLevel ?? null;
     }
-    const isLowerBand =
-      gradeLevel === "G7" || gradeLevel === "G8" || gradeLevel === "G9" || gradeLevel === "G10";
+    // Every sign-up is reviewed by the administrator now — the registry desks
+    // no longer own account approval.
     const message =
-      user.role === "parent"
-        ? `New parent/guardian sign-up: ${user.fullName} (${user.email}) — awaiting approval.`
-        : gradeLevel
-          ? `New ${gradeLevel} sign-up: ${user.fullName} (LRN ${lrn ?? "—"}) — awaiting approval.`
-          : `New sign-up (grade unknown): ${user.fullName} (LRN ${lrn ?? "—"}) — awaiting approval. ` +
-            `Check the grade & LRN against school records first.`;
-    const notifyInput = {
+      user.role === "subject_teacher" || user.role === "adviser"
+        ? `New teacher sign-up: ${user.fullName} (${user.email}) — awaiting administrator approval.`
+        : user.role === "parent"
+          ? `New parent/guardian sign-up: ${user.fullName} (${user.email}) — awaiting approval.`
+          : gradeLevel
+            ? `New ${gradeLevel} sign-up: ${user.fullName} (LRN ${lrn ?? "—"}) — awaiting approval.`
+            : `New sign-up (grade unknown): ${user.fullName} (LRN ${lrn ?? "—"}) — awaiting approval. ` +
+              `Check the grade & LRN against school records first.`;
+    await fanoutToRole("admin", {
       sourceTable: "users",
       action: "pending_signup",
       message,
       sourceId: user.id,
-    };
-    // Unknown grade: the sign-up also surfaces in BOTH pending lists, so
-    // alert both desks instead of silently defaulting to the registrar.
-    if (!gradeLevel) {
-      await Promise.all([
-        fanoutToRole("record_keeper", notifyInput),
-        fanoutToRole("registrar", notifyInput),
-      ]);
-    } else {
-      await fanoutToRole(isLowerBand ? "record_keeper" : "registrar", notifyInput);
-    }
+    });
   } catch {
     // Notification fan-out is best-effort; the pending row still exists.
   }

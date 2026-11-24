@@ -2,6 +2,7 @@
 import * as React from "react";
 import { RowList, type RowListItem } from "@/components/ui/row-list";
 import { KanbanBoardEmpty } from "@/components/ui/kanban-board";
+import { InsightCallout } from "@/components/ui/insight-callout";
 import { formatSurnameFirst } from "@/lib/names";
 import type { ClassAssessment, ClassStudent } from "@/services/teacher/grading.types";
 import { scoreOf } from "./score-input";
@@ -53,7 +54,7 @@ export function ScoreDataTable({ assessment, students, drafts, nameFilter }: { a
   return (
     <div className="flex w-full min-w-0 flex-col gap-3">
       {items.length === 0 ? (
-        <KanbanBoardEmpty>No students match your search.</KanbanBoardEmpty>
+        <InsightCallout>No students match your search.</InsightCallout>
       ) : (
         <RowList
           bleed

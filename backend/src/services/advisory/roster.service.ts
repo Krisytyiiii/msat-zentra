@@ -253,6 +253,8 @@ export interface ArchivedAdvisee {
   studentId: string;
   name: string;
   lrn: string;
+  /** Persisted sprite mascot; null falls back to the derived one. */
+  mascot: string | null;
   section: string;
   archivedAt: string;
   hasAccount: boolean;
@@ -366,6 +368,7 @@ export async function listArchivedAdvisoryStudents(
             id: true,
             fullName: true,
             lrn: true,
+            mascot: true,
             section: { select: { name: true } },
           },
         })
@@ -376,6 +379,7 @@ export async function listArchivedAdvisoryStudents(
           select: {
             userId: true,
             lrn: true,
+            mascot: true,
             section: { select: { name: true } },
             user: { select: { fullName: true } },
           },
@@ -397,6 +401,7 @@ export async function listArchivedAdvisoryStudents(
         studentId: `roster:${entry.id}`,
         name: entry.fullName,
         lrn: entry.lrn,
+        mascot: entry.mascot ?? null,
         section: entry.section.name,
         archivedAt: row.createdAt.toISOString(),
         hasAccount: false,
@@ -410,6 +415,7 @@ export async function listArchivedAdvisoryStudents(
       studentId: profile.userId,
       name: profile.user.fullName,
       lrn: profile.lrn,
+      mascot: profile.mascot ?? null,
       section: profile.section?.name ?? "",
       archivedAt: row.createdAt.toISOString(),
       hasAccount: true,

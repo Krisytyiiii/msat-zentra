@@ -1,167 +1,232 @@
 "use client";
 
-import { Suspense, useEffect, useMemo, useState } from "react";
+import { Suspense, useEffect, useMemo, useRef, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useLiveQuery } from "@/lib/api/live";
-import { FolderOpen } from "lucide-react";
-import { AdmCasesTable } from "./components/AdmCasesTable";
-import { AdmEmptyKanban } from "./components/AdmEmptyKanban";
-import { fetchMyAdmCases } from "@/services/teacher/admCases.service";
-import type { MyAdmCasesPage } from "@/services/teacher/admCases.types";
+import { ArrowLeft } from "lucide-react";
+import { Button } from "@/components/ui/button";
 import { useTerm } from "@/lib/term/TermContext";
-import { useDebouncedValue } from "@/lib/useDebouncedValue";
-import { toSlug } from "@/lib/slug";
-import assign from "@/app/principal/academics/assign/components/section-assignments.module.css";
-import refStyles from "../referrals/components/referrals.module.css";
+import { fetchAllAdmCases } from "@/services/teacher/admCases.service";
+import type { AdmCase, MyAdmCasesPage } from "@/services/teacher/admCases.types";
 import { PAGE_SIZE } from "@/components/shared/pagination";
 import { useUrlPager } from "@/components/shared/pagination/useUrlPager";
+import { AdmCaseListPanel } from "./components/AdmCaseListPanel";
+import { AdmCaseWorkspace } from "./components/AdmCaseWorkspace";
+import { AdmOverviewPanel } from "./components/AdmOverviewPanel";
+import { AdmCasesSkeleton } from "./components/AdmCasesSkeleton";
+import { AdmEmptyKanban } from "./components/AdmEmptyKanban";
+import styles from "./components/adm-cases.module.css";
 
 const TEACHER_ADM_CASES_PAGE_SIZE = PAGE_SIZE;
 
-function TeacherAdvisoryAdmCasesView({ highlightId }: { highlightId: string | null }) {
+function TeacherAdvisoryAdmCasesView({
+  highlightId,
+  initialQuery,
+}: {
+  highlightId: string | null;
+  initialQuery: string;
+}) {
   const router = useRouter();
   const { activeTerm } = useTerm();
   const termKey = `${activeTerm?.schoolYearId ?? ""}:${activeTerm?.termId ?? ""}`;
-  const pager = useUrlPager(0, {});
-  const page = pager.page;
-  const setPage = pager.setPage;
-  const [takeover, setTakeover] = useState(false);
-  // Filter text mirrors the referrals page: typed instantly, synced to ?q
-  // (debounced) so refresh/back-forward keep the filter and page resets.
-  const [queryInput, setQueryInput] = useState(pager.search);
-  const debouncedQuery = useDebouncedValue(queryInput.trim(), 300);
 
-  useEffect(() => {
-    const wanted = debouncedQuery || "";
-    if (wanted === pager.search) return;
-    pager.setFilters({ q: wanted });
-  }, [debouncedQuery, pager]);
-
-  const landing = !takeover && highlightId !== null;
-
-  const serverQuery = pager.search.trim() ? pager.search.trim() : undefined;
+  // The whole school-year desk loads once and is filtered locally, so typing in
+  // the search field narrows the list instantly — no debounce, no refetch, no
+  // stale results landing after the query moved on.
   const casesQuery = useLiveQuery<MyAdmCasesPage>({
-    queryKey: ["adm-my-cases", takeover || !landing ? page : 1, termKey, landing ? (highlightId ?? "") : "", serverQuery ?? ""],
-    queryFn: ({ signal }) =>
-      fetchMyAdmCases({
-        page: takeover || !landing ? page : 1,
-        pageSize: TEACHER_ADM_CASES_PAGE_SIZE,
-        ...(serverQuery ? { q: serverQuery } : {}),
-        ...(landing && highlightId ? { highlight: highlightId } : {}),
-        signal,
-      }),
-
+    queryKey: ["adm-my-cases", "all", termKey],
+    queryFn: ({ signal }) => fetchAllAdmCases({ signal }),
     retry: false,
-    // Cache pages so back/forward pagination is instant and deduped.
-    staleTime: 5 * 60 * 1000,
-    gcTime: 30 * 60 * 1000,
+    staleTime: 60 * 1000,
     refetchOnWindowFocus: false,
   });
-  const goToPage = (next: number) => {
-    setTakeover(true);
-    setPage(next);
-  };
+
+  const allCases = useMemo(
+    () => (Array.isArray(casesQuery.data?.cases) ? casesQuery.data.cases : []),
+    [casesQuery.data],
+  );
+
+  // Filter text is local and instant; it is mirrored to ?q only so refresh and
+  // back/forward keep the filter (the pager below owns the URL write).
+  const [queryInput, setQueryInput] = useState(initialQuery);
+
+  const filtered = useMemo(() => {
+    const needle = queryInput.trim().toLowerCase();
+    if (!needle) return allCases;
+    return allCases.filter((c) =>
+      `${c.studentName} ${c.lrn} ${c.section} ${c.stageLabel} ${c.referralStatus}`
+        .toLowerCase()
+        .includes(needle),
+    );
+  }, [allCases, queryInput]);
+
+  const pager = useUrlPager(filtered.length, {}, {
+    searchParam: "q",
+    extraParams: ["q"],
+    pageSize: TEACHER_ADM_CASES_PAGE_SIZE,
+  });
+  const page = pager.page;
+  const setPage = pager.setPage;
+
+  const totalPages = Math.max(1, Math.ceil(filtered.length / TEACHER_ADM_CASES_PAGE_SIZE));
+  const currentPage = Math.min(page, totalPages);
+  const cases = useMemo(
+    () =>
+      filtered.slice(
+        (currentPage - 1) * TEACHER_ADM_CASES_PAGE_SIZE,
+        currentPage * TEACHER_ADM_CASES_PAGE_SIZE,
+      ),
+    [filtered, currentPage],
+  );
+
+  const total = filtered.length;
+  const unfilteredTotal = allCases.length;
+
+  // The open case lives here, not in the URL: selecting a row swaps the right
+  // pane in place. A notification landing (?highlight=<id>) opens its case
+  // once the desk has loaded — and only once, so "Overview" stays put after.
+  const [selectedId, setSelectedId] = useState<string | null>(null);
+  const leftScrollRef = useRef<HTMLDivElement>(null);
+  const highlightApplied = useRef(false);
 
   useEffect(() => {
-    if (!highlightId) return;
-    const t = window.setTimeout(() => {
-      document
-        .getElementById(`teacher-adm-case-${highlightId}`)
-        ?.scrollIntoView({ behavior: "smooth", block: "center" });
-    }, 150);
-    return () => window.clearTimeout(t);
-  }, [highlightId, casesQuery.data]);
+    if (highlightApplied.current || !highlightId || allCases.length === 0) return;
+    const hit = allCases.find(
+      (c) => c.id === highlightId || c.referralId === highlightId,
+    );
+    if (hit) {
+      highlightApplied.current = true;
+      setSelectedId(hit.id);
+    }
+  }, [allCases, highlightId]);
 
-  const cases = useMemo(
-    () => (Array.isArray(casesQuery.data?.cases) ? casesQuery.data.cases : []),
-    [casesQuery.data]
-  );
-  const total = casesQuery.data?.total ?? cases.length;
-  const unfilteredTotal = casesQuery.data?.unfilteredTotal ?? cases.length;
+  const pickCase = (row: AdmCase) => {
+    highlightApplied.current = true;
+    // A referral guidance has not opened a case file for yet (or whose learner
+    // has no account, so no case file can exist) is tracked on the referrals
+    // desk — the ADM desk must still list it so both desks agree.
+    if (!row.hasCase) {
+      router.push(`/teacher/advisory/referrals?highlight=${row.referralId}`);
+      return;
+    }
+    setSelectedId(row.id);
+  };
 
-  const totalPages = Math.max(1, casesQuery.data?.totalPages ?? 1);
-  const safePage = Math.min(casesQuery.data?.page ?? page, totalPages);
-  const pageRows = cases;
+  const selectedRow =
+    selectedId !== null
+      ? (allCases.find((c) => c.id === selectedId) ?? null)
+      : null;
+
+  // A newly opened case starts at the top of its workspace.
+  useEffect(() => {
+    if (selectedRow) leftScrollRef.current?.scrollTo({ top: 0 });
+  }, [selectedRow?.id]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  const goToPage = (next: number) => setPage(next);
 
   function handleReferAdm() {
-    router.push("/teacher/advisory/referrals");
+    // Land on the referrals desk with the ADM form already open (?new=adm),
+    // so "Refer now" is one click instead of two.
+    router.push("/teacher/advisory/referrals?new=adm");
   }
 
-  // Error state renders inside AdmCasesTable (same Try-again card as the
-  // referrals page), so only the truly-empty cases are handled here.
-  const showEmpty = !casesQuery.isPending && !casesQuery.isError && total === 0;
+  const showEmpty =
+    !casesQuery.isPending && !casesQuery.isError && unfilteredTotal === 0;
+
+  if (casesQuery.isPending) return <AdmCasesSkeleton />;
+
+  if (showEmpty) {
+    return (
+      <section aria-label="ADM cases">
+        <div className="flex min-h-[calc(100dvh-10rem)] w-full items-center justify-center">
+          <div className="w-full">
+            <AdmEmptyKanban onReferAdm={handleReferAdm} />
+          </div>
+        </div>
+      </section>
+    );
+  }
 
   return (
-    <section className={refStyles.page} aria-label="ADM cases">
-      <div className={refStyles.layout}>
-        <div className={refStyles.body}>
-          {showEmpty ? (
-            unfilteredTotal === 0 ? (
-              <div className="flex min-h-[calc(100dvh-10rem)] w-full items-center justify-center">
-                <div className="w-full">
-                  <AdmEmptyKanban onReferAdm={handleReferAdm} />
-                </div>
-              </div>
-            ) : (
-              <div className="flex min-h-[calc(100dvh-8rem)] w-full items-center justify-center">
-                <div className={`${assign.card} w-full max-w-md`}>
-                  <span className={assign.glowClip} aria-hidden="true">
-                    <span className={assign.cardGlow} />
-                  </span>
-                  <div className="relative flex flex-col items-center gap-2 py-6 text-center">
-                    <span
-                      className="flex h-12 w-12 items-center justify-center rounded-full bg-muted"
-                      aria-hidden="true"
-                    >
-                      <FolderOpen size={24} className="text-muted-foreground" />
-                    </span>
-                    <p className="font-medium">No ADM cases match</p>
-                    <p className="max-w-sm text-sm text-muted-foreground">
-                      Try a different search or filter.
-                    </p>
-                  </div>
-                </div>
-              </div>
-            )
-          ) : (
-            <div className="flex min-w-0 flex-1 flex-col gap-4">
-              <AdmCasesTable
-                cases={pageRows}
-                total={total}
-                unfilteredTotal={unfilteredTotal}
-                query={queryInput}
-                onQueryChange={setQueryInput}
-                highlightId={highlightId}
-                casesQuery={{
-                  isPending: casesQuery.isPending,
-                  isError: casesQuery.isError,
-                  isFetching: casesQuery.isFetching,
-                  refetch: () => void casesQuery.refetch(),
-                }}
-                onDetails={(c) =>
-                  router.push(`/teacher/advisory/adm-cases/${toSlug(c.studentName)}`)
-                }
-                onReferAdm={handleReferAdm}
-                currentPage={safePage}
-                onPageChange={(p) => goToPage(p)}
-              />
+    <section className={styles.page} aria-label="ADM cases desk">
+      <AdmCaseListPanel
+        cases={cases}
+        total={total}
+        unfilteredTotal={unfilteredTotal}
+        query={queryInput}
+        onQueryChange={(value) => {
+          setQueryInput(value);
+          highlightApplied.current = true;
+        }}
+        selectedId={selectedRow?.id ?? null}
+        onSelect={(row) => pickCase(row)}
+        onReferAdm={handleReferAdm}
+        currentPage={currentPage}
+        onPageChange={goToPage}
+        casesQuery={{
+          isPending: casesQuery.isPending,
+          isError: casesQuery.isError,
+          isFetching: casesQuery.isFetching,
+          refetch: () => void casesQuery.refetch(),
+        }}
+      />
+
+      <div
+        className={styles.panel}
+        aria-label={selectedRow ? "ADM case workspace" : "ADM overview"}
+      >
+        {selectedRow ? (
+          <>
+            <div className={styles.panelToolbar}>
+              <Button
+                type="button"
+                variant="ghost"
+                className="h-7 gap-1 px-2 text-[12px] text-muted-foreground"
+                onClick={() => setSelectedId(null)}
+              >
+                <ArrowLeft size={12} aria-hidden />
+                Overview
+              </Button>
+              <span className="ml-auto min-w-0 truncate text-[12px] font-medium text-muted-foreground">
+                {selectedRow.studentName}
+              </span>
             </div>
-          )}
-        </div>
+            <div
+              ref={leftScrollRef}
+              className={`${styles.panelScroll} ${styles.workspacePad}`}
+            >
+              <AdmCaseWorkspace key={selectedRow.id} caseRef={selectedRow.id} compact />
+            </div>
+          </>
+        ) : (
+          <div className={styles.panelScroll}>
+            <AdmOverviewPanel
+              cases={allCases}
+              summary={casesQuery.data?.summary}
+              recent={casesQuery.data?.recent}
+              unfilteredTotal={unfilteredTotal}
+              onOpenCase={(row) => pickCase(row)}
+            />
+          </div>
+        )}
       </div>
     </section>
   );
 }
 
 function TeacherAdvisoryAdmCasesPageWithHighlight() {
-
   const params = useSearchParams();
-  return <TeacherAdvisoryAdmCasesView highlightId={params.get("highlight")} />;
+  return (
+    <TeacherAdvisoryAdmCasesView
+      highlightId={params.get("highlight")}
+      initialQuery={params.get("q") ?? ""}
+    />
+  );
 }
 
 export default function TeacherAdvisoryAdmCasesPage() {
   return (
-    <Suspense fallback={<section className={refStyles.page} aria-busy="true" />}>
+    <Suspense fallback={<AdmCasesSkeleton />}>
       <TeacherAdvisoryAdmCasesPageWithHighlight />
     </Suspense>
   );

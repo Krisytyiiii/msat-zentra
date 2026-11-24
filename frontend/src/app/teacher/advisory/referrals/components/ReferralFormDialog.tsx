@@ -2,7 +2,7 @@
 
 import * as React from "react";
 import { createPortal } from "react-dom";
-import { X } from "lucide-react";
+import { X, Send } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { ReferForm, type ReferFormSeed, type ReferralSubmitSnapshot } from "./refer-form";
 import refStyles from "./referrals.module.css";
@@ -70,19 +70,28 @@ export function ReferralFormDialog({
         className={refStyles.overlayPanel}
       >
         <div className="mx-auto flex w-full max-w-4xl flex-col gap-3">
-          <div className="flex min-w-0 items-start justify-between gap-3">
-            <div className="min-w-0">
-              <h2 className="m-0 text-[0.9375rem] font-bold tracking-[-0.01em] text-foreground [font-family:var(--font-inter)]">
-                New referral
-              </h2>
-              <p className="m-0 text-[0.8125rem] leading-[1.45] text-muted-foreground [font-family:var(--font-inter)]">
-                Pick a student, then their record.
-              </p>
+            <div className="flex min-w-0 items-start justify-between gap-3">
+            <div className="flex min-w-0 items-start gap-2.5">
+              <span
+                className="mt-0.5 grid size-8 shrink-0 place-items-center rounded-lg border border-amber-500/30 bg-amber-500/10 text-amber-600 dark:text-amber-400"
+                aria-hidden
+              >
+                <Send size={15} />
+              </span>
+              <div className="min-w-0">
+                <h2 className="m-0 text-[0.9375rem] font-bold tracking-[-0.01em] text-foreground [font-family:var(--font-inter)]">
+                  New referral
+                </h2>
+                <p className="m-0 text-[0.8125rem] leading-[1.45] text-muted-foreground [font-family:var(--font-inter)]">
+                  Link the learner, the anecdotal record behind the case, and the desk that should handle it.
+                </p>
+              </div>
             </div>
             <Button
               type="button"
               variant="ghost"
-              className="h-6 w-6 shrink-0 px-0"
+              size="icon-sm"
+              className="shrink-0 text-muted-foreground"
               onClick={onClose}
               aria-label="Close dialog"
             >

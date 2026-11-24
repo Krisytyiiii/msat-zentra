@@ -36,6 +36,55 @@ export async function invalidateGradingCaches(): Promise<void> {
   await invalidateTags(["teacher", "registrar", "academics", "overview", "principal", "risk", "guidance"]);
 }
 
+/**
+ * Class coverage for score writes on roster learners.
+ *
+ * Mirrors `assertAssignment`: an explicit assignment OR a published timetable
+ * link in the selected term, and — because classes carry across the terms of
+ * a school year — a timetable link in any other term of the same year. The
+ * old exact-term-only check rejected a roster learner whose class was
+ * timetabled in an earlier term, so score saves failed with "Student is not
+ * in your class for this subject" even though the workspace opened fine.
+ */
+export async function hasClassCoverage(
+  teacherId: string,
+  subjectId: string,
+  sectionId: string,
+  termId: string,
+): Promise<boolean> {
+  const assignment = await prisma.teacherSubjectAssignment.findFirst({
+    where: { teacherId, subjectId, sectionId, termId },
+    select: { id: true },
+  });
+  if (assignment) return true;
+  const linked = await prisma.sectionTimetableEntry.findFirst({
+    where: {
+      termId,
+      subjectId,
+      sectionId,
+      status: { in: ["APPROVED", "SUBMITTED"] },
+      teacherName: { userId: teacherId },
+    },
+    select: { id: true },
+  });
+  if (linked) return true;
+  const schoolYearId = (
+    await prisma.term.findUnique({ where: { id: termId }, select: { schoolYearId: true } })
+  )?.schoolYearId;
+  if (!schoolYearId) return false;
+  const carried = await prisma.sectionTimetableEntry.findFirst({
+    where: {
+      subjectId,
+      sectionId,
+      status: { in: ["APPROVED", "SUBMITTED"] },
+      teacherName: { userId: teacherId },
+      term: { schoolYearId },
+    },
+    select: { id: true },
+  });
+  return Boolean(carried);
+}
+
 export async function assertSubjectAccess(teacherId: string, subjectId: string, termId: string) {
   const assignment = await prisma.teacherSubjectAssignment.findFirst({
     where: { teacherId, subjectId, termId },

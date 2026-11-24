@@ -2,16 +2,20 @@
 
 import * as React from "react";
 import { createPortal } from "react-dom";
-import { History, X } from "lucide-react";
+import { Building2, History, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Pill } from "@/components/ui/pill";
+import { StudentMascot } from "@/components/student-mascot/StudentMascot";
 import { AdmTrackingTimeline } from "@/components/adm-tracker/AdmTrackingTimeline";
+import { buildAdmTrackSteps } from "@/components/adm-tracker/adm-track-data";
 import type { TrackerCaseInput } from "@/components/adm-tracker/adm-stage-activity";
 
 export interface TrackableReferral {
   id: string;
   studentName: string;
   lrn: string;
+  /** Persisted sprite mascot; null falls back to the derived one. */
+  mascot?: string | null;
   targetRole: string;
   track: "adm" | "general";
   typeLabel: string;
@@ -196,6 +200,10 @@ export function ReferralTrackDialog({
     withReviewer && referral.consultReviewer
       ? (REVIEWER_LABELS[referral.consultReviewer] ?? humanize(referral.consultReviewer))
       : humanize(referral.targetRole);
+  const admSteps = trackInput ? buildAdmTrackSteps(trackInput) : [];
+  const doneSteps = admSteps.filter((step) => step.state === "done").length;
+  const progressPct =
+    admSteps.length > 0 ? Math.round((doneSteps / admSteps.length) * 100) : 0;
 
   return createPortal(
     <div
@@ -214,35 +222,44 @@ export function ReferralTrackDialog({
         tabIndex={-1}
         className="flex max-h-[calc(100dvh-2rem)] w-full max-w-4xl min-w-0 flex-col gap-2 overflow-y-auto rounded-xl border border-border bg-muted p-2.5 shadow-xl [font-family:var(--font-inter)] animate-in fade-in-0 zoom-in-95 duration-150 dark:bg-background"
       >
-        <div className="-mx-2.5 flex min-w-0 items-start gap-1.5 border-b border-border px-3.5 pb-2">
-          <div className="min-w-0 flex-1">
-            <h2 id="referral-track-title" className="truncate text-[13px] font-semibold">
-              Track referral
-            </h2>
-            <span className="mt-1 flex min-w-0 max-w-full flex-wrap items-center gap-1">
-              <span
-                className="min-w-0 max-w-full truncate text-[13px] font-semibold text-foreground"
-                title={referral.studentName}
-              >
-                {referral.studentName}
-              </span>
-              <Pill className="tabular-nums" label="LRN">
-                {referral.lrn}
-              </Pill>
-            </span>
+        <div className="-mx-2.5 flex min-w-0 items-start gap-2 border-b border-border px-3.5 pb-2.5">
+          <div className="flex min-w-0 flex-1 items-center gap-2.5">
+            <StudentMascot
+              name={referral.studentName}
+              seed={referral.lrn}
+              character={referral.mascot ?? undefined}
+              size={32}
+            />
+            <div className="min-w-0 flex-1">
+              <p className="m-0 text-[12px] font-medium tracking-wide text-muted-foreground uppercase">
+                Track referral
+              </p>
+              <div className="mt-0.5 flex min-w-0 flex-wrap items-center gap-1.5">
+                <h2
+                  id="referral-track-title"
+                  className="m-0 min-w-0 truncate text-[15px] font-semibold leading-tight text-foreground"
+                  title={referral.studentName}
+                >
+                  {referral.studentName}
+                </h2>
+                <Pill className="tabular-nums" label="LRN">
+                  {referral.lrn}
+                </Pill>
+              </div>
+            </div>
           </div>
           <Button
             type="button"
             variant="ghost"
-            className="h-6 w-6 shrink-0 px-0"
+            className="h-7 w-7 shrink-0 px-0"
             onClick={onClose}
             aria-label="Close dialog"
           >
-            <X size={14} strokeWidth={1.8} aria-hidden />
+            <X size={15} strokeWidth={1.8} aria-hidden />
           </Button>
         </div>
 
-        <div className="flex min-w-0 flex-wrap items-center justify-end gap-1.5 px-1">
+        <div className="flex min-w-0 flex-wrap items-center gap-1.5 px-1">
           <Pill tone={VARIANT_TONE[referral.statusVariant]} label="Referral status">
             {referral.statusLabel}
           </Pill>
@@ -254,43 +271,72 @@ export function ReferralTrackDialog({
               Session {formatSessionShort(referral.bookedSession.scheduledAt)}
             </Pill>
           ) : null}
-          <span className="text-[12px] text-muted-foreground">to {deskNow}</span>
+          <span className="ml-auto inline-flex min-w-0 items-center gap-1 text-[12px] text-muted-foreground">
+            <Building2 size={12} className="shrink-0 opacity-70" aria-hidden />
+            <span className="truncate">With {deskNow}</span>
+          </span>
         </div>
 
-        <div className="flex min-w-0 flex-col gap-1.5 px-1">
-          <p className="flex items-center gap-1.5 text-[12px] font-medium tracking-wide text-muted-foreground uppercase">
-            <History size={14} aria-hidden />
-            {isAdmTrack ? "Pipeline tracking" : "Case history"}
-          </p>
+        <div className="flex min-w-0 flex-col gap-2 px-1">
+          <div className="flex min-w-0 flex-wrap items-center justify-between gap-2">
+            <p className="m-0 flex items-center gap-1.5 text-[12px] font-medium tracking-wide text-muted-foreground uppercase">
+              <History size={14} aria-hidden />
+              {isAdmTrack ? "Pipeline tracking" : "Case history"}
+            </p>
+            <span className="text-[12px] tabular-nums text-muted-foreground">
+              {isAdmTrack
+                ? `${doneSteps} of ${admSteps.length} complete`
+                : `${referral.timeline.length} update${
+                    referral.timeline.length === 1 ? "" : "s"
+                  }`}
+            </span>
+          </div>
+          {isAdmTrack ? (
+            <div
+              className="h-1 w-full overflow-hidden rounded-full bg-border/70"
+              role="progressbar"
+              aria-valuenow={progressPct}
+              aria-valuemin={0}
+              aria-valuemax={100}
+              aria-label="ADM pipeline progress"
+            >
+              <span
+                className="block h-full rounded-full bg-amber-500 transition-[width] duration-300"
+                style={{ width: `${progressPct}%` }}
+              />
+            </div>
+          ) : null}
           {isAdmTrack && trackInput ? (
             <AdmTrackingTimeline input={trackInput} variant="cards" />
           ) : referral.timeline.length > 0 ? (
             <ol
-              className="grid min-w-0 grid-cols-1 gap-2 sm:grid-cols-2 lg:grid-cols-4"
+              className="grid min-w-0 grid-cols-1 gap-1.5 md:grid-cols-2"
               aria-label="Case history steps"
             >
               {referral.timeline.map((step, index) => (
                 <li
                   key={`${step.label}-${step.at ?? step.date}-${index}`}
-                  className="flex min-w-0 flex-col gap-2 overflow-hidden rounded-xl border border-border bg-muted/60 p-2.5 dark:bg-muted/20"
+                  className="flex min-w-0 items-start gap-2.5 rounded-lg border border-border/80 bg-muted/30 px-3 py-2.5 dark:bg-muted/10"
                 >
-                  <div className="-mx-2.5 flex min-w-0 items-center gap-1.5 border-b border-border px-3.5 pb-2">
-                    <span className="min-w-0 flex-1 truncate text-[12px] font-semibold">
-                      Update {index + 1}
-                    </span>
-                    <Pill label="Logged">{formatDateTime(step.at ?? step.date)}</Pill>
-                  </div>
-                  <div className="flex min-w-0 flex-1 flex-col gap-1.5 overflow-hidden rounded-lg border border-border bg-white p-2 shadow-sm dark:bg-card">
-                    <span
-                      className="line-clamp-2 min-h-10 text-xs/5 font-semibold text-foreground"
-                      title={step.label}
-                    >
-                      {step.label}
-                    </span>
-                    {step.detail ? (
-                      <span className="block min-w-0 break-all text-[12px] leading-snug text-muted-foreground">
-                        {step.detail}
+                  <span className="mt-0.5 inline-flex size-5 shrink-0 items-center justify-center rounded-full border border-border bg-background text-[12px] font-semibold tabular-nums text-muted-foreground">
+                    {index + 1}
+                  </span>
+                  <div className="flex min-w-0 flex-1 flex-col gap-0.5">
+                    <div className="flex min-w-0 items-start justify-between gap-2">
+                      <p
+                        className="m-0 min-w-0 text-[12px] leading-snug font-semibold text-foreground"
+                        title={step.label}
+                      >
+                        {step.label}
+                      </p>
+                      <span className="shrink-0 text-[12px] leading-snug text-muted-foreground">
+                        {formatDateTime(step.at ?? step.date)}
                       </span>
+                    </div>
+                    {step.detail ? (
+                      <p className="m-0 min-w-0 break-words text-[12px] leading-snug text-muted-foreground">
+                        {step.detail}
+                      </p>
                     ) : null}
                   </div>
                 </li>

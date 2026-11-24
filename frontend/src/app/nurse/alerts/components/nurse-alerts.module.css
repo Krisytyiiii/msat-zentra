@@ -18,8 +18,8 @@
   padding: 0 0.25rem;
 }
 
-/* Header-centered strip: one line, horizontal scroll when the stage tabs
-   outgrow their max width (never wraps inside the title row). */
+/* Header-centered strip: one line, horizontal scroll when the tabs outgrow
+   their max width (never wraps inside the title row). */
 .filterRowScroll {
   flex-wrap: nowrap;
   overflow-x: auto;
@@ -28,37 +28,94 @@
   -ms-overflow-style: none;
 }
 
-.filterGroup {
+/* No-match state: fills the desk below the filter row and centers on both
+   axes (the page adds `pageFit` so the board receives the viewport height). */
+.emptyCenter {
   display: flex;
-  flex-wrap: wrap;
+  flex: 1 1 auto;
+  width: 100%;
   align-items: center;
-  gap: 0.25rem;
+  justify-content: center;
+  padding: 2.5rem 0;
 }
 
-.filterDivider {
-  font-size: 0.875rem;
-  line-height: 1;
-  color: color-mix(in oklch, var(--foreground), transparent 65%);
-  user-select: none;
+/* Height chain for the empty board — the outer section and the inner card
+   both stretch so the centered message can use the page's full height. */
+.emptyFill {
+  flex: 1 1 auto;
+  min-height: 0;
 }
 
-.filterButton {
-  display: inline-flex;
-  padding: 0;
+/* Referred-cases board — one flat data list inside the shared KanbanBoard
+   shell: a column head, then one hairline row per case. The same column
+   template drives the head, the rows and the skeleton, so all three line up. */
+.listPanel {
+  --case-cols:
+    5rem minmax(8.5rem, 1.5fr) minmax(5.5rem, 0.85fr) minmax(6.5rem, 1.1fr)
+    minmax(6rem, 0.85fr) 4.5rem minmax(4.5rem, 0.6fr) minmax(4.5rem, 0.6fr)
+    minmax(9rem, 1fr);
+  min-width: 0;
+  overflow: hidden;
+  border: 1px solid color-mix(in oklch, var(--border) 80%, transparent);
+  border-radius: 0.75rem;
+  background-color: color-mix(in oklch, var(--card) 55%, transparent);
+  background-image: linear-gradient(
+    160deg,
+    rgb(255 255 255 / 0.35),
+    rgb(255 255 255 / 0) 55%
+  );
+  backdrop-filter: blur(14px) saturate(135%);
+  -webkit-backdrop-filter: blur(14px) saturate(135%);
+}
+
+/* Dark mode: see through to the shell — no card fill, no glass sheen. */
+:global(.dark) .listPanel {
+  background-color: transparent;
+  background-image: none;
+}
+
+/* The data list below is the card — the shared board shell around it stays
+   card-less, so there is no card inside a card. */
+.boardSurface.boardSurface {
   border: 0;
-  background: none;
-  cursor: pointer;
-  border-radius: var(--radius-md);
+  border-radius: 0;
+  background-color: transparent;
+  box-shadow: none;
 }
 
-.filterButton:focus-visible {
-  outline: 2px solid var(--ring);
-  outline-offset: 2px;
+.listHead {
+  display: grid;
+  grid-template-columns: var(--case-cols);
+  align-items: center;
+  gap: 0.75rem;
+  padding: 0.5rem 0.75rem;
+  border-bottom: 1px solid var(--border);
+  font-size: 0.75rem;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--muted-foreground);
 }
 
-/* Referred-cases board — flat kanban rows inside the shared KanbanBoard
-   shell, same as the overview's latest-referrals board (no per-row card
-   chrome), newest referral first. */
+.listHead > span {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.headActions {
+  text-align: right;
+}
+
+/* Vertical column rules — every column but the last is divided by a hairline. */
+.listHead > span:not(:last-child),
+.caseRow > .cell:not(:last-child),
+.skeletonRow > .cell:not(:last-child) {
+  border-right: 1px solid color-mix(in oklch, var(--border) 60%, transparent);
+  padding-right: 0.75rem;
+}
+
 .caseList {
   display: flex;
   flex-direction: column;
@@ -70,30 +127,26 @@
 
 .caseRow {
   display: grid;
-  /* Same tracks as the guidance alerts board: left identity · fixed
-     status/risk column · fixed timestamp column · right controls. */
-  grid-template-columns: minmax(12rem, 1.5fr) 10rem 8rem minmax(10rem, 1fr);
+  grid-template-columns: var(--case-cols);
   align-items: center;
-  column-gap: 6rem;
-  row-gap: 0.75rem;
-  padding: 0.625rem 0.375rem;
-  border-bottom: 1px solid color-mix(in oklch, var(--foreground), transparent 94%);
+  gap: 0.75rem;
+  padding: 0.5rem 0.75rem;
+  border-top: 1px solid color-mix(in oklch, var(--border) 70%, transparent);
   min-width: 0;
 }
 
-.caseRow:last-child {
-  border-bottom: none;
+.caseRow:first-child {
+  border-top: 0;
 }
 
 /* Rows open the case desk on click / Enter / Space. */
 .caseRowInteractive {
   cursor: pointer;
-  border-radius: var(--radius-md);
   transition: background-color 140ms ease-out;
 }
 
 .caseRowInteractive:hover {
-  background-color: color-mix(in oklch, var(--foreground), transparent 96%);
+  background-color: color-mix(in oklch, var(--muted) 40%, transparent);
 }
 
 .caseRowInteractive:focus-visible {
@@ -101,21 +154,53 @@
   outline-offset: -2px;
 }
 
-.caseStudent {
+.cell {
   display: flex;
   align-items: center;
-  gap: 0.5rem;
   min-width: 0;
 }
 
-/* Track lead (ADM | Clinic) sits left of the mascot as a rectangle pill; the
-   separator keeps the pipes in one column across rows. */
+.cellType {
+  justify-content: flex-start;
+}
+
+.cellLearner {
+  gap: 0.5rem;
+}
+
+/* Two-line meta cell (grade + section, session tallies, …). */
+.cellStack {
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 0.0625rem;
+}
+
+.cellValue {
+  max-width: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: 0.75rem;
+  font-weight: 500;
+  color: var(--foreground);
+}
+
+.cellMuted {
+  max-width: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: 0.75rem;
+  color: var(--muted-foreground);
+}
+
+/* Track lead (ADM | Clinic) — rectangle pill, blue for ADM, amber for Clinic. */
 .caseTypePill {
   display: inline-flex;
   align-items: center;
   justify-content: center;
   flex-shrink: 0;
-  min-width: 5.25rem;
+  min-width: 4.5rem;
   height: 1.375rem;
   padding: 0 0.4375rem;
   border-radius: var(--radius-md);
@@ -125,32 +210,8 @@
   white-space: nowrap;
 }
 
-.caseSeparator {
-  display: inline-grid;
-  place-items: center;
-  align-self: center;
-  flex-shrink: 0;
-  width: 0.625rem;
-  height: 1.5rem;
-  margin: 0;
-  font-family: var(--font-sans), system-ui, sans-serif;
-  font-size: 0.9375rem;
-  font-weight: 400;
-  line-height: 1;
-  color: color-mix(in oklch, var(--foreground), transparent 65%);
-  user-select: none;
-}
-
 .caseIdentity {
   min-width: 0;
-}
-
-/* Name + meta stack — the LRN/section chips sit under the student name. */
-.caseSubRow {
-  display: flex;
-  align-items: center;
-  gap: 0.375rem;
-  margin-top: 0.1875rem;
 }
 
 .studentName {
@@ -177,65 +238,30 @@
   overflow: hidden;
 }
 
-/* Status | risk column — left-aligned in its track. */
-.caseStatusCell {
-  display: flex;
-  align-items: center;
-  justify-content: flex-start;
-  flex-shrink: 0;
-}
-
-/* Timestamp column — referral time, left-aligned in its track. */
-.caseTimeCell {
-  display: flex;
-  align-items: center;
-  justify-content: flex-start;
-  flex-shrink: 0;
-}
-
-.splitPill {
+/* Concern cell — tinted category chip (the referral reason is no longer shown). */
+.concernPill {
   display: inline-flex;
-  align-items: stretch;
+  align-items: center;
   flex-shrink: 0;
-  height: 1.5rem;
+  max-width: 100%;
+  height: 1.375rem;
+  padding: 0 0.4375rem;
+  border: 1px solid transparent;
   border-radius: var(--radius-md);
-  background-color: var(--muted);
-  overflow: hidden;
-}
-
-.splitPart {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  padding: 0 0.5rem;
   font-size: 0.75rem;
   font-weight: 600;
-  line-height: 1;
   white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  color: var(--muted-foreground);
 }
 
-/* Fixed segments keep the divider in the same spot across rows. */
-.splitPart:first-child {
-  min-width: 5.25rem;
-}
-
-.splitPart:last-child {
-  min-width: 4.25rem;
-}
-
-.splitDivider {
-  flex-shrink: 0;
-  width: 1px;
-  background-color: var(--border);
-}
-
-/* Right control column — done pill, latest-action glyph, booking + kebab. */
+/* Right control column — latest-action glyph + booking control. */
 .caseActions {
   display: flex;
   align-items: center;
   justify-content: flex-end;
   flex-wrap: wrap;
-  justify-self: end;
   gap: 0.375rem;
   min-width: 0;
   white-space: nowrap;
@@ -248,57 +274,104 @@
   opacity: 1;
 }
 
-/* Icon-only latest action — the label lives in a hover/focus tooltip. */
-.actionIconButton {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  flex-shrink: 0;
-  width: 1.5rem;
-  height: 1.5rem;
-  border-radius: var(--radius-md);
-  background-color: var(--muted);
-  color: var(--muted-foreground);
-  cursor: pointer;
-  outline: none;
-  transition:
-    background-color 140ms ease-out,
-    color 140ms ease-out;
+/* Drop the widest columns before the board gets tight, then stack the row
+   into labelled lines on phones. */
+@media (max-width: 1180px) {
+  .listPanel {
+    --case-cols:
+      5rem minmax(8.5rem, 1.5fr) minmax(5.5rem, 0.85fr) minmax(6rem, 0.85fr)
+      4.5rem minmax(4.5rem, 0.6fr) minmax(8.5rem, 0.9fr);
+  }
+
+  .colConcern,
+  .colSessions {
+    display: none !important;
+  }
 }
 
-.actionIconButton:hover {
-  color: var(--foreground);
-  background-color: color-mix(in oklch, var(--primary), transparent 88%);
+@media (max-width: 980px) {
+  .listPanel {
+    --case-cols:
+      4.75rem minmax(8rem, 1.6fr) minmax(6rem, 0.9fr) 4.5rem
+      minmax(8rem, 1fr);
+  }
+
+  .colGrade,
+  .colReferred {
+    display: none !important;
+  }
 }
 
-.actionIconButton:focus-visible {
-  outline: 2px solid var(--ring);
-  outline-offset: 2px;
-}
+@media (max-width: 860px) {
+  .listHead {
+    display: none;
+  }
 
-@media (max-width: 900px) {
   .caseRow,
   .skeletonRow {
     grid-template-columns: minmax(0, 1fr) auto;
+    grid-template-areas:
+      "learner type"
+      "concern concern"
+      "grade sessions"
+      "status risk"
+      "referred referred"
+      "actions actions";
+    row-gap: 0.5rem;
     column-gap: 0.75rem;
+    padding: 0.625rem 0.75rem 0.6875rem;
   }
 
-  .caseStatusCell {
-    grid-column: 2;
-    grid-row: 1;
+  .caseRow > .cell:not(:last-child),
+  .skeletonRow > .cell:not(:last-child) {
+    border-right: 0;
+    padding-right: 0;
   }
 
-  .caseTimeCell {
-    grid-column: 1;
-    grid-row: 2;
-    justify-content: flex-start;
+  .cellType {
+    grid-area: type;
+    justify-content: flex-end;
+  }
+
+  .cellLearner {
+    grid-area: learner;
+  }
+
+  .colGrade {
+    grid-area: grade;
+    display: flex !important;
+  }
+
+  .colConcern {
+    grid-area: concern;
+    display: flex !important;
+  }
+
+  .cellStatus {
+    grid-area: status;
+  }
+
+  .colRisk {
+    grid-area: risk;
+    display: flex !important;
+    justify-content: flex-end;
+  }
+
+  .colSessions {
+    grid-area: sessions;
+    display: flex !important;
+    align-items: flex-end;
+  }
+
+  .colReferred {
+    grid-area: referred;
+    display: flex !important;
   }
 
   .caseActions {
-    grid-column: 1 / -1;
-    grid-row: 3;
-    justify-self: start;
+    grid-area: actions;
     justify-content: flex-start;
+    flex-wrap: wrap;
   }
 }
 
@@ -337,44 +410,47 @@
   color: var(--muted-foreground);
 }
 
-/* Loading — a KanbanBoard shell with skeleton rows, so the load and the
-   loaded board read as one surface. */
-.skelCardTitle {
-  height: 1rem;
-  width: 12rem;
-}
-
-.skelPanelDesc {
-  height: 0.8125rem;
-  width: 16rem;
-}
-
+/* Loading — a KanbanBoard shell with shimmer rows, so the load and the
+   loaded board read as one surface (ShimmerGroup drives the sweep in the
+   component). */
+/* Search field placeholder — mirrors the shared 15rem shell (real: w-60). */
 .skelSearch {
   height: 2rem;
-  width: 10rem;
+  width: 15rem;
 }
 
-/* Centered stage-tab placeholder — same 24px pill height as the tabs. */
+/* Stage-tab placeholder — same 1.5rem pill height as the real tabs. */
 .skelTab {
-  height: 1.5rem;
+  height: 1.75rem;
   width: 5.5rem;
 }
 
-.skelIconBtn {
-  height: 2rem;
-  width: 2rem;
-}
-
-/* Case-row skeleton bars — mirror the flat board rows. */
+/* Case-row skeleton bars — mirror the data-list columns. */
 .skeletonRow {
   display: grid;
-  grid-template-columns: minmax(12rem, 1.5fr) 10rem 8rem minmax(10rem, 1fr);
+  grid-template-columns: var(--case-cols);
   align-items: center;
-  column-gap: 6rem;
-  row-gap: 0.75rem;
-  padding: 0.625rem 0.375rem;
-  border-bottom: 1px solid color-mix(in oklch, var(--foreground), transparent 94%);
+  gap: 0.75rem;
+  padding: 0.5rem 0.75rem;
+  border-top: 1px solid color-mix(in oklch, var(--border) 70%, transparent);
   min-width: 0;
+}
+
+.skeletonRow:first-child {
+  border-top: 0;
+}
+
+.skelHeadLabel {
+  height: 0.6875rem;
+  width: 3.5rem;
+  max-width: 100%;
+}
+
+.skelTypePill {
+  height: 1.375rem;
+  width: 4.5rem;
+  border-radius: var(--radius-md);
+  flex-shrink: 0;
 }
 
 .skelAvatar {
@@ -389,9 +465,21 @@
   width: 10rem;
 }
 
-.skelSplitPill {
-  height: 1.5rem;
-  width: 10rem;
+.skelLine {
+  height: 0.625rem;
+  width: 4.5rem;
+  max-width: 100%;
+}
+
+.skelLineShort {
+  height: 0.625rem;
+  width: 3rem;
+  max-width: 100%;
+}
+
+.skelPill {
+  height: 1.375rem;
+  width: 5.5rem;
   flex-shrink: 0;
 }
 
@@ -401,40 +489,18 @@
   flex-shrink: 0;
 }
 
-.skelKebab {
-  height: 1.75rem;
-  width: 1.75rem;
+/* Concern cell — one chip, exactly like the real category pill. */
+.skelConcernPill {
+  height: 1.375rem;
+  width: 4.5rem;
+  border-radius: var(--radius-md);
   flex-shrink: 0;
 }
 
-.skelBtn {
-  height: 1.75rem;
-  width: 5rem;
-}
-
-.skelPager {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 0.5rem;
-  margin-top: 0.75rem;
-}
-
-.skelRange {
-  height: 0.75rem;
-  width: 8rem;
-}
-
-.skelPagerBtns {
-  display: flex;
-  align-items: center;
-  gap: 0.5rem;
-}
-
-/* Matches .pageLabel ("Page X of Y", 0.75rem tabular-nums). */
-.skelPageLabel {
-  height: 0.75rem;
-  width: 5rem;
+.skelBtnSm {
+  height: 1.5rem;
+  width: 5.5rem;
+  flex-shrink: 0;
 }
 
 /* Unified error state — same box as health/risk/referrals. */

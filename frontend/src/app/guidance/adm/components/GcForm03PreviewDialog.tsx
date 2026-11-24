@@ -4,7 +4,7 @@ import * as React from "react";
 import { FileDown, ImageDown, Loader2, Printer } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { KanbanModal } from "@/components/ui/kanban-modal";
-import { Skeleton } from "@/components/ui/skeleton";
+import { GcForm03SheetSkeleton } from "./GcForm03SheetSkeleton";
 import {
   Tooltip,
   TooltipContent,
@@ -317,23 +317,7 @@ export function GcForm03PreviewDialog({
         </TooltipProvider>
       }
     >
-      {loadingSheet ? (
-        <div
-          className="flex flex-col gap-2 py-4"
-          aria-busy="true"
-          aria-label="Loading referral form preview"
-        >
-          <Skeleton className="h-6 w-[40%]" />
-          <div className={styles.sheetWrap} aria-hidden="true">
-            <Skeleton className="h-4 w-full" />
-            <Skeleton className="h-4 w-full" />
-            <Skeleton className="h-4 w-full" />
-            <Skeleton className="h-4 w-[80%]" />
-            <Skeleton className="h-4 w-full" />
-            <Skeleton className="h-4 w-[55%]" />
-          </div>
-        </div>
-      ) : null}
+      {loadingSheet ? <GcForm03SheetSkeleton /> : null}
       {sheetError ? (
         <p className="text-sm text-destructive py-4" role="alert">
           {sheetError}

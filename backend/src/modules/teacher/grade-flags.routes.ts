@@ -64,7 +64,13 @@ router.get(
   "/options",
   requireAuth,
   requireRole(...TEACHER_ROLES),
-  cache({ ttl: CACHE_TTLS.lookup, tags: [CACHE_TAGS.teacher, "grade-flags"] }),
+  // Short TTL: this payload carries the live class/advisee roster behind the
+  // Bama anecdotal picker and grade-flag forms, so it must not outlive a
+  // roster edit by an hour even if a tag invalidation is missed.
+  cache({
+    ttl: CACHE_TTLS.list,
+    tags: [CACHE_TAGS.teacher, CACHE_TAGS.roster, "grade-flags"],
+  }),
   etag(),
   async (req, res, next) => {
     try {

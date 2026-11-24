@@ -76,7 +76,6 @@ export function GuidanceOverviewGradeTable({
           <GraduationCap size={14} />
         </span>
       }
-      count={<span className={styles.amberNumber}>{totalAtRisk}</span>}
       description="Live ranking — most at-risk students per grade this term."
       actions={
         <Link
@@ -108,12 +107,6 @@ export function GuidanceOverviewGradeTable({
                   aria-label={`${row.grade}: ${row.atRisk} at-risk students — open all intervention cases`}
                 >
                   <div className={styles.caseInfo}>
-                    <Pill
-                      label="Grade level"
-                      className="h-8 w-10 justify-center tabular-nums"
-                    >
-                      {row.short}
-                    </Pill>
                     <p className={styles.cellMain}>{row.grade}</p>
                     <Pill label="Sections in this grade level">
                       {row.sections} section{row.sections === 1 ? "" : "s"}

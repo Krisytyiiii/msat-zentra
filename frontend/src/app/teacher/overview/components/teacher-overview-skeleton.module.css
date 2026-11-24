@@ -97,17 +97,6 @@
 }
 
 /* Right rail. */
-.railTitle {
-  height: 0.75rem;
-  width: 4.25rem;
-}
-
-.railToggle {
-  height: 1.75rem;
-  width: 1.75rem;
-  border-radius: 0.5rem;
-}
-
 .profileCard {
   height: 8.25rem;
   border-radius: 0.5rem;

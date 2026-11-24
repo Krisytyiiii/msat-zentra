@@ -10,6 +10,7 @@ import {
   eligibilityTone,
 } from "@/lib/labels/status-tone";
 import { StudentMascot } from "../../../referrals/components/StudentMascot";
+import { ADM_JOURNEY } from "@/services/teacher/admCases.labels";
 import type { AdmMonitoringCase } from "@/services/teacher/admMonitoring.service";
 
 const dateLabel = (iso: string | null) => {
@@ -24,16 +25,7 @@ const dateLabel = (iso: string | null) => {
  * of truth; this list only shortens the labels so a non-technical reader can
  * scan the whole path at a glance.
  */
-const JOURNEY: { key: string; label: string }[] = [
-  { key: "anecdotal", label: "Concern recorded" },
-  { key: "consultation", label: "Consultation" },
-  { key: "meeting_parents", label: "Parent meeting" },
-  { key: "home_visitation", label: "Home visit" },
-  { key: "certification", label: "Certification" },
-  { key: "principal_approval", label: "Principal approval" },
-  { key: "enrollment_monitoring", label: "Live monitoring" },
-  { key: "completion", label: "Completed" },
-];
+const JOURNEY = ADM_JOURNEY;
 
 function JourneySteps({ stage }: { stage: string }) {
   const currentIndex = Math.max(
@@ -52,7 +44,7 @@ function JourneySteps({ stage }: { stage: string }) {
         </p>
       </div>
 
-      <ol className="m-0 flex list-none gap-1 overflow-x-auto p-0 pb-1">
+      <ol className="m-0 flex w-full list-none gap-1 p-0">
         {JOURNEY.map((step, index) => {
           const done = index < currentIndex;
           const active = index === currentIndex;
@@ -61,7 +53,7 @@ function JourneySteps({ stage }: { stage: string }) {
             <li
               key={step.key}
               aria-current={active ? "step" : undefined}
-              className="flex min-w-[4.75rem] flex-1 flex-col items-center gap-1.5 text-center"
+              className="flex min-w-0 flex-1 basis-0 flex-col items-center gap-1.5 text-center"
             >
               <span className="flex w-full items-center gap-1">
                 <span
@@ -95,7 +87,7 @@ function JourneySteps({ stage }: { stage: string }) {
               </span>
               <span
                 className={cn(
-                  "text-[12px] leading-tight",
+                  "w-full break-words text-[12px] leading-tight",
                   active ? "font-semibold text-foreground" : "text-muted-foreground"
                 )}
               >
@@ -113,11 +105,14 @@ export function MonitoringHeader({
   header,
   backHref = "/teacher/advisory/adm-cases",
   backLabel = "Back to ADM cases",
+  compact = false,
 }: {
   header: AdmMonitoringCase["header"];
   /** Where the back link points — the coordinator desk reuses this view. */
   backHref?: string;
   backLabel?: string;
+  /** Split desk pane: no back link, facts stacked above the journey. */
+  compact?: boolean;
 }) {
   const facts = [
     {
@@ -134,12 +129,14 @@ export function MonitoringHeader({
 
   return (
     <div className="flex flex-col gap-3">
-      <Link
-        href={backHref}
-        className="-ml-2 inline-flex w-fit items-center gap-1 rounded-md px-2 py-1 text-xs font-medium text-muted-foreground transition-colors duration-150 hover:bg-muted hover:text-foreground"
-      >
-        <ArrowLeft size={14} aria-hidden /> {backLabel}
-      </Link>
+      {compact ? null : (
+        <Link
+          href={backHref}
+          className="-ml-2 inline-flex w-fit items-center gap-1 rounded-md px-2 py-1 text-xs font-medium text-muted-foreground transition-colors duration-150 hover:bg-muted hover:text-foreground"
+        >
+          <ArrowLeft size={14} aria-hidden /> {backLabel}
+        </Link>
+      )}
 
       <section
         className="flex flex-col gap-4 rounded-md border bg-card p-4 sm:p-5"
@@ -167,12 +164,6 @@ export function MonitoringHeader({
                 <Pill tone="neutral" label="LRN" className="tabular-nums">
                   {header.lrn}
                 </Pill>
-                <Pill tone="neutral" label="Section">
-                  {header.section || "No section"}
-                </Pill>
-                <Pill tone="neutral" label="Grade level">
-                  {header.gradeLevel.replace("G", "Grade ")}
-                </Pill>
               </div>
             </div>
           </div>
@@ -188,9 +179,22 @@ export function MonitoringHeader({
         </div>
 
         {/* Facts and journey share one row on desktop; the journey takes the
-            wide side so all eight steps fit without wrapping. */}
-        <div className="flex flex-col gap-4 border-t pt-3 lg:flex-row lg:items-center lg:gap-5">
-          <div className="grid shrink-0 grid-cols-2 gap-2 lg:w-[22rem]">
+            wide side so all eight steps fit without wrapping. The split desk
+            pane stacks them, because it is only half the viewport wide. */}
+        <div
+          className={
+            compact
+              ? "flex flex-col gap-3 border-t pt-3"
+              : "flex flex-col gap-4 border-t pt-3 lg:flex-row lg:items-center lg:gap-5"
+          }
+        >
+          <div
+            className={
+              compact
+                ? "grid shrink-0 grid-cols-2 gap-2"
+                : "grid shrink-0 grid-cols-2 gap-2 lg:w-[22rem]"
+            }
+          >
             {facts.map(({ label, value, icon: Icon }) => (
               <div
                 key={label}
@@ -212,7 +216,10 @@ export function MonitoringHeader({
             ))}
           </div>
 
-          <span className="hidden h-14 w-px shrink-0 bg-border lg:block" aria-hidden />
+          <span
+            className={compact ? "hidden" : "hidden h-14 w-px shrink-0 bg-border lg:block"}
+            aria-hidden
+          />
 
           <div className="min-w-0 flex-1">
             <JourneySteps stage={header.stage} />

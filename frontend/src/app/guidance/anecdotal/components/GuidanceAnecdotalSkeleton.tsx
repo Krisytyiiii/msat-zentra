@@ -1,8 +1,8 @@
 "use client";
 
 import { Skeleton } from "@/components/ui/skeleton";
+import { ShimmerGroup } from "@/components/ui/shimmer-skeleton";
 import { ZentraPaginationSkeleton } from "@/components/shared/zentra-skeletons/ZentraSkeletons";
-import assign from "@/app/principal/academics/assign/components/section-assignments.module.css";
 import filtersStyles from "./guidance-anecdotal-filters.module.css";
 import folderStyles from "./guidance-anecdotal-folders.module.css";
 import pageStyles from "./guidance-anecdotal.module.css";
@@ -10,9 +10,8 @@ import pageStyles from "./guidance-anecdotal.module.css";
 /**
  * Loading shell for /guidance/anecdotal. It reuses the live folder panel's own
  * layout classes (panel header with title/help/description, centred type tabs,
- * search, the 5/4/3/2/1 folder grid and the shared pager) plus the 2.75rem icon
- * rail and the mobile-only summary cards, so the board does not move when the
- * records land.
+ * search, the 5/4/3/2/1 folder grid and the shared pager) so the board does not
+ * move when the records land.
  */
 
 const CARD_COUNT = 10;
@@ -50,50 +49,6 @@ function FolderCardSkeleton() {
   );
 }
 
-/** Mobile-only summary cards that sit under the panel below `lg`. */
-function MobileCardsSkeleton() {
-  return (
-    <div className="flex min-w-0 flex-col gap-4 lg:hidden" aria-hidden="true">
-      <div className={assign.card}>
-        <div className="relative">
-          <Skeleton className="h-4 w-28" />
-          <Skeleton className="mt-1.5 h-3 w-40" />
-        </div>
-        <ol className="relative flex flex-col gap-2">
-          {[0, 1, 2].map((i) => (
-            <li key={i} className="flex items-center gap-2">
-              <Skeleton className="size-7 shrink-0 rounded-full" />
-              <span className="min-w-0 flex-1">
-                <Skeleton className="h-3.5 w-32 max-w-full" />
-                <Skeleton className="mt-1 h-[1.125rem] w-20 rounded-md" />
-              </span>
-              <Skeleton className="size-5 shrink-0 rounded-full" />
-            </li>
-          ))}
-        </ol>
-      </div>
-
-      <div className={assign.card}>
-        <div className="relative flex items-center gap-3">
-          <Skeleton className="size-11 shrink-0 rounded-full" />
-          <div className="min-w-0">
-            <Skeleton className="h-4 w-24" />
-            <Skeleton className="mt-1.5 h-3 w-40" />
-          </div>
-        </div>
-        <div className="relative flex flex-col gap-1.5">
-          {[0, 1, 2, 3].map((i) => (
-            <span key={i} className="flex items-center gap-2">
-              <Skeleton className="size-2 shrink-0 rounded-full" />
-              <Skeleton className="h-3 w-24" />
-            </span>
-          ))}
-        </div>
-      </div>
-    </div>
-  );
-}
-
 export function GuidanceAnecdotalSkeleton() {
   return (
     <section
@@ -101,7 +56,7 @@ export function GuidanceAnecdotalSkeleton() {
       aria-busy="true"
       aria-label="Loading referred records"
     >
-      <div className="grid flex-1 items-start gap-4 lg:grid-cols-[minmax(0,1fr)_2.75rem]">
+      <ShimmerGroup>
         <div className={`${pageStyles.main} flex min-w-0 flex-col`}>
           <div className={folderStyles.panel}>
             <div className={folderStyles.header}>
@@ -140,19 +95,7 @@ export function GuidanceAnecdotalSkeleton() {
             </div>
           </div>
         </div>
-
-        <aside className="hidden self-start lg:sticky lg:top-16 lg:block">
-          <div
-            className="flex flex-row justify-end gap-2 lg:flex-col lg:items-end"
-            aria-hidden="true"
-          >
-            <Skeleton className="size-9 rounded-xl" />
-            <Skeleton className="size-9 rounded-xl" />
-          </div>
-        </aside>
-      </div>
-
-      <MobileCardsSkeleton />
+      </ShimmerGroup>
     </section>
   );
 }

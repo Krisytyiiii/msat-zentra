@@ -1,9 +1,9 @@
 "use client";
 
 import * as React from "react";
-import { ChevronLeft, ChevronRight, Search } from "lucide-react";
+import { ChevronLeft, ChevronRight } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
+import { SearchField } from "@/components/ui/search-field";
 import { Pill } from "@/components/ui/pill";
 import {
   ALL_CALENDAR_TRACKS,
@@ -24,6 +24,8 @@ export function CalendarToolbar({
   onNext,
   query,
   onQueryChange,
+  align = "end",
+  showViewToggle = true,
 }: {
   label: string;
   view: CalendarView;
@@ -33,9 +35,13 @@ export function CalendarToolbar({
   onNext: () => void;
   query: string;
   onQueryChange: (value: string) => void;
+  /** Horizontal alignment inside the toolbar row. Defaults to "end". */
+  align?: "start" | "end";
+  /** Render the Month/Week switcher. Defaults to true. */
+  showViewToggle?: boolean;
 }) {
   return (
-    <div className={styles.toolbar}>
+    <div className={`${styles.toolbar} ${align === "start" ? styles.toolbarStart : ""}`}>
       <div className={styles.navGroup}>
         <Button
           type="button"
@@ -63,36 +69,35 @@ export function CalendarToolbar({
         </Button>
       </div>
 
-      <div className={styles.segmented} role="tablist" aria-label="Calendar view">
-        {(["month", "week"] as const).map((option) => {
-          const active = view === option;
-          return (
-            <button
-              key={option}
-              type="button"
-              role="tab"
-              aria-selected={active}
-              className={styles.segmentButton}
-              onClick={() => onViewChange(option)}
-            >
-              <Pill tone={active ? "blue" : "neutral"} label="Calendar view">
-                {option === "month" ? "Month" : "Week"}
-              </Pill>
-            </button>
-          );
-        })}
-      </div>
+      {showViewToggle ? (
+        <div className={styles.segmented} role="tablist" aria-label="Calendar view">
+          {(["month", "week"] as const).map((option) => {
+            const active = view === option;
+            return (
+              <button
+                key={option}
+                type="button"
+                role="tab"
+                aria-selected={active}
+                className={styles.segmentButton}
+                onClick={() => onViewChange(option)}
+              >
+                <Pill tone={active ? "blue" : "neutral"} label="Calendar view">
+                  {option === "month" ? "Month" : "Week"}
+                </Pill>
+              </button>
+            );
+          })}
+        </div>
+      ) : null}
 
-      <div className={styles.searchWrap}>
-        <Search className={styles.searchIcon} aria-hidden />
-        <Input
-          className={styles.search}
-          placeholder="Search learner, LRN or section…"
-          value={query}
-          onChange={(e) => onQueryChange(e.target.value)}
-          aria-label="Search the schedule"
-        />
-      </div>
+      <SearchField
+        className={align === "start" ? "ml-auto w-60" : "w-60"}
+        placeholder="Search learner, LRN or section…"
+        value={query}
+        onChange={(next) => onQueryChange(next)}
+        aria-label="Search the schedule"
+      />
     </div>
   );
 }

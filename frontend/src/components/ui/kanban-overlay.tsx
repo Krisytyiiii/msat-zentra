@@ -75,6 +75,8 @@ interface KanbanOverlayProps {
   className?: string;
   /** Drop the raised drop-shadow (e.g. session overlays that sit flush). */
   elevated?: boolean;
+  /** Hide the header close X (a footer action still closes it). */
+  showClose?: boolean;
 }
 
 /**
@@ -99,6 +101,7 @@ export function KanbanOverlay({
   busy,
   className,
   elevated = true,
+  showClose = true,
 }: KanbanOverlayProps) {
   const [mounted, setMounted] = React.useState(false);
 
@@ -145,21 +148,23 @@ export function KanbanOverlay({
           actions={
             <>
               {headerActions}
-              <button
-                type="button"
-                onClick={onClose}
-                disabled={!dismissable}
-                aria-label="Close dialog"
-                className="flex h-6 w-6 items-center justify-center rounded-md text-muted-foreground transition-colors hover:bg-muted hover:text-foreground disabled:pointer-events-none disabled:opacity-50"
-              >
-                <X size={14} aria-hidden="true" />
-              </button>
+              {showClose ? (
+                <button
+                  type="button"
+                  onClick={onClose}
+                  disabled={!dismissable}
+                  aria-label="Close dialog"
+                  className="flex h-6 w-6 items-center justify-center rounded-md text-muted-foreground transition-colors hover:bg-muted hover:text-foreground disabled:pointer-events-none disabled:opacity-50"
+                >
+                  <X size={14} aria-hidden="true" />
+                </button>
+              ) : null}
             </>
           }
         >
           {scrollBody ? (
             <div
-              className={`max-h-[65vh] overflow-y-auto px-0.5 [scrollbar-gutter:stable_both-edges] ${styles.scrollBody}`}
+              className={`max-h-[72vh] overflow-y-auto px-0.5 [scrollbar-gutter:stable_both-edges] ${styles.scrollBody}`}
             >
               {children}
             </div>

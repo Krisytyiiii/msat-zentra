@@ -12,6 +12,8 @@ type Props = {
   /** When provided, cards become editable: values render from inputs. */
   inputs?: Record<ComponentType, string>;
   editing?: ComponentType | null;
+  /** All three cards are inputs at once — one Edit opens the whole set. */
+  editAll?: boolean;
   onStartEdit?: (t: ComponentType) => void;
   onInputChange?: (t: ComponentType, v: string) => void;
   onEndEdit?: () => void;
@@ -24,6 +26,7 @@ function Card({
   value,
   inputs,
   editing,
+  editAll,
   onStartEdit,
   onInputChange,
   onEndEdit,
@@ -34,11 +37,12 @@ function Card({
   value: number;
   inputs?: Record<ComponentType, string>;
   editing?: ComponentType | null;
+  editAll?: boolean;
   onStartEdit?: (t: ComponentType) => void;
   onInputChange?: (t: ComponentType, v: string) => void;
   onEndEdit?: () => void;
 }) {
-  const isEditing = inputs !== undefined && editing === type;
+  const isEditing = inputs !== undefined && (editAll || editing === type);
   const display = inputs !== undefined ? (inputs[type] === "" ? "0" : inputs[type]) : String(value);
   return (
     <li className={styles.segRow}>
@@ -47,7 +51,7 @@ function Card({
         <span className={`${styles.segDot} ${dotClass}`} aria-hidden />
       </span>
       <span className={styles.segBottom}>
-        {inputs !== undefined && onStartEdit ? (
+        {inputs !== undefined && onStartEdit && !editAll ? (
           <button
             type="button"
             className={styles.segEdit}
@@ -60,7 +64,7 @@ function Card({
         ) : null}
         {isEditing ? (
           <input
-            autoFocus
+            autoFocus={editAll ? type === "WRITTEN_WORK" : true}
             className={styles.segValueInput}
             inputMode="numeric"
             aria-label={`${label} weight percent`}
@@ -81,7 +85,7 @@ function Card({
   );
 }
 
-export function WeightsVisual({ ww, pt, exam, showBar = true, inputs, editing, onStartEdit, onInputChange, onEndEdit }: Props) {
+export function WeightsVisual({ ww, pt, exam, showBar = true, inputs, editing, editAll, onStartEdit, onInputChange, onEndEdit }: Props) {
   const parsedInputs =
     inputs !== undefined
       ? (["WRITTEN_WORK", "PERFORMANCE_TASK", "EXAM"] as const).map((t) => Number(inputs[t]))
@@ -90,7 +94,7 @@ export function WeightsVisual({ ww, pt, exam, showBar = true, inputs, editing, o
     parsedInputs !== null && parsedInputs.every((n) => Number.isFinite(n))
       ? parsedInputs.reduce((s, n) => s + n, 0)
       : ww + pt + exam;
-  const cardProps = { inputs, editing, onStartEdit, onInputChange, onEndEdit };
+  const cardProps = { inputs, editing, editAll, onStartEdit, onInputChange, onEndEdit };
   return (
     <>
       {showBar ? (

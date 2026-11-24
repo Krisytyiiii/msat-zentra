@@ -2,7 +2,7 @@
 
 import * as React from "react";
 import { Check, ChevronDown } from "lucide-react";
-import { Input } from "@/components/ui/input";
+import { TeacherSearchField, searchEmptyMessage } from "@/app/teacher/components/TeacherSearchField";
 import {
   Popover,
   PopoverContent,
@@ -80,15 +80,15 @@ export function StudentPicker({
         className={styles.dropPanel}
         align="start"
       >
-        <Input
+        <TeacherSearchField
+          className="w-full"
           value={query}
-          onChange={(e) => {
-            setQuery(e.target.value);
+          onChange={(next) => {
+            setQuery(next);
             setPage(1);
           }}
           placeholder="Search students…"
           aria-label="Search students"
-          className={styles.dropSearch}
         />
         <table className={styles.dropTable}>
           <thead>
@@ -145,7 +145,7 @@ export function StudentPicker({
                   colSpan={4}
                   className={styles.dropDim}
                 >
-                  No students match.
+                  {searchEmptyMessage(query, "students")}
                 </td>
               </tr>
             ) : null}
@@ -226,15 +226,15 @@ export function ClassPicker({
         className={styles.dropPanel}
         align="start"
       >
-        <Input
+        <TeacherSearchField
+          className="w-full"
           value={query}
-          onChange={(e) => {
-            setQuery(e.target.value);
+          onChange={(next) => {
+            setQuery(next);
             setPage(1);
           }}
           placeholder="Search subjects…"
           aria-label="Search student's subjects"
-          className={styles.dropSearch}
         />
         <table className={styles.dropTable}>
           <thead>
@@ -295,7 +295,7 @@ export function ClassPicker({
                   className={styles.dropDim}
                 >
                   {hasStudent
-                    ? "No subjects for this student."
+                    ? searchEmptyMessage(query, "subjects")
                     : "Pick a student to see their subjects."}
                 </td>
               </tr>

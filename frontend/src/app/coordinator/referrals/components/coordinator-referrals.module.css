@@ -10,14 +10,70 @@
   font-family: var(--font-sans), system-ui, sans-serif;
 }
 
-/* Kanban board + icon-only intake rail on the right — same layout as the
-   coordinator / nurse overviews: the rail spans the full stack height so it
-   stays pinned (sticky) through the page scroll. */
+/* Desk head — badge, board title, search on the right; the figure strip sits
+   underneath. Same anatomy as the nurse ADM / clinic and guidance boards. */
+.deskHead {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.75rem;
+  min-width: 0;
+  padding: 0.125rem 0.125rem 0;
+}
+
+.deskBadge {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 2rem;
+  height: 2rem;
+  flex-shrink: 0;
+  border-radius: 0.625rem;
+  color: oklch(0.55 0.16 70.08);
+  background: color-mix(in oklch, oklch(0.769 0.188 70.08) 14%, transparent);
+  border: 1px solid
+    color-mix(in oklch, oklch(0.769 0.188 70.08) 32%, transparent);
+}
+
+:global(.dark) .deskBadge {
+  color: oklch(0.85 0.17 75);
+  background: color-mix(in oklch, oklch(0.769 0.188 70.08) 18%, transparent);
+  border-color: color-mix(in oklch, oklch(0.85 0.17 75) 38%, transparent);
+}
+
+.deskHeading {
+  display: flex;
+  flex: 1 1 12rem;
+  flex-direction: column;
+  gap: 0.125rem;
+  min-width: 0;
+}
+
+.deskTitle {
+  margin: 0;
+  font-size: 1rem;
+  font-weight: 700;
+  line-height: 1.2;
+  letter-spacing: -0.02em;
+}
+
+.deskTools {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 0.5rem;
+  min-width: 0;
+  margin-left: auto;
+}
+
+/* Kanban board — the desk head and figure strip sit above it, so the body is
+   one working column (no side rail). */
 .body {
-  display: grid;
-  grid-template-columns: minmax(0, 1fr) 2.75rem;
-  gap: 1.25rem;
-  align-items: start;
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+  min-width: 0;
 }
 
 .mainCol {
@@ -25,12 +81,6 @@
   flex-direction: column;
   gap: 0.75rem;
   min-width: 0;
-}
-
-@media (max-width: 1024px) {
-  .body {
-    grid-template-columns: 1fr;
-  }
 }
 
 /* Dark mode: let the aurora canvas painted by the shell show through the

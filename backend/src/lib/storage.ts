@@ -92,3 +92,16 @@ export function advisorySubmissionObjectPath(moduleId: string, originalName: str
   const ext = (originalName.split(".").pop() ?? "pdf").replace(/[^a-z0-9]/gi, "").toLowerCase() || "pdf";
   return `advisory-submissions/${moduleId}-${Date.now()}.${ext}`;
 }
+
+/** The adviser's own module handout (PDF/Word) uploaded at release time. */
+export function advisoryModuleObjectPath(originalName: string): string {
+  const ext = (originalName.split(".").pop() ?? "pdf").replace(/[^a-z0-9]/gi, "").toLowerCase() || "pdf";
+  const base = originalName
+    .replace(/\.[^.]+$/, "")
+    .normalize("NFKD")
+    .replace(/[^a-z0-9._-]+/gi, "-")
+    .replace(/-+/g, "-")
+    .replace(/^-|-$/g, "")
+    .slice(0, 60) || "module";
+  return `advisory-modules/${Date.now()}-${base}.${ext}`;
+}

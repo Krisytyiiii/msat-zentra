@@ -5,11 +5,14 @@ import {
 } from "../../lib/learnerVisibility.js";
 import {
   buildSchoolDayAxis,
+  buildOfferedMap,
   countSchoolDays,
   dailyPresentPercent,
   formatDateKey,
   groupSubjectDay,
   isWeekendKey,
+  sectionStrictDays,
+  type AttendanceStatus,
 } from "../attendance.js";
 import { sectionHeadcounts } from "../enrollment.js";
 import { buildDayAxis } from "../attendance.js";
@@ -161,7 +164,7 @@ export async function getSectionSubjectHeatmap(query: SectionSubjectHeatmapQuery
   // Headcounts (3–4 serial round-trips) runs alongside the records/offerings
   // reads instead of ahead of them — see heatmaps.section-stats.service.ts.
   const archived = await archivedAdvisoryLearnerIds();
-  const [rawRecords, offerings, headcounts, transferees] = await Promise.all([
+  const [rawRecords, offerings, timetableSubjects, headcounts, transferees] = await Promise.all([
     prisma.attendanceRecord.findMany({
       where: {
         termId,
@@ -187,6 +190,27 @@ export async function getSectionSubjectHeatmap(query: SectionSubjectHeatmapQuery
       select: {
         sectionId: true,
         subjectId: true,
+        subject: { select: { id: true, name: true, code: true } },
+      },
+    }),
+    // Attendance is taken per subject off the timetable, and a timetable slot
+    // does not always have a TeacherSubjectAssignment row (the admin can
+    // publish a grid for a subject the gradebook never assigned). The adviser's
+    // Academic students desk already lists both sources; the heatmap used to
+    // count only assignments, so "3 subjects" there read as "1 subject" here.
+    // APPROVED + SUBMITTED are the slots the attendance desks treat as live
+    // classes (same set the section rate in heatmaps.section-stats uses).
+    prisma.sectionTimetableEntry.findMany({
+      where: {
+        termId,
+        sectionId: { in: sectionIds },
+        status: { in: ["APPROVED", "SUBMITTED"] },
+        ...(subjectFilter ? { subjectId: subjectFilter } : {}),
+      },
+      select: {
+        sectionId: true,
+        subjectId: true,
+        day: true,
         subject: { select: { id: true, name: true, code: true } },
       },
     }),
@@ -225,6 +249,15 @@ export async function getSectionSubjectHeatmap(query: SectionSubjectHeatmapQuery
       });
     }
   }
+  for (const entry of timetableSubjects) {
+    if (!subjectMeta.has(entry.subjectId)) {
+      subjectMeta.set(entry.subjectId, {
+        subjectId: entry.subject.id,
+        code: entry.subject.code,
+        name: entry.subject.name,
+      });
+    }
+  }
 
   // Subjects taken from records but missing a term assignment (e.g. the
   // assignment was removed, or the section was shared later) still need their
@@ -255,6 +288,11 @@ export async function getSectionSubjectHeatmap(query: SectionSubjectHeatmapQuery
     if (!arr.includes(o.subjectId)) arr.push(o.subjectId);
     offeredBySection.set(o.sectionId, arr);
   }
+  for (const entry of timetableSubjects) {
+    const arr = offeredBySection.get(entry.sectionId) ?? [];
+    if (!arr.includes(entry.subjectId)) arr.push(entry.subjectId);
+    offeredBySection.set(entry.sectionId, arr);
+  }
   for (const r of records) {
     const arr = offeredBySection.get(r.sectionId) ?? [];
     const sid = r.subjectId as string;
@@ -267,10 +305,6 @@ export async function getSectionSubjectHeatmap(query: SectionSubjectHeatmapQuery
 
   type Cell = { present: number; late: number; excused: number; total: number };
   const agg = new Map<string, Map<string, Map<string, Cell>>>();
-  // Per learner per day: a learner holds several subject records that day;
-  // the daily view counts them once with the best status they earned.
-  type LearnerFlags = { present: boolean; late: boolean; excused: boolean; absent: boolean };
-  const learnerAgg = new Map<string, Map<string, Map<string, LearnerFlags>>>();
   for (const r of records) {
     const day = r.date.toISOString().slice(0, 10);
     const sid = r.subjectId as string;
@@ -284,23 +318,25 @@ export async function getSectionSubjectHeatmap(query: SectionSubjectHeatmapQuery
     if (r.status === "present") cell.present++;
     else if (r.status === "late") cell.late++;
     else if (r.status === "excused") cell.excused++;
-
-    const learnerKey = r.studentId ?? r.rosterId;
-    if (learnerKey) {
-      if (!learnerAgg.has(r.sectionId)) learnerAgg.set(r.sectionId, new Map());
-      const learnerDays = learnerAgg.get(r.sectionId)!;
-      if (!learnerDays.has(day)) learnerDays.set(day, new Map());
-      const learners = learnerDays.get(day)!;
-      if (!learners.has(learnerKey)) {
-        learners.set(learnerKey, { present: false, late: false, excused: false, absent: false });
-      }
-      const flags = learners.get(learnerKey)!;
-      if (r.status === "present") flags.present = true;
-      else if (r.status === "late") flags.late = true;
-      else if (r.status === "excused") flags.excused = true;
-      else flags.absent = true;
-    }
   }
+
+  // Daily presence is strict: a learner counts as PRESENT for the day only
+  // when they are present in every subject held that weekday (the published
+  // timetable decides which subjects are required; a weekday with no grid
+  // falls back to the subjects actually taken that day). One late/excused/
+  // absent mark in any subject demotes the whole day, and a subject with no
+  // taken sheet is a missing mark. Same helper the attendance desk's section
+  // rate uses, so the two can never disagree.
+  const strictDays = sectionStrictDays(
+    records.map((r) => ({
+      sectionId: r.sectionId,
+      studentKey: r.studentId ?? `roster:${r.rosterId}`,
+      subjectId: r.subjectId as string,
+      date: r.date,
+      status: r.status as AttendanceStatus,
+    })),
+    buildOfferedMap(timetableSubjects),
+  );
 
   const result = sections.map((s) => {
     const enrolled = headcounts.get(s.id) ?? 0;
@@ -325,27 +361,16 @@ export async function getSectionSubjectHeatmap(query: SectionSubjectHeatmapQuery
       days: dayKeys.map((key) => {
         const subs = sectionAgg?.get(key);
         const eligible = enrolledAt(key);
-        const dayLearners = learnerAgg.get(s.id)?.get(key);
+        const strict = strictDays.get(s.id)?.get(key);
 
-        // Daily headcount view: one status per learner for the day.
-        // present > late > excused > absent (a learner marked present in any
-        // subject that day is not also counted absent).
-        let present = 0;
-        let late = 0;
-        let excused = 0;
-        let allAbsent = 0;
-        let seen = 0;
-        if (dayLearners) {
-          for (const flags of dayLearners.values()) {
-            seen += 1;
-            if (flags.present) present += 1;
-            else if (flags.late) late += 1;
-            else if (flags.excused) excused += 1;
-            else allAbsent += 1;
-          }
-        }
-        // Enrolled learners with no record that day are absent too.
-        const absent = allAbsent + Math.max(0, eligible - seen);
+        // Daily headcount view: one status per learner for the day, using the
+        // strict all-subjects rule — present/late/excused come from the
+        // learner's day outcome, and everyone else (including enrolled
+        // learners with no sheet at all) is absent.
+        const present = strict?.present.size ?? 0;
+        const late = strict?.late.size ?? 0;
+        const excused = strict?.excused.size ?? 0;
+        const absent = Math.max(0, eligible - present - late - excused);
 
         return {
           date: formatDateKey(key),

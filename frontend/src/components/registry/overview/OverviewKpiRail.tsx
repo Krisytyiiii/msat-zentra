@@ -7,7 +7,6 @@ import {
   ArrowRight,
   FileSignature,
   FileStack,
-  GraduationCap,
   ShieldQuestion,
   type LucideIcon,
 } from "lucide-react";
@@ -158,17 +157,6 @@ export function OverviewKpiRail({ desk }: { desk: RegistryDesk }) {
       cta: "Open queue",
       description: `Adviser-approved finals ready for the ${deskLabel} queue.`,
       accent: "text-primary",
-    },
-    {
-      key: "students",
-      icon: GraduationCap,
-      title: "Pending Students",
-      count: data?.pendingStudents.length ?? 0,
-      href: `/${desk}/accounts`,
-      hint: "Awaiting decision",
-      cta: "Review accounts",
-      description: "Student accounts waiting for LRN verification and approval.",
-      accent: "text-blue-500",
     },
     {
       key: "adviser",

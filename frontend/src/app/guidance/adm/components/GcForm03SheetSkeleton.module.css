@@ -1,0 +1,57 @@
+/* Loading placeholder for the GCForm-03 sheet. The component reuses the
+   template's real 10-column / 50-row grid, so the rules and bars sit exactly
+   where the built sheet draws them. */
+
+.sheet {
+  position: relative;
+}
+
+/* DepEd crest placeholder — same inset and footprint as the template image. */
+.logo {
+  position: absolute;
+  top: 24px;
+  left: 76px;
+  width: 74px;
+  height: 96px;
+  border-radius: 6px;
+}
+
+.table {
+  width: 100%;
+  border-collapse: collapse;
+  table-layout: fixed;
+  font-size: 0;
+  line-height: 0;
+}
+
+.cell,
+.boxed {
+  padding: 0 3px;
+  vertical-align: middle;
+  border: 1px solid transparent;
+}
+
+/* The template's boxed blocks (details, actions, recommendations, the
+   guidance-counselor table and the page footer). */
+.boxed {
+  border-color: color-mix(in oklch, var(--border) 78%, transparent);
+}
+
+/* Hairline the template draws across the sheet (rows 33 / 48). */
+.rule {
+  display: block;
+  width: 100%;
+  height: 1px;
+  background-color: color-mix(in oklch, var(--border) 70%, transparent);
+}
+
+.bar {
+  display: block;
+  min-width: 2px;
+}
+
+/* The preview is always white paper (it is captured for export), so the
+   placeholder bars keep a paper-appropriate grey in both themes. */
+.sheet :global([data-slot="skeleton"]) {
+  background-color: #e5e7eb;
+}

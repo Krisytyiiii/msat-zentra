@@ -5,6 +5,8 @@ export const ADM_STAGES: {
   stage: string;
   order: number;
   label: string;
+  /** Plain-language name — the same wording the case detail's journey uses. */
+  journey: string;
   owner: string;
   principalAction: boolean;
   description: string;
@@ -13,6 +15,7 @@ export const ADM_STAGES: {
     stage: "anecdotal",
     order: 1,
     label: "Anecdotal Report Filed",
+    journey: "Concern recorded",
     owner: "Adviser",
     principalAction: false,
     description: "Anecdotal report documenting the learner's concern.",
@@ -21,6 +24,7 @@ export const ADM_STAGES: {
     stage: "consultation",
     order: 2,
     label: "Consultation & Referral",
+    journey: "Consultation",
     owner: "Guidance / Nurse / LRPC",
     principalAction: false,
     description: "Reviewed by Guidance Counselor, School Nurse, or LRPC.",
@@ -29,6 +33,7 @@ export const ADM_STAGES: {
     stage: "meeting_parents",
     order: 3,
     label: "Meeting with Parents/Guardians",
+    journey: "Parent meeting",
     owner: "ADM Coordinator & Teachers",
     principalAction: false,
     description: "Meeting with parents/guardians. Attended → minutes logged; otherwise → home visitation.",
@@ -37,6 +42,7 @@ export const ADM_STAGES: {
     stage: "home_visitation",
     order: 4,
     label: "Home Visitation (if no meeting)",
+    journey: "Home visit",
     owner: "Guidance Counselor",
     principalAction: false,
     description: "Conducted only when parents did not attend the meeting.",
@@ -45,6 +51,7 @@ export const ADM_STAGES: {
     stage: "certification",
     order: 5,
     label: "Recommendation & Certification",
+    journey: "Certification",
     owner: "ADM Coordinator",
     principalAction: false,
     description: "ADM Coordinator records the recommendation and issues the certification.",
@@ -53,6 +60,7 @@ export const ADM_STAGES: {
     stage: "principal_approval",
     order: 6,
     label: "School Head (Principal) Approval",
+    journey: "Principal approval",
     owner: "Principal",
     principalAction: true,
     description: "Principal signs the certification and authorizes module release.",
@@ -61,6 +69,7 @@ export const ADM_STAGES: {
     stage: "enrollment_monitoring",
     order: 7,
     label: "Modules Completed & Returned",
+    journey: "Live monitoring",
     owner: "Student",
     principalAction: false,
     description: "Student completes the modules; Coordinator / Teacher track progress.",
@@ -69,11 +78,26 @@ export const ADM_STAGES: {
     stage: "completion",
     order: 8,
     label: "Case Closed",
+    journey: "Completed",
     owner: "ADM Coordinator",
     principalAction: false,
     description: "Learner has returned and the ADM case is closed.",
   },
 ];
+
+/**
+ * The journey the adviser sees on a case (and in the pipeline legend): the same
+ * eight stages in order, worded in plain language. Single source so the case
+ * detail, the pipeline and the empty-state legend cannot drift apart.
+ */
+export const ADM_JOURNEY: { key: string; label: string }[] = ADM_STAGES.map(
+  (stage) => ({ key: stage.stage, label: stage.journey }),
+);
+
+/** Plain-language name for one stage (falls back to the raw key). */
+export function admJourneyLabel(stage: string): string {
+  return ADM_JOURNEY.find((step) => step.key === stage)?.label ?? stage;
+}
 
 export function stageOrder(stage: string): number {
   return ADM_STAGES.find((s) => s.stage === stage)?.order ?? 2;
@@ -109,14 +133,14 @@ const ADM_STAGE_TONES: Record<string, PillTone> = {
 };
 
 const ADM_STAGE_SHORT_LABELS: Record<string, string> = {
-  anecdotal: "Anecdotal",
+  anecdotal: "Concern",
   consultation: "Consultation",
-  meeting_parents: "Meeting",
-  home_visitation: "Home Visit",
+  meeting_parents: "Parent meeting",
+  home_visitation: "Home visit",
   certification: "Certification",
   principal_approval: "Approval",
-  enrollment_monitoring: "Modules",
-  completion: "Closed",
+  enrollment_monitoring: "Monitoring",
+  completion: "Completed",
 };
 
 /** Pipeline legend rows: short label + the full stage name as the tooltip. */

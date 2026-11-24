@@ -45,7 +45,6 @@ export interface RegistryRequestDayRow {
 }
 
 export interface RegistryOverviewData {
-  pendingAccounts: number;
   pendingAdviserAccess: number;
   lockedFinalsAwaiting: number;
   sf10Released: number;
@@ -54,7 +53,6 @@ export interface RegistryOverviewData {
   reportCards: number;
   latestAttachments: RegistryAttachmentRow[];
   missingSf10: RegistryMissingSf10Row[];
-  pendingStudents: RegistryPendingStudentRow[];
   sf10Students: RegistrySf10StudentRow[];
   finals: { total: number; finalized: number; awaiting: number; draft: number };
   sf10: { total: number; released: number; available: number; attach: number };

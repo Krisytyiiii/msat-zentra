@@ -65,6 +65,8 @@ export interface ArchivedAdvisee {
   studentId: string;
   name: string;
   lrn: string;
+  /** Persisted sprite mascot; null falls back to the derived one. */
+  mascot: string | null;
   section: string;
   archivedAt: string;
   hasAccount: boolean;

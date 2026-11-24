@@ -13,206 +13,165 @@
   --nurse-number: #fbbf24;
 }
 
-/* Left stack (queue board + charts) + icon-only KPI rail on the right —
-   same layout as the registrar / record-keeper overviews: the rail spans
-   the full stack height, so it stays pinned (sticky) through the whole
-   page scroll, and no section may cross into its 2.75rem strip. */
+/* Command layout: the shared stat deck, then two panels — charts on the left,
+   the newest-referrals rail on the right (20% of the page). */
 .body {
   display: grid;
-  grid-template-columns: minmax(0, 1fr) 2.75rem;
+  grid-template-columns: minmax(0, 1fr) minmax(240px, 20%);
   gap: 1.25rem;
   align-items: start;
-}
-
-.mainCol {
-  display: flex;
-  flex-direction: column;
-  gap: 1.25rem;
   min-width: 0;
 }
 
-@media (max-width: 1024px) {
+@media (max-width: 1280px) {
   .body {
-    grid-template-columns: 1fr;
+    grid-template-columns: minmax(0, 1fr);
   }
 }
 
-.cellMain {
-  margin: 0;
-  max-width: 100%;
-  min-width: 0;
-  font-size: 0.875rem;
-  font-weight: 600;
-  color: var(--primary);
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
-}
-
-/* Latest-referrals flat board rows — one line per case inside the kanban
-   shell (no per-row card chrome), newest referral first. */
-.caseList {
+.chartsCol {
   display: flex;
   flex-direction: column;
-  margin: 0;
-  padding: 0;
-  list-style: none;
+  gap: 1.25rem;
   min-width: 0;
 }
 
-.caseRow {
+/* The newest-referrals rail stays put while the charts scroll: sticky under
+   the fixed 3rem topbar (plus the shell's 1rem padding). */
+.railCol {
+  min-width: 0;
+  position: sticky;
+  top: calc(3rem + 1rem);
+  align-self: start;
+  max-height: calc(100dvh - 5rem);
+  overflow-y: auto;
+  scrollbar-width: none;
+  -ms-overflow-style: none;
+}
+
+.railCol::-webkit-scrollbar {
+  display: none;
+}
+
+@media (max-width: 1280px) {
+  /* Single column: the rail sits under the charts, so it scrolls with the
+     page instead of pinning to the viewport. */
+  .railCol {
+    position: static;
+    max-height: none;
+    overflow: visible;
+  }
+}
+
+/* Dark mode: the boards are glass, so the desk aurora canvas shows through
+   instead of solid slabs sitting on top of it. */
+:global(.dark) .page :global(.board-surface) {
+  background-color: color-mix(in oklch, var(--card), transparent 62%);
+  backdrop-filter: blur(10px);
+}
+
+.skeletonBoard {
   display: flex;
-  align-items: center;
-  justify-content: space-between;
+  flex-direction: column;
   gap: 0.75rem;
-  padding: 0.625rem 0.375rem;
-  border-bottom: 1px solid color-mix(in oklch, var(--foreground), transparent 94%);
-  min-width: 0;
+  padding: 0.875rem;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  background-color: var(--card);
 }
 
-.caseRow:last-child,
-.caseList > li:last-child .caseRow {
-  border-bottom: none;
-}
-
-/* One row per case: mascot, then a stacked name block (name above the
-   LRN/grade/category pills). The name truncates first; pills and actions keep
-   their width. */
-.caseInfo {
+.caseInfoSkeleton {
   display: flex;
   align-items: center;
-  gap: 0.5rem;
-  flex: 1;
+  gap: 0.625rem;
   min-width: 0;
 }
 
-/* Name + meta stack — keeps the identity pills directly under the student
-   name instead of trailing it on the same line. */
 .caseNameBlock {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+  min-width: 0;
+  flex: 1;
+}
+
+.skelChartBlock {
+  width: 100%;
+  height: 8.25rem;
+  border-radius: 8px;
+}
+
+/* Latest referred students — plain header row (no parent card) over a grid
+   of standalone glass cards, one learner per card. */
+.referralSection {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+  min-width: 0;
+}
+
+.gridHeader {
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: 0.75rem 1rem;
+  flex-wrap: wrap;
+  padding: 0 0.125rem;
+}
+
+.gridHeaderText {
   display: flex;
   flex-direction: column;
   gap: 0.125rem;
   min-width: 0;
 }
 
-.caseMeta {
-  display: flex;
+.gridTitle {
+  display: inline-flex;
   align-items: center;
-  flex-wrap: wrap;
-  gap: 0.25rem;
-  min-width: 0;
-}
-
-/* Rows cascade in on mount — same entrance as the registry kanban boards. */
-@keyframes case-row-in {
-  from {
-    opacity: 0;
-    transform: translateY(6px);
-  }
-  to {
-    opacity: 1;
-    transform: translateY(0);
-  }
-}
-
-.caseList > li {
-  animation: case-row-in 0.3s cubic-bezier(0.22, 1, 0.36, 1) backwards;
-}
-
-.caseList > li:nth-child(2) {
-  animation-delay: 0.06s;
-}
-
-.caseList > li:nth-child(3) {
-  animation-delay: 0.12s;
-}
-
-@media (prefers-reduced-motion: reduce) {
-  .caseList > li {
-    animation: none;
-  }
-}
-
-/* Icon-rail flyout menus — smooth open/close in both themes, same ease and
-   top-right origin as the registry KPI rails. */
-.railMenu {
-  transform-origin: top right;
-  transition:
-    opacity 180ms ease-out,
-    transform 180ms cubic-bezier(0.22, 1, 0.36, 1),
-    visibility 180ms;
-}
-
-.railMenuOpen {
-  opacity: 1;
-  transform: translateY(0) scale(1);
-  visibility: visible;
-}
-
-.railMenuClosed {
-  opacity: 0;
-  transform: translateY(-6px) scale(0.98);
-  visibility: hidden;
-  pointer-events: none;
-}
-
-/* Needs-review flyout preview — longest-waiting cases before the CTA. */
-.railCaseList {
-  display: flex;
-  flex-direction: column;
-  margin: 0;
-  padding: 0;
-  list-style: none;
-  min-width: 0;
-}
-
-.railCaseItem {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 0.5rem;
-  padding: 0.5rem 0.25rem;
-  border-bottom: 1px solid color-mix(in oklch, var(--foreground), transparent 94%);
-  min-width: 0;
-  text-decoration: none;
-  color: inherit;
-}
-
-.railCaseItem:last-child {
-  border-bottom: none;
-}
-
-.railCaseName {
-  min-width: 0;
-  font-size: 0.75rem;
+  gap: 0.4375rem;
+  font-size: 0.875rem;
   font-weight: 600;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-  transition: color 140ms ease-out;
+  color: var(--foreground);
 }
 
-.railCaseItem:hover .railCaseName {
+.gridTitle svg {
   color: var(--primary);
 }
 
-.railCaseWait {
-  flex-shrink: 0;
+.gridCount {
+  display: inline-flex;
+  min-width: 1.25rem;
+  align-items: center;
+  justify-content: center;
+  padding: 0 0.3125rem;
+  border-radius: 9999px;
+  background-color: var(--muted);
   font-size: 0.75rem;
+  font-weight: 600;
   color: var(--muted-foreground);
   font-variant-numeric: tabular-nums;
-  white-space: nowrap;
 }
 
-@media (prefers-reduced-motion: reduce) {
-  .railMenu {
-    transition: none;
-  }
-
-  .railCaseName {
-    transition: none;
-  }
+.gridDesc {
+  margin: 0;
+  font-size: 0.75rem;
+  color: var(--muted-foreground);
 }
+
+/* Same auto-fill rhythm as the adviser Modules desk card grid — inside the
+   narrow rail this settles on one stacked card per row. */
+.referralGrid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(min(264px, 100%), 1fr));
+  gap: 0.75rem;
+}
+
+:global(.dark) .skeletonBoard {
+  background-color: color-mix(in oklch, var(--card), transparent 55%);
+}
+
+
 
 /* Panels */
 .panel {
@@ -457,14 +416,6 @@
   font-variant-numeric: tabular-nums;
 }
 
-.cellActions {
-  display: flex;
-  align-items: center;
-  flex-shrink: 0;
-  gap: 0.375rem;
-  white-space: nowrap;
-}
-
 .badge {
   display: inline-block;
   padding: 0.125rem 0.5rem;
@@ -502,6 +453,123 @@
 .badgeMuted {
   background-color: var(--muted);
   color: var(--muted-foreground);
+}
+
+/* ADM caseload gauge — one semicircular dial, its arcs sized by each ADM
+   action's share of the case total. */
+.gaugeChart {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+  min-width: 0;
+}
+
+.gaugeWrap {
+  position: relative;
+  width: 100%;
+  max-width: 15rem;
+  margin: 0 auto;
+}
+
+.gaugeSvg {
+  display: block;
+  width: 100%;
+  height: auto;
+  overflow: visible;
+}
+
+.gaugeTrack {
+  fill: none;
+  stroke: color-mix(in oklch, var(--foreground), transparent 90%);
+  stroke-width: 14;
+}
+
+.gaugeSegment {
+  fill: none;
+  stroke-width: 14;
+  cursor: pointer;
+  transition:
+    stroke-dasharray 480ms ease,
+    stroke-dashoffset 480ms ease,
+    opacity 140ms ease;
+}
+
+.gaugeSegment:hover {
+  opacity: 0.82;
+}
+
+.gaugeCenter {
+  position: absolute;
+  left: 50%;
+  bottom: 0.2rem;
+  transform: translateX(-50%);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  line-height: 1.1;
+  pointer-events: none;
+}
+
+/* Follows the cursor over a dial segment; reuses the shared chart tooltip. */
+.gaugeTip {
+  position: absolute;
+  z-index: 50;
+  transform: translate(-50%, calc(-100% - 0.5rem));
+  pointer-events: none;
+}
+
+.gaugeValue {
+  font-size: 1.375rem;
+  font-weight: 700;
+  letter-spacing: -0.02em;
+  color: var(--foreground);
+  font-variant-numeric: tabular-nums;
+}
+
+.gaugeLabel {
+  font-size: 0.75rem;
+  color: var(--muted-foreground);
+}
+
+.gaugeLegend {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 0.375rem 0.75rem;
+}
+
+.gaugeLegendItem {
+  display: flex;
+  align-items: center;
+  gap: 0.375rem;
+  min-width: 0;
+  font-size: 0.75rem;
+}
+
+.gaugeLegendLabel {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  color: var(--foreground);
+}
+
+.gaugeLegendValue {
+  margin-left: auto;
+  display: inline-flex;
+  align-items: baseline;
+  gap: 0.25rem;
+  flex-shrink: 0;
+  font-weight: 600;
+  color: var(--foreground);
+  font-variant-numeric: tabular-nums;
+}
+
+.gaugeLegendPct {
+  font-weight: 600;
+  color: var(--nurse-number);
 }
 
 /* Breakdown donut charts */
@@ -761,28 +829,6 @@
   }
 }
 
-/* Icon-rail skeleton — matches the 2.25rem gutter buttons; the rail turns
-   into a horizontal icon row on mobile, same as the real rail. */
-.skelRail {
-  display: flex;
-  flex-direction: column;
-  align-items: flex-end;
-  gap: 0.5rem;
-  min-width: 0;
-}
-
-.skelRailIcon {
-  height: 2.25rem;
-  width: 2.25rem;
-  border-radius: var(--radius-xl);
-}
-
-@media (max-width: 1024px) {
-  .skelRail {
-    flex-direction: row;
-    justify-content: flex-end;
-  }
-}
 
 .skelChartRow {
   display: flex;

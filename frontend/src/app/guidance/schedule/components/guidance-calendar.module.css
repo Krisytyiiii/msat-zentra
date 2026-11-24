@@ -33,6 +33,23 @@
   min-width: 0;
 }
 
+/* The booked-schedule card — same glass treatment as the day rail: translucent
+   + blurred in light mode, fully transparent in dark mode so the desk canvas
+   shows through. Doubled selector beats the global `.dark .board-surface`. */
+.boardSurface {
+  border-color: color-mix(in oklch, var(--border) 65%, transparent);
+  background-color: color-mix(in oklch, var(--card) 50%, transparent);
+  -webkit-backdrop-filter: blur(18px) saturate(140%);
+  backdrop-filter: blur(18px) saturate(140%);
+}
+
+:global(.dark) .boardSurface.boardSurface {
+  border-color: color-mix(in oklch, var(--border) 70%, transparent);
+  background-color: transparent;
+  -webkit-backdrop-filter: none;
+  backdrop-filter: none;
+}
+
 .boardTitle {
   display: inline-flex;
   align-items: center;
@@ -52,6 +69,11 @@
   justify-content: flex-end;
   gap: 0.375rem;
   min-width: 0;
+}
+
+.toolbarStart {
+  flex: 1;
+  justify-content: flex-start;
 }
 
 .navGroup {
@@ -432,31 +454,32 @@
 
 /* Day rail ----------------------------------------------------------------- */
 
+/* Glass surface: translucent card + blur in light mode; in dark mode the
+   card is fully transparent so the shell shows through. */
 .rail {
   position: sticky;
   top: 1rem;
   display: flex;
   flex-direction: column;
-  gap: 0.625rem;
-  padding: 0.875rem;
-  border: 1px solid var(--border);
+  gap: 0.75rem;
+  padding: 0.9375rem;
+  border: 1px solid color-mix(in oklch, var(--border) 65%, transparent);
   border-radius: var(--radius-xl);
-  background-color: var(--card);
+  background-color: color-mix(in oklch, var(--card) 50%, transparent);
+  -webkit-backdrop-filter: blur(18px) saturate(140%);
+  backdrop-filter: blur(18px) saturate(140%);
+}
+
+:global(.dark) .rail {
+  background-color: transparent;
+  -webkit-backdrop-filter: none;
+  backdrop-filter: none;
 }
 
 .railHead {
   display: flex;
   flex-direction: column;
   gap: 0.125rem;
-}
-
-.railEyebrow {
-  margin: 0;
-  font-size: 0.75rem;
-  font-weight: 600;
-  letter-spacing: 0.07em;
-  text-transform: uppercase;
-  color: var(--muted-foreground);
 }
 
 .railTitle {
@@ -481,20 +504,52 @@
   list-style: none;
 }
 
+/* One card per booked item, built on the same chrome as the adviser module
+   cards: glass surface, divider-separated header, two-up metric grid, and a
+   footer bar with the case action. */
 .railCard {
   display: flex;
   flex-direction: column;
-  gap: 0.375rem;
-  padding: 0.625rem 0.6875rem;
-  border: 1px solid color-mix(in oklch, var(--accent) 28%, var(--border));
-  border-radius: var(--radius-md);
-  background-color: color-mix(in oklch, var(--accent) 6%, var(--card));
+  min-width: 0;
+  overflow: hidden;
+  border: 1px solid color-mix(in oklch, var(--border) 80%, transparent);
+  border-radius: 0.75rem;
+  background-color: color-mix(in oklch, var(--card) 72%, transparent);
+  background-image: linear-gradient(
+    160deg,
+    rgb(255 255 255 / 0.45),
+    rgb(255 255 255 / 0) 55%
+  );
+  box-shadow:
+    inset 0 1px 0 rgb(255 255 255 / 0.5),
+    0 10px 24px -18px rgb(15 23 42 / 0.28);
+  -webkit-backdrop-filter: blur(14px) saturate(135%);
+  backdrop-filter: blur(14px) saturate(135%);
   cursor: pointer;
-  transition: background-color 120ms ease-out, box-shadow 120ms ease-out;
+  transition:
+    border-color 160ms ease-out,
+    box-shadow 160ms ease-out;
+}
+
+:global(.dark) .railCard {
+  background-color: transparent;
+  background-image: none;
+  box-shadow:
+    inset 0 1px 0 rgb(255 255 255 / 0.06),
+    0 12px 28px -20px rgb(0 0 0 / 0.6);
 }
 
 .railCard:hover {
-  background-color: color-mix(in oklch, var(--accent) 12%, var(--card));
+  border-color: color-mix(in oklch, var(--border) 45%, var(--foreground));
+  box-shadow:
+    inset 0 1px 0 rgb(255 255 255 / 0.5),
+    0 16px 30px -20px rgb(15 23 42 / 0.35);
+}
+
+:global(.dark) .railCard:hover {
+  box-shadow:
+    inset 0 1px 0 rgb(255 255 255 / 0.06),
+    0 16px 32px -20px rgb(0 0 0 / 0.7);
 }
 
 .railCard:focus-visible {
@@ -503,7 +558,7 @@
 }
 
 .railCard[data-selected="true"] {
-  box-shadow: inset 0 0 0 1px var(--accent);
+  border-color: var(--accent);
 }
 
 .railCardTop {
@@ -511,53 +566,114 @@
   align-items: flex-start;
   justify-content: space-between;
   gap: 0.5rem;
-}
-
-.railPerson {
-  display: flex;
-  align-items: center;
-  gap: 0.5rem;
   min-width: 0;
+  padding: 0.75rem 0.875rem 0.625rem;
+  border-bottom: 1px solid color-mix(in oklch, var(--border) 70%, transparent);
 }
 
-.railPersonText {
+.railIdentity {
   display: flex;
+  flex: 1 1 auto;
   flex-direction: column;
-  gap: 0.25rem;
+  gap: 0.3125rem;
   min-width: 0;
-}
-
-.railWhen {
-  display: flex;
-  flex-direction: column;
-  align-items: flex-end;
-  gap: 0.25rem;
-  flex-shrink: 0;
 }
 
 .railLearner {
   margin: 0;
   overflow: hidden;
-  font-size: 0.8125rem;
-  font-weight: 600;
+  font-size: 0.875rem;
+  font-weight: 700;
   line-height: 1.25;
+  letter-spacing: -0.01em;
   text-overflow: ellipsis;
   white-space: nowrap;
 }
 
-.railPills {
+.railTags {
   display: flex;
   flex-wrap: wrap;
+  align-items: center;
   gap: 0.25rem;
+  min-width: 0;
 }
 
+.railMetrics {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  min-width: 0;
+}
+
+.railMetric {
+  display: flex;
+  flex-direction: column;
+  gap: 0.125rem;
+  min-width: 0;
+  padding: 0.625rem 0.875rem;
+  border-right: 1px solid color-mix(in oklch, var(--border) 70%, transparent);
+}
+
+.railMetric:last-child {
+  border-right: 0;
+}
+
+.railMetricLabel {
+  overflow: hidden;
+  font-size: 0.75rem;
+  font-weight: 500;
+  color: var(--muted-foreground);
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.railMetricValue {
+  overflow: hidden;
+  font-size: 0.9375rem;
+  font-weight: 700;
+  line-height: 1.3;
+  letter-spacing: -0.02em;
+  font-variant-numeric: tabular-nums;
+  color: var(--foreground);
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.railMetricHint {
+  overflow: hidden;
+  font-size: 0.75rem;
+  line-height: 1.3;
+  color: var(--muted-foreground);
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.railFoot {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.5rem;
+  min-width: 0;
+  margin-top: auto;
+  padding: 0.5rem 0.875rem 0.625rem;
+  border-top: 1px solid color-mix(in oklch, var(--border) 70%, transparent);
+}
+
+/* Quiet text action — the row itself already opens the case. */
 .railAction {
-  align-self: flex-start;
-  height: 1.5rem;
+  display: inline-flex;
+  flex-shrink: 0;
+  align-items: center;
   gap: 0.25rem;
-  padding: 0 0.5rem;
   font-size: 0.75rem;
   font-weight: 600;
+  color: var(--primary);
+  text-decoration: none;
+}
+
+.railAction:hover {
+  text-decoration: underline;
+  text-underline-offset: 2px;
 }
 
 /* States ------------------------------------------------------------------- */

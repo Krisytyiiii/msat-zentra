@@ -1,0 +1,575 @@
+/* Adviser intervention case sheet — the read-only mirror of a guidance
+   follow-up. One card language with the desks: an amber-edged glass identity
+   panel, flat bordered stat tiles, and quiet uppercase section heads so the
+   sheet reads as a record, not a second board. */
+
+.sheet {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+  min-width: 0;
+  padding-bottom: 0.25rem;
+}
+
+/* ---- Identity ----------------------------------------------------------- */
+.identity {
+  --glass-fill-1: var(--card);
+  --glass-fill-2: color-mix(in oklch, var(--card) 94%, var(--foreground));
+  --glass-top: color-mix(in srgb, #fff 70%, transparent);
+  --glass-bottom: color-mix(in srgb, #000 7%, transparent);
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  min-width: 0;
+  padding: 0.75rem 0.875rem;
+  border: 1px solid color-mix(in srgb, #f59e0b 55%, var(--border));
+  border-radius: 0.75rem;
+  background-image: linear-gradient(
+    145deg,
+    var(--glass-fill-1),
+    var(--glass-fill-2)
+  );
+  box-shadow:
+    inset 0 1px 0 var(--glass-top),
+    0 16px 30px -26px color-mix(in srgb, #000 55%, transparent);
+}
+
+/* Dark mode: outline only — a filled panel reads as a second dialog. */
+:global(.dark) .identity {
+  --glass-fill-1: transparent;
+  --glass-fill-2: transparent;
+  --glass-top: color-mix(in srgb, #fff 10%, transparent);
+  border-color: color-mix(in srgb, #fbbf24 45%, var(--border));
+  background-image: none;
+}
+
+.identityBody {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  gap: 0.375rem;
+  min-width: 0;
+}
+
+.identityTop {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.375rem;
+  min-width: 0;
+}
+
+.identityName {
+  margin: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: 1rem;
+  font-weight: 700;
+  letter-spacing: -0.015em;
+  color: var(--foreground);
+}
+
+.identityMeta {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.375rem;
+  min-width: 0;
+}
+
+.identityState {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 0.375rem;
+  flex-shrink: 0;
+}
+
+/* ---- Case-at-a-glance strip --------------------------------------------- */
+.stats {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 0.5rem;
+  min-width: 0;
+}
+
+@media (min-width: 640px) {
+  .stats {
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+  }
+}
+
+.stat {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.5rem;
+  min-width: 0;
+  padding: 0.5rem 0.625rem;
+  border: 1px solid var(--border);
+  border-radius: 0.625rem;
+  background-color: color-mix(in oklch, var(--card) 88%, transparent);
+}
+
+.statIcon {
+  display: inline-flex;
+  flex-shrink: 0;
+  align-items: center;
+  justify-content: center;
+  width: 1.625rem;
+  height: 1.625rem;
+  margin-top: 0.0625rem;
+  border-radius: 0.375rem;
+}
+
+.statAmber {
+  background-color: color-mix(in oklch, #f59e0b 14%, transparent);
+  color: color-mix(in oklch, #b45309 90%, var(--foreground));
+}
+
+.statRose {
+  background-color: color-mix(in oklch, #f43f5e 12%, transparent);
+  color: color-mix(in oklch, #be123c 90%, var(--foreground));
+}
+
+.statBlue {
+  background-color: color-mix(in oklch, #3b82f6 14%, transparent);
+  color: color-mix(in oklch, #1d4ed8 90%, var(--foreground));
+}
+
+.statGreen {
+  background-color: color-mix(in oklch, #22c55e 14%, transparent);
+  color: color-mix(in oklch, #15803d 90%, var(--foreground));
+}
+
+:global(.dark) .statAmber {
+  color: #fcd34d;
+}
+
+:global(.dark) .statRose {
+  color: #fda4af;
+}
+
+:global(.dark) .statBlue {
+  color: #93c5fd;
+}
+
+:global(.dark) .statGreen {
+  color: #86efac;
+}
+
+.statBody {
+  display: flex;
+  flex-direction: column;
+  gap: 0.0625rem;
+  min-width: 0;
+}
+
+.statLabel {
+  font-size: 0.75rem;
+  font-weight: 600;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  line-height: 1.3;
+  color: var(--muted-foreground);
+}
+
+.statValue {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: 0.875rem;
+  font-weight: 700;
+  line-height: 1.3;
+  color: var(--foreground);
+}
+
+.statHint {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: 0.75rem;
+  line-height: 1.35;
+  color: var(--muted-foreground);
+}
+
+/* ---- Section panels ------------------------------------------------------ */
+.panel {
+  display: flex;
+  flex-direction: column;
+  gap: 0.625rem;
+  min-width: 0;
+  padding: 0.75rem 0.875rem;
+  border: 1px solid var(--border);
+  border-radius: 0.75rem;
+  background-color: color-mix(in oklch, var(--card) 45%, transparent);
+}
+
+.panelHead {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.375rem 0.5rem;
+  min-width: 0;
+}
+
+.panelTitle {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4375rem;
+  margin: 0;
+  min-width: 0;
+  font-size: 0.75rem;
+  font-weight: 700;
+  letter-spacing: 0.07em;
+  text-transform: uppercase;
+  color: var(--muted-foreground);
+}
+
+.panelIcon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 1.375rem;
+  height: 1.375rem;
+  border-radius: 0.375rem;
+  border: 1px solid color-mix(in srgb, #f59e0b 30%, var(--border));
+  background-color: color-mix(in oklch, #f59e0b 12%, transparent);
+  color: color-mix(in oklch, #b45309 90%, var(--foreground));
+}
+
+:global(.dark) .panelIcon {
+  color: #fcd34d;
+}
+
+.panelCount {
+  font-size: 0.75rem;
+  font-variant-numeric: tabular-nums;
+  color: var(--muted-foreground);
+}
+
+.panelBody {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  min-width: 0;
+}
+
+/* ---- Risk factor row ----------------------------------------------------- */
+.factorRow {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.375rem;
+  min-width: 0;
+}
+
+.factorNone {
+  margin: 0;
+  font-size: 0.75rem;
+  color: var(--muted-foreground);
+}
+
+/* ---- Follow-up plan ------------------------------------------------------ */
+.action {
+  display: flex;
+  flex-direction: column;
+  gap: 0.1875rem;
+  min-width: 0;
+  padding: 0.5rem 0.6875rem;
+  border: 1px solid color-mix(in srgb, #f59e0b 30%, var(--border));
+  border-radius: 0.5rem;
+  background-color: color-mix(in oklch, #f59e0b 8%, transparent);
+}
+
+.actionLabel {
+  margin: 0;
+  font-size: 0.75rem;
+  font-weight: 600;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: color-mix(in oklch, #b45309 85%, var(--muted-foreground));
+}
+
+:global(.dark) .actionLabel {
+  color: #fcd34d;
+}
+
+.actionText {
+  margin: 0;
+  font-size: 0.8125rem;
+  font-weight: 600;
+  line-height: 1.5;
+  white-space: pre-wrap;
+  color: var(--foreground);
+}
+
+.metaGrid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(11rem, 1fr));
+  gap: 0.5rem;
+  min-width: 0;
+  margin: 0;
+}
+
+.metaItem {
+  display: flex;
+  flex-direction: column;
+  gap: 0.0625rem;
+  min-width: 0;
+  padding: 0.4375rem 0.625rem;
+  border: 1px solid var(--border);
+  border-radius: 0.5rem;
+  background-color: color-mix(in oklch, var(--muted) 30%, transparent);
+}
+
+.metaLabel {
+  font-size: 0.75rem;
+  font-weight: 600;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--muted-foreground);
+}
+
+.metaValue {
+  margin: 0;
+  font-size: 0.8125rem;
+  font-weight: 600;
+  line-height: 1.4;
+  overflow-wrap: anywhere;
+  color: var(--foreground);
+}
+
+.note {
+  display: flex;
+  flex-direction: column;
+  gap: 0.125rem;
+  min-width: 0;
+  padding: 0.4375rem 0.625rem;
+  border-left: 2px solid color-mix(in srgb, #f59e0b 60%, transparent);
+  border-radius: 0 0.375rem 0.375rem 0;
+  background-color: color-mix(in oklch, var(--muted) 40%, transparent);
+}
+
+.noteLabel {
+  margin: 0;
+  font-size: 0.75rem;
+  font-weight: 600;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--muted-foreground);
+}
+
+.noteText {
+  margin: 0;
+  font-size: 0.75rem;
+  line-height: 1.55;
+  white-space: pre-wrap;
+  color: var(--foreground);
+}
+
+/* ---- No-plan callout ------------------------------------------------------ */
+.planEmpty {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.5rem;
+  min-width: 0;
+  padding: 0.5625rem 0.6875rem;
+  border: 1px solid color-mix(in srgb, #f59e0b 28%, var(--border));
+  border-radius: 0.5rem;
+  background-color: color-mix(in oklch, #f59e0b 9%, transparent);
+}
+
+.planEmptyIcon {
+  flex-shrink: 0;
+  margin-top: 0.0625rem;
+  color: color-mix(in oklch, #b45309 90%, var(--foreground));
+}
+
+:global(.dark) .planEmptyIcon {
+  color: #fcd34d;
+}
+
+.planEmptyText {
+  margin: 0;
+  font-size: 0.75rem;
+  line-height: 1.55;
+  color: var(--foreground);
+}
+
+/* ---- Sessions ------------------------------------------------------------ */
+.sessions {
+  display: flex;
+  flex-direction: column;
+  gap: 0;
+  min-width: 0;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.session {
+  display: flex;
+  gap: 0.625rem;
+  min-width: 0;
+}
+
+.sessionRail {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  flex-shrink: 0;
+}
+
+.sessionDot {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 1.375rem;
+  height: 1.375rem;
+  margin-top: 0.125rem;
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  font-size: 0.75rem;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+}
+
+.sessionDone {
+  border-color: color-mix(in srgb, #22c55e 45%, var(--border));
+  background-color: color-mix(in oklch, #22c55e 12%, transparent);
+  color: color-mix(in oklch, #15803d 90%, var(--foreground));
+}
+
+.sessionCancelled {
+  border-color: color-mix(in srgb, #ef4444 45%, var(--border));
+  background-color: color-mix(in oklch, #ef4444 12%, transparent);
+  color: color-mix(in oklch, #b91c1c 90%, var(--foreground));
+}
+
+.sessionBooked {
+  border-color: color-mix(in srgb, #3b82f6 45%, var(--border));
+  background-color: color-mix(in oklch, #3b82f6 12%, transparent);
+  color: color-mix(in oklch, #1d4ed8 90%, var(--foreground));
+}
+
+:global(.dark) .sessionDone {
+  color: #86efac;
+}
+
+:global(.dark) .sessionCancelled {
+  color: #fca5a5;
+}
+
+:global(.dark) .sessionBooked {
+  color: #93c5fd;
+}
+
+.sessionLine {
+  flex: 1;
+  width: 1px;
+  margin-top: 0.25rem;
+  background-color: var(--border);
+}
+
+.sessionBody {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  gap: 0.25rem;
+  min-width: 0;
+  padding-bottom: 0.75rem;
+}
+
+.sessionHead {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.375rem;
+  min-width: 0;
+}
+
+.sessionType {
+  font-size: 0.8125rem;
+  font-weight: 700;
+  letter-spacing: -0.005em;
+  color: var(--foreground);
+}
+
+.sessionTime {
+  margin-left: auto;
+  flex-shrink: 0;
+  font-size: 0.75rem;
+  font-variant-numeric: tabular-nums;
+  color: var(--muted-foreground);
+}
+
+.sessionLineText {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.25rem;
+  margin: 0;
+  font-size: 0.75rem;
+  line-height: 1.45;
+  color: var(--muted-foreground);
+}
+
+.sessionText {
+  margin: 0;
+  font-size: 0.75rem;
+  line-height: 1.55;
+  white-space: pre-wrap;
+  color: var(--foreground);
+}
+
+.sessionDanger {
+  margin: 0;
+  font-size: 0.75rem;
+  line-height: 1.45;
+  color: color-mix(in oklch, #b91c1c 90%, var(--foreground));
+}
+
+:global(.dark) .sessionDanger {
+  color: #fca5a5;
+}
+
+/* ---- Empty states -------------------------------------------------------- */
+.empty {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.1875rem;
+  padding: 1.25rem 1rem;
+  border: 1px dashed var(--border);
+  border-radius: 0.625rem;
+  text-align: center;
+}
+
+.emptyIcon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 2rem;
+  height: 2rem;
+  margin-bottom: 0.125rem;
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  background-color: color-mix(in oklch, var(--muted) 50%, transparent);
+  color: var(--muted-foreground);
+}
+
+.emptyTitle {
+  margin: 0;
+  font-size: 0.8125rem;
+  font-weight: 600;
+  color: var(--foreground);
+}
+
+.emptyCopy {
+  margin: 0;
+  max-width: 22rem;
+  font-size: 0.75rem;
+  line-height: 1.5;
+  color: var(--muted-foreground);
+}

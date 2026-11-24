@@ -4,7 +4,7 @@ import { useLiveQuery } from "@/lib/api/live";
 import { apiClient } from "@/lib/api/client";
 import { useSession } from "@/lib/auth/useSession";
 import { useTerm } from "@/lib/term/TermContext";
-import type { AdviseeDetail, AdviseeRow, AdvisoryRoster, AdvisorySectionInfo, ArchivedAdvisee } from "./advisory.types";
+import type { AdviseeDetail, AdviseeRiskFlag, AdviseeRiskLevel, AdviseeRow, AdvisoryRoster, AdvisorySectionInfo, ArchivedAdvisee } from "./advisory.types";
 
 export async function fetchAdvisoryRoster(): Promise<AdvisoryRoster> {
   const { data } = await apiClient.get<AdvisoryRoster>("/api/teacher/advisory/students");
@@ -34,6 +34,55 @@ export function useAdvisoryRoster() {
     staleTime: ROSTER_STALE_MS,
     gcTime: ROSTER_GC_MS,
   });
+}
+
+/**
+ * Identity-only roster for the advisory list board (name/LRN rows). The one
+ * selected learner's risk/records load from their own endpoints, so this skips
+ * the per-learner grade/attendance/anecdote aggregates the full roster carries.
+ */
+export async function fetchAdvisoryListRoster(): Promise<AdvisoryRoster> {
+  const { data } = await apiClient.get<AdvisoryRoster>(
+    "/api/teacher/advisory/students?view=list",
+  );
+  return data;
+}
+
+export function advisoryListRosterKey(
+  teacherId: string | null | undefined,
+  termKey = "",
+) {
+  // Same root as the full roster so teacher realtime invalidation and the
+  // page's optimistic roster writes still reach it.
+  return ["advisory-students", teacherId ?? "anon", termKey, "list"] as const;
+}
+
+export function useAdvisoryListRoster() {
+  const session = useSession();
+  const { activeTerm, termReady } = useTerm();
+  const teacherId = session?.sub ?? null;
+  const termKey = `${activeTerm?.schoolYearId ?? ""}:${activeTerm?.termId ?? ""}`;
+  return useLiveQuery<AdvisoryRoster>({
+    queryKey: advisoryListRosterKey(teacherId, termKey),
+    queryFn: fetchAdvisoryListRoster,
+    enabled: !!teacherId && termReady,
+    retry: false,
+    staleTime: ROSTER_STALE_MS,
+    gcTime: ROSTER_GC_MS,
+  });
+}
+
+export interface AdviseeLiveRisk {
+  riskLevel: AdviseeRiskLevel;
+  flags: AdviseeRiskFlag[];
+  attendanceRate: number;
+}
+
+export async function fetchAdviseeRisk(studentId: string): Promise<AdviseeLiveRisk> {
+  const { data } = await apiClient.get<AdviseeLiveRisk>(
+    `/api/teacher/advisory/students/${encodeURIComponent(studentId)}/risk`,
+  );
+  return data;
 }
 
 export interface ArchivedAdvisoryResponse {

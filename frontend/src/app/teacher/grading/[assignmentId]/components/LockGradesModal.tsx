@@ -105,14 +105,6 @@ export function LockGradesModal({ open, subjectLabel, unlockCount, pending, erro
             <div className="flex items-center justify-end gap-2 border-t border-border px-1 pt-2 pb-1">
               <Button
                 type="button"
-                onClick={onClose}
-                disabled={pending}
-                className="h-6 border border-transparent bg-red-600 px-3 text-xs font-medium text-white hover:bg-red-700 focus-visible:ring-red-600/30 dark:bg-red-600 dark:text-white dark:hover:bg-red-700"
-              >
-                Cancel
-              </Button>
-              <Button
-                type="button"
                 disabled={!code.trim() || pending || unlockCount === 0}
                 onClick={() => onConfirm(code.trim())}
                 className="h-6 px-3 text-xs"

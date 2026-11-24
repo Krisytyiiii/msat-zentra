@@ -81,13 +81,6 @@ export function BamaDeleteDialog({ target, onClose, onConfirm }: BamaDeleteDialo
         <div className="flex justify-end gap-2">
           <button
             type="button"
-            onClick={onClose}
-            className="h-6 rounded-md bg-[#dc2626] px-3 text-[12px] font-semibold text-white transition-colors outline-none hover:bg-[#b91c1c] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-red-400"
-          >
-            Cancel
-          </button>
-          <button
-            type="button"
             onClick={onConfirm}
             className="h-6 rounded-md bg-[#dc2626] px-3 text-[12px] font-semibold text-white transition-colors outline-none hover:bg-[#b91c1c] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-red-400"
           >

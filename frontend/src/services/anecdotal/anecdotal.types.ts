@@ -25,6 +25,7 @@ export interface AnecdotalStudent {
   name: string;
   lrn: string;
   sectionId?: string | null;
+  mascot?: string | null;
 }
 
 export interface AnecdotalClassOption {

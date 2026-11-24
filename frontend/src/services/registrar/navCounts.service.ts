@@ -14,7 +14,6 @@ export interface RegistrarNavEntry {
 export interface RegistrarNavQueues {
   overview: RegistrarNavEntry[];
   finalGrades: RegistrarNavEntry[];
-  accounts: RegistrarNavEntry[];
   adviserAccess: RegistrarNavEntry[];
   sf10: RegistrarNavEntry[];
   subjects: RegistrarNavEntry[];
@@ -33,7 +32,6 @@ const STORAGE_PREFIX = "zentra.registrar.nav.seen.";
 const ROUTE_KEYS: Record<string, keyof RegistrarNavQueues> = {
   "/registrar/overview": "overview",
   "/registrar/final-grades": "finalGrades",
-  "/registrar/accounts": "accounts",
   "/registrar/adviser-access": "adviserAccess",
   "/registrar/sf10": "sf10",
   "/registrar/academics": "subjects",
@@ -50,11 +48,6 @@ export const NAV_QUEUE_QUERY_KEYS: Record<
 > = {
   overview: [["registrar-overview"]],
   finalGrades: [["registrar-final-grades"]],
-  accounts: [
-    ["pending-students"],
-    ["account-breakdown"],
-    ["accounts-audit"],
-  ],
   adviserAccess: [["registrar-adviser-access"]],
   sf10: [["registrar-sf10"]],
   subjects: [["registrar-subjects"]],
@@ -106,7 +99,6 @@ function activeKey(pathname: string): keyof RegistrarNavQueues | null {
 const QUEUE_KEYS: (keyof RegistrarNavQueues)[] = [
   "overview",
   "finalGrades",
-  "accounts",
   "adviserAccess",
   "sf10",
   "subjects",

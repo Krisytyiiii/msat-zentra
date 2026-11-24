@@ -142,4 +142,7 @@ export const referralsQueueQuerySchema = paginationQuerySchema(NURSE_QUEUE_MAX_P
 
 export const referralsMineQuerySchema = paginationQuerySchema().extend({
   highlight: z.string().trim().max(120).optional(),
+  // Casebook filter: "open" covers every live state, "resolved" the closed
+  // successes, "closed" the rejected/withdrawn ones.
+  status: z.enum(["open", "resolved", "closed"]).optional(),
 });

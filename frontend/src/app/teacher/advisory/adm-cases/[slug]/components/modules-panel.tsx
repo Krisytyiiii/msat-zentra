@@ -240,11 +240,20 @@ export function ModulesPanel({
         {modules.length > 0 ? (
           <FilterTabs
             label="Filter modules by status"
+            variant="tags"
             className="justify-self-end"
             options={(Object.keys(counts) as Filter[]).map((key) => ({
               value: key,
               label: FILTER_LABELS[key],
               count: counts[key],
+              tone:
+                key === "submitted"
+                  ? "green"
+                  : key === "pending"
+                    ? "amber"
+                    : key === "overdue"
+                      ? "red"
+                      : "neutral",
             }))}
             value={filter}
             onChange={setFilter}

@@ -19,12 +19,18 @@ export interface StatDeckItem {
   /** Numbers count up; strings (e.g. "88.5", "—", "3/12") render as-is. */
   value: number | string;
   hint: string;
+  /**
+   * Custom middle content (a mini chart, breakdown…). When set it replaces the
+   * number/value block — the icon + label header and the hint still render.
+   */
+  body?: React.ReactNode;
   /** Makes the whole tile a link to the list the number came from. */
   href?: string;
   /** Makes the whole tile a button (filters/expands instead of navigating). */
   onClick?: () => void;
-  /** Attention tint — amber for work still queued, red for a flagged figure. */
-  tone?: "amber" | "red";
+  /** Attention tint — amber for work still queued, red for a flagged figure,
+   *  green for a cleared/positive one. */
+  tone?: "amber" | "red" | "green";
   /** Thin share bar under the number (0–100). */
   meter?: number;
   /** Pressed/selected state for button tiles. */
@@ -42,8 +48,8 @@ export interface StatDeckItem {
 }
 
 export interface StatDeckProps {
-  /** Header rail copy. */
-  title: string;
+  /** Header rail copy. Omit (with `headerExtra`) for a headerless strip. */
+  title?: string;
   /** Header rail glyph. */
   icon?: LucideIcon;
   items: StatDeckItem[];
@@ -63,6 +69,9 @@ export interface StatDeckProps {
   countDuration?: number;
   /** Render nothing at all (e.g. a board with no data yet). */
   hidden?: boolean;
+  /** Tiles per row on wide screens (default 4). Decks with 5 figures pass 5 to
+   * stay on one row; decks with 6 pass 6; 3 wraps a deck 3 + 2. */
+  columns?: 3 | 4 | 5 | 6;
   className?: string;
 }
 
@@ -97,20 +106,26 @@ function StatTile({
           )
         ) : null}
       </span>
-      <span className={styles.tileValue}>
-        <span className={cn(styles.tileNumber, item.value === 0 && styles.tileNumberZero)}>
-          {numeric ? shown : item.value}
-        </span>
-        {item.unit ? <span className={styles.tileUnit}>{item.unit}</span> : null}
-      </span>
-      {item.meter !== undefined ? (
-        <span className={styles.tileMeter} aria-hidden>
-          <span
-            className={styles.tileMeterFill}
-            style={{ width: `${Math.max(0, Math.min(100, item.meter))}%` }}
-          />
-        </span>
-      ) : null}
+      {item.body ? (
+        item.body
+      ) : (
+        <>
+          <span className={styles.tileValue}>
+            <span className={cn(styles.tileNumber, item.value === 0 && styles.tileNumberZero)}>
+              {numeric ? shown : item.value}
+            </span>
+            {item.unit ? <span className={styles.tileUnit}>{item.unit}</span> : null}
+          </span>
+          {item.meter !== undefined ? (
+            <span className={styles.tileMeter} aria-hidden>
+              <span
+                className={styles.tileMeterFill}
+                style={{ width: `${Math.max(0, Math.min(100, item.meter))}%` }}
+              />
+            </span>
+          ) : null}
+        </>
+      )}
       <span className={styles.tileHint}>{item.hint}</span>
     </>
   );
@@ -119,6 +134,7 @@ function StatTile({
     styles.tile,
     item.tone === "amber" && styles.tileAmber,
     item.tone === "red" && styles.tileRed,
+    item.tone === "green" && styles.tileGreen,
     item.active && styles.tileActive,
   );
 
@@ -179,34 +195,43 @@ export function StatDeck({
   ariaLabel,
   countDuration = 900,
   hidden = false,
+  columns = 4,
   className,
 }: StatDeckProps) {
   if (hidden) return null;
 
-  const skeletonTiles = items.length || 4;
+  const skeletonTiles = items.length || columns;
+  const tilesClass = cn(
+    styles.tiles,
+    columns === 6 && styles.tilesSix,
+    columns === 5 && styles.tilesFive,
+    columns === 3 && styles.tilesThree,
+  );
 
   return (
     <section
       className={cn(styles.deck, className)}
-      aria-label={ariaLabel ?? title}
+      aria-label={ariaLabel ?? title ?? "Statistics"}
       aria-busy={loading || undefined}
     >
-      <div className={styles.deckHead}>
-        <span className={styles.deckTitle}>
-          {loading ? (
-            <Skeleton className="h-3.5 w-32" />
-          ) : (
-            <>
-              {HeaderIcon ? <HeaderIcon aria-hidden /> : null}
-              {title}
-            </>
-          )}
-        </span>
-        {headerExtra ? <span className={styles.deckExtra}>{headerExtra}</span> : null}
-      </div>
+      {title || headerExtra ? (
+        <div className={styles.deckHead}>
+          <span className={styles.deckTitle}>
+            {loading ? (
+              <Skeleton className="h-3.5 w-32" />
+            ) : (
+              <>
+                {HeaderIcon ? <HeaderIcon aria-hidden /> : null}
+                {title}
+              </>
+            )}
+          </span>
+          {headerExtra ? <span className={styles.deckExtra}>{headerExtra}</span> : null}
+        </div>
+      ) : null}
 
       {loading ? (
-        <div className={styles.tiles}>
+        <div className={tilesClass}>
           {Array.from({ length: skeletonTiles }).map((_, index) => (
             <div key={index} className={styles.tile} aria-hidden="true">
               <span className={styles.tileTop}>
@@ -221,7 +246,7 @@ export function StatDeck({
       ) : error ? (
         <p className={styles.empty}>{errorMessage}</p>
       ) : (
-        <div className={styles.tiles}>
+        <div className={tilesClass}>
           {items.map((item) => (
             <StatTile key={item.key} item={item} duration={countDuration} />
           ))}

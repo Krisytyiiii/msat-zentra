@@ -14,8 +14,8 @@ import {
   Hourglass,
   Send,
 } from "lucide-react";
-import { Badge } from "@/components/ui/badge";
-import { Pill } from "@/components/ui/pill";
+import { Pill, type PillTone } from "@/components/ui/pill";
+import { Button } from "@/components/ui/button";
 import {
   Tooltip,
   TooltipContent,
@@ -23,57 +23,49 @@ import {
   TooltipTrigger,
 } from "@/components/ui/tooltip";
 import { StudentMascot } from "@/components/student-mascot/StudentMascot";
+import { anecdotalCategoryPillClass } from "@/lib/labels/anecdotal";
 import type { GuidanceRiskLevel } from "@/services/guidance/guidance.types";
-import { formatActionTime, rowStatusLabel } from "../../referrals/components/guidance-referrals-format";
+import type { AtRiskStudentItem } from "@/services/guidance/interventions.types";
+import { rowStatusLabel } from "../../referrals/components/guidance-referrals-format";
 import { GuidanceBookedSessionButton } from "./GuidanceAlertsRowActions";
-import { formatElapsedShort, msSinceDate as msSince } from "@/lib/clock";
+import { formatElapsedShort, msSinceDate } from "@/lib/clock";
 import { pipelineStatus } from "../../interventions/components/intervention-row-helpers";
 import { referralStatusVariant, rowLatest, type GuidanceAlertRow } from "./guidance-alerts-helpers";
 import styles from "./guidance-alerts-table.module.css";
 
-/* Rectangle pills (rounded-md) shared by the kanban rows — tinted surfaces,
-   no solid borders. */
+/* Rectangle pills (rounded-md) shared by the kanban rows — same values as the
+   nurse alerts board, so both desks read identically. */
 const PILL_BASE =
   "inline-flex shrink-0 items-center gap-1 rounded-md px-1.5 py-0.5 text-xs font-medium whitespace-nowrap";
-const PILL_MUTED = "bg-muted text-muted-foreground";
 const PILL_SECONDARY = "bg-secondary text-secondary-foreground";
 
 export function RiskBadge({ level }: { level: GuidanceRiskLevel | undefined }) {
   if (!level) return <span className={styles.noRisk}>—</span>;
-  const variant =
-    level === "High" ? "red" : level === "Moderate" ? "amber" : "outline";
+  const tone: PillTone =
+    level === "High" ? "red" : level === "Moderate" ? "amber" : "green";
   return (
-    <Badge variant={variant} className="rounded-md">
+    <Pill tone={tone} label="Risk level">
       {level}
-    </Badge>
+    </Pill>
   );
 }
-/** Row type lead — a rectangle pill left of the mascot, separated by a rule. */
+
+/** Row type lead — the Case column's rectangle pill, blue for ADM/Counseling,
+    amber for Intervention (same recipe as the nurse board's ADM | Clinic). */
 function RowTypeLabel({ type }: { type: "ADM" | "Counseling" | "Intervention" }) {
-  const tone =
-    type === "ADM"
-      ? "bg-blue-500/15 text-blue-700 dark:text-blue-400"
-      : type === "Counseling"
-        ? "bg-blue-500/15 text-blue-700 dark:text-blue-400"
-        : "bg-amber-500/15 text-amber-700 dark:text-amber-400";
+  const admLike = type === "ADM" || type === "Counseling";
   return (
-    <>
-      <TooltipProvider delayDuration={100}>
-        <Tooltip>
-          <TooltipTrigger asChild>
-            <span className={`${styles.caseTypePill} ${tone}`} tabIndex={0} aria-label="Case type">
-              {type}
-            </span>
-          </TooltipTrigger>
-          <TooltipContent side="top" sideOffset={6}>
-            <span className="font-medium">Case type</span>
-          </TooltipContent>
-        </Tooltip>
-      </TooltipProvider>
-      <span className={styles.caseSeparator} aria-hidden="true">
-        |
-      </span>
-    </>
+    <span
+      className={`${styles.caseTypePill} ${
+        admLike
+          ? "bg-blue-500/15 text-blue-700 dark:text-blue-400"
+          : "bg-amber-500/15 text-amber-700 dark:text-amber-400"
+      }`}
+      aria-label="Case type"
+      title={`Case type: ${type}`}
+    >
+      {type}
+    </span>
   );
 }
 
@@ -104,25 +96,10 @@ export function ActionGlyph({ label, className }: { label: string; className?: s
   return <Bell {...props} />;
 }
 
-const STATUS_TONE: Record<string, string> = {
-  amber: "text-amber-600 dark:text-amber-400",
-  default: "text-foreground",
-  success: "text-green-600 dark:text-green-400",
-  destructive: "text-red-600 dark:text-red-400",
-  secondary: "text-muted-foreground",
-  outline: "text-foreground",
-};
-
-function riskTone(level: GuidanceRiskLevel | undefined): string {
-  if (level === "High") return "text-red-600 dark:text-red-400";
-  if (level === "Moderate") return "text-amber-600 dark:text-amber-400";
-  return "text-muted-foreground";
-}
-
 /**
- * Colour code for the latest-action glyph — same semantic palette as the
- * status pill (green = closed/done, red = escalated, blue = booked, amber =
- * waiting/follow-up) so the right-hand icons read at a glance.
+ * Colour code for the latest-action glyph — same semantic palette as the nurse
+ * alerts board (red = escalated/sent, green = done, blue = booked, amber =
+ * waiting/follow-up).
  */
 function actionTone(label: string): string {
   const text = label.toLowerCase();
@@ -143,60 +120,170 @@ function actionTone(label: string): string {
   return "text-muted-foreground";
 }
 
-/** One split pill — status on the left, risk on the right, `|`-style divider. */
-function StatusRiskPill({
-  status,
-  variant,
-  riskLevel,
+/** Referral status variant → Pill tone (guidance referrals palette). */
+function statusPillTone(
+  variant: string,
+): PillTone {
+  switch (variant) {
+    case "success":
+      return "green";
+    case "default":
+      return "blue";
+    case "amber":
+      return "amber";
+    case "destructive":
+      return "red";
+    case "secondary":
+    case "outline":
+    default:
+      return "neutral";
+  }
+}
+
+/** Pipeline status variant (interventions desk) → Pill tone. */
+function pipelinePillTone(variant: string): PillTone {
+  switch (variant) {
+    case "green":
+    case "success":
+      return "green";
+    case "default":
+      return "blue";
+    case "warning":
+    case "amber":
+      return "amber";
+    case "destructive":
+      return "red";
+    case "secondary":
+    case "outline":
+    default:
+      return "neutral";
+  }
+}
+
+/** Concern chip for an auto-detected intervention — its active risk factors. */
+function factorConcern(item: AtRiskStudentItem): { label: string; title: string } {
+  const labels: string[] = [];
+  if (item.factors.academic) labels.push("Academic");
+  if (item.factors.attendance) labels.push("Attendance");
+  if (item.factors.behavioral) labels.push("Behavioral");
+  if (labels.length === 0) return { label: "Intervention", title: "Intervention" };
+  return { label: labels[0], title: labels.join(" · ") };
+}
+
+/** Grade & section cell — two muted lines, same as the nurse board. */
+function GradeSectionCell({ grade, section }: { grade: string; section: string }) {
+  return (
+    <div className={`${styles.cell} ${styles.cellStack} ${styles.colGrade}`}>
+      <span className={styles.cellValue}>{grade || "—"}</span>
+      <span className={styles.cellMuted}>{section || "—"}</span>
+    </div>
+  );
+}
+
+/** Concern cell — tinted category chip. */
+function ConcernCell({ label, title }: { label: string; title: string }) {
+  return (
+    <div className={`${styles.cell} ${styles.colConcern}`}>
+      <span
+        className={`${styles.concernPill} ${anecdotalCategoryPillClass(label) ?? ""}`}
+        title={title}
+      >
+        {label}
+      </span>
+    </div>
+  );
+}
+
+/** Sessions cell — done / booked tally. */
+function SessionsCell({ done, booked }: { done: number; booked: number }) {
+  return (
+    <div className={`${styles.cell} ${styles.cellStack} ${styles.colSessions}`}>
+      <span className={styles.cellValue}>{done} done</span>
+      <span className={styles.cellMuted}>{booked} booked</span>
+    </div>
+  );
+}
+
+/** Referred / detected cell — elapsed pill, right before the actions. */
+function ElapsedCell({
+  since,
+  label,
 }: {
-  status: string;
-  variant: string;
-  riskLevel: GuidanceRiskLevel | undefined;
+  since: number | null;
+  label: string;
 }) {
   return (
-    <span className={styles.splitPill}>
+    <div className={`${styles.cell} ${styles.colReferred}`}>
       <TooltipProvider delayDuration={100}>
         <Tooltip>
           <TooltipTrigger asChild>
             <span
-              className={`${styles.splitPart} ${STATUS_TONE[variant] ?? "text-foreground"}`}
+              className={`${PILL_BASE} ${PILL_SECONDARY} tabular-nums`}
               tabIndex={0}
-              aria-label="Status"
+              aria-label={
+                since === null
+                  ? `${label} time unknown`
+                  : `${label} ${formatElapsedShort(since)} ago`
+              }
             >
-              {status}
+              <Clock size={11} aria-hidden />
+              {since === null ? "—" : `${formatElapsedShort(since)} ago`}
             </span>
           </TooltipTrigger>
           <TooltipContent side="top" sideOffset={6}>
-            <span className="font-medium">Status</span>
+            <span className="font-medium">{label} at</span>
           </TooltipContent>
         </Tooltip>
       </TooltipProvider>
-      <span className={styles.splitDivider} aria-hidden="true" />
-      <TooltipProvider delayDuration={100}>
-        <Tooltip>
-          <TooltipTrigger asChild>
-            <span
-              className={`${styles.splitPart} ${riskTone(riskLevel)}`}
-              tabIndex={0}
-              aria-label="Risk level"
-            >
-              {riskLevel ?? "—"}
-            </span>
-          </TooltipTrigger>
-          <TooltipContent side="top" sideOffset={6}>
-            <span className="font-medium">Risk level</span>
-          </TooltipContent>
-        </Tooltip>
-      </TooltipProvider>
-    </span>
+    </div>
+  );
+}
+
+/** Latest-action control + booking button, same shape as the nurse board.
+    `latestLabel: null` hides the action button (an auto-detected case with no
+    session has no action to report). */
+function RowActions({
+  latestLabel,
+  children,
+  onOpen,
+}: {
+  latestLabel: string | null;
+  children?: React.ReactNode;
+  onOpen: () => void;
+}) {
+  return (
+    <div
+      className={styles.caseActions}
+      onClick={(event) => event.stopPropagation()}
+      onKeyDown={(event) => event.stopPropagation()}
+    >
+      {latestLabel ? (
+        <Button
+          type="button"
+          size="xs"
+          variant="outline"
+          className="h-6 min-w-0 max-w-full gap-1 px-2 text-[12px] font-semibold"
+          onClick={onOpen}
+          title={latestLabel}
+          aria-label={`${latestLabel} — open case`}
+        >
+          <ActionGlyph
+            label={latestLabel}
+            className={`${styles.actionIcon} ${actionTone(latestLabel)}`}
+          />
+          <span className="truncate">{latestLabel}</span>
+        </Button>
+      ) : null}
+      {children}
+    </div>
   );
 }
 
 /**
- * One kanban row per case: mascot + student identity on the left, rectangle
- * pills (type / status / risk / latest action) in the middle, kebab menu on
- * the right. Replaces the old table row so the data reads like the nurse
- * overview boards.
+ * One case line on the guidance desk: case type, learner identity, grade &
+ * section, concern, status, risk, session tally, referred time and the
+ * latest-action + booking controls — the same nine-column data list as
+ * /nurse/alerts.
  */
 export function CaseKanbanRow({
   row,
@@ -232,8 +319,7 @@ export function CaseKanbanRow({
     const item = row.item;
     const iv = item.intervention;
     const detectedRaw = item.detectedAt || iv?.createdAt || "";
-    const detectedText = detectedRaw ? formatActionTime(detectedRaw) : "Just now";
-    const detectedMs = detectedRaw ? (msSince(detectedRaw, now) ?? 0) : 0;
+    const detectedMs = detectedRaw ? msSinceDate(detectedRaw, now) : null;
     const outcome = iv?.outcomeStatus ?? "ongoing";
     const doneCount = iv?.completedSessions ?? 0;
     const scheduledCount =
@@ -241,238 +327,121 @@ export function CaseKanbanRow({
     // Same pipeline labels as the Interventions desk, so an auto-flagged case
     // with no booked session reads "No action yet" instead of "Ongoing".
     const pipeline = pipelineStatus(item, iv, scheduledCount, doneCount);
-    const statusText = pipeline.label;
-    const statusVar =
-      pipeline.variant === "green"
-        ? "success"
-        : pipeline.variant === "warning"
-          ? "amber"
-          : pipeline.variant;
+    const concern = factorConcern(item);
     return (
       <li {...interactiveProps} aria-label={`Open case details for ${item.student}`}>
-        <div className={styles.caseStudent}>
+        <div className={`${styles.cell} ${styles.cellType}`}>
           <RowTypeLabel type="Intervention" />
-          <StudentMascot name={item.student} seed={item.lrn} character={item.mascot ?? undefined} size={32} />
+        </div>
+
+        <div className={`${styles.cell} ${styles.cellLearner}`}>
+          <StudentMascot
+            name={item.student}
+            seed={item.lrn}
+            character={item.mascot ?? undefined}
+            size={32}
+          />
           <div className={styles.caseIdentity}>
             <p className={styles.studentName}>{item.student}</p>
             <p className={styles.cellSub}>
-              <TooltipProvider delayDuration={100}>
-                <Tooltip>
-                  <TooltipTrigger asChild>
-                    <Pill className="tabular-nums" tabIndex={0} aria-label="LRN">
-                      {item.lrn}
-                    </Pill>
-                  </TooltipTrigger>
-                  <TooltipContent side="top" sideOffset={6}>
-                    <span className="font-medium">LRN</span>
-                  </TooltipContent>
-                </Tooltip>
-              </TooltipProvider>
-              <TooltipProvider delayDuration={100}>
-                <Tooltip>
-                  <TooltipTrigger asChild>
-                    <Pill
-                      tone="amber"
-                      tabIndex={0}
-                      aria-label={`Grade level ${item.grade || "unknown"}`}
-                    >
-                      {item.section}
-                    </Pill>
-                  </TooltipTrigger>
-                  <TooltipContent side="top" sideOffset={6}>
-                    <span className="font-medium">{item.grade || "—"}</span>
-                  </TooltipContent>
-                </Tooltip>
-              </TooltipProvider>
+              <Pill className="tabular-nums" label="LRN">
+                {item.lrn}
+              </Pill>
             </p>
           </div>
         </div>
-        <div className={styles.caseStatusCell}>
-          <StatusRiskPill
-            status={statusText}
-            variant={statusVar}
-            riskLevel={riskLevel}
-          />
+
+        <GradeSectionCell grade={item.grade} section={item.section} />
+        <ConcernCell label={concern.label} title={concern.title} />
+
+        <div className={`${styles.cell} ${styles.cellStatus}`}>
+          <Pill tone={pipelinePillTone(pipeline.variant)} label="Status">
+            {pipeline.label}
+          </Pill>
         </div>
-        <div className={styles.caseTimeCell}>
-          <TooltipProvider delayDuration={100}>
-            <Tooltip>
-              <TooltipTrigger asChild>
-                <span
-                  className={`${PILL_BASE} ${PILL_SECONDARY} tabular-nums`}
-                  tabIndex={0}
-                  aria-label={`Detected at ${detectedText}, ${
-                    detectedMs < 60_000 ? "just now" : `${formatElapsedShort(detectedMs)} ago`
-                  }`}
-                >
-                  <Clock size={11} aria-hidden />
-                  {detectedMs < 60_000 ? "just now" : `${formatElapsedShort(detectedMs)} ago`}
-                </span>
-              </TooltipTrigger>
-              <TooltipContent side="top" sideOffset={6}>
-                <span className="font-medium">Detected at</span>
-              </TooltipContent>
-            </Tooltip>
-          </TooltipProvider>
+
+        <div className={`${styles.cell} ${styles.colRisk}`}>
+          <RiskBadge level={riskLevel} />
         </div>
-        <div className={styles.caseActions}>
+
+        <SessionsCell done={doneCount} booked={scheduledCount} />
+        <ElapsedCell since={detectedMs} label="Detected" />
+
+        <RowActions
+          latestLabel={
+            latest.label === "Intervention opened" || latest.label === "Just detected"
+              ? null
+              : latest.label
+          }
+          onOpen={onOpen}
+        >
           {doneCount > 0 && outcome === "ongoing" ? (
-            <TooltipProvider delayDuration={100}>
-              <Tooltip>
-                <TooltipTrigger asChild>
-                  <span
-                    className={`${PILL_BASE} ${PILL_MUTED} tabular-nums`}
-                    tabIndex={0}
-                    aria-label="Sessions done"
-                  >
-                    {doneCount} session{doneCount === 1 ? "" : "s"} done
-                  </span>
-                </TooltipTrigger>
-                <TooltipContent side="top" sideOffset={6}>
-                  <span className="font-medium">Sessions done</span>
-                </TooltipContent>
-              </Tooltip>
-            </TooltipProvider>
+            <span className={`${PILL_BASE} bg-muted text-muted-foreground tabular-nums`}>
+              {doneCount} session{doneCount === 1 ? "" : "s"} done
+            </span>
           ) : null}
-          <TooltipProvider delayDuration={100}>
-            <Tooltip>
-              <TooltipTrigger asChild>
-                <span
-                  className={styles.actionIconButton}
-                  aria-label={latest.label}
-                  tabIndex={0}
-                >
-                  <ActionGlyph
-                    label={latest.label}
-                    className={`${styles.actionIcon} ${actionTone(latest.label)}`}
-                  />
-                </span>
-              </TooltipTrigger>
-              <TooltipContent side="top" sideOffset={6}>
-                <span className="font-medium">{latest.label}</span>
-              </TooltipContent>
-            </Tooltip>
-          </TooltipProvider>
           <GuidanceBookedSessionButton item={item} onBeforeOpen={onBook} />
-        </div>
+        </RowActions>
       </li>
     );
   }
 
   const r = row.referral;
   const doneCount = r.sessions.filter((s) => s.status === "completed").length;
-  const allDone = doneCount > 0 && !r.sessions.some((s) => s.status === "scheduled");
+  const bookedCount = r.sessions.filter((s) => s.status === "scheduled").length;
+  const allDone = doneCount > 0 && bookedCount === 0;
   const statusText = allDone ? "Done" : rowStatusLabel(r.type, r.status, r);
   const statusVar = allDone ? "success" : referralStatusVariant(r.type, r.status);
   // The timestamp column reports when the case entered the desk (referral
   // filing time), not the anecdote's incident date — that stays on the record.
   const referredRaw = r.referredAt || r.date || "";
-  const referredText = referredRaw ? formatActionTime(referredRaw) : "";
-  const referredMs = referredRaw ? msSince(referredRaw, now) : null;
+  const referredMs = referredRaw ? msSinceDate(referredRaw, now) : null;
   return (
     <li {...interactiveProps} aria-label={`Open case details for ${r.student}`}>
-      <div className={styles.caseStudent}>
+      <div className={`${styles.cell} ${styles.cellType}`}>
         <RowTypeLabel type={r.type === "ADM" ? "ADM" : "Counseling"} />
-        <StudentMascot name={r.student} seed={r.lrn} character={r.mascot ?? undefined} size={32} />
+      </div>
+
+      <div className={`${styles.cell} ${styles.cellLearner}`}>
+        <StudentMascot
+          name={r.student}
+          seed={r.lrn}
+          character={r.mascot ?? undefined}
+          size={32}
+        />
         <div className={styles.caseIdentity}>
           <p className={styles.studentName}>{r.student}</p>
           <p className={styles.cellSub}>
-            <TooltipProvider delayDuration={100}>
-              <Tooltip>
-                <TooltipTrigger asChild>
-                  <Pill className="tabular-nums" tabIndex={0} aria-label="LRN">
-                    {r.lrn}
-                  </Pill>
-                </TooltipTrigger>
-                <TooltipContent side="top" sideOffset={6}>
-                  <span className="font-medium">LRN</span>
-                </TooltipContent>
-              </Tooltip>
-            </TooltipProvider>
-            <TooltipProvider delayDuration={100}>
-              <Tooltip>
-                <TooltipTrigger asChild>
-                  <Pill
-                    tone="amber"
-                    tabIndex={0}
-                    aria-label={`Grade level ${r.grade || "unknown"}`}
-                  >
-                    {r.section}
-                  </Pill>
-                </TooltipTrigger>
-                <TooltipContent side="top" sideOffset={6}>
-                  <span className="font-medium">{r.grade || "—"}</span>
-                </TooltipContent>
-              </Tooltip>
-            </TooltipProvider>
+            <Pill className="tabular-nums" label="LRN">
+              {r.lrn}
+            </Pill>
           </p>
         </div>
       </div>
-      <div className={styles.caseStatusCell}>
-        <StatusRiskPill status={statusText} variant={statusVar} riskLevel={riskLevel} />
+
+      <GradeSectionCell grade={r.grade} section={r.section} />
+      <ConcernCell label={r.category} title={r.category} />
+
+      <div className={`${styles.cell} ${styles.cellStatus}`}>
+        <Pill tone={statusPillTone(statusVar)} label="Status">
+          {statusText}
+        </Pill>
       </div>
-      <div className={styles.caseTimeCell}>
-        <TooltipProvider delayDuration={100}>
-          <Tooltip>
-            <TooltipTrigger asChild>
-              <span
-                className={`${PILL_BASE} ${PILL_SECONDARY} tabular-nums`}
-                tabIndex={0}
-                aria-label={
-                  referredMs === null
-                    ? "Referred time unknown"
-                    : `Referred at ${referredText}, ${formatElapsedShort(referredMs)} ago`
-                }
-              >
-                <Clock size={11} aria-hidden />
-                {referredMs === null ? "—" : `${formatElapsedShort(referredMs)} ago`}
-              </span>
-            </TooltipTrigger>
-            <TooltipContent side="top" sideOffset={6}>
-              <span className="font-medium">Referred at</span>
-            </TooltipContent>
-          </Tooltip>
-        </TooltipProvider>
+
+      <div className={`${styles.cell} ${styles.colRisk}`}>
+        <RiskBadge level={riskLevel} />
       </div>
-      <div className={styles.caseActions}>
+
+      <SessionsCell done={doneCount} booked={bookedCount} />
+      <ElapsedCell since={referredMs} label="Referred" />
+
+      <RowActions latestLabel={latest.label} onOpen={onOpen}>
         {doneCount > 0 && !allDone ? (
-          <TooltipProvider delayDuration={100}>
-            <Tooltip>
-              <TooltipTrigger asChild>
-                <span
-                  className={`${PILL_BASE} ${PILL_MUTED} tabular-nums`}
-                  tabIndex={0}
-                  aria-label="Sessions done"
-                >
-                  {doneCount} session{doneCount === 1 ? "" : "s"} done
-                </span>
-              </TooltipTrigger>
-              <TooltipContent side="top" sideOffset={6}>
-                <span className="font-medium">Sessions done</span>
-              </TooltipContent>
-            </Tooltip>
-          </TooltipProvider>
+          <span className={`${PILL_BASE} bg-muted text-muted-foreground tabular-nums`}>
+            {doneCount} session{doneCount === 1 ? "" : "s"} done
+          </span>
         ) : null}
-        <TooltipProvider delayDuration={100}>
-          <Tooltip>
-            <TooltipTrigger asChild>
-              <span
-                className={styles.actionIconButton}
-                aria-label={latest.label}
-                tabIndex={0}
-              >
-                <ActionGlyph
-                  label={latest.label}
-                  className={`${styles.actionIcon} ${actionTone(latest.label)}`}
-                />
-              </span>
-            </TooltipTrigger>
-            <TooltipContent side="top" sideOffset={6}>
-              <span className="font-medium">{latest.label}</span>
-            </TooltipContent>
-          </Tooltip>
-        </TooltipProvider>
-      </div>
+      </RowActions>
     </li>
   );
 }

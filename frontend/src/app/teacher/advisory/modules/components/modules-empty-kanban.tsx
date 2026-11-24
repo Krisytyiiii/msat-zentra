@@ -172,7 +172,7 @@ export function ModulesEmptyKanban({
             <ActionCard
               actionLabel="action/new-module"
               title="Release a module"
-              description="Post a link and due date for your whole advisory section"
+              description="Upload a PDF/Word handout or paste a Drive link for the section"
               icon={Send}
               onSelect={() => onAdd("general")}
             />

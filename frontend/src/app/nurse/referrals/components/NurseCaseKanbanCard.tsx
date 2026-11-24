@@ -2,13 +2,6 @@
 
 import * as React from "react";
 import { Button } from "@/components/ui/button";
-import {
-  Dialog,
-  DialogClose,
-  DialogContent,
-  DialogDescription,
-  DialogTitle,
-} from "@/components/ui/dialog";
 import { FolderCard, type FolderFile } from "@/components/ui/FolderCard";
 import { KanbanBoard } from "@/components/ui/kanban-board";
 import { Pill, type PillTone } from "@/components/ui/pill";
@@ -21,6 +14,7 @@ import {
   SessionPlanCard,
   sessionBoardDialogWidth,
 } from "@/components/session-plan/SessionPlanCard";
+import { SessionBoardOverlay } from "@/components/session-plan/SessionBoardOverlay";
 import { StudentMascot } from "@/components/student-mascot/StudentMascot";
 import { ANECDOTAL_CATEGORY_TONES } from "@/components/anecdotal/anecdotal-record-kanban-card";
 import {
@@ -32,7 +26,6 @@ import {
   History,
   MessageSquareText,
   Send,
-  X,
 } from "lucide-react";
 import { NurseAdmReviewDialog } from "../../overview/components/NurseAdmReviewDialog";
 import { NurseStartHandlingDialog } from "../../overview/components/NurseStartHandlingDialog";
@@ -44,6 +37,7 @@ import type {
 } from "@/services/nurse/nurse.types";
 import type { SessionDialogKind } from "./NurseReferralEntry";
 import {
+  activeSessionOf,
   anecdotalCategoryColor,
   formatActionTime,
   caseStage,
@@ -52,6 +46,7 @@ import {
   hasScheduledSession,
   isCaseDone,
   isEndorsed,
+  isSessionStarted,
   isWithdrawn,
   latestActionOf,
   latestSessionOf,
@@ -192,6 +187,12 @@ export function NurseCaseKanbanCard({
   const canReviewAdm = isAdm && !isWithdrawn(row) && row.status !== "dismissed";
   const canManageSessions = !isAdm || (isAdm && row.status === "pending");
   const booked = hasScheduledSession(row.sessions);
+  /* The session whose booking time has arrived — while one is live the case's
+     primary action is recording it, not re-opening the review overlay. */
+  const liveSession = activeSessionOf(row.sessions);
+  const sessionLive = Boolean(
+    liveSession && isSessionStarted(liveSession.scheduledAt, now),
+  );
   /* Done cases keep their completed session rows but must not offer another
      booking — the case is finished. */
   const done = isCaseDone(row);
@@ -481,7 +482,21 @@ export function NurseCaseKanbanCard({
               Reschedule session
             </Button>
           ) : null}
-          {canReviewAdm || (!isAdm && !isClosed && !isWithdrawn(row)) ? (
+          {/* A clinic session that is live at its booking time replaces the
+              review action with "Mark done" — the desk records the session
+              instead of re-opening the review overlay. */}
+          {!isAdm && sessionLive && liveSession && !isClosed && !isWithdrawn(row) ? (
+            <Button
+              type="button"
+              size="xs"
+              variant="default"
+              className="h-6 px-2 text-[12px]"
+              title="The session time has arrived — record what happened and mark it done"
+              onClick={() => onSession(row, liveSession, "finish")}
+            >
+              Mark done
+            </Button>
+          ) : canReviewAdm || (!isAdm && !isClosed && !isWithdrawn(row)) ? (
             <Button
               type="button"
               size="xs"
@@ -528,61 +543,39 @@ export function NurseCaseKanbanCard({
         />
       ) : null}
 
-      <Dialog open={boardOpen} onOpenChange={onBoardChange}>
-        <DialogContent
-          showCloseButton={false}
-          className={`max-h-[85vh] overflow-y-auto shadow-none ${sessionBoardDialogWidth(row.sessions.length)}`}
+      {boardOpen ? (
+        <SessionBoardOverlay
+          title={`Clinic sessions for ${row.student}`}
+          icon={<CalendarClock className="size-3.5" aria-hidden="true" />}
+          description={`${row.sessions.length} ${
+            row.sessions.length === 1 ? "session" : "sessions"
+          } on this case.`}
+          widthClass={sessionBoardDialogWidth(row.sessions.length)}
+          onClose={() => onBoardChange(false)}
         >
-          {/* Title/description live on the kanban board below (the sr-only
-              pair keeps the dialog labelled for screen readers). */}
-          <DialogTitle className="sr-only">
-            Clinic sessions for {row.student}
-          </DialogTitle>
-          <DialogDescription className="sr-only">
-            {row.sessions.length}{" "}
-            {row.sessions.length === 1 ? "session" : "sessions"} on this case.
-          </DialogDescription>
-          <KanbanBoard
-            title={`Clinic sessions for ${row.student}`}
-            icon={<CalendarClock className="size-3.5" aria-hidden="true" />}
-            actions={
-              <DialogClose asChild>
-                <Button
-                  type="button"
-                  variant="ghost"
-                  size="icon-sm"
-                  className="size-6"
-                  aria-label="Close"
-                >
-                  <X className="size-4" aria-hidden="true" />
-                </Button>
-              </DialogClose>
+          <SessionPlanCard
+            title="Clinic sessions"
+            sessions={row.sessions.map((s) => ({
+              ...s,
+              attachmentsCount: s.attachments?.length ?? 0,
+            }))}
+            now={now}
+            closed={isClosed}
+            closedHint="This case is closed — the sessions below are kept as history and can't be changed."
+            emptyHint="No clinic sessions booked on this case."
+            kindLabel={sessionKindLabel}
+            docsSupported
+            gateOnStart
+            manageable={canManageSessions}
+            // Scheduled rows keep only "Mark done" — reschedule/cancel live on
+            // the case card, same as the guidance sessions board.
+            hideScheduledActions
+            onAction={(s, action) =>
+              action === "docs" ? onDocs(row, s) : onSession(row, s, action)
             }
-          >
-            <SessionPlanCard
-              title="Clinic sessions"
-              sessions={row.sessions.map((s) => ({
-                ...s,
-                attachmentsCount: s.attachments?.length ?? 0,
-              }))}
-              now={now}
-              closed={isClosed}
-              closedHint="This case is closed — the sessions below are kept as history and can't be changed."
-              emptyHint="No clinic sessions booked on this case."
-              kindLabel={sessionKindLabel}
-              docsSupported
-              gateOnStart
-              manageable={canManageSessions}
-              // Scheduled rows keep only "Mark done" — reschedule/cancel live on
-              // the case card, same as the guidance sessions board.
-              hideScheduledActions
-              onAction={(s, action) =>
-                action === "docs" ? onDocs(row, s) : onSession(row, s, action)
-              }
-            />
-          </KanbanBoard>
-        </DialogContent>
-      </Dialog>
+          />
+        </SessionBoardOverlay>
+      ) : null}
     </article>
   );
 }

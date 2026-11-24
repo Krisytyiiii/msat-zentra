@@ -1,13 +1,10 @@
 "use client";
-import { HeartHandshake, Search } from "lucide-react";
 import { FilterTabs } from "@/components/ui/filter-tabs";
-import { Input } from "@/components/ui/input";
+import { SearchField } from "@/components/ui/search-field";
 import { InsightCallout } from "@/components/ui/insight-callout";
-import { KanbanBoard } from "@/components/ui/kanban-board";
 import type {
   AtRiskStudentItem,
   CounselingSessionItem,
-  GuidanceInterventionsSummary,
 } from "@/services/guidance/interventions.types";
 import type { InterventionStatusFilter } from "./intervention-row-helpers";
 import { InterventionTableRow } from "./intervention-row";
@@ -15,19 +12,24 @@ import { Pagination } from "@/components/shared/pagination";
 import { Skeleton } from "@/components/ui/skeleton";
 import styles from "./guidance-interventions.module.css";
 
-const STATUS_OPTIONS: { value: InterventionStatusFilter; label: string }[] = [
-  { value: "no_action", label: "No action yet" },
-  { value: "booked", label: "Booked session" },
-  { value: "session_done", label: "Session done" },
-  { value: "follow_up", label: "Follow-up session" },
-  { value: "done", label: "Done" },
-  { value: "discontinued", label: "Discontinued" },
-  { value: "risk_cleared", label: "No longer at risk" },
+const STATUS_OPTIONS: { value: InterventionStatusFilter; label: string; tone: "amber" | "blue" | "green" | "red" | "neutral" }[] = [
+  { value: "all", label: "All", tone: "neutral" },
+  { value: "no_action", label: "No action yet", tone: "amber" },
+  { value: "booked", label: "Booked session", tone: "blue" },
+  { value: "session_done", label: "Session done", tone: "blue" },
+  { value: "follow_up", label: "Follow-up session", tone: "amber" },
+  { value: "done", label: "Done", tone: "green" },
+  { value: "discontinued", label: "Discontinued", tone: "red" },
+  { value: "risk_cleared", label: "No longer at risk", tone: "green" },
 ];
 
-/** Pill tab group — the shared segmented filter tabs. */
+/**
+ * Pill tab group — the shared segmented filter tabs.
+ *
+ * No parent card: like the alerts desk, the tag filter row, the search and the
+ * pager sit directly on the page canvas, and the card grid is the only surface.
+ */
 export interface InterventionTableViewProps {
-  summary: GuidanceInterventionsSummary;
   students: AtRiskStudentItem[];
   page: number;
   pageSize: number;
@@ -60,7 +62,6 @@ export interface InterventionTableViewProps {
   highlightId?: string | null;
 }
 export function InterventionTableView({
-  summary,
   students,
   page,
   pageSize,
@@ -89,63 +90,39 @@ export function InterventionTableView({
   const hasActiveSearch = query.trim() !== "";
   const statusLabel =
     STATUS_OPTIONS.find((o) => o.value === status)?.label ?? "All statuses";
+  const isEmpty = students.length === 0;
   return (
-    <KanbanBoard
-      title="Intervention cases"
-      className={styles.boardIn}
-      icon={
-        <span className="text-amber-600 dark:text-amber-400" aria-hidden>
-          <HeartHandshake size={14} />
-        </span>
-      }
-      headerCenter={
-        <div className="flex flex-wrap items-center gap-2">
+    <section
+      aria-label="Intervention cases"
+      className={`flex min-w-0 flex-col gap-3 ${styles.boardIn}${
+        isEmpty ? ` ${styles.emptyFill}` : ""
+      }`}
+    >
+      <div className="flex w-full flex-wrap items-center justify-between gap-2">
+        <div className={`${styles.filterRow} ${styles.filterRowScroll}`}>
           <FilterTabs
             label="Filter cases by status"
+            variant="tags"
             options={STATUS_OPTIONS}
             value={status}
             onChange={onStatusChange}
           />
         </div>
-      }
-      description={
-        total === 0
-          ? status === "all"
-            ? "No intervention cases right now"
-            : `No cases in “${statusLabel}” right now`
-          : `Students flagged by the risk engine who need a guidance follow-up.${
-              summary.waitingReview > 0
-                ? ` ${summary.waitingReview} follow-up${summary.waitingReview === 1 ? "" : "s"} waiting for review.`
-                : ""
-            }`
-      }
-      actions={
-        <div className={styles.headerActions}>
-          <div className={styles.searchWrap}>
-            <Search className={styles.searchIcon} aria-hidden />
-            <Input
-              className={styles.search}
-              style={{ height: "2rem", borderRadius: "16px" }}
-              placeholder="Search student…"
-              value={query}
-              onChange={(e) => onQueryChange(e.target.value)}
-              aria-label="Search at-risk students"
-            />
-          </div>
-        </div>
-      }
-      footer={
-        total > 0 ? (
-          <Pagination
-            currentPage={page}
-            totalItems={total}
-            pageSize={pageSize}
-            onPageChange={onPageChange}
+        <div className="flex flex-wrap items-center justify-end gap-2">
+          <SearchField
+            className="w-60"
+            placeholder="Search student..."
+            value={query}
+            onChange={(next) => onQueryChange(next)}
+            aria-label="Search at-risk students"
           />
-        ) : null
-      }
-    >
-      <div aria-busy={isNavigating || undefined}>
+        </div>
+      </div>
+
+      <div
+        aria-busy={isNavigating || undefined}
+        className={`flex min-w-0 flex-1 flex-col${isEmpty ? ` ${styles.emptyFill}` : ""}`}
+      >
         {isNavigating ? (
           <div className={styles.caseList}>
             {[0, 1, 2, 3, 4].map((row) => (
@@ -160,14 +137,25 @@ export function InterventionTableView({
               </div>
             ))}
           </div>
-        ) : students.length === 0 ? (
-          <div className="flex w-full justify-center py-6">
-            <InsightCallout role="status">
-              {hasActiveSearch
-                ? `No cases match “${query.trim()}”.`
-                : status === "all"
-                  ? "No cases match your filters."
-                  : `No cases in “${statusLabel}” right now.`}
+        ) : isEmpty ? (
+          <div className={styles.emptyCenter}>
+            <InsightCallout role="status" className="w-full max-w-xl text-left">
+              {hasActiveSearch ? (
+                <>
+                  <strong>No cases match “{query.trim()}”.</strong> Try a different
+                  name, LRN, or section — or clear the search to see every case.
+                </>
+              ) : status === "all" ? (
+                <>
+                  <strong>No cases match your filters.</strong> Pick a different
+                  filter above the board, or show every case.
+                </>
+              ) : (
+                <>
+                  <strong>No cases in “{statusLabel}” right now.</strong> Pick a
+                  different filter above the board.
+                </>
+              )}
             </InsightCallout>
           </div>
         ) : (
@@ -201,6 +189,13 @@ export function InterventionTableView({
           </ul>
         )}
       </div>
-    </KanbanBoard>
+
+      <Pagination
+        currentPage={page}
+        totalItems={total}
+        pageSize={pageSize}
+        onPageChange={onPageChange}
+      />
+    </section>
   );
 }

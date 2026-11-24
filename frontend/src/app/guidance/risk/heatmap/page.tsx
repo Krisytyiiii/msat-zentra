@@ -119,7 +119,7 @@ export default function GuidanceHeatmapPage() {
             <>
               <Badge variant="outline">Live · {data.termLabel}</Badge>
               <Button asChild size="sm" variant="outline">
-                <Link href="/guidance/adm">Back to risk watch</Link>
+                <Link href="/guidance/reports">Back to risk watch</Link>
               </Button>
               <Button asChild size="sm" variant="outline">
                 <Link href="/guidance/alerts">At-risk queue</Link>

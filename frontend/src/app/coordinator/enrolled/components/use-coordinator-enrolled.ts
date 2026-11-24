@@ -41,6 +41,8 @@ export interface CoordinatorEnrolledModel {
   enrolledPageLoading: boolean;
   enrolledError: boolean;
   enrolledRefetching: boolean;
+  /** Whole-desk total of cases already moved to Completion. */
+  completedTotal: number;
 
   enrolledBackground: boolean;
   refetchEnrolled: () => void;
@@ -299,6 +301,7 @@ export function useCoordinatorEnrolled(): CoordinatorEnrolledModel {
     enrolledPageLoading: pageLoading,
     enrolledError: enrolledQuery.isError || completedQuery.isError,
     enrolledRefetching: enrolledQuery.isRefetching || completedQuery.isRefetching,
+    completedTotal: completedQuery.data?.total ?? 0,
     enrolledBackground:
       (enrolledQuery.isFetching && !enrolledQuery.isPending) ||
       (completedQuery.isFetching && !completedQuery.isPending),

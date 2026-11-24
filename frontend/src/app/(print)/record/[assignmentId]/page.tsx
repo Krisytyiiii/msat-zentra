@@ -8,7 +8,7 @@ import { ArrowLeft, BookOpenText, ImageDown, Loader2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import { KanbanBoard, KanbanBoardEmpty } from "@/components/ui/kanban-board";
-import { AmberRectPill } from "../../../teacher/classes/components/UnlinkCodeDialog";
+import { Pill } from "@/components/ui/pill";
 import { StudentMascot } from "@/components/student-mascot/StudentMascot";
 import {
   COMPONENT_ORDER,
@@ -17,9 +17,19 @@ import {
   subjectEvidence,
 } from "@/services/teacher/grading.compute";
 import { fetchClassDetail } from "@/services/teacher/grading.service";
+import { useTeacherOverviewGradebook } from "@/services/teacher/overview.service";
+import { gradebookSlug } from "@/lib/gradebookSlug";
 import { LockGradesButton } from "@/app/teacher/grading/[assignmentId]/components/LockGradesButton";
 import { assignUniqueMascots } from "../../../teacher/grading/[assignmentId]/components/mascot-assignment";
 import styles from "./record-sheet.module.css";
+
+function decodeParam(value: string) {
+  try {
+    return decodeURIComponent(value);
+  } catch {
+    return value;
+  }
+}
 
 const SHORT: Record<string, string> = {
   WRITTEN_WORK: "WW",
@@ -53,10 +63,18 @@ const CAT_AVG_LABEL: Record<string, string> = {
 
 export default function ClassRecordPage() {
   const params = useParams<{ assignmentId: string }>();
-  const assignmentId = params.assignmentId;
+  const param = decodeParam(params.assignmentId);
+  // Record URLs carry the same human-readable `subject-section` slug as the
+  // gradebook workspace; the internal `${subjectId}|${sectionId}` composite is
+  // still accepted as a legacy fallback (e.g. old links/bookmarks).
+  const gradebook = useTeacherOverviewGradebook();
+  const classes = gradebook.data?.classes ?? [];
+  const match = classes.find((c) => c.id === param || gradebookSlug(c) === param);
+  const assignmentId = match?.id ?? (param.includes("|") ? param : "");
   const detailQuery = useQuery({
     queryKey: ["teacher-grading-class", assignmentId],
     queryFn: () => fetchClassDetail(assignmentId),
+    enabled: !!assignmentId,
     staleTime: 0,
     refetchOnMount: "always",
   });
@@ -117,6 +135,20 @@ export default function ClassRecordPage() {
     },
     [data, exporting],
   );
+
+  if (!assignmentId && gradebook.isFetched) {
+    return (
+      <section className={styles.page}>
+        <div className={styles.toolbar}>
+          <Link href="/teacher/grading" className={styles.back}>
+            <ArrowLeft className={styles.backIcon} />
+            Back to workspace
+          </Link>
+        </div>
+        <p className={styles.error}>Class record not found or you have no access to it.</p>
+      </section>
+    );
+  }
 
   if (detailQuery.isPending) {
     return (
@@ -192,6 +224,7 @@ export default function ClassRecordPage() {
       <p className={styles.school}>Class Record — Grading Sheet</p>
 
       <KanbanBoard
+        className={styles.board}
         title={`${assignment.subjectName} (${assignment.subjectCode})`}
         icon={
           <span className="text-amber-500" aria-hidden>
@@ -201,10 +234,18 @@ export default function ClassRecordPage() {
         count={`${students.length} student${students.length === 1 ? "" : "s"}`}
         actions={
           <span className="flex flex-wrap items-center justify-end gap-1">
-            <AmberRectPill>{assignment.sectionName}</AmberRectPill>
-            <AmberRectPill>Grade {gradeLabel(assignment.gradeLevel)}</AmberRectPill>
-            <AmberRectPill>Term {assignment.termNumber}</AmberRectPill>
-            <AmberRectPill>{assignment.schoolYear}</AmberRectPill>
+            <Pill tone="green" label="Section">
+              {assignment.sectionName}
+            </Pill>
+            <Pill tone="blue" label="Grade level">
+              Grade {gradeLabel(assignment.gradeLevel)}
+            </Pill>
+            <Pill tone="amber" label="Term">
+              Term {assignment.termNumber}
+            </Pill>
+            <Pill tone="neutral" label="School year">
+              {assignment.schoolYear}
+            </Pill>
           </span>
         }
         ariaLabel="Class record grading sheet"

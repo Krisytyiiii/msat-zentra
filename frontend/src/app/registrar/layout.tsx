@@ -13,8 +13,7 @@ import {
   useRegistrarProfileSettings,
 } from "@/services/settings/profile-settings";
 import { UserRound } from "lucide-react";
-import { KanbanAccountMenu } from "@/components/account/kanban-account-menu";
-import { useCollapsibleSidebar } from "@/components/nav/use-collapsible-sidebar";
+import { GlassUserMenu } from "@/components/account/glass-user-menu";
 import { ActiveTermBadge } from "@/components/term/ActiveTermBadge";
 import { AppBreadcrumbs } from "@/components/nav/AppBreadcrumbs";
 import { RegistrarNotificationsBell } from "./components/RegistrarNotificationsBell";
@@ -26,8 +25,6 @@ function RegistrarShell({ children }: { children: React.ReactNode }) {
   const router = useRouter();
   const queryClient = useQueryClient();
   const profile = useRegistrarProfileSettings();
-  const { collapsed: sidebarCollapsed } =
-    useCollapsibleSidebar("zentra.registrar.sidebar.collapsed");
 
   useRegistrarRealtime();
 
@@ -62,7 +59,7 @@ function RegistrarShell({ children }: { children: React.ReactNode }) {
 
         <RegistrarNotificationsBell />
 
-        <KanbanAccountMenu
+        <GlassUserMenu
           settingsHref="/registrar/settings"
           onLogout={handleLogout}
         >
@@ -90,13 +87,11 @@ function RegistrarShell({ children }: { children: React.ReactNode }) {
               </Avatar>
             )}
           </button>
-        </KanbanAccountMenu>
+        </GlassUserMenu>
       </header>
-      <RegistrarSidebar collapsed={sidebarCollapsed} />
+      <RegistrarSidebar />
       <div
-        className={`${styles.shell} ${styles.shellWithRail} ${
-          sidebarCollapsed ? styles.shellWithRailCollapsed : ""
-        }`}
+        className={`${styles.shell} ${styles.shellWithDock}`}
       >
         <main className={styles.main}>{children}</main>
       </div>

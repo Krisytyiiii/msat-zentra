@@ -19,6 +19,7 @@ import { Label } from "@/components/ui/label";
 import { Pill } from "@/components/ui/pill";
 import { KanbanBoard } from "@/components/ui/kanban-board";
 import { KanbanOverlay } from "@/components/ui/kanban-overlay";
+import { StudentMascot } from "@/components/student-mascot/StudentMascot";
 import { Textarea } from "@/components/ui/textarea";
 import { OcForm01PreviewDialog } from "@/components/ocform01/OcForm01PreviewDialog";
 import { useDock } from "@/components/dock/dock-store";
@@ -128,8 +129,19 @@ export function NurseStartHandlingDialog({
       ? `waiting ${row.waitingDays}d`
       : undefined;
 
+  /** Local calendar day — booking compares local wall-clock time, so a UTC key
+      would keep yesterday pickable for eight hours every evening. */
   function todayKey(): string {
-    return new Date().toISOString().slice(0, 10);
+    const n = new Date();
+    return `${n.getFullYear()}-${String(n.getMonth() + 1).padStart(2, "0")}-${String(
+      n.getDate()
+    ).padStart(2, "0")}`;
+  }
+
+  /** Local "HH:MM" — the floor for a same-day clinic session. */
+  function currentTimeKey(): string {
+    const n = new Date();
+    return `${String(n.getHours()).padStart(2, "0")}:${String(n.getMinutes()).padStart(2, "0")}`;
   }
 
   function closeDialog() {
@@ -232,7 +244,7 @@ export function NurseStartHandlingDialog({
             : `Review ${row.student}'s case and book the first clinic session. Booking accepts the referral; you can schedule more sessions afterwards.`
         }
         footer={
-          <div className="flex flex-wrap items-center justify-end gap-1.5 px-1 pb-1">
+          <div className="flex flex-wrap items-center justify-end gap-1.5 border-t border-border px-1 pt-2.5">
             {!isClosed ? (
               <Button
                 type="button"
@@ -276,54 +288,84 @@ export function NurseStartHandlingDialog({
               </span>
             }
           >
-            <div className="px-1">
-              <dl className={styles.intakeSummary}>
-                <div className={styles.intakeRow}>
-                  <dt className={styles.intakeLabel}>Name</dt>
-                  <dd className={`${styles.intakeValue} text-[14px] font-semibold`}>
+            <div className="flex min-w-0 flex-col gap-2.5 px-1">
+              {/* Identity strip — mascot + name + identity pills, matching the
+                  teacher desk case overlays. */}
+              <div className="flex min-w-0 items-center gap-2.5 rounded-lg border border-border bg-muted/30 p-2.5">
+                <span className="flex size-11 shrink-0 items-center justify-center overflow-hidden rounded-full border border-border bg-card">
+                  <StudentMascot
+                    name={row.student}
+                    seed={row.lrn}
+                    character={row.mascot ?? undefined}
+                    size={34}
+                  />
+                </span>
+                <div className="flex min-w-0 flex-1 flex-col gap-1">
+                  <p
+                    className="m-0 truncate text-[14px] font-bold leading-tight text-foreground"
+                    title={row.student}
+                  >
                     {row.student || "—"}
-                  </dd>
-                </div>
-                <div className={styles.intakeRow}>
-                  <dt className={styles.intakeLabel}>LRN</dt>
-                  <dd className={styles.intakeValue}>
-                    <Pill label="LRN" className="tabular-nums">
+                  </p>
+                  <div className="flex min-w-0 flex-wrap items-center gap-1">
+                    <Pill field="lrn" className="tabular-nums">
                       {row.lrn?.trim() || "—"}
                     </Pill>
-                  </dd>
-                </div>
-                <div className={styles.intakeRow}>
-                  <dt className={styles.intakeLabel}>Section</dt>
-                  <dd className={styles.intakeValue}>
+                    {row.grade?.trim() ? (
+                      <Pill
+                        field="grade"
+                        className="min-w-0 max-w-full overflow-hidden"
+                      >
+                        <span className="truncate">{row.grade}</span>
+                      </Pill>
+                    ) : null}
                     <Pill
-                      tone="amber"
-                      aria-label={`Section ${row.section}`}
-                      label={row.grade?.trim() || "Grade level"}
+                      field="section"
                       className="min-w-0 max-w-full overflow-hidden"
                     >
                       <span className="truncate">{row.section || "—"}</span>
                     </Pill>
-                  </dd>
-                </div>
-                <div className={styles.intakeRow}>
-                  <dt className={styles.intakeLabel}>Category</dt>
-                  <dd className={styles.intakeValue}>
                     <Pill
                       tone={anecdotalCategoryBadgeVariant(category) ?? "neutral"}
                       label="Category"
                     >
                       {humanizeCategory(category)}
                     </Pill>
+                  </div>
+                </div>
+                {waiting ? (
+                  <Pill
+                    tone="red"
+                    label="Time in queue"
+                    className="shrink-0 self-start"
+                  >
+                    {waiting}
+                  </Pill>
+                ) : null}
+              </div>
+              {/* Case facts — quiet bordered tiles, one fact each. */}
+              <dl className="m-0 grid grid-cols-2 gap-2">
+                <div className="flex min-w-0 flex-col gap-0.5 rounded-lg border border-border bg-background/60 px-2.5 py-2">
+                  <dt className="text-[12px] font-semibold uppercase tracking-[0.04em] text-muted-foreground">
+                    Observed
+                  </dt>
+                  <dd
+                    className="m-0 truncate text-[13px] font-semibold text-foreground"
+                    title={observed}
+                  >
+                    {observed}
                   </dd>
                 </div>
-                <div className={styles.intakeRow}>
-                  <dt className={styles.intakeLabel}>Referred</dt>
-                  <dd className={styles.intakeValue}>{row.date}</dd>
-                  {waiting ? (
-                    <span className="ml-auto shrink-0 self-center whitespace-nowrap text-[12px] italic text-red-600 dark:text-red-400">
-                      {waiting}
-                    </span>
-                  ) : null}
+                <div className="flex min-w-0 flex-col gap-0.5 rounded-lg border border-border bg-background/60 px-2.5 py-2">
+                  <dt className="text-[12px] font-semibold uppercase tracking-[0.04em] text-muted-foreground">
+                    Referred
+                  </dt>
+                  <dd
+                    className="m-0 truncate text-[13px] font-semibold text-foreground"
+                    title={row.date}
+                  >
+                    {row.date}
+                  </dd>
                 </div>
               </dl>
             </div>
@@ -416,7 +458,15 @@ export function NurseStartHandlingDialog({
                   <div className="mt-1">
                     {/* Clock-face picker — same control as the ADM review
                         overlay's session board. */}
-                    <TimePickers value={sessionTime} onChange={setSessionTime} />
+                    <TimePickers
+                      value={sessionTime}
+                      onChange={setSessionTime}
+                      minTime={
+                        sessionDate === "" || sessionDate === todayKey()
+                          ? currentTimeKey()
+                          : undefined
+                      }
+                    />
                   </div>
                 </div>
               </div>
@@ -434,7 +484,7 @@ export function NurseStartHandlingDialog({
               }
               description="Recorded with the rejection and shared with the filing adviser."
             >
-              <div className="px-1">
+              <div className="flex flex-col gap-1.5 px-1">
                 <Textarea
                   id={`reject-recommendation-${row.id}`}
                   aria-label="Your recommendation (required)"
@@ -444,6 +494,9 @@ export function NurseStartHandlingDialog({
                   maxLength={500}
                   disabled={acting}
                 />
+                <span className="self-end text-[12px] tabular-nums text-muted-foreground">
+                  {recommendation.length}/500
+                </span>
               </div>
             </KanbanBoard>
           ) : null}
@@ -473,7 +526,7 @@ export function NurseStartHandlingDialog({
           `${row.student}'s clinic case will be closed — the clinic won't handle it further, and the filing adviser is notified. This can't be undone.`
         }
         footer={
-          <div className="flex flex-wrap items-center justify-end gap-1.5 px-1 pb-1">
+          <div className="flex flex-wrap items-center justify-end gap-1.5 border-t border-border px-1 pt-2.5">
             <Button
               type="button"
               variant="destructive"

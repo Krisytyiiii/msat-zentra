@@ -160,6 +160,63 @@
   }
 }
 
+/* ---- Custom scrollbars -----------------------------------------------
+   One thin amber scrollbar for every page and inner scroller in the app
+   (single accent, matching the desk rails). Chromium/WebKit get the rounded
+   floating thumb; Firefox falls through to the standard properties. */
+::-webkit-scrollbar {
+  width: 10px;
+  height: 10px;
+}
+
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+::-webkit-scrollbar-thumb {
+  border: 2px solid transparent;
+  border-radius: 9999px;
+  background-color: color-mix(in srgb, #f59e0b 62%, transparent);
+  background-clip: content-box;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background-color: #f59e0b;
+}
+
+::-webkit-scrollbar-corner {
+  background: transparent;
+}
+
+@supports not selector(::-webkit-scrollbar) {
+  html,
+  * {
+    scrollbar-width: thin;
+    scrollbar-color: #f59e0b transparent;
+  }
+}
+
+/* ---- Unified button height -------------------------------------------
+   One control height everywhere: every shared <Button> (data-slot="button",
+   shells + dialogs + overlays) and every native <button> that uses a Tailwind
+   height utility renders at 32px, so compact h-6/h-7 overrides and larger
+   h-9/h-10 triggers line up. Grid/calendar/heatmap cells size themselves in
+   CSS modules and are intentionally left alone. Unlayered on purpose so it
+   beats Tailwind's @layer utilities and per-page height classes. */
+[data-slot="button"] {
+  height: 2rem;
+  min-height: 2rem;
+}
+
+button.h-6,
+button.h-7,
+button.h-8,
+button.h-9,
+button.h-10 {
+  height: 2rem;
+  min-height: 2rem;
+}
+
 /* ---- Scroll-reveal entrance motion (driven by data-revealed) ---- */
 @keyframes zReveal {
   from {

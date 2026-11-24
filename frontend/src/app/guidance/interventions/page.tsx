@@ -6,6 +6,8 @@ import { keepPreviousData, useQuery } from "@tanstack/react-query";
 import { HeartHandshake, Loader2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
+import { ShimmerGroup } from "@/components/ui/shimmer-skeleton";
+import { ZentraPaginationSkeleton } from "@/components/shared/zentra-skeletons/ZentraSkeletons";
 import { GuidanceEmptyCard } from "../components/GuidanceEmptyCard";
 import { fetchAllGuidanceInterventions } from "@/services/guidance/interventions.service";
 import type {
@@ -22,6 +24,7 @@ import {
 import { useTerm } from "@/lib/term/TermContext";
 import { guidanceLiveQueryOptions } from "@/lib/api/live";
 import styles from "./components/guidance-interventions.module.css";
+import pageStyles from "../pages.module.css";
 import { useUrlPager } from "@/components/shared/pagination/useUrlPager";
 
 // The board pages a 4×4 card grid; backend allow-lists 16 for this queue.
@@ -86,6 +89,11 @@ function GuidanceInterventionsView({ highlightId }: { highlightId: string | null
     });
   }, [allStudents, status, query]);
 
+  // A filtered-empty / empty board has to fill the desk and sit in the viewport
+  // center (same as /guidance/alerts): the callout only receives the remaining
+  // height when the page opts into the viewport-fit shell.
+  const isEmptyBoard = !isPending && !isError && !!data && filtered.length === 0;
+
   const pager = useUrlPager(filtered.length, {}, {
     searchParam: "q",
     extraParams: ["status"],
@@ -125,6 +133,8 @@ function GuidanceInterventionsView({ highlightId }: { highlightId: string | null
       return;
     }
     if (status !== "all") {
+      // one-shot deep-link landing sync — reveal every status so the target row shows
+      // eslint-disable-next-line react-hooks/set-state-in-effect
       setStatusState("all");
       pager.setFilters({ status: "all" });
     }
@@ -142,64 +152,60 @@ function GuidanceInterventionsView({ highlightId }: { highlightId: string | null
   );
 
   return (
-    <section className={styles.page} aria-busy={isPending || undefined}>
+    <section
+      className={isEmptyBoard ? `${styles.page} ${pageStyles.pageFit}` : styles.page}
+      aria-busy={isPending || undefined}
+    >
       {isPending ? (
         <div aria-busy="true" className={styles.feed}>
-          {/* Mirrors the loaded KanbanBoard: bordered panel, header (icon/title,
-              centred filter tabs, search), description, 4-col card grid, pager. */}
-          <div className="flex flex-col gap-2 rounded-xl border border-border p-2.5">
-            <div className="relative -mx-2.5 flex items-center gap-2 border-b border-border px-3.5 pb-2">
-              <span className="inline-flex min-w-0 flex-1 items-center gap-1.5">
-                <Skeleton className="size-3.5 shrink-0 rounded" />
-                <Skeleton className="h-3.5 w-32" />
-              </span>
-              <div className="pointer-events-none absolute left-1/2 top-1/2 flex -translate-x-1/2 -translate-y-1/2 items-center">
-                <Skeleton className="h-6 w-80 rounded-md" />
+          {/* Mirrors the loaded board with no parent card: the tag filter row +
+              search sit on the canvas, then the 4-col card grid and pager. */}
+          <ShimmerGroup>
+            <div className="flex min-w-0 flex-col gap-3">
+              <div
+                className="flex w-full flex-wrap items-center justify-between gap-2"
+                aria-hidden="true"
+              >
+                <div className={`${styles.filterRow} ${styles.filterRowScroll}`}>
+                  <Skeleton className={styles.skelTab} />
+                  <Skeleton className={styles.skelTab} />
+                  <Skeleton className={styles.skelTab} />
+                  <Skeleton className={styles.skelTab} />
+                  <Skeleton className={styles.skelTab} />
+                </div>
+                <Skeleton className="h-8 w-60 max-w-full rounded-2xl" />
               </div>
-              <span className="flex shrink-0 items-center justify-end gap-2">
-                <Skeleton className="h-8 w-64 max-w-full rounded-2xl" />
-              </span>
-            </div>
-            <div className="px-1">
-              <Skeleton className="h-3 w-72 max-w-[90%]" />
-            </div>
-            <div className={styles.caseList}>
-              {[0, 1, 2, 3, 4, 5, 6, 7].map((card) => (
-                <div key={card} className={styles.skelCaseRow}>
-                  <div className="flex items-center gap-2">
-                    <Skeleton className="size-9 shrink-0 rounded-full" />
-                    <div className="flex min-w-0 flex-1 flex-col gap-1.5">
-                      <Skeleton className="h-3.5 w-3/5" />
-                      <div className="flex flex-wrap gap-1">
-                        <Skeleton className="h-4 w-16 rounded-md" />
-                        <Skeleton className="h-4 w-10 rounded-md" />
+              <div className={styles.caseList}>
+                {[0, 1, 2, 3, 4, 5, 6, 7].map((card) => (
+                  <div key={card} className={styles.skelCaseRow}>
+                    <div className="flex items-center gap-2">
+                      <Skeleton className="size-9 shrink-0 rounded-full" />
+                      <div className="flex min-w-0 flex-1 flex-col gap-1.5">
+                        <Skeleton className="h-3.5 w-3/5" />
+                        <div className="flex flex-wrap gap-1">
+                          <Skeleton className="h-4 w-16 rounded-md" />
+                          <Skeleton className="h-4 w-10 rounded-md" />
+                        </div>
+                      </div>
+                      <Skeleton className="h-5 w-14 shrink-0 rounded-md" />
+                    </div>
+                    <div className="mt-6 flex flex-wrap gap-1.5">
+                      <Skeleton className="h-5 w-20 rounded-md" />
+                      <Skeleton className="h-5 w-14 rounded-md" />
+                    </div>
+                    <div className="mt-auto flex items-center justify-between border-t border-border pt-2">
+                      <Skeleton className="h-4 w-16 rounded-md" />
+                      <div className="flex gap-1.5">
+                        <Skeleton className="size-6 rounded-md" />
+                        <Skeleton className="size-6 rounded-md" />
                       </div>
                     </div>
-                    <Skeleton className="h-5 w-14 shrink-0 rounded-md" />
                   </div>
-                  <div className="mt-6 flex flex-wrap gap-1.5">
-                    <Skeleton className="h-5 w-20 rounded-md" />
-                    <Skeleton className="h-5 w-14 rounded-md" />
-                  </div>
-                  <div className="mt-auto flex items-center justify-between border-t border-border pt-2">
-                    <Skeleton className="h-4 w-16 rounded-md" />
-                    <div className="flex gap-1.5">
-                      <Skeleton className="size-6 rounded-md" />
-                      <Skeleton className="size-6 rounded-md" />
-                    </div>
-                  </div>
-                </div>
-              ))}
-            </div>
-            <div className={styles.skelPager}>
-              <Skeleton className={styles.skelRange} />
-              <div className={styles.skelPagerBtns}>
-                <Skeleton className={styles.skelPageBtn} />
-                <Skeleton className={styles.skelPageLabel} />
-                <Skeleton className={styles.skelPageBtn} />
+                ))}
               </div>
+              <ZentraPaginationSkeleton />
             </div>
-          </div>
+          </ShimmerGroup>
         </div>
       ) : isError || !data ? (
         <div className={styles.empty} role="alert">
@@ -229,7 +235,6 @@ function GuidanceInterventionsView({ highlightId }: { highlightId: string | null
         />
       ) : (
         <GuidanceInterventionsTable
-          summary={data.summary}
           students={pageRows}
           page={safePage}
           pageSize={GUIDANCE_INTERVENTIONS_PAGE_SIZE}

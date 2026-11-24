@@ -10,6 +10,7 @@ import { useCoordinatorOverview } from "./components/use-coordinator-overview";
 import { useCoordinatorBooking } from "../referrals/components/use-coordinator-booking";
 import { CoordinatorReferralsBookDialog } from "../referrals/components/coordinator-referrals-book-dialog";
 import { CoordinatorOverviewKpis } from "./components/coordinator-overview-kpis";
+import { CoordinatorOverviewStageChart } from "./components/coordinator-overview-stage-chart";
 import { CoordinatorOverviewForwards } from "./components/coordinator-overview-forwards";
 import { CoordinatorOverviewBoards } from "./components/coordinator-overview-boards";
 import {
@@ -50,7 +51,6 @@ export default function CoordinatorOverviewPage() {
     overview.certificationsIssued === 0 &&
     overview.activeEnrolled === 0 &&
     overview.forwards.rows.length === 0 &&
-    overview.booked.rows.length === 0 &&
     overview.devices.oldestOut.length === 0 &&
     overview.stageDonut.every((entry) => entry.value === 0);
 
@@ -74,22 +74,25 @@ export default function CoordinatorOverviewPage() {
         certificationsIssued={overview.certificationsIssued}
         awaitingPrincipal={overview.awaitingPrincipal}
         activeEnrolled={overview.activeEnrolled}
-        stageDonut={overview.stageDonut}
+        className={styles.statsDeck}
       />
 
       <div className={styles.workGrid}>
-        <CoordinatorOverviewForwards
-          rows={overview.forwards.rows}
-          isPending={overview.forwards.isPending}
-          isError={overview.forwards.isError}
-          isRefetching={overview.forwards.isRefetching}
-          now={overview.now}
-          bookPendingId={booking.bookPendingId}
-          pendingTotal={overview.needsReview}
-          onRetry={overview.forwards.refetch}
-          onHistory={setHistoryTarget}
-          onBook={booking.bookForRow}
-        />
+        <div className={styles.mainCol}>
+          <CoordinatorOverviewStageChart stageDonut={overview.stageDonut} />
+
+          <CoordinatorOverviewForwards
+            rows={overview.forwards.rows}
+            isPending={overview.forwards.isPending}
+            isError={overview.forwards.isError}
+            isRefetching={overview.forwards.isRefetching}
+            now={overview.now}
+            bookPendingId={booking.bookPendingId}
+            onRetry={overview.forwards.refetch}
+            onHistory={setHistoryTarget}
+            onBook={booking.bookForRow}
+          />
+        </div>
 
         <aside className={styles.rail} aria-label="Live watchlist">
           <CoordinatorOverviewBoards
@@ -97,8 +100,6 @@ export default function CoordinatorOverviewPage() {
             devicesReturned={overview.devices.data?.returned ?? null}
             devicesPending={overview.devices.isPending}
             oldestOut={overview.devices.oldestOut}
-            bookedMeetings={overview.booked.rows}
-            bookedPending={overview.booked.isPending}
             now={overview.now}
           />
         </aside>

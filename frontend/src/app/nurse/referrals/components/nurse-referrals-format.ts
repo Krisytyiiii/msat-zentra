@@ -50,6 +50,51 @@ export const CLINIC_MENU: { value: ActionValue; label: string }[] = [
   { value: "clinic_reject", label: "Rejected" },
   { value: "clinic_cancelled", label: "Cancelled" },
 ];
+/**
+ * Case count per action pill, computed over the rows already loaded on a desk.
+ * Both nurse boards (the split ADM/clinic desks and the combined alerts desk)
+ * read the same counter so their pill bars never disagree.
+ */
+export function countActions(alerts: NurseAlertItem[]): Record<ActionValue, number> {
+  const counts: Record<ActionValue, number> = {
+    adm_needs: 0,
+    endorse: 0,
+    followup: 0,
+    booked: 0,
+    reject: 0,
+    adm_cancelled: 0,
+    clinic_needs: 0,
+    clinic_booked: 0,
+    clinic_done: 0,
+    clinic_followup: 0,
+    clinic_reject: 0,
+    clinic_cancelled: 0,
+  };
+  for (const { row } of alerts) {
+    if (row.type === "ADM") {
+      if (row.status === "pending") counts.adm_needs += 1;
+      if (sharedIsEndorsed(row.type, row.status)) counts.endorse += 1;
+      if (row.status === "follow_up") counts.followup += 1;
+      if (sharedHasOpenBooking(row)) counts.booked += 1;
+      if (row.status === "dismissed" && !sharedIsWithdrawn(row)) counts.reject += 1;
+      if (sharedIsWithdrawn(row)) counts.adm_cancelled += 1;
+    } else if (row.type === "Clinic") {
+      if (row.status === "pending") counts.clinic_needs += 1;
+      if (sharedHasOpenBooking(row)) counts.clinic_booked += 1;
+      if (sharedIsCaseDone(row)) counts.clinic_done += 1;
+      if (row.status === "follow_up") counts.clinic_followup += 1;
+      if (
+        (row.status === "dismissed" || row.status === "rejected") &&
+        !sharedIsWithdrawn(row)
+      ) {
+        counts.clinic_reject += 1;
+      }
+      if (sharedIsWithdrawn(row)) counts.clinic_cancelled += 1;
+    }
+  }
+  return counts;
+}
+
 export function matchesActionFilter(row: NurseQueueRow, filter: ActionValue): boolean {
   switch (filter) {
     case "adm_needs":

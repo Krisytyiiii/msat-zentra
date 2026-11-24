@@ -19,6 +19,7 @@ import {
 } from "lucide-react";
 import { StudentMascot } from "@/components/student-mascot/StudentMascot";
 import { Button } from "@/components/ui/button";
+import { TeacherSearchField, searchEmptyMessage } from "@/app/teacher/components/TeacherSearchField";
 import { Calendar } from "@/components/ui/calendar";
 import { FolderCard } from "@/components/ui/FolderCard";
 import { Pill } from "@/components/ui/pill";
@@ -262,59 +263,80 @@ export function BamaThread({
               <div className={styles.assistantCol}>
                 <p className={styles.bubbleAssistant}>{m.text}</p>
                 {m.preview ? (
-                  <div
-                    className={PICK_COLUMN.replace(" self-center", " self-start")}
-                    aria-label="Review before filing"
-                  >
-                    <PickColumnHead
-                      icon={<ClipboardCheck size={14} aria-hidden className="text-amber-500" />}
-                      title={m.preview.editing ? "Review changes before saving" : "Review before filing"}
-                      action={
-                        <Pill tone="amber" label="Section">
-                          {m.preview.section}
-                        </Pill>
-                      }
-                    />
-                    <div className={`${PICK_CARD} cursor-default`}>
-                      <span className="text-[12px] font-semibold tracking-wide text-muted-foreground uppercase">
-                        Student
+                  <section className={styles.reviewPanel} aria-label="Review before filing">
+                    <header className={styles.reviewHeader}>
+                      <span className={styles.reviewIcon} aria-hidden>
+                        <ClipboardCheck size={16} />
                       </span>
-                      <span className="flex flex-wrap items-center gap-1.5">
-                        <span className="text-sm font-medium text-foreground">
-                          {m.preview.studentName}
-                        </span>
+                      <span className={styles.reviewHeading}>
+                        <h3 className={styles.reviewTitle}>
+                          {m.preview.editing ? "Review changes before saving" : "Review before filing"}
+                        </h3>
+                        <p className={styles.reviewSub}>
+                          {m.preview.editing
+                            ? "Confirm the corrections — the filed record is replaced on save."
+                            : "Check the details before this is filed to the anecdotal log."}
+                        </p>
+                      </span>
+                      <Pill tone="green" label="Section" className="mt-0.5">
+                        {m.preview.section}
+                      </Pill>
+                    </header>
+
+                    <div className={styles.reviewStudent}>
+                      <span className={styles.reviewAvatar}>
+                        <StudentMascot
+                          name={m.preview.studentName}
+                          seed={m.preview.lrn}
+                          character={m.preview.mascot ?? undefined}
+                          size={32}
+                        />
+                      </span>
+                      <span className={styles.reviewIdentity}>
+                        <span className={styles.reviewStudentName}>{m.preview.studentName}</span>
                         <Pill label="LRN">{m.preview.lrn}</Pill>
                       </span>
                     </div>
-                    <div className={`${PICK_CARD} cursor-default`}>
-                      <span className="text-[12px] font-semibold tracking-wide text-muted-foreground uppercase">
-                        Details
-                      </span>
-                      <span className="flex flex-wrap gap-1.5">
-                        <Pill label="Category">{m.preview.category}</Pill>
-                        <Pill label="Confidentiality tier">{m.preview.tier}</Pill>
-                        <Pill label="Observation date & time">{m.preview.observationDateTime}</Pill>
-                        <Pill label="Location">{m.preview.location}</Pill>
-                      </span>
-                    </div>
-                    <div className={`${PICK_CARD} cursor-default`}>
-                      <span className="text-[12px] font-semibold tracking-wide text-muted-foreground uppercase">
-                        Incident
-                      </span>
-                      <span className="text-sm text-foreground">{m.preview.incident}</span>
+
+                    <dl className={styles.reviewGrid}>
+                      <div>
+                        <dt>Category</dt>
+                        <dd>{m.preview.category}</dd>
+                      </div>
+                      <div>
+                        <dt>Confidentiality</dt>
+                        <dd>{m.preview.tier}</dd>
+                      </div>
+                      <div>
+                        <dt>Observed</dt>
+                        <dd>{m.preview.observationDateTime}</dd>
+                      </div>
+                      <div>
+                        <dt>Location</dt>
+                        <dd>{m.preview.location}</dd>
+                      </div>
+                    </dl>
+
+                    <div className={styles.reviewBlock}>
+                      <p className={styles.reviewLabel}>Incident</p>
+                      <p className={styles.reviewBody}>{m.preview.incident}</p>
                     </div>
                     {m.preview.notes ? (
-                      <div className={`${PICK_CARD} cursor-default`}>
-                        <span className="text-[12px] font-semibold tracking-wide text-muted-foreground uppercase">
-                          Notes
-                        </span>
-                        <span className="text-sm text-foreground">{m.preview.notes}</span>
+                      <div className={styles.reviewBlock}>
+                        <p className={styles.reviewLabel}>Notes</p>
+                        <p className={styles.reviewBody}>{m.preview.notes}</p>
                       </div>
                     ) : null}
-                    <div className="flex justify-end gap-2">
+
+                    <footer className={styles.reviewActions}>
+                      <span className={styles.reviewHint}>
+                        {m.preview.editing
+                          ? "Saving overwrites the original record."
+                          : "Files as a GCForm-01 anecdotal record."}
+                      </span>
                       <Button
                         type="button"
-                        className="h-6 px-3 text-[12px]"
+                        className="h-6 shrink-0 px-3 text-[12px]"
                         disabled={flow.filing || !flow.canFile}
                         onClick={() => void flow.fileRecord()}
                       >
@@ -329,8 +351,8 @@ export function BamaThread({
                             ? "Save changes"
                             : "File record"}
                       </Button>
-                    </div>
-                  </div>
+                    </footer>
+                  </section>
                 ) : null}
                         {m.detail ? (
                           <div className={styles.filedCard}>
@@ -526,13 +548,12 @@ export function BamaThread({
             <p className="m-0 px-1 text-xs leading-snug text-muted-foreground">
               Who is this anecdotal report for?
             </p>
-            <input
-              type="search"
+            <TeacherSearchField
+              className="w-full"
               value={flow.studentQ}
-              onChange={(e) => flow.setStudentQ(e.target.value)}
+              onChange={flow.setStudentQ}
               placeholder="Search name, LRN, or section…"
               aria-label="Search students"
-              className={dialogStyles.pickerSearch}
             />
             <div
               className={dialogStyles.kanbanList}
@@ -553,7 +574,9 @@ export function BamaThread({
                   ))}
                 </div>
               ) : flow.studentRows.length === 0 ? (
-                <p className={dialogStyles.pickerEmpty}>No students match.</p>
+                <p className={dialogStyles.pickerEmpty}>
+                  {searchEmptyMessage(flow.studentQ, "students")}
+                </p>
               ) : (
                 flow.studentRows.map((s) => (
                   <button
@@ -794,13 +817,12 @@ export function BamaThread({
                 Select all
               </Button>
             </div>
-            <input
-              type="search"
+            <TeacherSearchField
+              className="w-full"
               value={sf10Flow.studentQ}
-              onChange={(e) => sf10Flow.setStudentQ(e.target.value)}
+              onChange={sf10Flow.setStudentQ}
               placeholder="Search name or LRN…"
               aria-label="Search students"
-              className={dialogStyles.pickerSearch}
             />
             <div
               className={dialogStyles.kanbanList}
@@ -822,7 +844,9 @@ export function BamaThread({
                   ))}
                 </div>
               ) : sf10Flow.studentRows.length === 0 ? (
-                <p className={dialogStyles.pickerEmpty}>No students match.</p>
+                <p className={dialogStyles.pickerEmpty}>
+                  {searchEmptyMessage(sf10Flow.studentQ, "students")}
+                </p>
               ) : (
                 sf10Flow.studentRows.map((s) => {
                   const picked = sf10Flow.pickedLrns.includes(s.lrn);
@@ -931,13 +955,12 @@ export function BamaThread({
                 Clear
               </Button>
             </div>
-            <input
-              type="search"
+            <TeacherSearchField
+              className="w-full"
               value={autofillFlow.studentQ}
-              onChange={(e) => autofillFlow.setStudentQ(e.target.value)}
+              onChange={autofillFlow.setStudentQ}
               placeholder="Search name or LRN…"
               aria-label="Search students"
-              className={dialogStyles.pickerSearch}
             />
             <div
               className={dialogStyles.kanbanList}
@@ -961,7 +984,9 @@ export function BamaThread({
               ) : autofillFlow.candidatesError ? (
                 <p className={dialogStyles.pickerEmpty}>Could not load advisees. Try again.</p>
               ) : autofillFlow.candidateRows.length === 0 ? (
-                <p className={dialogStyles.pickerEmpty}>No students match.</p>
+                <p className={dialogStyles.pickerEmpty}>
+                  {searchEmptyMessage(autofillFlow.studentQ, "students")}
+                </p>
               ) : (
                 autofillFlow.candidateRows.map((s) => {
                   const picked = autofillFlow.pickedLrns.includes(s.lrn);

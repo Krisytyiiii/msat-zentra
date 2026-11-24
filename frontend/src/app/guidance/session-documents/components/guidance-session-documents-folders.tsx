@@ -1,27 +1,25 @@
 "use client";
 
 import * as React from "react";
+import { ArrowLeft, HelpCircle } from "lucide-react";
+import { PolaroidStack } from "@/components/aicanvas/polaroid-stack";
 import { ImageViewer } from "@/components/image-viewer/ImageViewer";
 import { PrivacyNoticeDialog } from "@/components/privacy-notice-dialog";
 import { Button } from "@/components/ui/button";
-import { KanbanBoard } from "@/components/ui/kanban-board";
-import {
-  Tooltip,
-  TooltipContent,
-  TooltipProvider,
-  TooltipTrigger,
-} from "@/components/ui/tooltip";
-import { Archive, Info, Send } from "lucide-react";
 import { InsightCallout } from "@/components/ui/insight-callout";
+import { KanbanOverlay } from "@/components/ui/kanban-overlay";
+import { ZentraPagination } from "@/components/shared/pagination";
 import type { GuidanceAnecdotalRecord } from "@/services/guidance/anecdotal.types";
 import {
   GuidanceAnecdotalSearch,
   GuidanceAnecdotalTypeTabs,
   type TypeFilter,
 } from "@/app/guidance/anecdotal/components/guidance-anecdotal-filters";
-import { Pagination } from "@/components/shared/pagination";
-import { SessionDocumentKanbanCard } from "./SessionDocumentKanbanCard";
 import { docSlipsFor } from "./session-doc-slips";
+import {
+  SessionDocumentPhotoPolaroid,
+  SessionDocumentPolaroid,
+} from "./SessionDocumentPolaroid";
 import styles from "./guidance-session-documents-folders.module.css";
 
 function isEndorsedCase(type: string | undefined, status: string): boolean {
@@ -31,6 +29,7 @@ function isEndorsedCase(type: string | undefined, status: string): boolean {
 interface GuidanceSessionDocumentsFoldersProps {
   records: GuidanceAnecdotalRecord[];
   page: number;
+  pageSize: number;
   total: number;
   onPageChange: (page: number) => void;
   query: string;
@@ -39,9 +38,15 @@ interface GuidanceSessionDocumentsFoldersProps {
   onTypeChange: (value: TypeFilter) => void;
 }
 
+/**
+ * Guidance session documents — one Polaroid per referred case, piled on a desk
+ * (the same presentation as the nurse health-records board). Clicking a record
+ * fans out the photos filed on its sessions; each photo opens full size.
+ */
 export function GuidanceSessionDocumentsFolders({
   records,
   page,
+  pageSize,
   total,
   onPageChange,
   query,
@@ -51,57 +56,102 @@ export function GuidanceSessionDocumentsFolders({
 }: GuidanceSessionDocumentsFoldersProps) {
   const [endorsedFor, setEndorsedFor] = React.useState<string | null>(null);
   const [helpOpen, setHelpOpen] = React.useState(false);
-  const helpRef = React.useRef<HTMLDivElement>(null);
+  /* The record whose filed photos are fanned out on the desk. */
+  const [photoEntry, setPhotoEntry] = React.useState<GuidanceAnecdotalRecord | null>(
+    null,
+  );
+  /* The photo opened full-size from the fan. */
   const [gallery, setGallery] = React.useState<{
     record: GuidanceAnecdotalRecord;
     index: number;
   } | null>(null);
   const [galleryIndex, setGalleryIndex] = React.useState(0);
 
-  React.useEffect(() => {
-    if (!helpOpen) return;
-    const onPointerDown = (e: PointerEvent) => {
-      const target = e.target as Element | null;
-      if (target?.closest?.('[data-slot="tooltip-content"]')) return;
-      if (helpRef.current && !helpRef.current.contains(e.target as Node)) {
-        setHelpOpen(false);
-      }
-    };
-    const onKeyDown = (e: KeyboardEvent) => {
-      if (e.key === "Escape") setHelpOpen(false);
-    };
-    document.addEventListener("pointerdown", onPointerDown);
-    document.addEventListener("keydown", onKeyDown);
-    return () => {
-      document.removeEventListener("pointerdown", onPointerDown);
-      document.removeEventListener("keydown", onKeyDown);
-    };
-  }, [helpOpen]);
+  const activeTypeLabel =
+    type === "ADM" ? "ADM consultation" : type === "Counseling" ? "Counseling" : "";
 
-  const openGallery = (record: GuidanceAnecdotalRecord, index: number) => {
-    // Filed session photos stay viewable even when the case is finished —
-    // the counselor filed them, so resolved/closed folders open normally.
-    // Only ADM-endorsed folders stay blocked (they live in the ADM queue).
+  const openRecord = (record: GuidanceAnecdotalRecord) => {
+    // Photos stay viewable even on finished cases; only ADM-endorsed folders
+    // are blocked because the case (and its files) moved to the ADM queue.
     if (isEndorsedCase(record.referralType, record.referralStatus)) {
       setEndorsedFor(record.student);
       return;
     }
+    setPhotoEntry(record);
+  };
+
+  const openGallery = (record: GuidanceAnecdotalRecord, index: number) => {
     setGallery({ record, index });
     setGalleryIndex(index);
   };
 
-  const activeTypeLabel =
-    type === "ADM" ? "ADM consultation" : type === "Counseling" ? "Counseling" : "";
+  let body: React.ReactNode;
 
-  return (
-    <>
+  if (photoEntry) {
+    const files = docSlipsFor(photoEntry, 50).map((doc) => doc.image);
+    const totalFiles = files.length;
+
+    body = (
+      <section
+        aria-label="Session document photos"
+        className="flex flex-col gap-3"
+      >
+        <div className="flex flex-wrap items-center justify-between gap-2">
+          <Button
+            type="button"
+            size="sm"
+            variant="outline"
+            onClick={() => setPhotoEntry(null)}
+          >
+            <ArrowLeft aria-hidden />
+            All records
+          </Button>
+          <p className="m-0 text-[12px] text-muted-foreground">
+            {photoEntry.student} · {totalFiles} photo{totalFiles === 1 ? "" : "s"}
+          </p>
+        </div>
+        <PolaroidStack
+          key={photoEntry.referralId}
+          initialExpanded
+          enterFromLeft
+          items={files.map((file, index) => ({ ...file, index }))}
+          ariaLabel={`Session photos for ${photoEntry.student}`}
+          labelFor={(photo) =>
+            `Open photo ${photo.index + 1} of ${totalFiles} for ${photoEntry.student}`
+          }
+          renderCard={(photo) => (
+            <SessionDocumentPhotoPolaroid
+              record={photoEntry}
+              file={photo}
+              index={photo.index}
+              total={totalFiles}
+            />
+          )}
+          onActivate={(photo) => openGallery(photoEntry, photo.index)}
+          hint="Click a photo to open it full size."
+        />
+      </section>
+    );
+  } else {
+    body = (
       <section aria-label="Session documents" className="flex flex-col gap-4">
         <div className={styles.header}>
           <div className={styles.headerText}>
-            <h2 className={styles.sectionTitle}>Filed session images</h2>
+            <div className={styles.titleRow}>
+              <h2 className={styles.sectionTitle}>Filed session images</h2>
+              <button
+                type="button"
+                className={styles.helpBtn}
+                onClick={() => setHelpOpen(true)}
+                aria-label="Why can't I open some folders?"
+                title="Why can't I open some folders?"
+              >
+                <HelpCircle aria-hidden="true" />
+              </button>
+            </div>
             <p className={styles.sectionDesc}>
-              Images counselors filed on sessions — {total} folder{total === 1 ? "" : "s"} in
-              all. Open a folder to view its photos.
+              Images counselors filed on sessions — {total} folder
+              {total === 1 ? "" : "s"} in all. Click a folder to fan out its photos.
             </p>
           </div>
           <div className={styles.headerCenter}>
@@ -109,107 +159,12 @@ export function GuidanceSessionDocumentsFolders({
           </div>
           <div className={styles.headerActions}>
             <GuidanceAnecdotalSearch query={query} onQueryChange={onQueryChange} />
-            <TooltipProvider delayDuration={100}>
-            <div className={styles.helpWrap} ref={helpRef}>
-              <Tooltip>
-                <TooltipTrigger asChild>
-                  <button
-                    type="button"
-                    onClick={() => setHelpOpen((open) => !open)}
-                    aria-expanded={helpOpen}
-                    aria-haspopup="dialog"
-                    aria-label={
-                      helpOpen
-                        ? "Close about session documents"
-                        : "About session documents"
-                    }
-                    className={`relative flex h-9 w-9 items-center justify-center rounded-xl border transition-colors ${
-                      helpOpen
-                        ? "cursor-pointer border-amber-500/60 bg-amber-500/10"
-                        : "cursor-pointer border-border bg-card hover:border-amber-500/60 hover:bg-amber-500/10"
-                    }`}
-                  >
-                    <Info size={16} className="text-amber-500" aria-hidden />
-                  </button>
-                </TooltipTrigger>
-                <TooltipContent side="left" sideOffset={10}>
-                  <span className="font-medium">About session documents</span>
-                  <span className="opacity-60">Filed session images</span>
-                </TooltipContent>
-              </Tooltip>
-
-              <div
-                role="dialog"
-                aria-label="About session documents"
-                aria-hidden={helpOpen ? undefined : true}
-                className={`${styles.helpPanel} ${
-                  helpOpen ? styles.helpPanelOpen : styles.helpPanelClosed
-                }`}
-              >
-                <KanbanBoard
-                  title="About session documents"
-                  icon={
-                    <span className="text-amber-500" aria-hidden>
-                      <Info size={14} />
-                    </span>
-                  }
-                  description="Images counselors filed on sessions, from referrals and interventions. The official GCForm-01 write-up for each case lives on the Anecdotal Records page."
-                  className="border-0"
-                  footer={
-                    <div className="flex justify-end gap-1.5 px-1 pb-1">
-                      <Button
-                        type="button"
-                        size="sm"
-                        className="h-6 px-2 text-xs"
-                        onClick={() => setHelpOpen(false)}
-                      >
-                        Got it
-                      </Button>
-                    </div>
-                  }
-                >
-                  <ul className={styles.helpList}>
-                    <li className={styles.helpRow}>
-                      <span className={styles.helpRowIcon} aria-hidden>
-                        <Archive size={14} />
-                      </span>
-                      <div>
-                        <p className={styles.helpItemTitle}>
-                          Finished cases — photos stay viewable
-                        </p>
-                        <p className={styles.helpItemText}>
-                          Folders marked Resolved or Closed still open because the
-                          photos are the case&apos;s filed evidence. Only the full
-                          GCForm-01 write-up stays private on the Anecdotal
-                          Records page.
-                        </p>
-                      </div>
-                    </li>
-                    <li className={styles.helpRow}>
-                      <span className={styles.helpRowIcon} aria-hidden>
-                        <Send size={14} />
-                      </span>
-                      <div>
-                        <p className={styles.helpItemTitle}>
-                          Endorsed cases — with the ADM coordinator
-                        </p>
-                        <p className={styles.helpItemText}>
-                          Folders marked Endorsed can&apos;t be opened because the
-                          case was endorsed to the ADM coordinator.
-                        </p>
-                      </div>
-                    </li>
-                  </ul>
-                </KanbanBoard>
-              </div>
-            </div>
-          </TooltipProvider>
           </div>
         </div>
 
         {records.length === 0 ? (
-          <div className="flex w-full justify-center py-6">
-            <InsightCallout role="status" className="w-full max-w-xl text-left">
+          <div className="flex min-h-[50vh] w-full flex-1 items-center justify-center py-6">
+            <InsightCallout role="status" className="w-full max-w-xl text-center">
               {query.trim() !== ""
                 ? `No session documents match “${query.trim()}”${
                     activeTypeLabel ? ` in ${activeTypeLabel}` : ""
@@ -221,27 +176,35 @@ export function GuidanceSessionDocumentsFolders({
           </div>
         ) : (
           <>
-            <div
-              className={styles.studentGrid}
-              role="list"
-              aria-label="Session documents"
-            >
-              {records.map((record) => (
-                <SessionDocumentKanbanCard
-                  key={record.referralId}
-                  record={record}
-                  onOpenImage={openGallery}
-                />
-              ))}
-            </div>
-            <Pagination
+            <PolaroidStack
+              align="left"
+              items={records.map((record) => ({
+                ...record,
+                id: record.referralId,
+              }))}
+              ariaLabel="Session document folders"
+              labelFor={(record) =>
+                `${record.student} — ${record.referralType ?? "Counseling"} session documents`
+              }
+              renderCard={(record) => <SessionDocumentPolaroid record={record} />}
+              onActivate={openRecord}
+              hint="Click a record to fan out its photos."
+            />
+            <ZentraPagination
               currentPage={page}
               totalItems={total}
+              pageSize={pageSize}
               onPageChange={onPageChange}
             />
           </>
         )}
       </section>
+    );
+  }
+
+  return (
+    <>
+      {body}
 
       {gallery ? (
         <ImageViewer
@@ -264,6 +227,38 @@ export function GuidanceSessionDocumentsFolders({
         reason="endorsed"
       />
 
+      <KanbanOverlay
+        open={helpOpen}
+        onClose={() => setHelpOpen(false)}
+        width="lg"
+        title="Why can&apos;t I open some folders?"
+        description="Some folders stay listed but their photos never open."
+        footer={
+          <div className="flex items-center justify-end gap-1.5 px-1 pb-1">
+            <Button type="button" onClick={() => setHelpOpen(false)}>
+              Understood
+            </Button>
+          </div>
+        }
+      >
+        <ul className={styles.helpList}>
+          <li>
+            <p className={styles.helpItemTitle}>Finished cases — photos stay viewable</p>
+            <p className={styles.helpItemText}>
+              Folders marked Resolved or Closed still open because the photos are the
+              case&apos;s filed evidence. Only the full GCForm-01 write-up stays private on
+              the Anecdotal Records page.
+            </p>
+          </li>
+          <li>
+            <p className={styles.helpItemTitle}>Endorsed cases — with the ADM coordinator</p>
+            <p className={styles.helpItemText}>
+              Folders marked Endorsed can&apos;t be opened because the case was endorsed to
+              the ADM coordinator. Its files moved with the case.
+            </p>
+          </li>
+        </ul>
+      </KanbanOverlay>
     </>
   );
 }

@@ -15,11 +15,11 @@ import {
   FileText,
   Flag,
   Hourglass,
-  SearchIcon,
   Send,
 } from "lucide-react";
 import { NurseEmptyState } from "../../components/NurseEmptyCard";
-import { Pill } from "@/components/ui/pill";
+import { Pill, type PillTone } from "@/components/ui/pill";
+import { anecdotalCategoryPillClass } from "@/lib/labels/anecdotal";
 import { Button } from "@/components/ui/button";
 import {
   Tooltip,
@@ -27,14 +27,13 @@ import {
   TooltipProvider,
   TooltipTrigger,
 } from "@/components/ui/tooltip";
-import {
-  InputGroup,
-  InputGroupAddon,
-  InputGroupInput,
-} from "@/components/ui/input-group";
 import { Skeleton } from "@/components/ui/skeleton";
+import { ShimmerGroup } from "@/components/ui/shimmer-skeleton";
+import { ZentraPaginationSkeleton } from "@/components/shared/zentra-skeletons/ZentraSkeletons";
+import { SearchField } from "@/components/ui/search-field";
 import { InsightCallout } from "@/components/ui/insight-callout";
 import { KanbanBoard } from "@/components/ui/kanban-board";
+import { FilterTabs } from "@/components/ui/filter-tabs";
 import { StudentMascot } from "@/components/student-mascot/StudentMascot";
 import { useNowMs } from "../../overview/components/use-now-ms";
 import { NurseStartHandlingDialog } from "../../overview/components/NurseStartHandlingDialog";
@@ -58,21 +57,31 @@ import styles from "./nurse-alerts.module.css";
    guidance alerts board, so both desks read identically. */
 const PILL_BASE =
   "inline-flex shrink-0 items-center gap-1 rounded-md px-1.5 py-0.5 text-xs font-medium whitespace-nowrap";
-const PILL_MUTED = "bg-muted text-muted-foreground";
 const PILL_SECONDARY = "bg-secondary text-secondary-foreground";
 
-type RiskFilter = "" | "High" | "Moderate";
+/** Server-side case-type filter — matches the API's ?track= param. `all`
+    drops the param so the desk returns both ADM and clinic cases. */
+export type TypeTrack = "all" | "adm" | "clinic";
 
-/** Server-side case-type filter — matches the API's ?track= param. */
-export type TypeTrack = "adm" | "clinic";
-
-/* Risk levels offered by the risk tab strip — High / Moderate only (plus the
-   reset tab); low-risk cases aren't actionable on this desk. */
-const RISK_OPTIONS: { value: RiskFilter; label: string }[] = [
-  { value: "", label: "All risks" },
-  { value: "High", label: "High" },
-  { value: "Moderate", label: "Moderate" },
-];
+/**
+ * Search + type-tab row predicate. Exported because the desk page also uses it
+ * to decide when the board will render its no-match callout: the page must add
+ * `pageFit` on the same render the callout appears, otherwise the message first
+ * lands inline and hops to the page center once the debounced server query
+ * comes back empty.
+ */
+export function matchesAlertFilters(
+  alert: NurseAlertItem,
+  query: string,
+  track: TypeTrack
+) {
+  if (track !== "all" && alert.row.type.toLowerCase() !== track) return false;
+  const q = query.trim().toLowerCase();
+  if (q === "") return true;
+  return `${alert.row.student} ${alert.row.lrn} ${alert.row.section} ${alert.row.reason} ${alert.row.category}`
+    .toLowerCase()
+    .includes(q);
+}
 
 export function statusVariant(
   status: string
@@ -188,97 +197,89 @@ export function ActionGlyph({ label, className }: { label: string; className?: s
 }
 
 /** Kanban-shaped loading placeholder — the board shell with its rows as
-    skeleton bars, so the load and the loaded page read as one surface. */
+    shimmer bars, mirroring the loaded board's header (tabs left, search right),
+    column head, row grid and pager, so the load and the loaded page read as one
+    surface with no layout shift. */
 export function NurseAlertsBoardSkeleton() {
   return (
-    <KanbanBoard
-      title={<Skeleton className={styles.skelCardTitle} />}
-      icon={
-        <span className="text-primary" aria-hidden>
-          <BellRing size={14} />
-        </span>
-      }
-      ariaLabel="Loading referred cases"
-      description={<Skeleton className={styles.skelPanelDesc} />}
-      actions={
-        <div
-          className="flex max-w-[70vw] flex-wrap items-center justify-end gap-2"
-          aria-hidden="true"
-        >
-          <Skeleton className={styles.skelSearch} />
-        </div>
-      }
-      headerCenter={
-        <div
-          className={`${styles.filterRow} ${styles.filterRowScroll} max-w-[52vw]`}
-          aria-hidden="true"
-        >
-          <Skeleton className={styles.skelTab} />
-          <Skeleton className={styles.skelTab} />
-          <span className={styles.filterDivider}>|</span>
-          <Skeleton className={styles.skelTab} />
-          <Skeleton className={styles.skelTab} />
-          <Skeleton className={styles.skelTab} />
-        </div>
-      }
-      footer={
-        <div className={styles.skelPager} aria-hidden="true">
-          <Skeleton className={styles.skelRange} />
-          <div className={styles.skelPagerBtns}>
-            <Skeleton className={styles.skelBtn} />
-            <Skeleton className={styles.skelPageLabel} />
-            <Skeleton className={styles.skelBtn} />
+    <ShimmerGroup>
+      <KanbanBoard
+        className={styles.boardSurface}
+        ariaLabel="Loading referred cases"
+        headerDivider={false}
+        headerToolbar={
+          <div
+            className="flex w-full flex-wrap items-center justify-between gap-2"
+            aria-hidden="true"
+          >
+            <div className={`${styles.filterRow} ${styles.filterRowScroll}`}>
+              <Skeleton className={styles.skelTab} />
+              <Skeleton className={styles.skelTab} />
+              <Skeleton className={styles.skelTab} />
+            </div>
+            <Skeleton className={styles.skelSearch} />
           </div>
-        </div>
-      }
-    >
-      <ul className={styles.caseList}>
-        {[0, 1, 2, 3, 4, 5].map((i) => (
-          <li key={i} className={styles.skeletonRow} aria-hidden="true">
-            <div className={styles.caseStudent}>
-              <Skeleton className={styles.skelAvatar} />
-              <div className={styles.caseIdentity}>
-                <Skeleton className={styles.skelCaseName} />
-                <div className={styles.caseSubRow}>
-                  <Skeleton className={styles.skelPillShort} />
+        }
+        footer={<ZentraPaginationSkeleton />}
+      >
+        <div className={styles.listPanel}>
+          <div className={styles.listHead} aria-hidden="true">
+            <Skeleton className={styles.skelHeadLabel} />
+            <Skeleton className={styles.skelHeadLabel} />
+            <Skeleton className={styles.skelHeadLabel} />
+            <Skeleton className={styles.skelHeadLabel} />
+            <Skeleton className={styles.skelHeadLabel} />
+            <Skeleton className={`${styles.skelHeadLabel} ${styles.colRisk}`} />
+            <Skeleton className={`${styles.skelHeadLabel} ${styles.colSessions}`} />
+            <Skeleton className={`${styles.skelHeadLabel} ${styles.colReferred}`} />
+            <Skeleton className={styles.skelHeadLabel} />
+          </div>
+          <ul className={styles.caseList}>
+            {[0, 1, 2, 3, 4, 5].map((i) => (
+              <li key={i} className={styles.skeletonRow} aria-hidden="true">
+                <div className={`${styles.cell} ${styles.cellType}`}>
+                  <Skeleton className={styles.skelTypePill} />
+                </div>
+                <div className={`${styles.cell} ${styles.cellLearner}`}>
+                  <Skeleton className={styles.skelAvatar} />
+                  <div className={styles.caseIdentity}>
+                    <Skeleton className={styles.skelCaseName} />
+                    <div className={styles.cellSub}>
+                      <Skeleton className={styles.skelPillShort} />
+                    </div>
+                  </div>
+                </div>
+                <div className={`${styles.cell} ${styles.cellStack} ${styles.colGrade}`}>
+                  <Skeleton className={styles.skelLine} />
+                  <Skeleton className={styles.skelLineShort} />
+                </div>
+                <div className={`${styles.cell} ${styles.colConcern}`}>
+                  <Skeleton className={styles.skelConcernPill} />
+                </div>
+                <div className={`${styles.cell} ${styles.cellStatus}`}>
+                  <Skeleton className={styles.skelPill} />
+                </div>
+                <div className={`${styles.cell} ${styles.colRisk}`}>
                   <Skeleton className={styles.skelPillShort} />
                 </div>
-              </div>
-            </div>
-            <div className={styles.caseStatusCell}>
-              <Skeleton className={styles.skelSplitPill} />
-            </div>
-            <div className={styles.caseTimeCell}>
-              <Skeleton className={styles.skelPillShort} />
-            </div>
-            <div className={styles.caseActions}>
-              <Skeleton className={styles.skelKebab} />
-            </div>
-          </li>
-        ))}
-      </ul>
-    </KanbanBoard>
+                <div className={`${styles.cell} ${styles.cellStack} ${styles.colSessions}`}>
+                  <Skeleton className={styles.skelLineShort} />
+                  <Skeleton className={styles.skelLineShort} />
+                </div>
+                <div className={`${styles.cell} ${styles.colReferred}`}>
+                  <Skeleton className={styles.skelPillShort} />
+                </div>
+                <div className={styles.caseActions}>
+                  <Skeleton className={styles.skelBtnSm} />
+                  <Skeleton className={styles.skelBtnSm} />
+                </div>
+              </li>
+            ))}
+          </ul>
+        </div>
+      </KanbanBoard>
+    </ShimmerGroup>
   );
-}
-
-/* Status → text tone for the split status|risk pill (same palette as the
-   guidance alerts board: green done/endorsed, red rejected/escalated, blue
-   booked/follow-up, amber needs review). */
-const STATUS_TEXT_TONE: Record<string, string> = {
-  endorsed: "text-green-600 dark:text-green-400",
-  done: "text-green-600 dark:text-green-400",
-  done_session: "text-green-600 dark:text-green-400",
-  rejected: "text-red-600 dark:text-red-400",
-  escalated: "text-red-600 dark:text-red-400",
-  needs_review: "text-amber-600 dark:text-amber-400",
-  booked: "text-blue-600 dark:text-blue-400",
-  followup: "text-blue-600 dark:text-blue-400",
-};
-
-function riskTextTone(level: NurseRiskLevel | undefined): string {
-  if (level === "High") return "text-red-600 dark:text-red-400";
-  if (level === "Moderate") return "text-amber-600 dark:text-amber-400";
-  return "text-muted-foreground";
 }
 
 /** Colour code for the latest-action glyph — same semantic palette as the
@@ -303,26 +304,42 @@ function latestActionTone(label: string): string {
   return "text-muted-foreground";
 }
 
-/** Track lead pill left of the mascot, same as the guidance alerts rows. */
+/** Track lead pill — ADM (blue) or Clinic (amber), the row's first column. */
 function RowTypeLabel({ type }: { type: string }) {
   const adm = type === "ADM";
   return (
-    <>
-      <span
-        className={`${styles.caseTypePill} ${
-          adm
-            ? "bg-blue-500/15 text-blue-700 dark:text-blue-400"
-            : "bg-amber-500/15 text-amber-700 dark:text-amber-400"
-        }`}
-        aria-label="Case type"
-      >
-        {adm ? "ADM" : "Clinic"}
-      </span>
-      <span className={styles.caseSeparator} aria-hidden="true">
-        |
-      </span>
-    </>
+    <span
+      className={`${styles.caseTypePill} ${
+        adm
+          ? "bg-blue-500/15 text-blue-700 dark:text-blue-400"
+          : "bg-amber-500/15 text-amber-700 dark:text-amber-400"
+      }`}
+      aria-label="Case type"
+    >
+      {adm ? "ADM" : "Clinic"}
+    </span>
   );
+}
+
+/** Pill tone for the derived action status (same palette as the split pill). */
+function statusPillTone(key: string): PillTone {
+  switch (key) {
+    case "endorsed":
+    case "done":
+    case "done_session":
+      return "green";
+    case "booked":
+    case "followup":
+      return "blue";
+    case "rejected":
+    case "escalated":
+    case "cancelled":
+      return "red";
+    case "needs_review":
+      return "amber";
+    default:
+      return "neutral";
+  }
 }
 
 /**
@@ -386,9 +403,9 @@ function ClinicBookingControl({
   );
 }
 
-/** One case line: type lead + identity, status|risk split pill, referred time,
-    latest-action glyph and the clinic booking control. Mirrors the guidance
-    alerts board's row so both desks read the same way. */
+/** One case line in the desk's data list: case type, learner identity,
+    grade/section, concern, status, risk, session tally, referred time and the
+    latest-action + booking controls. */
 function NurseAlertRow({
   alert,
   index,
@@ -414,8 +431,7 @@ function NurseAlertRow({
   );
   const latest = latestActionOf(row, alert);
   const doneCount = row.sessions.filter((s) => s.status === "completed").length;
-  const stage = caseStage(row);
-  const closed = stage.key === "done" || stage.key === "cancelled" || stage.key === "reject";
+  const bookedCount = row.sessions.filter((s) => s.status === "scheduled").length;
   const referredMs = msSinceDate(row.referredAt, nowMs);
   const homeBase =
     row.type === "ADM" ? "/nurse/referrals/adm" : "/nurse/referrals/clinic";
@@ -437,8 +453,11 @@ function NurseAlertRow({
         }
       }}
     >
-      <div className={styles.caseStudent}>
+      <div className={`${styles.cell} ${styles.cellType}`}>
         <RowTypeLabel type={row.type} />
+      </div>
+
+      <div className={`${styles.cell} ${styles.cellLearner}`}>
         <StudentMascot
           name={row.student}
           seed={row.lrn}
@@ -460,67 +479,42 @@ function NurseAlertRow({
                 </TooltipContent>
               </Tooltip>
             </TooltipProvider>
-            {row.grade !== "—" ? (
-              <TooltipProvider delayDuration={100}>
-                <Tooltip>
-                  <TooltipTrigger asChild>
-                    <Pill
-                      tone="amber"
-                      tabIndex={0}
-                      aria-label={`Grade level ${row.grade}`}
-                    >
-                      {row.section}
-                    </Pill>
-                  </TooltipTrigger>
-                  <TooltipContent side="top" sideOffset={6}>
-                    <span className="font-medium">{row.grade}</span>
-                  </TooltipContent>
-                </Tooltip>
-              </TooltipProvider>
-            ) : null}
           </p>
         </div>
       </div>
 
-      <div className={styles.caseStatusCell}>
-        <span className={styles.splitPill}>
-          <TooltipProvider delayDuration={100}>
-            <Tooltip>
-              <TooltipTrigger asChild>
-                <span
-                  className={`${styles.splitPart} ${STATUS_TEXT_TONE[status.key] ?? "text-foreground"}`}
-                  tabIndex={0}
-                  aria-label="Status"
-                >
-                  {status.label}
-                </span>
-              </TooltipTrigger>
-              <TooltipContent side="top" sideOffset={6}>
-                <span className="font-medium">Status</span>
-              </TooltipContent>
-            </Tooltip>
-          </TooltipProvider>
-          <span className={styles.splitDivider} aria-hidden="true" />
-          <TooltipProvider delayDuration={100}>
-            <Tooltip>
-              <TooltipTrigger asChild>
-                <span
-                  className={`${styles.splitPart} ${riskTextTone(riskLevel)}`}
-                  tabIndex={0}
-                  aria-label="Risk level"
-                >
-                  {riskLoading && !riskLevel ? "…" : (riskLevel ?? "—")}
-                </span>
-              </TooltipTrigger>
-              <TooltipContent side="top" sideOffset={6}>
-                <span className="font-medium">Risk level</span>
-              </TooltipContent>
-            </Tooltip>
-          </TooltipProvider>
+      <div className={`${styles.cell} ${styles.cellStack} ${styles.colGrade}`}>
+        <span className={styles.cellValue}>{row.grade}</span>
+        <span className={styles.cellMuted}>{row.section}</span>
+      </div>
+
+      <div className={`${styles.cell} ${styles.cellStack} ${styles.colConcern}`}>
+        <span
+          className={`${styles.concernPill} ${
+            anecdotalCategoryPillClass(row.category) ?? ""
+          }`}
+          title={row.category}
+        >
+          {row.category}
         </span>
       </div>
 
-      <div className={styles.caseTimeCell}>
+      <div className={`${styles.cell} ${styles.cellStatus}`}>
+        <Pill tone={statusPillTone(status.key)} label="Status">
+          {status.label}
+        </Pill>
+      </div>
+
+      <div className={`${styles.cell} ${styles.colRisk}`}>
+        <RiskBadge level={riskLevel} loading={riskLoading} />
+      </div>
+
+      <div className={`${styles.cell} ${styles.cellStack} ${styles.colSessions}`}>
+        <span className={styles.cellValue}>{doneCount} done</span>
+        <span className={styles.cellMuted}>{bookedCount} booked</span>
+      </div>
+
+      <div className={`${styles.cell} ${styles.colReferred}`}>
         <TooltipProvider delayDuration={100}>
           <Tooltip>
             <TooltipTrigger asChild>
@@ -549,43 +543,21 @@ function NurseAlertRow({
         onClick={(event) => event.stopPropagation()}
         onKeyDown={(event) => event.stopPropagation()}
       >
-        {doneCount > 0 && !closed ? (
-          <TooltipProvider delayDuration={100}>
-            <Tooltip>
-              <TooltipTrigger asChild>
-                <span
-                  className={`${PILL_BASE} ${PILL_MUTED} tabular-nums`}
-                  tabIndex={0}
-                  aria-label="Sessions done"
-                >
-                  {doneCount} session{doneCount === 1 ? "" : "s"} done
-                </span>
-              </TooltipTrigger>
-              <TooltipContent side="top" sideOffset={6}>
-                <span className="font-medium">Sessions done</span>
-              </TooltipContent>
-            </Tooltip>
-          </TooltipProvider>
-        ) : null}
-        <TooltipProvider delayDuration={100}>
-          <Tooltip>
-            <TooltipTrigger asChild>
-              <span
-                className={styles.actionIconButton}
-                aria-label={latest.label}
-                tabIndex={0}
-              >
-                <ActionGlyph
-                  label={latest.label}
-                  className={`${styles.actionIcon} ${latestActionTone(latest.label)}`}
-                />
-              </span>
-            </TooltipTrigger>
-            <TooltipContent side="top" sideOffset={6}>
-              <span className="font-medium">{latest.label}</span>
-            </TooltipContent>
-          </Tooltip>
-        </TooltipProvider>
+        <Button
+          type="button"
+          size="xs"
+          variant="outline"
+          className="h-6 min-w-0 max-w-full gap-1 px-2 text-[12px] font-semibold"
+          onClick={open}
+          title={latest.label}
+          aria-label={`${latest.label} — open case for ${row.student}`}
+        >
+          <ActionGlyph
+            label={latest.label}
+            className={`${styles.actionIcon} ${latestActionTone(latest.label)}`}
+          />
+          <span className="truncate">{latest.label}</span>
+        </Button>
         <ClinicBookingControl row={row} onChanged={onChanged} />
       </div>
     </li>
@@ -603,7 +575,6 @@ export function NurseAlertsBoard({
   onTrackChange,
   page,
   total: totalProp,
-  unfilteredTotal,
   onPageChange,
   serverPaged = false,
 }: {
@@ -625,123 +596,53 @@ export function NurseAlertsBoard({
   serverPaged?: boolean;
 }) {
   const [internalQuery, setInternalQuery] = React.useState("");
-  const [risk, setRisk] = React.useState<RiskFilter>("");
   const nowMs = useNowMs();
   const query = controlledQuery ?? internalQuery;
   const setQuery = onQueryChange ?? setInternalQuery;
 
   const filtered = React.useMemo(() => {
-    // Filter the loaded page instantly as the nurse types (same feel as the
-    // teacher desks); the debounced server query then swaps in matches from
-    // the rest of the desk.
-    const q = query.trim().toLowerCase();
-    return alerts.filter((a) => {
-      if (risk !== "") {
-        const level = a.studentId ? riskByStudent[a.studentId] : undefined;
-        if (level !== risk) return false;
-      }
-      if (
-        q !== "" &&
-        !`${a.row.student} ${a.row.lrn} ${a.row.section} ${a.row.reason} ${a.row.category}`
-          .toLowerCase()
-          .includes(q)
-      )
-        return false;
-      return true;
-    });
-  }, [alerts, query, risk, riskByStudent]);
+    // Both the type tabs and the search narrow the rows already loaded — no
+    // refetch, no URL, so switching is instant. The debounced server query
+    // then swaps in matches from the rest of the desk.
+    return alerts.filter((a) => matchesAlertFilters(a, query, track));
+  }, [alerts, query, track]);
 
   const total = serverPaged ? (totalProp ?? filtered.length) : filtered.length;
-  const hasActiveFilters = query.trim() !== "" || risk !== "";
-  const trackLabel = track === "adm" ? "ADM cases" : "Clinic cases";
+  const hasActiveFilters = query.trim() !== "" || track !== "all";
   const emptyFiltered = (alerts.length === 0 || filtered.length === 0) && hasActiveFilters;
+  const isEmpty = alerts.length === 0 || filtered.length === 0;
 
   return (
     <KanbanBoard
-      title="Referred cases"
-      icon={
-        <span className="text-primary" aria-hidden>
-          <BellRing size={14} />
-        </span>
-      }
+      sectionClassName={isEmpty ? styles.emptyFill : undefined}
+      className={`${styles.boardSurface}${isEmpty ? ` ${styles.emptyFill}` : ""}`}
       ariaLabel="Referred cases"
-      description={`${trackLabel} on your desk — ${total} case${total === 1 ? "" : "s"}${
-        serverPaged &&
-        unfilteredTotal !== undefined &&
-        unfilteredTotal !== total
-          ? ` (of ${unfilteredTotal} on your desk)`
-          : ""
-      }.`}
-      headerCenter={
-        /* Board-header filter strip (centered like the principal schedule
-           selector): ADM/Clinic type tabs (amber), a rule, then the risk pill
-           tabs (blue when active). Inline tabs — no dropdown. */
-        <div className={`${styles.filterRow} ${styles.filterRowScroll} max-w-[52vw]`}>
-          <div
-            className={styles.filterGroup}
-            role="group"
-            aria-label="Filter cases by desk"
-          >
-            <button
-              type="button"
-              aria-pressed={track === "adm"}
-              onClick={() => onTrackChange("adm")}
-              className={styles.filterButton}
-            >
-              <Pill tone={track === "adm" ? "amber" : "neutral"}>ADM</Pill>
-            </button>
-            <button
-              type="button"
-              aria-pressed={track === "clinic"}
-              onClick={() => onTrackChange("clinic")}
-              className={styles.filterButton}
-            >
-              <Pill tone={track === "clinic" ? "amber" : "neutral"}>
-                Clinic
-              </Pill>
-            </button>
+      headerDivider={false}
+      headerToolbar={
+        /* Type tabs on the left, search on the right — one full-width row. */
+        <div className="flex w-full flex-wrap items-center justify-between gap-2">
+          <div className={`${styles.filterRow} ${styles.filterRowScroll}`}>
+            <FilterTabs
+              label="Filter cases by desk"
+              variant="tags"
+              value={track}
+              onChange={onTrackChange}
+              options={[
+                { value: "all", label: "All", tone: "neutral" },
+                { value: "adm", label: "ADM", tone: "blue" },
+                { value: "clinic", label: "Clinic", tone: "amber" },
+              ]}
+            />
           </div>
-          <span className={styles.filterDivider} aria-hidden>
-            |
-          </span>
-          <div
-            className={styles.filterGroup}
-            role="group"
-            aria-label="Filter cases by risk level"
-          >
-            {RISK_OPTIONS.map((option) => (
-              <button
-                key={option.label}
-                type="button"
-                aria-pressed={risk === option.value}
-                onClick={() => {
-                  setRisk(option.value);
-                }}
-                className={styles.filterButton}
-              >
-                <Pill tone={risk === option.value ? "blue" : "neutral"}>
-                  {option.label}
-                </Pill>
-              </button>
-            ))}
-          </div>
-        </div>
-      }
-      actions={
-        <div className="flex max-w-[70vw] flex-wrap items-center justify-end gap-2">
-          <InputGroup className="w-60 max-w-full shrink-0 rounded-[16px]">
-            <InputGroupInput
+          <div className="flex flex-wrap items-center justify-end gap-2">
+            <SearchField
+              className="w-60"
               placeholder="Search cases..."
               value={query}
-              onChange={(e) => {
-                setQuery(e.target.value);
-              }}
+              onChange={setQuery}
               aria-label="Search referred cases"
             />
-            <InputGroupAddon>
-              <SearchIcon />
-            </InputGroupAddon>
-          </InputGroup>
+          </div>
         </div>
       }
       footer={
@@ -753,26 +654,49 @@ export function NurseAlertsBoard({
       }
     >
       {alerts.length > 0 && filtered.length > 0 ? (
-        <ul className={styles.caseList}>
-          {filtered.map((alert, i) => (
-            <NurseAlertRow
-              key={alert.key}
-              alert={alert}
-              index={i}
-              riskLevel={
-                alert.studentId ? riskByStudent[alert.studentId] : undefined
-              }
-              riskLoading={riskLoading}
-              nowMs={nowMs}
-              onChanged={onChanged}
-            />
-          ))}
-        </ul>
+        <div className={styles.listPanel}>
+          <div className={styles.listHead} aria-hidden="true">
+            <span>Case</span>
+            <span>Learner</span>
+            <span className={styles.colGrade}>Grade &amp; section</span>
+            <span className={`${styles.colConcern}`}>Concern</span>
+            <span>Status</span>
+            <span className={styles.colRisk}>Risk</span>
+            <span className={styles.colSessions}>Sessions</span>
+            <span className={styles.colReferred}>Referred</span>
+            <span className={styles.headActions}>Actions</span>
+          </div>
+          <ul className={styles.caseList}>
+            {filtered.map((alert, i) => (
+              <NurseAlertRow
+                key={alert.key}
+                alert={alert}
+                index={i}
+                riskLevel={
+                  alert.studentId ? riskByStudent[alert.studentId] : undefined
+                }
+                riskLoading={riskLoading}
+                nowMs={nowMs}
+                onChanged={onChanged}
+              />
+            ))}
+          </ul>
+        </div>
       ) : emptyFiltered ? (
-        <div className="flex w-full justify-center py-6">
+        <div className={styles.emptyCenter}>
           <InsightCallout role="status" className="w-full max-w-xl text-left">
-            <strong>No cases match your search.</strong> Try a different name,
-            LRN, or category — or clear the search to see every referred case.
+            {(query ?? "").trim() !== "" ? (
+              <>
+                <strong>No cases match your search.</strong> Try a different
+                name, LRN, or category — or clear the search to see every
+                referred case.
+              </>
+            ) : (
+              <>
+                <strong>No cases match the selected filter.</strong> Pick a
+                different filter above the board, or show every case.
+              </>
+            )}
           </InsightCallout>
         </div>
       ) : (

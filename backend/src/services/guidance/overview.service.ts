@@ -1,5 +1,6 @@
 import { prisma } from "../../lib/prisma.js";
 import { sectionHeadcounts } from "../enrollment.js";
+import { subjectAverageAttendance } from "../attendance.js";
 import {
   archivedAdvisoryLearnerIds,
   excludeArchivedLearnerRows,
@@ -286,6 +287,7 @@ export async function getOverview(ctx: GuidanceContext) {
         ...excludeArchivedProfiles(archivedLearners),
       },
       select: {
+        userId: true,
         lrn: true,
         gradeLevel: true,
         section: {
@@ -337,9 +339,13 @@ export async function getOverview(ctx: GuidanceContext) {
   ]);
 
   const headcounts = await sectionHeadcounts(sectionPopulations.map((s) => s.id));
-  const sectionTotals = termId
-    ? await sectionAttendanceTotals(sectionPopulations.map((s) => s.id), termId)
-    : new Map<string, number>();
+  const sectionIds = sectionPopulations.map((s) => s.id);
+  const [sectionTotals, subjectAvgs] = await Promise.all([
+    termId ? sectionAttendanceTotals(sectionIds, termId) : Promise.resolve(new Map<string, number>()),
+    termId
+      ? subjectAverageAttendance(sectionIds, termId)
+      : Promise.resolve(new Map<string, { average: number; hasSubjectData: boolean }>()),
+  ]);
 
   // The section is the source of truth for which grade desk a learner shows up
   // under. A profile whose `gradeLevel` drifted from its section's grade (test
@@ -351,6 +357,8 @@ export async function getOverview(ctx: GuidanceContext) {
 
   const registeredLrns = new Set(students.map((s) => s.lrn));
   const riskCohort: {
+    /** `userId`, or `roster:<id>` — keys the term subject-average map. */
+    key: string;
     gradeLevel: string;
     sectionId: string;
     /** Roster learner id — drives the transferee attendance window. */
@@ -361,6 +369,7 @@ export async function getOverview(ctx: GuidanceContext) {
     anecdotalCount: number;
   }[] = [
     ...students.map((s) => ({
+      key: s.userId,
       gradeLevel: s.gradeLevel,
       sectionId: s.section?.id ?? "",
       rosterId: null,
@@ -372,6 +381,7 @@ export async function getOverview(ctx: GuidanceContext) {
     ...rosterCohort
       .filter((r) => !registeredLrns.has(r.lrn))
       .map((r) => ({
+        key: `roster:${r.id}`,
         gradeLevel: r.gradeLevel,
         sectionId: r.sectionId,
         rosterId: r.id,
@@ -396,9 +406,11 @@ export async function getOverview(ctx: GuidanceContext) {
   const levelByGrade = new Map<string, { high: number; moderate: number; low: number }>();
 
   for (const s of riskCohort) {
+    const subjAvg = subjectAvgs.get(s.key);
     const flags = computeRiskFactors({
       finalGrades: s.finalGrades,
       attendance: s.attendanceRecords,
+      attendanceRate: subjAvg && subjAvg.hasSubjectData ? subjAvg.average : null,
       attendanceTotal: attendanceTotalFor(sectionTotals, s.sectionId, s.rosterId),
       anecdotalCount: s.anecdotalCount,
       enrolled: headcounts.get(s.sectionId) ?? s.enrolledFallback,

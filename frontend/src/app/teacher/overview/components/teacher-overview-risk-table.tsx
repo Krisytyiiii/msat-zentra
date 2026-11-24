@@ -4,6 +4,7 @@ import * as React from "react";
 import { BookOpen, CalendarClock, ShieldAlert, type LucideIcon } from "lucide-react";
 import { RowList, type RowListItem, type RowTone } from "@/components/ui/row-list";
 import { KanbanBoard, KanbanBoardEmpty } from "@/components/ui/kanban-board";
+import { searchEmptyMessage } from "@/app/teacher/components/TeacherSearchField";
 import { formatApproveDate } from "@/components/shared/adviser-access/adviser-access-types";
 import { PAGE_SIZE, Pagination } from "@/components/shared/pagination";
 import type { AdvisoryStatusRow } from "@/services/teacher/overview.types";
@@ -84,7 +85,7 @@ export function TeacherOverviewRiskTable({ students }: TeacherOverviewRiskTableP
     >
       {pageItems.length === 0 ? (
         <KanbanBoardEmpty>
-          {atRisk.length === 0 ? "No at-risk advisees yet." : "No students match."}
+          {atRisk.length === 0 ? "No at-risk advisees yet." : searchEmptyMessage("", "students")}
         </KanbanBoardEmpty>
       ) : (
         <RowList

@@ -1,6 +1,7 @@
 "use client";
 
 import * as React from "react";
+import { useQueryClient } from "@tanstack/react-query";
 import { CalendarDays, Check, RotateCcw } from "lucide-react";
 import { KanbanBoard } from "@/components/ui/kanban-board";
 import { Button } from "@/components/ui/button";
@@ -45,6 +46,7 @@ function termStatus(start: string | null, end: string | null): string | null {
  * year and the term whose dates cover today (same rule the server uses).
  */
 export function TermScopeCard() {
+  const queryClient = useQueryClient();
   const {
     schoolYears,
     isLoading,
@@ -53,6 +55,14 @@ export function TermScopeCard() {
     clearActiveTerm,
     termReady,
   } = useTerm();
+
+  // Always read the years fresh when the settings card opens: the shared
+  // `["term-picker","school-years"]` query is mounted at the app root and has
+  // no interval, so a school year/term the admin just created would otherwise
+  // stay invisible until a full reload.
+  React.useEffect(() => {
+    void queryClient.invalidateQueries({ queryKey: ["term-picker", "school-years"] });
+  }, [queryClient]);
 
   const defaultTerm = React.useMemo<ActiveTerm | null>(() => {
     const year =

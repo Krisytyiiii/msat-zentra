@@ -1,9 +1,10 @@
 "use client";
 
 import type { KeyboardEvent } from "react";
-import { Clock } from "lucide-react";
+import { ArrowUpRight } from "lucide-react";
 import { formatElapsedShort, msSinceDate } from "@/lib/clock";
 import { StudentMascot } from "@/components/student-mascot/StudentMascot";
+import { Button } from "@/components/ui/button";
 import { Pill, type PillTone } from "@/components/ui/pill";
 import { formatStatus } from "@/lib/labels/text";
 import { riskTone } from "@/lib/labels/status-tone";
@@ -20,11 +21,12 @@ const dateFmt = new Intl.DateTimeFormat(undefined, {
   year: "numeric",
 });
 
-/** Active risk factors shown on the card — same labels/tones as the detail overlay. */
+/** Active risk factors shown on the row — compact codes only, full names in
+ *  the tooltip, so the factors column never wraps into a second line. */
 const FACTORS = [
-  { key: "academic", label: "Academic", tone: "amber" },
-  { key: "attendance", label: "Attendance", tone: "sky" },
-  { key: "behavioral", label: "Anecdotal", tone: "rose" },
+  { key: "academic", label: "Academic", code: "ACA", tone: "amber" },
+  { key: "attendance", label: "Attendance", code: "ATT", tone: "sky" },
+  { key: "behavioral", label: "Anecdotal", code: "ANE", tone: "rose" },
 ] as const;
 
 export function formatDate(iso: string | null): string {
@@ -103,8 +105,9 @@ export function InterventionRowCard({
 }) {
   const status = advisoryPipelineStatus(row);
   const activeFactors = FACTORS.filter((factor) => row.factors[factor.key]);
-  const doneCount =
-    row.intervention?.sessions.filter((session) => session.status === "completed").length ?? 0;
+  const sessions = row.intervention?.sessions ?? [];
+  const doneCount = sessions.filter((session) => session.status === "completed").length;
+  const bookedCount = sessions.filter((session) => session.status === "scheduled").length;
   const detectedMs = row.detectedAt ? msSinceDate(row.detectedAt, now) : null;
   const detectedElapsed =
     detectedMs === null
@@ -123,70 +126,98 @@ export function InterventionRowCard({
 
   return (
     <li
-      style={{ animationDelay: `${450 + Math.min(index, 11) * 140}ms` }}
-      className={styles.caseRow}
+      style={{ animationDelay: `${Math.min(index, 11) * 35}ms` }}
+      className={`${styles.row} ${styles[riskAccentClass(row.riskLevel)]}`}
       onClick={() => onOpen(row)}
       onKeyDown={handleKeyDown}
       tabIndex={0}
+      role="button"
       aria-label={`${row.name}'s intervention case`}
     >
-      <div className={styles.caseCardHead}>
+      <div className={`${styles.cell} ${styles.cellPerson}`}>
         <StudentMascot
           name={row.name}
           seed={row.lrn}
           character={row.mascot ?? undefined}
-          size={36}
+          size={30}
         />
-        <div className={styles.caseCardId}>
-          <p className={styles.caseCardName}>{row.name}</p>
-          <div className={styles.caseCardMeta}>
-            <Pill label="LRN" className="tabular-nums">
-              {row.lrn || "—"}
-            </Pill>
-            <Pill
-              tone="amber"
-              aria-label={`Section ${row.section}`}
-              label={row.gradeLevel || "Grade level"}
-            >
-              {row.section || "—"}
-            </Pill>
-          </div>
+        <div className={styles.personText}>
+          <p className={styles.personName} title={row.name}>
+            {row.name}
+          </p>
+          <span className={styles.personLrn}>{row.lrn || "—"}</span>
         </div>
+      </div>
+
+      <div className={`${styles.cell} ${styles.cellRisk}`}>
         <Pill tone={riskTone(row.riskLevel)} label="Risk level">
           {row.riskLevel}
         </Pill>
       </div>
 
-      <div className={styles.caseCardPills}>
+      <div className={`${styles.cell} ${styles.cellMetaRow} ${styles.cellSection}`}>
+        <span className={styles.cellValue}>{row.gradeLevel}</span>
+        <span className={styles.cellMuted}>{row.section}</span>
+      </div>
+
+      <div className={`${styles.cell} ${styles.cellFactors}`}>
         {activeFactors.length > 0 ? (
           activeFactors.map((factor) => (
-            <Pill key={factor.key} tone={factor.tone} label={`${factor.label} risk factor`}>
-              {factor.label}
+            <Pill
+              key={factor.key}
+              tone={factor.tone}
+              label={`${factor.label} risk factor`}
+              className={styles.factorPill}
+            >
+              {factor.code}
             </Pill>
           ))
         ) : (
-          <Pill tone="neutral" label="Risk factor">
-            No active factor
-          </Pill>
+          <span className={styles.cellMuted} title="No active risk factor">
+            None
+          </span>
         )}
-        <Pill tone={status.tone} label="Status">
-          {status.label}
-        </Pill>
-        {doneCount > 0 && row.intervention?.outcomeStatus !== "resolved" ? (
-          <Pill label="Sessions completed">
-            {doneCount} session{doneCount === 1 ? "" : "s"} done
-          </Pill>
-        ) : null}
       </div>
 
-      <div className={styles.caseCardFoot}>
-        <Pill label="Detected at" className="tabular-nums">
-          <Clock size={11} aria-hidden />
-          {detectedElapsed}
+      <div className={`${styles.cell} ${styles.cellStatus}`}>
+        <Pill tone={status.tone} label="Pipeline status">
+          {status.label}
         </Pill>
+      </div>
+
+      <div className={`${styles.cell} ${styles.cellMetaRow} ${styles.cellSessions}`}>
+        <span className={styles.cellValue}>{doneCount} done</span>
+        <span className={styles.cellMuted}>{bookedCount} booked</span>
+      </div>
+
+      <div className={`${styles.cell} ${styles.cellMetaRow} ${styles.cellFlagged}`}>
+        <span className={styles.cellLabel}>Flagged</span>
+        <span className={styles.cellValue}>{detectedElapsed}</span>
+      </div>
+
+      <div className={`${styles.cell} ${styles.cellAction}`}>
+        <Button
+          variant="outline"
+          className="h-6 gap-1 bg-card px-2 text-[12px] text-foreground"
+          aria-label={`View ${row.name}'s case`}
+          onClick={(event) => {
+            event.stopPropagation();
+            onOpen(row);
+          }}
+        >
+          <ArrowUpRight size={12} className="text-amber-500" aria-hidden />
+          View case
+        </Button>
       </div>
     </li>
   );
+}
+
+/** Left risk accent painted on the row — High red, Moderate amber, Low neutral. */
+function riskAccentClass(level: string): "rowHigh" | "rowModerate" | "rowLow" {
+  if (level === "High") return "rowHigh";
+  if (level === "Moderate") return "rowModerate";
+  return "rowLow";
 }
 
 export function approvalTone(status: string) {

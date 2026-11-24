@@ -5,12 +5,17 @@ import { useQuery } from "@tanstack/react-query";
 import { Inbox, Loader2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { ZentraPageHeaderSkeleton } from "@/components/shared/zentra-skeletons/ZentraSkeletons";
+import { ShimmerGroup } from "@/components/ui/shimmer-skeleton";
 import { GuidancePageHeader } from "../../components/GuidancePageHeader";
 import { GuidanceEmptyCard } from "../../components/GuidanceEmptyCard";
 import { fetchGuidanceReferrals } from "@/services/guidance/referrals.service";
 import type { GuidanceReferralsData } from "@/services/guidance/guidance.types";
 import { GuidanceReferralsTable } from "./guidance-referrals-table";
 import { GuidanceReferralsSkeleton } from "./GuidanceReferralsSkeleton";
+import {
+  GuidanceBoardDeskHead,
+  GuidanceBoardFigures,
+} from "./GuidanceBoardDeskHead";
 import {
   buildGuidanceSummary,
   matchesGuidanceFilters,
@@ -180,11 +185,35 @@ export function GuidanceReferralsView({
     };
   }, [lockedType, title, description]);
 
+  /* Both locked desks are kanban boards with the nurse case-board anatomy:
+     one desk head (title + search), a whole-term figure strip, then the
+     server-paged folder-card grid. */
+  const boardTrack: "ADM" | "Counseling" =
+    lockedType === "ADM" ? "ADM" : "Counseling";
+  const searchPlaceholder =
+    boardTrack === "ADM" ? "Search ADM cases…" : "Search counseling cases…";
+  const deskHead = isKanban ? (
+    <GuidanceBoardDeskHead
+      track={boardTrack}
+      title={title}
+      query={queryInput}
+      onQueryChange={handleQueryChange}
+      searchPlaceholder={searchPlaceholder}
+      loading={isRefetching}
+    />
+  ) : null;
+
   if (isPending) {
     return (
       <section className={styles.page} aria-busy="true" aria-label="Loading your cases">
         {isKanban ? (
-          <GuidanceReferralsSkeleton lockType />
+          <>
+            {deskHead}
+            <ShimmerGroup>
+              <GuidanceBoardFigures track={boardTrack} loading />
+              <GuidanceReferralsSkeleton lockType />
+            </ShimmerGroup>
+          </>
         ) : (
           <>
             <ZentraPageHeaderSkeleton />
@@ -198,6 +227,7 @@ export function GuidanceReferralsView({
   if (isError || !data) {
     return (
       <section className={styles.page}>
+        {deskHead}
         <div className={styles.pageError} role="alert">
           <p className={styles.pageErrorTitle}>We couldn&apos;t load your cases</p>
           <p className={styles.pageErrorHint}>
@@ -256,7 +286,17 @@ export function GuidanceReferralsView({
       aria-busy={refreshing}
       aria-label={headerCopy.title}
     >
-      {isTrueEmpty || isKanban ? null : (
+      {isKanban ? (
+        <>
+          {deskHead}
+          {isTrueEmpty ? null : (
+            <GuidanceBoardFigures
+              track={boardTrack}
+              byType={data.summary?.byType?.[boardTrack]}
+            />
+          )}
+        </>
+      ) : isTrueEmpty ? null : (
         <GuidancePageHeader
           title={headerCopy.title}
           description={headerCopy.description}

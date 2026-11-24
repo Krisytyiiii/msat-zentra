@@ -5,6 +5,7 @@ import { keepPreviousData, useMutation, useQuery, useQueryClient } from "@tansta
 import { apiClient } from "@/lib/api/client";
 import { apiErrorMessage } from "@/lib/api/errors";
 import { useNowTick } from "@/lib/clock";
+import { MEETING_JOIN_EARLY_MS } from "@/lib/meetings/phase";
 import { toSlug } from "@/lib/slug";
 import { markSelfNotified } from "@/lib/realtime/coordinatorChannel";
 import { toast } from "@/components/ui/sonner";
@@ -121,7 +122,6 @@ export function useCoordinatorCaseView(caseId: string) {
       void detailQuery.refetch();
     },
   });
-  const JOIN_EARLY_MS = 15 * 60_000;
   const hasAttendedMeeting = (caseData?.meetings ?? []).some(
     (mtg) => mtg.attended,
   );
@@ -129,7 +129,7 @@ export function useCoordinatorCaseView(caseId: string) {
     if (mtg.attended) return false;
     const t = new Date(mtg.meetingDatetime).getTime();
     if (!Number.isFinite(t)) return false;
-    return t - now <= JOIN_EARLY_MS;
+    return t - now <= MEETING_JOIN_EARLY_MS;
   });
   const [preparingProfile, setPreparingProfile] = React.useState(false);
   const startCreateProfile = React.useCallback(

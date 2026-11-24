@@ -80,6 +80,8 @@ export interface AdvisoryInterventionsSummary {
   unresolved: number;
   noPlan: number;
   total: number;
+  /** Every advisee in the adviser's section(s), flagged or not. */
+  advisees: number;
 }
 
 export type AdvisoryInterventionsResponse = PaginatedEnvelope<AdvisoryInterventionRow> & {

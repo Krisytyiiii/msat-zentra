@@ -2,10 +2,11 @@
 import * as React from "react";
 import { Check, FileText, Loader2, NotebookPen, Send, Users } from "lucide-react";
 import { DropdownMenuItem } from "@/components/ui/dropdown-menu";
-import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Button } from "@/components/ui/button";
 import { KanbanBoard } from "@/components/ui/kanban-board";
+import { ShimmerGroup } from "@/components/ui/shimmer-skeleton";
+import { Skeleton } from "@/components/ui/skeleton";
 import { Pill, type PillTone } from "@/components/ui/pill";
 import { StudentMascot } from "@/components/student-mascot/StudentMascot";
 import { useTerm } from "@/lib/term/TermContext";
@@ -34,6 +35,18 @@ function CategoryPill({ category }: { category: string }) {
     >
       {label}
     </Pill>
+  );
+}
+
+/** Board header title: a quiet step number ahead of the field name. */
+function formStep(step: number, label: string) {
+  return (
+    <span className="flex min-w-0 items-center gap-1.5">
+      <span className={refStyles.formStep} aria-hidden>
+        {step}
+      </span>
+      <span className="truncate">{label}</span>
+    </span>
   );
 }
 import { useReferableRecords } from "./use-referable-records";
@@ -86,19 +99,19 @@ export function ReferForm({
   const [error, setError] = React.useState<string | null>(null);
   // Direct-autofill the referred-again record once the referable list lands.
   // Type/desk come from state initializers above (the dialog remounts fresh
-  // on every open); the record needs the async list, so it resolves here.
-  const seededRecord = React.useRef(false);
-  React.useEffect(() => {
+  // on every open); the record needs the async list, so the seeded pair is
+  // derived during render instead of being written back into state.
+  const seeded = React.useMemo(() => {
     const id = seed?.anecdotalId;
-    if (!id || seededRecord.current || students.length === 0) return;
+    if (!id) return null;
     const owner = students.find((s) => s.records.some((r) => r.id === id));
-    if (!owner) return;
-    seededRecord.current = true;
-    setStudentKey(owner.key);
-    setRecordId(id);
+    return owner ? { studentKey: owner.key, recordId: id } : null;
   }, [seed?.anecdotalId, students]);
-  const student = students.find((s) => s.key === studentKey) ?? null;
-  const record = student?.records.find((r) => r.id === recordId) ?? null;
+  const effectiveStudentKey = studentKey || seeded?.studentKey || "";
+  // The seeded record only stands in until the teacher picks a student.
+  const effectiveRecordId = recordId || (studentKey ? "" : seeded?.recordId || "");
+  const student = students.find((s) => s.key === effectiveStudentKey) ?? null;
+  const record = student?.records.find((r) => r.id === effectiveRecordId) ?? null;
   const staff = staffValue ? findStaff(staffValue) : null;
   const staffOptions = (typeKey === "adm" || typeKey === "other" ? STAFF_BY_TYPE[typeKey] : []);
   const canSubmit =
@@ -150,11 +163,29 @@ export function ReferForm({
     <>
       <div className={refStyles.formGrid} aria-label="New referral details">
       {referablesQuery.isPending ? (
-        <div className="flex min-w-0 flex-col gap-2 [grid-column:1/-1]" aria-busy="true" aria-label="Loading referable records">
-          {[0, 1, 2].map((i) => (
-            <div key={i} className="h-9 rounded-md bg-muted" />
+        <ShimmerGroup aria-busy="true" aria-label="Loading referable records">
+          {[0, 1, 2, 3].map((i) => (
+            <div
+              key={i}
+              className="board-surface flex min-w-0 flex-col gap-2 rounded-xl border border-border bg-card p-2.5"
+            >
+              <div className="flex items-center gap-1.5 border-b border-border pb-2">
+                <Skeleton className="size-3.5 rounded" />
+                <Skeleton className="h-3 w-24" />
+              </div>
+              <Skeleton className="h-3 w-40" />
+              <Skeleton className="h-8 w-full rounded-md" />
+            </div>
           ))}
-        </div>
+          <div className={`${refStyles.formWide} board-surface flex min-w-0 flex-col gap-2 rounded-xl border border-border bg-card p-2.5`}>
+            <div className="flex items-center gap-1.5 border-b border-border pb-2">
+              <Skeleton className="size-3.5 rounded" />
+              <Skeleton className="h-3 w-20" />
+            </div>
+            <Skeleton className="h-3 w-52" />
+            <Skeleton className="h-20 w-full rounded-md" />
+          </div>
+        </ShimmerGroup>
       ) : referablesQuery.isError ? (
         <p role="alert" className="text-sm text-destructive [grid-column:1/-1]">
           Could not load referable records.
@@ -167,19 +198,20 @@ export function ReferForm({
       ) : (
         <>
           <KanbanBoard
-            title="Student"
+            title={formStep(1, "Student")}
             icon={
               <span className="text-blue-500" aria-hidden>
                 <Users size={14} />
               </span>
             }
             ariaLabel="Student"
+            description="The learner this case is about."
             className="h-full [font-family:var(--font-inter)]"
           >
             <ReferPicker
               id="refer-student"
-              label="Student"
               placeholder="Pick a student"
+              aria-label="Student"
               value={student ? student.studentName : null}
               valueNode={
                 student ? (
@@ -223,19 +255,24 @@ export function ReferForm({
           </KanbanBoard>
 
           <KanbanBoard
-            title="Anecdotal record"
+            title={formStep(2, "Anecdotal record")}
             icon={
               <span className="text-amber-500" aria-hidden>
                 <FileText size={14} />
               </span>
             }
             ariaLabel="Anecdotal record"
+            description={
+              student
+                ? "The logged observation this referral follows from."
+                : "Pick a student first to list their records."
+            }
             className="h-full [font-family:var(--font-inter)]"
           >
             <ReferPicker
               id="refer-record"
-              label="Anecdotal record"
               placeholder={student ? "Pick a record" : "Pick a student first"}
+              aria-label="Anecdotal record"
               value={record ? recordLabel(record) : null}
               valueNode={
                 record ? (
@@ -282,19 +319,20 @@ export function ReferForm({
           </KanbanBoard>
 
           <KanbanBoard
-            title="Referral type"
+            title={formStep(3, "Referral type")}
             icon={
               <span className="text-emerald-600 dark:text-emerald-400" aria-hidden>
                 <Send size={14} />
               </span>
             }
             ariaLabel="Referral type"
+            description="Which desk should receive this case."
             className="h-full [font-family:var(--font-inter)]"
           >
             <ReferPicker
               id="refer-type"
-              label="Referral type"
               placeholder="Pick a type"
+              aria-label="Referral type"
               value={REFERRAL_TYPES.find((t) => t.key === typeKey)?.label ?? null}
             >
               {(close) => (
@@ -322,10 +360,25 @@ export function ReferForm({
                 </>
               )}
             </ReferPicker>
+          </KanbanBoard>
+
+          <KanbanBoard
+            title={formStep(4, "Received by")}
+            icon={
+              <span className="text-teal-600 dark:text-teal-400" aria-hidden>
+                <Users size={14} />
+              </span>
+            }
+            ariaLabel="Received by"
+            description={
+              typeKey ? "Who reviews the case at that desk." : "Pick a referral type first."
+            }
+            className="h-full [font-family:var(--font-inter)]"
+          >
             <ReferPicker
               id="refer-staff"
-              label="Received by"
               placeholder={typeKey ? "Pick staff" : "Pick a type first"}
+              aria-label="Received by"
               value={staff?.label ?? null}
               title={staff ? filedToLabel(staff) : undefined}
               disabled={!typeKey}
@@ -354,56 +407,73 @@ export function ReferForm({
                 </>
               )}
             </ReferPicker>
-            {staff ? (
-              <p className="px-1 text-xs text-muted-foreground">
-                Filed to:{" "}
-                <span className="font-medium text-foreground">{filedToLabel(staff)}</span>
-              </p>
-            ) : null}
           </KanbanBoard>
 
-          <KanbanBoard
-            title="Reason"
-            icon={
-              <span className="text-blue-500" aria-hidden>
-                <NotebookPen size={14} />
-              </span>
-            }
-            ariaLabel="Reason"
-            className="h-full [font-family:var(--font-inter)]"
-          >
-            <div className="flex min-w-0 flex-col gap-1.5 px-1">
-              <Label htmlFor="refer-reason">Reason</Label>
+          <div className={refStyles.formWide}>
+            <KanbanBoard
+              title={formStep(5, "Reason")}
+              icon={
+                <span className="text-blue-500" aria-hidden>
+                  <NotebookPen size={14} />
+                </span>
+              }
+              ariaLabel="Reason"
+              description="What happened, and what support the desk should consider."
+              className="h-full [font-family:var(--font-inter)]"
+            >
               <Textarea
                 id="refer-reason"
+                aria-label="Reason for referral"
                 value={reason}
                 onChange={(event) => setReason(event.target.value)}
                 placeholder="Why is this student being referred?"
                 rows={3}
               />
-            </div>
-          </KanbanBoard>
+            </KanbanBoard>
+          </div>
         </>
       )}
       </div>
       {!referablesQuery.isPending && !referablesQuery.isError && students.length > 0 ? (
-        <div className="flex flex-wrap items-center justify-end gap-2 pt-1">
-          <Button
-            onClick={handleSubmit}
-            disabled={!canSubmit}
-            aria-busy={pending || undefined}
-            className="h-6 px-2.5 text-xs"
-          >
-            {pending ? (
-              <>
-                <Loader2 size={16} className="animate-spin" aria-hidden />
-                <span aria-live="polite">Sending…</span>
-              </>
-            ) : (
-              "Send referral"
-            )}
-          </Button>
-        </div>
+        <>
+          {error ? (
+            <p role="alert" className="m-0 text-xs text-destructive">
+              {error}
+            </p>
+          ) : null}
+          <div className={refStyles.formFooter}>
+            <p className="m-0 min-w-0 truncate text-xs text-muted-foreground">
+              {staff ? (
+                <>
+                  Filed to{" "}
+                  <span className="font-medium text-foreground">{filedToLabel(staff)}</span>
+                </>
+              ) : (
+                "Complete the five steps, then send the case to its desk."
+              )}
+            </p>
+            <div className="flex shrink-0 items-center gap-2">
+              <Button
+                onClick={handleSubmit}
+                disabled={!canSubmit}
+                aria-busy={pending || undefined}
+                className="gap-1.5"
+              >
+                {pending ? (
+                  <>
+                    <Loader2 size={16} className="animate-spin" aria-hidden />
+                    <span aria-live="polite">Sending…</span>
+                  </>
+                ) : (
+                  <>
+                    <Send size={14} aria-hidden />
+                    Send referral
+                  </>
+                )}
+              </Button>
+            </div>
+          </div>
+        </>
       ) : null}
     </>
   );

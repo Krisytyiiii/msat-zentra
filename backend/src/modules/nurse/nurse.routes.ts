@@ -9,6 +9,9 @@ import { CACHE_TAGS, CACHE_TTLS } from "../../lib/cacheTags.js";
 import { writeAudit } from "../../lib/audit.js";
 import { registryProfileSchema } from "../registry/registry.schemas.js";
 import { getNurseCalendar } from "../../services/nurse/schedule.service.js";
+import { getNurseOverview } from "../../services/nurse/overview.service.js";
+import { getNurseReports } from "../../services/nurse/reports.service.js";
+import { getBatchLevels } from "../../services/risk/riskLookups.service.js";
 import navCountsRoutes from "./navCounts.routes.js";
 
 const router = Router();
@@ -44,6 +47,70 @@ router.get(
       const to = typeof req.query.to === "string" ? req.query.to : "";
       const status = req.query.status === "scheduled" ? "scheduled" : "all";
       res.json(await getNurseCalendar(nurseContext(req), { from, to, status }));
+    } catch (e) {
+      next(e);
+    }
+  }
+);
+
+/**
+ * Clinic command overview: KPIs, breakdowns and the 14-day trend computed
+ * server-side over the whole term scope, plus the two short case lists the
+ * page renders. One narrow projection replaces the old "first page of the
+ * referral queue" fetch, so the browser no longer downloads attachments and
+ * full case detail just to count cases.
+ */
+router.get(
+  "/overview",
+  requireAuth,
+  requireRole("nurse"),
+  cache({
+    tags: [CACHE_TAGS.nurse, "nurse-overview", CACHE_TAGS.referrals],
+    ttl: CACHE_TTLS.dashboard,
+  }),
+  etag(),
+  async (req, res, next) => {
+    try {
+      res.json(
+        await getNurseOverview({ termId: req.termScope?.termId ?? null }),
+      );
+    } catch (e) {
+      next(e);
+    }
+  }
+);
+
+/**
+ * Clinic reports dataset. One narrow projection of every case on the term's
+ * nurse desk plus the risk levels/factors of the learners involved, so the
+ * reports page renders from a single request instead of a page of the queue,
+ * a duplicate queue fetch and two risk-batch calls.
+ */
+router.get(
+  "/reports",
+  requireAuth,
+  requireRole("nurse"),
+  cache({
+    tags: [CACHE_TAGS.nurse, "nurse-reports", CACHE_TAGS.referrals, CACHE_TAGS.risk],
+    ttl: CACHE_TTLS.dashboard,
+  }),
+  etag(),
+  async (req, res, next) => {
+    try {
+      const report = await getNurseReports({
+        termId: req.termScope?.termId ?? null,
+      });
+      const risk = await getBatchLevels(
+        report.studentIds,
+        "nurse",
+        req.user!.id,
+        req,
+      );
+      res.json({
+        referrals: report.referrals,
+        riskLevels: risk.levels,
+        riskFactors: risk.factors,
+      });
     } catch (e) {
       next(e);
     }

@@ -2,6 +2,7 @@
 
 import { CalendarClock, KanbanSquare } from "lucide-react";
 import { Skeleton } from "@/components/ui/skeleton";
+import { ShimmerGroup } from "@/components/ui/shimmer-skeleton";
 import listStyles from "../../list/components/advisory-list.module.css";
 import boardStyles from "../../list/components/advisory-insight-board.module.css";
 
@@ -35,11 +36,12 @@ function AttendanceBoardSkeleton() {
         </span>
         <div className="min-w-0 flex-1">
           <Skeleton className="h-4 w-36" />
-          <div className="mt-1 flex flex-wrap gap-1">
-            <Skeleton className="h-5 w-24 rounded-full" />
-            <Skeleton className="h-5 w-20 rounded-full" />
-            <Skeleton className="h-5 w-16 rounded-full" />
-          </div>
+          <Skeleton className="mt-1 h-3 w-52" />
+        </div>
+        <div className={boardStyles.statusCard}>
+          <Skeleton className="h-3 w-24" />
+          <Skeleton className="mt-1 h-4 w-16" />
+          <Skeleton className="mt-1 h-3 w-44" />
         </div>
       </header>
 
@@ -81,11 +83,12 @@ function AttendanceBoardSkeleton() {
  */
 export function AdvisoryAttendanceSkeleton() {
   return (
-    <section
-      className={`${listStyles.pageLock} flex min-w-0 flex-col gap-3`}
-      aria-busy="true"
-      aria-label="Loading advisory attendance"
-    >
+    <ShimmerGroup>
+      <section
+        className={`${listStyles.pageLock} flex min-w-0 flex-col gap-3`}
+        aria-busy="true"
+        aria-label="Loading advisory attendance"
+      >
       <div className={listStyles.panel} aria-hidden>
         <header className={listStyles.boardHead}>
           <span className={listStyles.boardIcon} aria-hidden>
@@ -93,7 +96,6 @@ export function AdvisoryAttendanceSkeleton() {
           </span>
           <div className="min-w-0 flex-1">
             <Skeleton className="h-4 w-40" />
-            <Skeleton className="mt-1 h-3 w-60" />
           </div>
         </header>
 
@@ -135,6 +137,7 @@ export function AdvisoryAttendanceSkeleton() {
           </div>
         </div>
       </div>
-    </section>
+      </section>
+    </ShimmerGroup>
   );
 }

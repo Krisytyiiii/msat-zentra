@@ -84,8 +84,7 @@ export function ReportsKpiStrip({ summary }: { summary: TeacherReportsPayload["s
 
   return (
     <StatDeck
-      title="This term at a glance"
-      icon={GraduationCap}
+      columns={6}
       ariaLabel="Term report KPIs"
       items={tiles}
     />

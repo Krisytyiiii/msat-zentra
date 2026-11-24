@@ -1,7 +1,7 @@
 "use client";
 
 import * as React from "react";
-import { ArchiveRestore, Loader2, RotateCcw } from "lucide-react";
+import { ArchiveRestore, CalendarClock, Inbox, Loader2, RotateCcw } from "lucide-react";
 import { useQueryClient } from "@tanstack/react-query";
 import { useLiveQuery } from "@/lib/api/live";
 import { anecdotalCategoryBadgeVariant } from "@/lib/labels/anecdotal";
@@ -9,8 +9,10 @@ import { StudentMascot } from "@/components/student-mascot/StudentMascot";
 import { humanizeCategory } from "@/components/anecdotal/anecdotal-record-kanban-card";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
+import { GlassCard } from "@/components/ui/glass-card";
 import { KanbanOverlay } from "@/components/ui/kanban-overlay";
 import { Pill } from "@/components/ui/pill";
+import { ShimmerGroup, ShimmerSkeleton } from "@/components/ui/shimmer-skeleton";
 import { toast } from "@/components/ui/sonner";
 import { useDock } from "@/components/dock/dock-store";
 import {
@@ -18,11 +20,17 @@ import {
   restoreAnecdotalRecord,
   type MyAnecdotalRecord,
 } from "@/components/ocform01/folders";
+import styles from "./AnecdotalArchiveDialog.module.css";
 
-function recordDate(iso: string): string {
+/** "Nov 20, 2026" — the stamp under each archived card. */
+function longDate(iso: string): string {
   const d = new Date(iso);
   if (Number.isNaN(d.getTime())) return iso.slice(0, 10);
-  return d.toISOString().slice(0, 10);
+  return d.toLocaleDateString("en-US", {
+    month: "short",
+    day: "numeric",
+    year: "numeric",
+  });
 }
 
 /**
@@ -30,8 +38,8 @@ function recordDate(iso: string): string {
  * record board (toolbar button) and the empty board, so a teacher can restore
  * removed records even before filing anything.
  *
- * Records are ticked and restored in one batch — per-row Restore stays for the
- * single-record case.
+ * Cards are ticked by clicking anywhere on them and restored in one batch —
+ * per-card Restore stays for the single-record case.
  */
 export function AnecdotalArchiveDialog({
   open,
@@ -54,6 +62,8 @@ export function AnecdotalArchiveDialog({
     staleTime: 15_000,
   });
   const deletedRecords = deletedQuery.data ?? [];
+  // Ticks are read against the live list only, so a row that leaves the board
+  // (restored elsewhere) simply drops out — no state pruning needed.
 
   function refreshRecords() {
     void queryClient.invalidateQueries({ queryKey: ["anecdotal-mine"] });
@@ -61,14 +71,7 @@ export function AnecdotalArchiveDialog({
   }
 
   // Keep ticks honest when the list refetches (restored rows leave the board).
-  React.useEffect(() => {
-    setSelected((prev) => {
-      const ids = new Set(deletedRecords.map((r) => r.id));
-      const next = new Set([...prev].filter((id) => ids.has(id)));
-      return next.size === prev.size ? prev : next;
-    });
-  }, [deletedRecords]);
-
+  // Read against the live list instead of pruning in an effect.
   const selectedRecords = deletedRecords.filter((r) => selected.has(r.id));
   const allSelected =
     deletedRecords.length > 0 && selectedRecords.length === deletedRecords.length;
@@ -156,7 +159,7 @@ export function AnecdotalArchiveDialog({
     <KanbanOverlay
       open={open}
       onClose={onClose}
-      width="sm"
+      width="lg"
       title="Archive records"
       icon={
         <span className="text-primary" aria-hidden>
@@ -164,18 +167,35 @@ export function AnecdotalArchiveDialog({
         </span>
       }
       description="Records you removed from this desk. Restoring brings the full GCForm-01 back, including its follow-ups."
+      toolbar={
+        deletedRecords.length > 0 ? (
+          <div className="flex flex-wrap items-center justify-between gap-2 px-1">
+            <label className="flex cursor-pointer items-center gap-2 text-xs text-muted-foreground">
+              <Checkbox
+                checked={allSelected}
+                onCheckedChange={toggleAll}
+                aria-label="Select all archived records"
+              />
+              Select all
+            </label>
+            <span className="text-xs text-muted-foreground tabular-nums">
+              {deletedRecords.length} archived
+            </span>
+          </div>
+        ) : null
+      }
       footer={
         deletedRecords.length > 0 ? (
           <div className="flex w-full items-center justify-between gap-2">
             <span className="text-xs text-muted-foreground">
               {selectedRecords.length > 0
                 ? `${selectedRecords.length} selected`
-                : `${deletedRecords.length} archived`}
+                : "Click a card to tick it"}
             </span>
             <Button
               type="button"
               size="sm"
-              className="h-6 gap-1 px-2 text-xs"
+              className="gap-1"
               disabled={selectedRecords.length === 0 || busy}
               onClick={() => void handleRestore(selectedRecords)}
             >
@@ -190,80 +210,141 @@ export function AnecdotalArchiveDialog({
         ) : null
       }
     >
-      <div className="flex min-w-0 flex-col gap-2 px-1">
+      <div className="flex min-w-0 flex-col gap-2 px-1 pb-1">
         {deletedQuery.isPending ? (
-          <p className="text-xs text-muted-foreground">Loading archived records…</p>
-        ) : deletedRecords.length === 0 ? (
-          <p className="text-xs text-muted-foreground">
-            No archived records. Deleting a record from its preview keeps it here
-            for restoring.
-          </p>
-        ) : (
-          <>
-            <label className="flex cursor-pointer items-center gap-2 rounded-md border border-dashed border-border px-2.5 py-1.5 text-xs text-muted-foreground">
-              <Checkbox
-                checked={allSelected}
-                onCheckedChange={toggleAll}
-                aria-label="Select all archived records"
-              />
-              Select all ({deletedRecords.length})
-            </label>
-            {deletedRecords.map((entry) => {
-              const checked = selected.has(entry.id);
-              return (
-                <div
-                  key={entry.id}
-                  className="flex min-w-0 items-center gap-2 rounded-md border border-border bg-card px-2.5 py-2"
-                >
-                  <Checkbox
-                    checked={checked}
-                    onCheckedChange={() => toggleSelected(entry.id)}
-                    aria-label={`Select ${entry.studentName}'s record for restoring`}
-                  />
-                  <StudentMascot
-                    name={entry.studentName}
-                    seed={entry.lrn}
-                    character={entry.mascot ?? undefined}
-                    size={32}
-                  />
-                  <div className="min-w-0 flex-1">
-                    <span className="block truncate text-[13px] font-semibold text-primary">
-                      {entry.studentName}
-                    </span>
-                    <span className="mt-1 flex max-w-full flex-wrap items-center gap-1">
-                      <Pill tone="neutral" label="LRN">
-                        {entry.lrn}
-                      </Pill>
-                      <Pill
-                        tone={anecdotalCategoryBadgeVariant(entry.category) ?? "neutral"}
-                        label="Category"
-                      >
-                        {humanizeCategory(entry.category)}
-                      </Pill>
-                      <Pill tone="neutral" label="Archived">
-                        {recordDate(entry.deletedAt ?? entry.observationDatetime)}
-                      </Pill>
-                    </span>
+          <ShimmerGroup>
+            <div
+              className="flex min-w-0 flex-col gap-2"
+              role="status"
+              aria-label="Loading archived records"
+            >
+              {Array.from({ length: 3 }).map((_, index) => (
+                <div key={index} className={styles.card} aria-hidden>
+                  <div className={styles.cardHead}>
+                    <ShimmerSkeleton className="size-4 rounded" />
+                    <ShimmerSkeleton className="size-8 rounded-full" />
+                    <div className="flex min-w-0 flex-1 flex-col items-start gap-1.5">
+                      <ShimmerSkeleton className="h-3.5 w-3/4 rounded" />
+                      <ShimmerSkeleton className="h-5 w-28 rounded-md" />
+                    </div>
+                    <ShimmerSkeleton className="h-8 w-20 rounded-md" />
                   </div>
-                  <Button
-                    type="button"
-                    size="sm"
-                    variant="outline"
-                    className="h-6 shrink-0 px-2 text-xs"
-                    onClick={() => void handleRestore([entry])}
-                    disabled={busy}
-                  >
-                    {restoringIds.has(entry.id) ? (
-                      <Loader2 size={14} className="animate-spin" aria-hidden />
-                    ) : (
-                      <RotateCcw size={14} aria-hidden />
-                    )}
-                    Restore
-                  </Button>
+                  <ShimmerSkeleton className="h-3 w-full rounded" />
+                  <div className={styles.cardFoot}>
+                    <ShimmerSkeleton className="h-3 w-32 rounded" />
+                  </div>
                 </div>
-              );
-            })}
-          </>
+              ))}
+            </div>
+          </ShimmerGroup>
+        ) : deletedRecords.length === 0 ? (
+          <div className={styles.empty}>
+            <span className={styles.emptyIcon} aria-hidden>
+              <Inbox size={15} />
+            </span>
+            <p className={styles.emptyTitle}>No archived records</p>
+            <p className={styles.emptyCopy}>
+              Deleting a record from its preview keeps it here, so you can bring
+              the full GCForm-01 back whenever you need it.
+            </p>
+          </div>
+        ) : (
+          deletedRecords.map((entry) => {
+            const checked = selected.has(entry.id);
+            const restoring = restoringIds.has(entry.id);
+            return (
+              <GlassCard key={entry.id} intensity={4} className="min-w-0">
+                <article
+                  className={`${styles.card}${checked ? ` ${styles.cardSelected}` : ""}`}
+                  aria-label={`${entry.studentName}, ${entry.lrn}`}
+                  role="checkbox"
+                  aria-checked={checked}
+                  tabIndex={0}
+                  onClick={() => toggleSelected(entry.id)}
+                  onKeyDown={(event) => {
+                    if (event.target !== event.currentTarget) return;
+                    if (event.key === "Enter" || event.key === " ") {
+                      event.preventDefault();
+                      toggleSelected(entry.id);
+                    }
+                  }}
+                >
+                  <header className={styles.cardHead}>
+                    <span
+                      onClick={(event) => event.stopPropagation()}
+                      onKeyDown={(event) => event.stopPropagation()}
+                    >
+                      <Checkbox
+                        checked={checked}
+                        onCheckedChange={() => toggleSelected(entry.id)}
+                        aria-label={`Select ${entry.studentName}'s record for restoring`}
+                      />
+                    </span>
+                    <StudentMascot
+                      name={entry.studentName}
+                      seed={entry.lrn}
+                      character={entry.mascot ?? undefined}
+                      size={32}
+                    />
+                    <div className="flex min-w-0 flex-1 flex-col items-start gap-1">
+                      <p className={styles.cardName} title={entry.studentName}>
+                        {entry.studentName}
+                      </p>
+                      <span className="flex max-w-full flex-wrap items-center gap-1">
+                        <Pill label="LRN" className="tabular-nums">
+                          {entry.lrn}
+                        </Pill>
+                        <Pill
+                          tone={anecdotalCategoryBadgeVariant(entry.category) ?? "neutral"}
+                          label="Category"
+                        >
+                          {humanizeCategory(entry.category)}
+                        </Pill>
+                        {entry.termNumber ? (
+                          <Pill tone="neutral" label="Term">
+                            Term {entry.termNumber}
+                          </Pill>
+                        ) : null}
+                      </span>
+                    </div>
+                  </header>
+                  {entry.incident?.trim() ? (
+                    <p className={styles.cardIncident}>{entry.incident.trim()}</p>
+                  ) : null}
+                  <div className={styles.cardFoot}>
+                    <span className={styles.cardMeta}>
+                      <CalendarClock size={12} aria-hidden />
+                      Archived {longDate(entry.deletedAt ?? entry.observationDatetime)}
+                    </span>
+                    <div className="flex shrink-0 items-center gap-2">
+                      {entry.folderName ? (
+                        <span className={styles.cardMeta}>{entry.folderName}</span>
+                      ) : null}
+                      <Button
+                        type="button"
+                        size="sm"
+                        variant="outline"
+                        className="shrink-0 gap-1"
+                        onClick={(event) => {
+                          event.stopPropagation();
+                          void handleRestore([entry]);
+                        }}
+                        onKeyDown={(event) => event.stopPropagation()}
+                        disabled={busy}
+                      >
+                        {restoring ? (
+                          <Loader2 size={14} className="animate-spin" aria-hidden />
+                        ) : (
+                          <RotateCcw size={14} aria-hidden />
+                        )}
+                        Restore
+                      </Button>
+                    </div>
+                  </div>
+                </article>
+              </GlassCard>
+            );
+          })
         )}
       </div>
     </KanbanOverlay>

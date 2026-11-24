@@ -8,6 +8,8 @@ import { scopedYearId } from "../../lib/termScope.js";
 import { resolveActiveTermId } from "../../services/risk.js";
 import { TEACHER_ROLES } from "./advisory.repository.js";
 import {
+  getAdvisoryIdentityList,
+  getAdvisoryStudentRisk,
   getStudentAcademic,
   getStudentAnecdotal,
   getStudentAttendance,
@@ -69,7 +71,14 @@ router.get(
   etag(),
   async (req, res, next) => {
     try {
-      res.json(await getStudents(await schoolYearCtxOf(req)));
+      const view = typeof req.query.view === "string" ? req.query.view : "";
+      const ctx = await schoolYearCtxOf(req);
+      // `view=list` serves the identity-only advisory board (name/LRN rows).
+      res.json(
+        view === "list"
+          ? await getAdvisoryIdentityList(ctx)
+          : await getStudents(ctx),
+      );
     } catch (e) {
       next(e);
     }
@@ -109,6 +118,19 @@ router.get(
   async (req, res, next) => {
     try {
       res.json(await getStudentAcademic(await termCtxOf(req), String(req.params.id)));
+    } catch (e) {
+      next(e);
+    }
+  }
+);
+
+router.get(
+  "/students/:id/risk",
+  requireAuth,
+  requireRole(...TEACHER_ROLES),
+  async (req, res, next) => {
+    try {
+      res.json(await getAdvisoryStudentRisk(await termCtxOf(req), String(req.params.id)));
     } catch (e) {
       next(e);
     }

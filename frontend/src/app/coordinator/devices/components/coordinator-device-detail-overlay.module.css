@@ -1,0 +1,334 @@
+/* Full-record device overlay — a proper information card: status-tinted
+   header band, learner identity, fact grid and the row's own actions. */
+
+.overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 60;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 1rem;
+}
+
+.backdrop {
+  position: absolute;
+  inset: 0;
+  background-color: rgb(0 0 0 / 0.42);
+  backdrop-filter: blur(3px);
+  animation: detail-fade-in 140ms ease-out;
+}
+
+.card {
+  position: relative;
+  display: flex;
+  width: min(32rem, 100%);
+  max-height: min(88vh, 44rem);
+  flex-direction: column;
+  overflow: hidden;
+  border: 1px solid var(--border);
+  border-radius: 0.875rem;
+  background-color: var(--card);
+  box-shadow:
+    0 1px 2px rgb(0 0 0 / 0.06),
+    0 24px 60px -20px rgb(0 0 0 / 0.35);
+  animation: detail-pop-in 170ms ease-out;
+}
+
+/* ── Header band ─────────────────────────────────────────────────────────── */
+
+.head {
+  --accent: #f59e0b;
+  display: flex;
+  align-items: center;
+  gap: 0.625rem;
+  padding: 0.75rem 0.875rem;
+  border-bottom: 1px solid var(--border);
+  background:
+    linear-gradient(
+      120deg,
+      color-mix(in oklch, var(--accent) 14%, transparent),
+      transparent 62%
+    ),
+    color-mix(in oklch, var(--card) 88%, var(--muted));
+}
+
+.head[data-status="returned"] {
+  --accent: #22c55e;
+}
+
+.head[data-overdue] {
+  --accent: #dc2626;
+}
+
+.headGlyph {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 2.25rem;
+  height: 2.25rem;
+  flex-shrink: 0;
+  border: 1px solid color-mix(in oklch, var(--accent) 40%, transparent);
+  border-radius: 0.625rem;
+  background-color: color-mix(in oklch, var(--accent) 14%, transparent);
+  color: var(--accent);
+}
+
+.headGlyph svg {
+  width: 1.125rem;
+  height: 1.125rem;
+}
+
+.headText {
+  display: flex;
+  min-width: 0;
+  flex: 1 1 auto;
+  flex-direction: column;
+  gap: 0.0625rem;
+}
+
+.eyebrow {
+  margin: 0;
+  font-size: 0.6875rem;
+  font-weight: 600;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--muted-foreground);
+}
+
+.headTitle {
+  margin: 0;
+  overflow: hidden;
+  font-size: 0.9375rem;
+  font-weight: 650;
+  color: var(--foreground);
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+
+/* ── Body ────────────────────────────────────────────────────────────────── */
+
+.body {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+  padding: 0.875rem;
+  overflow-y: auto;
+  scrollbar-width: thin;
+  scrollbar-color: color-mix(in oklch, #f59e0b 60%, transparent) transparent;
+}
+
+.body::-webkit-scrollbar {
+  width: 4px;
+}
+
+.body::-webkit-scrollbar-thumb {
+  border-radius: 999px;
+  background-color: color-mix(in oklch, #f59e0b 60%, transparent);
+}
+
+.identity {
+  display: flex;
+  align-items: center;
+  gap: 0.625rem;
+  min-width: 0;
+}
+
+.identityText {
+  display: flex;
+  min-width: 0;
+  flex: 1 1 auto;
+  flex-direction: column;
+  gap: 0.125rem;
+}
+
+.identityName {
+  margin: 0;
+  overflow: hidden;
+  font-size: 0.875rem;
+  font-weight: 600;
+  color: var(--foreground);
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+
+.identityLrn {
+  margin: 0;
+  font-size: 0.75rem;
+  color: var(--muted-foreground);
+  font-variant-numeric: tabular-nums;
+}
+
+.statusStack {
+  display: flex;
+  flex-shrink: 0;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 0.25rem;
+}
+
+.overdueTag {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.25rem;
+  font-size: 0.6875rem;
+  font-weight: 600;
+  color: #dc2626;
+}
+
+:global(.dark) .overdueTag {
+  color: #f87171;
+}
+
+.chips {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.375rem;
+}
+
+/* ── Fact grid ───────────────────────────────────────────────────────────── */
+
+.facts {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 1px;
+  margin: 0;
+  overflow: hidden;
+  border: 1px solid color-mix(in oklch, var(--border) 80%, transparent);
+  border-radius: 0.625rem;
+  background-color: color-mix(in oklch, var(--border) 80%, transparent);
+}
+
+@media (max-width: 420px) {
+  .facts {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
+
+.fact {
+  display: flex;
+  flex-direction: column;
+  gap: 0.1875rem;
+  padding: 0.5rem 0.625rem;
+  background-color: var(--card);
+}
+
+.fact dt {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.25rem;
+  margin: 0;
+  font-size: 0.6875rem;
+  font-weight: 500;
+  letter-spacing: 0.03em;
+  text-transform: uppercase;
+  color: var(--muted-foreground);
+}
+
+.fact dd {
+  margin: 0;
+  font-size: 0.8125rem;
+  font-weight: 550;
+  color: var(--foreground);
+  word-break: break-word;
+}
+
+.factSub {
+  display: block;
+  margin-top: 0.0625rem;
+  font-size: 0.75rem;
+  font-weight: 400;
+  color: var(--muted-foreground);
+}
+
+/* ── Notes ───────────────────────────────────────────────────────────────── */
+
+.note {
+  display: flex;
+  gap: 0.5rem;
+  padding: 0.5rem 0.625rem;
+  border: 1px solid color-mix(in oklch, var(--border) 80%, transparent);
+  border-radius: 0.625rem;
+  background-color: color-mix(in oklch, var(--muted) 35%, transparent);
+}
+
+.noteIcon {
+  display: inline-flex;
+  flex-shrink: 0;
+  align-items: center;
+  justify-content: center;
+  width: 1.5rem;
+  height: 1.5rem;
+  border-radius: 999px;
+  background-color: color-mix(in oklch, #f59e0b 16%, transparent);
+  color: #b45309;
+}
+
+:global(.dark) .noteIcon {
+  color: #fcd34d;
+}
+
+.noteBody {
+  display: flex;
+  min-width: 0;
+  flex-direction: column;
+  gap: 0.125rem;
+}
+
+.noteTitle {
+  margin: 0;
+  font-size: 0.6875rem;
+  font-weight: 600;
+  letter-spacing: 0.03em;
+  text-transform: uppercase;
+  color: var(--muted-foreground);
+}
+
+.noteText {
+  margin: 0;
+  font-size: 0.8125rem;
+  line-height: 1.5;
+  color: var(--foreground);
+}
+
+/* ── Footer ──────────────────────────────────────────────────────────────── */
+
+.actions {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: 0.5rem;
+  padding: 0.75rem 0.875rem;
+  border-top: 1px solid var(--border);
+  background-color: color-mix(in oklch, var(--card) 88%, var(--muted));
+}
+
+/* ── Motion ──────────────────────────────────────────────────────────────── */
+
+@keyframes detail-fade-in {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+@keyframes detail-pop-in {
+  from {
+    opacity: 0;
+    transform: translateY(0.5rem) scale(0.98);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .backdrop,
+  .card {
+    animation: none;
+  }
+}

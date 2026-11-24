@@ -8,12 +8,10 @@ import { useDebouncedValue } from "@/lib/useDebouncedValue";
 import { Button } from "@/components/ui/button";
 import { CoordinatorCertificationsFolders } from "./components/coordinator-certifications-folders";
 import { CoordinatorCertificationsSkeleton } from "./components/coordinator-certifications-skeleton";
-import { CoordinatorCertificationsRail } from "./components/coordinator-certifications-rail";
 import {
   fetchCertApprovalRows,
   fetchCertStageRows,
   mergeCertRecords,
-  summarizeCertRecords,
 } from "@/services/coordinator/certifications.service";
 import type { CertStatusFilter } from "@/services/coordinator/certifications.types";
 import styles from "./components/coordinator-certifications.module.css";
@@ -69,7 +67,6 @@ function CertificationsBody() {
       ),
     [certQuery.data, approvalQuery.data, approvedQuery.data],
   );
-  const summary = React.useMemo(() => summarizeCertRecords(records), [records]);
 
   const isPending =
     (certQuery.isPending || approvalQuery.isPending || approvedQuery.isPending) &&
@@ -136,8 +133,6 @@ function CertificationsBody() {
             onStatusChange={setStatus}
           />
         </div>
-
-        {trulyEmpty ? null : <CoordinatorCertificationsRail summary={summary} />}
       </div>
     </section>
   );
@@ -145,9 +140,7 @@ function CertificationsBody() {
 
 export default function CoordinatorCertificationsPage() {
   return (
-    <React.Suspense
-      fallback={<section className={styles.page} aria-busy="true" />}
-    >
+    <React.Suspense fallback={<CoordinatorCertificationsSkeleton />}>
       <CertificationsBody />
     </React.Suspense>
   );

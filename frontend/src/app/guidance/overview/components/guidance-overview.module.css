@@ -12,15 +12,111 @@
   --guidance-number: #fbbf24;
 }
 
-/* Left stack (boards + charts) + icon-only KPI rail on the right — the
-   exact layout of /nurse/overview: the rail spans the full stack height, so
-   it stays pinned (sticky) through the whole page scroll, and no section may
-   cross into its 2.75rem strip. */
+/* Stacked body: the grade/risk/caseload boards sit on top, the detection-flow
+   panel closes the page at full width underneath them. */
 .body {
-  display: grid;
-  grid-template-columns: minmax(0, 1fr) 2.75rem;
+  display: flex;
+  flex-direction: column;
   gap: 1.25rem;
-  align-items: start;
+  min-width: 0;
+}
+
+.flowAside {
+  min-width: 0;
+}
+
+/* ── Loading skeleton (mirrors the live page pixel for pixel) ──────────────── */
+.skelFlow {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+  min-width: 0;
+}
+
+.skelFlowHeader {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 0.5rem;
+}
+
+.skelFlowHeaderText {
+  display: flex;
+  flex-direction: column;
+  gap: 0.3125rem;
+  min-width: 0;
+}
+
+.skelEyebrow {
+  height: 0.75rem;
+  width: 7.5rem;
+}
+
+.skelFlowTitle {
+  height: 0.8125rem;
+  width: 14rem;
+  max-width: 100%;
+}
+
+.skelFlowToggle {
+  width: 1.75rem;
+  height: 1.75rem;
+  flex-shrink: 0;
+  border-radius: var(--radius-md);
+}
+
+/* Five lane columns: label, figure, unit — same paddings as the live head. */
+.skelFlowColumns {
+  display: grid;
+  grid-template-columns: repeat(5, minmax(0, 1fr));
+  min-width: 0;
+}
+
+.skelFlowColumn {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.25rem;
+  padding: 0.375rem 0.5rem 0.5rem;
+  border-right: 1px solid var(--border);
+  min-width: 0;
+}
+
+.skelFlowColumn:last-child {
+  border-right: 0;
+}
+
+.skelFlowCount {
+  height: 1.5rem;
+  width: 2.25rem;
+  border-radius: 4px;
+}
+
+/* The bands area the five lanes sweep into (15rem tall in the live panel). */
+.skelFlowMesh {
+  height: 15rem;
+  width: 100%;
+  border-radius: 8px;
+}
+
+.skelFlowTotalBox {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.3125rem;
+  padding-top: 0.25rem;
+}
+
+.skelFlowTotalValue {
+  height: 2.5rem;
+  width: 5rem;
+  border-radius: 6px;
+}
+
+.skelFlowFoot {
+  height: 2.4rem;
+  width: 100%;
+  border-radius: 6px;
 }
 
 .mainCol {
@@ -28,12 +124,7 @@
   flex-direction: column;
   gap: 1.25rem;
   min-width: 0;
-}
-
-@media (max-width: 1024px) {
-  .body {
-    grid-template-columns: 1fr;
-  }
+  flex: 1 1 100%;
 }
 
 .cellMain {
@@ -77,7 +168,7 @@
 }
 
 /* Whole row is a link to the work queue. Three columns keep the section pills
-   centered in the row: identity left, sections center, risk metrics right. */
+   centered in the row: grade identity left, section pills center, metrics right. */
 .rowLink {
   display: grid;
   grid-template-columns: minmax(0, 1fr) minmax(0, 2fr) minmax(0, 1fr);
@@ -171,86 +262,6 @@
   .boardIn,
   .caseList > .caseRow {
     animation: none;
-  }
-}
-
-/* Icon-rail flyout menus — smooth open/close in both themes, same ease and
-   top-right origin as the nurse / registry KPI rails. */
-.railMenu {
-  transform-origin: top right;
-  transition:
-    opacity 180ms ease-out,
-    transform 180ms cubic-bezier(0.22, 1, 0.36, 1),
-    visibility 180ms;
-}
-
-.railMenuOpen {
-  opacity: 1;
-  transform: translateY(0) scale(1);
-  visibility: visible;
-}
-
-.railMenuClosed {
-  opacity: 0;
-  transform: translateY(-6px) scale(0.98);
-  visibility: hidden;
-  pointer-events: none;
-}
-
-/* Needs-review flyout preview — longest-waiting-ish cases before the CTA. */
-.railCaseList {
-  display: flex;
-  flex-direction: column;
-  margin: 0;
-  padding: 0;
-  list-style: none;
-  min-width: 0;
-}
-
-.railCaseItem {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 0.5rem;
-  padding: 0.5rem 0.25rem;
-  border-bottom: 1px solid color-mix(in oklch, var(--foreground), transparent 94%);
-  min-width: 0;
-  text-decoration: none;
-  color: inherit;
-}
-
-.railCaseItem:last-child {
-  border-bottom: none;
-}
-
-.railCaseName {
-  min-width: 0;
-  font-size: 0.75rem;
-  font-weight: 600;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-  transition: color 140ms ease-out;
-}
-
-.railCaseItem:hover .railCaseName {
-  color: var(--primary);
-}
-
-.railCaseWait {
-  flex-shrink: 0;
-  font-size: 0.75rem;
-  font-variant-numeric: tabular-nums;
-  white-space: nowrap;
-}
-
-@media (prefers-reduced-motion: reduce) {
-  .railMenu {
-    transition: none;
-  }
-
-  .railCaseName {
-    transition: none;
   }
 }
 
@@ -519,6 +530,136 @@
   font-variant-numeric: tabular-nums;
 }
 
+/* Semicircular gauge boards ("Risk factors", "At-risk by grade") — one dial
+   whose arcs are sized by each row's share of the board total. */
+.gaugeChart {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+  min-width: 0;
+}
+
+.gaugeWrap {
+  position: relative;
+  width: 100%;
+  max-width: 15rem;
+  margin: 0 auto;
+}
+
+.gaugeSvg {
+  display: block;
+  width: 100%;
+  height: auto;
+  overflow: visible;
+}
+
+.gaugeTrack {
+  fill: none;
+  stroke: color-mix(in oklch, var(--foreground), transparent 90%);
+  stroke-width: 14;
+}
+
+.gaugeSegment {
+  fill: none;
+  stroke-width: 14;
+  cursor: pointer;
+  transition:
+    stroke-dasharray 480ms ease,
+    stroke-dashoffset 480ms ease,
+    opacity 140ms ease;
+}
+
+.gaugeSegment:hover {
+  opacity: 0.82;
+}
+
+.gaugeCenter {
+  position: absolute;
+  left: 50%;
+  bottom: 0.2rem;
+  transform: translateX(-50%);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  line-height: 1.1;
+  pointer-events: none;
+}
+
+.gaugeTip {
+  position: absolute;
+  z-index: 50;
+  transform: translate(-50%, calc(-100% - 0.5rem));
+  pointer-events: none;
+}
+
+.gaugeValue {
+  font-size: 1.375rem;
+  font-weight: 700;
+  letter-spacing: -0.02em;
+  color: var(--guidance-number);
+  font-variant-numeric: tabular-nums;
+}
+
+.gaugeLabel {
+  font-size: 0.75rem;
+  color: var(--muted-foreground);
+}
+
+.gaugeLegend {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+}
+
+.gaugeLegendItem {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  min-width: 0;
+  font-size: 0.75rem;
+}
+
+.gaugeLegendLabel {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  color: var(--foreground);
+}
+
+.gaugeLegendValue {
+  margin-left: auto;
+  display: inline-flex;
+  align-items: baseline;
+  gap: 0.375rem;
+  white-space: nowrap;
+  font-variant-numeric: tabular-nums;
+}
+
+.gaugeLegendCount {
+  font-weight: 700;
+  color: var(--guidance-number);
+}
+
+.gaugeLegendPercent {
+  color: var(--muted-foreground);
+}
+
+/* Dark mode: the boards are glass, so the desk canvas shows through instead
+   of solid slabs sitting on top of it. */
+:global(.dark) .page :global(.board-surface) {
+  background-color: transparent;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .gaugeSegment {
+    transition: none;
+  }
+}
+
 /* Loading + error */
 .error {
   margin: 0;
@@ -564,29 +705,8 @@
   }
 }
 
-/* Icon-rail skeleton — matches the 2.25rem gutter buttons; the rail turns
-   into a horizontal icon row on mobile, same as the real rail. */
-.skelRail {
-  display: flex;
-  flex-direction: column;
-  align-items: flex-end;
-  gap: 0.5rem;
-  min-width: 0;
-}
 
-.skelRailIcon {
-  height: 2.25rem;
-  width: 2.25rem;
-  border-radius: var(--radius-xl);
-}
-
-@media (max-width: 1024px) {
-  .skelRail {
-    flex-direction: row;
-    justify-content: flex-end;
-  }
-}
-
+/* ── Skeleton shapes ──────────────────────────────────────────────────────── */
 .skelChartRow {
   display: flex;
   align-items: center;
@@ -610,7 +730,7 @@
   flex: 1;
   display: flex;
   flex-direction: column;
-  gap: 0.25rem;
+  gap: 0.375rem;
   min-width: 0;
 }
 
@@ -619,27 +739,52 @@
   width: 100%;
 }
 
-.skelBars {
+/* Semicircular gauge placeholder — same 200×104 footprint and 14px band as the
+   live dial, hollowed with a radial mask so the sheen sweeps the ring only. */
+.skelGaugeWrap {
+  width: 100%;
+  max-width: 15rem;
+  margin: 0 auto;
+}
+
+.skelGaugeArc {
+  width: 100%;
+  aspect-ratio: 200 / 104;
+  border-radius: 50% 50% 0 0 / 100% 100% 0 0;
+  /* !important because <Skeleton> ships a `bg-muted` utility that would
+     otherwise repaint the hollow half of the ring. */
+  background: conic-gradient(
+    from 270deg at 50% 100%,
+    var(--muted) 0turn 0.5turn,
+    transparent 0.5turn
+  ) !important;
+  -webkit-mask: radial-gradient(circle at 50% 100%, transparent 0 86%, #000 86.5%);
+  mask: radial-gradient(circle at 50% 100%, transparent 0 86%, #000 86.5%);
+}
+
+.skelGaugeLegend {
   display: flex;
   flex-direction: column;
-  gap: 1rem;
+  gap: 0.375rem;
+  margin-top: 0.75rem;
 }
 
-.skelBarRow {
-  flex: 1;
-  min-width: 0;
-  height: 0.75rem;
-  border-radius: 4px;
-}
-
-.skelBarRowWrap {
+.skelGaugeLegendItem {
   display: flex;
   align-items: center;
   gap: 0.5rem;
+  min-width: 0;
 }
 
-.skelBarYLabel {
-  height: 0.75rem;
-  width: 6.5rem;
+.skelSwatch {
+  width: 0.5rem;
+  height: 0.5rem;
   flex-shrink: 0;
+  border-radius: 2px;
+}
+
+.skelInterpretation {
+  height: 2.375rem;
+  width: 100%;
+  border-radius: var(--radius-lg);
 }

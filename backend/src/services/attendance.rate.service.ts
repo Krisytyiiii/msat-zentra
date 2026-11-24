@@ -136,14 +136,16 @@ export interface SubjectAverageEntry {
 
 export const ATTENDANCE_RISK_CUTOFF = 0.8;
 
-export async function subjectAverageAttendance(
+/**
+ * Elapsed meetup dates per `${sectionId}|${subjectId}` for a term, from the
+ * published timetable, clipped to [term start, today or term end]. Only keys
+ * that actually held at least one meetup are present.
+ */
+async function elapsedSubjectMeetupDates(
   sectionIds: string[],
   termId: string
-): Promise<Map<string, SubjectAverageEntry>> {
-  const empty = new Map<string, SubjectAverageEntry>();
-  if (sectionIds.length === 0) return empty;
-  const archivedLearners = await archivedAdvisoryLearnerIds();
-  const [entries, term, records, profiles, rosters] = await Promise.all([
+): Promise<Map<string, Set<string>>> {
+  const [entries, term] = await Promise.all([
     prisma.sectionTimetableEntry.findMany({
       where: {
         sectionId: { in: sectionIds },
@@ -156,6 +158,51 @@ export async function subjectAverageAttendance(
       where: { id: termId },
       select: { startDate: true, endDate: true },
     }),
+  ]);
+
+  const meetups = new Map<string, number[]>();
+  for (const e of entries) {
+    const k = `${e.sectionId}|${e.subjectId}`;
+    const arr = meetups.get(k) ?? [];
+    if (!arr.includes(e.day)) arr.push(e.day);
+    meetups.set(k, arr);
+  }
+
+  const elapsed = new Map<string, Set<string>>();
+  const startStr = term?.startDate?.toISOString().slice(0, 10) ?? null;
+  const todayStr = new Date().toISOString().slice(0, 10);
+  const endStr = (() => {
+    if (!term?.endDate) return todayStr;
+    const termEnd = term.endDate.toISOString().slice(0, 10);
+    return termEnd < todayStr ? termEnd : todayStr;
+  })();
+  if (startStr && startStr <= endStr) {
+    for (const [k, days] of meetups) {
+      const set = new Set<string>();
+      for (
+        let d = new Date(`${startStr}T00:00:00Z`);
+        d.toISOString().slice(0, 10) <= endStr;
+        d = new Date(d.getTime() + 86_400_000)
+      ) {
+        const dow = d.getUTCDay();
+        const day = dow === 0 ? 7 : dow;
+        if (days.includes(day)) set.add(d.toISOString().slice(0, 10));
+      }
+      if (set.size > 0) elapsed.set(k, set);
+    }
+  }
+  return elapsed;
+}
+
+export async function subjectAverageAttendance(
+  sectionIds: string[],
+  termId: string
+): Promise<Map<string, SubjectAverageEntry>> {
+  const empty = new Map<string, SubjectAverageEntry>();
+  if (sectionIds.length === 0) return empty;
+  const archivedLearners = await archivedAdvisoryLearnerIds();
+  const [elapsed, records, profiles, rosters] = await Promise.all([
+    elapsedSubjectMeetupDates(sectionIds, termId),
     prisma.attendanceRecord.findMany({
       where: { sectionId: { in: sectionIds }, termId, NOT: { subjectId: null } },
       select: {
@@ -176,38 +223,6 @@ export async function subjectAverageAttendance(
       select: { id: true, sectionId: true, learnerType: true, createdAt: true },
     }),
   ]);
-
-  const meetups = new Map<string, number[]>();
-  for (const e of entries) {
-    const k = `${e.sectionId}|${e.subjectId}`;
-    const arr = meetups.get(k) ?? [];
-    if (!arr.includes(e.day)) arr.push(e.day);
-    meetups.set(k, arr);
-  }
-
-  const startStr = term?.startDate?.toISOString().slice(0, 10) ?? null;
-  const todayStr = new Date().toISOString().slice(0, 10);
-  const endStr = (() => {
-    if (!term?.endDate) return todayStr;
-    const termEnd = term.endDate.toISOString().slice(0, 10);
-    return termEnd < todayStr ? termEnd : todayStr;
-  })();
-  const elapsed = new Map<string, Set<string>>();
-  if (startStr && startStr <= endStr) {
-    for (const [k, days] of meetups) {
-      const set = new Set<string>();
-      for (
-        let d = new Date(`${startStr}T00:00:00Z`);
-        d.toISOString().slice(0, 10) <= endStr;
-        d = new Date(d.getTime() + 86_400_000)
-      ) {
-        const dow = d.getUTCDay();
-        const day = dow === 0 ? 7 : dow;
-        if (days.includes(day)) set.add(d.toISOString().slice(0, 10));
-      }
-      if (set.size > 0) elapsed.set(k, set);
-    }
-  }
   if (elapsed.size === 0) return empty;
 
   const offeredBySection = new Map<string, string[]>();
@@ -280,4 +295,72 @@ export async function subjectAverageAttendance(
     });
   }
   return result;
+}
+
+/**
+ * One learner's term attendance rate, computed the same way the adviser boards
+ * show it: the mean of the learner's per-subject present percentage across
+ * every subject that held a meetup inside their window (term start → now, or
+ * the day after enlistment for transferees). Returns `null` when no subject has
+ * an elapsed meetup yet, so callers keep their "no signal" behaviour instead of
+ * reading an empty record set as 0%.
+ *
+ * `records` may be supplied by a caller that already fetched the learner's
+ * term attendance for this section (avoids a second round trip).
+ */
+export async function learnerSubjectAverageAttendance(
+  who: { studentId: string } | { rosterId: string },
+  sectionId: string | null,
+  termId: string,
+  records?: { subjectId: string | null; status: string; date: Date }[]
+): Promise<SubjectAverageEntry | null> {
+  if (!sectionId) return null;
+  const [elapsed, rows, roster] = await Promise.all([
+    elapsedSubjectMeetupDates([sectionId], termId),
+    records
+      ? Promise.resolve(records)
+      : prisma.attendanceRecord.findMany({
+          where: { ...who, termId, sectionId, NOT: { subjectId: null } },
+          select: { subjectId: true, status: true, date: true },
+        }),
+    "rosterId" in who
+      ? prisma.studentRoster.findUnique({
+          where: { id: who.rosterId },
+          select: { learnerType: true, createdAt: true },
+        })
+      : Promise.resolve(null),
+  ]);
+  if (elapsed.size === 0) return null;
+
+  const startStr =
+    roster?.learnerType === "transferee" ? roster.createdAt.toISOString().slice(0, 10) : null;
+  const present = new Map<string, Set<string>>();
+  let touched = false;
+  for (const r of rows) {
+    if (!r.subjectId) continue;
+    touched = true;
+    if (r.status !== "present") continue;
+    let set = present.get(r.subjectId);
+    if (!set) {
+      set = new Set();
+      present.set(r.subjectId, set);
+    }
+    set.add(r.date.toISOString().slice(0, 10));
+  }
+
+  let sum = 0;
+  let ratedSubjects = 0;
+  for (const [key, dates] of elapsed) {
+    if (!key.startsWith(`${sectionId}|`)) continue;
+    const subjectId = key.slice(sectionId.length + 1);
+    const inWindow = startStr ? [...dates].filter((d) => d > startStr) : [...dates];
+    if (inWindow.length === 0) continue;
+    ratedSubjects += 1;
+    const presentDates = present.get(subjectId);
+    let n = 0;
+    for (const d of presentDates ?? []) if (inWindow.includes(d)) n += 1;
+    sum += n / inWindow.length;
+  }
+  if (ratedSubjects === 0) return null;
+  return { average: sum / ratedSubjects, hasSubjectData: touched };
 }

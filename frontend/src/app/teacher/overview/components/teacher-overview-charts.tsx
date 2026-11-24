@@ -2,11 +2,12 @@
 
 import * as React from "react";
 import {
+  Area,
+  AreaChart,
   Bar,
   BarChart,
   CartesianGrid,
   Cell,
-  ComposedChart,
   LabelList,
   Line,
   LineChart,
@@ -28,9 +29,12 @@ import {
 import { KanbanBoard, KanbanBoardEmpty } from "@/components/ui/kanban-board";
 import { InsightCallout } from "@/components/ui/insight-callout";
 import { Pill } from "@/components/ui/pill";
+import { Skeleton } from "@/components/ui/skeleton";
+import { ShimmerGroup } from "@/components/ui/shimmer-skeleton";
 import { useTeacherOverviewGradebook, useTeacherOverviewInsights } from "@/services/teacher/overview.service";
 import type { TeacherOverviewCritical } from "@/services/teacher/overview.types";
 import styles from "./teacher-overview-charts.module.css";
+import skeleton from "./teacher-overview-skeleton.module.css";
 
 /* Amber ramp — the teacher shell accent. Same shade steps as the guidance and
    nurse overview charts so every role's boards read as one system. */
@@ -44,6 +48,14 @@ const SHADES = [
   `color-mix(in oklch, ${AMBER}, transparent 66%)`,
   `color-mix(in oklch, ${AMBER}, transparent 76%)`,
 ];
+
+/*
+ * Attendance chart uses only the two semantic marks the day-by-day board is
+ * about: present (green) and absent (red). Everything else stays in the legend
+ * chips, so the area shape reads at a glance in both themes.
+ */
+const GREEN = "oklch(0.723 0.219 149.579)";
+const RED = "oklch(0.637 0.237 25.331)";
 
 const TOOLTIP_Z_INDEX = { zIndex: 50 };
 
@@ -69,6 +81,52 @@ function Interpretation({ children }: { children: React.ReactNode }) {
         <span className={styles.interpretationLabel}>What it means · </span>
         {children}
       </InsightCallout>
+    </div>
+  );
+}
+
+/** Shimmer placeholder for a board whose chart data is still loading. */
+function ChartSkeleton({ variant }: { variant: "mix" | "donut" | "trend" | "pipeline" }) {
+  if (variant === "mix") {
+    return (
+      <div className={styles.chartBody} aria-busy="true">
+        <ShimmerGroup>
+          <div className={skeleton.donutRow}>
+            <Skeleton className={skeleton.donut} />
+            <div className={skeleton.legendCol}>
+              {Array.from({ length: 3 }).map((_, i) => (
+                <Skeleton key={i} className={skeleton.legendRow} />
+              ))}
+            </div>
+          </div>
+        </ShimmerGroup>
+      </div>
+    );
+  }
+  if (variant === "donut") {
+    return (
+      <div className={styles.chartBody} aria-busy="true">
+        <ShimmerGroup>
+          <div className={skeleton.donutCenter}>
+            <Skeleton className={skeleton.donutLarge} />
+          </div>
+        </ShimmerGroup>
+      </div>
+    );
+  }
+  return (
+    <div className={styles.chartBody} aria-busy="true">
+      <ShimmerGroup>
+        <Skeleton
+          className={skeleton.chartPlate}
+          style={variant === "pipeline" ? { height: "176px" } : undefined}
+        />
+        <div className={skeleton.legendInline}>
+          {Array.from({ length: variant === "pipeline" ? 3 : 2 }).map((_, i) => (
+            <Skeleton key={i} className={skeleton.legendChip} />
+          ))}
+        </div>
+      </ShimmerGroup>
     </div>
   );
 }
@@ -234,11 +292,12 @@ export function TeacherOverviewCharts({
     : 0;
   const attendanceTotals = attendancePoints.reduce(
     (acc, p) => ({
+      present: acc.present + p.Present,
       absent: acc.absent + p.Absent,
       late: acc.late + p.Late,
       excused: acc.excused + p.Excused,
     }),
-    { absent: 0, late: 0, excused: 0 },
+    { present: 0, absent: 0, late: 0, excused: 0 },
   );
 
   const subjectRows = React.useMemo(() => {
@@ -302,7 +361,7 @@ export function TeacherOverviewCharts({
           className="flex-1"
         >
           {insightsPending ? (
-            <KanbanBoardEmpty>Loading risk mix…</KanbanBoardEmpty>
+            <ChartSkeleton variant="mix" />
           ) : mix.length === 0 ? (
             <KanbanBoardEmpty>No risk snapshots yet.</KanbanBoardEmpty>
           ) : (
@@ -423,7 +482,7 @@ export function TeacherOverviewCharts({
           className="flex-1"
         >
           {gradebookPending ? (
-            <KanbanBoardEmpty>Loading averages…</KanbanBoardEmpty>
+            <ChartSkeleton variant="donut" />
           ) : subjectRows.length === 0 ? (
             <KanbanBoardEmpty>No graded classes yet.</KanbanBoardEmpty>
           ) : (
@@ -482,7 +541,7 @@ export function TeacherOverviewCharts({
           className="flex-1"
         >
           {insightsPending ? (
-            <KanbanBoardEmpty>Loading detection trend…</KanbanBoardEmpty>
+            <ChartSkeleton variant="trend" />
           ) : trendPoints.length === 0 ? (
             <KanbanBoardEmpty>No school days in range yet.</KanbanBoardEmpty>
           ) : (
@@ -566,11 +625,11 @@ export function TeacherOverviewCharts({
           title="Attendance, day by day"
           icon={<BoardIcon icon={Activity} />}
           count={amberCount(avgRate)}
-          description="Present rate with the late and absent counts behind it."
+          description="Each school day's present marks in green, absent marks in red."
           className="flex-1"
         >
           {insightsPending ? (
-            <KanbanBoardEmpty>Loading attendance trend…</KanbanBoardEmpty>
+            <ChartSkeleton variant="trend" />
           ) : attendancePoints.length === 0 ? (
             <KanbanBoardEmpty>No school days in range yet.</KanbanBoardEmpty>
           ) : (
@@ -579,11 +638,24 @@ export function TeacherOverviewCharts({
                 className={styles.lineChart}
                 role="img"
                 aria-label={`Attendance trend: ${attendancePoints
-                  .map((p) => `${p.label} ${p.rate}% present, ${p.Absent} absent`)
+                  .map((p) => `${p.label} ${p.Present} present, ${p.Absent} absent`)
                   .join("; ")}`}
               >
                 <ResponsiveContainer width="100%" height={200}>
-                  <ComposedChart data={attendancePoints} margin={{ top: 8, right: 4, bottom: 4, left: 0 }}>
+                  <AreaChart
+                    data={attendancePoints}
+                    margin={{ top: 8, right: 12, bottom: 4, left: 0 }}
+                  >
+                    <defs>
+                      <linearGradient id="teacherAttendancePresent" x1="0" y1="0" x2="0" y2="1">
+                        <stop offset="0%" stopColor={GREEN} stopOpacity={0.45} />
+                        <stop offset="100%" stopColor={GREEN} stopOpacity={0.04} />
+                      </linearGradient>
+                      <linearGradient id="teacherAttendanceAbsent" x1="0" y1="0" x2="0" y2="1">
+                        <stop offset="0%" stopColor={RED} stopOpacity={0.45} />
+                        <stop offset="100%" stopColor={RED} stopOpacity={0.04} />
+                      </linearGradient>
+                    </defs>
                     <CartesianGrid strokeDasharray="3 3" stroke="var(--border)" />
                     <XAxis
                       dataKey="label"
@@ -593,81 +665,57 @@ export function TeacherOverviewCharts({
                       tick={{ fontSize: 12 }}
                     />
                     <YAxis
-                      yAxisId="count"
                       allowDecimals={false}
                       tickLine={false}
                       axisLine={false}
                       fontSize={12}
                       width={34}
                     />
-                    <YAxis
-                      yAxisId="rate"
-                      orientation="right"
-                      domain={[0, 100]}
-                      tickLine={false}
-                      axisLine={false}
-                      fontSize={12}
-                      width={38}
-                      unit="%"
-                    />
                     <Tooltip
                       content={<TeacherChartTooltip />}
-                      cursor={{ fill: "var(--muted)" }}
+                      cursor={{ stroke: "var(--border)" }}
                       wrapperStyle={TOOLTIP_Z_INDEX}
                     />
-                    <Bar
-                      yAxisId="count"
-                      dataKey="Absent"
-                      stackId="marks"
-                      fill={SHADES[0]}
-                      radius={[2, 2, 0, 0]}
-                    />
-                    <Bar yAxisId="count" dataKey="Late" stackId="marks" fill={SHADES[2]} />
-                    <Bar
-                      yAxisId="count"
-                      dataKey="Excused"
-                      stackId="marks"
-                      fill={SHADES[4]}
-                      radius={[2, 2, 0, 0]}
-                    />
-                    <Line
-                      yAxisId="rate"
+                    <Area
                       type="monotone"
-                      dataKey="rate"
-                      name="Present %"
-                      stroke={AMBER}
+                      dataKey="Present"
+                      name="Present"
+                      stackId="marks"
+                      stroke={GREEN}
                       strokeWidth={2}
-                      dot={false}
-                      activeDot={{ r: 5 }}
+                      fill="url(#teacherAttendancePresent)"
                     />
-                  </ComposedChart>
+                    <Area
+                      type="monotone"
+                      dataKey="Absent"
+                      name="Absent"
+                      stackId="marks"
+                      stroke={RED}
+                      strokeWidth={2}
+                      fill="url(#teacherAttendanceAbsent)"
+                    />
+                  </AreaChart>
                 </ResponsiveContainer>
               </div>
               <ul className={styles.legend}>
                 <LegendRow
-                  color={SHADES[0]}
+                  color={GREEN}
+                  label="Present"
+                  value={attendanceTotals.present}
+                  hint="Present marks in the window"
+                />
+                <LegendRow
+                  color={RED}
                   label="Absent"
                   value={attendanceTotals.absent}
                   hint="Absent marks in the window"
                 />
-                <LegendRow
-                  color={SHADES[2]}
-                  label="Late"
-                  value={attendanceTotals.late}
-                  hint="Late marks in the window"
-                />
-                <LegendRow
-                  color={SHADES[4]}
-                  label="Excused"
-                  value={attendanceTotals.excused}
-                  hint="Excused marks in the window"
-                />
-                <LegendRow color={AMBER} label="Present %" value={`${avgRate}%`} hint="Average present rate in the window" />
               </ul>
             </div>
           )}
           <Interpretation>
-            Bars are counts of late, absent and excused marks; the line is the present rate.
+            Green area is present marks per day, red is absent; the header figure is the average
+            present rate across the window.
           </Interpretation>
         </KanbanBoard>
       </div>
@@ -681,7 +729,7 @@ export function TeacherOverviewCharts({
         className="flex-1"
       >
         {gradebookPending ? (
-          <KanbanBoardEmpty>Loading assessments…</KanbanBoardEmpty>
+          <ChartSkeleton variant="pipeline" />
         ) : pipelineRows.length === 0 ? (
           <KanbanBoardEmpty>No assessments yet this term.</KanbanBoardEmpty>
         ) : (

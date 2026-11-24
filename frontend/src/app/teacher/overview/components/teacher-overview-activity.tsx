@@ -1,7 +1,7 @@
 "use client";
 
 import * as React from "react";
-import { Search, MoreHorizontal } from "lucide-react";
+import { MoreHorizontal } from "lucide-react";
 import {
   Card,
   CardHeader,
@@ -11,7 +11,7 @@ import {
   CardContent,
 } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
+import { TeacherSearchField, searchEmptyMessage } from "@/app/teacher/components/TeacherSearchField";
 import {
   DropdownMenu,
   DropdownMenuTrigger,
@@ -73,19 +73,15 @@ export function TeacherOverviewActivity({ activity }: TeacherOverviewActivityPro
           </CardDescription>
         </div>
         <CardAction className={styles.headerActions}>
-          <div className={styles.searchWrap}>
-            <Search className={styles.searchIcon} aria-hidden />
-            <Input
-              className={styles.search}
-              placeholder="Search activity…"
-              value={query}
-              onChange={(e) => {
-                setQuery(e.target.value);
-                setPage(1);
-              }}
-              aria-label="Search recent activity"
-            />
-          </div>
+          <TeacherSearchField
+            placeholder="Search activity…"
+            value={query}
+            onChange={(next) => {
+              setQuery(next);
+              setPage(1);
+            }}
+            aria-label="Search recent activity"
+          />
         </CardAction>
       </CardHeader>
 
@@ -104,7 +100,7 @@ export function TeacherOverviewActivity({ activity }: TeacherOverviewActivityPro
               <TableRow>
                 <TableCell colSpan={4} className={styles.empty}>
                   {query.trim()
-                    ? `No activity matches "${query}".`
+                    ? searchEmptyMessage(query, "activity", "Try a different action or target.")
                     : "No recent activity."}
                 </TableCell>
               </TableRow>

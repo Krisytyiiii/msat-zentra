@@ -12,6 +12,7 @@ import refStyles from "./referrals.module.css";
 export function ReferPicker({
   id,
   label,
+  ariaLabel,
   placeholder,
   value,
   valueNode,
@@ -21,6 +22,8 @@ export function ReferPicker({
 }: {
   id: string;
   label?: string;
+  /** Field name for assistive tech when the board header already labels it. */
+  ariaLabel?: string;
   placeholder: string;
   value: string | null;
   /** Rich trigger content shown when an option is selected (mirrors the row layout). */
@@ -40,7 +43,7 @@ export function ReferPicker({
             type="button"
             variant="outline"
             disabled={disabled}
-            aria-label={label ?? placeholder}
+            aria-label={ariaLabel ?? label ?? placeholder}
             title={title ?? value ?? undefined}
             className={cn(
               "flex w-full items-center justify-start text-left font-normal",

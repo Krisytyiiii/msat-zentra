@@ -7,13 +7,18 @@ import {
   CalendarClock,
   FilePenLine,
   KanbanSquare,
-  Loader2,
   ShieldAlert,
 } from "lucide-react";
 import { apiClient } from "@/lib/api/client";
+import { GlassCard } from "@/components/ui/glass-card";
 import { Pill } from "@/components/ui/pill";
-import { Skeleton } from "@/components/ui/skeleton";
-import { riskBadgeVariant, riskDotColor } from "@/lib/risk/status";
+import { ShimmerGroup } from "@/components/ui/shimmer-skeleton";
+import {
+  AnecdotalRecordKanbanCard,
+  humanizeCategory,
+} from "@/components/anecdotal/anecdotal-record-kanban-card";
+import { OcForm01PreviewDialog } from "@/components/ocform01/OcForm01PreviewDialog";
+import { riskDotColor } from "@/lib/risk/status";
 import type {
   AdviseeRow,
   AdviseeRiskFlag,
@@ -22,6 +27,8 @@ import type { StudentAcademic } from "@/services/teacher/adviseeAcademic.types";
 import type { StudentAttendance } from "@/services/teacher/adviseeAttendance.types";
 import { fetchStudentAcademic } from "@/services/teacher/adviseeAcademic.service";
 import { fetchStudentAttendance } from "@/services/teacher/adviseeAttendance.service";
+import { fetchAdviseeRisk, type AdviseeLiveRisk } from "@/services/teacher/advisory.service";
+import { InsightBoardSkeleton } from "./advisory-list-skeleton";
 import styles from "./advisory-insight-board.module.css";
 
 const FACTOR_BADGE: Record<AdviseeRiskFlag, { label: string; variant: "amber" | "green" | "blue" }> = {
@@ -30,8 +37,8 @@ const FACTOR_BADGE: Record<AdviseeRiskFlag, { label: string; variant: "amber" | 
   behavioral: { label: "Anecdotal", variant: "blue" },
 };
 
-/* Loading placeholders — one per lane of the loaded board. */
-const LANE_PLACEHOLDERS = ["risk", "attendance", "academics", "anecdotal"] as const;
+/* Loading placeholders live in advisory-list-skeleton.tsx so the page shell and
+   the board's own fetch render one identical shimmer skeleton. */
 
 interface AnecdotalRecordItem {
   id: string;
@@ -62,6 +69,12 @@ function generalAverageOf(row: AdviseeRow): number | null {
   return values.reduce((a, b) => a + b, 0) / values.length;
 }
 
+function recordDate(iso: string): string {
+  const d = new Date(iso);
+  if (Number.isNaN(d.getTime())) return iso.slice(0, 10);
+  return d.toISOString().slice(0, 10);
+}
+
 export function AdvisoryInsightBoard({
   student,
   bare = false,
@@ -71,6 +84,7 @@ export function AdvisoryInsightBoard({
 }) {
   const studentId = student?.studentId ?? null;
   const isRoster = studentId?.startsWith("roster:") ?? false;
+  const [previewId, setPreviewId] = React.useState<string | null>(null);
 
   const attendanceQuery = useLiveQuery<StudentAttendance>({
     queryKey: ["advisee-attendance", studentId],
@@ -90,17 +104,32 @@ export function AdvisoryInsightBoard({
     refetchInterval: 30_000,
   });
 
+  // Roster-only learners are addressed as `roster:<id>` and the API serves their
+  // records off `rosterId` too — the risk factor can be anecdotal for them, so
+  // their categories must load (the API only returns the private write-up to the
+  // observing teacher, never across the roster split).
   const anecdotalQuery = useLiveQuery<AnecdotalResponse>({
     queryKey: ["advisee-anecdotal", studentId],
     queryFn: () => fetchAdviseeAnecdotal(studentId as string),
-    enabled: !!studentId && !isRoster,
+    enabled: !!studentId,
+    retry: false,
+    staleTime: 15_000,
+    refetchInterval: 30_000,
+  });
+
+  // Risk is computed live for the selected learner only — the advisory list no
+  // longer scans the whole section's grades/attendance to badge every row.
+  const riskQuery = useLiveQuery<AdviseeLiveRisk>({
+    queryKey: ["advisee-risk", studentId],
+    queryFn: () => fetchAdviseeRisk(studentId as string),
+    enabled: !!studentId,
     retry: false,
     staleTime: 15_000,
     refetchInterval: 30_000,
   });
 
   const liveAttendanceRate =
-    attendanceQuery.data?.summary.rate ?? student?.attendanceRate ?? 1;
+    attendanceQuery.data?.summary.rate ?? riskQuery.data?.attendanceRate ?? student?.attendanceRate ?? 1;
   const liveGeneralAverage = React.useMemo(() => {
     const fromAcademic = academicQuery.data?.summary.average ?? null;
     if (typeof fromAcademic === "number" && Number.isFinite(fromAcademic))
@@ -109,30 +138,17 @@ export function AdvisoryInsightBoard({
   }, [academicQuery.data, student]);
 
   const liveGrades = React.useMemo(() => {
-    const codeBySubject = new Map(
-      (student?.liveGrades ?? []).map((g) => [g.subject, g.code] as const),
-    );
     const base = academicQuery.data
       ? academicQuery.data.grades
           .filter((g) => g.computedAverage !== null && !g.hiddenByTeacher)
           .map((g) => ({ subject: g.subject, average: g.computedAverage as number }))
-      : (student?.liveGrades ?? []).map((g) => ({
-          subject: g.subject,
-          average: g.average,
-        }));
-    return base
-      .map((g) => ({
-        ...g,
-        code:
-          codeBySubject.get(g.subject) ??
-          g.subject
-            .split(/\s+/)
-            .filter(Boolean)
-            .map((w) => w[0])
-            .join("")
-            .toUpperCase(),
-      }))
-      .sort((a, b) => a.subject.localeCompare(b.subject));
+      : (student?.liveGrades ?? [])
+          .filter((g) => typeof g.average === "number" && Number.isFinite(g.average))
+          .map((g) => ({
+            subject: g.subject,
+            average: g.average,
+          }));
+    return base.sort((a, b) => a.subject.localeCompare(b.subject));
   }, [academicQuery.data, student]);
 
   const anecdotalRecords: AnecdotalRecordItem[] = React.useMemo(
@@ -158,7 +174,11 @@ export function AdvisoryInsightBoard({
   }
 
   const loading =
-    attendanceQuery.isPending || academicQuery.isPending || (!isRoster && anecdotalQuery.isPending);
+    attendanceQuery.isPending ||
+    academicQuery.isPending ||
+    anecdotalQuery.isPending ||
+    riskQuery.isPending;
+  const riskLevel = riskQuery.data?.riskLevel ?? student.riskLevel;
   const hiddenGrades = academicQuery.data?.hiddenCount ?? 0;
   const attendanceRestricted = attendanceQuery.data?.restricted ?? false;
   const subjectSummary = attendanceQuery.data?.subjectSummary ?? null;
@@ -173,7 +193,13 @@ export function AdvisoryInsightBoard({
   const attRisk = subjectSummary
     ? subjectSummary.isRisk
     : (attendanceQuery.data?.summary.isRisk ?? false);
-  const activeFlags = (student.flags ?? []).filter((f) => f in FACTOR_BADGE);
+  const activeFlags = (riskQuery.data?.flags ?? student.flags ?? []).filter(
+    (f) => f in FACTOR_BADGE,
+  );
+  const gradedSubjectCount = liveGrades.length;
+  const offeredSubjectCount = academicQuery.data?.summary.subjects ?? gradedSubjectCount;
+  const absentCount = subjectSummary?.absent ?? attendanceQuery.data?.summary.absent ?? 0;
+  const lateCount = subjectSummary?.late ?? attendanceQuery.data?.summary.late ?? 0;
 
   return (
     <div className={`${styles.board} ${bare ? styles.bare : ""}`} aria-label={`Insight for ${student.name}`}>
@@ -183,269 +209,268 @@ export function AdvisoryInsightBoard({
         </span>
         <div className="min-w-0 flex-1">
           <h2 className={styles.boardTitle}>Student insight</h2>
-          <span className="mt-1 flex max-w-full flex-wrap items-center gap-1">
-            <Pill tone="amber" label="Insight section">
-              Attendance
-            </Pill>
-            <Pill tone="amber" label="Insight section">
-              Grades
-            </Pill>
-            <Pill tone="amber" label="Insight section">
-              Anecdotal
-            </Pill>
-          </span>
         </div>
-        {/* Risk level lives at the panel's top-right (moved out of the list
-            table so the left lane stays a pure name/LRN roster). */}
-        <Pill tone={riskBadgeVariant(student.riskLevel)} label="Risk level">
-          {student.riskLevel}
-        </Pill>
       </header>
 
       {loading ? (
-        <section
-          className={styles.plainSection}
-          aria-busy="true"
-          aria-label="Loading insight"
-        >
-          <header className={styles.laneHead}>
-            <span className={styles.laneDot} style={{ background: "var(--border)" }} aria-hidden />
-            <h3 className={styles.laneTitle}>Risk &amp; records</h3>
-          </header>
-          {/* Same four lanes as the loaded board: head + one card each. */}
-          <ul className={styles.cardGrid} aria-hidden>
-            {LANE_PLACEHOLDERS.map((lane) => (
-              <li key={lane} className="min-w-0">
-                <section className={styles.lane}>
-                  <header className={styles.colHead}>
-                    <Skeleton className="size-4 shrink-0 rounded-sm" />
-                    <Skeleton className="h-3.5 w-24" />
-                    <Skeleton className="ml-auto h-5 w-16 rounded-full" />
-                  </header>
-                  <div className={styles.kCard}>
-                    <Skeleton className="h-3 w-20" />
-                    <div className="flex items-center justify-between gap-2">
-                      <Skeleton className="h-3.5 w-24" />
-                      <Skeleton className="h-6 w-10" />
-                    </div>
-                  </div>
-                </section>
-              </li>
-            ))}
-          </ul>
-        </section>
+        <div aria-busy="true" aria-label="Loading insight">
+          <ShimmerGroup>
+            <InsightBoardSkeleton />
+          </ShimmerGroup>
+        </div>
       ) : (
         <section className={styles.plainSection} aria-label="Risk and records">
           <header className={styles.laneHead}>
             <span
               className={styles.laneDot}
-              style={{ background: riskDotColor(student.riskLevel) }}
+              style={{ background: riskDotColor(riskLevel) }}
               aria-hidden
             />
             <h3 className={styles.laneTitle}>Risk &amp; records</h3>
           </header>
           <ul className={styles.cardGrid} key={student.studentId}>
             <li className="min-w-0">
-              <section className={styles.lane} aria-label={`Risk factors lane for ${student.name}`}>
-                <header className={styles.colHead}>
-                  <span className={styles.colIcon} aria-hidden>
-                    <ShieldAlert size={18} />
+              <GlassCard className="h-full w-full min-w-0">
+                <article
+                  className={styles.kCard}
+                  aria-label={`Risk level for ${student.name}: ${riskLevel}`}
+                >
+                <header className={styles.kHead}>
+                  <span className={styles.kHeading}>
+                    <span className={styles.kName}>Risk factors</span>
                   </span>
-                  <h4 className={styles.colTitle}>Risk factors</h4>
+                  <span className={styles.kIconChip} aria-hidden>
+                    <ShieldAlert size={13} />
+                  </span>
                 </header>
-                {activeFlags.length === 0 ? (
-                  <p className={styles.empty}>All clear — no active factors.</p>
-                ) : (
-                  <ul className={styles.laneBody}>
-                    <li
-                      className={styles.kCard}
-                      aria-label={`Risk factors for ${student.name}`}
-                    >
-                      <p className={styles.kLabel}>Active factors</p>
-                      <span className="flex flex-wrap items-center gap-1">
-                        {activeFlags.map((f) => (
+                <div className={styles.kMetrics}>
+                  <div className={styles.kMetric}>
+                    <span className={styles.kMetricLabel}>Current risk level</span>
+                    <span className={styles.kLevelValue} data-level={riskLevel}>
+                      {riskLevel}
+                    </span>
+                    <span className={styles.kMetricHint}>
+                      {activeFlags.length === 0
+                        ? "No active risk factors"
+                        : `${activeFlags.length} active factor${activeFlags.length === 1 ? "" : "s"}`}
+                    </span>
+                  </div>
+                </div>
+                <footer className={styles.kFacts}>
+                  <span className={styles.kFact}>
+                    <span className={styles.kFactLabel}>Factors</span>
+                    <span className="flex min-w-0 flex-wrap items-center gap-1">
+                      {activeFlags.length === 0 ? (
+                        <span className={styles.kFactValue}>None</span>
+                      ) : (
+                        activeFlags.map((f) => (
                           <Pill key={f} tone={FACTOR_BADGE[f].variant} label="Risk factor">
                             {FACTOR_BADGE[f].label}
                           </Pill>
-                        ))}
-                      </span>
-                    </li>
-                  </ul>
-                )}
-              </section>
+                        ))
+                      )}
+                    </span>
+                  </span>
+                </footer>
+                </article>
+              </GlassCard>
             </li>
 
             <li className="min-w-0">
-              <section className={styles.lane} aria-label={`Attendance lane for ${student.name}`}>
-                <header className={styles.colHead}>
-                  <span className={styles.colIcon} aria-hidden>
-                    <CalendarClock size={18} />
+              <GlassCard className="h-full w-full min-w-0">
+                <article className={styles.kCard} aria-label={`Attendance for ${student.name}`}>
+                <header className={styles.kHead}>
+                  <span className={styles.kHeading}>
+                    <span className={styles.kName}>Attendance</span>
                   </span>
-                  <h4 className={styles.colTitle}>Attendance</h4>
-                  <Pill
-                    tone={attRisk && hasAttendanceData ? "red" : "neutral"}
-                    label="Attendance status"
-                  >
-                    {!hasAttendanceData
-                      ? "No sessions"
-                      : attRisk
-                        ? "At risk"
-                        : "On track"}
-                  </Pill>
-                  {attendanceQuery.isFetching ? (
-                    <Pill tone="neutral" label="Live update" aria-live="polite">
-                      <Loader2 size={12} className="animate-spin" aria-hidden />
-                      Updating
-                    </Pill>
-                  ) : null}
+                  <span className={styles.kIconChip} aria-hidden>
+                    <CalendarClock size={13} />
+                  </span>
                 </header>
-                <ul className={styles.laneBody}>
-                  <li
-                    className={styles.kCard}
-                    aria-label={`Attendance for ${student.name}`}
-                  >
-                    {attendanceRestricted ? (
-                      <p className={styles.cardMeta}>Some marks hidden — subject teacher sharing is OFF.</p>
-                    ) : null}
-                    <p className={styles.kLabel}>
-                      Present rate
-                    </p>
-                    <div className={styles.kBottom}>
-                      <p className={styles.kTitle}>
-                        {!hasAttendanceData
-                          ? "No sessions in this term"
-                          : subjectSummary
-                            ? `${subjectSummary.present} of ${subjectSummary.total} meetups`
-                            : attendanceQuery.data
-                              ? `${attendanceQuery.data.summary.present} of ${attendanceQuery.data.summary.total} sessions`
-                              : "Snapshot from roster"}
-                      </p>
-                      <p className={styles.kBig}>
-                        {hasAttendanceData ? (
-                          <>
-                            {attendancePct}
-                            <span className={styles.kUnit}>%</span>
-                          </>
-                        ) : (
-                          "—"
-                        )}
-                      </p>
+                <div className={styles.kMetrics}>
+                  <div className={styles.kMetric}>
+                    <span className={styles.kMetricLabel}>Present rate</span>
+                    <span className={styles.kLevelValue}>
+                      {hasAttendanceData ? (
+                        <>
+                          {attendancePct}
+                          <span className={styles.kUnit}>%</span>
+                        </>
+                      ) : (
+                        "—"
+                      )}
+                    </span>
+                    <span className={styles.kMetricHint}>
+                      {!hasAttendanceData
+                        ? "No sessions in this term"
+                        : subjectSummary
+                          ? `${subjectSummary.present} of ${subjectSummary.total} meetups`
+                          : attendanceQuery.data
+                            ? `${attendanceQuery.data.summary.present} of ${attendanceQuery.data.summary.total} sessions`
+                            : "Snapshot from roster"}
+                    </span>
+                    <div className={styles.kBar} aria-hidden>
+                      <span
+                        className={styles.kBarFill}
+                        data-risk={attRisk && hasAttendanceData ? "true" : undefined}
+                        style={{ width: `${hasAttendanceData ? Math.min(100, Math.max(0, attendancePct)) : 0}%` }}
+                      />
                     </div>
-                  </li>
-                </ul>
-              </section>
+                  </div>
+                </div>
+                <footer className={styles.kFacts}>
+                  {attendanceRestricted ? (
+                    <span className={styles.kFact}>
+                      <span className={styles.kFactLabel}>Note</span>
+                      <span className={styles.kFactValue}>Some marks hidden</span>
+                    </span>
+                  ) : null}
+                  <span className={styles.kFact}>
+                    <span className={styles.kFactLabel}>Absent</span>
+                    <span className={styles.kFactValue}>{hasAttendanceData ? absentCount : "—"}</span>
+                  </span>
+                  <span className={styles.kFact}>
+                    <span className={styles.kFactLabel}>Late</span>
+                    <span className={styles.kFactValue}>{hasAttendanceData ? lateCount : "—"}</span>
+                  </span>
+                </footer>
+                </article>
+              </GlassCard>
             </li>
 
             <li className="min-w-0">
-              <section className={styles.lane} aria-label={`Live academics lane for ${student.name}`}>
-                <header className={styles.colHead}>
-                  <span className={styles.colIcon} aria-hidden>
-                    <BookOpen size={18} />
+              <GlassCard className="h-full w-full min-w-0">
+                <article className={styles.kCard} aria-label={`Live academics for ${student.name}`}>
+                <header className={styles.kHead}>
+                  <span className={styles.kHeading}>
+                    <span className={styles.kName}>Live academics</span>
                   </span>
-                  <h4 className={styles.colTitle}>Live academics</h4>
+                  <span className={styles.kIconChip} aria-hidden>
+                    <BookOpen size={13} />
+                  </span>
                 </header>
-                {hiddenGrades > 0 ? (
-                  <p className={styles.cardMeta}>
-                    {hiddenGrades} subject{hiddenGrades === 1 ? "" : "s"} hidden — teacher sharing is OFF.
-                  </p>
-                ) : null}
-                {liveGrades.length === 0 ? (
-                  <p className={styles.empty}>No live scores shared by subject teachers yet.</p>
+                {liveGrades.length === 0 || liveGeneralAverage === null ? (
+                  <div className={styles.kBody}>
+                    <p className={styles.kEmpty}>
+                      No live scores shared by subject teachers yet.
+                    </p>
+                  </div>
                 ) : (
-                  <ul className={styles.laneBody}>
-                    {liveGrades.slice(0, 5).map((g) => (
-                      <li
-                        key={g.subject}
-                        className={styles.kCard}
-                        aria-label={`${g.subject} live average ${g.average.toFixed(1)}`}
-                      >
-                        <div className={styles.kTop}>
-                          <Pill tone="blue" label="Subject code">
-                            {g.code}
-                          </Pill>
-                          <span className={styles.kCircle} aria-hidden>
-                            <BookOpen size={14} />
-                          </span>
+                  <>
+                    <div className={styles.kMetrics}>
+                      <div className={styles.kMetric}>
+                        <span className={styles.kMetricLabel}>General average</span>
+                        <span
+                          className={styles.kLevelValue}
+                          aria-label={`General average ${liveGeneralAverage.toFixed(1)} across ${gradedSubjectCount} subject${gradedSubjectCount === 1 ? "" : "s"} with grades`}
+                        >
+                          {liveGeneralAverage.toFixed(1)}
+                          <span className={styles.kUnit}>avg</span>
+                        </span>
+                        <span className={styles.kMetricHint}>
+                          Averaged across graded subjects only
+                        </span>
+                        <div className={styles.kBar} aria-hidden>
+                          <span
+                            className={styles.kBarFill}
+                            style={{
+                              width: `${offeredSubjectCount > 0 ? Math.min(100, (gradedSubjectCount / offeredSubjectCount) * 100) : 0}%`,
+                            }}
+                          />
                         </div>
-                        <p className={styles.kLabel}>Subject</p>
-                        <div className={styles.kBottom}>
-                          <p className={styles.kTitle} title={g.subject}>
-                            {g.subject}
-                          </p>
-                          <p className={styles.kBig}>
-                            {g.average.toFixed(1)}
-                            <span className={styles.kUnit}>avg</span>
-                          </p>
-                        </div>
-                      </li>
-                    ))}
-                  </ul>
+                      </div>
+                    </div>
+                    <footer className={styles.kFacts}>
+                      <span className={styles.kFact}>
+                        <span className={styles.kFactLabel}>Graded</span>
+                        <span className={styles.kFactValue}>{gradedSubjectCount}</span>
+                      </span>
+                      <span className={styles.kFact}>
+                        <span className={styles.kFactLabel}>Offered</span>
+                        <span className={styles.kFactValue}>{offeredSubjectCount}</span>
+                      </span>
+                      {hiddenGrades > 0 ? (
+                        <span className={styles.kFact}>
+                          <span className={styles.kFactLabel}>Hidden</span>
+                          <span className={styles.kFactValue}>{hiddenGrades}</span>
+                        </span>
+                      ) : null}
+                    </footer>
+                  </>
                 )}
-                {liveGrades.length > 5 ? (
-                  <p className={styles.cardMeta}>
-                    +{liveGrades.length - 5} more subject{liveGrades.length - 5 === 1 ? "" : "s"}
-                  </p>
-                ) : null}
-              </section>
+                </article>
+              </GlassCard>
             </li>
 
-            <li className="min-w-0">
-              <section className={styles.lane} aria-label={`Anecdotal lane for ${student.name}`}>
-                <header className={styles.colHead}>
-                  <span className={styles.colIcon} aria-hidden>
-                    <FilePenLine size={18} />
+            <li className={`min-w-0 ${styles.laneWide}`}>
+              <GlassCard className="h-full w-full min-w-0" intensity={0}>
+                <article
+                  className={styles.kCard}
+                  aria-label={`Anecdotal records for ${student.name}`}
+                >
+                <header className={styles.kHead}>
+                  <span className={styles.kHeading}>
+                    <span className={styles.kName}>Anecdotal</span>
+                    <Pill tone="neutral" label="Records filed">
+                      {anecdotalRecords.length} filed
+                    </Pill>
                   </span>
-                  <h4 className={styles.colTitle}>Anecdotal</h4>
+                  <span className={styles.kIconChip} aria-hidden>
+                    <FilePenLine size={13} />
+                  </span>
                 </header>
-                {isRoster || anecdotalRecords.length === 0 ? (
-                  <p className={styles.empty}>
-                    {isRoster
-                      ? "Roster-only file — category only, never the private write-up."
-                      : "No anecdotal records this term."}
-                  </p>
-                ) : (
-                  <ul className={styles.laneBody}>
-                    {Array.from(new Set(anecdotalRecords.map((r) => String(r.category))))
-                      .slice(0, 4)
-                      .map((c) => {
-                        const count = anecdotalRecords.filter(
-                          (r) => String(r.category) === c,
-                        ).length;
-                        // Categories come from the DB lowercase ("attendance");
-                        // display them sentence-cased.
-                        const label = c.charAt(0).toUpperCase() + c.slice(1);
+                <div className={styles.kBody}>
+                  {anecdotalRecords.length === 0 ? (
+                    <p className={styles.kEmpty}>
+                      {isRoster
+                        ? "Roster-only file — category only, never the private write-up."
+                        : "No anecdotal records this term."}
+                    </p>
+                  ) : (
+                    <ul className={styles.folderGrid}>
+                      {anecdotalRecords.map((r) => {
+                        const category = String(r.category);
+                        const label = humanizeCategory(category);
+                        const filed = recordDate(r.observationDatetime);
                         return (
-                          <li
-                            key={c}
-                            className={styles.kCard}
-                            aria-label={`${label} anecdotal records for ${student.name}`}
-                          >
-                            <div className={styles.kTop}>
-                              <Pill tone="amber" label="Anecdotal category">
-                                {label}
-                              </Pill>
-                              <span className={styles.kCircle} aria-hidden>
-                                <FilePenLine size={14} />
-                              </span>
-                            </div>
-                            <p className={styles.kLabel}>Records filed</p>
-                            <div className={styles.kBottom}>
-                              <p className={styles.kTitle}>{label}</p>
-                              <p className={styles.kBig}>
-                                {count}
-                                <span className={styles.kUnit}>filed</span>
-                              </p>
-                            </div>
+                          <li key={r.id} className="min-w-0">
+                            <AnecdotalRecordKanbanCard
+                              category={category}
+                              studentName={student.name}
+                              metaText={filed}
+                              metaLabel="Filed"
+                              fileName={`GCForm-01_${filed}`}
+                              fileTag={label}
+                              layout="horizontal"
+                              headerRight={
+                                <Pill
+                                  tone={
+                                    r.confidentialityLevel === "confidential" ? "red" : "neutral"
+                                  }
+                                  label="Confidentiality level"
+                                >
+                                  {r.confidentialityLevel === "confidential"
+                                    ? "Confidential"
+                                    : "Restricted"}
+                                </Pill>
+                              }
+                              openLabel={`Open ${student.name}'s ${label} record from ${filed}`}
+                              onOpen={() => setPreviewId(r.id)}
+                            />
                           </li>
                         );
                       })}
-                  </ul>
-                )}
-              </section>
+                    </ul>
+                  )}
+                </div>
+                </article>
+              </GlassCard>
             </li>
           </ul>
         </section>
       )}
+
+      <OcForm01PreviewDialog recordId={previewId} onClose={() => setPreviewId(null)} />
     </div>
   );
 }

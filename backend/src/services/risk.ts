@@ -5,6 +5,10 @@ import { notifyInterventionDetected } from "../lib/notify.js";
 import { invalidateTags } from "../lib/cache.js";
 import { bumpRiskCohortVersion } from "../lib/riskCohortCache.js";
 import { isAdmExempt } from "./adm/attendancePolicy.js";
+import {
+  ATTENDANCE_RISK_CUTOFF,
+  learnerSubjectAverageAttendance,
+} from "./attendance.rate.service.js";
 import type { RiskLevel } from "../generated/prisma/client.js";
 
 export const resolveActiveTermId = resolveActiveTermIdCore;
@@ -20,6 +24,12 @@ function flagsFromParts(args: {
   attendance: { status: string; subjectId: string | null }[];
   /** Section-wide term meetups — see `sectionAttendanceTotals`. */
   attendanceTotal?: number;
+  /**
+   * Term subject-average presence (0..1), the figure the adviser boards show.
+   * When supplied it is the whole attendance rule and `attendanceTotal` is
+   * ignored — see `learnerSubjectAverageAttendance`.
+   */
+  attendanceRate?: number | null;
   anecdotalCount: number;
   enrolled: number;
   /** Signed ADM case: seat-time attendance is not a risk signal. */
@@ -39,11 +49,14 @@ function flagsFromParts(args: {
     (finalAvg != null && finalAvg < 75) || (rawAvg != null && rawAvg < 75);
 
   const attPresent = args.attendance.filter((a) => a.status === "present").length;
-  // Denominator: the section's meetups for the whole term when supplied, so a
-  // learner added mid-term is rated from the term's first meetup (their
-  // pre-enrolment days count as missed) instead of from their first mark.
-  // Transferees are the exception — their roster entry in sectionAttendanceTotals
-  // counts only meetups after the enlistment day.
+  // Preferred rule: the learner's term subject-average presence (the same
+  // figure the adviser desks render) — every subject they were taught in the
+  // term contributes its own present percentage, then they are averaged.
+  // Fallback (legacy AM/PM sheets, or no elapsed meetup yet): the section's
+  // whole-term meetups when supplied, so a learner added mid-term is rated from
+  // the term's first meetup instead of from their first mark; transferees are
+  // the exception — their roster entry in sectionAttendanceTotals counts only
+  // meetups after the enlistment day.
   const attTotal = Math.max(args.attendanceTotal ?? 0, args.attendance.length);
   // No attendance signal at all — never treat an empty record set as 0%.
   // Signed ADM cases are exempt: seat time is the wrong metric for them, so
@@ -51,13 +64,15 @@ function flagsFromParts(args: {
   const attendanceFlag =
     args.attendanceExempt
       ? false
-      : attTotal === 0
-        ? false
-        : args.attendance.some((a) => a.subjectId !== null)
-          ? attPresent / attTotal < 0.8
-          : args.enrolled > 0
-            ? attPresent / args.enrolled < 0.8
-            : false;
+      : args.attendanceRate != null
+        ? args.attendanceRate < ATTENDANCE_RISK_CUTOFF
+        : attTotal === 0
+          ? false
+          : args.attendance.some((a) => a.subjectId !== null)
+            ? attPresent / attTotal < ATTENDANCE_RISK_CUTOFF
+            : args.enrolled > 0
+              ? attPresent / args.enrolled < ATTENDANCE_RISK_CUTOFF
+              : false;
 
   const behavioralFlag = args.anecdotalCount >= 1;
 
@@ -233,7 +248,7 @@ export async function evaluateRisk(
     }),
     prisma.attendanceRecord.findMany({
       where: { studentId, termId },
-      select: { status: true, subjectId: true },
+      select: { status: true, subjectId: true, date: true },
     }),
     prisma.anecdotalRecord.count({ where: { studentId, termId, deletedAt: null } }),
     prisma.studentProfile.findUnique({
@@ -246,13 +261,22 @@ export async function evaluateRisk(
     isAdmExempt(studentId, termId),
   ]);
   const sectionId = profile?.sectionId ?? null;
-  const totals = sectionId
-    ? await sectionAttendanceTotals([sectionId], termId)
-    : new Map<string, number>();
+  const subjectRate = await learnerSubjectAverageAttendance(
+    { studentId },
+    sectionId,
+    termId,
+    attendance
+  );
+  // Legacy AM/PM sections (no subject timetable) keep the section-meetup rule.
+  const totals =
+    !subjectRate && sectionId
+      ? await sectionAttendanceTotals([sectionId], termId)
+      : new Map<string, number>();
 
   return flagsFromParts({
     grades: finalGrades,
     attendance,
+    attendanceRate: subjectRate?.average ?? null,
     attendanceTotal: sectionId ? totals.get(sectionId) : undefined,
     anecdotalCount: anecdotals,
     enrolled: profile?.section?._count.students ?? 0,
@@ -278,7 +302,7 @@ export async function evaluateBothRisk(
     }),
     prisma.attendanceRecord.findMany({
       where: { studentId, termId },
-      select: { status: true, subjectId: true },
+      select: { status: true, subjectId: true, date: true },
     }),
     prisma.anecdotalRecord.count({ where: { studentId, termId, deletedAt: null } }),
     prisma.studentProfile.findUnique({
@@ -291,12 +315,20 @@ export async function evaluateBothRisk(
     isAdmExempt(studentId, termId),
   ]);
   const sectionId = profile?.sectionId ?? null;
-  const totals = sectionId
-    ? await sectionAttendanceTotals([sectionId], termId)
-    : new Map<string, number>();
+  const subjectRate = await learnerSubjectAverageAttendance(
+    { studentId },
+    sectionId,
+    termId,
+    attendance
+  );
+  const totals =
+    !subjectRate && sectionId
+      ? await sectionAttendanceTotals([sectionId], termId)
+      : new Map<string, number>();
   const parts = {
     grades: finalGrades,
     attendance,
+    attendanceRate: subjectRate?.average ?? null,
     attendanceTotal: sectionId ? totals.get(sectionId) : undefined,
     anecdotalCount: anecdotals,
     enrolled: profile?.section?._count.students ?? 0,
@@ -349,8 +381,20 @@ export interface FactorInputs {
    * replaces the learner's own mark count as the attendance denominator, so
    * classmates — including anyone added mid-term — all read the same /N.
    * Build it with `sectionAttendanceTotals`.
+   *
+   * Prefer `attendanceRate` when the caller has the term subject-average map:
+   * the engine rates attendance on that figure, and this fallback only applies
+   * to legacy AM/PM sections or learners with no elapsed subject meetup.
    */
   attendanceTotal?: number;
+
+  /**
+   * Term subject-average presence (0..1) — the mean of the learner's
+   * per-subject present percentages, the same figure the adviser boards show.
+   * Build it with `subjectAverageAttendance` (`SubjectAverageEntry.average`).
+   * When set (and not ADM-exempt) it fully decides the attendance factor.
+   */
+  attendanceRate?: number | null;
 
   anecdotalCount: number;
 
@@ -383,21 +427,26 @@ export function computeRiskFactors(inputs: FactorInputs): RiskFactors {
     (rawAvg != null && rawAvg < 75);
   const attPresent = attendance.filter((a) => a.status === "present").length;
 
-  // Denominator: the section's term-wide meetups when the caller supplied
-  // them (a late enrollee then starts at the term's first meetup), otherwise
-  // the learner's own marks. No marks at all still means no signal.
+  // Preferred denominator: the learner's term subject-average presence. It
+  // already accounts for every subject they were taught and for the transferee
+  // enlistment window, and it is what the adviser boards display.
+  // Fallback (legacy AM/PM sheets or no elapsed meetup): the section's
+  // term-wide meetups when supplied, otherwise the learner's own marks. No
+  // marks at all still means no signal.
   const attTotal = Math.max(inputs.attendanceTotal ?? 0, attendance.length);
   const subjectEra = attendance.some((a) => a.subjectId != null) || attendance.length === 0;
   const attendanceFlag =
     inputs.attendanceExempt
       ? false
-      : attTotal === 0
-        ? false
-        : subjectEra
-          ? attPresent / attTotal < 0.8
-          : enrolled > 0
-            ? attPresent / enrolled < 0.8
-            : false;
+      : inputs.attendanceRate != null
+        ? inputs.attendanceRate < ATTENDANCE_RISK_CUTOFF
+        : attTotal === 0
+          ? false
+          : subjectEra
+            ? attPresent / attTotal < ATTENDANCE_RISK_CUTOFF
+            : enrolled > 0
+              ? attPresent / enrolled < ATTENDANCE_RISK_CUTOFF
+              : false;
   const behavioralFlag = anecdotalCount >= 1;
   return { academicFlag, attendanceFlag, behavioralFlag };
 }
@@ -426,7 +475,7 @@ export async function evaluateRosterRisk(
     }),
     prisma.attendanceRecord.findMany({
       where: { rosterId, termId },
-      select: { status: true, subjectId: true },
+      select: { status: true, subjectId: true, date: true },
     }),
     prisma.anecdotalRecord.count({ where: { rosterId, termId, deletedAt: null } }),
     prisma.studentRoster.findUnique({
@@ -438,13 +487,23 @@ export async function evaluateRosterRisk(
   const enrolled = roster
     ? ((await sectionHeadcounts([roster.sectionId])).get(roster.sectionId) ?? 0)
     : 0;
-  const totals = roster
-    ? await sectionAttendanceTotals([roster.sectionId], termId)
-    : new Map<string, number>();
+  const subjectRate = roster
+    ? await learnerSubjectAverageAttendance(
+        { rosterId },
+        roster.sectionId,
+        termId,
+        attendance
+      )
+    : null;
+  const totals =
+    !subjectRate && roster
+      ? await sectionAttendanceTotals([roster.sectionId], termId)
+      : new Map<string, number>();
 
   return flagsFromParts({
     grades: finalGrades,
     attendance,
+    attendanceRate: subjectRate?.average ?? null,
     attendanceTotal: attendanceTotalFor(totals, roster?.sectionId, rosterId),
     anecdotalCount: anecdotals,
     enrolled,
@@ -462,7 +521,7 @@ export async function evaluateBothRosterRisk(
     }),
     prisma.attendanceRecord.findMany({
       where: { rosterId, termId },
-      select: { status: true, subjectId: true },
+      select: { status: true, subjectId: true, date: true },
     }),
     prisma.anecdotalRecord.count({ where: { rosterId, termId, deletedAt: null } }),
     prisma.studentRoster.findUnique({
@@ -473,12 +532,22 @@ export async function evaluateBothRosterRisk(
   const enrolled = roster
     ? ((await sectionHeadcounts([roster.sectionId])).get(roster.sectionId) ?? 0)
     : 0;
-  const totals = roster
-    ? await sectionAttendanceTotals([roster.sectionId], termId)
-    : new Map<string, number>();
+  const subjectRate = roster
+    ? await learnerSubjectAverageAttendance(
+        { rosterId },
+        roster.sectionId,
+        termId,
+        attendance
+      )
+    : null;
+  const totals =
+    !subjectRate && roster
+      ? await sectionAttendanceTotals([roster.sectionId], termId)
+      : new Map<string, number>();
   const parts = {
     grades: finalGrades,
     attendance,
+    attendanceRate: subjectRate?.average ?? null,
     attendanceTotal: attendanceTotalFor(totals, roster?.sectionId, rosterId),
     anecdotalCount: anecdotals,
     enrolled,

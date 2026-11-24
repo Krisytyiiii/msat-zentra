@@ -334,6 +334,18 @@
   font-style: italic;
 }
 
+/* Dark mode: the insight boards and KPI cards read as glass, like the guidance
+   overview — the desk's aurora canvas shows through instead of solid slabs.
+   `darkGlass` is applied to this page's root only, so no other desk's boards
+   are affected. */
+:global(.dark) .darkGlass :global(.board-surface) {
+  background-color: transparent;
+}
+
+:global(.dark) .darkGlass :global([data-slot="card"]) {
+  background-color: transparent;
+}
+
 /* Board entrance — same motion as the guidance overview boards. */
 .boardIn {
   animation: board-in 0.9s cubic-bezier(0.22, 1, 0.36, 1) backwards;

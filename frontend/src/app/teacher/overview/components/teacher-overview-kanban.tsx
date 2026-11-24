@@ -94,7 +94,7 @@ function SortableCard({ id, children, label }: { id: string; children: React.Rea
     <li
       ref={setNodeRef}
       style={{ transform: CSS.Transform.toString(transform), transition }}
-      className={`flex min-w-0 gap-2 rounded-lg border bg-white p-3 shadow-sm transition-colors hover:border-primary/60 dark:bg-card ${isDragging ? "border-primary opacity-55" : ""}`}
+      className={`${styles.pane} flex min-w-0 gap-2 rounded-lg border bg-white p-3 shadow-sm transition-colors hover:border-primary/60 dark:bg-card ${isDragging ? "border-primary opacity-55" : ""}`}
       aria-label={label}
     >
       <div className="flex min-w-0 flex-1 flex-col gap-1.5">{children}</div>
@@ -183,9 +183,9 @@ function RiskLane({
         ) : null
       }
       ariaLabel={`Needs attention, ${atRisk}`}
-      className="bg-muted/60 [font-family:var(--font-inter)] dark:bg-muted/20"
+      className={`${styles.glassBoard} [font-family:var(--font-inter)]`}
     >
-      <div className="flex min-w-0 items-center gap-2.5 rounded-lg border bg-white p-3 shadow-sm dark:bg-card">
+      <div className={`${styles.pane} flex min-w-0 items-center gap-2.5 rounded-lg border bg-white p-3 shadow-sm dark:bg-card`}>
         <RadialBarChart data={visible} width={84} height={84} cx={42} cy={42} innerRadius={24} outerRadius={38} barSize={6} startAngle={90} endAngle={-270}>
           <RadialBar dataKey="pct" cornerRadius={6} background={{ fill: "var(--muted)" }}>
             {visible.map((entry) => (
@@ -263,14 +263,6 @@ export function TeacherOverviewKanban({
   const photoUrl = profile.data?.photoUrl ?? null;
   const mascot = profile.data?.mascot ?? null;
   const isAdviser = Boolean(advisorySection);
-  const initials = React.useMemo(() => {
-    const parts = teacherName
-      .split(/\s+/)
-      .filter(Boolean)
-      .filter((p) => !/^mr\.?$|^mrs\.?$|^ms\.?$|^dr\.?$/i.test(p));
-    const picks = parts.slice(0, 2);
-    return (picks.length ? picks : [teacherName]).map((p) => p[0]?.toUpperCase() ?? "").join("");
-  }, [teacherName]);
   const risk = atRiskFactors ?? { academic: 0, attendance: 0, behavioral: 0 };
 
   return (
@@ -283,9 +275,9 @@ export function TeacherOverviewKanban({
           </span>
         }
         ariaLabel="Profile"
-        className="bg-muted/60 [font-family:var(--font-inter)] dark:bg-muted/20"
+        className={`${styles.glassBoard} [font-family:var(--font-inter)]`}
       >
-        <div className="flex min-w-0 flex-col gap-1.5 rounded-lg border bg-white p-3 shadow-sm dark:bg-card">
+        <div className={`${styles.pane} flex min-w-0 flex-col gap-1.5 rounded-lg border bg-white p-3 shadow-sm dark:bg-card`}>
           <div className={styles.profileTop}>
             {mascot ? (
               <span className="shrink-0 overflow-hidden rounded-full border border-border bg-muted/40">
@@ -294,7 +286,9 @@ export function TeacherOverviewKanban({
             ) : photoUrl ? (
               <img src={photoUrl} alt={`${teacherName} profile photo`} className={styles.avatarImg} />
             ) : (
-              <span className={styles.avatar} aria-hidden>{initials || "T"}</span>
+              <span className={styles.avatar} aria-hidden>
+                <User size={18} />
+              </span>
             )}
             <div className="min-w-0 flex-1">
               <p className={styles.profileName} title={teacherName}>{teacherName}</p>

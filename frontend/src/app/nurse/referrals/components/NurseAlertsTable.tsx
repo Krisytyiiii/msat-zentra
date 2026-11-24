@@ -1,12 +1,8 @@
 "use client";
 import * as React from "react";
-import { Inbox, Search } from "lucide-react";
+import { Inbox } from "lucide-react";
 import { NurseEmptyState } from "../../components/NurseEmptyCard";
-import {
-  InputGroup,
-  InputGroupAddon,
-  InputGroupInput,
-} from "@/components/ui/input-group";
+import { SearchField } from "@/components/ui/search-field";
 import { InsightCallout } from "@/components/ui/insight-callout";
 import type {
   NurseQueueRow,
@@ -76,6 +72,7 @@ export function NurseAlertsTable({
   onServerPageChange,
   search,
   onSearchChange,
+  showSearch = true,
   searchPlaceholder = "Search cases…",
 }: {
   alerts: NurseAlertItem[];
@@ -100,6 +97,8 @@ export function NurseAlertsTable({
       the kanban toolbar (right of the action tabs). Omit to hide it. */
   search?: string;
   onSearchChange?: (value: string) => void;
+  /** Hide the toolbar field when the page head already owns the search. */
+  showSearch?: boolean;
   searchPlaceholder?: string;
 }) {
   const serverDriven = serverTotalPages !== undefined;
@@ -203,20 +202,15 @@ export function NurseAlertsTable({
               onPick={pickAction}
               onClear={clearActionFilter}
             />
-            {onSearchChange ? (
-              /* Same search field as the alerts board: 32px tall, 16px
-                 radius, pinned right of the action tabs. */
-              <InputGroup className="max-w-40 shrink-0 rounded-[16px]">
-                <InputGroupInput
-                  placeholder={searchPlaceholder}
-                  value={search ?? ""}
-                  onChange={(event) => onSearchChange(event.target.value)}
-                  aria-label={searchPlaceholder}
-                />
-                <InputGroupAddon>
-                  <Search aria-hidden />
-                </InputGroupAddon>
-              </InputGroup>
+            {onSearchChange && showSearch ? (
+              /* The shared desk search field, pinned right of the action tabs. */
+              <SearchField
+                className="max-w-40"
+                placeholder={searchPlaceholder}
+                value={search ?? ""}
+                onChange={(next) => onSearchChange(next)}
+                aria-label={searchPlaceholder}
+              />
             ) : null}
           </div>
         ) : null}

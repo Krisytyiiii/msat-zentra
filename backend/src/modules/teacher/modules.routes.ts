@@ -24,6 +24,7 @@ import {
   MODULE_TAGS,
   recordSubmission,
   updateModule,
+  uploadModuleAttachment,
   uploadSubmissionFile,
   type SubmissionFile,
 } from "../../services/advisory/modules.service.js";
@@ -32,20 +33,29 @@ import type { AdvisoryContext } from "../../services/advisory/advisory.types.js"
 const router = Router();
 
 /** Answered modules usually arrive as PDF or Word; 10 MB per file. */
+const attachmentFilter: multer.Options["fileFilter"] = (_req, file, cb) => {
+  const ext = file.originalname.split(".").pop()?.toLowerCase() ?? "";
+  const ok =
+    [
+      "application/pdf",
+      "application/msword",
+      "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+    ].includes(file.mimetype) || ["pdf", "doc", "docx"].includes(ext);
+  if (ok) cb(null, true);
+  else cb(new Error("Only PDF, DOC, or DOCX files are allowed."));
+};
+
 const submissionUpload = multer({
   storage: multer.memoryStorage(),
   limits: { fileSize: 10 * 1024 * 1024, files: 1 },
-  fileFilter: (_req, file, cb) => {
-    const ext = file.originalname.split(".").pop()?.toLowerCase() ?? "";
-    const ok =
-      [
-        "application/pdf",
-        "application/msword",
-        "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
-      ].includes(file.mimetype) || ["pdf", "doc", "docx"].includes(ext);
-    if (ok) cb(null, true);
-    else cb(new Error("Only PDF, DOC, or DOCX files are allowed for module submissions."));
-  },
+  fileFilter: attachmentFilter,
+});
+
+/** The adviser's own handout at release time (same limits and allow-list). */
+const moduleUpload = multer({
+  storage: multer.memoryStorage(),
+  limits: { fileSize: 10 * 1024 * 1024, files: 1 },
+  fileFilter: attachmentFilter,
 });
 
 async function ctxOf(req: Request): Promise<AdvisoryContext> {
@@ -95,6 +105,26 @@ router.post(
         },
       );
       res.status(201).json({ id });
+    } catch (e) {
+      next(e);
+    }
+  },
+);
+
+/**
+ * Upload the adviser's module handout (PDF/Word) and return its public URL.
+ * The URL is then sent as `moduleUrl` on create/edit — the module row is only
+ * written once, so an abandoned dialog leaves nothing behind.
+ */
+router.post(
+  "/modules/upload",
+  requireAuth,
+  requireRole(...TEACHER_ROLES),
+  moduleUpload.single("file"),
+  async (req, res, next) => {
+    try {
+      const file = (req as unknown as { file?: SubmissionFile }).file;
+      res.status(201).json(await uploadModuleAttachment(file));
     } catch (e) {
       next(e);
     }

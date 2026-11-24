@@ -5,6 +5,13 @@
   width: 100%;
 }
 
+/* Dark theme: let the Accounts board sit on the page instead of on a raised
+   card — the row list already carries its own hover surface. Doubled class so
+   this beats the global `.dark .board-surface` fill regardless of CSS order. */
+:global(.dark) .boardTransparent.boardTransparent {
+  background-color: transparent;
+}
+
 /* Audit-log toolbar search — same 240px / 32px / 16px-radius field as the
    shared desk searches. */
 .toolbar {
@@ -46,58 +53,6 @@
   min-width: 4.5rem;
 }
 
-/* Filter triggers — 32px outline pill with a dot when a filter is active. */
-.filterBtn {
-  gap: 0.375rem;
-  height: 2rem;
-  white-space: nowrap;
-}
-
-.filterActive {
-  border-color: color-mix(in oklch, #f59e0b 55%, transparent);
-  color: #b45309;
-}
-
-:global(.dark) .filterActive {
-  color: #f59e0b;
-}
-
-.filterDot {
-  width: 0.375rem;
-  height: 0.375rem;
-  border-radius: 9999px;
-  background-color: #f59e0b;
-}
-
-/* Filter menu panel — thin amber scrollbar when the option list overflows. */
-.filterMenu {
-  max-height: 20rem;
-  min-width: 11rem;
-  overflow-y: auto;
-  overscroll-behavior: contain;
-  scrollbar-gutter: stable;
-  scrollbar-width: thin;
-  scrollbar-color: color-mix(in oklch, #f59e0b, transparent 20%) transparent;
-}
-
-.filterMenu::-webkit-scrollbar {
-  width: 6px;
-  height: 6px;
-}
-
-.filterMenu::-webkit-scrollbar-track {
-  background: transparent;
-}
-
-.filterMenu::-webkit-scrollbar-thumb {
-  background-color: color-mix(in oklch, #f59e0b, transparent 20%);
-  border-radius: 999px;
-}
-
-.filterMenu::-webkit-scrollbar-thumb:hover {
-  background-color: #f59e0b;
-}
-
 .muted {
   color: var(--muted-foreground);
   white-space: nowrap;
@@ -126,19 +81,63 @@
   background-color: var(--muted);
 }
 
+/* Destructive row action. `--destructive` is monochrome in this theme (same
+   ink as primary), so an explicit red is used here to keep Suspend readable as
+   a destructive action. */
 .actionBtnDanger {
-  color: var(--destructive);
+  color: #dc2626;
+  border-color: color-mix(in oklch, #dc2626 45%, var(--border));
+  background-color: color-mix(in oklch, #dc2626 8%, var(--card));
 }
 
 .actionBtnDanger:hover:not(:disabled) {
-  border-color: var(--destructive);
-  background-color: color-mix(in oklch, var(--destructive) 8%, transparent);
+  border-color: #dc2626;
+  background-color: color-mix(in oklch, #dc2626 16%, var(--card));
+}
+
+:global(.dark) .actionBtnDanger {
+  color: #f87171;
+  border-color: color-mix(in oklch, #ef4444 45%, var(--border));
+  background-color: color-mix(in oklch, #ef4444 12%, var(--card));
+}
+
+:global(.dark) .actionBtnDanger:hover:not(:disabled) {
+  border-color: #ef4444;
+  background-color: color-mix(in oklch, #ef4444 20%, var(--card));
 }
 
 .actionBtn:disabled,
 .actionBtnDanger:disabled {
   opacity: 0.6;
   cursor: not-allowed;
+}
+
+/* Inline "Review" jump for a pending row that surfaced under "All statuses". */
+.reviewLink {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.25rem;
+  height: 1.5rem;
+  padding: 0 0.5rem;
+  border: 1px solid color-mix(in oklch, #f59e0b 45%, var(--border));
+  border-radius: var(--radius-md);
+  background-color: color-mix(in oklch, #f59e0b 8%, var(--card));
+  color: #b45309;
+  font-size: 0.75rem;
+  font-weight: 600;
+  white-space: nowrap;
+  transition:
+    background-color 140ms ease,
+    border-color 140ms ease;
+}
+
+.reviewLink:hover {
+  border-color: #f59e0b;
+  background-color: color-mix(in oklch, #f59e0b 14%, var(--card));
+}
+
+:global(.dark) .reviewLink {
+  color: #fbbf24;
 }
 
 .spin {
@@ -181,3 +180,35 @@
   font-size: 0.75rem;
   color: var(--muted-foreground);
 }
+
+/* Key/value summary inside the suspend/restore confirm overlay. */
+.confirmSummary {
+  display: grid;
+  gap: 0.5rem;
+  margin: 0;
+}
+
+.confirmSummary > div {
+  display: grid;
+  grid-template-columns: 4.25rem minmax(0, 1fr);
+  gap: 0.75rem;
+  align-items: baseline;
+}
+
+.confirmSummary dt {
+  font-size: 0.75rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: var(--muted-foreground);
+}
+
+.confirmSummary dd {
+  margin: 0;
+  font-size: 0.8125rem;
+  font-weight: 500;
+  color: var(--foreground);
+  overflow-wrap: anywhere;
+}
+
+

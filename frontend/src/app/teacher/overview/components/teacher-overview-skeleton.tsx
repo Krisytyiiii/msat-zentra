@@ -1,6 +1,7 @@
 "use client";
 
 import { Skeleton } from "@/components/ui/skeleton";
+import { ShimmerGroup } from "@/components/ui/shimmer-skeleton";
 import { KanbanBoardSkeleton } from "@/components/shared/zentra-skeletons/ZentraSkeletons";
 import charts from "./teacher-overview-charts.module.css";
 import layout from "./teacher-overview.module.css";
@@ -28,6 +29,7 @@ export function TeacherOverviewSkeleton() {
       aria-busy="true"
       aria-label="Loading overview"
     >
+      <ShimmerGroup>
       <div className={layout.body}>
         <div className={layout.mainCol}>
           <div className={charts.stack}>
@@ -121,11 +123,10 @@ export function TeacherOverviewSkeleton() {
           </div>
         </div>
 
-        <aside className={layout.sideCol} style={{ top: "4rem" }}>
-          <div className={layout.railHead}>
-            <Skeleton className={skeleton.railTitle} />
-            <Skeleton className={skeleton.railToggle} />
-          </div>
+        <aside
+          className={layout.sideCol}
+          style={{ top: "calc(4rem + var(--term-banner-offset, 0rem))" }}
+        >
           <div className={layout.railExpanded}>
             <KanbanBoardSkeleton titleWidth="4.5rem">
               <Skeleton className={skeleton.profileCard} />
@@ -141,6 +142,7 @@ export function TeacherOverviewSkeleton() {
           </div>
         </aside>
       </div>
+      </ShimmerGroup>
     </section>
   );
 }
