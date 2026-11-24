@@ -140,11 +140,20 @@ class _AttendanceState extends ConsumerState<WorkspaceAttendancePage>
     if (_opening || _access == null || _error != null) return;
     _opening = true;
     try {
-      await Navigator.of(context, rootNavigator: true).push(
-        MaterialPageRoute<void>(
-          builder: (_) => AttendanceRecordPage(pair: pair),
-        ),
-      );
+      if (GoRouter.maybeOf(context) != null) {
+        await context.push<void>(
+          '/workspace/attendance/records/'
+          '${Uri.encodeComponent(pair.sectionId)}/${Uri.encodeComponent(pair.subjectId)}',
+          extra: pair,
+        );
+      } else {
+        // Standalone previews/tests still support an imperative navigator.
+        await Navigator.of(context, rootNavigator: true).push(
+          MaterialPageRoute<void>(
+            builder: (_) => AttendanceRecordPage(pair: pair),
+          ),
+        );
+      }
       if (mounted) await _load(silent: true);
     } finally {
       _opening = false;
@@ -175,7 +184,7 @@ class _AttendanceState extends ConsumerState<WorkspaceAttendancePage>
   }
 
   Widget _content(BuildContext context) {
-    if (_loading) return const LoadingView();
+    if (_loading) return const LoadingView(layout: SkeletonLayout.schedule);
     if (_error != null) return ErrorView(message: _error!, onRetry: _load);
     final access = _access!;
     if (!access.linked || !access.entered) {
@@ -246,35 +255,24 @@ class _AttendanceState extends ConsumerState<WorkspaceAttendancePage>
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.stretch,
                     children: [
-                      const Text(
-                        'Attendance',
-                        style: TextStyle(
-                          fontSize: 22,
-                          fontWeight: FontWeight.w700,
-                          letterSpacing: -0.5,
-                        ),
-                      ),
-                      const SizedBox(height: 8),
-                      const Text(
-                        'Choose a class to review and record learner attendance.',
-                        style: TextStyle(
-                          fontSize: 12,
-                          height: 1.5,
-                          color: Color(0xFF81818F),
-                        ),
+                      const ZContentHeader(
+                        title: 'Attendance', icon: LucideIcons.calendarCheck,
+                        description: 'Choose a class to review and record learner attendance.',
                       ),
                       const SizedBox(height: 12),
                       Wrap(
                         spacing: 6,
                         runSpacing: 6,
                         children: [
-                          ZStatusPill(
+                          ZScopePill(
                             text: _term!.schoolYearName,
-                            tone: StatusTone.blue,
+                            kind: ScopePillKind.schoolYear,
+                            compact: true,
                           ),
-                          ZStatusPill(
+                          ZScopePill(
                             text: 'Term ${_term!.termNumber}',
-                            tone: StatusTone.amber,
+                            kind: ScopePillKind.term,
+                            compact: true,
                           ),
                         ],
                       ),
@@ -318,6 +316,8 @@ class _AttendanceState extends ConsumerState<WorkspaceAttendancePage>
                                     ),
                                     Text(
                                       entry.$2.$2,
+                                      maxLines: 1,
+                                      overflow: TextOverflow.ellipsis,
                                       textAlign: TextAlign.center,
                                       style: const TextStyle(
                                         fontSize: 12,
@@ -404,58 +404,12 @@ class _AttendanceState extends ConsumerState<WorkspaceAttendancePage>
                 SliverToBoxAdapter(
                   child: Padding(
                     padding: const EdgeInsets.fromLTRB(12, 0, 12, 120),
-                    child: Container(
-                      width: double.infinity,
-                      padding: const EdgeInsets.symmetric(
-                        horizontal: 20,
-                        vertical: 24,
-                      ),
-                      decoration: BoxDecoration(
-                        color: Colors.white,
-                        border: Border.all(color: const Color(0xFFDFE7F5)),
-                        borderRadius: BorderRadius.circular(16),
-                      ),
-                      child: Column(
-                        children: [
-                          const CircleAvatar(
-                            backgroundColor: Color(0xFFEAF0FF),
-                            child: Icon(
-                              LucideIcons.bookOpen,
-                              size: 20,
-                              color: Color(0xFF4263F0),
-                            ),
-                          ),
-                          const SizedBox(height: 12),
-                          Text(
-                            _sectionId != null
-                                ? 'No classes match these filters'
-                                : 'No teaching load',
-                            textAlign: TextAlign.center,
-                            style: const TextStyle(
-                              fontSize: 14,
-                              fontWeight: FontWeight.w600,
-                            ),
-                          ),
-                          const SizedBox(height: 6),
-                          const Text(
-                            'Published classes will appear here. Try adjusting your section filter.',
-                            textAlign: TextAlign.center,
-                            style: TextStyle(
-                              fontSize: 12,
-                              height: 1.5,
-                              color: Color(0xFF71809B),
-                            ),
-                          ),
-                          const SizedBox(height: 8),
-                          if (_sectionId != null)
-                            TextButton(
-                              onPressed: () => setState(() {
-                                _sectionId = null;
-                              }),
-                              child: const Text('Show all classes'),
-                            ),
-                        ],
-                      ),
+                    child: ZEmpty(
+                      icon: LucideIcons.bookOpen,
+                      title: _sectionId != null ? 'No classes match these filters' : 'No teaching load',
+                      subtitle: 'Published classes will appear here. Try adjusting your section filter.',
+                      actionLabel: _sectionId == null ? null : 'Show all classes',
+                      onAction: () => setState(() => _sectionId = null),
                     ),
                   ),
                 )

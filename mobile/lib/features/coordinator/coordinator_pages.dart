@@ -103,9 +103,9 @@ class _OverviewState extends ConsumerState<CoordinatorOverviewPage>
                         return Column(
                           children: [
                             if (upcoming.isEmpty)
-                              const Text(
-                                'No upcoming meetings in the first 15 cases. Check ADM Cases for other meetings.',
-                              ),
+                              const ZEmpty(compact: true, icon: Icons.calendar_month_outlined,
+                                title: 'No upcoming meetings',
+                                subtitle: 'No upcoming meetings in the first 15 cases. Check ADM Cases for other meetings.'),
                             for (final row in upcoming.take(3))
                               ListTile(
                                 title: Text(row.student),
@@ -315,10 +315,7 @@ class _ListState extends ConsumerState<CoordinatorListPage>
               return Column(
                 children: [
                   if (data.rows.isEmpty)
-                    const Padding(
-                      padding: EdgeInsets.all(24),
-                      child: Text('No matching devices.'),
-                    ),
+                    const ZEmpty(icon: Icons.devices_outlined, title: 'No matching devices.'),
                   for (final row in data.rows)
                     CoordinatorDeviceCard(key: ValueKey(row.id), device: row),
                   AdmPager(
@@ -341,10 +338,7 @@ class _ListState extends ConsumerState<CoordinatorListPage>
                 crossAxisAlignment: CrossAxisAlignment.stretch,
                 children: [
                   if (data.rows.isEmpty)
-                    const Padding(
-                      padding: EdgeInsets.all(24),
-                      child: Text('No matching ADM records.'),
-                    ),
+                    const ZEmpty(icon: Icons.folder_shared_outlined, title: 'No matching ADM records.'),
                   for (final row in data.rows)
                     Card(
                       key: ValueKey(row.id),

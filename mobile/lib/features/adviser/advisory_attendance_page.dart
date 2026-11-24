@@ -157,7 +157,14 @@ class _AdvisoryAttendanceState extends ConsumerState<AdvisoryAttendancePage>
                   borderRadius: BorderRadius.circular(ZTokens.radiusLg),
                 ),
                 title: Text(
-                  section.name,
+                  [
+                    if (section.gradeLevel != null)
+                      section.gradeLevel!.replaceFirst(
+                        RegExp(r'^Grade\s*', caseSensitive: false),
+                        'G',
+                      ),
+                    section.name,
+                  ].where((value) => value.isNotEmpty).join(' · '),
                   style: const TextStyle(
                     fontSize: 13,
                     fontWeight: FontWeight.w600,
@@ -248,6 +255,10 @@ class _AdvisoryAttendanceState extends ConsumerState<AdvisoryAttendancePage>
               final sectionName = loaded == null || loaded.sectionName.isEmpty
                   ? _sectionNameFor(sections, sectionId)
                   : loaded.sectionName;
+              final sectionGradeLevel = sections
+                  .where((s) => s.id == sectionId)
+                  .map((s) => s.gradeLevel)
+                  .firstWhere((g) => g != null && g.isNotEmpty, orElse: () => null);
               return Column(
                 children: [
                   Padding(
@@ -256,6 +267,7 @@ class _AdvisoryAttendanceState extends ConsumerState<AdvisoryAttendancePage>
                       count: loaded?.students.length,
                       term: ref.watch(termProvider),
                       sectionName: sectionName,
+                      sectionGradeLevel: sectionGradeLevel,
                       sections: sections,
                       sectionId: sectionId,
                       onPick: () => _pickSection(sections, sectionId),
@@ -558,6 +570,7 @@ class _Header extends StatelessWidget {
   const _Header({
     required this.count,
     required this.sectionName,
+    required this.sectionGradeLevel,
     required this.sections,
     required this.sectionId,
     required this.onPick,
@@ -566,61 +579,53 @@ class _Header extends StatelessWidget {
 
   final int? count;
   final String sectionName;
+  final String? sectionGradeLevel;
   final List<AdvisorySection> sections;
   final String sectionId;
   final VoidCallback onPick;
   final Term? term;
 
+  String get _combinedSection => [
+        if (sectionGradeLevel != null)
+          sectionGradeLevel!.replaceFirst(RegExp(r'^Grade\s*', caseSensitive: false), 'G'),
+        sectionName,
+      ].where((value) => value.isNotEmpty).join(' · ');
+
   @override
   Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-    final muted = theme.colorScheme.onSurfaceVariant;
     final subtitle = count == null
-        ? 'Loading this section’s attendance…'
+        ? 'Loading this section\'s attendance...'
         : count == 0
-        ? 'No enlisted learners this term · $sectionName'
-        : 'Tap a learner to inspect — $count student${count == 1 ? '' : 's'} · $sectionName';
+        ? 'No enlisted learners this term · $_combinedSection'
+        : 'Tap a learner to inspect - $count student${count == 1 ? '' : 's'} · $_combinedSection';
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Row(
-          children: [
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    'Advisory Attendance',
-                    style: theme.textTheme.headlineSmall?.copyWith(
-                      fontWeight: FontWeight.w700,
-                    ),
-                  ),
-                  const SizedBox(height: 2),
-                  Text(
-                    subtitle,
-                    style: theme.textTheme.bodySmall?.copyWith(color: muted),
-                  ),
-                ],
-              ),
-            ),
-          ],
-        ),
+        ZContentHeader(title: 'Advisory Attendance',
+          icon: Icons.calendar_month_outlined, description: subtitle),
         const SizedBox(height: 14),
         Wrap(
-          spacing: 8,
-          runSpacing: 8,
+          spacing: 6,
+          runSpacing: 6,
           children: [
             if (term != null) ...[
-              ZStatusPill(
-                text: 'SY ${term!.schoolYearName}',
-                tone: StatusTone.blue,
+              ZScopePill(
+                text: term!.schoolYearName,
+                kind: ScopePillKind.schoolYear,
+                compact: true,
               ),
-              ZStatusPill(
+              ZScopePill(
                 text: 'Term ${term!.termNumber}',
-                tone: StatusTone.amber,
+                kind: ScopePillKind.term,
+                compact: true,
               ),
             ],
-            ZStatusPill(text: sectionName, tone: StatusTone.violet),
+            ZScopePill(
+              text: _combinedSection,
+              kind: ScopePillKind.grade,
+              label: 'Grade and section',
+              compact: true,
+            ),
           ],
         ),
         if (sections.length > 1) ...[
@@ -632,7 +637,7 @@ class _Header extends StatelessWidget {
             label: ConstrainedBox(
               constraints: const BoxConstraints(maxWidth: 220),
               child: Text(
-                sectionName,
+                _combinedSection,
                 maxLines: 1,
                 overflow: TextOverflow.ellipsis,
               ),

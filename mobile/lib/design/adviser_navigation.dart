@@ -21,11 +21,38 @@ const _destinations = [
   ),
 ];
 
+/// Lets a full-height editor sheet hide the floating staff bar while it is open.
+final staffNavBarHidden = ValueNotifier<bool>(false);
+
+/// Record routes share persistent staff chrome; score/edit routes do not.
+String? staffRecordDestination(String location) {
+  final parts = Uri.parse(location).pathSegments;
+  if ((parts.length == 3 || (parts.length == 4 && parts[3] == 'list')) &&
+      parts[0] == 'workspace' && parts[1] == 'classes') {
+    return '/workspace/classes';
+  }
+  if (parts.length == 5 &&
+      parts[0] == 'workspace' &&
+      parts[1] == 'attendance' &&
+      parts[2] == 'records') {
+    return '/workspace/attendance';
+  }
+  return null;
+}
+
 /// Drawer-only desks deliberately leave all four destinations unselected.
 class AdviserBottomNavigation extends StatelessWidget {
-  const AdviserBottomNavigation({super.key, required this.selectedPath});
+  const AdviserBottomNavigation({
+    super.key,
+    required this.selectedPath,
+    this.rerouteOnSelect = false,
+  });
 
   final String selectedPath;
+
+  /// Detail screens reuse this bar while showing an area's destination as
+  /// selected; tapping it must still return to that destination's page.
+  final bool rerouteOnSelect;
 
   @override
   Widget build(BuildContext context) {
@@ -34,7 +61,7 @@ class AdviserBottomNavigation extends StatelessWidget {
     final activeColor = light
         ? const Color(0xFFF28C00)
         : const Color(0xFFFFB900);
-    return SafeArea(
+    final bar = SafeArea(
       top: false,
       minimum: const EdgeInsets.fromLTRB(16, 8, 16, 12),
       child: Center(
@@ -82,7 +109,8 @@ class AdviserBottomNavigation extends StatelessWidget {
                                         'adviser-nav-${destination.label}',
                                       ),
                                       onTap: () {
-                                        if (selectedPath != destination.path) {
+                                        if (rerouteOnSelect ||
+                                            selectedPath != destination.path) {
                                           context.go(destination.path);
                                         }
                                       },
@@ -211,6 +239,12 @@ class AdviserBottomNavigation extends StatelessWidget {
           ),
         ),
       ),
+    );
+    return ValueListenableBuilder<bool>(
+      valueListenable: staffNavBarHidden,
+      builder: (context, hidden, child) =>
+          hidden ? const SizedBox.shrink() : child!,
+      child: bar,
     );
   }
 }

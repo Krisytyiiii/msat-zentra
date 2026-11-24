@@ -101,22 +101,9 @@ class _ClassesPageState extends ConsumerState<ClassesPage>
                   120 + MediaQuery.paddingOf(context).bottom,
                 ),
                 children: [
-                  const Text(
-                    'Class',
-                    style: TextStyle(
-                      fontSize: 22,
-                      fontWeight: FontWeight.w700,
-                      letterSpacing: -0.5,
-                    ),
-                  ),
-                  const SizedBox(height: 8),
-                  const Text(
-                    'Your teaching classes and weekly schedule for this term.',
-                    style: TextStyle(
-                      fontSize: 12,
-                      height: 1.5,
-                      color: Color(0xFF81818F),
-                    ),
+                  const ZContentHeader(
+                    title: 'Class', icon: LucideIcons.bookOpen,
+                    description: 'Your teaching classes and weekly schedule.',
                   ),
                   const SizedBox(height: 12),
                   Wrap(
@@ -124,13 +111,15 @@ class _ClassesPageState extends ConsumerState<ClassesPage>
                     runSpacing: 6,
                     children: [
                       if (term != null) ...[
-                        ZStatusPill(
+                        ZScopePill(
                           text: term.schoolYearName,
-                          tone: StatusTone.blue,
+                          kind: ScopePillKind.schoolYear,
+                          compact: true,
                         ),
-                        ZStatusPill(
+                        ZScopePill(
                           text: 'Term ${term.termNumber}',
-                          tone: StatusTone.amber,
+                          kind: ScopePillKind.term,
+                          compact: true,
                         ),
                       ],
                     ],
@@ -230,60 +219,15 @@ class _ClassesPageState extends ConsumerState<ClassesPage>
                           ),
                           const SizedBox(height: 12),
                           if (count == 0)
-                            Container(
-                              padding: const EdgeInsets.symmetric(
-                                horizontal: 20,
-                                vertical: 24,
-                              ),
-                              decoration: BoxDecoration(
-                                color: Colors.white,
-                                border: Border.all(
-                                  color: const Color(0xFFDFE7F5),
-                                ),
-                                borderRadius: BorderRadius.circular(16),
-                              ),
-                              child: Column(
-                                children: [
-                                  Container(
-                                    width: 40,
-                                    height: 40,
-                                    decoration: const BoxDecoration(
-                                      color: Color(0xFFEAF0FF),
-                                      shape: BoxShape.circle,
-                                    ),
-                                    child: const Icon(
-                                      LucideIcons.calendarDays,
-                                      size: 20,
-                                      color: Color(0xFF4263F0),
-                                    ),
-                                  ),
-                                  const SizedBox(height: 12),
-                                  Text(
-                                    _classFilter == 'All'
-                                        ? 'No classes'
-                                        : 'No ${_classFilter.toLowerCase()} classes',
-                                    style: const TextStyle(
-                                      fontSize: 14,
-                                      fontWeight: FontWeight.w600,
-                                      color: Color(0xFF192034),
-                                    ),
-                                  ),
-                                  const SizedBox(height: 6),
-                                  Text(
-                                    week.classes.isEmpty
-                                        ? 'No published classes for this term. Ask the school office to check your teaching load.'
-                                        : _classFilter != 'All'
-                                        ? 'No ${_classFilter.toLowerCase()} classes for this date.'
-                                        : 'No scheduled classes on ${const ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'][_day - 1]}.',
-                                    textAlign: TextAlign.center,
-                                    style: const TextStyle(
-                                      fontSize: 12,
-                                      height: 1.5,
-                                      color: Color(0xFF71809B),
-                                    ),
-                                  ),
-                                ],
-                              ),
+                            ZEmpty(
+                              icon: LucideIcons.calendarDays,
+                              title: _classFilter == 'All' ? 'No classes'
+                                  : 'No ${_classFilter.toLowerCase()} classes',
+                              subtitle: week.classes.isEmpty
+                                  ? 'No published classes for this term. Ask the school office to check your teaching load.'
+                                  : _classFilter != 'All'
+                                  ? 'No ${_classFilter.toLowerCase()} classes for this date.'
+                                  : 'No scheduled classes on ${const ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'][_day - 1]}.',
                             ),
                           for (final slot in periods) ...[
                             _classCard(
@@ -345,7 +289,7 @@ class _ClassesPageState extends ConsumerState<ClassesPage>
       child: InkWell(
         onTap: () async {
           await context.push(
-            '/workspace/classes/${Uri.encodeComponent(entry.id)}?title=${Uri.encodeComponent('${entry.subject} · ${entry.section}')}',
+            '/workspace/classes/${Uri.encodeComponent(entry.id)}/list',
           );
           if (mounted) unawaited(_refresh());
         },

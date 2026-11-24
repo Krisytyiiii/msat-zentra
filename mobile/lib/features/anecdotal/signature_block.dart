@@ -314,7 +314,8 @@ class _MinePreview extends StatelessWidget {
   Widget build(BuildContext context) {
     final img = signatureImageOf(url);
     if (img == null) {
-      return Text('No saved signature yet.', style: Theme.of(context).textTheme.bodySmall);
+      return const ZEmpty(compact: true, icon: Icons.draw_outlined,
+        title: 'No saved signature yet.');
     }
     return Image(image: img, height: 72, errorBuilder: (context, _, _) => const Icon(Icons.draw_outlined));
   }

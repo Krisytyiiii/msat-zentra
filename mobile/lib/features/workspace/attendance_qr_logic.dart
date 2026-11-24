@@ -50,6 +50,7 @@ String qrAttendanceStatus(
   DateTime end, {
   required bool automatic,
   String manual = 'present',
+  int lateAfterMinutes = 20,
 }) {
   if (now.isBefore(start) || !now.isBefore(end)) {
     throw ApiException(
@@ -57,10 +58,9 @@ String qrAttendanceStatus(
       'QR scanning is available only during this class period.',
     );
   }
+  final threshold = Duration(minutes: lateAfterMinutes.clamp(0, 240));
   return automatic
-      ? (now.difference(start) >= const Duration(minutes: 20)
-            ? 'late'
-            : 'present')
+      ? (now.difference(start) >= threshold ? 'late' : 'present')
       : manual;
 }
 

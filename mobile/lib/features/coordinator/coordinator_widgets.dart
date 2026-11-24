@@ -152,7 +152,7 @@ class AdmAsync<T> extends StatelessWidget {
     skipLoadingOnRefresh: true,
     data: builder,
     loading: () =>
-        const Padding(padding: EdgeInsets.all(24), child: LoadingView()),
+        const ScreenSkeleton(section: true),
     error: (e, _) => ErrorView(message: e, onRetry: retry),
   );
 }

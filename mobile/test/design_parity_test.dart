@@ -584,7 +584,8 @@ void main() {
               ),
             );
             await tester.pumpAndSettle();
-            expect(find.byType(ZSpinner), findsOneWidget);
+            expect(find.byType(ZSpinner), findsNothing);
+            expect(find.byType(ScreenSkeleton), findsWidgets);
             expect(tester.hasRunningAnimations, isFalse);
             expect(tester.takeException(), isNull);
             expect(

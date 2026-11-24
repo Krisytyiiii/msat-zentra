@@ -2,6 +2,13 @@ import 'package:flutter/material.dart';
 
 import 'gradebook_data.dart';
 
+String _twoDecimals(num value) {
+  final rounded = (value * 100).roundToDouble() / 100;
+  if (rounded == rounded.truncateToDouble()) return rounded.toInt().toString();
+  final text = rounded.toStringAsFixed(2);
+  return text.endsWith('0') ? text.substring(0, text.length - 1) : text;
+}
+
 class ClassRecordCards extends StatelessWidget {
   const ClassRecordCards({
     super.key,
@@ -167,7 +174,7 @@ class ClassRecordCards extends StatelessWidget {
             const Divider(height: 8, color: Color(0xFFE6ECF4)),
             _tile(
               title: 'Term Grade',
-              value: hasGrade ? gradeNumber(grade) : '—',
+              value: hasGrade ? _twoDecimals(grade) : '—',
               footer: hasQueued
                   ? 'Queued'
                   : hasGrade
@@ -211,9 +218,9 @@ class ClassRecordCards extends StatelessWidget {
         borderRadius: BorderRadius.circular(18),
         onTap: assessments.isEmpty ? null : () => _open(context, assessments),
         child: _tile(
-          title: '$label (${gradeNumber(earned)}/${gradeNumber(possible)} pts)',
+          title: '$label (${_twoDecimals(earned)}/${_twoDecimals(possible)} pts)',
           value: scored && possible > 0
-              ? '${gradeNumber(earned / possible * 100)}%'
+              ? '${_twoDecimals(earned / possible * 100)}%'
               : '—',
           footer: pending ? 'Queued' : '',
         ),

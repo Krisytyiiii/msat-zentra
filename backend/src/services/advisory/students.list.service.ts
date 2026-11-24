@@ -245,6 +245,13 @@ export async function getStudents(ctx: AdvisoryContext) {
   // the learner identity but report no metrics or grades.
   const started = termHasStarted(term?.startDate);
 
+  // Helper to compute general average from final grades (same logic as getStudentAcademic)
+  const computeGeneralAverage = (finalGrades: { computedAverage: number | null }[]) => {
+    const graded = finalGrades.filter((f) => f.computedAverage !== null);
+    if (graded.length === 0) return null;
+    return graded.reduce((sum, f) => sum + (f.computedAverage ?? 0), 0) / graded.length;
+  };
+
   const students = [
     ...visibleAdvisees.map((s) => {
       const enrolled = enrolledBySection.get(s.sectionId!) ?? 0;
@@ -264,6 +271,7 @@ export async function getStudents(ctx: AdvisoryContext) {
       const present = s.attendanceRecords.filter((r) => r.status === "present").length;
       const total = Math.max(sectionTotals.get(s.sectionId ?? "") ?? 0, s.attendanceRecords.length);
       const openFlags = s.gradeFlags.filter((g) => g.status !== "resolved").length;
+      const academicGrade = started ? computeGeneralAverage(s.finalGrades) : null;
       return {
         studentId: s.userId,
         name: s.user.fullName,
@@ -284,6 +292,7 @@ export async function getStudents(ctx: AdvisoryContext) {
         hasAccount: true,
         learnerType: "regular" as const,
         admExempt: admExempt.has(s.userId),
+        academicGrade,
         grades: started
           ? s.finalGrades.map((f) => ({
               subject: f.subject.name,
@@ -316,6 +325,7 @@ export async function getStudents(ctx: AdvisoryContext) {
       const activeFlags = toActiveFlags(factors);
       const present = att.filter((a) => a.status === "present").length;
       const ratedTotal = Math.max(attTotal ?? 0, att.length);
+      const academicGrade = started ? computeGeneralAverage(finals) : null;
       return {
         studentId: key,
         name: r.fullName,
@@ -336,6 +346,7 @@ export async function getStudents(ctx: AdvisoryContext) {
         hasAccount: false,
         learnerType: r.learnerType,
         admExempt: false,
+        academicGrade,
         grades: started
           ? finals.map((f) => ({
               subject: f.subject.name,

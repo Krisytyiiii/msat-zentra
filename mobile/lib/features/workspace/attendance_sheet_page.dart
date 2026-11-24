@@ -1,7 +1,5 @@
 import 'dart:async';
-import 'dart:math' as math;
 
-import 'package:connectivity_plus/connectivity_plus.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:hive_flutter/hive_flutter.dart';
@@ -12,6 +10,7 @@ import '../../design/adviser_navigation.dart';
 import '../../design/status_palette.dart';
 import '../../core/api_client.dart';
 import '../../core/config.dart';
+import '../../core/save_tasks.dart';
 import '../../core/session.dart';
 import '../../core/sync_outbox.dart';
 import '../../shared/models.dart';
@@ -20,6 +19,7 @@ import '../../shared/widgets.dart';
 import '../adviser/schedule_timing.dart';
 import 'attendance_data.dart';
 import 'attendance_qr_logic.dart';
+import 'attendance_saves.dart';
 import 'attendance_scanner_page.dart';
 import 'attendance_mark_card.dart';
 
@@ -301,6 +301,26 @@ class _SheetState extends ConsumerState<AttendanceSheetPage>
         !now.isBefore(start) &&
         now.isBefore(end);
     final key = _storageKey;
+    final term = ref.read(termProvider);
+    String? clockLabel(int? minutes) => minutes == null
+        ? null
+        : DateFormat.jm().format(
+            DateTime(2000, 1, 1).add(Duration(minutes: minutes)),
+          );
+    final ruleKey =
+        'attendance.late-minutes.${_access.teacherId}.$_scope.${widget.pair.key}';
+    final cache = await _cacheBox();
+    if (!mounted ||
+        _scope != _currentScope ||
+        key != _storageKey ||
+        _lock != null) {
+      return;
+    }
+    final storedMinutes = cache.get(ruleKey);
+    var lateMinutes =
+        storedMinutes is int && storedMinutes >= 0 && storedMinutes <= 240
+        ? storedMinutes
+        : 20;
     var finishedAbsences = false;
     _reviewing = true;
     try {
@@ -310,6 +330,45 @@ class _SheetState extends ConsumerState<AttendanceSheetPage>
             title: '${widget.pair.subjectName} · ${widget.pair.sectionName}',
             historyEdit: historyEdit,
             allowAutomatic: !historyEdit || live,
+            onLateAfterChanged: (minutes) async {
+              if (!mounted ||
+                  _stale ||
+                  _scope != _currentScope ||
+                  key != _storageKey) {
+                throw ApiException(
+                  'SCOPE_CHANGED',
+                  'Return and refresh attendance.',
+                );
+              }
+              await cache.put(ruleKey, minutes);
+              lateMinutes = minutes;
+            },
+            snapshot: () => AttendanceScanSnapshot(
+              learners: [
+                for (final learner in _sheet!.learners)
+                  if (!learner.exempt)
+                    AttendanceScanEntry(
+                      id: learner.id,
+                      name: learner.name,
+                      lrn: learner.lrn,
+                    ),
+              ],
+              marks: {
+                for (final learner in _sheet!.learners)
+                  if (!learner.exempt &&
+                      (_draft[learner.id] ?? _baseline(learner.id)) != null)
+                    learner.id: (_draft[learner.id] ?? _baseline(learner.id))!,
+              },
+              schoolYear: term?.schoolYearName,
+              term: term == null ? null : 'Term ${term.termNumber}',
+              grade: widget.pair.gradeLevel,
+              start: clockLabel(period?.start),
+              late: clockLabel(
+                period == null ? null : period.start + lateMinutes,
+              ),
+              lateAfterMinutes: lateMinutes,
+              absent: clockLabel(period?.end),
+            ),
             onScan: (raw, automatic, manual) async {
               if (!mounted ||
                   _stale ||
@@ -341,6 +400,7 @@ class _SheetState extends ConsumerState<AttendanceSheetPage>
                       end!,
                       automatic: automatic,
                       manual: manual,
+                      lateAfterMinutes: lateMinutes,
                     );
               if (!attendanceLabels.containsKey(status)) {
                 throw ApiException(
@@ -457,109 +517,99 @@ class _SheetState extends ConsumerState<AttendanceSheetPage>
 
   Future<void> _save(Map<String, String> records, String key) async {
     if (_saving || _stale || _scope != _currentScope) return;
+    final sheet = _sheet;
+    if (sheet == null) return;
+    // Online saves recheck ownership, roster/exemptions, permissions and the
+    // live period on the server; the sheet only hands over live, eligible rows.
+    final eligible = sheet.learners
+        .where((s) => !s.exempt)
+        .map((s) => s.id)
+        .toSet();
+    final delta = _delta;
+    final jobs = <String, String>{
+      for (final row in records.entries)
+        if (eligible.contains(row.key) && delta[row.key] == row.value)
+          row.key: row.value,
+    };
+    if (jobs.isEmpty) {
+      _alert('Nothing left to save. The sheet already has these marks.');
+      return;
+    }
+    final tasks = ref.read(saveTasksProvider);
+    final term = ref.read(termProvider);
+    final expected = '${term?.schoolYearId}:${term?.id}';
+    final request = AttendanceSaveRequest(
+      pair: widget.pair,
+      sheet: sheet,
+      date: _date,
+      draftKey: key,
+      records: Map<String, String>.from(jobs),
+      // Queue behind any pending write for this sheet; older queued values
+      // must never overwrite a newer online submission.
+      queueBehindExisting: _queued.isNotEmpty,
+    );
+    final api = ref.read(apiClientProvider);
+    final outbox = ref.read(outboxProvider);
+    final day = DateTime.tryParse(_date);
     setState(() {
       _saving = true;
       _notice = null;
     });
-    var saved = 0, queued = 0;
-    try {
-      final connectivity = await Connectivity().checkConnectivity();
-      if (!mounted || _stale || _currentScope != _scope || _lock != null) {
-        throw ApiException(
-          'SCOPE_CHANGED',
-          'Attendance access changed. Refresh the sheet before saving.',
-        );
-      }
-      final offline = connectivity.contains(ConnectivityResult.none);
-      // Online saves recheck ownership, roster/exemptions, permissions and
-      // the live period. Offline writes remain provisional until server sync.
-      if (!offline) await _load(silent: true);
-      if (!mounted ||
-          _stale ||
-          _currentScope != _scope ||
-          _lock != null ||
-          key != _storageKey) {
-        throw ApiException(
-          'SCOPE_CHANGED',
-          'The sheet changed. Review it again before saving.',
-        );
-      }
-      final eligible = _sheet!.learners
-          .where((s) => !s.exempt)
-          .map((s) => s.id)
-          .toSet();
-      final delta = _delta;
-      final jobs = records.entries
-          .where((r) => eligible.contains(r.key) && delta[r.key] == r.value)
-          .toList();
-      // Queue behind any pending write for this sheet; older queued values
-      // must never overwrite a newer online submission.
-      final queue = offline || _queued.isNotEmpty;
-      for (var i = 0; i < jobs.length; i += 300) {
-        if (!mounted || _stale || _scope != _currentScope) {
-          throw StateError('Scope changed');
-        }
-        final batch = jobs.sublist(i, math.min(i + 300, jobs.length));
-        final body = <String, dynamic>{
-          'sectionId': widget.pair.sectionId,
-          'termId': _sheet!.termId,
-          'date': '${_date}T00:00:00Z',
-          'subjectId': widget.pair.subjectId,
-          'slot': _sheet!.gate.slot,
-          if (_sheet!.assignmentId?.isNotEmpty == true)
-            'assignmentId': _sheet!.assignmentId,
-          'records': [
-            for (final r in batch) {'studentId': r.key, 'status': r.value},
-          ],
-        };
-        if (queue) {
-          await ref
-              .read(outboxProvider)
-              .enqueue(
-                method: 'POST',
-                path: '/api/attendance/bulk',
-                body: body,
-              );
-          queued += batch.length;
-          for (final r in batch) {
-            _queued[r.key] = r.value;
-            _draft.remove(r.key);
-          }
+    // The write now runs in the app-wide queue: this screen is free, the pill
+    // above the navigation reports progress, and the request survives leaving
+    // the sheet.
+    late final SaveTask task;
+    task = tasks.submit(
+      title: 'Attendance · ${widget.pair.subjectName}',
+      route: '/workspace/attendance',
+      recovery: {'scope': expected},
+      onSettled: (task) => _afterSave(task, jobs, sheet),
+      subtitle: day == null
+          ? '${widget.pair.sectionName} · $_date'
+          : '${widget.pair.sectionName} · ${DateFormat('MMM d, yyyy').format(day)}',
+      action: () => runAttendanceSave(
+        api: api,
+        outbox: outbox,
+        request: request,
+        termIsCurrent: () => tasks.termIsCurrent(expected),
+        onQueued: (id, count) => tasks.trackQueued(task, id, count),
+        onProgress: () {
+          task.saved = request.saved;
+          task.queued = request.queued;
+          tasks.checkpoint(task);
+        },
+      ),
+    );
+  }
+
+  void _afterSave(
+    SaveTask task,
+    Map<String, String> jobs,
+    AttendanceSheet sheet,
+  ) {
+    if (!mounted || _scope != _currentScope || _sheet != sheet) return;
+    if (task.status == SaveTaskStatus.failed) {
+      setState(() => _saving = false);
+      _alert(task.error ?? 'Attendance could not be saved. Please try again.');
+      return;
+    }
+    setState(() {
+      _saving = false;
+      for (final row in jobs.entries) {
+        if (task.queued > 0) {
+          _queued[row.key] = row.value;
         } else {
-          final response = await ref
-              .read(apiClientProvider)
-              .dio
-              .post('/api/attendance/bulk', data: body);
-          if ((response.data as Map)['count'] != batch.length) {
-            throw const FormatException(
-              'Incomplete attendance acknowledgement',
-            );
-          }
-          saved += batch.length;
-          for (final r in batch) {
-            _sheet!.marks[r.key] = r.value;
-            _draft.remove(r.key);
-          }
+          sheet.marks[row.key] = row.value;
         }
-        await _persist();
+        _draft.remove(row.key);
       }
-      if (mounted) {
-        setState(
-          () => _notice = queued > 0
-              ? '$queued queued · waiting for server confirmation.'
-              : '$saved attendance marks saved.',
-        );
-      }
-    } catch (error) {
-      _alert(userMessage(error));
-    } finally {
-      if (mounted) {
-        if (saved > 0) {
-          ref.invalidate(overviewProvider);
-          ref.invalidate(overviewSecondaryProvider);
-        }
-        setState(() => _saving = false);
-      }
+      _notice = task.queued > 0
+          ? '${task.queued} queued · waiting for server confirmation.'
+          : '${task.saved} attendance marks saved.';
+    });
+    if (task.saved > 0) {
+      ref.invalidate(overviewProvider);
+      ref.invalidate(overviewSecondaryProvider);
     }
   }
 
@@ -591,12 +641,13 @@ class _SheetState extends ConsumerState<AttendanceSheetPage>
   }
 
   Future<void> _leave() async {
-    if (_saving || _leaving) return;
+    // A background save no longer holds the screen hostage: the draft is
+    // already owned by the running task, so leaving only needs to store edits
+    // that were never submitted.
+    if (_leaving) return;
     _leaving = true;
     try {
-      // Only a real draft needs storing; unchanged restored entries must not
-      // block leaving with a storage error.
-      if (_delta.isNotEmpty) await _persist();
+      if (!_saving && _delta.isNotEmpty) await _persist();
       if (!mounted) return;
       setState(() => _allowPop = true);
       WidgetsBinding.instance.addPostFrameCallback((_) {
@@ -630,11 +681,12 @@ class _SheetState extends ConsumerState<AttendanceSheetPage>
       },
       child: Scaffold(
         appBar: AppBar(
+          shape: const Border(bottom: BorderSide(color: Color(0xFFEDF0F6))),
           centerTitle: true,
           backgroundColor: Theme.of(context).scaffoldBackgroundColor,
-          leading: IconButton(
+          leading: ZBackButton(
             tooltip: 'Back',
-            onPressed: _saving ? null : _leave,
+            onPressed: _leave,
             icon: const Icon(Icons.chevron_left),
           ),
           title: const Text('Edit Record'),
@@ -648,7 +700,7 @@ class _SheetState extends ConsumerState<AttendanceSheetPage>
                   subtitle: 'Return to Attendance to open the selected term.',
                 )
               : _loading
-              ? const LoadingView()
+              ? const LoadingView(layout: SkeletonLayout.marking)
               : sheet == null
               ? ErrorView(
                   message: _loadError ?? 'Attendance unavailable.',
@@ -827,43 +879,10 @@ class _SheetState extends ConsumerState<AttendanceSheetPage>
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.stretch,
                   children: [
-                    LayoutBuilder(
-                      builder: (context, constraints) {
-                        final subject = Text(
-                          widget.pair.subjectName,
-                          style: const TextStyle(
-                            fontSize: 22,
-                            fontWeight: FontWeight.w700,
-                            letterSpacing: -0.5,
-                          ),
-                        );
-                        if (constraints.maxWidth < 280 ||
-                            MediaQuery.textScalerOf(context).scale(12) > 16) {
-                          return Column(
-                            crossAxisAlignment: CrossAxisAlignment.stretch,
-                            children: [
-                              subject,
-                              const SizedBox(height: 8),
-                              Align(
-                                alignment: Alignment.centerRight,
-                                child: dateChip,
-                              ),
-                            ],
-                          );
-                        }
-                        return Row(
-                          children: [
-                            Expanded(child: subject),
-                            const SizedBox(width: 8),
-                            dateChip,
-                          ],
-                        );
-                      },
-                    ),
-                    const SizedBox(height: 8),
-                    const Text(
-                      'View the learners in this class.',
-                      style: TextStyle(fontSize: 12, color: Color(0xFF81818F)),
+                    ZContentHeader(title: widget.pair.subjectName,
+                      icon: Icons.calendar_month_outlined,
+                      description: 'View the learners in this class.',
+                      trailing: dateChip,
                     ),
                     const SizedBox(height: 12),
                     Wrap(
@@ -871,19 +890,22 @@ class _SheetState extends ConsumerState<AttendanceSheetPage>
                       runSpacing: 6,
                       children: [
                         if (term != null && term.id == sheet.termId) ...[
-                          ZStatusPill(
+                          ZScopePill(
                             text: term.schoolYearName,
-                            tone: StatusTone.blue,
+                            kind: ScopePillKind.schoolYear,
+                            compact: true,
                           ),
-                          ZStatusPill(
+                          ZScopePill(
                             text: 'Term ${term.termNumber}',
-                            tone: StatusTone.amber,
+                            kind: ScopePillKind.term,
+                            compact: true,
                           ),
                         ],
                         if (widget.pair.gradeLevel != null)
-                          ZStatusPill(
+                          ZScopePill(
                             text: widget.pair.gradeLevel!,
-                            tone: StatusTone.blue,
+                            kind: ScopePillKind.grade,
+                            compact: true,
                           ),
                         ZStatusPill(
                           text: widget.pair.sectionName,

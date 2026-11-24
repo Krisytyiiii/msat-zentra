@@ -3,13 +3,15 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:go_router/go_router.dart';
 import 'package:lucide_icons_flutter/lucide_icons.dart';
 
 import '../../core/api_client.dart';
 import '../../core/session.dart';
+import '../../design/adviser_navigation.dart';
 import '../../design/overview_theme.dart';
-import '../../design/status_palette.dart';
 import '../../shared/widgets.dart';
+import '../../shared/floating_add.dart';
 import '../../shared/models.dart';
 import '../adviser/advisory_attendance_data.dart';
 import 'attendance_data.dart';
@@ -19,6 +21,69 @@ import 'attendance_actions.dart';
 import 'attendance_sheet_page.dart';
 import '../../shared/user_messages.dart';
 import '../adviser/schedule_timing.dart';
+import '../home/role_home.dart' show StaffShellScope;
+
+/// A reopened/deep-linked record resolves its real class through the current
+/// account's teaching load instead of trusting labels from a previous screen.
+final attendanceRecordPairProvider =
+    FutureProvider.autoDispose.family<AttendancePair, String>((ref, key) async {
+      ref.watch(authProvider);
+      ref.watch(termProvider);
+      final access = await AttendanceService(ref.watch(apiClientProvider)).access();
+      final pair = access.pairs.where((p) => p.key == key).firstOrNull;
+      if (!access.entered || pair == null) {
+        throw ApiException('ACCESS_CHANGED', 'This class is no longer available. Return to Attendance.');
+      }
+      return pair;
+    });
+
+class AttendanceRecordRoute extends ConsumerWidget {
+  const AttendanceRecordRoute({
+    super.key, required this.sectionId, required this.subjectId,
+  });
+  final String sectionId, subjectId;
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final provider = attendanceRecordPairProvider('$sectionId|$subjectId');
+    return ref.watch(provider).when(
+      data: (pair) => AttendanceRecordPage(
+        key: ValueKey(pair.key), pair: pair,
+      ),
+      loading: () => Scaffold(
+        appBar: _recordHeader(context),
+        body: const LoadingView(layout: SkeletonLayout.attendance),
+      ),
+      error: (error, _) => Scaffold(
+        appBar: _recordHeader(context),
+        body: ErrorView(message: error, onRetry: () => ref.invalidate(provider)),
+      ),
+    );
+  }
+}
+
+void _closeRecord(BuildContext context) {
+  final router = GoRouter.maybeOf(context);
+  if (router != null) {
+    if (router.canPop()) {
+      router.pop();
+    } else {
+      router.go('/workspace/attendance');
+    }
+  } else {
+    Navigator.of(context).maybePop();
+  }
+}
+
+AppBar _recordHeader(BuildContext context) => AppBar(
+  shape: const Border(bottom: BorderSide(color: Color(0xFFEDF0F6))),
+  centerTitle: true,
+  title: const Text('Attendance Record'),
+  leading: ZBackButton(
+    tooltip: 'Back', icon: const Icon(Icons.chevron_left),
+    onPressed: () => _closeRecord(context),
+  ),
+);
 
 /// Read-only class roster; attendance entry remains separate.
 class AttendanceRecordPage extends ConsumerStatefulWidget {
@@ -284,6 +349,8 @@ class _AttendanceRecordPageState extends ConsumerState<AttendanceRecordPage>
       _load();
     });
     final term = ref.watch(termProvider);
+    final isAdviser = ref.watch(authProvider).role == 'adviser';
+    final ownNavigation = isAdviser && !StaffShellScope.contains(context);
     final query = _search.text.trim().toLowerCase();
     final learners =
         _learners
@@ -313,11 +380,19 @@ class _AttendanceRecordPageState extends ConsumerState<AttendanceRecordPage>
               if (!didPop && _expanded) setState(() => _expanded = false);
             },
             child: Scaffold(
+              extendBody: ownNavigation,
+              bottomNavigationBar: ownNavigation
+                  ? const AdviserBottomNavigation(
+                      selectedPath: '/workspace/attendance',
+                      rerouteOnSelect: true,
+                    )
+                  : null,
               appBar: AppBar(
+                shape: const Border(bottom: BorderSide(color: Color(0xFFEDF0F6))),
                 centerTitle: true,
                 backgroundColor: Theme.of(context).scaffoldBackgroundColor,
-                leadingWidth: 48,
-                leading: IconButton(
+                leadingWidth: 64,
+                leading: ZBackButton(
                   icon: const Icon(Icons.chevron_left),
                   tooltip: 'Back',
                   padding: EdgeInsets.zero,
@@ -325,7 +400,7 @@ class _AttendanceRecordPageState extends ConsumerState<AttendanceRecordPage>
                     if (_expanded) {
                       setState(() => _expanded = false);
                     } else {
-                      Navigator.of(context).pop();
+                      _closeRecord(context);
                     }
                   },
                 ),
@@ -334,7 +409,7 @@ class _AttendanceRecordPageState extends ConsumerState<AttendanceRecordPage>
               body: Stack(
                 children: [
                   _loading
-                      ? const LoadingView()
+                      ? const LoadingView(layout: SkeletonLayout.attendance)
                       : _error != null
                       ? ErrorView(message: _error, onRetry: _load)
                       : RefreshIndicator(
@@ -343,21 +418,9 @@ class _AttendanceRecordPageState extends ConsumerState<AttendanceRecordPage>
                             physics: const AlwaysScrollableScrollPhysics(),
                             padding: const EdgeInsets.fromLTRB(12, 16, 12, 168),
                             children: [
-                              Text(
-                                widget.pair.subjectName,
-                                style: const TextStyle(
-                                  fontSize: 22,
-                                  fontWeight: FontWeight.w700,
-                                  letterSpacing: -0.5,
-                                ),
-                              ),
-                               const SizedBox(height: 6),
-                              const Text(
-                                'View the learners in this class.',
-                                style: TextStyle(
-                                  fontSize: 12,
-                                  color: Color(0xFF81818F),
-                                ),
+                              ZContentHeader(title: widget.pair.subjectName,
+                                icon: LucideIcons.calendarCheck,
+                                description: 'View the learners in this class.',
                               ),
                               const SizedBox(height: 12),
                               Wrap(
@@ -365,24 +428,22 @@ class _AttendanceRecordPageState extends ConsumerState<AttendanceRecordPage>
                                 runSpacing: 6,
                                 children: [
                                   if (term != null) ...[
-                                    ZStatusPill(
+                                    ZScopePill(
                                       text: term.schoolYearName,
-                                      tone: StatusTone.blue,
+                                      kind: ScopePillKind.schoolYear,
+                                      compact: true,
                                     ),
-                                    ZStatusPill(
+                                    ZScopePill(
                                       text: 'Term ${term.termNumber}',
-                                      tone: StatusTone.amber,
+                                      kind: ScopePillKind.term,
+                                      compact: true,
                                     ),
                                   ],
-                                  if (widget.pair.gradeLevel != null)
-                                    ZStatusPill(
-                                      text: widget.pair.gradeLevel!,
-                                      tone: StatusTone.blue,
-                                    ),
-                                  ZStatusPill(
-                                    text: widget.pair.sectionName,
-                                    tone: StatusTone.violet,
-                                  ),
+                                  ZScopePill(text: [
+                                    if (widget.pair.gradeLevel != null) widget.pair.gradeLevel!,
+                                    widget.pair.sectionName,
+                                  ].where((value) => value.isNotEmpty).join(' · '),
+                                    kind: ScopePillKind.grade, label: 'Grade and section', compact: true),
                                 ],
                               ),
                                const SizedBox(height: 4),
@@ -448,7 +509,7 @@ class _AttendanceRecordPageState extends ConsumerState<AttendanceRecordPage>
                                       const Color(0xFFFFF2F5),
                                     ),
                                   ];
-                                  if (constraints.maxWidth < 360 ||
+                                  if (constraints.maxWidth < 330 ||
                                       MediaQuery.textScalerOf(context)
                                               .scale(12) >
                                           18) {
@@ -547,13 +608,12 @@ class _AttendanceRecordPageState extends ConsumerState<AttendanceRecordPage>
                                 ],
                               ),
                               if (learners.isEmpty)
-                                Padding(
-                                  padding: const EdgeInsets.all(24),
-                                  child: Text(
-                                    query.isEmpty
-                                        ? 'No learners in this class.'
-                                        : 'No learners match your search.',
-                                  ),
+                                ZEmpty(
+                                  icon: query.isEmpty ? LucideIcons.users : LucideIcons.search,
+                                  title: query.isEmpty
+                                      ? 'No learners in this class.'
+                                      : 'No learners match your search.',
+                                  subtitle: query.isEmpty ? 'Learners in this class will appear here.' : 'Try another name or LRN.',
                                 ),
                               for (
                                 var index = 0;
@@ -580,12 +640,12 @@ class _AttendanceRecordPageState extends ConsumerState<AttendanceRecordPage>
                     Positioned(
                       key: const ValueKey('attendance-dial-anchor'),
                       right: 16,
-                      bottom: 88,
-                      child: AttendanceActions(
+                      bottom: 0,
+                      child: FloatingAdd(child: AttendanceActions(
                         expanded: _expanded,
                         onToggle: () => setState(() => _expanded = !_expanded),
                         onSelect: _openAttendance,
-                      ),
+                      )),
                     ),
                 ],
               ),

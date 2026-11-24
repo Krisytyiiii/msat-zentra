@@ -309,11 +309,12 @@ class _PortalChildPicker extends ConsumerWidget {
     final children = ref.watch(parentChildrenProvider);
     final selected = ref.watch(selectedChildProvider);
     return children.when(
-      loading: () => const Padding(padding: EdgeInsets.all(12), child: LinearProgressIndicator()),
+      loading: () => const Padding(padding: EdgeInsets.all(12), child: SkeletonBox(height: 32)),
       error: (e, _) => Padding(padding: const EdgeInsets.all(12), child: Text(userMessage(e), style: const TextStyle(fontSize: 12))),
       data: (list) {
         if (list.isEmpty) {
-          return const Padding(padding: EdgeInsets.all(12), child: Text('No linked learners', style: TextStyle(fontSize: 12)));
+          return const Padding(padding: EdgeInsets.all(12), child: ZEmpty(
+            compact: true, icon: Icons.people_outline, title: 'No linked learners'));
         }
         final effective = selected ?? list.first.studentId;
         return Padding(
@@ -349,7 +350,7 @@ class _PortalTermPicker extends ConsumerWidget {
         ? _parentTerms(ref)
         : ref.watch(studentTermsProvider);
     return terms.when(
-      loading: () => const Padding(padding: EdgeInsets.all(12), child: LinearProgressIndicator()),
+      loading: () => const Padding(padding: EdgeInsets.all(12), child: SkeletonBox(height: 32)),
       error: (e, _) => Padding(padding: const EdgeInsets.all(12), child: Text(userMessage(e), style: const TextStyle(fontSize: 12))),
       data: (list) {
         final selected = ref.watch(portalTermIdProvider);

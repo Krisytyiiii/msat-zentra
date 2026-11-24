@@ -230,9 +230,10 @@ class _HistoryState extends ConsumerState<AttendanceHistoryPage>
       data: overviewScreenTheme(Theme.of(context)),
       child: Scaffold(
         appBar: AppBar(
+          shape: const Border(bottom: BorderSide(color: Color(0xFFEDF0F6))),
           centerTitle: true,
           backgroundColor: Theme.of(context).scaffoldBackgroundColor,
-          leading: IconButton(
+          leading: ZBackButton(
             tooltip: 'Back',
             icon: const Icon(Icons.chevron_left),
             onPressed: () => Navigator.of(context).pop(),
@@ -240,7 +241,7 @@ class _HistoryState extends ConsumerState<AttendanceHistoryPage>
           title: const Text('Meeting History'),
         ),
         body: _loading
-            ? const LoadingView()
+            ? const LoadingView(layout: SkeletonLayout.schedule)
             : _error != null
             ? ErrorView(message: _error, onRetry: _load)
             : RefreshIndicator(
@@ -249,17 +250,9 @@ class _HistoryState extends ConsumerState<AttendanceHistoryPage>
                   padding: const EdgeInsets.all(16),
                   physics: const AlwaysScrollableScrollPhysics(),
                   children: [
-                    Text(
-                      widget.pair.subjectName,
-                      style: const TextStyle(
-                        fontSize: 22,
-                        fontWeight: FontWeight.w700,
-                      ),
-                    ),
-                    const SizedBox(height: 6),
-                    const Text(
-                      'Tap a date to view attendance. Only this week can be edited. Totals count marks across all periods, not unique students.',
-                      style: TextStyle(fontSize: 12, color: Color(0xFF71809B)),
+                    ZContentHeader(title: widget.pair.subjectName,
+                      icon: Icons.history,
+                      description: 'Tap a date to view attendance. Only this week can be edited. Totals count marks across all periods, not unique students.',
                     ),
                     const SizedBox(height: 12),
                     Wrap(
@@ -267,23 +260,25 @@ class _HistoryState extends ConsumerState<AttendanceHistoryPage>
                       runSpacing: 6,
                       children: [
                         if (term != null) ...[
-                          ZStatusPill(
+                          ZScopePill(
                             text: term.schoolYearName,
-                            tone: StatusTone.blue,
+                            kind: ScopePillKind.schoolYear,
+                            compact: true,
                           ),
-                          ZStatusPill(
+                          ZScopePill(
                             text: 'Term ${term.termNumber}',
-                            tone: StatusTone.amber,
+                            kind: ScopePillKind.term,
+                            compact: true,
                           ),
                         ],
-                        if (widget.pair.gradeLevel != null)
-                          ZStatusPill(
-                            text: widget.pair.gradeLevel!,
-                            tone: StatusTone.blue,
-                          ),
-                        ZStatusPill(
-                          text: widget.pair.sectionName,
-                          tone: StatusTone.violet,
+                        ZScopePill(
+                          text: [
+                            if (widget.pair.gradeLevel != null)
+                              widget.pair.gradeLevel!,
+                            widget.pair.sectionName,
+                          ].join(' · '),
+                          kind: ScopePillKind.grade,
+                          compact: true,
                         ),
                       ],
                     ),
@@ -307,12 +302,10 @@ class _HistoryState extends ConsumerState<AttendanceHistoryPage>
                     ),
                     const SizedBox(height: 16),
                     if (dates.isEmpty)
-                      const Padding(
-                        padding: EdgeInsets.symmetric(vertical: 32),
-                        child: Text(
-                          'No recorded meetings yet.',
-                          textAlign: TextAlign.center,
-                        ),
+                      const ZEmpty(
+                        icon: Icons.calendar_month_outlined,
+                        title: 'No recorded meetings yet.',
+                        subtitle: 'Recorded class meetings will appear here.',
                       ),
                     for (final date in dates)
                       Container(

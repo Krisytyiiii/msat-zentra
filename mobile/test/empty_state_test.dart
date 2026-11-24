@@ -1,10 +1,15 @@
+import 'dart:io';
+
 import 'package:dio/dio.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:hive_flutter/hive_flutter.dart';
+import 'package:zentra_mobile/core/config.dart';
 import 'package:zentra_mobile/core/api_client.dart';
 import 'package:zentra_mobile/design/theme.dart';
 import 'package:zentra_mobile/features/adviser/adm_cases_page.dart';
+import 'package:zentra_mobile/features/home/overview_data.dart';
 import 'package:zentra_mobile/shared/widgets.dart';
 
 /// Returns an empty ADM case list, like an adviser with nothing under
@@ -58,7 +63,37 @@ Future<void> mount(
 }
 
 void main() {
+  setUpAll(() async {
+    Hive.init((await Directory.systemTemp.createTemp('empty-state')).path);
+    await Hive.openBox(AppConfig.termScopeBox);
+  });
+  tearDownAll(() => Hive.close());
   group('ZEmpty', () {
+    for (final brightness in [Brightness.light, Brightness.dark]) {
+      testWidgets('reference palette stays readable in $brightness', (tester) async {
+        await tester.pumpWidget(MaterialApp(
+          theme: ThemeData(brightness: brightness),
+          home: const Scaffold(body: Center(child: ZEmpty(
+            icon: Icons.calendar_month_outlined,
+            title: 'No classes', subtitle: 'No scheduled classes on Saturday.',
+          ))),
+        ));
+        final card = tester.widgetList<Container>(find.descendant(
+          of: find.byType(ZEmpty), matching: find.byType(Container)))
+            .firstWhere((c) => c.decoration is BoxDecoration &&
+              (c.decoration! as BoxDecoration).border != null);
+        final decoration = card.decoration! as BoxDecoration;
+        expect(decoration.color, Colors.white);
+        expect(decoration.borderRadius, BorderRadius.circular(16));
+        expect((decoration.border! as Border).top.color, const Color(0xFFDFE7F5));
+        final icon = tester.widget<Icon>(find.byIcon(Icons.calendar_month_outlined));
+        expect(icon.color, const Color(0xFF4263F0));
+        expect(tester.widget<Text>(find.text('No classes')).style!.color, const Color(0xFF192034));
+        expect(tester.widget<Text>(find.text('No scheduled classes on Saturday.')).style!.color,
+          const Color(0xFF71809B));
+        expect(tester.takeException(), isNull);
+      });
+    }
     testWidgets('renders copy and keeps its action tappable', (tester) async {
       var taps = 0;
       await mount(
@@ -173,13 +208,22 @@ void main() {
     });
   });
 
-  testWidgets('ADM cases empty state is centred in the desk', (tester) async {
+  testWidgets('ADM cases retains its header above the empty state', (
+    tester,
+  ) async {
     final api = EmptyAdmApi();
     addTearDown(() => api.dio.close(force: true));
     await mount(
       tester,
       const AdmCasesPage(),
-      overrides: [apiClientProvider.overrideWithValue(api)],
+      overrides: [
+        apiClientProvider.overrideWithValue(api),
+        overviewSummaryProvider.overrideWith(
+          (ref) => const AsyncData(
+            OverviewSummary(teacherName: 'Teacher', isAdviser: true),
+          ),
+        ),
+      ],
     );
 
     expect(find.text('No ADM cases'), findsOneWidget);
@@ -189,7 +233,8 @@ void main() {
       ),
       findsOneWidget,
     );
-    expect(tester.getCenter(find.text('No ADM cases')).dy, closeTo(450, 70));
+    expect(find.text('ADM Cases'), findsOneWidget);
+    expect(find.text('FILTER ADM CASES'), findsOneWidget);
     expect(tester.takeException(), isNull);
   });
 }

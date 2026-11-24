@@ -122,22 +122,9 @@ class _GradebookDashboardState extends ConsumerState<GradebookDashboardPage> {
                 child: ListView(
                   padding: const EdgeInsets.fromLTRB(12, 16, 12, 120),
                   children: [
-                    const Text(
-                      'Gradebook',
-                      style: TextStyle(
-                        fontSize: 22,
-                        fontWeight: FontWeight.w700,
-                        letterSpacing: -0.5,
-                      ),
-                    ),
-                    const SizedBox(height: 8),
-                    const Text(
-                      'Manage assessments and enter scores for your teaching classes.',
-                      style: TextStyle(
-                        fontSize: 12,
-                        height: 1.5,
-                        color: Color(0xFF81818F),
-                      ),
+                    const ZContentHeader(
+                      title: 'Gradebook', icon: Icons.menu_book_outlined,
+                      description: 'Manage assessments and scores.',
                     ),
                     const SizedBox(height: 12),
                     if (term != null)
@@ -145,13 +132,15 @@ class _GradebookDashboardState extends ConsumerState<GradebookDashboardPage> {
                         spacing: 6,
                         runSpacing: 6,
                         children: [
-                          ZStatusPill(
+                          ZScopePill(
                             text: term.schoolYearName,
-                            tone: StatusTone.blue,
+                            kind: ScopePillKind.schoolYear,
+                            compact: true,
                           ),
-                          ZStatusPill(
+                          ZScopePill(
                             text: 'Term ${term.termNumber}',
-                            tone: StatusTone.amber,
+                            kind: ScopePillKind.term,
+                            compact: true,
                           ),
                         ],
                       ),

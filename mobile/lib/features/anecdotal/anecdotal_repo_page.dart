@@ -100,67 +100,76 @@ class _State extends ConsumerState<AnecdotalRepoPage> {
     final navigationClearance = ref.watch(authProvider).role == 'adviser'
         ? 112.0 + MediaQuery.paddingOf(context).bottom
         : 8.0;
-    return Column(
-      children: [
-        _header(context, repo.asData?.value),
-        _toolbar(context),
-        Padding(
-          padding: const EdgeInsets.fromLTRB(16, 0, 16, 12),
-          child: Row(
-            children: [
-              Expanded(
-                child: Text(
-                  repo.asData == null
-                      ? 'Showing — records'
-                      : 'Showing ${_visible(repo.asData!.value).length} records',
-                  style: const TextStyle(
-                    fontSize: 12,
-                    color: Color(0xFF929FB5),
+    return RefreshIndicator(
+      onRefresh: () async {
+        await ref.refresh(anecdotalMineProvider.future).then<void>((_) {});
+      },
+      child: CustomScrollView(
+        physics: const AlwaysScrollableScrollPhysics(),
+        slivers: [
+          SliverToBoxAdapter(child: _header(context, repo.asData?.value)),
+          SliverToBoxAdapter(child: _toolbar(context)),
+          SliverToBoxAdapter(
+            child: Padding(
+              padding: const EdgeInsets.fromLTRB(16, 0, 16, 12),
+              child: Row(
+                children: [
+                  Expanded(
+                    child: Text(
+                      repo.asData == null
+                          ? 'Showing — records'
+                          : 'Showing ${_visible(repo.asData!.value).length} records',
+                      style: const TextStyle(
+                        fontSize: 12,
+                        color: Color(0xFF929FB5),
+                      ),
+                    ),
                   ),
-                ),
-              ),
-              TextButton.icon(
-                onPressed: () => setState(() {
-                  _nameDescending = !_nameDescending;
-                }),
-                icon: const Icon(LucideIcons.listFilter, size: 14),
-                label: Text(
-                  _nameDescending ? 'Name (Z-A)' : 'Name (A-Z)',
-                  style: const TextStyle(fontSize: 12),
-                ),
-                style: TextButton.styleFrom(
-                  foregroundColor: const Color(0xFF334155),
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: 8,
-                    vertical: 0,
+                  TextButton.icon(
+                    onPressed: () => setState(() {
+                      _nameDescending = !_nameDescending;
+                    }),
+                    icon: const Icon(LucideIcons.listFilter, size: 14),
+                    label: Text(
+                      _nameDescending ? 'Name (Z-A)' : 'Name (A-Z)',
+                      style: const TextStyle(fontSize: 12),
+                    ),
+                    style: TextButton.styleFrom(
+                      foregroundColor: const Color(0xFF334155),
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 8,
+                        vertical: 0,
+                      ),
+                      minimumSize: Size.zero,
+                      tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                      visualDensity: VisualDensity.compact,
+                    ),
                   ),
-                  minimumSize: Size.zero,
-                  tapTargetSize: MaterialTapTargetSize.shrinkWrap,
-                  visualDensity: VisualDensity.compact,
-                ),
+                ],
               ),
-            ],
-          ),
-        ),
-        Expanded(
-          child: repo.when(
-            loading: () => const Padding(
-              padding: EdgeInsets.all(16),
-              child: ZSkeletonList(),
             ),
-            error: (e, _) => ErrorView(
-              message: e,
-              onRetry: () => ref.invalidate(anecdotalMineProvider),
+          ),
+          repo.when(
+            loading: () => const SliverToBoxAdapter(
+              child: Padding(
+                padding: EdgeInsets.all(16),
+                child: ZSkeletonList(),
+              ),
+            ),
+            error: (e, _) => SliverFillRemaining(
+              hasScrollBody: false,
+              child: ErrorView(
+                message: e,
+                onRetry: () => ref.invalidate(anecdotalMineProvider),
+              ),
             ),
             data: (records) {
               final shown = _visible(records);
               if (shown.isEmpty) return _empty(records);
               if (_view == 'students') return _studentHubs(shown);
-              return RefreshIndicator(
-                onRefresh: () async => ref.invalidate(anecdotalMineProvider),
-                child: ListView.separated(
-                  physics: const AlwaysScrollableScrollPhysics(),
-                  padding: EdgeInsets.fromLTRB(16, 0, 16, navigationClearance),
+              return SliverPadding(
+                padding: const EdgeInsets.symmetric(horizontal: 16),
+                sliver: SliverList.separated(
                   itemCount: shown.length,
                   separatorBuilder: (context, _) => const SizedBox(height: 12),
                   itemBuilder: (context, i) => _RecordRow(
@@ -171,8 +180,9 @@ class _State extends ConsumerState<AnecdotalRepoPage> {
               );
             },
           ),
-        ),
-      ],
+          SliverToBoxAdapter(child: SizedBox(height: navigationClearance)),
+        ],
+      ),
     );
   }
 
@@ -207,23 +217,10 @@ class _State extends ConsumerState<AnecdotalRepoPage> {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            const Text(
-              'Anecdotal records',
-              style: TextStyle(
-                fontSize: 22,
-                fontWeight: FontWeight.w700,
-                letterSpacing: -0.5,
-                color: Color(0xFF0F172A),
-              ),
-            ),
-            const SizedBox(height: 8),
-            const Text(
-              'Your learner observations and anecdotal records for this school year.',
-              style: TextStyle(
-                fontSize: 12,
-                height: 1.5,
-                color: Color(0xFF81818F),
-              ),
+            const ZContentHeader(
+              title: 'Anecdotal records',
+              icon: Icons.note_alt_outlined,
+              description: 'Your learner observations and anecdotal records for this school year.',
             ),
             const SizedBox(height: 12),
             Wrap(
@@ -231,8 +228,16 @@ class _State extends ConsumerState<AnecdotalRepoPage> {
               runSpacing: 6,
               children: [
                 if (term != null)
-                  ZStatusPill(text: term.schoolYearName, tone: StatusTone.blue),
-                const ZStatusPill(text: 'All terms', tone: StatusTone.amber),
+                  ZScopePill(
+                    text: term.schoolYearName,
+                    kind: ScopePillKind.schoolYear,
+                    compact: true,
+                  ),
+                const ZScopePill(
+                  text: 'All terms',
+                  kind: ScopePillKind.term,
+                  compact: true,
+                ),
                 for (final section in sections ?? <String>[])
                   ZStatusPill(text: section, tone: StatusTone.violet),
               ],
@@ -391,29 +396,38 @@ class _State extends ConsumerState<AnecdotalRepoPage> {
 
   Widget _empty(List<MyAnecdotalRecord> records) {
     if (records.isEmpty) {
-      return ZEmptyPage(
-        icon: Icons.folder_outlined,
-        title: 'No files stored yet',
-        subtitle: 'File your first record with Bama.',
-        actionLabel: 'Chat with Bama',
-        onAction: () => context.go('/adviser/bama?new=1'),
-        onRefresh: () async => ref.invalidate(anecdotalMineProvider),
+      return SliverFillRemaining(
+        hasScrollBody: false,
+        child: Center(
+          child: ZEmpty(
+            icon: Icons.folder_outlined,
+            title: 'No files stored yet',
+            subtitle: 'File your first record with Bama.',
+            actionLabel: 'Chat with Bama',
+            onAction: () => context.go('/adviser/bama?new=1'),
+          ),
+        ),
       );
     }
     final category = _category == null
         ? null
         : anecdotalCategoryLabels[_category];
-    return ZEmptyPage(
-      icon: Icons.filter_alt_off_outlined,
-      title: 'No records match',
-      subtitle: category == null
-          ? 'Try a different search.'
-          : _q.isEmpty
-          ? 'Nothing filed under $category yet.'
-          : 'Nothing under $category matches this search.',
-      actionLabel: 'Clear filters',
-      onAction: _clearFilters,
-      onRefresh: () async => ref.invalidate(anecdotalMineProvider),
+    final subtitle = category == null
+        ? 'Try a different search.'
+        : _q.isEmpty
+        ? 'Nothing filed under $category yet.'
+        : 'Nothing under $category matches this search.';
+    return SliverToBoxAdapter(
+      child: Padding(
+        padding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
+        child: ZEmpty(
+          icon: Icons.search_off_outlined,
+          title: 'No records match',
+          subtitle: subtitle,
+          actionLabel: 'Clear filters',
+          onAction: _clearFilters,
+        ),
+      ),
     );
   }
 
@@ -436,10 +450,9 @@ class _State extends ConsumerState<AnecdotalRepoPage> {
                   .fold('', (p, e) => e.compareTo(p) > 0 ? e : p),
             ),
       );
-    return RefreshIndicator(
-      onRefresh: () async => ref.invalidate(anecdotalMineProvider),
-      child: ListView.separated(
-        padding: const EdgeInsets.fromLTRB(16, 0, 16, 80),
+    return SliverPadding(
+      padding: const EdgeInsets.symmetric(horizontal: 16),
+      sliver: SliverList.separated(
         itemCount: entries.length,
         separatorBuilder: (context, _) => const SizedBox(height: 8),
         itemBuilder: (context, i) {

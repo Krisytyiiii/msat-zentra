@@ -5,6 +5,8 @@ import 'package:intl/intl.dart';
 import '../../core/session.dart';
 import '../../shared/user_messages.dart';
 import '../../shared/models.dart';
+import '../../shared/skeletons.dart';
+import '../../shared/widgets.dart' show ZEmpty, ZBackButton;
 import 'coordinator_data.dart';
 import 'coordinator_forms.dart';
 import 'coordinator_models.dart';
@@ -203,7 +205,7 @@ class _MeetingFormState extends ConsumerState<CoordinatorMeetingForm> {
                 ? 'Book parent meeting'
                 : 'Reschedule meeting',
           ),
-          leading: IconButton(
+          leading: ZBackButton(
             tooltip: 'Back',
             onPressed: _busy ? null : _close,
             icon: const Icon(Icons.arrow_back),
@@ -260,14 +262,20 @@ class _MeetingFormState extends ConsumerState<CoordinatorMeetingForm> {
                           );
                         }
                         if (!snapshot.hasData) {
-                          return const LinearProgressIndicator();
+                          return const ScreenSkeleton(
+                            layout: SkeletonLayout.notifications,
+                            label: 'Loading staff',
+                            section: true,
+                            count: 2,
+                          );
                         }
                         return Column(
                           crossAxisAlignment: CrossAxisAlignment.stretch,
                           children: [
                             const Text('Invite staff (up to 10)'),
                             if (snapshot.data!.isEmpty)
-                              const Text('No available staff.'),
+                              const ZEmpty(compact: true, icon: Icons.people_outline,
+                                title: 'No available staff.'),
                             for (final person in snapshot.data!)
                               CheckboxListTile(
                                 title: Text(admText(person['fullName'])),

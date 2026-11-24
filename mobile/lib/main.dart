@@ -22,6 +22,7 @@ Future<void> main() async {
   await Hive.openBox(AppConfig.outboxBox);
   await Hive.openBox(AppConfig.cacheBox);
   await Hive.openBox(AppConfig.bamaBox);
+  await Hive.openBox(AppConfig.saveHistoryBox);
   await openThemeSettingsBox();
   runApp(const ProviderScope(child: ZentraApp()));
 }
@@ -45,9 +46,17 @@ class ZentraApp extends ConsumerWidget {
         darkTheme: zDarkTheme(deskCanvas: true),
         themeMode: mode,
         routerConfig: router,
-        builder: (context, child) => devicePreviewEnabled
-            ? DevicePreviewHost(child: child ?? const SizedBox.shrink())
-            : child ?? const SizedBox.shrink(),
+        builder: (context, child) {
+          // The notice must live inside the app frame (and inside device
+          // preview), otherwise it is positioned against the window and
+          // spills past the screen edges, over the bottom navigation.
+          final app = child ?? const SizedBox.shrink();
+          // App-wide save queue: writes keep running while the user moves on,
+          // and the Drive-style notice survives every screen change.
+          return devicePreviewEnabled
+              ? DevicePreviewHost(child: app)
+              : app;
+        },
       ),
     );
   }

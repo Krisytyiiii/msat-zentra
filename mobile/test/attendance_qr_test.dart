@@ -129,6 +129,30 @@ void main() {
       'present',
     );
   });
+  test('teacher-selected threshold applies at the exact minute', () {
+    for (final minutes in [10, 15, 20, 27]) {
+      expect(
+        qrAttendanceStatus(
+          start.add(Duration(minutes: minutes - 1, seconds: 59)),
+          start,
+          end,
+          automatic: true,
+          lateAfterMinutes: minutes,
+        ),
+        'present',
+      );
+      expect(
+        qrAttendanceStatus(
+          start.add(Duration(minutes: minutes)),
+          start,
+          end,
+          automatic: true,
+          lateAfterMinutes: minutes,
+        ),
+        'late',
+      );
+    }
+  });
   test('no scans before start or at/after end', () {
     expect(
       () => qrAttendanceStatus(
@@ -511,8 +535,10 @@ void main() {
         'two': 'late',
         'unmarked': 'absent',
       });
-      await tester.ensureVisible(find.text('Done · review attendance'));
-      await tester.tap(find.text('Done · review attendance'));
+      await tester.ensureVisible(find.text('Done · Review Attendance'));
+      await tester.tap(find.text('Done · Review Attendance'));
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('Save attendance'));
       await tester.pumpAndSettle();
       await tester.tap(find.text('Save'));
       await tester.pumpAndSettle();

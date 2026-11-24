@@ -171,7 +171,11 @@ class _TermSelectPageState extends ConsumerState<TermSelectPage>
                 const SizedBox(height: 28),
                 years.when(
                   loading: () =>
-                      const AuthLoading(label: 'Loading school years…'),
+                      const ScreenSkeleton(
+                        layout: SkeletonLayout.form,
+                        label: 'Loading school years',
+                        section: true,
+                      ),
                   error: (error, _) => ErrorView(
                     message: error,
                     onRetry: () => ref.invalidate(schoolYearsProvider),

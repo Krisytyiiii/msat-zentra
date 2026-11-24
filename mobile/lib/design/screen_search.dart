@@ -73,7 +73,7 @@ ScreenSearchSpec screenSearchSpecFor(String location, [Uri? uri]) {
     case '/adviser/academic':
       return const ScreenSearchSpec.filter('Academic', 'Search name or LRN');
     case '/adviser/adm-cases':
-      return const ScreenSearchSpec.pages('ADM cases');
+      return const ScreenSearchSpec.filter('ADM cases', 'Filter by name or LRN');
     case '/adviser/anecdotal':
       return const ScreenSearchSpec.filter(
         'Anecdotal',

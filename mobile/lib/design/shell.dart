@@ -21,6 +21,7 @@ import '../features/home/role_home.dart' show AdviserRoute, WorkspaceRoute;
 import '../features/settings/settings_data.dart' show teacherProfileProvider;
 import '../shared/models.dart' show Term;
 import '../shared/widgets.dart';
+import '../shared/save_task_panel.dart';
 import '../shared/user_messages.dart';
 import 'brand.dart';
 import 'adviser_navigation.dart';
@@ -29,6 +30,8 @@ import 'screen_search.dart';
 import 'settings_theme.dart';
 import 'theme_mode.dart' show themeSettingsProvider;
 import 'theme_picker.dart';
+
+final staffNavigationHiddenProvider = StateProvider<bool>((ref) => false);
 
 class ZentraShell extends ConsumerStatefulWidget {
   final Widget child;
@@ -104,19 +107,32 @@ class _ZentraShellState extends ConsumerState<ZentraShell> {
 
   @override
   Widget build(BuildContext context) {
-    final headerTheme = widget.selectedPath == '/teacher/more'
-        ? settingsScreenTheme(Theme.of(context))
-        : widget.selectedPath == '/adviser/advisory/attendance'
-        ? overviewScreenTheme(Theme.of(context))
-        : Theme.of(context);
-    final theme = widget.selectedPath == '/workspace/overview'
+    final base = Theme.of(context);
+    // Every staff shell destination shares the main desks' header. Keep its
+    // palette scoped here so secondary bodies/navigation retain their themes.
+    final headerTheme = overviewScreenTheme(base).copyWith(
+      appBarTheme: const AppBarTheme(
+        backgroundColor: Colors.white,
+        foregroundColor: Color(0xFF242B42),
+        surfaceTintColor: Colors.transparent,
+        elevation: 0,
+        scrolledUnderElevation: 0,
+        toolbarHeight: 72,
+      ),
+    );
+    final theme =
+        widget.selectedPath == '/workspace/overview' ||
+            staffRecordDestination(widget.selectedPath) != null
         ? overviewScreenTheme(Theme.of(context))
         : widget.selectedPath == '/teacher/more'
         ? settingsScreenTheme(Theme.of(context))
         : Theme.of(context);
     final router = GoRouter.maybeOf(context);
     final routeState = router == null ? null : GoRouterState.of(context);
-    final location = routeState?.matchedLocation ?? widget.selectedPath;
+    // The shell builder supplies the active leaf, including pushes within its
+    // nested navigator. GoRouterState.of here can describe the page beneath it.
+    final location = widget.selectedPath;
+    final recordDestination = staffRecordDestination(location);
     _syncLocation(location);
     final spec = widget.spec ?? screenSearchSpecFor(location, routeState?.uri);
     final isAdviser = ref
@@ -137,70 +153,98 @@ class _ZentraShellState extends ConsumerState<ZentraShell> {
           ]
         : const <ScreenSearchDestination>[];
 
-    final showBottomNavigation = isAdviser && location != '/teacher/more';
+    final showBottomNavigation =
+        isAdviser &&
+        location != '/teacher/more' &&
+        !ref.watch(staffNavigationHiddenProvider);
     return Theme(
       data: theme,
       child: ScreenSearchScope(
         controller: _search,
         child: Scaffold(
           extendBody: showBottomNavigation,
-          appBar: PreferredSize(
-            preferredSize: Size.fromHeight(
-              (headerTheme.appBarTheme.toolbarHeight ?? kToolbarHeight) + 1,
-            ),
-            child: Theme(
-              data: headerTheme,
-              child: AppBar(
-                titleSpacing: 0,
-                leading:
-                    location == '/adviser/bama' && (router?.canPop() ?? false)
-                    ? IconButton(
-                        tooltip: 'Back',
-                        icon: const Icon(Icons.arrow_back),
-                        onPressed: () => router!.pop(),
-                      )
-                    : Builder(
-                        builder: (ctx) => IconButton(
-                          icon: const Icon(Icons.menu),
-                          tooltip: 'Menu',
-                          onPressed: () => Scaffold.of(ctx).openDrawer(),
+          // Record pages retain their own title/Back header. Only their body
+          // changes inside this shell; the bottom navigation stays mounted.
+          appBar: recordDestination != null
+              ? null
+              : PreferredSize(
+                  preferredSize: Size.fromHeight(
+                    (headerTheme.appBarTheme.toolbarHeight ?? kToolbarHeight) +
+                        1,
+                  ),
+                  child: Theme(
+                    data: headerTheme,
+                    child: AppBar(
+                      titleSpacing: 0,
+                      leadingWidth: 64,
+                      leading:
+                          location == '/adviser/bama' &&
+                              (router?.canPop() ?? false)
+                          ? ZBackButton(
+                              tooltip: 'Back',
+                              icon: const Icon(Icons.arrow_back),
+                              onPressed: () => router!.pop(),
+                            )
+                          : Builder(
+                              builder: (ctx) => Center(
+                                child: IconButton(
+                                  style: IconButton.styleFrom(
+                                    side: const BorderSide(
+                                      color: Color(0xFFE5E8F0),
+                                    ),
+                                    minimumSize: const Size(42, 42),
+                                    shape: const CircleBorder(),
+                                  ),
+                                  icon: const Icon(Icons.menu, size: 20),
+                                  tooltip: 'Menu',
+                                  onPressed: () =>
+                                      Scaffold.of(ctx).openDrawer(),
+                                ),
+                              ),
+                            ),
+                      // Drive-style header: the search field owns the middle lane.
+                      title: _searchField(context, spec, referenceHeader: true),
+                      actions: [const _ProfileButton(referenceHeader: true)],
+                      bottom: PreferredSize(
+                        preferredSize: const Size.fromHeight(1),
+                        child: Divider(
+                          height: 1,
+                          color: const Color(0xFFEDF0F6),
                         ),
                       ),
-                // Drive-style header: the search field owns the middle lane.
-                title: _searchField(context, spec),
-                actions: const [_ProfileButton()],
-                bottom: PreferredSize(
-                  preferredSize: const Size.fromHeight(1),
-                  child: Divider(
-                    height: 1,
-                    color: headerTheme.colorScheme.outline,
-                  ),
-                ),
-              ),
-            ),
-          ),
-          drawer: ZentraDrawer(selectedPath: widget.selectedPath),
-          bottomNavigationBar: showBottomNavigation
-              ? AdviserBottomNavigation(selectedPath: location)
-              : null,
-          body: AdviserBamaAccess(
-            enabled: isAdviser && !location.startsWith('/adviser/bama'),
-            child: Stack(
-              children: [
-                Positioned.fill(
-                  child: ExcludeFocus(
-                    excluding: showingPages,
-                    child: widget.child,
-                  ),
-                ),
-                if (showingPages)
-                  Positioned.fill(
-                    child: _PageSearchResults(
-                      destinations: destinations,
-                      onOpen: _openDestination,
                     ),
                   ),
-              ],
+                ),
+          drawer: recordDestination != null
+              ? null
+              : ZentraDrawer(selectedPath: widget.selectedPath),
+          bottomNavigationBar: showBottomNavigation
+              ? AdviserBottomNavigation(
+                  selectedPath: recordDestination ?? location,
+                  rerouteOnSelect: recordDestination != null,
+                )
+              : null,
+          body: SaveTaskHost(
+            enabled: showBottomNavigation,
+            child: AdviserBamaAccess(
+              enabled: isAdviser && !location.startsWith('/adviser/bama'),
+              child: Stack(
+                children: [
+                  Positioned.fill(
+                    child: ExcludeFocus(
+                      excluding: showingPages,
+                      child: widget.child,
+                    ),
+                  ),
+                  if (showingPages)
+                    Positioned.fill(
+                      child: _PageSearchResults(
+                        destinations: destinations,
+                        onOpen: _openDestination,
+                      ),
+                    ),
+                ],
+              ),
             ),
           ),
         ),
@@ -208,18 +252,28 @@ class _ZentraShellState extends ConsumerState<ZentraShell> {
     );
   }
 
-  Widget _searchField(BuildContext context, ScreenSearchSpec spec) {
-    final theme = widget.selectedPath == '/teacher/more'
+  Widget _searchField(
+    BuildContext context,
+    ScreenSearchSpec spec, {
+    bool referenceHeader = false,
+  }) {
+    final theme = referenceHeader
+        ? overviewScreenTheme(Theme.of(context))
+        : widget.selectedPath == '/teacher/more'
         ? settingsScreenTheme(Theme.of(context))
         : Theme.of(context);
     final border = OutlineInputBorder(
       borderRadius: BorderRadius.circular(999),
-      borderSide: BorderSide(color: theme.colorScheme.outlineVariant),
+      borderSide: BorderSide(
+        color: referenceHeader
+            ? const Color(0xFFDDE2EE)
+            : theme.colorScheme.outlineVariant,
+      ),
     );
     return Padding(
       padding: const EdgeInsets.only(right: 12),
       child: SizedBox(
-        height: 40,
+        height: referenceHeader ? 44 : 40,
         child: TextField(
           key: const ValueKey('screen-search-field'),
           textAlign: TextAlign.start,
@@ -232,9 +286,15 @@ class _ZentraShellState extends ConsumerState<ZentraShell> {
           decoration: InputDecoration(
             prefixIcon: const Icon(Icons.search, size: 20),
             hintText: spec.hint,
+            hintStyle: referenceHeader
+                ? const TextStyle(color: Color(0xFF626B82), fontSize: 14)
+                : null,
+            prefixIconColor: referenceHeader ? const Color(0xFF242B42) : null,
             isDense: true,
             filled: true,
-            fillColor: theme.colorScheme.surfaceContainerLow,
+            fillColor: referenceHeader
+                ? const Color(0xFFF3F5FA)
+                : theme.colorScheme.surfaceContainerLow,
             constraints: const BoxConstraints(minHeight: 40),
             contentPadding: const EdgeInsets.symmetric(
               vertical: 8,
@@ -279,27 +339,10 @@ class _PageSearchResults extends StatelessWidget {
           ? Center(
               child: Padding(
                 padding: const EdgeInsets.all(24),
-                child: Column(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    Icon(
-                      Icons.search_off,
-                      size: 32,
-                      color: theme.colorScheme.onSurfaceVariant,
-                    ),
-                    const SizedBox(height: 12),
-                    Text(
-                      'No pages match',
-                      style: theme.textTheme.titleSmall,
-                      textAlign: TextAlign.center,
-                    ),
-                    const SizedBox(height: 4),
-                    Text(
-                      'Try a menu name such as Academic, Attendance, or Referrals.',
-                      style: theme.textTheme.bodySmall,
-                      textAlign: TextAlign.center,
-                    ),
-                  ],
+                child: const ZEmpty(
+                  icon: Icons.search_off,
+                  title: 'No pages match',
+                  subtitle: 'Try a menu name such as Academic, Attendance, or Referrals.',
                 ),
               ),
             )
@@ -688,13 +731,18 @@ void showZTermPicker(BuildContext context, WidgetRef ref) {
               const SizedBox(height: 12),
               Expanded(
                 child: years.when(
-                  loading: () => const Center(child: Text('Loading…')),
+                  loading: () => const ScreenSkeleton(
+                    layout: SkeletonLayout.form,
+                    label: 'Loading terms',
+                  ),
                   error: (e, _) => Center(child: Text(userMessage(e))),
                   data: (list) {
                     if (list.isEmpty) {
                       return const Center(
-                        child: Text(
-                          'No school years found. Ask the Principal to create one.',
+                        child: ZEmpty(
+                          icon: Icons.calendar_month_outlined,
+                          title: 'No school years found.',
+                          subtitle: 'Ask the Principal to create one.',
                         ),
                       );
                     }
@@ -816,177 +864,206 @@ class _DrawerHeader extends StatelessWidget {
   );
 }
 
-void showZNotifications(BuildContext context, WidgetRef ref) {
-  showModalBottomSheet(
-    context: context,
-    isScrollControlled: true,
-    showDragHandle: true,
-    shape: const RoundedRectangleBorder(
-      borderRadius: BorderRadius.vertical(top: Radius.circular(6)),
-    ),
-    builder: (ctx) => DraggableScrollableSheet(
-      expand: false,
-      initialChildSize: 0.7,
-      builder: (_, scroll) {
-        final inbox = ref.watch(notificationsProvider);
-        final overview = ref.watch(overviewProvider);
-        final isAdviser = overview.maybeWhen(
-          data: (d) => d['isAdviser'] == true,
-          orElse: () => ref.read(authProvider).role == 'adviser',
-        );
-        return Padding(
-          padding: const EdgeInsets.all(16),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Row(
-                children: [
-                  const Expanded(
-                    child: Text(
-                      'Notifications',
-                      style: TextStyle(
-                        fontSize: 15,
-                        fontWeight: FontWeight.w600,
-                      ),
-                    ),
+Future<void> showZNotifications(BuildContext context, WidgetRef ref) async {
+  final navigation = ref.read(staffNavigationHiddenProvider.notifier);
+  navigation.state = true;
+  try {
+    await Navigator.of(context, rootNavigator: true).push<void>(
+      MaterialPageRoute<void>(
+        settings: const RouteSettings(name: '/workspace/notifications'),
+        builder: (ctx) => Theme(
+          data: overviewScreenTheme(Theme.of(ctx))
+              .copyWith(scaffoldBackgroundColor: Colors.white),
+          child: Consumer(
+            builder: (sheetContext, ref, _) {
+              final inbox = ref.watch(notificationsProvider);
+              final overview = ref.watch(overviewProvider);
+              final isAdviser = overview.maybeWhen(
+                data: (d) => d['isAdviser'] == true,
+                orElse: () => ref.read(authProvider).role == 'adviser',
+              );
+              return Scaffold(
+                appBar: AppBar(
+                  backgroundColor: Colors.white,
+                  surfaceTintColor: Colors.transparent,
+                  scrolledUnderElevation: 0,
+                  shape: const Border(
+                    bottom: BorderSide(color: Color(0xFFEDF0F6)),
                   ),
-                  TextButton(
-                    onPressed: () async {
-                      try {
-                        await markAllNotificationsRead(ref);
-                      } catch (e) {
-                        if (ctx.mounted) {
-                          ScaffoldMessenger.of(ctx).showSnackBar(
-                            SnackBar(content: Text(userMessage(e))),
-                          );
-                        }
-                      }
-                    },
-                    child: const Text(
-                      'Mark all read',
-                      style: TextStyle(fontSize: 13),
-                    ),
-                  ),
-                ],
-              ),
-              const SizedBox(height: 8),
-              Expanded(
-                child: inbox.when(
-                  loading: () => const ZSkeletonList(),
-                  error: (e, _) => Center(
-                    child: Text(
-                      userMessage(e),
-                      style: Theme.of(ctx).textTheme.bodySmall,
-                    ),
-                  ),
-                  data: (items) {
-                    if (items.isEmpty) {
-                      return const ZEmpty(
-                        icon: Icons.notifications_outlined,
-                        title: 'No notifications yet',
-                        subtitle: 'Referral updates, absent alerts, and meeting reminders appear here.',
-                      );
-                    }
-                    return ListView.separated(
-                      controller: scroll,
-                      itemCount: items.length,
-                      separatorBuilder: (context, _) =>
-                          const SizedBox(height: 8),
-                      itemBuilder: (context, i) {
-                        final n = items[i];
-                        return ZCard(
-                          padding: const EdgeInsets.symmetric(
-                            horizontal: 12,
-                            vertical: 10,
-                          ),
-                          onTap: () async {
-                            if (!n.isRead) {
-                              try {
-                                await markNotificationRead(ref, n.id);
-                              } catch (_) {}
-                            }
-                            final target = teacherNotificationTarget(
-                              n,
-                              isAdviser: isAdviser,
+                  leadingWidth: 64,
+                  leading: ZBackButton(onPressed: () => Navigator.pop(ctx)),
+                  title: const Text('Notifications'),
+                  centerTitle: true,
+                  actionsPadding: const EdgeInsets.only(right: 12),
+                  actions: [
+                    IconButton(
+                      tooltip: 'Mark all read',
+                      onPressed: () async {
+                        try {
+                          await markAllNotificationsRead(ref);
+                        } catch (e) {
+                          if (ctx.mounted) {
+                            ScaffoldMessenger.of(ctx).showSnackBar(
+                              SnackBar(content: Text(userMessage(e))),
                             );
-                            if (ctx.mounted) Navigator.pop(ctx);
-                            if (target != null) {
-                              if (context.mounted) context.go(target);
-                            } else if (context.mounted) {
-                              ScaffoldMessenger.of(context).showSnackBar(
-                                const SnackBar(
-                                  content: Text(
-                                    'This update is available on the Zentra website. Open Zentra in your browser to view it.',
-                                  ),
-                                ),
-                              );
-                            }
+                          }
+                        }
+                      },
+                      icon: const Icon(Icons.done_all, size: 22),
+                    ),
+                  ],
+                ),
+                body: Padding(
+                  padding: const EdgeInsets.fromLTRB(12, 16, 12, 24),
+                  child: inbox.when(
+                    loading: () => const ZSkeletonList(),
+                    error: (e, _) => ErrorView(
+                      message: e,
+                      onRetry: () => ref.invalidate(notificationsProvider),
+                    ),
+                    data: (items) {
+                      if (items.isEmpty) {
+                        return ZEmptyPage(
+                          icon: Icons.notifications_outlined,
+                          title: 'No notifications yet',
+                          subtitle: 'Referral updates, absent alerts, and meeting reminders appear here.',
+                          onRefresh: () async {
+                            await ref
+                                .refresh(notificationsProvider.future)
+                                .then<void>((_) {});
                           },
-                          child: Row(
-                            children: [
-                              if (!n.isRead)
-                                Container(
-                                  width: 8,
-                                  height: 8,
-                                  margin: const EdgeInsets.only(right: 8),
-                                  decoration: BoxDecoration(
-                                    shape: BoxShape.circle,
-                                    color: Theme.of(context)
-                                        .colorScheme
-                                        .onSurface,
-                                  ),
-                                ),
-                              Expanded(
-                                child: Column(
-                                  crossAxisAlignment: CrossAxisAlignment.start,
-                                  children: [
-                                    Text(
-                                      teacherNotificationTitle(n),
-                                      style: const TextStyle(
-                                        fontSize: 13,
-                                        fontWeight: FontWeight.w600,
-                                      ),
-                                    ),
-                                    const SizedBox(height: 2),
-                                    Text(
-                                      n.message,
-                                      maxLines: 2,
-                                      overflow: TextOverflow.ellipsis,
-                                      style: Theme.of(ctx).textTheme.bodySmall,
-                                    ),
-                                    const SizedBox(height: 2),
-                                    Text(
-                                      formatBellDate(n.createdAt),
-                                      style: Theme.of(ctx).textTheme.bodySmall
-                                          ?.copyWith(
-                                            fontFeatures: const [
-                                              FontFeature.tabularFigures(),
-                                            ],
-                                          ),
-                                    ),
-                                  ],
+                        );
+                      }
+                      return RefreshIndicator(
+                        onRefresh: () async {
+                          await ref
+                              .refresh(notificationsProvider.future)
+                              .then<void>((_) {});
+                        },
+                        child: ListView.separated(
+                          physics: const AlwaysScrollableScrollPhysics(),
+                          itemCount: items.length,
+                          separatorBuilder: (context, _) =>
+                              const SizedBox(height: 8),
+                          itemBuilder: (itemContext, i) {
+                            final n = items[i];
+                            return Material(
+                              color: n.isRead
+                                  ? Colors.white
+                                  : const Color(0xFFF3F9FF),
+                              shape: RoundedRectangleBorder(
+                                borderRadius: BorderRadius.circular(14),
+                                side: BorderSide(
+                                  color: n.isRead
+                                      ? const Color(0xFFE2E8F0)
+                                      : const Color(0xFFBFDBFE),
                                 ),
                               ),
-                            ],
-                          ),
-                        );
-                      },
-                    );
-                  },
+                              clipBehavior: Clip.antiAlias,
+                              child: InkWell(
+                                onTap: () async {
+                                  if (!n.isRead) {
+                                    try {
+                                      await markNotificationRead(ref, n.id);
+                                    } catch (_) {}
+                                  }
+                                  final target = teacherNotificationTarget(
+                                    n,
+                                    isAdviser: isAdviser,
+                                  );
+                                  if (ctx.mounted) Navigator.pop(ctx);
+                                  if (target != null) {
+                                    if (context.mounted) context.go(target);
+                                  } else if (context.mounted) {
+                                    ScaffoldMessenger.of(context).showSnackBar(
+                                      const SnackBar(
+                                        content: Text(
+                                          'This update is available on the Zentra website. Open Zentra in your browser to view it.',
+                                        ),
+                                      ),
+                                    );
+                                  }
+                                },
+                                child: Padding(
+                                  padding: const EdgeInsets.all(12),
+                                  child: Row(
+                                    children: [
+                                      if (!n.isRead)
+                                        Container(
+                                          width: 8,
+                                          height: 8,
+                                          margin: const EdgeInsets.only(
+                                            right: 8,
+                                          ),
+                                          decoration: BoxDecoration(
+                                            shape: BoxShape.circle,
+                                            color: const Color(0xFF2563EB),
+                                          ),
+                                        ),
+                                      Expanded(
+                                        child: Column(
+                                          crossAxisAlignment:
+                                              CrossAxisAlignment.start,
+                                          children: [
+                                            Text(
+                                              teacherNotificationTitle(n),
+                                              style: const TextStyle(
+                                                fontSize: 13,
+                                                fontWeight: FontWeight.w600,
+                                                color: Color(0xFF0F172A),
+                                              ),
+                                            ),
+                                            const SizedBox(height: 2),
+                                            Text(
+                                              n.message,
+                                              style: const TextStyle(
+                                                fontSize: 12,
+                                                height: 1.45,
+                                                color: Color(0xFF475569),
+                                              ),
+                                            ),
+                                            const SizedBox(height: 2),
+                                            Text(
+                                              formatBellDate(n.createdAt),
+                                              style: const TextStyle(
+                                                fontSize: 12,
+                                                color: Color(0xFF64748B),
+                                                fontFeatures: [
+                                                  FontFeature.tabularFigures(),
+                                                ],
+                                              ),
+                                            ),
+                                          ],
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                ),
+                              ),
+                            );
+                          },
+                        ),
+                      );
+                    },
+                  ),
                 ),
-              ),
-            ],
+              );
+            },
           ),
-        );
-      },
-    ),
-  );
+        ),
+      ),
+    );
+  } finally {
+    navigation.state = false;
+  }
 }
 
 /// Header avatar — opens the full-screen account panel. The unread badge
 /// keeps the inbox visible now that notifications live inside that panel.
 class _ProfileButton extends ConsumerWidget {
-  const _ProfileButton();
+  const _ProfileButton({this.referenceHeader = false});
+
+  final bool referenceHeader;
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -1005,13 +1082,26 @@ class _ProfileButton extends ConsumerWidget {
           borderRadius: BorderRadius.circular(999),
           onTap: () => showZProfile(context, ref),
           child: Badge(
+            backgroundColor: referenceHeader ? const Color(0xFF2442A8) : null,
+            textColor: referenceHeader ? Colors.white : null,
             isLabelVisible: unread > 0,
             label: Text(unread > 99 ? '99+' : '$unread'),
-            child: TeacherAvatar(
-              photoUrl: ref
-                  .watch(teacherProfileProvider)
-                  .maybeWhen(data: (p) => p.photoUrl, orElse: () => null),
-              radius: 16,
+            child: Container(
+              padding: referenceHeader
+                  ? const EdgeInsets.all(5)
+                  : EdgeInsets.zero,
+              decoration: referenceHeader
+                  ? BoxDecoration(
+                      shape: BoxShape.circle,
+                      border: Border.all(color: const Color(0xFFE5E8F0)),
+                    )
+                  : null,
+              child: TeacherAvatar(
+                photoUrl: ref
+                    .watch(teacherProfileProvider)
+                    .maybeWhen(data: (p) => p.photoUrl, orElse: () => null),
+                radius: 16,
+              ),
             ),
           ),
         ),
@@ -1141,39 +1231,39 @@ class _ProfileScreen extends ConsumerWidget {
 
     final lightTheme = theme.copyWith(
       brightness: Brightness.light,
-      scaffoldBackgroundColor: const Color(0xFFFCFAF5),
+      scaffoldBackgroundColor: const Color(0xFFFAFAF9),
       colorScheme: const ColorScheme.light(
-        primary: Color(0xFFB45309),
+        primary: Color(0xFF2563EB),
         surface: Colors.white,
-        onSurface: Color(0xFF292419),
-        onSurfaceVariant: Color(0xFF787164),
-        surfaceContainerLow: Color(0xFFFEF3C7),
-        outline: Color(0xFFEAE3D6),
-        outlineVariant: Color(0xFFEAE3D6),
+        onSurface: Color(0xFF181B19),
+        onSurfaceVariant: Color(0xFF707572),
+        surfaceContainerLow: Color(0xFFF0F1EF),
+        outline: Color(0xFFDDE0DD),
+        outlineVariant: Color(0xFFDDE0DD),
         error: Color(0xFFBE3545),
       ),
       textTheme: theme.textTheme.apply(
-        bodyColor: const Color(0xFF292419),
-        displayColor: const Color(0xFF292419),
+        bodyColor: const Color(0xFF181B19),
+        displayColor: const Color(0xFF181B19),
       ),
       appBarTheme: const AppBarTheme(
-        backgroundColor: Color(0xFFFCFAF5),
-        foregroundColor: Color(0xFF292419),
+        backgroundColor: Color(0xFFFAFAF9),
+        foregroundColor: Color(0xFF181B19),
         surfaceTintColor: Colors.transparent,
         elevation: 0,
+        scrolledUnderElevation: 0,
       ),
       cardTheme: CardThemeData(
         color: Colors.white,
         surfaceTintColor: Colors.transparent,
-        elevation: 3,
-        shadowColor: Colors.black26,
+        elevation: 0,
         shape: RoundedRectangleBorder(
           borderRadius: BorderRadius.circular(16),
-          side: const BorderSide(color: Color(0xFFEAE3D6)),
+          side: const BorderSide(color: Color(0xFFDDE0DD)),
         ),
       ),
       dividerTheme: const DividerThemeData(
-        color: Color(0xFFEAE3D6),
+        color: Color(0xFFDDE0DD),
         space: 1,
         thickness: 1,
       ),
@@ -1182,8 +1272,9 @@ class _ProfileScreen extends ConsumerWidget {
         contentPadding: EdgeInsets.symmetric(horizontal: 12),
         horizontalTitleGap: 12,
         minVerticalPadding: 8,
-        textColor: Color(0xFF292419),
-        iconColor: Color(0xFFB45309),
+        textColor: Color(0xFF181B19),
+        iconColor: Color(0xFF181B19),
+        shape: StadiumBorder(),
       ),
     );
     return Theme(
@@ -1193,65 +1284,203 @@ class _ProfileScreen extends ConsumerWidget {
           automaticallyImplyLeading: false,
           title: const Text(
             'Profile',
-            style: TextStyle(fontSize: 26, fontWeight: FontWeight.w700),
+            style: TextStyle(fontSize: 22, fontWeight: FontWeight.w700),
           ),
+          actionsPadding: const EdgeInsets.only(right: 12),
           actions: [
             IconButton(
               key: const ValueKey('profile-close'),
               tooltip: 'Close',
               style: IconButton.styleFrom(
-                backgroundColor: const Color(0xFFFEF3C7),
+                side: const BorderSide(color: Color(0xFFE5E8F0)),
+                minimumSize: const Size(42, 42),
+                shape: const CircleBorder(),
               ),
               icon: const Icon(LucideIcons.x, size: 20),
               onPressed: () => Navigator.of(context).pop(),
             ),
           ],
         ),
-        body: ListView(
-          padding: const EdgeInsets.fromLTRB(12, 12, 12, 24),
-          children: [
-            ZCard(
-              padding: const EdgeInsets.all(12),
-              child: Row(
+        body: LayoutBuilder(
+          builder: (context, constraints) => SingleChildScrollView(
+            padding: const EdgeInsets.fromLTRB(12, 12, 12, 12),
+            child: ConstrainedBox(
+              constraints: BoxConstraints(
+                minHeight: (constraints.maxHeight - 24).clamp(
+                  0,
+                  double.infinity,
+                ),
+              ),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
                 children: [
-                  TeacherAvatar(
-                    photoUrl: profile.maybeWhen(
-                      data: (p) => p.photoUrl,
-                      orElse: () => null,
-                    ),
-                    radius: 28,
-                  ),
-                  const SizedBox(width: 12),
-                  Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
+                  ZCard(
+                    key: const ValueKey('profile-identity'),
+                    padding: const EdgeInsets.all(12),
+                    child: Row(
                       children: [
-                        Text(
-                          profile.maybeWhen(
-                            data: (p) => p.fullName,
-                            orElse: () => 'Account',
+                        TeacherAvatar(
+                          photoUrl: profile.maybeWhen(
+                            data: (p) => p.photoUrl,
+                            orElse: () => null,
                           ),
-                          style: const TextStyle(
-                            fontSize: 19,
-                            fontWeight: FontWeight.w700,
+                          radius: 28,
+                        ),
+                        const SizedBox(width: 12),
+                        Expanded(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text(
+                                profile.maybeWhen(
+                                  data: (p) => p.fullName,
+                                  orElse: () => 'Account',
+                                ),
+                                style: const TextStyle(
+                                  fontSize: 19,
+                                  fontWeight: FontWeight.w700,
+                                ),
+                              ),
+                              Container(
+                                margin: const EdgeInsets.only(top: 4),
+                                padding: const EdgeInsets.symmetric(
+                                  horizontal: 7,
+                                  vertical: 2,
+                                ),
+                                decoration: BoxDecoration(
+                                  color: const Color(0xFFDBEAFE),
+                                  borderRadius: BorderRadius.circular(8),
+                                ),
+                                child: Text(
+                                  _roleLabel(role ?? ''),
+                                  style: const TextStyle(
+                                    fontSize: 12,
+                                    color: Color(0xFF2563EB),
+                                  ),
+                                ),
+                              ),
+                            ],
                           ),
                         ),
-                        Container(
-                          margin: const EdgeInsets.only(top: 4),
-                          padding: const EdgeInsets.symmetric(
-                            horizontal: 7,
-                            vertical: 2,
+                      ],
+                    ),
+                  ),
+                  const SizedBox(height: 16),
+                  Row(
+                    children: [
+                      const Icon(LucideIcons.bell, size: 20),
+                      const SizedBox(width: 8),
+                      const Expanded(
+                        child: Text(
+                          'Notifications',
+                          style: TextStyle(
+                            fontSize: 19,
+                            fontWeight: FontWeight.w600,
                           ),
-                          decoration: BoxDecoration(
-                            color: const Color(0xFFFEF3C7),
-                            borderRadius: BorderRadius.circular(8),
-                          ),
-                          child: Text(
-                            _roleLabel(role ?? ''),
-                            style: const TextStyle(
-                              fontSize: 12,
-                              color: Color(0xFF92400E),
+                        ),
+                      ),
+                      TextButton(
+                        key: const ValueKey('profile-see-all'),
+                        onPressed: () => showZNotifications(context, ref),
+                        child: const Text(
+                          'See all',
+                          style: TextStyle(fontSize: 13),
+                        ),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 4),
+                  inbox.when(
+                    loading: () => const SizedBox(
+                      height: 160,
+                      child: ZSkeletonList(count: 2),
+                    ),
+                    error: (e, _) => Padding(
+                      padding: const EdgeInsets.symmetric(vertical: 12),
+                      child: Text(
+                        userMessage(e),
+                        style: lightTheme.textTheme.bodySmall,
+                      ),
+                    ),
+                    data: (items) {
+                      if (items.isEmpty) {
+                        return const ZEmpty(
+                          icon: LucideIcons.bell,
+                          title: 'No notifications yet',
+                          subtitle: 'Referral updates, absent alerts, and meeting reminders appear here.',
+                          compact: true,
+                        );
+                      }
+                      return Column(
+                        children: [
+                          for (final n in items.take(3))
+                            Padding(
+                              padding: const EdgeInsets.only(bottom: 8),
+                              child: _ProfileNotificationTile(
+                                notification: n,
+                                isAdviser: isAdviser,
+                              ),
                             ),
+                        ],
+                      );
+                    },
+                  ),
+                  const SizedBox(height: 12),
+                  const Padding(
+                    padding: EdgeInsets.only(bottom: 12),
+                    child: Row(
+                      children: [
+                        Icon(LucideIcons.slidersHorizontal, size: 20),
+                        SizedBox(width: 8),
+                        Expanded(
+                          child: Text(
+                            'Preferences',
+                            style: TextStyle(
+                              fontSize: 19,
+                              fontWeight: FontWeight.w600,
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                  ZCard(
+                    padding: EdgeInsets.zero,
+                    child: Column(
+                      children: [
+                        ListTile(
+                          onTap: () => _openAppearance(context),
+                          leading: const Icon(LucideIcons.sun, size: 20),
+                          title: const Text(
+                            'Appearance',
+                            style: TextStyle(fontSize: 14),
+                          ),
+                          trailing: Row(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              Text(
+                                _modeLabel(mode),
+                                style: const TextStyle(
+                                  fontSize: 12,
+                                  color: Color(0xFF707572),
+                                ),
+                              ),
+                              const SizedBox(width: 8),
+                              const Icon(LucideIcons.chevronRight, size: 18),
+                            ],
+                          ),
+                        ),
+                        const Divider(),
+                        ListTile(
+                          onTap: () => _openSettings(context),
+                          leading: const Icon(LucideIcons.settings, size: 20),
+                          title: const Text(
+                            'Settings',
+                            style: TextStyle(fontSize: 14),
+                          ),
+                          trailing: const Icon(
+                            LucideIcons.chevronRight,
+                            size: 18,
                           ),
                         ),
                       ],
@@ -1260,115 +1489,24 @@ class _ProfileScreen extends ConsumerWidget {
                 ],
               ),
             ),
-            const SizedBox(height: 16),
-            Row(
-              children: [
-                const Expanded(
-                  child: Text(
-                    'Notification',
-                    style: TextStyle(fontSize: 19, fontWeight: FontWeight.w600),
-                  ),
-                ),
-                TextButton(
-                  key: const ValueKey('profile-see-all'),
-                  onPressed: () => showZNotifications(context, ref),
-                  child: const Text('See all', style: TextStyle(fontSize: 13)),
-                ),
-              ],
-            ),
-            const SizedBox(height: 4),
-            inbox.when(
-              loading: () => const ZSkeletonList(count: 2),
-              error: (e, _) => Padding(
-                padding: const EdgeInsets.symmetric(vertical: 12),
-                child: Text(
-                  userMessage(e),
-                  style: lightTheme.textTheme.bodySmall,
-                ),
+          ),
+        ),
+        bottomNavigationBar: SafeArea(
+          top: false,
+          minimum: const EdgeInsets.fromLTRB(12, 0, 12, 12),
+          child: ZCard(
+            padding: EdgeInsets.zero,
+            child: ListTile(
+              key: const ValueKey('profile-logout'),
+              onTap: () => _logout(context, ref),
+              leading: const Icon(LucideIcons.logOut, size: 20),
+              title: const Text(
+                'Logout',
+                style: TextStyle(fontSize: 14),
               ),
-              data: (items) {
-                if (items.isEmpty) {
-                  return const ZEmpty(
-                    icon: LucideIcons.bell,
-                    title: 'No notifications yet',
-                    subtitle: 'Referral updates, absent alerts, and meeting reminders appear here.',
-                    compact: true,
-                  );
-                }
-                return Column(
-                  children: [
-                    for (final n in items.take(3))
-                      Padding(
-                        padding: const EdgeInsets.only(bottom: 8),
-                        child: _ProfileNotificationTile(
-                          notification: n,
-                          isAdviser: isAdviser,
-                        ),
-                      ),
-                  ],
-                );
-              },
+              trailing: const Icon(LucideIcons.chevronRight, size: 18),
             ),
-            const SizedBox(height: 12),
-            ZCard(
-              padding: EdgeInsets.zero,
-              child: Column(
-                children: [
-                  ListTile(
-                    onTap: () => _openAppearance(context),
-                    leading: const Icon(LucideIcons.sun),
-                    title: const Text(
-                      'Appearance',
-                      style: TextStyle(fontSize: 13),
-                    ),
-                    subtitle: Align(
-                      alignment: Alignment.centerLeft,
-                      child: Container(
-                        padding: const EdgeInsets.symmetric(
-                          horizontal: 6,
-                          vertical: 2,
-                        ),
-                        decoration: BoxDecoration(
-                          color: const Color(0xFFFEF3C7),
-                          borderRadius: BorderRadius.circular(8),
-                        ),
-                        child: Text(
-                          _modeLabel(mode),
-                          style: const TextStyle(fontSize: 12),
-                        ),
-                      ),
-                    ),
-                    trailing: const Icon(LucideIcons.chevronRight, size: 18),
-                  ),
-                  const Divider(),
-                  ListTile(
-                    onTap: () => _openSettings(context),
-                    leading: const Icon(LucideIcons.settings),
-                    title: const Text(
-                      'Settings',
-                      style: TextStyle(fontSize: 13),
-                    ),
-                    trailing: const Icon(LucideIcons.chevronRight, size: 18),
-                  ),
-                  const Divider(),
-                  ListTile(
-                    onTap: () => _logout(context, ref),
-                    leading: Icon(
-                      LucideIcons.logOut,
-                      color: lightTheme.colorScheme.error,
-                    ),
-                    title: Text(
-                      'Logout',
-                      style: TextStyle(
-                        fontSize: 13,
-                        color: lightTheme.colorScheme.error,
-                      ),
-                    ),
-                  ),
-                ],
-              ),
-            ),
-          ],
+          ),
         ),
       ),
     );
@@ -1392,7 +1530,7 @@ class _ProfileNotificationTile extends ConsumerWidget {
     return Theme(
       data: theme.copyWith(
         cardTheme: theme.cardTheme.copyWith(
-          color: const Color(0xFFFFF8E7),
+          color: const Color(0xFFF0F1EF),
           elevation: 0,
           shape: RoundedRectangleBorder(
             borderRadius: BorderRadius.circular(12),

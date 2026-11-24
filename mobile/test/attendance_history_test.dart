@@ -475,12 +475,12 @@ void main() {
         api.requests.where((request) => request.method == 'POST'),
         isEmpty,
       );
-      await tester.ensureVisible(find.text('Done · review attendance'));
-      await tester.tap(find.text('Done · review attendance'));
-      await tester.pumpAndSettle();
-      await tester.tap(find.text('Save'));
+      await tester.ensureVisible(find.text('Done · Review Attendance'));
+      await tester.tap(find.text('Done · Review Attendance'));
       await tester.pumpAndSettle();
       await tester.tap(find.text('Save attendance'));
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('Save'));
       await tester.pumpAndSettle();
       final body =
           api.requests

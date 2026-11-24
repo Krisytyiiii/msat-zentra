@@ -77,6 +77,73 @@ Future<void> mountShell(
 }
 
 void main() {
+  for (final path in [
+    '/adviser/advisory',
+    '/adviser/advisory/attendance',
+    '/adviser/academic',
+    '/adviser/interventions',
+    '/adviser/anecdotal',
+    '/adviser/referrals',
+    '/adviser/adm-cases',
+    '/adviser/schedule',
+    '/adviser/bama/history',
+    '/teacher/more',
+  ]) {
+    testWidgets('$path reuses the main desk header', (tester) async {
+      await mountShell(
+        tester,
+        child: const _Probe(),
+        selectedPath: '/workspace/classes',
+      );
+      final expectedSize = tester.getSize(find.byType(AppBar));
+      final expectedSearch = tester
+          .widget<TextField>(find.byKey(const ValueKey('screen-search-field')))
+          .decoration!;
+      await mountShell(tester, child: const _Probe(), selectedPath: path);
+      final appBar = tester.widget<AppBar>(find.byType(AppBar));
+      final theme = Theme.of(tester.element(find.byType(AppBar)));
+      final search = tester
+          .widget<TextField>(find.byKey(const ValueKey('screen-search-field')))
+          .decoration!;
+      expect(tester.getSize(find.byType(AppBar)), expectedSize);
+      expect(theme.appBarTheme.toolbarHeight, 72);
+      expect(theme.appBarTheme.backgroundColor, Colors.white);
+      expect(appBar.leadingWidth, 64);
+      expect(search.fillColor, expectedSearch.fillColor);
+      expect(search.enabledBorder, expectedSearch.enabledBorder);
+      expect(search.hintStyle, expectedSearch.hintStyle);
+      expect(find.byTooltip('Menu'), findsOneWidget);
+      expect(tester.takeException(), isNull);
+    });
+  }
+
+  testWidgets(
+    'shared menu header fits narrow large text without recoloring body',
+    (tester) async {
+      await mountShell(
+        tester,
+        child: const _Probe(),
+        selectedPath: '/adviser/referrals',
+        width: 320,
+        scale: 1.5,
+      );
+      expect(
+        Theme.of(tester.element(find.byType(AppBar))).brightness,
+        Brightness.light,
+      );
+      expect(
+        Theme.of(tester.element(find.text('probe:'))).brightness,
+        Brightness.dark,
+      );
+      await tester.enterText(
+        find.byKey(const ValueKey('screen-search-field')),
+        'Ana',
+      );
+      await tester.pump();
+      expect(find.text('probe:Ana'), findsOneWidget);
+      expect(tester.takeException(), isNull);
+    },
+  );
   testWidgets('Overview uses the Class header without recoloring its body', (
     tester,
   ) async {
@@ -129,6 +196,10 @@ void main() {
   group('spec resolver', () {
     test('names each screen and picks its search behaviour', () {
       expect(screenSearchSpecFor('/adviser/advisory').title, 'Advisory list');
+      expect(
+        screenSearchSpecFor('/adviser/adm-cases').mode,
+        ScreenSearchMode.filter,
+      );
       expect(
         screenSearchSpecFor('/adviser/advisory').mode,
         ScreenSearchMode.filter,
@@ -376,6 +447,24 @@ void main() {
     expect(tester.takeException(), isNull);
   });
 
+  for (final size in [const Size(320, 568), const Size(390, 900), const Size(700, 1200)]) {
+    testWidgets('Profile keeps Logout at the bottom at $size with large text', (tester) async {
+      await mountShell(tester, child: const _Probe(), width: size.width, scale: 2);
+      tester.view.physicalSize = size;
+      await tester.pumpAndSettle();
+      await tester.tap(find.byKey(const ValueKey('profile-avatar')));
+      await tester.pumpAndSettle();
+      final logout = tester.getRect(find.byKey(const ValueKey('profile-logout')));
+      expect(logout.bottom, closeTo(size.height - 12, 1));
+      expect(logout.top, greaterThan(0));
+      expect(tester.takeException(), isNull);
+      await tester.drag(find.byType(SingleChildScrollView).first, const Offset(0, -300));
+      await tester.pumpAndSettle();
+      expect(tester.getRect(find.byKey(const ValueKey('profile-logout'))), logout);
+      expect(tester.takeException(), isNull);
+    });
+  }
+
   testWidgets('profile avatar opens the full-screen account panel', (
     tester,
   ) async {
@@ -385,9 +474,19 @@ void main() {
 
     expect(find.text('Profile'), findsOneWidget);
     expect(find.byKey(const ValueKey('profile-close')), findsOneWidget);
-    expect(find.text('Notification'), findsOneWidget);
+    expect(find.text('Notifications'), findsOneWidget);
     expect(find.byKey(const ValueKey('profile-see-all')), findsOneWidget);
     expect(find.text('Appearance'), findsOneWidget);
+    final appearance = tester.widget<ListTile>(
+      find.widgetWithText(ListTile, 'Appearance'),
+    );
+    expect(appearance.subtitle, isNull);
+    final profileTheme = Theme.of(
+      tester.element(find.text('Profile')),
+    );
+    expect(profileTheme.scaffoldBackgroundColor, const Color(0xFFFAFAF9));
+    expect(profileTheme.colorScheme.primary, const Color(0xFF2563EB));
+    expect(profileTheme.listTileTheme.iconColor, const Color(0xFF181B19));
     expect(find.text('Settings'), findsOneWidget);
     expect(find.text('Logout'), findsOneWidget);
     // The panel replaces the shell instead of floating over it.

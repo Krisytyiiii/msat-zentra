@@ -378,14 +378,14 @@ class _StudentDetailState extends ConsumerState<StudentDetailPage> {
         return Scaffold(
           appBar: AppBar(
             centerTitle: true,
-            leadingWidth: 48,
+            leadingWidth: 64,
             leading: canPop
-                ? IconButton(
+                ? ZBackButton(
                     icon: const Icon(LucideIcons.chevronLeft),
                     tooltip: 'Back',
                     onPressed: _close,
                   )
-                : IconButton(
+                : ZBackButton(
                     icon: const Icon(Icons.close),
                     tooltip: 'Close',
                     onPressed: _close,
@@ -767,46 +767,7 @@ class _EmptyBlock extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final color = switch (tone) {
-      _Tone.amber => _amber,
-      _Tone.red => _red,
-      _Tone.green => _green,
-      _ => _blue,
-    };
-    return Padding(
-      padding: const EdgeInsets.fromLTRB(18, 22, 18, 22),
-      child: Column(
-        children: [
-          Container(
-            width: 40,
-            height: 40,
-            decoration: BoxDecoration(
-              shape: BoxShape.circle,
-              color: color.withValues(alpha: 0.10),
-            ),
-            child: Icon(icon, size: 18, color: color),
-          ),
-          const SizedBox(height: 12),
-          Text(
-            title,
-            textAlign: TextAlign.center,
-            style: const TextStyle(
-              fontSize: 13.5,
-              fontWeight: FontWeight.w700,
-              color: _ink,
-            ),
-          ),
-          if (subtitle != null) ...[
-            const SizedBox(height: 5),
-            Text(
-              subtitle!,
-              textAlign: TextAlign.center,
-              style: const TextStyle(fontSize: 12, height: 1.45, color: _muted),
-            ),
-          ],
-        ],
-      ),
-    );
+    return ZEmpty(icon: icon, title: title, subtitle: subtitle, compact: true);
   }
 }
 
@@ -1682,10 +1643,8 @@ class _AdmCard extends StatelessWidget {
           if (timeline.isEmpty)
             const Padding(
               padding: EdgeInsets.fromLTRB(16, 0, 16, 12),
-              child: Text(
-                'No timeline entries yet.',
-                style: TextStyle(fontSize: 13),
-              ),
+              child: ZEmpty(compact: true, icon: Icons.history,
+                title: 'No timeline entries yet.'),
             )
           else
             for (final t in timeline)

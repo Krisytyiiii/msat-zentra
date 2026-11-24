@@ -5,7 +5,6 @@ import 'package:go_router/go_router.dart';
 import 'package:lucide_icons_flutter/lucide_icons.dart';
 
 import '../../design/adviser_navigation.dart';
-import '../../design/status_palette.dart';
 
 import 'package:hive_flutter/hive_flutter.dart';
 
@@ -16,12 +15,14 @@ import '../../core/sync_outbox.dart';
 import '../../shared/models.dart';
 import '../../shared/user_messages.dart';
 import '../../shared/widgets.dart';
+import '../../shared/floating_add.dart';
 import 'assessment_actions.dart';
 import 'class_record_cards.dart';
 import 'gradebook_data.dart';
 import 'gradebook_forms.dart';
 import 'assessment_score_page.dart';
 import 'assessments_page.dart';
+import '../home/role_home.dart' show StaffShellScope;
 
 class GradebookPage extends ConsumerStatefulWidget {
   const GradebookPage({super.key, required this.classId, required this.title});
@@ -195,12 +196,18 @@ class _State extends ConsumerState<GradebookPage> {
     final audience = _audience;
     final classId = widget.classId;
     String? createdId;
+    staffNavBarHidden.value = true;
     try {
       await showModalBottomSheet<bool>(
         context: context,
         isScrollControlled: true,
         isDismissible: false,
         enableDrag: false,
+        backgroundColor: Colors.white,
+        barrierColor: const Color(0x660B1220),
+        shape: const RoundedRectangleBorder(
+          borderRadius: BorderRadius.vertical(top: Radius.circular(28)),
+        ),
         builder: (_) => GradebookEditor.assessment(
           type: type,
           audience: audience,
@@ -223,6 +230,7 @@ class _State extends ConsumerState<GradebookPage> {
       );
     } finally {
       _editorOpen = false;
+      staffNavBarHidden.value = false;
     }
     if (mounted && version == _scopeVersion && createdId != null) {
       await _openAssessment(createdId!);
@@ -250,6 +258,10 @@ class _State extends ConsumerState<GradebookPage> {
     });
     final data = _data;
     final canPop = ModalRoute.of(context)?.canPop ?? false;
+    // Production records share the shell's mounted navigation. Standalone
+    // previews keep the same adviser destinations without duplicating them.
+    final isAdviser = ref.read(authProvider).role == 'adviser';
+    final ownNavigation = isAdviser && !StaffShellScope.contains(context);
     return CallbackShortcuts(
       bindings: {
         const SingleActivator(LogicalKeyboardKey.escape): () {
@@ -262,22 +274,35 @@ class _State extends ConsumerState<GradebookPage> {
           if (!didPop && _expanded) setState(() => _expanded = false);
         },
         child: Scaffold(
+          // The adviser bar floats over the record exactly like Overview and
+          // the rest of the shell; the learner list already reserves its lane.
+          extendBody: ownNavigation,
           appBar: AppBar(
+            backgroundColor: Theme.of(context).scaffoldBackgroundColor,
+            surfaceTintColor: Colors.transparent,
+            scrolledUnderElevation: 0,
+            shape: const Border(bottom: BorderSide(color: Color(0xFFEDF0F6))),
             centerTitle: true,
-            leadingWidth: 48,
-            leading: IconButton(
+            leadingWidth: 64,
+            leading: ZBackButton(
               icon: const Icon(Icons.chevron_left),
               tooltip: canPop ? 'Back' : 'Close',
               padding: EdgeInsets.zero,
               onPressed: _close,
             ),
-            title: const Text('Class Record'),
+            title: const Text('Grade Record'),
           ),
+          bottomNavigationBar: ownNavigation
+              ? const AdviserBottomNavigation(
+                  selectedPath: '/workspace/classes',
+                  rerouteOnSelect: true,
+                )
+              : null,
           body: AdviserBamaAccess(
             child: Stack(
               children: [
                 if (_busy)
-                  const LoadingView()
+                  const LoadingView(layout: SkeletonLayout.record)
                 else if (_error != null)
                   ErrorView(message: _error, onRetry: _load)
                 else if (data != null)
@@ -294,12 +319,12 @@ class _State extends ConsumerState<GradebookPage> {
                   Positioned(
                     key: const ValueKey('assessment-dial-anchor'),
                     right: 16,
-                    bottom: 88,
-                    child: AssessmentActions(
+                    bottom: 0,
+                    child: FloatingAdd(child: AssessmentActions(
                       expanded: _expanded,
                       onToggle: () => setState(() => _expanded = !_expanded),
                       onAdd: _add,
-                    ),
+                    )),
                   ),
               ],
             ),
@@ -337,31 +362,20 @@ class _State extends ConsumerState<GradebookPage> {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Row(
-                    children: [
-                      Expanded(
-                        child: Text(
-                          data.assignment['subjectName']?.toString() ??
-                              widget.title,
-                          style: const TextStyle(
-                            fontSize: 22,
-                            fontWeight: FontWeight.w700,
-                            letterSpacing: -0.5,
-                          ),
+                  ZContentHeader(
+                    title: data.assignment['subjectName']?.toString() ?? widget.title,
+                    icon: LucideIcons.notebookPen,
+                    titleMetadata: [
+                      Text(
+                        'Manage assessments and scores.',
+                        style: const TextStyle(
+                          fontSize: 11,
+                          height: 1.3,
+                          color: Color(0xFF626B82),
                         ),
                       ),
-                      const SizedBox(width: 8),
-                      _audienceSwitch(),
                     ],
-                  ),
-                  const SizedBox(height: 8),
-                  Text(
-                    'Manage assessments and scores for your learners.',
-                    style: const TextStyle(
-                      fontSize: 12,
-                      height: 1.5,
-                      color: Color(0xFF81818F),
-                    ),
+                    titleTrailing: _audienceSwitch(),
                   ),
                   const SizedBox(height: 12),
                   Wrap(
@@ -369,30 +383,26 @@ class _State extends ConsumerState<GradebookPage> {
                     runSpacing: 6,
                     children: [
                       if (data.assignment['schoolYear'] != null)
-                        ZStatusPill(
+                        ZScopePill(
                           text: data.assignment['schoolYear'].toString(),
-                          tone: StatusTone.blue,
+                          kind: ScopePillKind.schoolYear,
+                          compact: true,
                         ),
                       if (data.assignment['termNumber'] != null)
-                        ZStatusPill(
+                        ZScopePill(
                           text: 'Term ${data.assignment['termNumber']}',
-                          tone: StatusTone.amber,
+                          kind: ScopePillKind.term,
+                          compact: true,
                         ),
-                      if (data.assignment['gradeLevel'] != null)
-                        ZStatusPill(
-                          text: data.assignment['gradeLevel']
-                              .toString()
-                              .replaceFirst(
-                                RegExp(r'^Grade\s*', caseSensitive: false),
-                                'G',
-                              ),
-                          tone: StatusTone.blue,
-                        ),
-                      if (data.assignment['sectionName'] != null)
-                        ZStatusPill(
-                          text: data.assignment['sectionName'].toString(),
-                          tone: StatusTone.violet,
-                        ),
+                      if (data.assignment['gradeLevel'] != null || data.assignment['sectionName'] != null)
+                        ZScopePill(text: [
+                          if (data.assignment['gradeLevel'] != null)
+                            data.assignment['gradeLevel'].toString().replaceFirst(
+                              RegExp(r'^Grade\s*', caseSensitive: false), 'G'),
+                          if (data.assignment['sectionName'] != null)
+                            data.assignment['sectionName'].toString(),
+                        ].where((value) => value.isNotEmpty).join(' · '),
+                          kind: ScopePillKind.grade, label: 'Grade and section', compact: true),
                     ],
                   ),
                   const SizedBox(height: 12),
@@ -516,60 +526,12 @@ class _State extends ConsumerState<GradebookPage> {
           child: learners.isEmpty
               ? SingleChildScrollView(
                   padding: const EdgeInsets.fromLTRB(12, 4, 12, 120),
-                  child: Container(
-                    width: double.infinity,
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: 20,
-                      vertical: 24,
-                    ),
-                    decoration: BoxDecoration(
-                      color: Colors.white,
-                      border: Border.all(color: const Color(0xFFDFE7F5)),
-                      borderRadius: BorderRadius.circular(16),
-                    ),
-                    child: Column(
-                      children: [
-                        Container(
-                          width: 40,
-                          height: 40,
-                          decoration: const BoxDecoration(
-                            color: Color(0xFFEAF0FF),
-                            shape: BoxShape.circle,
-                          ),
-                          child: const Icon(
-                            LucideIcons.users,
-                            size: 20,
-                            color: Color(0xFF4263F0),
-                          ),
-                        ),
-                        const SizedBox(height: 12),
-                        Text(
-                          _query.isNotEmpty
-                              ? 'No learners match'
-                              : _audience == 'adm'
-                              ? 'No ADM learners'
-                              : 'No learners yet',
-                          textAlign: TextAlign.center,
-                          style: const TextStyle(
-                            fontSize: 14,
-                            fontWeight: FontWeight.w600,
-                            color: Color(0xFF192034),
-                          ),
-                        ),
-                        const SizedBox(height: 6),
-                        Text(
-                          _query.isNotEmpty
-                              ? 'Try another name or LRN.'
-                              : 'Learners in this group will appear here.',
-                          textAlign: TextAlign.center,
-                          style: const TextStyle(
-                            fontSize: 12,
-                            height: 1.5,
-                            color: Color(0xFF71809B),
-                          ),
-                        ),
-                      ],
-                    ),
+                  child: ZEmpty(
+                    icon: _query.isNotEmpty ? LucideIcons.search : LucideIcons.users,
+                    title: _query.isNotEmpty ? 'No learners match'
+                        : _audience == 'adm' ? 'No ADM learners' : 'No learners yet',
+                    subtitle: _query.isNotEmpty ? 'Try another name or LRN.'
+                        : 'Learners in this group will appear here.',
                   ),
                 )
               : ClassRecordCards(
@@ -591,17 +553,23 @@ class _State extends ConsumerState<GradebookPage> {
       _expanded = false;
     }),
     style: OutlinedButton.styleFrom(
-      backgroundColor: const Color(0xFFEFF6FF),
+      backgroundColor: const Color(0xFFEAF2FF),
       foregroundColor: const Color(0xFF2563EB),
-      minimumSize: const Size(48, 32),
-      padding: const EdgeInsets.symmetric(horizontal: 16),
+      minimumSize: const Size(48, 28),
+      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
       tapTargetSize: MaterialTapTargetSize.padded,
       visualDensity: VisualDensity.standard,
-      side: const BorderSide(color: Color(0xFFBFDBFE)),
+      side: const BorderSide(color: Color(0xFFD4E4FF)),
       shape: const StadiumBorder(),
-      textStyle: const TextStyle(fontSize: 12, fontWeight: FontWeight.w400),
+      textStyle: const TextStyle(fontSize: 11, fontWeight: FontWeight.w600),
     ),
-    child: Text(_audience == 'regular' ? 'Regular' : 'ADM'),
+    child: Row(mainAxisSize: MainAxisSize.min, children: [
+      const Icon(LucideIcons.users, size: 12),
+      const SizedBox(width: 4),
+      Text(_audience == 'regular' ? 'REG' : 'ADM'),
+      const SizedBox(width: 4),
+      const Icon(Icons.swap_horiz, size: 12),
+    ]),
   );
 
   Widget _gradingWeights(ClassRecord data) {
@@ -644,7 +612,7 @@ class _State extends ConsumerState<GradebookPage> {
         LayoutBuilder(
           builder: (context, constraints) {
             final stack =
-                constraints.maxWidth < 350 ||
+                constraints.maxWidth < 330 ||
                 MediaQuery.textScalerOf(context).scale(12) > 16;
             final tiles = [
               for (final category in categories)
@@ -655,7 +623,7 @@ class _State extends ConsumerState<GradebookPage> {
                     onTap: _openAssessments,
                     borderRadius: BorderRadius.circular(18),
                     child: Container(
-                      padding: const EdgeInsets.all(10),
+                      padding: const EdgeInsets.all(8),
                       decoration: BoxDecoration(
                         color: category.$4,
                         borderRadius: BorderRadius.circular(18),
@@ -669,15 +637,23 @@ class _State extends ConsumerState<GradebookPage> {
                           Row(
                             children: [
                               Expanded(
-                                child: Text(
-                                  category.$2,
-                                  style: TextStyle(
-                                    fontSize: 12,
-                                    fontWeight: FontWeight.w600,
-                                    color: category.$3,
+                                child: Align(
+                                  alignment: Alignment.centerLeft,
+                                  child: FittedBox(
+                                    fit: BoxFit.scaleDown,
+                                    child: Text(
+                                      category.$2,
+                                      maxLines: 1,
+                                      style: TextStyle(
+                                        fontSize: 11,
+                                        fontWeight: FontWeight.w600,
+                                        color: category.$3,
+                                      ),
+                                    ),
                                   ),
                                 ),
                               ),
+                              const SizedBox(width: 4),
                               Text(
                                 '${gradeNumber(data.weights[category.$1] ?? 0)}%',
                                 style: TextStyle(

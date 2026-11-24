@@ -1,5 +1,5 @@
-// GoRouter — Login -> Term -> Gate -> drawer-routed workspace (no bottom nav).
-// Drawer taps use context.go (replace): back exits. Detail/gradebook use push.
+// GoRouter — Login -> Term -> Gate -> persistent staff workspace.
+// Bottom/drawer destinations use go; records and editors use push.
 // Menu: Advisory (adviser-only) + shared Workspace Class/Attendance (both
 // roles, same web data). Gradebook detail is push-only under /workspace/classes.
 // Deprecated /teacher/* + /adviser/attendance redirect to /workspace/*.
@@ -37,11 +37,14 @@ import 'home/role_home.dart';
 import 'home/overview_page.dart';
 import 'referral/referral_page.dart';
 import 'teacher/classes_page.dart';
+import 'teacher/class_list_page.dart';
 import 'teacher/gradebook_dashboard_page.dart';
 import 'teacher/gradebook_page.dart';
 import 'teacher/assessment_score_page.dart';
 import 'teacher/assessments_page.dart';
 import 'workspace/workspace_attendance_page.dart';
+import 'workspace/attendance_record_page.dart';
+import 'workspace/attendance_data.dart';
 import '../core/session.dart' show authProvider, sessionRoleHint, mobilePortalForRole;
 import '../design/theme.dart' show zWorkspaceTheme;
 import 'coordinator/coordinator_shell.dart';
@@ -64,14 +67,17 @@ String? coordinatorRedirect(String? role, String location, bool hasTerm) {
 
 Widget _coordinatorView(Widget child) => Theme(data: zWorkspaceTheme(), child: child);
 
-// Only these list/workspace destinations share chrome. Full-screen details,
-// conversations and authentication remain on the root navigator.
+// Workspace/list and record destinations share chrome. Editing screens,
+// other details, conversations and authentication stay on the root navigator.
 const _staffShellPaths = {
   '/workspace/overview',
   '/workspace/schedule',
   '/workspace/classes',
+  '/workspace/classes/:id',
+  '/workspace/classes/:id/list',
   '/workspace/gradebook',
   '/workspace/attendance',
+  '/workspace/attendance/records/:sectionId/:subjectId',
   '/teacher/more',
   '/adviser/advisory',
   '/adviser/advisory/attendance',
@@ -85,7 +91,7 @@ const _staffShellPaths = {
   '/adviser/bama/history',
 };
 
-List<RouteBase> _persistentStaffRoutes(List<RouteBase> routes) {
+List<RouteBase> persistentStaffRoutes(List<RouteBase> routes) {
   final staff = <RouteBase>[];
   final root = <RouteBase>[];
   for (final route in routes) {
@@ -151,7 +157,7 @@ final routerProvider = Provider<GoRouter>((ref) {
       if (loc == '/teacher') return '/workspace/overview';
       return null;
     },
-    routes: _persistentStaffRoutes([
+    routes: persistentStaffRoutes([
       GoRoute(path: '/login', builder: (context, _) => const LoginPage()),
       GoRoute(path: '/coordinator', redirect: (_, _) => '/coordinator/overview'),
       GoRoute(path: '/coordinator/overview', builder: (_, _) => _coordinatorView(
@@ -290,6 +296,14 @@ final routerProvider = Provider<GoRouter>((ref) {
         builder: (context, state) => AssessmentScorePage(
           classId: state.pathParameters['id']!,
           assessmentId: state.pathParameters['assessmentId']!,
+          reviewSaveId: state.uri.queryParameters['reviewSave'],
+        ),
+      ),
+      GoRoute(
+        path: '/workspace/classes/:id/list',
+        builder: (context, state) => ClassListPage(
+          key: ValueKey(state.pathParameters['id']),
+          classId: state.pathParameters['id']!,
         ),
       ),
       GoRoute(
@@ -297,11 +311,26 @@ final routerProvider = Provider<GoRouter>((ref) {
         builder: (context, state) {
           final id = Uri.decodeComponent(state.pathParameters['id'] ?? '');
           final title = state.uri.queryParameters['title'] ?? 'Gradebook';
-          // Detail screens sit outside the shell: one header (subject · section).
+          // Record keeps its own header inside the persistent staff shell.
           return GradebookPage(classId: id, title: title);
         },
       ),
       GoRoute(path: '/workspace/attendance', builder: (context, _) => const WorkspaceShell(selected: WorkspaceRoute.attendance, child: WorkspaceAttendancePage())),
+      GoRoute(
+        path: '/workspace/attendance/records/:sectionId/:subjectId',
+        builder: (context, state) {
+          final sectionId = state.pathParameters['sectionId']!;
+          final subjectId = state.pathParameters['subjectId']!;
+          final pair = state.extra;
+          if (pair is AttendancePair &&
+              pair.sectionId == sectionId && pair.subjectId == subjectId) {
+            return AttendanceRecordPage(
+              key: ValueKey('$sectionId|$subjectId'), pair: pair,
+            );
+          }
+          return AttendanceRecordRoute(sectionId: sectionId, subjectId: subjectId);
+        },
+      ),
       GoRoute(path: '/teacher/more', builder: (context, _) => const WorkspaceShell(selected: WorkspaceRoute.more, child: TeacherMorePage())),
       // Deprecated aliases (one release): old installs may hold these paths.
       GoRoute(

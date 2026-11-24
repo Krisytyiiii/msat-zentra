@@ -5,6 +5,9 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:hive/hive.dart';
 import 'package:intl/intl.dart';
+import 'package:go_router/go_router.dart';
+import 'package:zentra_mobile/features/teacher/class_list_page.dart';
+import 'package:zentra_mobile/features/teacher/gradebook_data.dart';
 import 'package:zentra_mobile/core/config.dart';
 import 'package:zentra_mobile/design/theme.dart';
 import 'package:zentra_mobile/features/adviser/schedule_timing.dart';
@@ -45,6 +48,62 @@ void main() {
     await Hive.openBox(AppConfig.termScopeBox);
   });
   tearDownAll(() async => Hive.close());
+
+  testWidgets('pressing a class opens only that class list', (tester) async {
+    final published = week();
+    String? loadedId;
+    final router = GoRouter(
+      routes: [
+        GoRoute(
+          path: '/',
+          builder: (_, _) => const Scaffold(body: ClassesPage()),
+        ),
+        GoRoute(
+          path: '/workspace/classes/:id/list',
+          builder: (_, state) =>
+              ClassListPage(classId: state.pathParameters['id']!),
+        ),
+      ],
+    );
+    addTearDown(router.dispose);
+    await tester.pumpWidget(
+      ProviderScope(
+        overrides: [
+          teachingWeekProvider.overrideWith(
+            (ref) async => TeachingWeek(
+              classes: published.classes,
+              periods: [],
+              config: published.config,
+            ),
+          ),
+          classListProvider.overrideWith((ref, id) async {
+            loadedId = id;
+            return ClassRecord.fromJson({
+              'assignment': {
+                'subjectName': 'Mathematics',
+                'sectionName': 'Arts',
+              },
+              'students': [
+                {
+                  'id': 'roster:1',
+                  'name': 'Juan Dela Cruz',
+                  'lrn': '123456789012',
+                },
+              ],
+            });
+          }),
+        ],
+        child: MaterialApp.router(routerConfig: router),
+      ),
+    );
+    await tester.pumpAndSettle();
+    await tester.ensureVisible(find.text('Mathematics'));
+    await tester.tap(find.text('Mathematics'));
+    await tester.pumpAndSettle();
+    expect(loadedId, 'math|arts');
+    expect(find.text('Class List'), findsOneWidget);
+    expect(find.text('Dela Cruz, Juan'), findsOneWidget);
+  });
 
   for (final width in [320.0, 700.0, 1200.0]) {
     testWidgets('weekly class agenda fits $width with large text', (

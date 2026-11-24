@@ -181,7 +181,7 @@ class _CaseState extends ConsumerState<CoordinatorCasePage>
       child: Scaffold(
         appBar: AppBar(
           title: Text(data.asData?.value.student ?? 'ADM case'),
-          leading: IconButton(
+          leading: ZBackButton(
             tooltip: 'Back',
             icon: const Icon(Icons.arrow_back),
             onPressed: _busy
@@ -274,7 +274,7 @@ class _CaseState extends ConsumerState<CoordinatorCasePage>
       'Referral and anecdotal records',
       children: [
         if (r == null)
-          const Text('No linked referral.')
+          const ZEmpty(compact: true, icon: Icons.send_outlined, title: 'No linked referral.')
         else ...[
           AdmValue('Referred by', admText(r['referredBy'])),
           AdmValue('Referral status', admLabel(admText(r['status']))),
@@ -292,7 +292,7 @@ class _CaseState extends ConsumerState<CoordinatorCasePage>
           ),
         ],
         if (a == null)
-          const Text('No linked anecdotal report.')
+          const ZEmpty(compact: true, icon: Icons.note_outlined, title: 'No linked anecdotal report.')
         else ...[
           AdmValue('Observed by', admText(a['observer'])),
           AdmValue('Observed', admDate(admText(a['observationDatetime']))),
@@ -333,7 +333,8 @@ class _CaseState extends ConsumerState<CoordinatorCasePage>
   Widget _meetings(AdmCaseDetail d) => AdmSection(
     'Parent meetings',
     children: [
-      if (d.meetings.isEmpty) const Text('No parent meetings recorded.'),
+      if (d.meetings.isEmpty) const ZEmpty(compact: true, icon: Icons.calendar_month_outlined,
+        title: 'No parent meetings recorded.'),
       for (final m in d.meetings)
         ExpansionTile(
           title: Text(admDate(m.datetime?.toIso8601String() ?? '')),
@@ -504,7 +505,8 @@ class _CaseState extends ConsumerState<CoordinatorCasePage>
           retry: () => ref.invalidate(coordinatorHistoryProvider(key)),
           builder: (events) => Column(
             children: [
-              if (events.isEmpty) const Text('No history entries.'),
+              if (events.isEmpty) const ZEmpty(compact: true, icon: Icons.history,
+                title: 'No history entries.'),
               for (final event in events)
                 ListTile(
                   title: Text(

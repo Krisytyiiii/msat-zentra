@@ -170,8 +170,11 @@ void main() {
       find.text('Learner 9'),
       300,
       scrollable: find.descendant(
-        of: find.byType(ListView),
-        matching: find.byType(Scrollable),
+        of: find.byType(CustomScrollView),
+        matching: find.byWidgetPredicate(
+          (widget) => widget is Scrollable &&
+              widget.axisDirection == AxisDirection.down,
+        ),
       ),
     );
     expect(tester.takeException(), isNull);

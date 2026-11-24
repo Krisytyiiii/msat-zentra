@@ -73,26 +73,44 @@ class _AdvisoryListState extends ConsumerState<AdvisoryListPage> {
       _lastQuery = query;
     }
     final active = ref.watch(advisoryProvider);
-    return Column(
-      children: [
-        Padding(
-          padding: const EdgeInsets.fromLTRB(12, 16, 12, 0),
-          child: _activeHeader(context, active.asData?.value, compact: compact),
-        ),
-        Expanded(
-          child: active.when(
-            loading: () => const Padding(
-              padding: EdgeInsets.all(16),
-              child: ZSkeletonList(),
+    return RefreshIndicator(
+      onRefresh: _refresh,
+      child: CustomScrollView(
+        controller: _rosterScroll,
+        key: const PageStorageKey('active-advisees'),
+        physics: const AlwaysScrollableScrollPhysics(),
+        slivers: [
+          SliverToBoxAdapter(
+            child: Padding(
+              padding: const EdgeInsets.fromLTRB(12, 16, 12, 0),
+              child: _activeHeader(
+                context,
+                active.asData?.value,
+                compact: compact,
+              ),
             ),
-            error: (error, _) => ErrorView(
-              message: error,
-              onRetry: () => ref.invalidate(advisoryProvider),
+          ),
+          active.when(
+            loading: () => const SliverToBoxAdapter(
+              child: Padding(
+                padding: EdgeInsets.all(16),
+                child: ZSkeletonList(),
+              ),
+            ),
+            error: (error, _) => SliverFillRemaining(
+              hasScrollBody: false,
+              child: ErrorView(
+                message: error,
+                onRetry: () => ref.invalidate(advisoryProvider),
+              ),
             ),
             data: (roster) => _activeList(context, roster, query),
           ),
-        ),
-      ],
+          SliverToBoxAdapter(
+            child: SizedBox(height: 112 + MediaQuery.paddingOf(context).bottom),
+          ),
+        ],
+      ),
     );
   }
 
@@ -118,19 +136,10 @@ class _AdvisoryListState extends ConsumerState<AdvisoryListPage> {
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
         if (!compact) ...[
-          const Text(
-            'Advisory list',
-            style: TextStyle(
-              fontSize: 22,
-              fontWeight: FontWeight.w700,
-              letterSpacing: -0.5,
-            ),
-          ),
-          const SizedBox(height: 8),
-          Text(
-            'Your advisees, attendance and academic progress for this term.',
-            style: Theme.of(context).textTheme.bodySmall
-                ?.copyWith(color: const Color(0xFF81818F), height: 1.5),
+          const ZContentHeader(
+            title: 'Advisory list',
+            icon: Icons.people_outline,
+            description: 'Your advisees, attendance and academic progress for this term.',
           ),
           const SizedBox(height: 12),
         ],
@@ -139,14 +148,31 @@ class _AdvisoryListState extends ConsumerState<AdvisoryListPage> {
           runSpacing: 6,
           children: [
             if (term != null) ...[
-              ZStatusPill(text: term.schoolYearName, tone: StatusTone.blue),
-              ZStatusPill(
+              ZScopePill(
+                text: term.schoolYearName,
+                kind: ScopePillKind.schoolYear,
+                compact: true,
+              ),
+              ZScopePill(
                 text: 'Term ${term.termNumber}',
-                tone: StatusTone.amber,
+                kind: ScopePillKind.term,
+                compact: true,
               ),
             ],
             for (final section in roster?.sections ?? <AdvisorySection>[])
-              ZStatusPill(text: section.name, tone: StatusTone.violet),
+              ZScopePill(
+                text: [
+                  if (section.gradeLevel != null)
+                    section.gradeLevel!.replaceFirst(
+                      RegExp(r'^Grade\s*', caseSensitive: false),
+                      'G',
+                    ),
+                  section.name,
+                ].where((value) => value.isNotEmpty).join(' · '),
+                kind: ScopePillKind.grade,
+                label: 'Grade and section',
+                compact: true,
+              ),
           ],
         ),
         const SizedBox(height: 16),
@@ -346,165 +372,159 @@ class _AdvisoryListState extends ConsumerState<AdvisoryListPage> {
                 : a.name.toLowerCase().compareTo(b.name.toLowerCase()),
           );
     if (shown.isEmpty) {
-      return ZEmptyPage(
-        icon: LucideIcons.users,
-        title: roster.students.isEmpty
-            ? 'No advisees yet'
-            : 'No students match',
-        subtitle: roster.students.isEmpty
-            ? 'Learners assigned to your advisory section will appear here.'
-            : 'Try a different name, LRN or risk filter.',
-        onRefresh: _refresh,
-      );
-    }
-    return Column(
-      children: [
-        Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 12),
-          child: Row(
-            children: [
-              Expanded(
-                child: Text(
-                  'Showing ${shown.length} students',
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                  style: const TextStyle(
-                    fontSize: 12,
-                    color: Color(0xFF71809B),
-                  ),
-                ),
-              ),
-              TextButton.icon(
-                onPressed: () {
-                  setState(() => _descending = !_descending);
-                  _scrollToTop();
-                },
-                icon: const Icon(LucideIcons.listFilter, size: 14),
-                label: Text(
-                  _descending ? 'Name (Z-A)' : 'Name (A-Z)',
-                  maxLines: 1,
-                  style: const TextStyle(fontSize: 12),
-                ),
-                style: TextButton.styleFrom(
-                  foregroundColor: const Color(0xFF334155),
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: 8,
-                    vertical: 0,
-                  ),
-                  minimumSize: Size.zero,
-                  tapTargetSize: MaterialTapTargetSize.shrinkWrap,
-                  visualDensity: VisualDensity.compact,
-                ),
-              ),
-            ],
+      return SliverFillRemaining(
+        hasScrollBody: false,
+        child: Center(
+          child: ZEmpty(
+            icon: LucideIcons.users,
+            title: roster.students.isEmpty
+                ? 'No advisees yet'
+                : 'No students match',
+            subtitle: roster.students.isEmpty
+                ? 'Learners assigned to your advisory section will appear here.'
+                : 'Try a different name, LRN or risk filter.',
           ),
         ),
-        Expanded(
-          child: RefreshIndicator(
-            onRefresh: _refresh,
-            child: ListView.separated(
-              controller: _rosterScroll,
-              key: const PageStorageKey('active-advisees'),
-              physics: const AlwaysScrollableScrollPhysics(),
-              // Only persistent navigation needs clearance now; there is no FAB.
-              padding: EdgeInsets.fromLTRB(
-                12,
-                4,
-                12,
-                112 + MediaQuery.paddingOf(context).bottom,
-              ),
-              itemCount: shown.length,
-              separatorBuilder: (_, _) => const SizedBox(height: 8),
-              itemBuilder: (context, index) {
-                final student = shown[index];
-                final words = student.name
-                    .trim()
-                    .split(RegExp(r'\s+'))
-                    .where((word) => word.isNotEmpty)
-                    .toList();
-                final initials = words.isEmpty
-                    ? '?'
-                    : '${words.first[0]}${words.length > 1 ? words.last[0] : ''}'
-                          .toUpperCase();
-                return _LearnerCard(
-                  key: ValueKey('active-${student.studentId}'),
-                  onTap: () => context.push(
-                    '/adviser/students/${Uri.encodeComponent(student.studentId)}',
-                    extra: student,
+      );
+    }
+    return SliverMainAxisGroup(
+      slivers: [
+        SliverToBoxAdapter(
+          child: Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 12),
+            child: Row(
+              children: [
+                Expanded(
+                  child: Text(
+                    'Showing ${shown.length} students',
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: const TextStyle(
+                      fontSize: 12,
+                      color: Color(0xFF71809B),
+                    ),
                   ),
-                  child: Column(
-                    children: [
-                      Row(
+                ),
+                TextButton.icon(
+                  onPressed: () {
+                    setState(() => _descending = !_descending);
+                    _scrollToTop();
+                  },
+                  icon: const Icon(LucideIcons.listFilter, size: 14),
+                  label: Text(
+                    _descending ? 'Name (Z-A)' : 'Name (A-Z)',
+                    maxLines: 1,
+                    style: const TextStyle(fontSize: 12),
+                  ),
+                  style: TextButton.styleFrom(
+                    foregroundColor: const Color(0xFF334155),
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 8,
+                      vertical: 0,
+                    ),
+                    minimumSize: Size.zero,
+                    tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                    visualDensity: VisualDensity.compact,
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ),
+        SliverPadding(
+          padding: const EdgeInsets.fromLTRB(12, 4, 12, 0),
+          sliver: SliverList.separated(
+            itemCount: shown.length,
+            separatorBuilder: (_, _) => const SizedBox(height: 8),
+            itemBuilder: (context, index) {
+              final student = shown[index];
+              final words = student.name
+                  .trim()
+                  .split(RegExp(r'\s+'))
+                  .where((word) => word.isNotEmpty)
+                  .toList();
+              final initials = words.isEmpty
+                  ? '?'
+                  : '${words.first[0]}${words.length > 1 ? words.last[0] : ''}'
+                        .toUpperCase();
+              return _LearnerCard(
+                key: ValueKey('active-${student.studentId}'),
+                onTap: () => context.push(
+                  '/adviser/students/${Uri.encodeComponent(student.studentId)}',
+                  extra: student,
+                ),
+                child: Column(
+                  children: [
+                    Row(
+                      children: [
+                        CircleAvatar(
+                          radius: 19,
+                          backgroundColor:
+                              [
+                                const Color(0xFFF1F5F9),
+                                const Color(0xFFEFF6FF),
+                                const Color(0xFFFFFBEB),
+                                const Color(0xFFFAF5FF),
+                                const Color(0xFFFFF1F2),
+                              ][student.studentId.codeUnits.fold(
+                                    0,
+                                    (a, b) => a + b,
+                                  ) %
+                                  5],
+                          foregroundColor: const Color(0xFF52627C),
+                          child: Text(
+                            initials,
+                            style: const TextStyle(
+                              fontSize: 12,
+                              fontWeight: FontWeight.w600,
+                            ),
+                          ),
+                        ),
+                        const SizedBox(width: 12),
+                        Expanded(
+                          child: _Identity(
+                            name: student.name,
+                            lrn: student.lrn,
+                          ),
+                        ),
+                        const SizedBox(width: 8),
+                        RiskBadge(
+                          key: ValueKey('risk-${student.studentId}'),
+                          level: student.riskLevel,
+                        ),
+                      ],
+                    ),
+                    const Padding(
+                      padding: EdgeInsets.symmetric(vertical: 10),
+                      child: Divider(height: 1),
+                    ),
+                    Align(
+                      alignment: Alignment.centerLeft,
+                      child: Wrap(
+                        spacing: 12,
+                        runSpacing: 4,
                         children: [
-                          CircleAvatar(
-                            radius: 19,
-                            backgroundColor:
-                                [
-                                  const Color(0xFFF1F5F9),
-                                  const Color(0xFFEFF6FF),
-                                  const Color(0xFFFFFBEB),
-                                  const Color(0xFFFAF5FF),
-                                  const Color(0xFFFFF1F2),
-                                ][student.studentId.codeUnits.fold(
-                                      0,
-                                      (a, b) => a + b,
-                                    ) %
-                                    5],
-                            foregroundColor: const Color(0xFF52627C),
-                            child: Text(
-                              initials,
-                              style: const TextStyle(
-                                fontSize: 12,
-                                fontWeight: FontWeight.w600,
-                              ),
+                          Text(
+                            'Att ${student.attendancePercentage == null ? '—' : '${student.attendancePercentage!.toStringAsFixed(1)}%'}',
+                            style: const TextStyle(
+                              fontSize: 12,
+                              color: Color(0xFF334155),
                             ),
                           ),
-                          const SizedBox(width: 12),
-                          Expanded(
-                            child: _Identity(
-                              name: student.name,
-                              lrn: student.lrn,
+                          Text(
+                            'Avg ${student.academicGrade?.toStringAsFixed(1) ?? '—'}',
+                            style: const TextStyle(
+                              fontSize: 12,
+                              color: Color(0xFF52627C),
                             ),
-                          ),
-                          const SizedBox(width: 8),
-                          RiskBadge(
-                            key: ValueKey('risk-${student.studentId}'),
-                            level: student.riskLevel,
                           ),
                         ],
                       ),
-                      const Padding(
-                        padding: EdgeInsets.symmetric(vertical: 10),
-                        child: Divider(height: 1),
-                      ),
-                      Align(
-                        alignment: Alignment.centerLeft,
-                        child: Wrap(
-                          spacing: 12,
-                          runSpacing: 4,
-                          children: [
-                            Text(
-                              'Att ${student.attendancePercentage == null ? '—' : '${student.attendancePercentage!.toStringAsFixed(1)}%'}',
-                              style: const TextStyle(
-                                fontSize: 12,
-                                color: Color(0xFF334155),
-                              ),
-                            ),
-                            Text(
-                              'Avg ${student.academicGrade?.toStringAsFixed(1) ?? '—'}',
-                              style: const TextStyle(
-                                fontSize: 12,
-                                color: Color(0xFF52627C),
-                              ),
-                            ),
-                          ],
-                        ),
-                      ),
-                    ],
-                  ),
-                );
-              },
-            ),
+                    ),
+                  ],
+                ),
+              );
+            },
           ),
         ),
       ],

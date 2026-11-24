@@ -2,36 +2,24 @@
 // Web visuals, with 48px interactive targets and scalable metadata chips.
 
 import 'package:flutter/material.dart';
+import 'package:lucide_icons_flutter/lucide_icons.dart';
 
 import '../design/tokens.dart';
 import '../design/status_palette.dart';
 import 'user_messages.dart';
-import 'spinner.dart';
+import 'skeletons.dart';
+export 'skeletons.dart';
+export 'back_button.dart';
 
 // --- Legacy names kept (restyled to web tokens) ---
 
 class LoadingView extends StatelessWidget {
   final String label;
-  const LoadingView({super.key, this.label = 'Loading…'});
+  final SkeletonLayout? layout;
+  const LoadingView({super.key, this.label = 'Loading…', this.layout});
   @override
-  Widget build(BuildContext context) => Center(
-    child: Semantics(
-      liveRegion: true,
-      label: label,
-      child: ExcludeSemantics(
-        child: Row(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            const ZSpinner(),
-            const SizedBox(width: 12),
-            Flexible(
-              child: Text(label, style: Theme.of(context).textTheme.bodySmall),
-            ),
-          ],
-        ),
-      ),
-    ),
-  );
+  Widget build(BuildContext context) =>
+      ScreenSkeleton(layout: layout, label: label);
 }
 
 class ErrorView extends StatelessWidget {
@@ -149,6 +137,112 @@ class ZPill extends StatelessWidget {
       triggerMode: TooltipTriggerMode.longPress,
       waitDuration: const Duration(milliseconds: 100),
       child: pill,
+    );
+  }
+}
+
+enum ScopePillKind { schoolYear, term, grade }
+
+/// Consistent content title, separate from the persistent navigation AppBar.
+class ZContentHeader extends StatelessWidget {
+  const ZContentHeader({
+    super.key, required this.title, required this.icon,
+    this.description, this.trailing, this.titleMetadata = const [], this.titleTrailing,
+  });
+  final String title;
+  final IconData icon;
+  final String? description;
+  final Widget? trailing;
+  final List<Widget> titleMetadata;
+  final Widget? titleTrailing;
+
+  @override
+  Widget build(BuildContext context) => ColoredBox(
+    color: Colors.white,
+    child: LayoutBuilder(builder: (context, constraints) {
+      final heading = Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Container(
+            width: 46, height: 46,
+            decoration: BoxDecoration(color: const Color(0xFFE8EFFF),
+              borderRadius: BorderRadius.circular(16)),
+            child: Icon(icon, size: 24, color: const Color(0xFF2442A8)),
+          ),
+          const SizedBox(width: 10),
+          Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+            Row(crossAxisAlignment: CrossAxisAlignment.start, children: [
+              Expanded(child: Wrap(spacing: 6, runSpacing: 6, crossAxisAlignment: WrapCrossAlignment.center,
+                children: [
+                  Text(title, style: const TextStyle(fontSize: 22, height: 1.2,
+                    fontWeight: FontWeight.w700, color: Color(0xFF171C36), letterSpacing: -0.5)),
+                  ...titleMetadata,
+                ])),
+              if (titleTrailing != null) ...[
+                const SizedBox(width: 8),
+                titleTrailing!,
+              ],
+            ]),
+            if (description != null && description!.isNotEmpty) ...[
+              const SizedBox(height: 2),
+              Text(description!, style: const TextStyle(
+                fontSize: 11, height: 1.3, color: Color(0xFF626B82))),
+            ],
+          ])),
+        ],
+      );
+      if (trailing == null) return heading;
+      if (constraints.maxWidth < 360 || MediaQuery.textScalerOf(context).scale(22) > 28) {
+        return Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
+          heading, const SizedBox(height: 8),
+          Align(alignment: Alignment.centerRight, child: trailing),
+        ]);
+      }
+      return Row(crossAxisAlignment: CrossAxisAlignment.start, children: [
+        Expanded(child: heading), const SizedBox(width: 8), trailing!,
+      ]);
+    }),
+  );
+}
+
+/// Fixed light capsule for screen scope, separate from semantic status chips.
+class ZScopePill extends StatelessWidget {
+  const ZScopePill({super.key, required this.text, required this.kind, this.label, this.compact = false});
+  final String text;
+  final ScopePillKind kind;
+  final String? label;
+  final bool compact;
+
+  @override
+  Widget build(BuildContext context) {
+    final amber = kind == ScopePillKind.term;
+    final foreground = amber ? const Color(0xFFB45309) : const Color(0xFF2563EB);
+    final fieldLabel = label ?? switch (kind) {
+      ScopePillKind.schoolYear => 'School year',
+      ScopePillKind.term => 'Term',
+      ScopePillKind.grade => 'Grade level',
+    };
+    return Tooltip(
+      message: fieldLabel,
+      triggerMode: TooltipTriggerMode.longPress,
+      child: Container(
+        padding: EdgeInsets.symmetric(horizontal: compact ? 7 : 10, vertical: compact ? 3 : 5),
+        decoration: BoxDecoration(
+          color: amber ? const Color(0xFFFFF6E5) : const Color(0xFFEAF2FF),
+          border: Border.all(color: amber ? const Color(0xFFFDE6B0) : const Color(0xFFD4E4FF)),
+          borderRadius: BorderRadius.circular(999),
+        ),
+        child: Row(mainAxisSize: MainAxisSize.min, children: [
+          ExcludeSemantics(child: Icon(switch (kind) {
+            ScopePillKind.schoolYear => LucideIcons.calendarDays,
+            ScopePillKind.term => LucideIcons.bookOpen,
+            ScopePillKind.grade => LucideIcons.graduationCap,
+          }, size: compact ? 11 : 13, color: foreground)),
+          SizedBox(width: compact ? 4 : 5),
+          Flexible(child: Text(text, style: TextStyle(
+            fontSize: compact ? 11 : 12, fontWeight: FontWeight.w600, color: foreground))),
+        ]),
+      ),
     );
   }
 }
@@ -306,7 +400,7 @@ class ZSearchField extends StatelessWidget {
   );
 }
 
-/// Soft amber "nothing here yet" callout. Renders inline inside a section
+/// Shared white/blue "nothing here yet" card. Renders inline inside a section
 /// (`compact: true`) or centred on a page through [ZEmptyPage].
 class ZEmpty extends StatelessWidget {
   final IconData icon;
@@ -331,59 +425,66 @@ class ZEmpty extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-    final dark = theme.brightness == Brightness.dark;
-    final accent = ZTokens.factorAcademic;
     return Align(
       alignment: Alignment.center,
       child: ConstrainedBox(
         constraints: const BoxConstraints(maxWidth: 460),
         child: Container(
+          width: double.infinity,
           padding: EdgeInsets.symmetric(
             horizontal: compact ? 14 : 20,
-            vertical: compact ? 14 : 22,
+            vertical: compact ? 14 : 24,
           ),
           decoration: BoxDecoration(
-            color: accent.withValues(alpha: dark ? 0.10 : 0.07),
-            borderRadius: BorderRadius.circular(ZTokens.radiusLg),
-            border: Border.all(color: accent.withValues(alpha: 0.35)),
+            color: Colors.white,
+            borderRadius: BorderRadius.circular(16),
+            border: Border.all(color: const Color(0xFFDFE7F5)),
           ),
           child: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
               Container(
-                padding: EdgeInsets.all(compact ? 8 : 11),
+                padding: EdgeInsets.all(compact ? 8 : 10),
                 decoration: BoxDecoration(
                   shape: BoxShape.circle,
-                  color: accent.withValues(alpha: 0.16),
+                  color: const Color(0xFFEAF0FF),
                 ),
                 child: Icon(
                   icon,
-                  size: compact ? 18 : 22,
-                  color: dark ? accent : const Color(0xFFB45309),
+                  size: compact ? 18 : 20,
+                  color: const Color(0xFF4263F0),
                 ),
               ),
               SizedBox(height: compact ? 8 : 12),
               Text(
                 title,
                 textAlign: TextAlign.center,
-                style: theme.textTheme.bodyMedium?.copyWith(
+                style: const TextStyle(
+                  fontSize: 14,
                   fontWeight: FontWeight.w600,
+                  color: Color(0xFF192034),
                 ),
               ),
               if (subtitle != null) ...[
-                const SizedBox(height: 4),
+                const SizedBox(height: 6),
                 Text(
                   subtitle!,
                   textAlign: TextAlign.center,
-                  style: theme.textTheme.bodySmall?.copyWith(
-                    color: theme.colorScheme.onSurfaceVariant,
+                  style: const TextStyle(
+                    fontSize: 12,
+                    height: 1.5,
+                    color: Color(0xFF71809B),
                   ),
                 ),
               ],
               if (actionLabel != null) ...[
                 const SizedBox(height: 12),
-                FilledButton(onPressed: onAction, child: Text(actionLabel!)),
+                FilledButton(
+                  style: FilledButton.styleFrom(
+                    backgroundColor: const Color(0xFF4263F0),
+                    foregroundColor: Colors.white,
+                  ),
+                  onPressed: onAction, child: Text(actionLabel!)),
               ],
             ],
           ),
@@ -461,13 +562,10 @@ class ZSkeletonRow extends StatelessWidget {
   const ZSkeletonRow({super.key});
   @override
   Widget build(BuildContext context) {
-    final c = Theme.of(context).colorScheme.surfaceContainerLow;
-    return Container(
-      height: 64,
-      decoration: BoxDecoration(
-        borderRadius: BorderRadius.circular(ZTokens.radiusLg),
-        color: c,
-      ),
+    return const ScreenSkeleton(
+      layout: SkeletonLayout.notifications,
+      section: true,
+      count: 1,
     );
   }
 }
@@ -476,12 +574,8 @@ class ZSkeletonList extends StatelessWidget {
   final int count;
   const ZSkeletonList({super.key, this.count = 5});
   @override
-  Widget build(BuildContext context) => ListView.separated(
-    shrinkWrap: true,
-    physics: const NeverScrollableScrollPhysics(),
-    itemCount: count,
-    separatorBuilder: (context, _) => const SizedBox(height: 8),
-    itemBuilder: (context, _) => const ZSkeletonRow(),
+  Widget build(BuildContext context) => SingleChildScrollView(
+    child: ScreenSkeleton(section: true, count: count),
   );
 }
 

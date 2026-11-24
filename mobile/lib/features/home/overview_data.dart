@@ -1,13 +1,15 @@
-import 'package:dio/dio.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
-import '../../core/api_client.dart';
 import '../../core/session.dart';
 import '../../shared/models.dart';
-import '../adviser/class_schedule_data.dart';
+import '../teacher/classes_data.dart';
 import '../adviser/schedule_timing.dart';
 
 export '../adviser/schedule_timing.dart' show SchoolDayConfig, philippineTime;
+
+final overviewClockProvider = Provider<DateTime Function()>(
+  (ref) => DateTime.now,
+);
 
 int? _count(Object? value) => value is int && value >= 0 ? value : null;
 
@@ -16,6 +18,7 @@ class OverviewSummary {
     required this.teacherName,
     required this.isAdviser,
     this.sectionName,
+    this.sectionGradeLevel,
     this.classCount,
     this.learnerCount,
     this.supportCount,
@@ -23,6 +26,7 @@ class OverviewSummary {
   final String teacherName;
   final bool isAdviser;
   final String? sectionName;
+  final String? sectionGradeLevel;
   final int? classCount;
   final int? learnerCount;
   final int? supportCount;
@@ -37,6 +41,7 @@ class OverviewSummary {
       teacherName: json['teacherName'] as String? ?? '',
       isAdviser: adviser,
       sectionName: section['name'] as String?,
+      sectionGradeLevel: section['gradeLevel'] as String?,
       classCount: _count(kpi['classCount']),
       // Never infer totals from the (possibly paginated) learner rows.
       learnerCount: _count(
@@ -88,10 +93,13 @@ class OverviewSchedule {
     final start = term.startDate;
     final end = term.endDate;
     if (start == null || end == null || end.isBefore(start)) {
-      return 'Term dates aren’t available. Open the schedule to check your classes.';
+      return 'Term dates aren’t available. Open Class to check your classes.';
     }
-    if (now.isBefore(start) || now.isAfter(end)) {
-      return 'You’re viewing a different term. Open its schedule to browse classes.';
+    final ph = philippineTime(now);
+    final day = DateTime.utc(ph.year, ph.month, ph.day);
+    if (day.isBefore(DateTime.utc(start.year, start.month, start.day)) ||
+        day.isAfter(DateTime.utc(end.year, end.month, end.day))) {
+      return 'You’re viewing a different term. Open Class to browse its classes.';
     }
     return null;
   }
@@ -100,27 +108,24 @@ class OverviewSchedule {
     if (scopeNotice(now) != null) return null;
     final ph = philippineTime(now);
     final candidates = <UpcomingClass>[];
-    for (var offset = 0; offset <= 7; offset++) {
-      final date = DateTime.utc(ph.year, ph.month, ph.day + offset);
-      for (final slot in slots) {
-        if (slot.status != 'APPROVED' ||
-            slot.day != date.weekday ||
-            slot.period < 0 ||
-            slot.period >= config.periods.length) {
-          continue;
-        }
-        final period = config.periods[slot.period];
-        final start = date
-            .add(Duration(minutes: period.start))
-            .subtract(const Duration(hours: 8));
-        final end = date
-            .add(Duration(minutes: period.end))
-            .subtract(const Duration(hours: 8));
-        if (start.isAfter(now) &&
-            !start.isAfter(term.endDate!) &&
-            !start.isBefore(term.startDate!)) {
-          candidates.add(UpcomingClass(slot, start, end));
-        }
+    final date = DateTime.utc(ph.year, ph.month, ph.day);
+    for (final slot in slots) {
+      if (slot.status != 'APPROVED' ||
+          slot.day != date.weekday ||
+          slot.period < 0 ||
+          slot.period >= config.periods.length) {
+        continue;
+      }
+      final period = config.periods[slot.period];
+      final start = date
+          .add(Duration(minutes: period.start))
+          .subtract(const Duration(hours: 8));
+      final end = date
+          .add(Duration(minutes: period.end))
+          .subtract(const Duration(hours: 8));
+      // Include the live period until its end, never tomorrow's first class.
+      if (end.isAfter(now)) {
+        candidates.add(UpcomingClass(slot, start, end));
       }
     }
     candidates.sort((a, b) => a.startsAt.compareTo(b.startsAt));
@@ -135,37 +140,36 @@ final overviewScheduleProvider = FutureProvider.autoDispose<OverviewSchedule>((
   if (term == null) {
     throw ApiException('NO_TERM', 'Select a school year and term.');
   }
-  final slots = ref.watch(adviserScheduleProvider.future);
+  final week = ref.watch(teachingWeekProvider.future);
   final years = ref.watch(schoolYearsProvider.future);
-  final api = ref.watch(apiClientProvider);
-  try {
-    final responses = await Future.wait<Object>([
-      slots,
-      years,
-      api.dio.get('/api/teacher/schedule/config'),
-    ]);
-    final selected = (responses[1] as List<SchoolYear>)
-        .expand((year) => year.terms)
-        .where(
-          (item) =>
-              item.id == term.id && item.schoolYearId == term.schoolYearId,
-        )
-        .firstOrNull;
-    if (selected == null) {
-      throw ApiException('NOT_FOUND', 'Selected term no longer exists.');
-    }
-    final data = (responses[2] as Response).data;
-    if (data is! Map || data['config'] is! Map) {
-      throw const FormatException('Missing schedule configuration');
-    }
-    return OverviewSchedule(
-      term: selected,
-      slots: responses[0] as List<TimetableSlot>,
-      config: SchoolDayConfig.fromJson(
-        Map<String, dynamic>.from(data['config'] as Map),
-      ),
-    );
-  } on DioException catch (error) {
-    throw api.toApiException(error);
+  final responses = await Future.wait<Object>([week, years]);
+  final selected = (responses[1] as List<SchoolYear>)
+      .expand((year) => year.terms)
+      .where(
+        (item) => item.id == term.id && item.schoolYearId == term.schoolYearId,
+      )
+      .firstOrNull;
+  if (selected == null) {
+    throw ApiException('NOT_FOUND', 'Selected term no longer exists.');
   }
+  final teaching = responses[0] as TeachingWeek;
+  return OverviewSchedule(
+    term: selected,
+    slots: [
+      for (final period in teaching.periods)
+        TimetableSlot(
+          day: period.day,
+          period: period.period,
+          status: 'APPROVED',
+          subjectName: teaching.classes
+              .firstWhere((c) => c.id == period.classId)
+              .subject,
+          subjectCode: '',
+          sectionName: teaching.classes
+              .firstWhere((c) => c.id == period.classId)
+              .section,
+        ),
+    ],
+    config: teaching.config,
+  );
 });

@@ -24,6 +24,7 @@ import '../../core/sync_outbox.dart';
 import '../../design/bama_mascot.dart';
 import '../../design/tokens.dart';
 import '../../shared/widgets.dart';
+import '../../shared/floating_add.dart';
 import '../adviser/advisory_list_page.dart' show advisoryProvider, archivedAdvisoryProvider;
 import '../referral/referral_page.dart' show referralsProvider, referableProvider;
 import '../anecdotal/anecdotal_data.dart' show anecdotalMineProvider;
@@ -793,7 +794,10 @@ class _State extends ConsumerState<BamaChatPage> {
       ));
     }
     if (!_hydrated) {
-      return _frame(const Center(child: Text('Loading…')));
+      return _frame(ScreenSkeleton(
+        layout: _dedicated ? SkeletonLayout.conversation : SkeletonLayout.list,
+        label: 'Loading Bama',
+      ));
     }
     final active = _dedicated ? _active : null;
     if (_dedicated && active == null) {
@@ -873,12 +877,12 @@ class _State extends ConsumerState<BamaChatPage> {
         ]),
         if (active == null)
            Positioned(
-              right: 16, bottom: 24 + MediaQuery.paddingOf(context).bottom,
-             child: FloatingActionButton(
+              right: 16, bottom: 0,
+             child: FloatingAdd(child: FloatingActionButton(
                tooltip: 'New anecdotal chat',
                onPressed: _startAnecdotalChat,
                child: const Icon(Icons.add),
-             ),
+             )),
            ),
         if (_filing) _FilingOverlay(progress: _fileProgress, stage: _fileStage),
         if (_confirmFiling && active != null && _anecMode) _ConfirmSheet(flow: _flow(), onKeep: () => setState(() => _confirmFiling = false), onFile: _fileRecord),
@@ -963,7 +967,8 @@ class _State extends ConsumerState<BamaChatPage> {
           const SizedBox(height: 4),
           Text('Jump back to a step — everything after it is asked again.', style: Theme.of(ctx).textTheme.bodySmall),
           const SizedBox(height: 8),
-          if (steps.isEmpty) Text('Nothing to change yet.', style: Theme.of(ctx).textTheme.bodySmall),
+          if (steps.isEmpty) const ZEmpty(compact: true, icon: Icons.edit_outlined,
+            title: 'Nothing to change yet.'),
           for (final s in steps)
             ListTile(
               dense: true,
@@ -1033,7 +1038,7 @@ class _ChatHeader extends StatelessWidget implements PreferredSizeWidget {
     final canPop = GoRouter.of(context).canPop();
     return AppBar(
       toolbarHeight: 72,
-      leading: IconButton(
+      leading: ZBackButton(
         icon: Icon(canPop ? Icons.chevron_left : Icons.close, size: 20),
         tooltip: canPop ? 'Back' : 'Close',
         onPressed: busy ? null : onBack,
@@ -1179,7 +1184,7 @@ class _LogSection extends StatelessWidget {
       ]),
       const SizedBox(height: 4),
       if (recent.isEmpty)
-        Text(emptyText, style: theme.textTheme.bodySmall)
+        ZEmpty(compact: true, icon: Icons.chat_bubble_outline, title: emptyText)
       else
         for (final c in recent)
           Padding(
@@ -1496,7 +1501,13 @@ class _StudentPicker extends StatelessWidget {
           onChanged: (_) => onQueryChanged(),
         ),
         if (pending)
-          const Padding(padding: EdgeInsets.symmetric(vertical: 8), child: Text('Loading students…', style: TextStyle(fontSize: 13)))
+          const Padding(
+            padding: EdgeInsets.symmetric(vertical: 8),
+            child: ScreenSkeleton(
+              layout: SkeletonLayout.notifications,
+              label: 'Loading students', section: true, count: 2,
+            ),
+          )
         else if (loadError != null)
           Padding(
             padding: const EdgeInsets.symmetric(vertical: 8),
@@ -1507,7 +1518,8 @@ class _StudentPicker extends StatelessWidget {
             ]),
           )
         else if (matches.isEmpty)
-          const Padding(padding: EdgeInsets.symmetric(vertical: 8), child: Text('No students match.', style: TextStyle(fontSize: 13)))
+          const Padding(padding: EdgeInsets.symmetric(vertical: 8), child: ZEmpty(
+            compact: true, icon: Icons.search, title: 'No students match.'))
         else
           Container(
             constraints: const BoxConstraints(maxHeight: 224),

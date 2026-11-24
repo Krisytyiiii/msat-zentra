@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import '../../shared/widgets.dart';
 
 import 'coordinator_data.dart';
 import 'coordinator_forms.dart';
@@ -57,7 +58,7 @@ class _MonitoringState extends ConsumerState<CoordinatorMonitoringPage>
     return Scaffold(
       appBar: AppBar(
         title: Text(title.isEmpty ? 'Enrolled learner' : title),
-        leading: IconButton(
+        leading: ZBackButton(
           tooltip: 'Back',
           icon: const Icon(Icons.arrow_back),
           onPressed: () => admClose(context, '/coordinator/enrolled'),
@@ -119,7 +120,8 @@ class _MonitoringState extends ConsumerState<CoordinatorMonitoringPage>
                     'Modules',
                     children: [
                       if (m.modules.isEmpty)
-                        const Text('No modules released yet.'),
+                        const ZEmpty(compact: true, icon: Icons.book_outlined,
+                          title: 'No modules released yet.'),
                       for (final module in m.modules)
                         Card(
                           child: Padding(
@@ -164,7 +166,8 @@ class _MonitoringState extends ConsumerState<CoordinatorMonitoringPage>
                   AdmSection(
                     'Devices',
                     children: [
-                      if (m.devices.isEmpty) const Text('No devices recorded.'),
+                      if (m.devices.isEmpty) const ZEmpty(compact: true,
+                        icon: Icons.devices_outlined, title: 'No devices recorded.'),
                       for (final d in m.devices)
                         AdmValue(
                           '${admText(d['deviceType'])} · ${admText(d['deviceSerial'])}',
@@ -178,7 +181,8 @@ class _MonitoringState extends ConsumerState<CoordinatorMonitoringPage>
                     'Case timeline',
                     children: [
                       if (m.timeline.isEmpty)
-                        const Text('No timeline entries.'),
+                        const ZEmpty(compact: true, icon: Icons.history,
+                          title: 'No timeline entries.'),
                       for (final event in m.timeline)
                         ListTile(
                           title: Text(admText(event['label'])),

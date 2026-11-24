@@ -95,7 +95,7 @@ class AdvisoryAttendanceDetailPage extends ConsumerWidget {
       return Scaffold(
         appBar: _bar(context, canPop, 'Advisory attendance'),
         body: const AdviserBamaAccess(
-          child: Padding(padding: EdgeInsets.all(16), child: ZSkeletonList()),
+          child: LoadingView(layout: SkeletonLayout.attendance),
         ),
       );
     }
@@ -151,7 +151,7 @@ class AdvisoryAttendanceDetailPage extends ConsumerWidget {
     title: Text(title, maxLines: 1, overflow: TextOverflow.ellipsis),
     leading: canPop
         ? null
-        : IconButton(
+        : ZBackButton(
             tooltip: 'Close',
             icon: const Icon(Icons.close),
             onPressed: () => _close(context),

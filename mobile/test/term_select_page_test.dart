@@ -15,7 +15,7 @@ import 'package:zentra_mobile/features/auth/first_time_gate.dart';
 import 'package:zentra_mobile/features/auth/login_background.dart';
 import 'package:zentra_mobile/features/auth/term_select_page.dart';
 import 'package:zentra_mobile/shared/models.dart';
-import 'package:zentra_mobile/shared/widgets.dart' show ErrorView;
+import 'package:zentra_mobile/shared/widgets.dart' show ErrorView, ScreenSkeleton;
 
 List<SchoolYear> fixture() => [
   SchoolYear.fromJson({
@@ -271,14 +271,14 @@ void main() {
   ) async {
     final pending = Completer<List<SchoolYear>>();
     await mount(tester, load: () => pending.future);
-    expect(find.text('Loading school years…'), findsOneWidget);
-    expect(find.byType(AuthSpinner), findsOneWidget);
+    expect(find.byType(ScreenSkeleton), findsOneWidget);
+    expect(find.byType(AuthSpinner), findsNothing);
     expect(find.byType(LoginBackground), findsOneWidget);
     expect(find.byKey(const ValueKey('auth-flow-center')), findsNothing);
     expect(tester.hasRunningAnimations, isFalse);
     pending.complete(fixture());
     await tester.pumpAndSettle();
-    expect(find.text('Loading school years…'), findsNothing);
+    expect(find.byType(ScreenSkeleton), findsNothing);
     expect(find.text('Term 1'), findsOneWidget);
   });
 

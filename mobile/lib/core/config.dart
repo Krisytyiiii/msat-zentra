@@ -28,4 +28,5 @@ class AppConfig {
   static const outboxBox = 'zentra.outbox';
   static const cacheBox = 'zentra.cache';
   static const bamaBox = 'zentra.bama';
+  static const saveHistoryBox = 'zentra.save-history';
 }

@@ -63,7 +63,7 @@ flutter_launcher_icons:
   android: true
   ios: true
   image_path: "assets/zentra.png"
-  adaptive_icon_foreground: "assets/zentra_fg.png"
+  adaptive_icon_foreground: "assets/zentra.png"
   adaptive_icon_background: "#1C1C1C"
   web:
     generate: true

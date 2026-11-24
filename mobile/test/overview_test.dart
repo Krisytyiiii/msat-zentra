@@ -14,10 +14,10 @@ import 'package:zentra_mobile/core/session.dart';
 import 'package:zentra_mobile/design/shell.dart';
 import 'package:zentra_mobile/design/theme.dart';
 import 'package:zentra_mobile/design/tokens.dart';
-import 'package:zentra_mobile/features/adviser/adviser_schedule_page.dart';
 import 'package:zentra_mobile/features/auth/first_time_gate.dart';
 import 'package:zentra_mobile/features/home/overview_data.dart';
 import 'package:zentra_mobile/features/home/overview_page.dart';
+import 'package:zentra_mobile/features/teacher/classes_data.dart';
 import 'package:zentra_mobile/shared/models.dart';
 
 Map<String, dynamic> critical({bool adviser = true}) => {
@@ -262,9 +262,7 @@ void main() {
       expect(result.startsAt, DateTime.utc(2026, 11, 16, 0, 30));
       expect(result.endsAt, DateTime.utc(2026, 11, 16, 1, 30));
       expect(result.slot.period, 1);
-      final nextWeek = schedule().nextClass(DateTime.utc(2026, 11, 20, 12))!;
-      expect(philippineTime(nextWeek.startsAt).weekday, DateTime.monday);
-      expect(philippineTime(nextWeek.startsAt).day, 23);
+      expect(schedule().nextClass(DateTime.utc(2026, 11, 20, 12)), isNull);
     },
   );
   test(
@@ -294,7 +292,7 @@ void main() {
           scope: term(end: now.add(const Duration(hours: 1))),
           slots: [slot(period: 7)],
         ).nextClass(now),
-        isNull,
+        isNotNull,
       );
       expect(
         schedule(
@@ -310,10 +308,17 @@ void main() {
   test('schedule shares existing source and reloads on term change without chart calls', () async {
     final api = TestApi();
     final store = TestTerm();
+    var loads = 0;
     final container = ProviderContainer(
       overrides: [
         apiClientProvider.overrideWithValue(api),
         termProvider.overrideWith((ref) => store),
+        teachingWeekProvider.overrideWith((ref) {
+          ref.watch(termProvider);
+          loads++;
+          return TeachingWeek(classes: [], periods: [],
+            config: SchoolDayConfig.fromJson(configJson()));
+        }),
         schoolYearsProvider.overrideWith(
           (ref) => [
             SchoolYear(
@@ -334,14 +339,15 @@ void main() {
     final sub = container.listen(overviewScheduleProvider, (_, _) {});
     addTearDown(sub.close);
     await container.read(overviewScheduleProvider.future);
-    await container.read(adviserScheduleProvider.future);
-    expect(api.paths.where((p) => p.endsWith('/my-slots')).length, 1);
+    await container.read(teachingWeekProvider.future);
+    expect(loads, 1);
     await store.select(term(id: 'next'));
     expect(
       (await container.read(overviewScheduleProvider.future)).term.id,
       'next',
     );
-    expect(api.paths.where((p) => p.endsWith('/my-slots')).length, 2);
+    expect(loads, 2);
+    expect(api.paths.where((p) => p.contains('/schedule/')), isEmpty);
     expect(api.paths.any((p) => p.endsWith('/insights')), isFalse);
   });
 
@@ -430,7 +436,7 @@ void main() {
       await tester.pumpAndSettle();
       expect(
         find.text(
-          'Opened ${adviser ? '/adviser/schedule' : '/workspace/schedule'}',
+          'Opened /workspace/classes',
         ),
         findsOneWidget,
       );

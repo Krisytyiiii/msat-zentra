@@ -1,14 +1,15 @@
-import 'dart:math' as math;
+import 'dart:async';
 
-import 'package:connectivity_plus/connectivity_plus.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:hive_flutter/hive_flutter.dart';
+import 'package:intl/intl.dart';
 
 import '../../design/adviser_navigation.dart';
 import '../../core/api_client.dart';
 import '../../core/config.dart';
+import '../../core/save_tasks.dart';
 import '../../core/session.dart';
 import '../../core/sync_outbox.dart';
 import '../../design/status_palette.dart';
@@ -17,6 +18,7 @@ import '../../shared/models.dart';
 import '../../shared/user_messages.dart';
 import '../../shared/widgets.dart';
 import 'gradebook_data.dart';
+import 'score_saves.dart';
 
 /// Dedicated assessment encoding, outside the staff shell. Only dirty rows
 /// are submitted, using the same bulk endpoint and per-row results as web.
@@ -25,11 +27,162 @@ class AssessmentScorePage extends ConsumerStatefulWidget {
     super.key,
     required this.classId,
     required this.assessmentId,
+    this.reviewSaveId,
   });
   final String classId;
   final String assessmentId;
+  final String? reviewSaveId;
   @override
   ConsumerState<AssessmentScorePage> createState() => _ScoreState();
+}
+
+class _ReviewScoresDialog extends StatelessWidget {
+  const _ReviewScoresDialog({
+    required this.assessment,
+    required this.assignment,
+    required this.changes,
+  });
+  final RecordAssessment assessment;
+  final Map<String, dynamic> assignment;
+  final List<({String name, double? before, double after, bool queued})>
+  changes;
+
+  @override
+  Widget build(BuildContext context) => Dialog(
+    backgroundColor: Colors.white,
+    insetPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 24),
+    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(24)),
+    child: ConstrainedBox(
+      constraints: const BoxConstraints(maxWidth: 380),
+      child: SingleChildScrollView(
+        padding: const EdgeInsets.fromLTRB(16, 18, 16, 20),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            Row(
+              children: [
+                const Expanded(
+                  child: Text(
+                    'Review scores',
+                    style: TextStyle(
+                      fontSize: 20,
+                      fontWeight: FontWeight.w700,
+                      color: Color(0xFF101828),
+                    ),
+                  ),
+                ),
+                IconButton(
+                  tooltip: 'Close review',
+                  onPressed: () => Navigator.pop(context, false),
+                  icon: const Icon(Icons.close, size: 20),
+                ),
+              ],
+            ),
+            const SizedBox(height: 12),
+            Wrap(
+              spacing: 6,
+              runSpacing: 6,
+              children: [
+                ZStatusPill(
+                  text: assignment['subjectName']?.toString() ?? 'Class',
+                  tone: StatusTone.blue,
+                ),
+                if (assignment['sectionName'] != null)
+                  ZStatusPill(
+                    text: assignment['sectionName'].toString(),
+                    tone: StatusTone.violet,
+                  ),
+                ZStatusPill(
+                  text: 'Max ${gradeNumber(assessment.maxScore)}',
+                  tone: StatusTone.amber,
+                ),
+              ],
+            ),
+            const SizedBox(height: 12),
+            Text(
+              assessment.title,
+              style: const TextStyle(
+                fontSize: 14,
+                fontWeight: FontWeight.w600,
+                color: Color(0xFF101828),
+              ),
+            ),
+            const SizedBox(height: 8),
+            Text(
+              '${changes.length} changed ${changes.length == 1 ? 'learner' : 'learners'}',
+              style: const TextStyle(fontSize: 12, color: Color(0xFF667085)),
+            ),
+            const SizedBox(height: 12),
+            for (final change in changes)
+              Container(
+                margin: const EdgeInsets.only(bottom: 8),
+                padding: const EdgeInsets.all(12),
+                decoration: BoxDecoration(
+                  color: const Color(0xFFF8FAFC),
+                  borderRadius: BorderRadius.circular(12),
+                  border: Border.all(color: const Color(0xFFE2E8F0)),
+                ),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      change.name,
+                      style: const TextStyle(
+                        fontSize: 12,
+                        fontWeight: FontWeight.w600,
+                        color: Color(0xFF101828),
+                      ),
+                    ),
+                    const SizedBox(height: 4),
+                    Text(
+                      '${change.before == null ? 'Missing' : gradeNumber(change.before!)}'
+                      '${change.queued ? ' (Queued)' : ''} → ${gradeNumber(change.after)}',
+                      style: const TextStyle(
+                        fontSize: 12,
+                        color: Color(0xFF2563EB),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            const SizedBox(height: 8),
+            const Text(
+              'Only changed scores will be submitted. Offline scores stay queued until confirmed.',
+              style: TextStyle(
+                fontSize: 12,
+                height: 1.45,
+                color: Color(0xFF667085),
+              ),
+            ),
+            const SizedBox(height: 16),
+            Row(
+              children: [
+                Expanded(
+                  child: OutlinedButton(
+                    onPressed: () => Navigator.pop(context, false),
+                    child: const Text('Back'),
+                  ),
+                ),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: FilledButton(
+                    style: FilledButton.styleFrom(
+                      backgroundColor: const Color(0xFF2563EB),
+                      foregroundColor: Colors.white,
+                      minimumSize: const Size(48, 48),
+                    ),
+                    onPressed: () => Navigator.pop(context, true),
+                    child: const Text('Save'),
+                  ),
+                ),
+              ],
+            ),
+          ],
+        ),
+      ),
+    ),
+  );
 }
 
 class _ScoreState extends ConsumerState<AssessmentScorePage> {
@@ -46,6 +199,9 @@ class _ScoreState extends ConsumerState<AssessmentScorePage> {
   String? _notice;
   bool _busy = true;
   bool _saving = false;
+  bool _reviewing = false;
+  bool _descending = false;
+  String _saveFilter = 'all';
   bool _stale = false;
   bool _allowPop = false;
   bool _confirmingLeave = false;
@@ -124,6 +280,26 @@ class _ScoreState extends ConsumerState<AssessmentScorePage> {
         (_controllers[learner.id] ??= TextEditingController()).text =
             value == null ? '' : gradeNumber(value);
       }
+      if (widget.reviewSaveId != null) {
+        final tasks = ref.read(saveTasksProvider);
+        await tasks.ready;
+        if (!mounted || generation != _generation) return;
+        final task = tasks.tasks
+            .where((t) => t.id == widget.reviewSaveId)
+            .firstOrNull;
+        if (task != null &&
+            task.failed &&
+            task.recovery['scope'] == _currentScope) {
+          for (final row in task.recovery['scores'] as List? ?? []) {
+            if (row is! Map) continue;
+            final id = row['studentId'];
+            final score = row['rawScore'];
+            if (id is String && score is num && !_queued.containsKey(id)) {
+              _controllers[id]?.text = gradeNumber(score);
+            }
+          }
+        }
+      }
       setState(() {
         _busy = false;
         _notice = null;
@@ -149,17 +325,8 @@ class _ScoreState extends ConsumerState<AssessmentScorePage> {
 
   List<RecordLearner> get _dirty => _learners.where(_changed).toList();
 
-  void _checkScope() {
-    if (!mounted || _stale || _currentScope != _scope) {
-      throw ApiException(
-        'SCOPE_CHANGED',
-        'The selected term changed. Return to the Class Record before saving.',
-      );
-    }
-  }
-
   Future<void> _save() async {
-    if (_saving || _stale || _dirty.isEmpty) return;
+    if (_saving || _reviewing || _stale || _dirty.isEmpty) return;
     final dirty = _dirty;
     final jobs = <Map<String, dynamic>>[];
     _rowErrors.clear();
@@ -179,109 +346,156 @@ class _ScoreState extends ConsumerState<AssessmentScorePage> {
       _search.clear();
       setState(() {
         _filter = 'all';
+        _saveFilter = 'all';
         _query = '';
         _error = 'Check the highlighted scores before saving.';
       });
       return;
     }
+    final owner = ref.read(authProvider);
+    final generation = _generation;
+    final scope = _scope;
+    setState(() => _reviewing = true);
+    bool? confirmed;
+    try {
+      confirmed = await showDialog<bool>(
+        context: context,
+        builder: (_) => _ReviewScoresDialog(
+          assessment: _assessment!,
+          assignment: _record!.assignment,
+          changes: [
+            for (final learner in dirty)
+              (
+                name: learner.displayName,
+                before: _queued[learner.id] ?? _saved[learner.id],
+                after:
+                    (jobs.firstWhere(
+                          (job) => job['studentId'] == learner.id,
+                        )['rawScore']
+                        as double),
+                queued: _queued.containsKey(learner.id),
+              ),
+          ],
+        ),
+      );
+    } finally {
+      if (mounted) setState(() => _reviewing = false);
+    }
+    if (!mounted ||
+        confirmed != true ||
+        _stale ||
+        _currentScope != scope ||
+        generation != _generation ||
+        !identical(owner, ref.read(authProvider))) {
+      return;
+    }
+    final tasks = ref.read(saveTasksProvider);
+    final term = ref.read(termProvider);
+    final expected = '${term?.schoolYearId}:${term?.id}';
+    final request = ScoreSaveRequest(
+      assessmentId: widget.assessmentId,
+      jobs: List<Map<String, dynamic>>.from(jobs),
+      queuedIds: _queued.keys.toSet(),
+    );
+    final api = ref.read(apiClientProvider);
+    final outbox = ref.read(outboxProvider);
+    final service = _service;
+    ScoreSaveOutcome? outcome;
     setState(() {
       _saving = true;
       _error = null;
       _notice = null;
     });
-    var savedCount = 0;
-    var queuedCount = 0;
-    try {
-      final connectivity = await Connectivity().checkConnectivity();
-      _checkScope();
-      final online = <Map<String, dynamic>>[];
-      for (final job in jobs) {
-        final id = job['studentId'] as String;
-        // Existing per-cell queued operations retain FIFO ordering; the outbox
-        // cannot safely interpret partial-success bulk responses.
-        if (connectivity.contains(ConnectivityResult.none) ||
-            _queued.containsKey(id)) {
-          _checkScope();
-          await ref
-              .read(outboxProvider)
-              .enqueue(
-                method: 'POST',
-                path:
-                    '/api/grades/assessments/${Uri.encodeComponent(widget.assessmentId)}/score',
-                body: job,
-              );
-          _queued[id] = job['rawScore'] as double;
-          queuedCount++;
-        } else {
-          online.add(job);
-        }
-      }
-      // The web bulk contract accepts at most 300 learners per request.
-      for (var start = 0; start < online.length; start += 300) {
-        _checkScope();
-        final batch = online.sublist(
-          start,
-          math.min(start + 300, online.length),
+    // The write runs in the app-wide queue: this page is free to leave while
+    // the pill above the navigation reports progress, and only a server
+    // acknowledgement counts as saved.
+    late final SaveTask task;
+    task = tasks.submit(
+      title: 'Scores · ${_assessment!.title}',
+      onSettled: (task) => _afterSave(task, outcome),
+      route:
+          '/workspace/classes/${Uri.encodeComponent(widget.classId)}'
+          '/assessments/${Uri.encodeComponent(widget.assessmentId)}',
+      recovery: {
+        'scope': expected,
+        'scores': List<Map<String, dynamic>>.from(jobs),
+      },
+      subtitle:
+          '${_record?.assignment['subjectName'] ?? 'Grade Record'} · ${jobs.length} ${jobs.length == 1 ? 'learner' : 'learners'}',
+      action: () async {
+        final result = await runScoreSave(
+          api: api,
+          outbox: outbox,
+          service: service,
+          request: request,
+          termIsCurrent: () => tasks.termIsCurrent(expected),
+          onQueued: (id, count) => tasks.trackQueued(task, id, count),
+          onProgress: () {
+            task.saved = request.savedScores.length;
+            task.queued = request.queuedScores.length;
+            task.recovery['scores'] = List<Map<String, dynamic>>.from(
+              request.jobs,
+            );
+            tasks.checkpoint(task);
+          },
         );
-        try {
-          final response = await _service.scores(widget.assessmentId, batch);
-          final results = response['results'];
-          if (results is! List) {
-            throw const FormatException('Missing score acknowledgements');
-          }
-          final byId = <String, Map>{
-            for (final row in results)
-              if (row is Map && row['studentId'] is String)
-                row['studentId'] as String: row,
-          };
-          for (final job in batch) {
-            final id = job['studentId'] as String;
-            if (byId[id]?['ok'] == true) {
-              _saved[id] = job['rawScore'] as double;
-              _assessment!.scores[id] = job['rawScore'] as double;
-              _rowErrors.remove(id);
-              savedCount++;
-            } else {
-              _rowErrors[id] =
-                  'This score could not be saved. Check it and retry.';
-            }
-          }
-        } catch (error) {
-          for (final job in batch) {
-            _rowErrors[job['studentId'] as String] = userMessage(error);
-          }
-          rethrow;
-        }
-      }
-      if (mounted) {
-        _error = _rowErrors.isEmpty
-            ? null
-            : 'Some scores were not saved. Your edits are kept for retry.';
-      }
-    } catch (error) {
-      if (mounted) _error = userMessage(error);
-    } finally {
-      if (mounted && savedCount > 0) {
-        ref.invalidate(overviewProvider);
-        ref.invalidate(overviewSecondaryProvider);
-      }
-      if (mounted) {
-        setState(() {
-          _saving = false;
-          _notice = [
-            if (savedCount > 0) '$savedCount saved',
-            if (queuedCount > 0) '$queuedCount queued offline',
-          ].join(' · ');
+        outcome = result;
+        return SaveTaskResult(
+          saved: result.saved,
+          queued: result.queued,
+          failed: result.errors.length,
+          message: [
+            if (result.saved > 0) '${result.saved} saved',
+            if (result.queued > 0) '${result.queued} queued offline',
+            if (result.errors.isNotEmpty)
+              '${result.errors.length} need${result.errors.length == 1 ? 's' : ''} attention',
+          ].join(' · '),
+        );
+      },
+    );
+  }
+
+  void _afterSave(SaveTask task, ScoreSaveOutcome? outcome) {
+    if (!mounted || _scope != _currentScope) return;
+    final assessment = _assessment;
+    var savedCount = 0;
+    setState(() {
+      _saving = false;
+      if (outcome != null) {
+        outcome.savedScores.forEach((id, score) {
+          _saved[id] = score;
+          assessment?.scores[id] = score;
+          _rowErrors.remove(id);
         });
+        outcome.queuedScores.forEach((id, score) => _queued[id] = score);
+        _rowErrors.addAll(outcome.errors);
+        savedCount = outcome.saved;
       }
+      _error = task.failed
+          ? (task.error ?? 'Scores could not be saved. Your edits are kept.')
+          : _rowErrors.isEmpty
+          ? null
+          : 'Some scores were not saved. Your edits are kept for retry.';
+      _notice = outcome == null
+          ? null
+          : [
+              if (outcome.saved > 0) '${outcome.saved} saved',
+              if (outcome.queued > 0) '${outcome.queued} queued offline',
+            ].join(' · ');
+    });
+    if (savedCount > 0) {
+      ref.invalidate(overviewProvider);
+      ref.invalidate(overviewSecondaryProvider);
     }
-    if (mounted &&
+    // Everything the user asked to save was acknowledged (or safely queued):
+    // close the editor as before, but never discard a newer edit.
+    if (!task.failed &&
         !_stale &&
         _currentScope == _scope &&
-        savedCount == jobs.length &&
-        queuedCount == 0 &&
         _rowErrors.isEmpty &&
-        _error == null) {
+        _error == null &&
+        _notice?.contains('queued') != true &&
+        _dirty.isEmpty) {
       setState(() => _allowPop = true);
       WidgetsBinding.instance.addPostFrameCallback((_) {
         if (!mounted) return;
@@ -300,6 +514,9 @@ class _ScoreState extends ConsumerState<AssessmentScorePage> {
   }
 
   Future<bool> _discard() async {
+    // Submitted rows now live in the app-wide save queue; leaving does not
+    // cancel them, and controls stay locked while a task runs.
+    if (_saving) return true;
     if (_dirty.isEmpty) return true;
     return await showDialog<bool>(
           context: context,
@@ -324,7 +541,7 @@ class _ScoreState extends ConsumerState<AssessmentScorePage> {
   }
 
   Future<void> _leave() async {
-    if (_saving || _confirmingLeave) return;
+    if (_confirmingLeave) return;
     _confirmingLeave = true;
     try {
       if (!await _discard() || !mounted) return;
@@ -366,22 +583,23 @@ class _ScoreState extends ConsumerState<AssessmentScorePage> {
         child: Scaffold(
           backgroundColor: Colors.white,
           appBar: AppBar(
+            shape: const Border(bottom: BorderSide(color: Color(0xFFEDF0F6))),
             backgroundColor: Colors.white,
             surfaceTintColor: Colors.transparent,
             scrolledUnderElevation: 0,
             centerTitle: true,
-            leadingWidth: 48,
-            leading: IconButton(
+            leadingWidth: 64,
+            leading: ZBackButton(
               tooltip: canPop ? 'Back' : 'Close',
-              onPressed: _saving ? null : _leave,
+              onPressed: _leave,
               icon: const Icon(Icons.chevron_left),
             ),
-            title: const Text('Assessment scores'),
+            title: const Text('Edit Scores'),
           ),
           body: AdviserBamaAccess(
             busy: _saving,
             child: _busy
-                ? const LoadingView()
+                ? const LoadingView(layout: SkeletonLayout.scores)
                 : assessment == null
                 ? ErrorView(
                     message: _error ?? 'This assessment is unavailable.',
@@ -402,23 +620,23 @@ class _ScoreState extends ConsumerState<AssessmentScorePage> {
                         horizontal: 16,
                         vertical: 8,
                       ),
-                      child: Wrap(
-                        alignment: WrapAlignment.spaceBetween,
-                        crossAxisAlignment: WrapCrossAlignment.center,
-                        spacing: 12,
-                        runSpacing: 8,
-                        children: [
-                          Text(
-                            '${_dirty.length} changed',
-                            style: Theme.of(context).textTheme.bodySmall,
+                      child: SizedBox(
+                        width: double.infinity,
+                        child: FilledButton(
+                          style: FilledButton.styleFrom(
+                            backgroundColor: const Color(0xFF2563EB),
+                            foregroundColor: Colors.white,
+                            minimumSize: const Size(160, 48),
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(16),
+                            ),
                           ),
-                          FilledButton(
-                            onPressed: _saving || _stale || _dirty.isEmpty
-                                ? null
-                                : _save,
-                            child: Text(_saving ? 'Saving…' : 'Save scores'),
-                          ),
-                        ],
+                          onPressed:
+                              _saving || _reviewing || _stale || _dirty.isEmpty
+                              ? null
+                              : _save,
+                          child: Text(_saving ? 'Saving…' : 'Save scores'),
+                        ),
                       ),
                     ),
                   ),
@@ -429,166 +647,383 @@ class _ScoreState extends ConsumerState<AssessmentScorePage> {
   }
 
   Widget _body(RecordAssessment assessment) {
-    final shown = _learners.where((learner) {
-      if (_filter == 'missing' && _saved.containsKey(learner.id)) return false;
-      if (_filter == 'scored' && !_saved.containsKey(learner.id)) return false;
-      return _query.isEmpty ||
-          learner.displayName.toLowerCase().contains(_query) ||
-          learner.name.toLowerCase().contains(_query) ||
-          learner.lrn.contains(_query);
-    }).toList();
+    final givenDate = DateTime.tryParse(assessment.dateGiven);
+    final shown =
+        _learners.where((learner) {
+          if (_filter == 'missing' && _saved.containsKey(learner.id)) {
+            return false;
+          }
+          if (_filter == 'scored' && !_saved.containsKey(learner.id)) {
+            return false;
+          }
+          final saved =
+              _saved.containsKey(learner.id) &&
+              !_changed(learner) &&
+              !_queued.containsKey(learner.id);
+          if (_saveFilter == 'saved' && !saved) return false;
+          if (_saveFilter == 'unsaved' && saved) return false;
+          return _query.isEmpty ||
+              learner.displayName.toLowerCase().contains(_query) ||
+              learner.name.toLowerCase().contains(_query) ||
+              learner.lrn.contains(_query);
+        }).toList()..sort(
+          (a, b) => _descending
+              ? b.displayName.toLowerCase().compareTo(
+                  a.displayName.toLowerCase(),
+                )
+              : a.displayName.toLowerCase().compareTo(
+                  b.displayName.toLowerCase(),
+                ),
+        );
     return Center(
       child: ConstrainedBox(
         constraints: const BoxConstraints(maxWidth: 760),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.stretch,
-          children: [
-            Padding(
-              padding: const EdgeInsets.fromLTRB(12, 16, 12, 8),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    assessment.title,
-                    style: const TextStyle(
-                      fontSize: 22,
-                      fontWeight: FontWeight.w700,
-                      letterSpacing: -0.5,
-                    ),
-                  ),
-                  const SizedBox(height: 8),
-                  Text(
-                    '${_record!.assignment['subjectName'] ?? ''} · ${_record!.assignment['sectionName'] ?? ''}',
-                    style: const TextStyle(
-                      fontSize: 12,
-                      height: 1.5,
-                      color: Color(0xFF81818F),
-                    ),
-                  ),
-                  const SizedBox(height: 12),
-                  Wrap(
-                    spacing: 6,
-                    runSpacing: 6,
-                    children: [
-                      if (_record!.assignment['schoolYear'] != null)
-                        ZStatusPill(
-                          text: _record!.assignment['schoolYear'].toString(),
-                          tone: StatusTone.blue,
+        child: CustomScrollView(
+          keyboardDismissBehavior: ScrollViewKeyboardDismissBehavior.onDrag,
+          slivers: [
+            SliverToBoxAdapter(
+              child: Padding(
+                padding: const EdgeInsets.fromLTRB(12, 16, 12, 8),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Row(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Container(
+                          width: 46,
+                          height: 46,
+                          decoration: BoxDecoration(
+                            color: const Color(0xFFE8EFFF),
+                            borderRadius: BorderRadius.circular(16),
+                          ),
+                          child: const Icon(
+                            Icons.edit_note_outlined,
+                            size: 24,
+                            color: Color(0xFF2442A8),
+                          ),
                         ),
-                      if (_record!.assignment['termNumber'] != null)
-                        ZStatusPill(
-                          text: 'Term ${_record!.assignment['termNumber']}',
-                          tone: StatusTone.amber,
-                        ),
-                      ZStatusPill(
-                        text:
-                            assessmentTypes[assessment.type] ?? assessment.type,
-                      ),
-                      ZStatusPill(
-                        text: assessment.audience == 'adm' ? 'ADM' : 'Regular',
-                      ),
-                      ZStatusPill(
-                        text: 'Max ${gradeNumber(assessment.maxScore)}',
-                        tone: StatusTone.amber,
-                      ),
-                      if (assessment.dateGiven.isNotEmpty)
-                        ZStatusPill(text: assessment.dateGiven),
-                    ],
-                  ),
-                  const SizedBox(height: 8),
-                  SizedBox(
-                    height: 40,
-                    child: TextField(
-                      controller: _search,
-                      textAlignVertical: TextAlignVertical.center,
-                      style: const TextStyle(fontSize: 12),
-                      decoration: InputDecoration(
-                        prefixIcon: const Icon(Icons.search, size: 20),
-                        hintText: 'Search learner or LRN',
-                        suffixIcon: _search.text.isEmpty
-                            ? null
-                            : IconButton(
-                                tooltip: 'Clear search',
-                                icon: const Icon(Icons.close, size: 16),
-                                onPressed: () => setState(() {
-                                  _search.clear();
-                                  _query = '';
-                                }),
+                        const SizedBox(width: 10),
+                        Expanded(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Row(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Expanded(
+                                    child: Text(
+                                      assessment.title,
+                                      style: const TextStyle(
+                                        fontSize: 22,
+                                        height: 1.2,
+                                        fontWeight: FontWeight.w700,
+                                        color: Color(0xFF171C36),
+                                        letterSpacing: -0.5,
+                                      ),
+                                    ),
+                                  ),
+                                  if (assessment.dateGiven.isNotEmpty) ...[
+                                    const SizedBox(width: 8),
+                                    _metadataPill(
+                                      givenDate == null
+                                          ? assessment.dateGiven
+                                          : DateFormat('MMM d, yyyy')
+                                                .format(givenDate),
+                                      Icons.calendar_today_outlined,
+                                      'Assessment date',
+                                    ),
+                                  ],
+                                ],
                               ),
-                        filled: true,
-                        fillColor: const Color(0xFFF5F7FA),
-                        contentPadding: const EdgeInsets.symmetric(
-                          horizontal: 16,
-                          vertical: 8,
-                        ),
-                        border: OutlineInputBorder(
-                          borderRadius: BorderRadius.circular(999),
-                          borderSide: const BorderSide(
-                            color: Color(0xFFE6ECF4),
+                              const SizedBox(height: 4),
+                              Wrap(
+                                spacing: 6,
+                                runSpacing: 6,
+                                children: [
+                                  if (_record!.assignment['subjectName'] !=
+                                      null)
+                                    _metadataPill(
+                                      _record!.assignment['subjectName']
+                                          .toString(),
+                                      Icons.menu_book_outlined,
+                                      'Subject',
+                                    ),
+                                ],
+                              ),
+                            ],
                           ),
                         ),
-                        enabledBorder: OutlineInputBorder(
-                          borderRadius: BorderRadius.circular(999),
-                          borderSide: const BorderSide(
-                            color: Color(0xFFE6ECF4),
+                      ],
+                    ),
+                    const SizedBox(height: 12),
+                    Wrap(
+                      spacing: 6,
+                      runSpacing: 6,
+                      children: [
+                        if (_record!.assignment['schoolYear'] != null)
+                          ZScopePill(
+                            text: _record!.assignment['schoolYear'].toString(),
+                            kind: ScopePillKind.schoolYear,
+                            compact: true,
+                          ),
+                        if (_record!.assignment['termNumber'] != null)
+                          ZScopePill(
+                             text: 'Term ${_record!.assignment['termNumber']}',
+                            kind: ScopePillKind.term,
+                            compact: true,
+                          ),
+                        if (_record!.assignment['gradeLevel'] != null ||
+                            _record!.assignment['sectionName'] != null)
+                          _metadataPill(
+                            [
+                              if (_record!.assignment['gradeLevel'] != null)
+                                _record!.assignment['gradeLevel'].toString()
+                                  .replaceFirst(RegExp(r'^Grade\s*', caseSensitive: false), 'G'),
+                              if (_record!.assignment['sectionName'] != null)
+                                _record!.assignment['sectionName'].toString(),
+                            ].where((value) => value.isNotEmpty).join(' · '),
+                            Icons.school_outlined,
+                            'Grade and section',
+                          ),
+                      ],
+                    ),
+                    const SizedBox(height: 12),
+                    SizedBox(
+                      height: 40,
+                      child: TextField(
+                        controller: _search,
+                        textAlignVertical: TextAlignVertical.center,
+                        style: const TextStyle(fontSize: 12),
+                        decoration: InputDecoration(
+                          prefixIcon: const Icon(Icons.search, size: 20),
+                          hintText: 'Search learner or LRN',
+                          suffixIcon: _search.text.isEmpty
+                              ? null
+                              : IconButton(
+                                  tooltip: 'Clear search',
+                                  icon: const Icon(Icons.close, size: 16),
+                                  onPressed: () => setState(() {
+                                    _search.clear();
+                                    _query = '';
+                                  }),
+                                ),
+                          filled: true,
+                          fillColor: const Color(0xFFF5F7FA),
+                          contentPadding: const EdgeInsets.symmetric(
+                            horizontal: 16,
+                            vertical: 8,
+                          ),
+                          border: OutlineInputBorder(
+                            borderRadius: BorderRadius.circular(999),
+                            borderSide: const BorderSide(
+                              color: Color(0xFFE6ECF4),
+                            ),
+                          ),
+                          enabledBorder: OutlineInputBorder(
+                            borderRadius: BorderRadius.circular(999),
+                            borderSide: const BorderSide(
+                              color: Color(0xFFE6ECF4),
+                            ),
                           ),
                         ),
-                      ),
-                      onChanged: (text) =>
-                          setState(() => _query = text.trim().toLowerCase()),
-                    ),
-                  ),
-                  const SizedBox(height: 8),
-                  SingleChildScrollView(
-                    scrollDirection: Axis.horizontal,
-                    child: SegTabs<String>(
-                      values: const ['all', 'missing', 'scored'],
-                      labels: const ['All', 'Missing', 'Scored'],
-                      selected: _filter,
-                      onChanged: (v) => setState(() => _filter = v),
-                    ),
-                  ),
-                  if (_stale)
-                    Text(
-                      'The selected term changed. Return to the Class Record before saving.',
-                      style: TextStyle(
-                        color: Theme.of(context).colorScheme.error,
+                        onChanged: (text) =>
+                            setState(() => _query = text.trim().toLowerCase()),
                       ),
                     ),
-                  if (_error != null)
-                    Semantics(
-                      liveRegion: true,
-                      child: Text(
-                        _error!,
+                    const SizedBox(height: 8),
+                    Row(
+                      children: [
+                        Flexible(
+                          child: _recordFilter('Category', _filter, const {
+                            'all': 'All Category',
+                            'missing': 'Missing',
+                            'scored': 'Scored',
+                          }, (value) => setState(() => _filter = value)),
+                        ),
+                        const SizedBox(width: 8),
+                        Flexible(
+                          child: _recordFilter(
+                            'Save status',
+                            _saveFilter,
+                            const {
+                              'all': 'Save: All',
+                              'saved': 'Save: Saved',
+                              'unsaved': 'Save: Unsaved',
+                            },
+                            (value) => setState(() => _saveFilter = value),
+                          ),
+                        ),
+                      ],
+                    ),
+                    Row(
+                      children: [
+                        Expanded(
+                          child: Text(
+                            'Showing ${shown.length} records',
+                            style: const TextStyle(
+                              fontSize: 12,
+                              color: Color(0xFF71809B),
+                            ),
+                          ),
+                        ),
+                        TextButton.icon(
+                          onPressed: () =>
+                              setState(() => _descending = !_descending),
+                          icon: const Icon(Icons.sort, size: 16),
+                          label: Text(
+                            _descending ? 'Name (Z-A)' : 'Name (A-Z)',
+                            style: const TextStyle(fontSize: 12),
+                          ),
+                        ),
+                      ],
+                    ),
+                    if (_stale)
+                      Text(
+                        'The selected term changed. Return to the Grade Record before saving.',
                         style: TextStyle(
                           color: Theme.of(context).colorScheme.error,
                         ),
                       ),
-                    ),
-                  if (_notice?.isNotEmpty == true)
-                    Semantics(liveRegion: true, child: Text(_notice!)),
-                ],
+                    if (_error != null)
+                      Semantics(
+                        liveRegion: true,
+                        child: Text(
+                          _error!,
+                          style: TextStyle(
+                            color: Theme.of(context).colorScheme.error,
+                          ),
+                        ),
+                      ),
+                    if (_notice?.isNotEmpty == true)
+                      Semantics(liveRegion: true, child: Text(_notice!)),
+                  ],
+                ),
               ),
             ),
-            Expanded(
-              child: shown.isEmpty
-                  ? const ZEmptyPage(
-                      icon: Icons.group_outlined,
-                      title: 'No learners match',
-                      subtitle: 'Try a different search or score filter.',
-                    )
-                  : ListView.separated(
-                      padding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
-                      itemCount: shown.length,
-                      separatorBuilder: (_, _) => const SizedBox(height: 8),
-                      itemBuilder: (_, index) => _row(shown[index], assessment),
-                    ),
+            if (shown.isEmpty)
+              const SliverFillRemaining(
+                hasScrollBody: false,
+                child: Center(
+                  child: ZEmpty(
+                    icon: Icons.group_outlined,
+                    title: 'No learners match',
+                    subtitle: 'Try a different search or score filter.',
+                  ),
+                ),
+              )
+            else
+              SliverPadding(
+                padding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
+                sliver: SliverList.separated(
+                  itemCount: shown.length,
+                  separatorBuilder: (_, _) => const SizedBox(height: 8),
+                  itemBuilder: (_, index) => _row(shown[index], assessment),
+                ),
+              ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _metadataPill(String text, IconData icon, String label) {
+    final (background, border, foreground) = switch (label) {
+      'Assessment date' => (
+        const Color(0xFFF3F4F6),
+        const Color(0xFFE5E7EB),
+        const Color(0xFF6B7280),
+      ),
+      'Subject' => (
+        const Color(0xFFF0FDFA),
+        const Color(0xFF99F6E4),
+        const Color(0xFF0F766E),
+      ),
+      'Grade and section' => (
+        const Color(0xFFF5F3FF),
+        const Color(0xFFDDD6FE),
+        const Color(0xFF7C3AED),
+      ),
+      _ => (
+        const Color(0xFFEAF2FF),
+        const Color(0xFFD4E4FF),
+        const Color(0xFF2563EB),
+      ),
+    };
+    return Tooltip(
+      message: label,
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 3),
+        decoration: BoxDecoration(
+          color: background,
+          border: Border.all(color: border),
+          borderRadius: BorderRadius.circular(999),
+        ),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Icon(icon, size: 11, color: foreground),
+            const SizedBox(width: 4),
+            Flexible(
+              child: Text(
+                text,
+                style: TextStyle(
+                  fontSize: 12,
+                  fontWeight: FontWeight.w600,
+                  color: foreground,
+                ),
+              ),
             ),
           ],
         ),
       ),
     );
   }
+
+  Widget _recordFilter(
+    String label,
+    String value,
+    Map<String, String> options,
+    ValueChanged<String> onChanged,
+  ) => Container(
+    padding: const EdgeInsets.symmetric(horizontal: 12),
+    decoration: BoxDecoration(
+      color: const Color(0xFFEFF6FF),
+      borderRadius: BorderRadius.circular(24),
+      border: Border.all(color: const Color(0xFFBFDBFE)),
+    ),
+    child: Tooltip(
+      message: label,
+      child: DropdownButtonHideUnderline(
+        child: DropdownButton<String>(
+          value: value,
+          isExpanded: true,
+          itemHeight: null,
+          style: const TextStyle(fontSize: 12, color: Color(0xFF2563EB)),
+          selectedItemBuilder: (_) => [
+            for (final text in options.values)
+              Align(
+                alignment: Alignment.centerLeft,
+                child: Text(text, maxLines: 1, overflow: TextOverflow.ellipsis),
+              ),
+          ],
+          items: [
+            for (final entry in options.entries)
+              DropdownMenuItem(
+                value: entry.key,
+                child: Padding(
+                  padding: const EdgeInsets.symmetric(vertical: 12),
+                  child: Text(entry.value),
+                ),
+              ),
+          ],
+          onChanged: (selected) {
+            if (selected != null) onChanged(selected);
+          },
+        ),
+      ),
+    ),
+  );
 
   Widget _row(RecordLearner learner, RecordAssessment assessment) {
     final changed = _changed(learner);
@@ -604,27 +1039,119 @@ class _ScoreState extends ConsumerState<AssessmentScorePage> {
         : _saved.containsKey(learner.id)
         ? 'Saved'
         : 'Missing';
-    return ZCard(
+    final words = learner.name
+        .trim()
+        .split(RegExp(r'\s+'))
+        .where((s) => s.isNotEmpty)
+        .toList();
+    final initials = words.isEmpty
+        ? '?'
+        : '${words.first.characters.first}${words.length > 1 ? words.last.characters.first : ''}'
+              .toUpperCase();
+    return Container(
+      padding: const EdgeInsets.all(14),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(
+          color: changed ? const Color(0xFFBFDBFE) : const Color(0xFFE6ECF4),
+        ),
+      ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text(
-            learner.displayName,
-            style: const TextStyle(fontWeight: FontWeight.w600),
+          Row(
+            children: [
+              CircleAvatar(
+                radius: 19,
+                backgroundColor: const [
+                  Color(0xFFF1F5F9),
+                  Color(0xFFEFF6FF),
+                  Color(0xFFFFFBEB),
+                  Color(0xFFFAF5FF),
+                  Color(0xFFFFF1F2),
+                ][learner.id.codeUnits.fold(0, (a, b) => a + b) % 5],
+                foregroundColor: const Color(0xFF52627C),
+                child: Text(
+                  initials,
+                  style: const TextStyle(
+                    fontSize: 12,
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+              ),
+              const SizedBox(width: 12),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      learner.displayName,
+                      style: const TextStyle(
+                        fontSize: 14,
+                        fontWeight: FontWeight.w600,
+                        color: Color(0xFF172033),
+                      ),
+                    ),
+                    const SizedBox(height: 3),
+                    Text(
+                      'LRN ${learner.lrn}',
+                      style: const TextStyle(
+                        fontSize: 12,
+                        color: Color(0xFF71809B),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              const SizedBox(width: 8),
+              Flexible(
+                child: ZStatusPill(
+                  text: status,
+                  tone: error != null
+                      ? StatusTone.red
+                      : changed || status == 'Queued'
+                      ? StatusTone.amber
+                      : status == 'Saved'
+                      ? StatusTone.green
+                      : StatusTone.neutral,
+                ),
+              ),
+            ],
           ),
-          Text(learner.lrn, style: Theme.of(context).textTheme.bodySmall),
-          const SizedBox(height: 8),
+          const Padding(
+            padding: EdgeInsets.symmetric(vertical: 12),
+            child: Divider(height: 1, color: Color(0xFFF0F3F8)),
+          ),
           Row(
             children: [
               Expanded(
                 child: TextFormField(
                   key: ValueKey('assessment-score-${learner.id}'),
                   controller: _controllers[learner.id],
-                  enabled: !_saving && !_stale && !learner.locked,
+                  enabled:
+                      !_saving && !_reviewing && !_stale && !learner.locked,
                   decoration: InputDecoration(
                     labelText: 'Score',
                     suffixText: '/ ${gradeNumber(assessment.maxScore)}',
                     errorText: error,
+                    filled: true,
+                    fillColor: const Color(0xFFF8FAFC),
+                    border: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(12),
+                      borderSide: const BorderSide(color: Color(0xFFE2E8F0)),
+                    ),
+                    enabledBorder: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(12),
+                      borderSide: const BorderSide(color: Color(0xFFE2E8F0)),
+                    ),
+                    focusedBorder: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(12),
+                      borderSide: const BorderSide(
+                        color: Color(0xFF2563EB),
+                        width: 1.5,
+                      ),
+                    ),
                   ),
                   keyboardType: const TextInputType.numberWithOptions(
                     decimal: true,
@@ -635,17 +1162,6 @@ class _ScoreState extends ConsumerState<AssessmentScorePage> {
                     _notice = null;
                   }),
                 ),
-              ),
-              const SizedBox(width: 8),
-              ZStatusPill(
-                text: status,
-                tone: error != null
-                    ? StatusTone.red
-                    : changed || status == 'Queued'
-                    ? StatusTone.amber
-                    : status == 'Saved'
-                    ? StatusTone.green
-                    : StatusTone.neutral,
               ),
             ],
           ),

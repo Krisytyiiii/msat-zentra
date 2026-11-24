@@ -161,20 +161,21 @@ class _AssessmentsState extends ConsumerState<AssessmentsPage>
       child: Scaffold(
         backgroundColor: Colors.white,
         appBar: AppBar(
+          shape: const Border(bottom: BorderSide(color: Color(0xFFEDF0F6))),
           backgroundColor: Colors.white,
           surfaceTintColor: Colors.transparent,
           scrolledUnderElevation: 0,
           centerTitle: true,
           title: const Text('Assessments'),
-          leadingWidth: 48,
-          leading: IconButton(
+          leadingWidth: 64,
+          leading: ZBackButton(
             tooltip: 'Back',
             icon: const Icon(Icons.chevron_left),
             onPressed: _close,
           ),
         ),
         body: _loading
-            ? const LoadingView()
+            ? const LoadingView(layout: SkeletonLayout.assessments)
             : _record == null
             ? ErrorView(message: _error, onRetry: _load)
             : _content(_record!),
@@ -197,22 +198,10 @@ class _AssessmentsState extends ConsumerState<AssessmentsPage>
         physics: const AlwaysScrollableScrollPhysics(),
         padding: const EdgeInsets.fromLTRB(12, 16, 12, 32),
         children: [
-          Text(
-            record.assignment['subjectName']?.toString() ?? 'Assessments',
-            style: const TextStyle(
-              fontSize: 22,
-              fontWeight: FontWeight.w700,
-              letterSpacing: -0.5,
-            ),
-          ),
-          const SizedBox(height: 8),
-          const Text(
-            'Choose an assessment to view and enter learner scores.',
-            style: TextStyle(
-              fontSize: 12,
-              height: 1.5,
-              color: Color(0xFF81818F),
-            ),
+          ZContentHeader(
+            title: record.assignment['subjectName']?.toString() ?? 'Assessments',
+            icon: LucideIcons.clipboardList,
+            description: 'Choose an assessment to enter scores.',
           ),
           const SizedBox(height: 12),
           Wrap(
@@ -220,22 +209,25 @@ class _AssessmentsState extends ConsumerState<AssessmentsPage>
             runSpacing: 6,
             children: [
               if (record.assignment['schoolYear'] != null)
-                ZStatusPill(
+                ZScopePill(
                   text: record.assignment['schoolYear'].toString(),
-                  tone: StatusTone.blue,
+                  kind: ScopePillKind.schoolYear,
+                  compact: true,
                 ),
               if (record.assignment['termNumber'] != null)
-                ZStatusPill(
+                ZScopePill(
                   text: 'Term ${record.assignment['termNumber']}',
-                  tone: StatusTone.amber,
+                  kind: ScopePillKind.term,
+                  compact: true,
                 ),
               if (record.assignment['gradeLevel'] != null)
-                ZStatusPill(
+                ZScopePill(
                   text: record.assignment['gradeLevel'].toString().replaceFirst(
                     RegExp(r'^Grade\s*', caseSensitive: false),
                     'G',
                   ),
-                  tone: StatusTone.blue,
+                  kind: ScopePillKind.grade,
+                  compact: true,
                 ),
               if (record.assignment['sectionName'] != null)
                 ZStatusPill(
@@ -302,45 +294,11 @@ class _AssessmentsState extends ConsumerState<AssessmentsPage>
             ),
             const SizedBox(height: 8),
             if (!assessments.any((a) => a.type == category.key))
-              Container(
-                padding: const EdgeInsets.all(20),
-                decoration: BoxDecoration(
-                  border: Border.all(color: const Color(0xFFDFE7F5)),
-                  borderRadius: BorderRadius.circular(16),
-                ),
-                child: Column(
-                  children: [
-                    const CircleAvatar(
-                      backgroundColor: Color(0xFFEAF0FF),
-                      child: Icon(
-                        LucideIcons.clipboardList,
-                        size: 20,
-                        color: Color(0xFF4263F0),
-                      ),
-                    ),
-                    const SizedBox(height: 12),
-                    Text(
-                      query.isEmpty
-                          ? 'No assessments yet'
-                          : 'No matching assessments',
-                      style: const TextStyle(
-                        fontSize: 14,
-                        fontWeight: FontWeight.w600,
-                      ),
-                    ),
-                    const SizedBox(height: 6),
-                    Text(
-                      query.isEmpty
-                          ? 'Create an assessment from the Class Record.'
-                          : 'Try a different assessment name.',
-                      style: const TextStyle(
-                        fontSize: 12,
-                        color: Color(0xFF71809B),
-                      ),
-                      textAlign: TextAlign.center,
-                    ),
-                  ],
-                ),
+              ZEmpty(
+                icon: query.isEmpty ? LucideIcons.clipboardList : LucideIcons.search,
+                title: query.isEmpty ? 'No assessments yet' : 'No matching assessments',
+                subtitle: query.isEmpty ? 'Create an assessment from the Grade Record.'
+                    : 'Try a different assessment name.',
               ),
             for (final assessment in assessments.where(
               (a) => a.type == category.key,

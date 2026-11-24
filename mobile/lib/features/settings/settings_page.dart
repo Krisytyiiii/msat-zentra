@@ -9,10 +9,10 @@ import 'package:dio/dio.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:image_picker/image_picker.dart';
+import 'package:lucide_icons_flutter/lucide_icons.dart';
 
 import '../../core/session.dart';
 import '../../design/brand.dart';
-import '../../design/screen_search.dart';
 import '../../design/settings_theme.dart';
 import '../../design/theme_picker.dart';
 import '../../shared/widgets.dart';
@@ -236,19 +236,17 @@ class _State extends ConsumerState<SettingsPage> {
   Widget build(BuildContext context) {
     final theme = settingsScreenTheme(Theme.of(context));
     final profile = ref.watch(teacherProfileProvider);
-    final inShell = ScreenSearchScope.maybeOf(context) != null;
     return Theme(
       data: theme,
       child: ColoredBox(
         color: Colors.white,
         child: ListView(
-          padding: const EdgeInsets.fromLTRB(16, 12, 16, 32),
+          padding: const EdgeInsets.fromLTRB(12, 16, 12, 32),
           children: [
-            if (!inShell)
-              Text('Settings', style: theme.textTheme.headlineSmall),
-            Text(
-              'Your profile, appearance, and account security.',
-              style: theme.textTheme.bodySmall,
+            const ZContentHeader(
+              title: 'Settings',
+              icon: LucideIcons.settings,
+              description: 'Your profile, appearance, and account security.',
             ),
             const SizedBox(height: 12),
             profile.when(
@@ -498,7 +496,7 @@ class _AdviserCard extends ConsumerWidget {
           const SizedBox(height: 8),
           sections.when(
             loading: () =>
-                const Text('Loading sections…', style: TextStyle(fontSize: 13)),
+                const SkeletonBox(height: 32),
             error: (e, _) => Text(
               userMessage(e),
               style: TextStyle(color: theme.colorScheme.error, fontSize: 13),

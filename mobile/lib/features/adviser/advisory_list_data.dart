@@ -8,13 +8,15 @@ import '../../shared/models.dart';
 enum AdvisoryLearnerType { regular, transferee }
 
 class AdvisorySection {
-  const AdvisorySection({required this.id, required this.name});
+  const AdvisorySection({required this.id, required this.name, this.gradeLevel});
   final String id;
   final String name;
+  final String? gradeLevel;
   factory AdvisorySection.fromJson(Map<String, dynamic> json) =>
       AdvisorySection(
         id: json['id'] as String,
         name: json['name'] as String? ?? '',
+        gradeLevel: json['gradeLevel'] as String?,
       );
 }
 

@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+import '../../shared/widgets.dart';
 
 import '../../core/notifications.dart' show ZNotification;
 import 'coordinator_data.dart';
@@ -70,7 +71,7 @@ class _InboxState extends ConsumerState<CoordinatorNotificationsPage>
   Widget build(BuildContext context) => Scaffold(
     appBar: AppBar(
       title: const Text('Notifications'),
-      leading: IconButton(
+      leading: ZBackButton(
         tooltip: 'Back',
         icon: const Icon(Icons.arrow_back),
         onPressed: () => admClose(context, '/coordinator/overview'),
@@ -91,7 +92,8 @@ class _InboxState extends ConsumerState<CoordinatorNotificationsPage>
           retry: refresh,
           builder: (rows) => Column(
             children: [
-              if (rows.isEmpty) const Text('No notifications yet.'),
+              if (rows.isEmpty) const ZEmpty(icon: Icons.notifications_none,
+                title: 'No notifications yet.'),
               for (final n in rows)
                 Card(
                   child: ListTile(

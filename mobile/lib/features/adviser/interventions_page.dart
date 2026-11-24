@@ -7,6 +7,7 @@ import 'package:lucide_icons_flutter/lucide_icons.dart';
 
 import '../../core/session.dart';
 import '../../design/overview_theme.dart';
+import '../../design/shell.dart';
 import '../../design/screen_search.dart';
 import '../../design/status_palette.dart';
 import '../../shared/widgets.dart';
@@ -223,19 +224,9 @@ class _InterventionsPageState extends ConsumerState<InterventionsPage>
             physics: const AlwaysScrollableScrollPhysics(),
             padding: const EdgeInsets.fromLTRB(12, 16, 12, 120),
             children: [
-              Text(
-                'Interventions',
-                style: const TextStyle(
-                  fontSize: 22,
-                  fontWeight: FontWeight.w700,
-                  letterSpacing: -0.5,
-                ),
-              ),
-              const SizedBox(height: 8),
-              Text(
-                'Read-only follow-up for your advisees, recorded by the guidance desk.',
-                style: Theme.of(context).textTheme.bodySmall
-                    ?.copyWith(color: const Color(0xFF81818F), height: 1.5),
+              const ZContentHeader(
+                title: 'Interventions', icon: LucideIcons.heartHandshake,
+                description: 'Read-only follow-up for your advisees, recorded by the guidance desk.',
               ),
               const SizedBox(height: 12),
               Wrap(
@@ -243,17 +234,36 @@ class _InterventionsPageState extends ConsumerState<InterventionsPage>
                 runSpacing: 6,
                 children: [
                   if (term != null) ...[
-                    ZStatusPill(
+                    ZScopePill(
                       text: term.schoolYearName,
-                      tone: StatusTone.blue,
+                      kind: ScopePillKind.schoolYear,
+                      compact: true,
                     ),
-                    ZStatusPill(
+                    ZScopePill(
                       text: 'Term ${term.termNumber}',
-                      tone: StatusTone.amber,
+                      kind: ScopePillKind.term,
+                      compact: true,
                     ),
                   ],
                   if (sectionName != null && sectionName.isNotEmpty)
-                    ZStatusPill(text: sectionName, tone: StatusTone.violet),
+                    ZScopePill(
+                      text: [
+                        if (board.sections.isNotEmpty)
+                          board.sections
+                              .where((s) => s['name']?.toString() == sectionName)
+                              .map((s) => s['gradeLevel']?.toString())
+                              .firstWhere(
+                                (g) => g != null && g.isNotEmpty,
+                                orElse: () => null,
+                              )
+                        else
+                          null,
+                        sectionName,
+                      ].where((value) => value != null && value.isNotEmpty).join(' · '),
+                      kind: ScopePillKind.grade,
+                      label: 'Grade and section',
+                      compact: true,
+                    ),
                 ],
               ),
               const SizedBox(height: 16),
@@ -447,65 +457,12 @@ class _InterventionsPageState extends ConsumerState<InterventionsPage>
               ),
               const SizedBox(height: 12),
               if (rows.isEmpty)
-                Container(
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: 20,
-                    vertical: 20,
-                  ),
-                  decoration: BoxDecoration(
-                    color: Colors.white,
-                    border: Border.all(color: const Color(0xFFE6ECF4)),
-                    borderRadius: BorderRadius.circular(16),
-                  ),
-                  child: Column(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      Container(
-                        padding: const EdgeInsets.all(12),
-                        decoration: BoxDecoration(
-                          shape: BoxShape.circle,
-                          color: board.rows.isEmpty
-                              ? const Color(0xFFF0FDF4)
-                              : const Color(0xFFF5F5F7),
-                        ),
-                        child: Icon(
-                          board.rows.isEmpty
-                              ? LucideIcons.badgeCheck
-                              : LucideIcons.search,
-                          size: 20,
-                          color: board.rows.isEmpty
-                              ? const Color(0xFF489D6A)
-                              : const Color(0xFF9B9BA7),
-                        ),
-                      ),
-                      const SizedBox(height: 12),
-                      Text(
-                        board.rows.isEmpty
-                            ? 'No advisees needing intervention'
-                            : 'No matching advisees',
-                        textAlign: TextAlign.center,
-                        style: const TextStyle(
-                          fontSize: 14,
-                          fontWeight: FontWeight.w600,
-                        ),
-                      ),
-                      const SizedBox(height: 6),
-                      Padding(
-                        padding: const EdgeInsets.symmetric(horizontal: 8),
-                        child: Text(
-                          board.rows.isEmpty
-                              ? 'All advisees are currently on track for this term with no active guidance desk flags.'
-                              : 'Adjust your search or filters to see more records.',
-                          textAlign: TextAlign.center,
-                          style: const TextStyle(
-                            fontSize: 12,
-                            height: 1.4,
-                            color: Color(0xFF71809B),
-                          ),
-                        ),
-                      ),
-                    ],
-                  ),
+                ZEmpty(
+                  icon: board.rows.isEmpty ? LucideIcons.badgeCheck : LucideIcons.search,
+                  title: board.rows.isEmpty ? 'No advisees needing intervention' : 'No matching advisees',
+                  subtitle: board.rows.isEmpty
+                      ? 'All advisees are currently on track for this term with no active guidance desk flags.'
+                      : 'Adjust your search or filters to see more records.',
                 ),
               for (final row in rows)
                 Card(
@@ -518,17 +475,28 @@ class _InterventionsPageState extends ConsumerState<InterventionsPage>
                   ),
                   clipBehavior: Clip.antiAlias,
                   child: InkWell(
-                    onTap: () => showModalBottomSheet<void>(
+                    onTap: () async {
+                      final navigation = ref.read(staffNavigationHiddenProvider.notifier);
+                      navigation.state = true;
+                      try {
+                        await showModalBottomSheet<void>(
                       context: context,
-                      isScrollControlled: true,
-                      showDragHandle: true,
+                       isScrollControlled: true,
+                       showDragHandle: true,
+                       constraints: BoxConstraints(
+                         maxHeight: MediaQuery.sizeOf(context).height * 0.5,
+                       ),
                       builder: (_) => SafeArea(
                         child: SizedBox(
-                          height: MediaQuery.sizeOf(context).height * 0.85,
+                          height: MediaQuery.sizeOf(context).height * 0.5,
                           child: InterventionDetails(rowKey: row.key),
                         ),
                       ),
-                    ),
+                        );
+                      } finally {
+                        navigation.state = false;
+                      }
+                    },
                     child: Padding(
                       padding: const EdgeInsets.all(14),
                       child: Column(
@@ -699,7 +667,7 @@ class InterventionDetails extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final board = ref.watch(advisoryInterventionsProvider);
     return board.when(
-      loading: () => const LoadingView(),
+      loading: () => const LoadingView(layout: SkeletonLayout.profile),
       error: (e, _) => ErrorView(
         message: e,
         onRetry: () => ref.invalidate(advisoryInterventionsProvider),
@@ -802,8 +770,10 @@ class InterventionDetails extends ConsumerWidget {
                   IconButton(
                     tooltip: 'Close',
                     style: IconButton.styleFrom(
-                      backgroundColor: const Color(0xFFF1F5F9),
                       foregroundColor: const Color(0xFF64748B),
+                      side: const BorderSide(color: Color(0xFFE5E8F0)),
+                      minimumSize: const Size(42, 42),
+                      shape: const CircleBorder(),
                     ),
                     onPressed: () => Navigator.pop(context),
                     icon: const Icon(Icons.close, size: 20),
@@ -933,7 +903,8 @@ class InterventionDetails extends ConsumerWidget {
                   ),
                 ),
                 if ((plan['sessions'] as List? ?? []).isEmpty)
-                  const Text('No sessions recorded.'),
+                  const ZEmpty(compact: true, icon: LucideIcons.calendarDays,
+                    title: 'No sessions recorded.'),
                 for (final raw in plan['sessions'] as List? ?? [])
                   Builder(
                     builder: (_) {

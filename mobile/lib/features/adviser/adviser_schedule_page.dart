@@ -132,8 +132,10 @@ class _ScheduleState extends ConsumerState<AdviserSchedulePage>
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   if (ScreenSearchScope.maybeOf(context) == null)
-                    Text('Class Schedule', style: theme.textTheme.titleMedium),
-                  Text(
+                    ZContentHeader(title: 'Class Schedule',
+                      icon: Icons.calendar_month_outlined,
+                      description: data.sectionName ?? 'My teaching timetable')
+                  else Text(
                     data.sectionName ?? 'My teaching timetable',
                     style: theme.textTheme.titleSmall?.copyWith(
                       fontWeight: FontWeight.w600,

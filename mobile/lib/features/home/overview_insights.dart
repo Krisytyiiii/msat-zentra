@@ -96,7 +96,10 @@ class OverviewRiskMix extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final total = insights.risk.values.fold(0, (a, b) => a + b);
-    if (total == 0) return const Text('No risk snapshots yet.');
+    if (total == 0) {
+      return const ZEmpty(
+        compact: true, icon: Icons.pie_chart_outline, title: 'No risk snapshots yet.');
+    }
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -158,7 +161,8 @@ class OverviewDailyAttendance extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     if (insights.days.isEmpty) {
-      return const Text('No school days in range yet.');
+      return const ZEmpty(compact: true, icon: Icons.calendar_month_outlined,
+        title: 'No school days in range yet.');
     }
     final maximum = insights.days.fold(
       1,

@@ -82,7 +82,7 @@ class _IdentityState extends ConsumerState<StudentIdentityPage> {
         appBar: AppBar(
           centerTitle: true,
           title: Text(widget.qr ? 'My QR Code' : 'Profile'),
-          leading: IconButton(
+          leading: ZBackButton(
             tooltip: 'Back',
             icon: const Icon(Icons.chevron_left),
             onPressed: () =>
@@ -90,7 +90,9 @@ class _IdentityState extends ConsumerState<StudentIdentityPage> {
           ),
         ),
         body: learner.when(
-          loading: () => const LoadingView(),
+          loading: () => LoadingView(
+            layout: widget.qr ? SkeletonLayout.qr : SkeletonLayout.profile,
+          ),
           error: (error, _) => ErrorView(
             message: error,
             onRetry: () => ref.invalidate(studentMeProvider),

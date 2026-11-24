@@ -5,6 +5,7 @@ import '../../core/session.dart';
 import '../../shared/user_messages.dart';
 import 'coordinator_data.dart';
 import 'coordinator_widgets.dart';
+import '../../shared/back_button.dart';
 
 void invalidateCoordinator(WidgetRef ref) {
   ref.invalidate(coordinatorDashboardProvider);
@@ -134,7 +135,7 @@ class _AdmEditState extends ConsumerState<AdmEditPage> {
       child: Scaffold(
         appBar: AppBar(
           title: Text(widget.title),
-          leading: IconButton(
+          leading: ZBackButton(
             tooltip: 'Back',
             onPressed: _busy ? null : _close,
             icon: const Icon(Icons.arrow_back),

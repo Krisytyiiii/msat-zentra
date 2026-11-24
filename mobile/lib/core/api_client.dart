@@ -4,12 +4,15 @@
 // - attaches Bearer + x-school-year-id / x-term-id on every request
 // - single-flight refresh on 401 via POST /api/auth/refresh, else logout.
 
+import 'dart:async';
+
 import 'package:dio/dio.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:hive_flutter/hive_flutter.dart';
 
 import 'config.dart';
+import 'save_history.dart';
 import '../shared/models.dart';
 
 final apiClientProvider = Provider<ApiClient>((ref) => ApiClient());
@@ -29,15 +32,33 @@ class ApiClient {
     dio.interceptors.add(InterceptorsWrapper(
       onRequest: (opts, handler) async {
         final token = await _storage.read(key: AppConfig.accessTokenKey);
+        final expectedOwner =
+            opts.extra['saveOwner'] ?? Zone.current[#saveTaskOwner];
+        if (expectedOwner != null && saveHistoryOwner(token) != expectedOwner) {
+          return handler.reject(DioException(
+            requestOptions: opts,
+            type: DioExceptionType.cancel,
+            message: 'The account changed. Review your changes before saving.',
+          ));
+        }
         if (token != null && token.isNotEmpty) {
           opts.headers['Authorization'] = 'Bearer $token';
         }
         final role = Hive.isBoxOpen(AppConfig.portalBox)
             ? Hive.box(AppConfig.portalBox).get('role') : null;
-        if (role != 'adm_coordinator' && Hive.isBoxOpen(AppConfig.termScopeBox)) {
+        if (opts.extra['outboxScope'] != true &&
+            role != 'adm_coordinator' && Hive.isBoxOpen(AppConfig.termScopeBox)) {
           final box = Hive.box(AppConfig.termScopeBox);
           final sy = box.get('schoolYearId') as String?;
           final term = box.get('termId') as String?;
+          final expectedScope = Zone.current[#saveTaskScope];
+          if (expectedScope != null && '$sy:$term' != expectedScope) {
+            return handler.reject(DioException(
+              requestOptions: opts,
+              type: DioExceptionType.cancel,
+              message: 'The selected term changed. Review your changes before saving.',
+            ));
+          }
           if (sy != null) opts.headers['x-school-year-id'] = sy;
           if (term != null) opts.headers['x-term-id'] = term;
         }

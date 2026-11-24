@@ -1,5 +1,6 @@
 // Shared web tokens with mobile-safe controls. Inter is bundled for offline use.
 import 'package:flutter/material.dart';
+import '../shared/back_button.dart';
 import 'package:flutter/cupertino.dart';
 
 import 'tokens.dart';
@@ -135,6 +136,9 @@ ThemeData _workspaceTheme(
     surfaceTint: Colors.transparent,
   );
   final base = ThemeData(
+    actionIconTheme: ActionIconThemeData(
+      backButtonIconBuilder: zAutomaticBackIcon,
+    ),
     useMaterial3: true,
     brightness: brightness,
     colorScheme: scheme,

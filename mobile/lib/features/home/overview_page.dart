@@ -9,13 +9,12 @@ import 'package:lucide_icons_flutter/lucide_icons.dart';
 
 import '../../core/session.dart';
 import '../../design/screen_search.dart';
-import '../../design/status_palette.dart';
 import '../../design/theme.dart';
 import '../../design/tokens.dart';
 import '../../shared/models.dart' show Term;
 import '../../shared/user_messages.dart';
 import '../../shared/widgets.dart';
-import '../adviser/adviser_schedule_page.dart';
+import '../teacher/classes_data.dart';
 import 'overview_data.dart';
 import 'overview_insights.dart';
 
@@ -39,6 +38,7 @@ class _OverviewPageState extends ConsumerState<OverviewPage>
   @override
   void initState() {
     super.initState();
+    _now = ref.read(overviewClockProvider)();
     WidgetsBinding.instance.addObserver(this);
     _timer = Timer.periodic(const Duration(seconds: 20), (_) {
       if (_visible) unawaited(_refresh());
@@ -70,9 +70,9 @@ class _OverviewPageState extends ConsumerState<OverviewPage>
 
   Future<void> _reload() async {
     if (!mounted) return;
-    setState(() => _now = DateTime.now());
-    // Reuse the schedule screen's provider instead of fetching a second roster.
-    ref.invalidate(adviserScheduleProvider);
+    setState(() => _now = ref.read(overviewClockProvider)());
+    // Share Class's published load and timing configuration.
+    ref.invalidate(teachingWeekProvider);
     final futures = <Future<Object?>>[
       ref.refresh(overviewProvider.future),
       ref.refresh(overviewSecondaryProvider.future),
@@ -100,11 +100,6 @@ class _OverviewPageState extends ConsumerState<OverviewPage>
     final schedule = ref.watch(overviewScheduleProvider);
     final insights = ref.watch(overviewInsightsProvider);
     final term = ref.watch(termProvider);
-    final adviser =
-        summary.asData?.value.isAdviser ??
-        (ref.watch(authProvider).role == 'adviser');
-    final section = summary.asData?.value.sectionName;
-    final theme = Theme.of(context);
     // The staff shell already names this screen in the header.
     final inShell = ScreenSearchScope.maybeOf(context) != null;
     final pending = attention.asData?.value.pendingAssessments;
@@ -129,10 +124,10 @@ class _OverviewPageState extends ConsumerState<OverviewPage>
               crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
                 if (!inShell) ...[
-                  Text('Overview', style: theme.textTheme.headlineSmall),
+                  const ZContentHeader(title: 'Overview', icon: LucideIcons.layoutDashboard),
                   const SizedBox(height: 10),
                 ],
-                _welcome(summary, term, section),
+                _welcome(summary, term),
                 const SizedBox(height: 16),
                 _Board(
                   icon: LucideIcons.bell,
@@ -145,15 +140,13 @@ class _OverviewPageState extends ConsumerState<OverviewPage>
                   icon: LucideIcons.clock,
                   title: 'Up next',
                   action: 'View schedule',
-                  onAction: () => _open(
-                    adviser ? '/adviser/schedule' : '/workspace/schedule',
-                  ),
+                  onAction: () => _open('/workspace/classes'),
                   child: schedule.when(
                     loading: () => const ZSkeletonRow(),
                     error: (error, _) => _InlineError(
                       error: error,
                       retry: () {
-                        ref.invalidate(adviserScheduleProvider);
+                        ref.invalidate(teachingWeekProvider);
                         ref.invalidate(schoolYearsProvider);
                         ref.invalidate(overviewScheduleProvider);
                       },
@@ -167,7 +160,10 @@ class _OverviewPageState extends ConsumerState<OverviewPage>
                   icon: LucideIcons.activity,
                   title: 'At a glance',
                   child: summary.when(
-                    loading: () => const ZSkeletonRow(),
+                    loading: () => const ScreenSkeleton(
+                      layout: SkeletonLayout.summary,
+                      section: true,
+                    ),
                     error: (error, _) => _InlineError(
                       error: error,
                       retry: () => ref.invalidate(overviewProvider),
@@ -180,7 +176,10 @@ class _OverviewPageState extends ConsumerState<OverviewPage>
                   icon: LucideIcons.chartPie,
                   title: 'Risk mix',
                   child: insights.when(
-                    loading: () => const ZSkeletonRow(),
+                    loading: () => const ScreenSkeleton(
+                      layout: SkeletonLayout.chart,
+                      section: true,
+                    ),
                     error: (error, _) => _InlineError(
                       error: error,
                       retry: () => ref.invalidate(overviewInsightsProvider),
@@ -193,7 +192,10 @@ class _OverviewPageState extends ConsumerState<OverviewPage>
                   icon: LucideIcons.chartColumn,
                   title: 'Attendance, day by day',
                   child: insights.when(
-                    loading: () => const ZSkeletonRow(),
+                    loading: () => const ScreenSkeleton(
+                      layout: SkeletonLayout.chart,
+                      section: true,
+                    ),
                     error: (error, _) => _InlineError(
                       error: error,
                       retry: () => ref.invalidate(overviewInsightsProvider),
@@ -212,7 +214,6 @@ class _OverviewPageState extends ConsumerState<OverviewPage>
   Widget _welcome(
     AsyncValue<OverviewSummary> summary,
     Term? term,
-    String? section,
   ) {
     final theme = Theme.of(context);
     final schoolYear = term == null
@@ -234,14 +235,7 @@ class _OverviewPageState extends ConsumerState<OverviewPage>
               letterSpacing: -0.3,
             ),
           ),
-          loading: () => Text(
-            'Welcome back.',
-            style: theme.textTheme.headlineSmall?.copyWith(
-              fontSize: 21,
-              fontWeight: FontWeight.w700,
-              letterSpacing: -0.3,
-            ),
-          ),
+          loading: () => const SkeletonBox(height: 48),
           error: (error, _) => _InlineError(
             error: error,
             retry: () => ref.invalidate(overviewProvider),
@@ -254,22 +248,12 @@ class _OverviewPageState extends ConsumerState<OverviewPage>
           crossAxisAlignment: WrapCrossAlignment.center,
           children: [
             if (schoolYear != null)
-              ZPill(
-                tone: StatusTone.blue,
-                label: 'School year',
-                child: Text(schoolYear),
-              ),
+              ZScopePill(text: schoolYear, kind: ScopePillKind.schoolYear, compact: true),
             if (term != null)
-              ZPill(
-                tone: StatusTone.amber,
-                label: 'Term',
-                child: Text('Term ${term.termNumber}'),
-              ),
-            if (section != null && section.isNotEmpty)
-              ZPill(
-                tone: StatusTone.violet,
-                label: 'Section',
-                child: Text(section),
+              ZScopePill(
+                text: 'Term ${term.termNumber}',
+                kind: ScopePillKind.term,
+                compact: true,
               ),
           ],
         ),
@@ -281,12 +265,22 @@ class _OverviewPageState extends ConsumerState<OverviewPage>
     final notice = schedule.scopeNotice(_now);
     final next = schedule.nextClass(_now);
     if (notice != null || next == null) {
-      return _BoardNote(
-        notice ?? 'No upcoming confirmed classes in this term.',
+      final ph = philippineTime(_now);
+      final hadClasses = schedule.slots.any(
+        (slot) => slot.day == ph.weekday && slot.status == 'APPROVED',
       );
+      return notice != null
+          ? _BoardNote(notice)
+          : ZEmpty(
+              icon: LucideIcons.calendarDays,
+              title: 'No classes',
+              subtitle: hadClasses
+                  ? 'No more scheduled classes today.'
+                  : 'No scheduled classes on ${DateFormat('EEEE').format(ph)}.',
+            );
     }
     final theme = Theme.of(context);
-    final accent = ZDesk.dataAccent(context);
+    const accent = Color(0xffb45309);
     final start = philippineTime(next.startsAt);
     final end = philippineTime(next.endsAt);
     final now = philippineTime(_now);
@@ -295,14 +289,15 @@ class _OverviewPageState extends ConsumerState<OverviewPage>
         start.month == now.month &&
         start.day == now.day;
     return Row(
-      crossAxisAlignment: CrossAxisAlignment.start,
+      crossAxisAlignment: CrossAxisAlignment.center,
       children: [
         Container(
-          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 7),
+          constraints: const BoxConstraints(minWidth: 60, minHeight: 64),
+          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 10),
           decoration: BoxDecoration(
-            color: accent.withValues(alpha: 0.10),
-            borderRadius: BorderRadius.circular(ZTokens.radiusMd),
-            border: Border.all(color: accent.withValues(alpha: 0.28)),
+            color: const Color(0xfffff8eb),
+            borderRadius: BorderRadius.circular(12),
+            border: Border.all(color: const Color(0xfffde0b4)),
           ),
           child: Column(
             mainAxisSize: MainAxisSize.min,
@@ -311,7 +306,7 @@ class _OverviewPageState extends ConsumerState<OverviewPage>
                 DateFormat('h:mm').format(start),
                 style: theme.textTheme.titleSmall?.copyWith(
                   color: accent,
-                  fontSize: 15,
+                  fontSize: 20,
                   fontWeight: FontWeight.w700,
                   fontFeatures: const [FontFeature.tabularFigures()],
                 ),
@@ -320,6 +315,7 @@ class _OverviewPageState extends ConsumerState<OverviewPage>
                 DateFormat('a').format(start),
                 style: theme.textTheme.labelSmall?.copyWith(
                   color: accent,
+                  fontSize: 13,
                   fontWeight: FontWeight.w700,
                   height: 1.1,
                 ),
@@ -335,8 +331,9 @@ class _OverviewPageState extends ConsumerState<OverviewPage>
               Text(
                 next.slot.subjectName,
                 style: theme.textTheme.titleSmall?.copyWith(
-                  fontSize: 14,
-                  fontWeight: FontWeight.w600,
+                  color: const Color(0xff080d23),
+                  fontSize: 17,
+                  fontWeight: FontWeight.w700,
                 ),
               ),
               const SizedBox(height: 2),
@@ -346,13 +343,24 @@ class _OverviewPageState extends ConsumerState<OverviewPage>
                   color: theme.colorScheme.onSurfaceVariant,
                 ),
               ),
-              const SizedBox(height: 6),
-              Text(
-                '${today ? 'Today' : DateFormat('EEE, MMM d').format(start)} · ${DateFormat('h:mm a').format(start)} – ${DateFormat('h:mm a').format(end)} · PH',
-                style: theme.textTheme.bodySmall?.copyWith(
-                  color: theme.colorScheme.onSurfaceVariant,
-                  fontFeatures: const [FontFeature.tabularFigures()],
-                ),
+              const SizedBox(height: 8),
+              Wrap(
+                spacing: 8,
+                runSpacing: 4,
+                children: [
+                  _ScheduleMeta(
+                    icon: LucideIcons.calendar,
+                    text: !_now.isBefore(next.startsAt) && _now.isBefore(next.endsAt)
+                    ? 'Now'
+                    : today
+                    ? 'Today'
+                    : DateFormat('EEE, MMM d').format(start),
+                  ),
+                  _ScheduleMeta(
+                    icon: LucideIcons.clock,
+                    text: '${DateFormat('h:mm a').format(start)} – ${DateFormat('h:mm a').format(end)}',
+                  ),
+                ],
               ),
             ],
           ),
@@ -434,8 +442,28 @@ class _OverviewPageState extends ConsumerState<OverviewPage>
   }
 }
 
-/// Web `KanbanBoard` chrome: amber icon + title + counts/action slot, a
-/// hairline under the title, and the body on the card surface.
+class _ScheduleMeta extends StatelessWidget {
+  const _ScheduleMeta({required this.icon, required this.text});
+  final IconData icon;
+  final String text;
+
+  @override
+  Widget build(BuildContext context) => Row(
+    mainAxisSize: MainAxisSize.min,
+    children: [
+      Icon(icon, size: 16, color: const Color(0xff52647b)),
+      const SizedBox(width: 5),
+      Flexible(
+        child: Text(
+          text,
+          style: const TextStyle(fontSize: 12, color: Color(0xff52647b)),
+        ),
+      ),
+    ],
+  );
+}
+
+/// Shared overview chrome, with the blue/white schedule reference variant.
 class _Board extends StatelessWidget {
   const _Board({
     super.key,
@@ -456,31 +484,41 @@ class _Board extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
-    final accent = theme.colorScheme.primary;
-    final hairline = theme.colorScheme.outline.withValues(alpha: 0.7);
+    final isSchedule = title == 'Up next';
+    final accent = isSchedule ? const Color(0xff0755dc) : theme.colorScheme.primary;
+    final hairline = isSchedule
+        ? const Color(0xffe7ecf2)
+        : theme.colorScheme.outline.withValues(alpha: 0.7);
     return Material(
-      color: theme.cardTheme.color ?? theme.colorScheme.surface,
+      color: isSchedule ? Colors.white : theme.cardTheme.color ?? theme.colorScheme.surface,
       elevation: 1,
       shadowColor: Colors.black.withValues(alpha: 0.08),
       shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(16),
-        side: BorderSide(color: theme.colorScheme.outline),
+        borderRadius: BorderRadius.circular(isSchedule ? 18 : 16),
+        side: BorderSide(color: isSchedule ? const Color(0xffdce5ef) : theme.colorScheme.outline),
       ),
       clipBehavior: Clip.antiAlias,
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
           Padding(
-            padding: EdgeInsets.fromLTRB(14, 8, action == null ? 14 : 6, 8),
+            padding: isSchedule
+                ? const EdgeInsets.symmetric(horizontal: 12, vertical: 6)
+                : EdgeInsets.fromLTRB(14, 8, action == null ? 14 : 6, 8),
             child: Row(
               children: [
                 Container(
-                  padding: const EdgeInsets.all(5),
+                  padding: EdgeInsets.all(isSchedule ? 7 : 5),
                   decoration: BoxDecoration(
-                    color: accent.withValues(alpha: 0.08),
+                    color: (isSchedule ? const Color(0xffb45309) : accent)
+                        .withValues(alpha: 0.08),
                     borderRadius: BorderRadius.circular(11),
                   ),
-                  child: Icon(icon, size: 18, color: accent),
+                  child: Icon(
+                    icon,
+                    size: isSchedule ? 20 : 18,
+                    color: isSchedule ? const Color(0xffb45309) : accent,
+                  ),
                 ),
                 const SizedBox(width: 8),
                 Expanded(
@@ -490,7 +528,8 @@ class _Board extends StatelessWidget {
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,
                     style: theme.textTheme.titleSmall?.copyWith(
-                      fontSize: 14,
+                      fontSize: isSchedule ? 16 : 14,
+                      color: isSchedule ? const Color(0xff080d23) : null,
                       fontWeight: FontWeight.w700,
                     ),
                   ),
@@ -518,20 +557,39 @@ class _Board extends StatelessWidget {
                       child: TextButton(
                         onPressed: onAction,
                         style: TextButton.styleFrom(
-                          minimumSize: const Size(0, 40),
+                          backgroundColor: isSchedule ? const Color(0xffeaf2fd) : null,
+                          shape: isSchedule ? const StadiumBorder() : null,
+                          minimumSize: Size(0, isSchedule ? 32 : 40),
                           padding: const EdgeInsets.symmetric(horizontal: 10),
-                          tapTargetSize: MaterialTapTargetSize.shrinkWrap,
-                          foregroundColor: theme.colorScheme.onSurfaceVariant,
+                          tapTargetSize: isSchedule
+                              ? MaterialTapTargetSize.padded
+                              : MaterialTapTargetSize.shrinkWrap,
+                          foregroundColor: isSchedule ? accent : theme.colorScheme.onSurfaceVariant,
                           textStyle: theme.textTheme.labelSmall?.copyWith(
                             fontSize: 12,
                             fontWeight: FontWeight.w600,
                           ),
                         ),
-                        child: Text(
-                          action!,
-                          maxLines: 1,
-                          softWrap: false,
-                          overflow: TextOverflow.ellipsis,
+                        child: Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            if (isSchedule) ...[
+                              const Icon(LucideIcons.calendar, size: 16),
+                              const SizedBox(width: 6),
+                            ],
+                            Flexible(
+                              child: Text(
+                                action!,
+                                maxLines: 1,
+                                softWrap: false,
+                                overflow: TextOverflow.ellipsis,
+                              ),
+                            ),
+                            if (isSchedule) ...[
+                              const SizedBox(width: 4),
+                              const Icon(LucideIcons.chevronRight, size: 16),
+                            ],
+                          ],
                         ),
                       ),
                     ),
@@ -543,7 +601,9 @@ class _Board extends StatelessWidget {
           // stats row separator elsewhere and can't be themed per board.
           Container(height: 1, color: hairline),
           Padding(
-            padding: const EdgeInsets.fromLTRB(14, 12, 14, 12),
+            padding: isSchedule
+                ? const EdgeInsets.fromLTRB(12, 12, 12, 12)
+                : const EdgeInsets.fromLTRB(14, 12, 14, 12),
             child: child,
           ),
         ],

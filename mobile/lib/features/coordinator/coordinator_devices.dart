@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import '../../shared/widgets.dart';
 
 import 'coordinator_data.dart';
 import 'coordinator_forms.dart';
@@ -106,7 +107,8 @@ class _IssueState extends ConsumerState<CoordinatorIssueDevicePage> {
             builder: (data) => Column(
               children: [
                 if (data.rows.isEmpty)
-                  const Text('No approved learners found.'),
+                  const ZEmpty(compact: true, icon: Icons.people_outline,
+                    title: 'No approved learners found.'),
                 for (final row in data.rows)
                   ListTile(
                     title: Text(row.student),
