@@ -1,5 +1,6 @@
 "use client";
 
+import { ShimmerGroup } from "@/components/ui/shimmer-skeleton";
 import styles from "./presence-globe.module.css";
 
 /**
@@ -14,7 +15,9 @@ export default function GlobeSkeleton() {
       role="status"
       aria-label="Loading live presence"
     >
-      <div className={`animate-pulse bg-muted ${styles.skeletonGlobe}`} />
+      <ShimmerGroup>
+        <div data-slot="skeleton" className={`bg-muted ${styles.skeletonGlobe}`} />
+      </ShimmerGroup>
     </div>
   );
 }

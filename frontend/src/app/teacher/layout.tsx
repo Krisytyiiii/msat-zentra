@@ -6,7 +6,6 @@ import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { logout } from "@/lib/api/client";
 import { useQueryClient } from "@tanstack/react-query";
 import { TeacherSidebar } from "@/components/teacher-sidebar";
-import type { TeacherNavMode } from "@/components/teacher-sidebar";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { StudentMascot } from "@/components/student-mascot/StudentMascot";
 import { CalendarClock, ClipboardCheck, UserRound } from "lucide-react";
@@ -23,7 +22,6 @@ import {
 } from "@/services/settings/profile-settings";
 import { TeacherNotificationsBell } from "./components/TeacherNotificationsBell";
 import { TeacherBamaPill, TONE_CLASSES } from "./components/TeacherBamaPill";
-import { TeacherNavModePill } from "./components/TeacherNavModePill";
 import { AddAssessmentSaveProvider } from "./grading/[assignmentId]/components/add-assessment-save-context";
 import { ScoreSaveProvider } from "./grading/[assignmentId]/components/score-save-context";
 import { DeleteAssessmentSaveProvider } from "./grading/[assignmentId]/components/delete-assessment-save-context";
@@ -75,14 +73,6 @@ function TeacherChrome({
   const profile = useTeacherProfileSettings();
 
   const [bamaTone, setBamaTone] = React.useState(0);
-
-  // Advisers can narrow the rail to the advisory desk or the class workspace.
-  // The rail always lands on the workspace links; the pill swaps it to the
-  // advisory links and back.
-  const [navMode, setNavMode] = React.useState<TeacherNavMode>("workspace");
-  const toggleNavMode = React.useCallback(() => {
-    setNavMode((prev) => (prev === "advisory" ? "workspace" : "advisory"));
-  }, []);
 
   React.useEffect(() => {
     if (window.matchMedia("(prefers-reduced-motion: reduce)").matches) return;
@@ -138,10 +128,6 @@ function TeacherChrome({
           </nav>
         ) : null}
 
-        {standalone ? null : (
-          <TeacherNavModePill mode={navMode} onToggle={toggleNavMode} />
-        )}
-
         <TeacherBamaPill />
 
         <ActiveTermBadge />
@@ -182,7 +168,7 @@ function TeacherChrome({
           </button>
         </GlassUserMenu>
       </header>
-      {standalone ? null : <TeacherSidebar mode={navMode} />}
+      {standalone ? null : <TeacherSidebar />}
       <div
         className={
           standalone ? styles.shellStandalone : styles.shellWithDock

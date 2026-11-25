@@ -7,6 +7,9 @@
      create a scroll container, so sticky descendants (action menu,
      toolbar) keep sticking to the viewport. */
   overflow-x: clip;
+  /* The dock starts below this desk's pinned term-scope strip: 3rem fixed
+     topbar + ~1.8125rem banner + a little air (GlassDock reads it). */
+  --zentra-dock-top: 5.25rem;
 }
 
 /* Dock layout: the floating left glass dock replaces the old left rail and
@@ -24,7 +27,7 @@
   --term-banner-offset: 1.8125rem;
   /* Left clearance for the floating glass dock. The term banner breaks out
      of this gutter to span the full width (see TermScopeBanner.module.css). */
-  --shell-rail: 5rem;
+  --shell-rail: var(--zentra-dock-clearance, 5rem);
   padding-left: var(--shell-rail);
 }
 
@@ -189,22 +192,6 @@
 
 .bamaPillActive {
   box-shadow: 0 0 0 2px var(--bama-border, var(--primary));
-}
-
-/* Advisory ⇄ Workspace rail toggle: the same pill chrome as the Bama shortcut,
-   kept on the amber accent so it reads as a navigation control rather than a
-   second chat link. */
-.modePill {
-  composes: bamaPill;
-  cursor: pointer;
-}
-
-.modePillIcon {
-  composes: bamaMascot;
-}
-
-.modePillLabel {
-  composes: bamaLabel;
 }
 
 /* Rotating accent tones (cycled every 5s by TeacherBamaPill). */
@@ -387,6 +374,11 @@
 
 /* Mobile: 8px side gutters, 1rem gap below the navbar */
 @media (max-width: 767px) {
+  .wrapper {
+    /* The term banner pins lower on narrow screens (top: 6rem). */
+    --zentra-dock-top: 8.25rem;
+  }
+
   .shell {
     margin-left: 0;
     margin-top: 6rem;

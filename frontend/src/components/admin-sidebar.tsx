@@ -1,7 +1,7 @@
 "use client";
 
 import * as React from "react";
-import { usePathname } from "next/navigation";
+import { usePathname, useSearchParams } from "next/navigation";
 import type { LucideIcon } from "lucide-react";
 
 import { GlassDock } from "./nav/GlassDock";
@@ -29,9 +29,44 @@ export const NAV: NavGroup[] = [
     label: "Academics",
     items: [
       {
-        title: "Timetable",
+        title: "Schedule Board",
         href: "/admin/academics/schedule",
         icon: NAV_ICONS.schedule,
+      },
+      {
+        title: "Timetable",
+        href: "/admin/academics/schedule/template?view=grid",
+        icon: NAV_ICONS.scheduleTemplate,
+      },
+      {
+        title: "Sections",
+        href: "/admin/academics/schedule/template?view=sections",
+        icon: NAV_ICONS.scheduleSections,
+      },
+      {
+        title: "Subjects",
+        href: "/admin/academics/schedule/template?view=subjects",
+        icon: NAV_ICONS.scheduleSubjects,
+      },
+      {
+        title: "Teachers",
+        href: "/admin/academics/schedule/template?view=teachers",
+        icon: NAV_ICONS.scheduleTeachers,
+      },
+      {
+        title: "Configure",
+        href: "/admin/academics/schedule/template?view=config",
+        icon: NAV_ICONS.scheduleConfigure,
+      },
+      {
+        title: "School Year",
+        href: "/admin/academics/schedule/template?view=term",
+        icon: NAV_ICONS.scheduleYear,
+      },
+      {
+        title: "Publish",
+        href: "/admin/academics/schedule/template?view=publish",
+        icon: NAV_ICONS.schedulePublish,
       },
     ],
   },
@@ -87,6 +122,7 @@ function withPendingBadge(groups: NavGroup[], total: number): NavGroup[] {
  */
 export function AdminSidebar() {
   const pathname = usePathname();
+  const search = useSearchParams();
   const { total: pendingTotal } = usePendingApprovalCounts();
   const nav = React.useMemo(() => withPendingBadge(NAV, pendingTotal), [pendingTotal]);
 
@@ -94,6 +130,7 @@ export function AdminSidebar() {
     <GlassDock
       groups={nav}
       pathname={pathname ?? ""}
+      search={search?.toString() ?? ""}
       ariaLabel="Administrator sections"
     />
   );

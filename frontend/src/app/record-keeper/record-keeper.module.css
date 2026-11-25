@@ -20,7 +20,7 @@
 /* Floating dock layout: content clears the topbar and keeps a left gutter
    for the glass rail on every breakpoint. */
 .shellWithDock {
-  padding-left: 5rem;
+  padding-left: var(--zentra-dock-clearance, 5rem);
 }
 
 .main {

@@ -162,7 +162,7 @@ export default function PresenceGlobe({ users }: { users: AdminPresenceUser[] })
 
     const scene = new THREE.Scene();
     const camera = new THREE.PerspectiveCamera(42, 1, 0.1, 100);
-    camera.position.set(0, 0.35, 7.4);
+    camera.position.set(0, 0.35, 9.2);
     camera.lookAt(0, 0, 0);
 
     renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 2));
@@ -312,7 +312,7 @@ export default function PresenceGlobe({ users }: { users: AdminPresenceUser[] })
     let lastTooltipAt = 0;
 
     // Zoom is a scale on the camera's distance from the origin (below 1 = closer).
-    const CAMERA_BASE = new THREE.Vector3(0, 0.35, 7.4);
+    const CAMERA_BASE = new THREE.Vector3(0, 0.35, 9.2);
     const MIN_ZOOM = 0.55;
     const MAX_ZOOM = 1.75;
     let zoom = 1;

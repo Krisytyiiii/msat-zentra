@@ -32,37 +32,27 @@ type NavGroup = {
 export type { NavGroup, NavItem };
 
 /**
- * Sidebar focus. `workspace` is the default the rail always lands on; the
- * topbar pill switches it to `advisory`, and `all` keeps both groups (the
- * global-search palette calls `buildNav` without a mode to list every page).
+ * The desk's links, in a fixed order for both advisers and subject teachers:
+ * Workspace → Advisory → Overview → Settings. Everything an adviser can reach
+ * stays visible at once (no rail-focus toggle); non-advisers have no advisory
+ * desk, so that group is simply absent.
  */
-export type TeacherNavMode = "all" | "advisory" | "workspace";
-
-export function buildNav(
-  isAdviser: boolean,
-  mode: TeacherNavMode = "all",
-): NavGroup[] {
-  // Non-advisers have no advisory desk to show, so they always get the class
-  // workspace links regardless of the (hidden) pill state.
-  const focus: TeacherNavMode = isAdviser ? mode : "workspace";
-  const workspaceItems = [
-    { title: "Class", href: "/teacher/classes", icon: NAV_ICONS.class },
-    { title: "Gradebook", href: "/teacher/grading", icon: NAV_ICONS.gradebook },
-    { title: "Lock Grades", href: "/teacher/lock-grades", icon: NAV_ICONS.lockGrades },
-    { title: "Attendance", href: "/teacher/attendance", icon: NAV_ICONS.attendance },
-  ];
+export function buildNav(isAdviser: boolean): NavGroup[] {
   const groups: NavGroup[] = [
-    { label: "Overview", items: [
-      { title: "Dashboard", href: "/teacher/overview", icon: NAV_ICONS.overview },
-      { title: "Student List", href: "/teacher/overview/students", icon: NAV_ICONS.studentList },
-      { title: "Reports", href: "/teacher/overview/reports", icon: NAV_ICONS.reports },
-    ] },
+    {
+      label: "Workspace",
+      items: [
+        { title: "Class", href: "/teacher/classes", icon: NAV_ICONS.class },
+        { title: "Gradebook", href: "/teacher/grading", icon: NAV_ICONS.gradebook },
+        { title: "Lock Grades", href: "/teacher/lock-grades", icon: NAV_ICONS.lockGrades },
+        { title: "Attendance", href: "/teacher/attendance", icon: NAV_ICONS.attendance },
+      ],
+    },
   ];
-  const showAdvisory = isAdviser && focus !== "workspace";
-  const showWorkspace = focus !== "advisory";
-  if (showAdvisory) {
-    groups.push(
-      { label: "Advisory", items: [
+  if (isAdviser) {
+    groups.push({
+      label: "Advisory",
+      items: [
         { title: "Advisory List", href: "/teacher/advisory/list", icon: NAV_ICONS.advisoryList },
         { title: "Attendance", href: "/teacher/advisory/attendance", icon: NAV_ICONS.attendance },
         { title: "Academics", href: "/teacher/advisory/academics", icon: NAV_ICONS.academic },
@@ -72,13 +62,15 @@ export function buildNav(
         { title: "ADM", href: "/teacher/advisory/adm-cases", icon: NAV_ICONS.admCases },
         { title: "Modules", href: "/teacher/advisory/modules", icon: NAV_ICONS.modules },
         { title: "SF10 Access", href: "/teacher/advisory/sf10-access", icon: NAV_ICONS.sf10Access },
-      ]},
-    );
-  }
-  if (showWorkspace) {
-    groups.push({ label: "Workspace", items: workspaceItems });
+      ],
+    });
   }
   groups.push(
+    { label: "Overview", items: [
+      { title: "Dashboard", href: "/teacher/overview", icon: NAV_ICONS.overview },
+      { title: "Student List", href: "/teacher/overview/students", icon: NAV_ICONS.studentList },
+      { title: "Reports", href: "/teacher/overview/reports", icon: NAV_ICONS.reports },
+    ] },
     { label: "Settings", items: [{ title: "General Settings", href: "/teacher/settings", icon: NAV_ICONS.settings }] },
   );
   return groups;
@@ -114,7 +106,7 @@ function withDots(groups: NavGroup[], dots?: TeacherNavDots): NavGroup[] {
  * renders it as the left glass dock (`nav/GlassDock`). Builds the same groups
  * the global search palette reads via `buildNav`.
  */
-export function TeacherSidebar({ mode = "workspace" }: { mode?: TeacherNavMode }) {
+export function TeacherSidebar() {
   const pathname = usePathname();
   const session = useSession();
   const overview = useTeacherOverview();
@@ -124,8 +116,8 @@ export function TeacherSidebar({ mode = "workspace" }: { mode?: TeacherNavMode }
   const dots = useTeacherNavDots();
   useTeacherNavDotInvalidation(dots);
   const nav = React.useMemo(
-    () => withDots(buildNav(isAdviser, mode), dots),
-    [isAdviser, mode, dots],
+    () => withDots(buildNav(isAdviser), dots),
+    [isAdviser, dots],
   );
 
   return <GlassDock groups={nav} pathname={pathname ?? ""} ariaLabel="Teacher sections" />;

@@ -17,7 +17,6 @@ import { InsightCallout } from "@/components/ui/insight-callout";
 import { PageEmptyCallout } from "@/components/shared/page-empty-callout";
 import { Pill } from "@/components/ui/pill";
 import { toast } from "@/components/ui/sonner";
-import { TemplateNavRail, type TemplateView } from "../../components/TemplateNavRail";
 import { SubjectCatalogKanban } from "../../components/subject-catalog-kanban";
 import { SubjectAddKanban } from "../../components/subject-add-kanban";
 import { TeacherCatalogKanban } from "../../components/teacher-catalog-kanban";
@@ -100,37 +99,6 @@ function sectionLabel(name: string, gradeLevel: string) {
         Grade {gradeLevel.replace("G", "")}
       </Pill>
     </span>
-  );
-}
-
-/**
- * Skeleton mirrors the template page panel by panel: the left rail (back link
- * + find box + the seven action links) beside the skeleton of whichever view
- * is open — timetable grid, sections, catalogs, day config, school years or
- * publish — so the loading state has the same footprint as the loaded page.
- */
-function SkeletonRail() {
-  return (
-    <>
-      {/* Below lg the real rail is a horizontal strip. */}
-      <div className="flex w-full items-center gap-1 overflow-x-auto border-b border-border pb-1 lg:hidden">
-        <Skeleton className="h-7 w-7 shrink-0 rounded-md" />
-        {Array.from({ length: 7 }).map((_, i) => (
-          <Skeleton key={i} className="h-7 w-20 shrink-0 rounded-md" />
-        ))}
-      </div>
-      <div className="hidden w-52 shrink-0 lg:-mt-4 lg:-mb-4 lg:-ml-4 lg:block lg:min-h-[calc(100dvh-3rem)] lg:w-56 lg:border-r lg:border-solid lg:border-border lg:bg-linear-to-b lg:from-muted/40 lg:via-muted/10 lg:to-transparent lg:pt-4 lg:pr-4 lg:pl-4">
-        <div className="sticky top-16 flex flex-col gap-2">
-          <Skeleton className="h-4 w-28 rounded-md" />
-          <Skeleton className="h-8 w-full rounded-md" />
-          <div className="flex flex-col gap-0.5 pt-1">
-            {Array.from({ length: 7 }).map((_, i) => (
-              <Skeleton key={i} className="h-7 w-full rounded-md" />
-            ))}
-          </div>
-        </div>
-      </div>
-    </>
   );
 }
 
@@ -334,11 +302,10 @@ function SkeletonPublish() {
 function ScheduleTemplateSkeleton({ view }: { view: TemplateView }) {
   return (
     <section
-      className="flex w-full flex-col gap-5 lg:flex-row lg:items-start lg:gap-6"
+      className="flex w-full flex-col gap-5"
       aria-busy="true"
       aria-label="Loading template"
     >
-      <SkeletonRail />
       <div className="flex min-w-0 flex-1 flex-col gap-6">
         {view === "grid" ? (
           <SkeletonTimetable />
@@ -424,7 +391,10 @@ function termCoveringToday(years: SchoolYearOption[], todayKey: string) {
   return null;
 }
 
-/** `?view=` → panel. Unknown or missing values land on the timetable grid. */function parseView(raw: string): TemplateView {
+type TemplateView = "grid" | "sections" | "subjects" | "teachers" | "config" | "term" | "publish";
+
+/** `?view=` → panel. Unknown or missing values land on the timetable grid. */
+function parseView(raw: string): TemplateView {
   switch (raw) {
     case "config":
       return "config";
@@ -530,20 +500,6 @@ function TemplateInner() {
   // from the API (sections: learners/records, school years: any linked row).
   const [sectionDeleteTarget, setSectionDeleteTarget] = useState<ScheduleSection | null>(null);
   const [yearDeleteTarget, setYearDeleteTarget] = useState<{ id: string; name: string } | null>(null);
-
-  /** Sidebar click: show that action's panel; any open add form closes first. */
-  const openView = (next: TemplateView) => {
-    setView(next);
-    setKanbanAddOpen(false);
-    setTeacherKanbanAddOpen(false);
-    // Configure only opens the stepper when there is no saved preset yet; with
-    // presets the tab lists them (Edit/New reopen the stepper).
-    setConfigEditor(
-      next === "config" && catalog.presets.length === 0
-        ? { presetId: null, name: "Default", config: DEFAULT_DAY_CONFIG }
-        : null,
-    );
-  };
 
   /** Top-right actions: jump straight into the matching add form. */
   const openAddSubject = () => {
@@ -1184,8 +1140,7 @@ function TemplateInner() {
   };
 
   return (
-    <section className="flex w-full flex-col gap-5 lg:flex-row lg:gap-6">
-      <TemplateNavRail view={view} onSelect={openView} />
+    <section className="flex w-full flex-col gap-5">
       <div className="flex min-w-0 flex-1 flex-col gap-6">
         {view === "subjects" ? (
           <section id="subjects" aria-label="Subjects" className="flex scroll-mt-6 flex-col gap-4">

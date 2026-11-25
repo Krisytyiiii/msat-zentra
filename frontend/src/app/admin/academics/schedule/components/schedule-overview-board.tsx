@@ -7,23 +7,15 @@ import {
   BookOpen,
   CalendarDays,
   Check,
+  Copy,
   Download,
-  ExternalLink,
   Layers,
-  Search,
   Users,
-  X,
   type LucideIcon,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { FilterTabs } from "@/components/ui/filter-tabs";
-import {
-  InputGroup,
-  InputGroupAddon,
-  InputGroupButton,
-  InputGroupInput,
-} from "@/components/ui/input-group";
-import { Pill } from "@/components/ui/pill";
+import { SearchField } from "@/components/ui/search-field";
 import { StatDeck } from "@/components/ui/stat-deck";
 import { PageEmptyCallout } from "@/components/shared/page-empty-callout";
 import { StudentMascot } from "@/components/student-mascot/StudentMascot";
@@ -53,6 +45,19 @@ export function ScheduleOverviewBoard({ sections }: { sections: ScheduleSectionS
   const [grade, setGrade] = React.useState<string | null>(null);
   const [status, setStatus] = React.useState<StatusKey>("all");
   const [query, setQuery] = React.useState("");
+  const [copiedCode, setCopiedCode] = React.useState<string | null>(null);
+
+  const copyCode = async (code: string) => {
+    try {
+      await navigator.clipboard.writeText(code);
+      setCopiedCode(code);
+      window.setTimeout(() => {
+        setCopiedCode((current) => (current === code ? null : current));
+      }, 1600);
+    } catch {
+      // Clipboard blocked (insecure context / permissions): leave the icon as is.
+    }
+  };
 
   const ordered = React.useMemo(
     () =>
@@ -129,32 +134,7 @@ export function ScheduleOverviewBoard({ sections }: { sections: ScheduleSectionS
 
   return (
     <section className={cardStyles.board} aria-label="School schedule">
-      <header className={cardStyles.header}>
-        <div className={cardStyles.headerText}>
-          <div className={cardStyles.titleRow}>
-            <span className={cardStyles.titleIcon} aria-hidden>
-              <CalendarDays size={16} />
-            </span>
-            <h1 className={cardStyles.title}>Schedule</h1>
-          </div>
-          <p className={cardStyles.subtitle}>
-            School-wide timetable workspace. Open a section to build its weekly grid and publish it —
-            published sections are what teachers see in grading and attendance.
-          </p>
-        </div>
-        <div className={cardStyles.headerActions}>
-          <Button asChild className="h-6 gap-1 px-2 text-[12px]">
-            <Link href="/admin/academics/schedule/template" target="_blank" rel="noopener noreferrer">
-              <ExternalLink size={12} aria-hidden />
-              Open template
-            </Link>
-          </Button>
-        </div>
-      </header>
-
       <StatDeck
-        title="This term"
-        icon={CalendarDays}
         ariaLabel="Schedule at a glance"
         items={tiles.map((tile) => ({
           key: tile.key,
@@ -174,36 +154,24 @@ export function ScheduleOverviewBoard({ sections }: { sections: ScheduleSectionS
       <div className={cardStyles.toolbar}>
         <FilterTabs
           label="Filter by grade level"
+          variant="tags"
           options={[
-            { value: "all", label: "All grades" },
-            ...GRADES.map((g) => ({ value: `G${g}`, label: `Grade ${g}` })),
+            { value: "all", label: "All grades", tone: "neutral" },
+            ...GRADES.map((g) => ({
+              value: `G${g}`,
+              label: `Grade ${g}`,
+              tone: "neutral" as const,
+            })),
           ]}
           value={grade ?? "all"}
           onChange={(next) => setGrade(next === "all" ? null : next)}
         />
-        <InputGroup className="w-60 max-w-full shrink-0 rounded-[16px]">
-          <InputGroupAddon>
-            <Search />
-          </InputGroupAddon>
-          <InputGroupInput
-            placeholder="Find a section, adviser, or code…"
-            value={query}
-            onChange={(event) => setQuery(event.target.value)}
-            aria-label="Find a section"
-          />
-          {query ? (
-            <InputGroupAddon align="inline-end">
-              <InputGroupButton
-                size="icon-xs"
-                aria-label="Clear search"
-                title="Clear search"
-                onClick={() => setQuery("")}
-              >
-                <X aria-hidden />
-              </InputGroupButton>
-            </InputGroupAddon>
-          ) : null}
-        </InputGroup>
+        <SearchField
+          value={query}
+          onChange={setQuery}
+          placeholder="Find a section, adviser, or code…"
+          aria-label="Find a section"
+        />
       </div>
 
       {visible.length === 0 ? (
@@ -227,7 +195,7 @@ export function ScheduleOverviewBoard({ sections }: { sections: ScheduleSectionS
             return (
               <article
                 key={section.id}
-                className={`${cardStyles.card} ${published ? cardStyles.cardClaimed : ""}`}
+                className={`${styles.card} ${published ? styles.cardPublished : ""}`}
                 aria-label={`${section.name} timetable`}
                 style={{ animationDelay: `${Math.min(index, 11) * 35}ms` }}
               >
@@ -245,30 +213,45 @@ export function ScheduleOverviewBoard({ sections }: { sections: ScheduleSectionS
                       {adviserName || <span className={cardStyles.teacherNone}>No adviser yet</span>}
                     </span>
                   </div>
-                  <Pill field="grade" className={cardStyles.gradePill}>
-                    {`Grade ${section.gradeLevel.replace("G", "")}`}
-                  </Pill>
+                  <span className={styles.gradeText}>
+                    Grade {section.gradeLevel.replace("G", "")}
+                  </span>
                 </header>
 
                 <div className={cardStyles.metaRow}>
                   {published ? (
-                    <Pill tone="green" label="Timetable status">
-                      <Check size={11} aria-hidden />
+                    <span className={styles.statusText} data-tone="green">
+                      <Check size={12} aria-hidden />
                       Published
-                    </Pill>
+                    </span>
                   ) : sectionStatus === "draft" ? (
-                    <Pill tone="amber" label="Timetable status">
+                    <span className={styles.statusText} data-tone="amber">
                       In draft
-                    </Pill>
+                    </span>
                   ) : (
-                    <Pill tone="neutral" label="Timetable status">
+                    <span className={styles.statusText} data-tone="neutral">
                       No slots yet
-                    </Pill>
+                    </span>
                   )}
                   {section.adviserCode ? (
-                    <Pill tone="violet" label="Advisory code" className={cardStyles.codePill}>
-                      {section.adviserCode}
-                    </Pill>
+                    <span className={styles.codeBadgeWrap}>
+                      <span className={styles.codeBadge} title="Advisory code">
+                        {section.adviserCode}
+                        <button
+                          type="button"
+                          className={styles.codeCopy}
+                          aria-label={`Copy advisory code for ${section.name}`}
+                          title="Copy advisory code"
+                          onClick={() => void copyCode(section.adviserCode ?? "")}
+                        >
+                          {copiedCode === section.adviserCode ? (
+                            <Check size={12} aria-hidden />
+                          ) : (
+                            <Copy size={12} aria-hidden />
+                          )}
+                        </button>
+                      </span>
+                    </span>
                   ) : null}
                 </div>
 

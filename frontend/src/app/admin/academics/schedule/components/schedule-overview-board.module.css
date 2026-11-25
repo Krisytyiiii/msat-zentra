@@ -1,6 +1,89 @@
 /* Admin schedule overview — slim publish-progress rail on every section card.
    The status filter lives in the shared StatDeck. Same tokens as the desk. */
 
+/* ── Elevated section card ────────────────────────────────────────────────
+   Same material as the desk sidebar cards (nurse overview referral cards /
+   adviser modules): translucent fill, thin top sheen, hairline border and a
+   soft lift shadow, so the grid reads as raised tiles instead of flat
+   outlines. Kept local so the principal assign board keeps its own card. */
+.card {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  min-width: 0;
+  padding: 0.625rem 0.6875rem;
+  border: 1px solid color-mix(in oklch, var(--border) 80%, transparent);
+  border-radius: 0.75rem;
+  background-color: color-mix(in oklch, var(--card) 72%, transparent);
+  background-image: linear-gradient(
+    160deg,
+    rgb(255 255 255 / 0.45),
+    rgb(255 255 255 / 0) 55%
+  );
+  box-shadow:
+    inset 0 1px 0 rgb(255 255 255 / 0.5),
+    0 10px 24px -18px rgb(15 23 42 / 0.28);
+  backdrop-filter: blur(14px) saturate(135%);
+  -webkit-backdrop-filter: blur(14px) saturate(135%);
+  animation: overview-card-in 420ms cubic-bezier(0.22, 1, 0.36, 1) backwards;
+  transition:
+    border-color 160ms ease-out,
+    box-shadow 160ms ease-out;
+}
+
+:global(.dark) .card {
+  background-color: transparent;
+  background-image: none;
+  box-shadow:
+    inset 0 1px 0 rgb(255 255 255 / 0.06),
+    0 12px 28px -20px rgb(0 0 0 / 0.6);
+}
+
+.card:hover {
+  border-color: color-mix(in oklch, #f59e0b 70%, var(--border));
+  box-shadow:
+    inset 0 1px 0 rgb(255 255 255 / 0.5),
+    0 16px 30px -20px rgb(15 23 42 / 0.35);
+}
+
+:global(.dark) .card:hover {
+  box-shadow:
+    inset 0 1px 0 rgb(255 255 255 / 0.06),
+    0 16px 32px -20px rgb(0 0 0 / 0.7);
+}
+
+.card:focus-within {
+  border-color: color-mix(in oklch, #f59e0b 70%, var(--border));
+}
+
+/* Published sections keep the same material with a faint neutral tint. */
+.cardPublished {
+  background-color: color-mix(in oklch, var(--muted) 30%, color-mix(in oklch, var(--card) 72%, transparent));
+}
+
+:global(.dark) .cardPublished {
+  background-color: color-mix(in oklch, var(--foreground) 6%, transparent);
+}
+
+@keyframes overview-card-in {
+  from {
+    opacity: 0;
+    transform: translateY(10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .card {
+    animation: none;
+    transition: none;
+  }
+}
+
 /* ── Loading skeleton: the filter track keeps the real chip footprint ─── */
 .skelTrack {
   display: inline-flex;
@@ -18,6 +101,106 @@
   width: 4.25rem;
   height: 1.75rem;
   border-radius: 999px;
+}
+
+/* ── Status + advisory code: plain inline text, no pill chrome ─────────── */
+.statusText {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.25rem;
+  font-size: 0.75rem;
+  font-weight: 600;
+  line-height: 1.2;
+}
+
+.statusText[data-tone="green"] {
+  color: color-mix(in oklch, #16a34a 82%, var(--foreground));
+}
+
+.statusText[data-tone="amber"] {
+  color: color-mix(in oklch, #d97706 82%, var(--foreground));
+}
+
+.statusText[data-tone="neutral"] {
+  color: var(--muted-foreground);
+}
+
+:global(.dark) .statusText[data-tone="green"] {
+  color: #4ade80;
+}
+
+:global(.dark) .statusText[data-tone="amber"] {
+  color: #fbbf24;
+}
+
+.gradeText {
+  display: inline-flex;
+  flex: none;
+  align-items: center;
+  margin-left: auto;
+  color: var(--muted-foreground);
+  font-size: 0.75rem;
+  font-weight: 600;
+  line-height: 1.2;
+  letter-spacing: 0.02em;
+  white-space: nowrap;
+}
+
+.codeBadgeWrap {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.1875rem;
+  margin-left: auto;
+  min-width: 0;
+}
+
+.codeBadge {
+  display: inline-flex;
+  align-items: center;
+  flex: none;
+  gap: 0.125rem;
+  max-width: 100%;
+  height: 1.125rem;
+  padding: 0 0.1875rem 0 0.3125rem;
+  overflow: hidden;
+  border: 1px solid color-mix(in oklch, var(--border) 80%, transparent);
+  border-radius: 0.3125rem;
+  /* White chip in both themes: the badge always reads on the card surface. */
+  background-color: #fff;
+  color: #111827;
+  font-size: 0.75rem;
+  font-weight: 600;
+  line-height: 1;
+  letter-spacing: 0.05em;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.codeCopy {
+  display: grid;
+  flex: none;
+  place-items: center;
+  width: 1rem;
+  height: 1rem;
+  padding: 0;
+  border: none;
+  border-radius: 0.25rem;
+  background: transparent;
+  color: #6b7280;
+  cursor: pointer;
+  transition:
+    background-color 140ms ease-out,
+    color 140ms ease-out;
+}
+
+.codeCopy:hover {
+  background-color: rgb(17 24 39 / 0.08);
+  color: #111827;
+}
+
+.codeCopy:focus-visible {
+  outline: 2px solid var(--ring);
+  outline-offset: 1px;
 }
 
 /* ── Publish progress rail ────────────────────────────────────────────── */
