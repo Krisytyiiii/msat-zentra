@@ -5,15 +5,13 @@ import { useParams, useRouter, useSearchParams } from "next/navigation";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { useLiveQuery } from "@/lib/api/live";
 
-import { AlertTriangle, BookPlus, CalendarDays, CalendarRange, Check, Download, Gauge, Layers, Pencil, Plus, Trash2, Undo2, Upload, UserPlus } from "lucide-react";
-import { format, parseISO } from "date-fns";
+import { AlertTriangle, ArrowLeft, BookPlus, CalendarDays, Download, Gauge, Layers, Pencil, Plus, Trash2, Undo2, Upload, UserPlus } from "lucide-react";
 import { useTerm, type SchoolYearOption } from "@/lib/term/TermContext";
 import { apiClient } from "@/lib/api/client";
 import { apiErrorMessage } from "@/lib/api/errors";
 import { useAdminScheduleInvalidate } from "../../components/use-admin-schedule-invalidate";
 import { Button } from "@/components/ui/button";
 import { KanbanBoard } from "@/components/ui/kanban-board";
-import { InsightCallout } from "@/components/ui/insight-callout";
 import { PageEmptyCallout } from "@/components/shared/page-empty-callout";
 import { Pill } from "@/components/ui/pill";
 import { toast } from "@/components/ui/sonner";
@@ -26,8 +24,6 @@ import { TEACHER_CREATE_STEPS, TeacherCreateDockRows } from "../../components/te
 import type { TeacherCreateProgress } from "../../components/use-add-teachers";
 import { TEACHER_DELETE_STEPS, TeacherDeleteDockRows } from "../../components/teacher-delete-kanban";
 import type { TeacherDeleteProgress } from "../../components/teacher-delete-kanban";
-import { DropdownSelect } from "@/app/principal/academics/assign/components/DropdownSelect";
-import dropdownStyles from "@/app/principal/academics/assign/components/dropdown-select.module.css";
 import {
   CONFIG_SAVE_STEPS,
   ConfigDockRows,
@@ -49,58 +45,32 @@ import { ScheduleUnlockConfirm } from "../../components/schedule-unlock-kanban";
 import {
   ScheduleStatusConfirm,
   type PublishConfirmMode,
-  type StatusConfirmSlot,
 } from "../../components/schedule-status-confirm";
 import { AddSectionKanban, type CreatedSection } from "../../components/add-section-kanban";
 import { SectionsBoard } from "../../components/sections-board";
+import { TemplateSetupEmptyCard } from "../../components/schedule-empty-kanban";
+import { SectionWorkspaceTable } from "../../components/section-workspace-table";
 import { DeleteConfirmOverlay } from "../../components/delete-confirm-overlay";
 import {
   AddSchoolYearKanban,
-  PENDING_SCHOOL_YEAR_PREFIX,
   localTodayKey,
   type CreatedSchoolYear,
 } from "../../components/add-school-year-kanban";
 import { ConfigureTermsKanban } from "../../components/configure-terms-kanban";
+import {
+  ScheduleSchoolYears,
+  type SchoolYearLockRow,
+} from "../../components/schedule-school-years";
 import { Skeleton } from "@/components/ui/skeleton";
+import { ShimmerGroup } from "@/components/ui/shimmer-skeleton";
 import { useScheduleConflicts } from "../../components/use-schedule-conflicts";
 import { useTemplateWorkload } from "../../components/use-template-workload";
+import { useDock } from "@/components/dock/dock-store";
 import { useDockProgressTask, type DockSnapshot } from "../../components/use-dock-progress";
 import { ConflictsDock } from "../../components/conflicts-dock";
 import type { SubjectCreateProgress } from "../../components/use-add-subjects";
 import { DELETE_STEPS, DeleteDockRows, type SubjectDeleteProgress } from "../../components/subject-delete-kanban";
 import type { ScheduleSection } from "../../page";
-
-/** One school year's delete lock, from `/api/admin/schedule/school-years`. */
-interface SchoolYearLockRow {
-  id: string;
-  locked: boolean;
-  lockedReason: string | null;
-  links: { sections: number; learners: number; records: number };
-}
-
-/** One stacked builder block: small caps title sitting at the right end above the divider. */
-function TemplateBlockHeading({ title, hint }: { title: string; hint?: string }) {
-  return (
-    <div className="flex flex-col gap-1.5">
-      <h2 className="self-end text-[12px] font-medium uppercase tracking-[0.12em] text-muted-foreground">
-        {title}
-      </h2>
-      <div className="h-px w-full bg-border" aria-hidden />
-      {hint ? <p className="text-xs text-muted-foreground">{hint}</p> : null}
-    </div>
-  );
-}
-
-function sectionLabel(name: string, gradeLevel: string) {
-  return (
-    <span className={dropdownStyles.optionLabel}>
-      <span className={dropdownStyles.optionName}>{name}</span>
-      <Pill tone="amber" label="Grade level">
-        Grade {gradeLevel.replace("G", "")}
-      </Pill>
-    </span>
-  );
-}
 
 /** The shared `KanbanBoard` shell: hairline header row, then the panel body. */
 function SkeletonBoard({ children }: { children: ReactNode }) {
@@ -114,17 +84,6 @@ function SkeletonBoard({ children }: { children: ReactNode }) {
         </span>
       </div>
       <div className="pt-2">{children}</div>
-    </div>
-  );
-}
-
-/** Stacked panel heading: right-aligned small-caps title, rule, hint line. */
-function SkeletonPanelHeading() {
-  return (
-    <div className="flex flex-col gap-1.5">
-      <Skeleton className="h-3 w-24 self-end" />
-      <div className="h-px w-full bg-border" />
-      <Skeleton className="h-3 w-80 max-w-full" />
     </div>
   );
 }
@@ -212,6 +171,60 @@ function SkeletonSections() {
   );
 }
 
+/**
+ * Subjects view: the catalog board — title + subtitle, the header actions,
+ * the grade scope/search row, then the subject data table (`subject-catalog-kanban`
+ * → `SubjectWorkspaceTable`). Deliberately not the sections card grid.
+ */
+function SkeletonSubjects() {
+  return (
+    <div className="flex flex-col gap-3.5">
+      <div className="flex flex-wrap items-start justify-between gap-3">
+        <div className="flex flex-col gap-1.5">
+          <div className="flex items-center gap-2">
+            <Skeleton className="h-[1.625rem] w-[1.625rem] shrink-0 rounded-lg" />
+            <Skeleton className="h-4 w-24" />
+          </div>
+          <Skeleton className="h-3 w-[46rem] max-w-full" />
+        </div>
+        <div className="flex items-center gap-1.5">
+          <Skeleton className="h-6 w-28 rounded-md" />
+          <Skeleton className="h-6 w-28 rounded-md" />
+        </div>
+      </div>
+      <div className="flex flex-wrap items-center justify-between gap-2">
+        <Skeleton className="h-7 w-80 max-w-full rounded-full" />
+        <Skeleton className="h-7 w-60 max-w-full rounded-[16px]" />
+      </div>
+      <div
+        className="overflow-x-auto rounded-lg border border-border bg-card"
+        aria-busy="true"
+      >
+        <div className="grid grid-cols-[minmax(0,1fr)_6rem_7rem_8rem_9rem] items-center gap-3 border-b border-border px-4 py-2.5">
+          {Array.from({ length: 5 }).map((_, i) => (
+            <Skeleton key={i} className="h-3 w-14" />
+          ))}
+        </div>
+        {Array.from({ length: 6 }).map((_, row) => (
+          <div
+            key={row}
+            className="grid grid-cols-[minmax(0,1fr)_6rem_7rem_8rem_9rem] items-center gap-3 border-b border-border/60 px-4 py-2.5 last:border-b-0"
+          >
+            <div className="flex items-center gap-2">
+              <Skeleton className="h-7 w-7 shrink-0 rounded-md" />
+              <Skeleton className="h-3.5 w-32 max-w-full" />
+            </div>
+            <Skeleton className="h-3 w-14" />
+            <Skeleton className="h-5 w-16 rounded-md" />
+            <Skeleton className="h-5 w-20 rounded-md" />
+            <Skeleton className="h-3 w-24" />
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
+
 /** Configure view: the applied day-shape board, centered like the real panel. */
 function SkeletonDayConfig() {
   return (
@@ -232,41 +245,70 @@ function SkeletonDayConfig() {
   );
 }
 
-/** School year view: board header, the three lanes, then the scope strip. */
+/** School year view: header, the year card grid, then the scope strip. */
 function SkeletonSchoolYears() {
   return (
     <>
-      <SkeletonBoard>
-        <Skeleton className="mx-1 mb-1 h-3 w-80 max-w-full" />
-        <ul className="grid gap-2 px-0.5 pb-0.5 sm:grid-cols-2 2xl:grid-cols-3">
-          {Array.from({ length: 3 }).map((_, i) => (
-            <li key={i} className="flex flex-col overflow-hidden rounded-lg border border-border bg-card">
-              <div className="flex items-start gap-2 px-3 pt-3">
-                <div className="flex min-w-0 flex-1 flex-col gap-1.5">
-                  <Skeleton className="h-3.5 w-24" />
-                  <Skeleton className="h-3 w-36" />
-                </div>
-                <Skeleton className="h-6 w-20 shrink-0 rounded-md" />
+      <div className="flex flex-wrap items-start justify-between gap-3">
+        <div className="flex flex-col gap-1.5">
+          <div className="flex items-center gap-2">
+            <Skeleton className="h-[1.625rem] w-[1.625rem] shrink-0 rounded-lg" />
+            <Skeleton className="h-4 w-28" />
+          </div>
+          <Skeleton className="h-3 w-[46rem] max-w-full" />
+        </div>
+        <Skeleton className="h-7 w-32 rounded-md" />
+      </div>
+      <div className="grid gap-3.5 sm:grid-cols-2 xl:grid-cols-3">
+        {Array.from({ length: 3 }).map((_, i) => (
+          <div
+            key={i}
+            className="flex flex-col gap-2.5 rounded-xl border border-border bg-card p-[0.9375rem]"
+          >
+            <div className="flex items-center gap-2">
+              <div className="flex min-w-0 flex-1 flex-col gap-1">
+                <Skeleton className="h-4 w-24" />
+                <Skeleton className="h-3 w-36" />
               </div>
-              <div className="flex items-center gap-2 px-3 pt-2 pb-2.5">
-                <Skeleton className="h-1 w-14 rounded-full" />
-                <Skeleton className="h-3 w-28" />
+              <Skeleton className="h-[1.125rem] w-16 shrink-0 rounded-full" />
+            </div>
+            <div className="flex gap-1">
+              <Skeleton className="h-[1.125rem] w-20 rounded-full" />
+              <Skeleton className="h-[1.125rem] w-16 rounded-full" />
+            </div>
+            <div className="flex flex-col gap-1.5">
+              <Skeleton className="h-1.5 w-full rounded-full" />
+              <div className="flex justify-between">
+                <Skeleton className="h-3 w-24" />
+                <Skeleton className="h-3 w-16" />
               </div>
-              <div className="flex flex-col gap-0.5 border-t border-border/70 p-1.5">
-                {Array.from({ length: 3 }).map((__, j) => (
-                  <div key={j} className="flex items-center gap-2 px-2 py-1.5">
-                    <Skeleton className="h-5 w-5 shrink-0 rounded" />
-                    <div className="flex min-w-0 flex-1 flex-col gap-1">
-                      <Skeleton className="h-3 w-14" />
-                      <Skeleton className="h-3 w-32" />
-                    </div>
+            </div>
+            <div className="flex flex-col gap-1">
+              {Array.from({ length: 3 }).map((__, j) => (
+                <div key={j} className="flex items-center gap-2 px-2 py-1.5">
+                  <Skeleton className="h-5 w-5 shrink-0 rounded" />
+                  <div className="flex min-w-0 flex-1 flex-col gap-1">
+                    <Skeleton className="h-3 w-14" />
+                    <Skeleton className="h-3 w-32" />
                   </div>
-                ))}
-              </div>
-            </li>
-          ))}
-        </ul>
-      </SkeletonBoard>
+                </div>
+              ))}
+            </div>
+            <div className="grid grid-cols-2 gap-2">
+              {Array.from({ length: 4 }).map((__, k) => (
+                <div key={k} className="flex flex-col gap-1">
+                  <Skeleton className="h-3 w-16" />
+                  <Skeleton className="h-3.5 w-20" />
+                </div>
+              ))}
+            </div>
+            <div className="flex justify-between border-t border-border pt-2">
+              <Skeleton className="h-6 w-20 rounded-md" />
+              <Skeleton className="h-6 w-6 rounded-md" />
+            </div>
+          </div>
+        ))}
+      </div>
       <div className="flex items-center gap-1.5 px-1">
         <Skeleton className="h-1.5 w-1.5 rounded-full" />
         <Skeleton className="h-3 w-64 max-w-full" />
@@ -275,53 +317,79 @@ function SkeletonSchoolYears() {
   );
 }
 
-/** Publish view: heading + section rows with their publish state. */
+/** Publish view: the same section card grid as the loaded board. */
 function SkeletonPublish() {
   return (
-    <>
-      <SkeletonPanelHeading />
-      <SkeletonBoard>
-        <div className="flex flex-col px-1">
-          {Array.from({ length: 4 }).map((_, i) => (
-            <div
-              key={i}
-              className="flex items-center gap-2 border-b border-border px-1 py-2 last:border-b-0"
-            >
-              <Skeleton className="h-3.5 w-3.5 rounded-sm" />
-              <Skeleton className="h-3.5 w-44" />
-              <Skeleton className="ml-auto h-5 w-24 rounded-full" />
-              <Skeleton className="h-6 w-20 rounded-md" />
-            </div>
-          ))}
+    <div className="flex flex-col gap-3.5">
+      <div className="flex flex-wrap items-start justify-between gap-3">
+        <div className="flex flex-col gap-1.5">
+          <div className="flex items-center gap-2">
+            <Skeleton className="h-[1.625rem] w-[1.625rem] shrink-0 rounded-lg" />
+            <Skeleton className="h-4 w-24" />
+          </div>
+          <Skeleton className="h-3 w-80 max-w-full" />
         </div>
-      </SkeletonBoard>
-    </>
+        <div className="flex items-center gap-1.5">
+          <Skeleton className="h-6 w-28 rounded-md" />
+          <Skeleton className="h-6 w-32 rounded-md" />
+        </div>
+      </div>
+      <div className="flex flex-wrap items-center justify-between gap-2">
+        <Skeleton className="h-7 w-72 max-w-full rounded-full" />
+        <Skeleton className="h-7 w-60 max-w-full rounded-[16px]" />
+      </div>
+      <div className="grid gap-3 [grid-template-columns:repeat(auto-fill,minmax(16.5rem,1fr))]">
+        {Array.from({ length: 6 }).map((_, i) => (
+          <div key={i} className="flex flex-col gap-2 rounded-xl border border-border bg-card p-2.5">
+            <div className="flex items-center gap-2">
+              <Skeleton className="h-9 w-9 shrink-0 rounded-full" />
+              <div className="flex min-w-0 flex-1 flex-col gap-1">
+                <Skeleton className="h-3.5 w-24" />
+                <Skeleton className="h-3 w-20" />
+              </div>
+              <Skeleton className="h-4 w-14 shrink-0" />
+            </div>
+            <Skeleton className="h-3 w-24" />
+            <Skeleton className="h-3 w-40" />
+            <Skeleton className="h-1.5 w-full rounded-full" />
+            <div className="mt-auto flex justify-end gap-1.5 border-t border-border pt-1.5">
+              <Skeleton className="h-5 w-20 rounded-md" />
+              <Skeleton className="h-5 w-16 rounded-md" />
+            </div>
+          </div>
+        ))}
+      </div>
+    </div>
   );
 }
 
 function ScheduleTemplateSkeleton({ view }: { view: TemplateView }) {
   return (
-    <section
-      className="flex w-full flex-col gap-5"
-      aria-busy="true"
-      aria-label="Loading template"
-    >
-      <div className="flex min-w-0 flex-1 flex-col gap-6">
-        {view === "grid" ? (
-          <SkeletonTimetable />
-        ) : view === "sections" ? (
-          <SkeletonSections />
-        ) : view === "subjects" || view === "teachers" ? (
-          <SkeletonSections />
-        ) : view === "config" ? (
-          <SkeletonDayConfig />
-        ) : view === "term" ? (
-          <SkeletonSchoolYears />
-        ) : (
-          <SkeletonPublish />
-        )}
-      </div>
-    </section>
+    <ShimmerGroup>
+      <section
+        className="flex w-full flex-col gap-5"
+        aria-busy="true"
+        aria-label="Loading template"
+      >
+        <div className="flex min-w-0 flex-1 flex-col gap-6">
+          {view === "grid" ? (
+            <SkeletonTimetable />
+          ) : view === "sections" ? (
+            <SkeletonSections />
+          ) : view === "subjects" ? (
+            <SkeletonSubjects />
+          ) : view === "teachers" ? (
+            <SkeletonSubjects />
+          ) : view === "config" ? (
+            <SkeletonDayConfig />
+          ) : view === "term" ? (
+            <SkeletonSchoolYears />
+          ) : (
+            <SkeletonPublish />
+          )}
+        </div>
+      </section>
+    </ShimmerGroup>
   );
 }
 
@@ -361,20 +429,18 @@ function dockSnapshotOf(input: {
   };
 }
 
-/** Stored ISO date → "Jun 8, 2026" for the scope board. */
-function fmtDate(value: string | null): string {
-  if (!value) return "";
-  const date = parseISO(value);
-  return Number.isNaN(date.getTime()) ? value.slice(0, 10) : format(date, "MMM d, yyyy");
-}
-
 /**
  * The term whose date window contains today, if any. Shown as the pick while
  * no term has been chosen by hand, so the board always reflects the term this
  * desk is actually following — and rolls over on its own when a window ends.
+ *
+ * The active school year is checked first: overlapping/left-open windows on an
+ * older year must never make the board present that year while the server (and
+ * every unscoped request) is following the active one.
  */
 function termCoveringToday(years: SchoolYearOption[], todayKey: string) {
-  for (const y of years) {
+  const ordered = [...years].sort((a, b) => Number(b.isActive) - Number(a.isActive));
+  for (const y of ordered) {
     for (const t of [...y.terms].sort((a, b) => a.termNumber - b.termNumber)) {
       const start = t.startDate?.slice(0, 10);
       const end = t.endDate?.slice(0, 10);
@@ -391,7 +457,18 @@ function termCoveringToday(years: SchoolYearOption[], todayKey: string) {
   return null;
 }
 
-type TemplateView = "grid" | "sections" | "subjects" | "teachers" | "config" | "term" | "publish";
+/** True when today falls inside a term's stored date window. */
+function termCoversToday(
+  startDate: string | null,
+  endDate: string | null,
+  todayKey: string,
+): boolean {
+  const start = startDate?.slice(0, 10);
+  const end = endDate?.slice(0, 10);
+  return Boolean(start && end && start <= todayKey && todayKey <= end);
+}
+
+export type TemplateView = "grid" | "sections" | "subjects" | "teachers" | "config" | "term" | "publish";
 
 /** `?view=` → panel. Unknown or missing values land on the timetable grid. */
 function parseView(raw: string): TemplateView {
@@ -419,7 +496,7 @@ function parseView(raw: string): TemplateView {
   }
 }
 
-function TemplateInner() {
+function TemplateInner({ initialView }: { initialView?: TemplateView }) {
   const searchParams = useSearchParams();
   const params = useParams<{ section?: string | string[] }>();
   const router = useRouter();
@@ -443,7 +520,8 @@ function TemplateInner() {
     count: number;
   } | null>(null);
   // One panel at a time: the sidebar picks which action's inputs are shown.
-  const [view, setView] = useState<TemplateView>(() => parseView(viewParam));
+  const dock = useDock();
+  const [view, setView] = useState<TemplateView>(() => initialView ?? parseView(viewParam));
   const [kanbanAddOpen, setKanbanAddOpen] = useState(viewParam === "add-subject");
   const [teacherKanbanAddOpen, setTeacherKanbanAddOpen] = useState(viewParam === "add-teacher");
   // Sections are created here (not on the schedule index): a new section is
@@ -485,12 +563,15 @@ function TemplateInner() {
 
   // Keep the active panel in the URL so reloading the page lands on the same
   // tab (Timetable / Subjects / Teachers / Configure / Send) instead of resetting.
+  // Dedicated route pages (/schedule/publish, /schedule/sections, …) already
+  // carry the panel in the path, so they never append a `?view=` on top of it.
   useEffect(() => {
+    if (initialView) return;
     if (viewParam === view) return;
     const params = new URLSearchParams(searchParams.toString());
     params.set("view", view);
     router.replace(`${window.location.pathname}?${params.toString()}`, { scroll: false });
-  }, [view, viewParam, searchParams, router]);
+  }, [view, viewParam, searchParams, router, initialView]);
 
   const [createProgress, setCreateProgress] = useState<SubjectCreateProgress | null>(null);
   const [deleteProgress, setDeleteProgress] = useState<SubjectDeleteProgress | null>(null);
@@ -639,7 +720,7 @@ function TemplateInner() {
   });
 
   const deleteYearMutation = useMutation({
-    mutationFn: async (target: { id: string; name: string }) => {
+    mutationFn: async (target: { id: string; name: string; taskId: string }) => {
       await apiClient.delete(`/api/admin/schedule/school-years/${target.id}`);
       return target;
     },
@@ -663,6 +744,7 @@ function TemplateInner() {
       );
     },
     onSuccess: (target) => {
+      dock.completeTask(target.taskId, `${target.name} and its terms were removed.`);
       // The desk may still be steering the deleted year; fall back to the
       // server's active scope instead of querying a term that no longer exists.
       if (activeTerm?.schoolYearId === target.id) {
@@ -674,7 +756,11 @@ function TemplateInner() {
         description: `${target.name} and its terms were removed.`,
       });
     },
-    onError: (err: unknown) => {
+    onError: (err: unknown, target) => {
+      dock.failTask(
+        target.taskId,
+        apiErrorMessage(err, "The school year was not deleted."),
+      );
       // Restore the card from the server (it was dropped optimistically).
       void queryClient.invalidateQueries({ queryKey: ["term-picker"] });
       toast.error({
@@ -705,6 +791,17 @@ function TemplateInner() {
     if (!picked) return;
     const slug = sectionSlug(picked.name, picked.gradeLevel, sections);
     router.replace(`/admin/academics/schedule/template/${encodeURIComponent(slug)}?view=${encodeURIComponent(view)}`, { scroll: false });
+  };
+
+  // Back to the section list: drop the picked section (and its slug) so the
+  // desk shows the section data table again instead of one timetable.
+  const backToSectionList = () => {
+    setSectionId("");
+    setSlugResolved(false);
+    router.replace(
+      `/admin/academics/schedule/template?view=${encodeURIComponent(view)}`,
+      { scroll: false },
+    );
   };
 
   // Confirming closes at once: the new rows paint straight away, the shared
@@ -778,9 +875,30 @@ function TemplateInner() {
    */
   const todayKey = localTodayKey();
   const autoTerm = termCoveringToday(schoolYears, todayKey);
+  // Only the term whose date window contains today may be worked on from the
+  // board. A stored future/past pick stays in storage (the Configure tab can
+  // still steer it to prepare a term), but the board itself falls back to
+  // today's term instead of presenting the out-of-window pick as selectable.
+  const activeTermCoversToday = (() => {
+    if (!activeTerm) return false;
+    const year = schoolYears.find((y) => y.id === activeTerm.schoolYearId);
+    const term = year?.terms.find((t) => t.id === activeTerm.termId);
+    return term ? termCoversToday(term.startDate, term.endDate, todayKey) : false;
+  })();
+  const boardActiveTerm = activeTermCoversToday ? activeTerm : null;
   // A hand-picked term wins; otherwise today's window is the one in use.
-  const steeringTermId = activeTerm?.termId ?? autoTerm?.termId ?? null;
-  const steeringYearId = activeTerm?.schoolYearId ?? autoTerm?.schoolYearId ?? null;
+  const steeringTermId = boardActiveTerm?.termId ?? autoTerm?.termId ?? null;
+  const steeringYearId = boardActiveTerm?.schoolYearId ?? autoTerm?.schoolYearId ?? null;
+  // A pick left over from an earlier session may point outside today's window
+  // (e.g. a future term prepared last month). Opening this board drops it so
+  // the whole admin desk falls back to today's term — the only one it can work
+  // on here.
+  useEffect(() => {
+    if (view !== "term") return;
+    if (!activeTerm || activeTermCoversToday) return;
+    if (schoolYears.length === 0) return;
+    clearActiveTerm();
+  }, [view, activeTerm, activeTermCoversToday, schoolYears.length, clearActiveTerm]);
   /**
    * Create-then-configure: a new school year lands on the board and opens its
    * trimester-date dialog straight away. Steering happens once the windows are
@@ -801,25 +919,6 @@ function TemplateInner() {
     [cellsHook.pendingSlots],
   );
   const publishMutation = usePublishTimetable();
-
-  // The overlay lists the working grid (saved + freshly staged slots), so the
-  // count/cards match what the admin sees instead of only server-saved rows.
-  const workingSlots = useMemo<StatusConfirmSlot[]>(() => {
-    const out: StatusConfirmSlot[] = [];
-    for (const [key, value] of Object.entries(cellsHook.cells)) {
-      if (!value) continue;
-      const [day, period] = key.split(":").map(Number);
-      out.push({
-        day,
-        period,
-        subjectName: catalog.subjectById.get(value.subjectId)?.name ?? "Subject",
-        teacherName: value.teacherNameId
-          ? catalog.teacherById.get(value.teacherNameId)?.name ?? "Teacher"
-          : "No teacher",
-      });
-    }
-    return out.sort((a, b) => a.day - b.day || a.period - b.period);
-  }, [cellsHook.cells, catalog.subjectById, catalog.teacherById]);
 
   /**
    * Runs the confirmed publish/unpublish. Publishing first flushes any staged
@@ -1158,7 +1257,7 @@ function TemplateInner() {
               open={kanbanAddOpen}
               onClose={() => setKanbanAddOpen(false)}
               label="Add subjects"
-              widthClassName="max-w-xl"
+              variant="drawer"
             >
               <SubjectAddKanban
                 onClose={() => setKanbanAddOpen(false)}
@@ -1182,6 +1281,7 @@ function TemplateInner() {
               open={teacherKanbanAddOpen}
               onClose={() => setTeacherKanbanAddOpen(false)}
               label="Add teachers"
+              variant="drawer"
             >
               <TeacherAddKanban
                 onClose={() => setTeacherKanbanAddOpen(false)}
@@ -1221,7 +1321,6 @@ function TemplateInner() {
               <DeleteConfirmOverlay
                 title={`Delete ${presetDeleteTarget.name}?`}
                 description="This removes the saved configuration. The school day in use is not affected."
-                detail={`Starts ${presetDeleteTarget.startTime} · ${presetDeleteTarget.periodMins} min periods`}
                 confirmLabel="Delete configuration"
                 pending={deleteConfigMutation.isPending}
                 onCancel={() => setPresetDeleteTarget(null)}
@@ -1242,11 +1341,6 @@ function TemplateInner() {
               <DeleteConfirmOverlay
                 title={`Delete ${sectionDeleteTarget.name}?`}
                 description="This cannot be undone. Only a section with no learners and no records can be deleted."
-                detail={
-                  sectionDeleteTarget.gradeLevel
-                    ? `Grade ${sectionDeleteTarget.gradeLevel.replace("G", "")} section`
-                    : null
-                }
                 confirmLabel="Delete section"
                 pending={deleteSectionMutation.isPending}
                 onCancel={() => setSectionDeleteTarget(null)}
@@ -1260,295 +1354,46 @@ function TemplateInner() {
             aria-label="School year and term"
             className="flex scroll-mt-6 flex-col gap-3"
           >
-            {schoolYearsLoading && schoolYears.length === 0 ? (
-              <p className="text-sm text-muted-foreground">Loading school years…</p>
-            ) : schoolYears.length === 0 ? (
-              <PageEmptyCallout
-                action={
-                  <Button
-                    className="h-6 gap-1 px-2.5 text-[12px]"
-                    onClick={() => setSchoolYearAddOpen(true)}
-                  >
-                    <Plus size={12} aria-hidden />
-                    Add school year
-                  </Button>
-                }
-              >
-                {schoolYearsError
-                  ? "Could not load the school years. Check the connection and try again."
-                  : "There is no school year yet. Add one here — its three terms come with it, and you can set their start and end dates next."}
-              </PageEmptyCallout>
-            ) : (
-              <div className="flex flex-col gap-3">
-                <KanbanBoard
-                  title="School years"
-                  icon={
-                    <span className="text-amber-500" aria-hidden>
-                      <CalendarRange size={14} />
-                    </span>
-                  }
-                  count={`${schoolYears.length} year${schoolYears.length === 1 ? "" : "s"}`}
-                  actions={
-                    <Button
-                      variant="outline"
-                      className="h-6 gap-1 px-2 text-[12px]"
-                      onClick={() => setSchoolYearAddOpen(true)}
-                    >
-                      <Plus size={12} aria-hidden />
-                      Add school year
-                    </Button>
-                  }
-                  ariaLabel="School years and their terms"
-                  boardLabel="School year and term picker"
-                  description="Set each term's dates, then click a term to work on it. The term that covers today is used automatically."
-                >
-                  {/* One lane per school year: header, date-set progress, then
-                      its three terms as selectable rows. */}
-                  <ul className="grid gap-2 px-0.5 pb-0.5 sm:grid-cols-2 2xl:grid-cols-3">
-                    {schoolYears.map((y) => {
-                      const terms = [...y.terms].sort((a, b) => a.termNumber - b.termNumber);
-                      const steeringYear = steeringYearId === y.id;
-                      // Delete lock: any linked section/learner/term record, or
-                      // the active year, keeps the row from being deleted.
-                      const yearLock = yearLocks.get(y.id);
-                      // Optimistic row painted at confirm time — the request is
-                      // still in flight and the shared Dock carries its progress.
-                      const pending = y.id.startsWith(PENDING_SCHOOL_YEAR_PREFIX);
-                      const datedTerms = terms.filter((t) => t.startDate && t.endDate).length;
-                      const totalTerms = terms.length || 3;
-                      const termsConfigured = terms.length > 0 && datedTerms === terms.length;
-                      return (
-                        <li
-                          key={y.id}
-                          className={`relative flex min-w-0 flex-col overflow-hidden rounded-lg border bg-card transition-colors duration-150 ${
-                            steeringYear
-                              ? "border-amber-500/50"
-                              : "border-border hover:border-border/80"
-                          } ${pending ? "opacity-75" : ""}`}
-                        >
-                          {steeringYear ? (
-                            <span aria-hidden className="absolute inset-x-0 top-0 h-0.5 bg-amber-500" />
-                          ) : null}
-                          <div className="flex min-w-0 items-start gap-2 px-3 pt-3">
-                            <div className="min-w-0 flex-1">
-                              <div className="flex flex-wrap items-center gap-1.5">
-                                <span
-                                  className={`text-[13px] font-semibold tracking-tight ${
-                                    pending ? "text-muted-foreground" : "text-foreground"
-                                  }`}
-                                >
-                                  {y.name}
-                                </span>
-                                {pending ? (
-                                  <Pill tone="amber" label="Saving the new school year">
-                                    Creating…
-                                  </Pill>
-                                ) : null}
-                                {y.isActive && !pending ? (
-                                  <Pill tone="green" label="The school year in use">
-                                    Active
-                                  </Pill>
-                                ) : null}
-                                {y.isCurrent && !pending ? (
-                                  <Pill tone="sky" label="Matches the current calendar year">
-                                    Current
-                                  </Pill>
-                                ) : null}
-                                {yearLock && !pending ? (
-                                  <Pill
-                                    tone={yearLock.locked ? "amber" : "green"}
-                                    label="Delete status"
-                                    title={
-                                      yearLock.lockedReason ??
-                                      "No sections, learners, or term records are linked"
-                                    }
-                                  >
-                                    {yearLock.locked ? "Locked" : "Can be deleted"}
-                                  </Pill>
-                                ) : null}
-                              </div>
-                              <p className="mt-0.5 flex items-center gap-1 text-[12px] tabular-nums text-muted-foreground">
-                                <CalendarRange size={11} aria-hidden className="shrink-0 opacity-70" />
-                                <span className="truncate">
-                                  {fmtDate(y.startDate)} – {fmtDate(y.endDate)}
-                                </span>
-                              </p>
-                            </div>
-                            {!pending ? (
-                              <div className="flex shrink-0 items-center gap-1">
-                                <Button
-                                  variant="outline"
-                                  className={`h-6 shrink-0 gap-1 px-2 text-[12px] ${
-                                    termsConfigured
-                                      ? "border-transparent bg-transparent text-muted-foreground hover:bg-accent hover:text-foreground"
-                                      : "border-amber-500/50 text-amber-700 dark:text-amber-400"
-                                  }`}
-                                  onClick={() => setTermsYearId(y.id)}
-                                >
-                                  <Pencil size={11} aria-hidden />
-                                  {termsConfigured ? "Edit dates" : "Set dates"}
-                                </Button>
-                                <Button
-                                  variant="ghost"
-                                  size="icon-xs"
-                                  disabled={!yearLock || yearLock.locked}
-                                  className="text-muted-foreground hover:bg-red-500/10 hover:text-red-700 dark:hover:text-red-400"
-                                  aria-label={`Delete ${y.name}`}
-                                  title={
-                                    yearLock?.locked
-                                      ? (yearLock.lockedReason ?? "This school year cannot be deleted")
-                                      : "Delete school year"
-                                  }
-                                  onClick={() => setYearDeleteTarget({ id: y.id, name: y.name })}
-                                >
-                                  <Trash2 size={12} aria-hidden />
-                                </Button>
-                              </div>
-                            ) : null}
-                          </div>
-
-                          <div className="flex flex-wrap items-center gap-2 px-3 pt-2 pb-2.5">
-                            {!pending ? (
-                              <>
-                                <span className="flex items-center gap-0.5" aria-hidden>
-                                  {Array.from({ length: totalTerms }).map((_, i) => (
-                                    <span
-                                      key={i}
-                                      className={`h-1 w-4 rounded-full ${
-                                        i < datedTerms ? "bg-emerald-500/70" : "bg-border"
-                                      }`}
-                                    />
-                                  ))}
-                                </span>
-                                <span className="text-[12px] text-muted-foreground">
-                                  {datedTerms} of {totalTerms} dates set
-                                </span>
-                              </>
-                            ) : null}
-                            {steeringYear ? (
-                              <span className="ml-auto inline-flex items-center gap-1 rounded-full bg-amber-500/10 px-1.5 py-0.5 text-[12px] font-medium text-amber-700 dark:text-amber-400">
-                                <Check size={11} aria-hidden />
-                                In use
-                              </span>
-                            ) : null}
-                          </div>
-
-                          <div className="flex flex-1 flex-col gap-0.5 border-t border-border/70 p-1.5">
-                            {pending ? (
-                              <span className="px-1.5 py-1 text-[12px] text-muted-foreground">
-                                The three terms will appear here once the school year is saved.
-                              </span>
-                            ) : terms.length === 0 ? (
-                              <span className="px-1.5 py-1 text-[12px] text-muted-foreground">
-                                This school year has no terms yet.
-                              </span>
-                            ) : (
-                              terms.map((t) => {
-                                const selected = steeringTermId === t.id;
-                                const auto = !activeTerm && autoTerm?.termId === t.id;
-                                const dated = Boolean(t.startDate && t.endDate);
-                                return (
-                                  <button
-                                    key={t.id}
-                                    type="button"
-                                    onClick={() => applyScope(y.id, t.id)}
-                                    aria-pressed={selected}
-                                    title={`Work on ${y.name} · Term ${t.termNumber}`}
-                                    className={`flex min-w-0 items-center gap-2 rounded-md border px-2 py-1.5 text-left transition-colors duration-150 ${
-                                      selected
-                                        ? "border-amber-500/45 bg-amber-500/10"
-                                        : "border-transparent hover:border-border hover:bg-muted/60"
-                                    }`}
-                                  >
-                                    <span
-                                      aria-hidden
-                                      className={`flex h-5 w-5 shrink-0 items-center justify-center rounded text-[12px] font-semibold ${
-                                        selected
-                                          ? "bg-amber-500 text-white"
-                                          : "bg-muted text-muted-foreground"
-                                      }`}
-                                    >
-                                      {t.termNumber}
-                                    </span>
-                                    <span className="min-w-0 flex-1">
-                                      <span className="flex items-center gap-1.5">
-                                        <span
-                                          className={`text-[12px] font-medium leading-tight ${
-                                            selected ? "text-foreground" : "text-muted-foreground"
-                                          }`}
-                                        >
-                                          Term {t.termNumber}
-                                        </span>
-                                        {auto ? (
-                                          <span
-                                            className="rounded bg-amber-500/15 px-1 text-[12px] leading-4 font-medium text-amber-700 dark:text-amber-400"
-                                            title="Picked automatically because today falls in this term"
-                                          >
-                                            Auto
-                                          </span>
-                                        ) : null}
-                                      </span>
-                                      <span className="block truncate text-[12px] leading-tight text-muted-foreground">
-                                        {dated
-                                          ? `${fmtDate(t.startDate)} – ${fmtDate(t.endDate)}`
-                                          : "Dates not set"}
-                                      </span>
-                                    </span>
-                                    {selected ? (
-                                      <Check size={12} aria-hidden className="shrink-0 text-amber-500" />
-                                    ) : null}
-                                  </button>
-                                );
-                              })
-                            )}
-                          </div>
-                        </li>
-                      );
-                    })}
-                  </ul>
-                </KanbanBoard>
-                <div className="flex flex-wrap items-center justify-between gap-2 px-1">
-                  <p className="flex items-center gap-1.5 text-[12px] text-muted-foreground">
-                    <span
-                      className={`inline-block h-1.5 w-1.5 rounded-full ${
-                        activeTerm ? "bg-amber-500" : autoTerm ? "bg-emerald-500" : "bg-muted-foreground"
-                      }`}
-                      aria-hidden
-                    />
-                    {activeTerm ? (
-                      <>
-                        Working on{" "}
-                        <span className="font-medium text-foreground">
-                          {activeTerm.schoolYearName} · Term {activeTerm.termNumber}
-                        </span>
-                      </>
-                    ) : autoTerm ? (
-                      <>
-                        Following today&apos;s term{" "}
-                        <span className="font-medium text-foreground">
-                          {autoTerm.schoolYearName} · Term {autoTerm.termNumber}
-                        </span>{" "}
-                        — picked automatically because today falls in it.
-                      </>
-                    ) : (
-                      <>
-                        Using the school&apos;s current term
-                        {activeSchoolYear ? ` (${activeSchoolYear.name})` : ""}
-                      </>
-                    )}
-                  </p>
-                  {activeTerm ? (
-                    <Button
-                      variant="outline"
-                      className="h-6 px-2 text-[12px]"
-                      onClick={() => clearActiveTerm()}
-                    >
-                      Follow today&apos;s term
-                    </Button>
-                  ) : null}
-                </div>
-              </div>
-            )}
+            <ScheduleSchoolYears
+              years={schoolYears}
+              yearLocks={yearLocks}
+              loading={schoolYearsLoading}
+              error={schoolYearsError}
+              steeringYearId={steeringYearId}
+              steeringTermId={steeringTermId}
+              activeTerm={
+                boardActiveTerm
+                  ? {
+                      schoolYearId: boardActiveTerm.schoolYearId,
+                      schoolYearName: boardActiveTerm.schoolYearName,
+                      termNumber: boardActiveTerm.termNumber,
+                    }
+                  : null
+              }
+              autoTerm={
+                autoTerm
+                  ? {
+                      schoolYearId: autoTerm.schoolYearId,
+                      schoolYearName: autoTerm.schoolYearName,
+                      termNumber: autoTerm.termNumber,
+                    }
+                  : null
+              }
+              activeSchoolYearName={activeSchoolYear?.name ?? null}
+              onAdd={() => setSchoolYearAddOpen(true)}
+              onSetDates={setTermsYearId}
+              onRequestDelete={setYearDeleteTarget}
+              onApplyScope={(yearId, termId) => {
+                // Defensive: the board only enables today's term, but never
+                // steer to an out-of-window term even if a caller tries.
+                const term = schoolYears
+                  .find((y) => y.id === yearId)
+                  ?.terms.find((t) => t.id === termId);
+                if (!term || !termCoversToday(term.startDate, term.endDate, todayKey)) return;
+                applyScope(yearId, termId);
+              }}
+              onFollowToday={() => clearActiveTerm()}
+            />
             {yearDeleteTarget ? (
               <DeleteConfirmOverlay
                 title={`Delete ${yearDeleteTarget.name}?`}
@@ -1556,34 +1401,37 @@ function TemplateInner() {
                 confirmLabel="Delete school year"
                 pending={deleteYearMutation.isPending}
                 onCancel={() => setYearDeleteTarget(null)}
-                onConfirm={() => deleteYearMutation.mutate(yearDeleteTarget)}
+                onConfirm={() => {
+                  if (!yearDeleteTarget) return;
+                  // Close the confirm first: the shared Dock reports the
+                  // delete, so the desk never waits on the network.
+                  const taskId = dock.startTask({
+                    kind: "term-context",
+                    title: "Deleting school year",
+                    description: `${yearDeleteTarget.name} · its three terms`,
+                  });
+                  deleteYearMutation.mutate({ ...yearDeleteTarget, taskId });
+                }}
               />
             ) : null}
           </section>
         ) : view === "publish" ? (
           <section id="publish" aria-label="Publish timetable" className="flex scroll-mt-6 flex-col gap-4">
-            <TemplateBlockHeading
-              title="Publish"
-              hint="Publish a section's draft to make it live for teachers, or switch it back to draft to edit."
-            />
-            <PublishTimetableKanban />
+            <PublishTimetableKanban onOpenGrid={openSectionGrid} />
           </section>
         ) : (
           <>
-            {/* Default view — section picker on top of the cell filler. */}
+            {/* Default view — the section list, or one section's timetable. */}
             <section
               id="teachers-subjects"
               aria-label="Teachers and subjects"
               className={`flex scroll-mt-6 flex-col gap-4 ${
-                section || catalogMissing ? "" : "min-h-[calc(100dvh-12rem)] justify-center"
+                catalogMissing ? "min-h-[calc(100dvh-12rem)] justify-center" : ""
               }`}
             >
               {catalogMissing ? (
                 <div className="flex min-h-[calc(100dvh-10rem)] items-center justify-center">
-                  <InsightCallout role="status" className="w-fit max-w-xl text-center">
-                    Add at least one <strong>subject</strong> (with Core/Elective type) and one{" "}
-                    <strong>teacher</strong> first — then pick a section to fill its timetable cells.
-                  </InsightCallout>
+                  <TemplateSetupEmptyCard />
                 </div>
               ) : sections.length === 0 ? (
                 <PageEmptyCallout
@@ -1603,8 +1451,7 @@ function TemplateInner() {
                 </PageEmptyCallout>
               ) : (
                 <div className="flex flex-col gap-3">
-                  {/* Workspace bar: pick a section, see its size, jump into the
-                      catalog actions that feed the grid. */}
+                  {section ? null : (
                   <div className="flex flex-col gap-2.5 rounded-xl border border-border bg-card p-3">
                     <div className="flex flex-wrap items-center justify-between gap-2">
                       <div className="flex min-w-0 items-center gap-2">
@@ -1625,19 +1472,6 @@ function TemplateInner() {
                         </div>
                       </div>
                       <div className="flex flex-wrap items-center gap-1.5">
-                        <span className="hidden sm:inline-flex">
-                          <DropdownSelect
-                            value={sectionId}
-                            onValueChange={handleSectionChange}
-                            options={sections.map((s) => ({
-                              value: s.id,
-                              label: sectionLabel(s.name, s.gradeLevel),
-                            }))}
-                            placeholder="Pick a section…"
-                            ariaLabel="Section for this template"
-                            triggerClassName={dropdownStyles.dropdown32}
-                          />
-                        </span>
                         <Button
                           variant="outline"
                           className="h-6 gap-1 px-2 text-[12px]"
@@ -1661,73 +1495,16 @@ function TemplateInner() {
                       </div>
                     </div>
 
-                    <div
-                      className="flex gap-1.5 overflow-x-auto pb-1"
-                      role="listbox"
-                      aria-label="Choose a section"
-                    >
-                      {sections.map((s) => {
-                        const active = s.id === sectionId;
-                        const slotCount = s.timetableEntries?.length ?? 0;
-                        const published =
-                          slotCount > 0 &&
-                          s.timetableEntries.every((entry) => entry.status === "APPROVED");
-                        return (
-                          <button
-                            key={s.id}
-                            type="button"
-                            role="option"
-                            aria-selected={active}
-                            onClick={() => handleSectionChange(s.id)}
-                            className={`group flex shrink-0 items-center gap-1.5 rounded-lg border px-2 py-1.5 text-left transition-colors duration-150 ${
-                              active
-                                ? "border-amber-500/55 bg-amber-500/10"
-                                : "border-border bg-background hover:border-amber-500/40 hover:bg-muted/60"
-                            }`}
-                          >
-                            <span className="min-w-0">
-                              <span className="block max-w-40 truncate text-[12px] leading-tight font-semibold">
-                                {s.name}
-                              </span>
-                              <span className="block text-[12px] leading-tight text-muted-foreground tabular-nums">
-                                Grade {s.gradeLevel.replace("G", "")} · {slotCount} slot
-                                {slotCount === 1 ? "" : "s"}
-                              </span>
-                            </span>
-                            <span
-                              aria-hidden
-                              className={`h-1.5 w-1.5 shrink-0 rounded-full ${
-                                published
-                                  ? "bg-emerald-500"
-                                  : slotCount > 0
-                                    ? "bg-amber-500"
-                                    : "bg-border"
-                              }`}
-                            />
-                          </button>
-                        );
-                      })}
-                    </div>
+                    <SectionWorkspaceTable
+                      sections={sections}
+                      activeId={sectionId}
+                      onSelect={handleSectionChange}
+                    />
                   </div>
+                  )}
 
-                  {conflicts.data ? (
-                    <span className="flex flex-wrap items-center justify-end gap-1.5" role="status">
-                      <Pill tone="amber" label="Double-book warnings">
-                        <AlertTriangle size={12} aria-hidden className="text-amber-500" />
-                        {conflicts.data.conflicts.length} double-book warning
-                        {conflicts.data.conflicts.length === 1 ? "" : "s"}
-                      </Pill>
-                      <Pill tone="amber" label="Workload warnings">
-                        <Gauge size={12} aria-hidden className="text-amber-500" />
-                        {conflicts.data.workload.overDaily.length + conflicts.data.workload.overWeekly.length}{" "}
-                        overload warning
-                        {conflicts.data.workload.overDaily.length + conflicts.data.workload.overWeekly.length === 1
-                          ? ""
-                          : "s"}
-                      </Pill>
-                    </span>
-                  ) : null}
-
+                  {section ? (
+                    <>
                   {conflicts.data && conflicts.data.conflicts.length > 0 ? (
                     <ConflictsDock
                       key={conflicts.data.conflicts.map((c) => `${c.teacherNameId}:${c.day}:${c.period}`).join("|")}
@@ -1735,57 +1512,42 @@ function TemplateInner() {
                     />
                   ) : null}
 
-                  {!section ? (
-                    <p className="text-center text-sm text-muted-foreground">
-                      Pick a section above to load its generic template grid.
-                    </p>
-                  ) : !activeConfig ? (
+                  {!activeConfig ? (
                     <p className="text-sm text-muted-foreground">Loading day configuration…</p>
                   ) : (
                     <>
-                      <div className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-border bg-card px-3.5 py-2.5">
-                        <div className="flex min-w-0 flex-col gap-1">
-                          <div className="flex flex-wrap items-center gap-1.5">
-                            <span className="truncate text-sm font-semibold">{section.name}</span>
-                            <Pill field="grade">
-                              Grade {section.gradeLevel.replace("G", "")}
-                            </Pill>
-                            {cellsHook.isLocked || cellsHook.serverLocked ? (
-                              <Pill tone="green" label="Timetable status">
-                                <Check size={11} aria-hidden />
-                                Published
-                              </Pill>
-                            ) : cellsHook.filledCount > 0 ? (
-                              <Pill tone="amber" label="Timetable status">
-                                <Pencil size={11} aria-hidden />
-                                {cellsHook.editMode ? "Editing draft" : "Draft"}
-                              </Pill>
-                            ) : (
-                              <Pill tone="neutral" label="Timetable status">
-                                Empty grid
-                              </Pill>
-                            )}
-                          </div>
-                          <p className="flex flex-wrap items-center gap-x-2 gap-y-0.5 text-[12px] text-muted-foreground">
-                            <span className="inline-flex items-center gap-1 tabular-nums">
-                              <CalendarDays size={11} aria-hidden />
-                              {cellsHook.filledCount} slot
-                              {cellsHook.filledCount === 1 ? "" : "s"} filled
-                            </span>
-                            {section.adviser?.fullName ? (
-                              <span className="truncate">
-                                Adviser · {section.adviser.fullName}
-                              </span>
-                            ) : null}
-                            {cellsHook.pendingSlots.length > 0 || cellsHook.saveProgress?.active ? (
-                              <span className="text-amber-700 dark:text-amber-400" aria-live="polite">
-                                {cellsHook.saveProgress?.active
-                                  ? "Saving staged slots…"
-                                  : `${cellsHook.pendingSlots.length} unsaved slot${cellsHook.pendingSlots.length === 1 ? "" : "s"}`}
-                              </span>
-                            ) : null}
-                          </p>
+                      <div className="flex flex-wrap items-center justify-between gap-3 px-1">
+                        <div className="flex min-w-0 items-center gap-2.5">
+                          <Button
+                            variant="outline"
+                            className="h-6 shrink-0 gap-1 px-2 text-[12px]"
+                            onClick={backToSectionList}
+                            title="Back to the section list"
+                          >
+                            <ArrowLeft size={12} aria-hidden />
+                            Section list
+                          </Button>
                         </div>
+                        {conflicts.data ? (
+                          <span
+                            className="ml-auto flex flex-wrap items-center justify-end gap-1.5"
+                            role="status"
+                          >
+                            <Pill tone="amber" label="Double-book warnings">
+                              <AlertTriangle size={12} aria-hidden className="text-amber-500" />
+                              {conflicts.data.conflicts.length} double-book warning
+                              {conflicts.data.conflicts.length === 1 ? "" : "s"}
+                            </Pill>
+                            <Pill tone="amber" label="Workload warnings">
+                              <Gauge size={12} aria-hidden className="text-amber-500" />
+                              {conflicts.data.workload.overDaily.length + conflicts.data.workload.overWeekly.length}{" "}
+                              overload warning
+                              {conflicts.data.workload.overDaily.length + conflicts.data.workload.overWeekly.length === 1
+                                ? ""
+                                : "s"}
+                            </Pill>
+                          </span>
+                        ) : null}
                         <div className="flex flex-wrap items-center justify-end gap-2">
                           {cellsHook.pendingSlots.length > 0 && !cellsHook.saveProgress?.active ? (
                             <Button
@@ -1853,7 +1615,9 @@ function TemplateInner() {
                       </div>
                       <KanbanBoard
                         title={
-                          section ? `Timetable — ${section.name}` : "Timetable"
+                          section
+                            ? `Timetable — ${section.name} | Grade ${section.gradeLevel.replace("G", "")}`
+                            : "Timetable"
                         }
                         icon={
                           <span className="text-amber-500" aria-hidden>
@@ -1931,6 +1695,8 @@ function TemplateInner() {
                       </KanbanBoard>
                     </>
                   )}
+                    </>
+                  ) : null}
                   {cellsHook.splitSubjects.length > 0 ? (
                     <div role="alert" className="rounded-lg border border-destructive/40 bg-destructive/5 px-3 py-2 text-sm">
                       <p className="font-medium">Blocked: subject split across teachers in {section?.name}.</p>
@@ -1954,12 +1720,18 @@ function TemplateInner() {
             open
             onClose={collapseConfigView}
             label="Configure school day"
-            widthClassName="max-w-5xl"
+            variant="drawer"
+            drawerWidth="3xl"
           >
             <ScheduleConfigKanban
               config={{ ...configEditor.config, workload }}
               initialName={configEditor.name}
               heading={configEditor.presetId ? "Edit configuration" : "New configuration"}
+              year={
+                scopeYear
+                  ? { name: scopeYear.name, isActive: scopeYear.isActive }
+                  : null
+              }
               onClose={collapseConfigView}
               onApply={handleConfigApply}
               saving={configMutation.isPending}
@@ -1967,27 +1739,25 @@ function TemplateInner() {
           </TemplateFormOverlay>
         ) : null}
 
-        {sectionAddOpen ? (
-          <TemplateFormOverlay
-            open
-            onClose={() => setSectionAddOpen(false)}
-            label="New sections"
-            widthClassName="max-w-lg"
-          >
-            <AddSectionKanban
-              onSubmitted={handleSectionSubmitted}
-              onRejected={handleSectionRejected}
-              onCancel={() => setSectionAddOpen(false)}
-            />
-          </TemplateFormOverlay>
-        ) : null}
+        <TemplateFormOverlay
+          open={sectionAddOpen}
+          onClose={() => setSectionAddOpen(false)}
+          label="New sections"
+          variant="drawer"
+        >
+          <AddSectionKanban
+            onSubmitted={handleSectionSubmitted}
+            onRejected={handleSectionRejected}
+            onCancel={() => setSectionAddOpen(false)}
+          />
+        </TemplateFormOverlay>
 
         {schoolYearAddOpen ? (
           <TemplateFormOverlay
             open
             onClose={() => setSchoolYearAddOpen(false)}
             label="New school year"
-            widthClassName="max-w-md"
+            variant="drawer"
           >
             <AddSchoolYearKanban
               suggestedName={suggestedYearName}
@@ -2004,7 +1774,7 @@ function TemplateInner() {
             open
             onClose={() => setTermsYearId(null)}
             label="Term dates"
-            widthClassName="max-w-lg"
+            variant="drawer"
           >
             <ConfigureTermsKanban
               year={termsYear}
@@ -2018,7 +1788,6 @@ function TemplateInner() {
           <DeleteConfirmOverlay
             title="Discard staged slots?"
             description="Every unsaved pick on this section's grid is thrown away. The last saved timetable stays exactly as it is."
-            detail={`${cellsHook.pendingSlots.length} unsaved slot${cellsHook.pendingSlots.length === 1 ? "" : "s"} will be discarded.`}
             confirmLabel="Discard changes"
             onCancel={() => setConfirmClearAll(false)}
             onConfirm={() => {
@@ -2040,13 +1809,11 @@ function TemplateInner() {
             }
             description={
               publishConfirm === "publish"
-                ? `These ${workingSlots.length} slot${workingSlots.length === 1 ? "" : "s"} go live for teachers — grading, attendance and the principal view read the published grid. You can move it back to draft at any time.`
+                ? "This grid goes live for teachers — grading, attendance and the principal view read the published timetable. You can move it back to draft at any time."
                 : cellsHook.isLocked || cellsHook.serverLocked
                   ? "The grid becomes a draft only you can see. Teacher desks lose this class list until you publish it again."
-                  : `These ${workingSlots.length} slot${workingSlots.length === 1 ? "" : "s"} stay a working draft only you can see. Teacher desks keep waiting until you publish.`
+                  : "The grid is saved as a working draft only you can see. Teacher desks keep waiting until you publish."
             }
-            countLabel={`${workingSlots.length} slot${workingSlots.length === 1 ? "" : "s"}`}
-            slots={workingSlots}
             published={cellsHook.isLocked || cellsHook.serverLocked}
             pending={publishMutation.isPending}
             onCancel={() => setPublishConfirm(null)}
@@ -2071,10 +1838,19 @@ function TemplateInner() {
   );
 }
 
-export default function TeacherScheduleTemplatePage() {
+/**
+ * The schedule workspace shared by `/schedule/template` (query-driven panels)
+ * and the dedicated panel routes (`/schedule/publish`, `/schedule/sections`, …).
+ * `initialView` pins the panel for those routes instead of reading `?view=`.
+ */
+export function ScheduleWorkspace({ initialView }: { initialView?: TemplateView }) {
   return (
     <Suspense fallback={<p className="text-sm text-muted-foreground">Loading template…</p>}>
-      <TemplateInner />
+      <TemplateInner initialView={initialView} />
     </Suspense>
   );
+}
+
+export default function TeacherScheduleTemplatePage() {
+  return <ScheduleWorkspace />;
 }

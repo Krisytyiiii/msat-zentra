@@ -1,20 +1,17 @@
 "use client";
 
 import { useCallback, useRef } from "react";
-import { createPortal } from "react-dom";
 import { useQueryClient } from "@tanstack/react-query";
-import { CheckCircle2, Loader2, Trash2, Undo2, XCircle } from "lucide-react";
-import { Button } from "@/components/ui/button";
-import { KanbanBoard } from "@/components/ui/kanban-board";
+import { CheckCircle2, Loader2, Trash2, XCircle } from "lucide-react";
 import { ScrollList } from "@/components/ui/scroll-list";
 import { Pill } from "@/components/ui/pill";
+import { ConfirmDialog } from "@/components/ui/confirm-dialog";
 import { apiClient } from "@/lib/api/client";
 import { apiErrorMessage } from "@/lib/api/errors";
 import { useAdminScheduleInvalidate } from "./use-admin-schedule-invalidate";
 import { toast } from "@/components/ui/sonner";
 import { isOptimisticId, markOptimisticCancelled } from "./schedule-optimistic";
 import type { CatalogTeacher } from "./use-schedule-catalog";
-import styles from "@/components/schedule/subject-kanban.module.css";
 
 export type TeacherDeleteRowState = {
   id: string;
@@ -179,68 +176,21 @@ interface ConfirmProps {
 }
 
 export function TeacherDeleteConfirm({ teachers, onCancel, onConfirm }: ConfirmProps) {
-  // Page-level overlay: portaled to <body> so transformed / overflow-hidden
-  // grid ancestors can never clip it or hijack its fixed positioning. This
-  // only renders after a user click, so `document` always exists here.
-  return createPortal(
-    <div
-      className="fixed inset-0 z-[60] flex items-center justify-center bg-black/60 p-4 dark:bg-black/70"
-      role="alertdialog"
-      aria-modal="true"
-      aria-label={
-        teachers.length === 1
-          ? `Confirm deletion of ${teachers[0].name}`
-          : `Confirm deletion of ${teachers.length} teachers`
-      }
-      onClick={onCancel}
-    >
-      <div className="w-full max-w-lg min-w-0" onClick={(e) => e.stopPropagation()}>
-        <KanbanBoard
-          title={teachers.length === 1 ? "Delete this teacher?" : `Delete ${teachers.length} teachers?`}
-          icon={
-            <span className="text-red-500" aria-hidden>
-              <Trash2 size={14} />
-            </span>
-          }
-          count={<span className="text-red-600 dark:text-red-400">{teachers.length}</span>}
-          description="This cannot be undone. Names already used in a timetable, carrying term grants, or linked to a teacher account are locked and were left out."
-          className="bg-card font-sans text-card-foreground shadow-2xl"
-          footer={
-            <div className="flex justify-end gap-1.5 px-1 pb-1">
-              <Button
-                onClick={onCancel}
-                variant="outline"
-                className="h-6 gap-1 px-2 font-sans text-[12px]"
-              >
-                <Undo2 size={12} aria-hidden />
-                Keep them
-              </Button>
-              <Button
-                onClick={onConfirm}
-                className="h-6 gap-1 border-transparent bg-red-600 px-2 font-sans text-[12px] text-white hover:bg-red-700 hover:text-white dark:border-transparent dark:bg-red-600 dark:text-white dark:hover:bg-red-700 dark:hover:text-white"
-              >
-                <Trash2 size={12} aria-hidden />
-                {`Confirm delete${teachers.length === 1 ? "" : ` (${teachers.length})`}`}
-              </Button>
-            </div>
-          }
-        >
-          <ScrollList className="max-h-[40dvh] gap-1.5 px-1">
-            {teachers.map((t) => (
-              <div key={t.id} className={`${styles.card} min-w-0`} aria-label={t.name}>
-                <span className={`${styles.name} min-w-0 flex-1 font-sans`} title={t.name}>
-                  {t.name}
-                </span>
-                <span className={styles.meta}>
-                  <TeacherCodePill code={t.code} />
-                </span>
-              </div>
-            ))}
-          </ScrollList>
-        </KanbanBoard>
-      </div>
-    </div>,
-    document.body,
+  const count = teachers.length;
+
+  return (
+    <ConfirmDialog
+      tone="danger"
+      title={count === 1 ? "Delete this teacher?" : `Delete ${count} teachers?`}
+      description="This cannot be undone. Names already used in a timetable, carrying term grants, or linked to a teacher account are locked and were left out."
+      icon={<Trash2 size={16} />}
+      cancelLabel="Keep them"
+      confirmLabel="Confirm delete"
+      confirmIcon={<Trash2 size={13} />}
+      pendingLabel="Deleting…"
+      onCancel={onCancel}
+      onConfirm={onConfirm}
+    />
   );
 }
 

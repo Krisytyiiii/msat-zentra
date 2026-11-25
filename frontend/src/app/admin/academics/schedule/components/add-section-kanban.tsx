@@ -5,7 +5,7 @@ import { CalendarRange, Layers, Plus, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { FilterTabs } from "@/components/ui/filter-tabs";
-import { DropdownSelect } from "@/app/principal/academics/assign/components/DropdownSelect";
+import { SelectionCard } from "@/components/ui/selection-card";
 import { useDock } from "@/components/dock/dock-store";
 import { apiClient } from "@/lib/api/client";
 import { apiErrorMessage } from "@/lib/api/errors";
@@ -68,19 +68,13 @@ export function AddSectionKanban({
   const dock = useDock();
   const { schoolYears, activeTerm, activeSchoolYear } = useTerm();
 
-  const defaultYearId =
+  // Sections always land in the active school year — it is context, not a
+  // choice, so the form only shows it. `activeTerm` wins when the desk is
+  // steering a term, otherwise the year flagged active.
+  const yearId =
     activeTerm?.schoolYearId ?? activeSchoolYear?.id ?? schoolYears[0]?.id ?? "";
-  const [yearId, setYearId] = React.useState(defaultYearId);
   const [gradeLevel, setGradeLevel] = React.useState<GradeLevel>("G7");
   const [names, setNames] = React.useState<string[]>([""]);
-
-  // The year list lands after the dialog opens on a cold page — settle onto the
-  // steered (or active) year once it is known.
-  /* eslint-disable react-hooks/set-state-in-effect -- settle the default year */
-  React.useEffect(() => {
-    if (!yearId && defaultYearId) setYearId(defaultYearId);
-  }, [yearId, defaultYearId]);
-  /* eslint-enable react-hooks/set-state-in-effect */
 
   const setRow = (index: number, value: string) =>
     setNames((prev) => prev.map((n, i) => (i === index ? value : n)));
@@ -198,23 +192,9 @@ export function AddSectionKanban({
     })();
   };
 
-  const yearOptions = schoolYears.map((y) => ({
-    value: y.id,
-    label: (
-      <span className="flex min-w-0 items-center gap-1.5">
-        <span className="truncate">{y.name}</span>
-        {y.isActive ? (
-          <span className="shrink-0 rounded bg-green-500/10 px-1 text-[12px] font-medium text-green-700 dark:text-green-400">
-            Active
-          </span>
-        ) : null}
-      </span>
-    ),
-  }));
-
   return (
-    <div className="overflow-hidden rounded-xl border border-border bg-card shadow-2xl">
-      <header className="flex items-start gap-2.5 border-b border-border px-4 py-3">
+    <div className="flex h-full min-h-0 flex-col overflow-hidden rounded-xl border border-border bg-card shadow-2xl">
+      <header className="flex shrink-0 items-start gap-2.5 border-b border-border px-4 py-3">
         <span
           className="mt-0.5 flex h-7 w-7 shrink-0 items-center justify-center rounded-md bg-amber-500/10 text-amber-500"
           aria-hidden
@@ -224,7 +204,7 @@ export function AddSectionKanban({
         <div className="min-w-0 flex-1">
           <h2 className="text-sm font-semibold leading-tight text-foreground">New sections</h2>
           <p className="mt-0.5 text-[12px] leading-snug text-muted-foreground">
-            Pick the school year, then a grade level, then add as many section names as you need.
+            Pick a grade level, then add as many section names as you need.
           </p>
         </div>
         {onCancel ? (
@@ -239,31 +219,37 @@ export function AddSectionKanban({
         ) : null}
       </header>
 
-      <form onSubmit={handleSubmit}>
-        <div className={`${styles.body} flex max-h-[60dvh] flex-col gap-4 overflow-y-auto px-4 py-4`}>
+      <form onSubmit={handleSubmit} className="flex min-h-0 flex-1 flex-col">
+        <div className={`${styles.body} flex min-h-0 flex-1 flex-col gap-4 overflow-y-auto px-4 py-4`}>
           <div className="flex flex-col gap-1.5">
-            <label htmlFor="new-section-year" className="text-[12px] font-medium text-foreground">
-              School year
-            </label>
-            <DropdownSelect
-              id="new-section-year"
-              value={yearId}
-              onValueChange={setYearId}
-              options={yearOptions}
-              placeholder={schoolYears.length === 0 ? "No school year yet" : "Pick a school year…"}
-              ariaLabel="School year for the new sections"
-              disabled={schoolYears.length === 0}
-            />
-            <p className="text-[12px] leading-snug text-muted-foreground">
-              Sections belong to the school year — choose the year they should live in first.
-            </p>
+            <span className="text-[12px] font-medium text-foreground">School year</span>
+            {year ? (
+              <SelectionCard
+                icon={<CalendarRange size={15} aria-hidden />}
+                title={year.name}
+                description="Sections are created in the active school year."
+                meta={
+                  <span className="shrink-0 rounded bg-green-500/10 px-1 text-[12px] font-medium text-green-700 dark:text-green-400">
+                    Active
+                  </span>
+                }
+                selected
+              />
+            ) : (
+              <SelectionCard
+                icon={<CalendarRange size={15} aria-hidden />}
+                title="No active school year"
+                description="Add and activate a school year before creating sections."
+              />
+            )}
           </div>
 
           <div className="flex flex-col gap-1.5">
             <span className="text-[12px] font-medium text-foreground">Grade level</span>
             <FilterTabs
               label="Grade level"
-              options={GRADE_LEVELS.map((g) => ({ value: g, label: g }))}
+              variant="tags"
+              options={GRADE_LEVELS.map((g) => ({ value: g, label: g, tone: "neutral" as const }))}
               value={gradeLevel}
               onChange={(next) => setGradeLevel(next)}
               className="self-start"
@@ -275,12 +261,25 @@ export function AddSectionKanban({
           </div>
 
           <div className="flex flex-col gap-1.5">
-            <span className="text-[12px] font-medium text-foreground">Section names</span>
+            <div className="flex items-center justify-between gap-2">
+              <span className="text-[12px] font-medium text-foreground">Section names</span>
+              <Button
+                type="button"
+                variant="ghost"
+                onClick={addRow}
+                disabled={names.length >= MAX_SECTION_ROWS}
+                aria-label="Add another section"
+                title="Add another section"
+                className="h-7 w-7 shrink-0 p-0 text-muted-foreground hover:text-foreground"
+              >
+                <Plus size={14} aria-hidden />
+              </Button>
+            </div>
             <div className="flex flex-col gap-1.5">
               {names.map((value, index) => (
-                <div key={index} className="flex items-center gap-1.5">
+                <div key={index} className="flex items-center gap-2">
                   <Input
-                    className="h-8 text-[13px]"
+                    className="h-8 rounded-lg border-input bg-transparent px-2.5 text-sm transition-[border-color,box-shadow] duration-150 focus-visible:border-amber-500 focus-visible:ring-2 focus-visible:ring-amber-500/25 dark:bg-transparent"
                     placeholder={index === 0 ? "e.g. Rizal" : "Another section name"}
                     value={value}
                     onChange={(e) => setRow(index, e.target.value)}
@@ -289,38 +288,29 @@ export function AddSectionKanban({
                     autoComplete="off"
                     aria-label={`Section name ${index + 1}`}
                   />
-                  <Button
-                    type="button"
-                    variant="ghost"
-                    onClick={() => removeRow(index)}
-                    disabled={names.length === 1}
-                    aria-label={`Remove section name ${index + 1}`}
-                    className="h-8 w-8 shrink-0 p-0 text-muted-foreground"
-                  >
-                    <X size={14} aria-hidden />
-                  </Button>
+                  {names.length > 1 ? (
+                    <button
+                      type="button"
+                      onClick={() => removeRow(index)}
+                      aria-label={`Cancel section name ${index + 1}`}
+                      className="shrink-0 text-[12px] font-medium text-muted-foreground transition-colors duration-150 hover:text-foreground hover:underline hover:underline-offset-2"
+                    >
+                      Cancel
+                    </button>
+                  ) : (
+                    <button
+                      type="button"
+                      onClick={() => setRow(index, "")}
+                      disabled={value.trim() === ""}
+                      aria-label={`Clear section name ${index + 1}`}
+                      className="shrink-0 text-[12px] font-medium text-muted-foreground transition-colors duration-150 hover:text-foreground hover:underline hover:underline-offset-2 disabled:pointer-events-none disabled:opacity-40"
+                    >
+                      Cancel
+                    </button>
+                  )}
                 </div>
               ))}
             </div>
-            <div className="flex flex-wrap items-center justify-between gap-2">
-              <Button
-                type="button"
-                variant="outline"
-                onClick={addRow}
-                disabled={names.length >= MAX_SECTION_ROWS}
-                className="h-6 gap-1 px-2 text-[12px]"
-              >
-                <Plus size={12} aria-hidden />
-                Add another section
-              </Button>
-              <span className="text-[12px] text-muted-foreground">
-                {filled.length} to create
-              </span>
-            </div>
-            <p className="text-[12px] leading-snug text-muted-foreground">
-              Two grades can both have a Rizal — the grade level keeps them apart. Each section gets
-              its own advisory code you can hand to its adviser.
-            </p>
             {duplicateName ? (
               <p role="alert" className="text-[12px] text-destructive">
                 &ldquo;{duplicateName}&rdquo; appears twice — each section name must be different.
@@ -328,19 +318,13 @@ export function AddSectionKanban({
             ) : null}
           </div>
 
-          <div className="flex items-start gap-2 rounded-lg border border-border bg-muted/40 px-2.5 py-2">
+          <div className="mt-auto flex items-start gap-2 rounded-lg border border-border bg-muted/40 px-2.5 py-2">
             <CalendarRange size={13} aria-hidden className="mt-0.5 shrink-0 text-amber-500" />
             <p className="text-[12px] leading-relaxed text-muted-foreground">
               {year ? (
                 <>
-                  Creates{" "}
-                  <span className="font-medium text-foreground">
-                    {filled.length || names.length} section
-                    {(filled.length || names.length) === 1 ? "" : "s"}
-                  </span>{" "}
-                  in <span className="font-medium text-foreground">{year.name}</span> ·{" "}
-                  {gradeLabel(gradeLevel)}. Each one arrives with an advisory code for its adviser;
-                  its weekly timetable is built per term after it exists.
+                  Each section arrives with an advisory code for its adviser; its weekly timetable
+                  is built per term after it exists.
                 </>
               ) : (
                 <>Add a school year first — sections cannot be created without one.</>
@@ -349,7 +333,7 @@ export function AddSectionKanban({
           </div>
         </div>
 
-        <div className="flex items-center justify-end gap-2 border-t border-border px-4 py-3">
+        <div className="flex shrink-0 items-center justify-end gap-2 border-t border-border px-4 py-3">
           <Button
             type="submit"
             disabled={!canSubmit}

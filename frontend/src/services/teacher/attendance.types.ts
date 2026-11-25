@@ -41,12 +41,19 @@ export interface SubjectDayRecord {
   status: SheetStatus;
 }
 
+export interface NoClassDayInfo {
+  date: string;
+  scope: "whole_day" | "am" | "pm";
+  reason: string;
+}
+
 export interface SubjectDays {
   sectionId: string;
   subjectId: string;
   termId: string;
   termStart: string | null;
   termEnd: string | null;
+  noClassDays?: NoClassDayInfo[];
   records: SubjectDayRecord[];
 }
 

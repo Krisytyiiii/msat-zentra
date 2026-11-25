@@ -501,6 +501,23 @@ export type EnumAttendanceStatusWithAggregatesFilter<$PrismaModel = never> = {
   _max?: Prisma.NestedEnumAttendanceStatusFilter<$PrismaModel>
 }
 
+export type EnumNoClassScopeFilter<$PrismaModel = never> = {
+  equals?: $Enums.NoClassScope | Prisma.EnumNoClassScopeFieldRefInput<$PrismaModel>
+  in?: $Enums.NoClassScope[] | Prisma.ListEnumNoClassScopeFieldRefInput<$PrismaModel>
+  notIn?: $Enums.NoClassScope[] | Prisma.ListEnumNoClassScopeFieldRefInput<$PrismaModel>
+  not?: Prisma.NestedEnumNoClassScopeFilter<$PrismaModel> | $Enums.NoClassScope
+}
+
+export type EnumNoClassScopeWithAggregatesFilter<$PrismaModel = never> = {
+  equals?: $Enums.NoClassScope | Prisma.EnumNoClassScopeFieldRefInput<$PrismaModel>
+  in?: $Enums.NoClassScope[] | Prisma.ListEnumNoClassScopeFieldRefInput<$PrismaModel>
+  notIn?: $Enums.NoClassScope[] | Prisma.ListEnumNoClassScopeFieldRefInput<$PrismaModel>
+  not?: Prisma.NestedEnumNoClassScopeWithAggregatesFilter<$PrismaModel> | $Enums.NoClassScope
+  _count?: Prisma.NestedIntFilter<$PrismaModel>
+  _min?: Prisma.NestedEnumNoClassScopeFilter<$PrismaModel>
+  _max?: Prisma.NestedEnumNoClassScopeFilter<$PrismaModel>
+}
+
 export type EnumAnecdotalCategoryFilter<$PrismaModel = never> = {
   equals?: $Enums.AnecdotalCategory | Prisma.EnumAnecdotalCategoryFieldRefInput<$PrismaModel>
   in?: $Enums.AnecdotalCategory[] | Prisma.ListEnumAnecdotalCategoryFieldRefInput<$PrismaModel>
@@ -1453,6 +1470,23 @@ export type NestedEnumAttendanceStatusWithAggregatesFilter<$PrismaModel = never>
   _count?: Prisma.NestedIntFilter<$PrismaModel>
   _min?: Prisma.NestedEnumAttendanceStatusFilter<$PrismaModel>
   _max?: Prisma.NestedEnumAttendanceStatusFilter<$PrismaModel>
+}
+
+export type NestedEnumNoClassScopeFilter<$PrismaModel = never> = {
+  equals?: $Enums.NoClassScope | Prisma.EnumNoClassScopeFieldRefInput<$PrismaModel>
+  in?: $Enums.NoClassScope[] | Prisma.ListEnumNoClassScopeFieldRefInput<$PrismaModel>
+  notIn?: $Enums.NoClassScope[] | Prisma.ListEnumNoClassScopeFieldRefInput<$PrismaModel>
+  not?: Prisma.NestedEnumNoClassScopeFilter<$PrismaModel> | $Enums.NoClassScope
+}
+
+export type NestedEnumNoClassScopeWithAggregatesFilter<$PrismaModel = never> = {
+  equals?: $Enums.NoClassScope | Prisma.EnumNoClassScopeFieldRefInput<$PrismaModel>
+  in?: $Enums.NoClassScope[] | Prisma.ListEnumNoClassScopeFieldRefInput<$PrismaModel>
+  notIn?: $Enums.NoClassScope[] | Prisma.ListEnumNoClassScopeFieldRefInput<$PrismaModel>
+  not?: Prisma.NestedEnumNoClassScopeWithAggregatesFilter<$PrismaModel> | $Enums.NoClassScope
+  _count?: Prisma.NestedIntFilter<$PrismaModel>
+  _min?: Prisma.NestedEnumNoClassScopeFilter<$PrismaModel>
+  _max?: Prisma.NestedEnumNoClassScopeFilter<$PrismaModel>
 }
 
 export type NestedEnumAnecdotalCategoryFilter<$PrismaModel = never> = {

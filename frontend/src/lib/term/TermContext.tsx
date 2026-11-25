@@ -119,6 +119,13 @@ export function TermProvider({ children }: { children: React.ReactNode }) {
     purgeLegacyTermStorage();
   }, []);
 
+  // Latest loaded school years, readable from `setActiveTerm` (which stamps the
+  // pick with the year that is active right now) without re-creating callbacks.
+  const schoolYearsRef = React.useRef<SchoolYearOption[]>([]);
+  React.useEffect(() => {
+    schoolYearsRef.current = query.data ?? [];
+  }, [query.data]);
+
   // Load the CURRENT user's stored term whenever the signed-in account
   // changes (mount, login, account switch) — never another account's value.
   React.useEffect(() => {
@@ -171,7 +178,10 @@ export function TermProvider({ children }: { children: React.ReactNode }) {
         return term;
       });
       const sub = decodeTokenIdentity(getAccessToken())?.sub ?? null;
-      writeStoredTerm(sub, term);
+      // Stamp which school year was active at pick time — the schedule desks
+      // treat a pick from an older active year as stale once a new year lands.
+      const activeYearId = schoolYearsRef.current.find((y) => y.isActive)?.id;
+      writeStoredTerm(sub, activeYearId ? { ...term, activeYearId } : term);
       // Term changes touch every page's dataset, cache key and local state.
       // Reload once so the workspace rebuilds entirely against the new scope
       // (query invalidation alone leaves page-local state on the old term).
@@ -192,6 +202,32 @@ export function TermProvider({ children }: { children: React.ReactNode }) {
         q.queryKey[0] !== "term-picker" && q.queryKey[0] !== "school-years",
     });
   }, [queryClient]);
+
+  // The administrator's schedule desks follow the ACTIVE school year. A stored
+  // pick made while another year was active — or one pointing at a year/term
+  // that no longer exists — keeps every scoped request (and the API's term
+  // headers) on the old year, so a brand-new school year showed the previous
+  // year's sections instead of its own empty board. Drop such a pick: the desk
+  // then follows the active year, and a year with nothing on file reads empty.
+  React.useEffect(() => {
+    if (!steersTerm || identity?.role !== "admin") return;
+    const years = query.data;
+    if (!years || years.length === 0 || !activeTerm) return;
+    const activeYear = years.find((y) => y.isActive);
+    if (!activeYear) return;
+    const pickYear = years.find((y) => y.id === activeTerm.schoolYearId);
+    const pickTerm = pickYear?.terms.find((t) => t.id === activeTerm.termId);
+    // Legacy picks carry no stamp: trust them only while they sit on the year
+    // that is active now.
+    const staleActiveYear =
+      activeTerm.activeYearId !== undefined
+        ? activeTerm.activeYearId !== activeYear.id
+        : pickYear?.id !== activeYear.id;
+    if (pickYear && pickTerm && !staleActiveYear) return;
+    const fallback = resolveDefaultTerm([activeYear]);
+    if (!fallback) return;
+    setActiveTerm({ ...fallback, activeYearId: activeYear.id }, { reload: false });
+  }, [steersTerm, identity?.role, query.data, activeTerm, setActiveTerm]);
 
   const setPromptRequired = React.useCallback((required: boolean) => {
     setPromptRequiredState(required);

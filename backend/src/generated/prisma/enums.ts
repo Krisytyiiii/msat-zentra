@@ -291,6 +291,9 @@ export const ActionType = {
   grade_flag_raise: 'grade_flag_raise',
   grade_flag_resolve: 'grade_flag_resolve',
   attendance_submit: 'attendance_submit',
+  no_class_day_create: 'no_class_day_create',
+  no_class_day_update: 'no_class_day_update',
+  no_class_day_delete: 'no_class_day_delete',
   create: 'create',
   update: 'update',
   delete: 'delete'
@@ -348,6 +351,15 @@ export const TimetableStatus = {
 } as const
 
 export type TimetableStatus = (typeof TimetableStatus)[keyof typeof TimetableStatus]
+
+
+export const NoClassScope = {
+  whole_day: 'whole_day',
+  am: 'am',
+  pm: 'pm'
+} as const
+
+export type NoClassScope = (typeof NoClassScope)[keyof typeof NoClassScope]
 
 
 export const AdmFormStatus = {

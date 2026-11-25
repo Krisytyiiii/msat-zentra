@@ -163,6 +163,11 @@ export type GradeFlag = Prisma.GradeFlagModel
  */
 export type AttendanceRecord = Prisma.AttendanceRecordModel
 /**
+ * Model NoClassDay
+ * 
+ */
+export type NoClassDay = Prisma.NoClassDayModel
+/**
  * Model AttendanceRecordLegacy
  * 
  */

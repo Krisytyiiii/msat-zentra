@@ -11,6 +11,8 @@ import {
 } from "../../lib/pagination.js";
 import { writeAudit } from "../../lib/audit.js";
 import { AppError } from "../../lib/errors.js";
+import { invalidateTags } from "../../lib/cache.js";
+import { clearNoClassCache } from "../../services/noClass.js";
 import { listAudit, summarizeAudit } from "../../services/audit/audit.service.js";
 import { listActivePresence, listLoginActivity } from "../../services/presence.service.js";
 import {
@@ -328,6 +330,187 @@ router.post(
     }
   },
 );
+
+// ---------------------------------------------------------------------------
+// No-class days — administrator-declared suspensions of classes for a date.
+// Whole-day (or AM/PM) cancellations are honored by every attendance
+// denominator and by the auto-absent sweep, and teachers cannot submit a sheet
+// for a cancelled meetup.
+// ---------------------------------------------------------------------------
+const noClassDateSchema = z
+  .string()
+  .trim()
+  .regex(/^\d{4}-\d{2}-\d{2}$/, "Use YYYY-MM-DD");
+
+const noClassQuerySchema = z.object({
+  schoolYearId: z.string().uuid().optional(),
+  from: noClassDateSchema.optional(),
+  to: noClassDateSchema.optional(),
+});
+
+const noClassBodySchema = z.object({
+  date: noClassDateSchema,
+  scope: z.enum(["whole_day", "am", "pm"]),
+  reason: z.string().trim().min(3).max(500),
+  schoolYearId: z.string().uuid().optional(),
+});
+
+async function resolveNoClassSchoolYear(
+  req: { termScope?: { schoolYearId?: string } },
+  explicit?: string,
+): Promise<string> {
+  if (explicit) return explicit;
+  if (req.termScope?.schoolYearId) return req.termScope.schoolYearId;
+  const active = await prisma.schoolYear.findFirst({
+    where: { isActive: true },
+    select: { id: true },
+  });
+  if (!active) {
+    throw new AppError(400, "NO_SCHOOL_YEAR", "No active school year to file this date under");
+  }
+  return active.id;
+}
+
+function noClassDto(row: {
+  id: string;
+  date: Date;
+  scope: string;
+  reason: string;
+  schoolYearId: string;
+  createdBy: string;
+  createdAt: Date;
+  updatedAt: Date;
+}) {
+  return {
+    id: row.id,
+    date: row.date.toISOString().slice(0, 10),
+    scope: row.scope,
+    reason: row.reason,
+    schoolYearId: row.schoolYearId,
+    createdBy: row.createdBy,
+    createdAt: row.createdAt.toISOString(),
+    updatedAt: row.updatedAt.toISOString(),
+  };
+}
+
+const NO_CLASS_CACHE_TAGS = [
+  "attendance",
+  "overview",
+  "principal",
+  "teacher",
+  "risk",
+  "reports",
+  "guidance",
+  "alerts",
+];
+
+router.get(
+  "/no-class-days",
+  validate("query", noClassQuerySchema),
+  async (req, res, next) => {
+    try {
+      const schoolYearId = await resolveNoClassSchoolYear(
+        req as { termScope?: { schoolYearId?: string } },
+        (req.query as { schoolYearId?: string }).schoolYearId,
+      );
+      const year = await prisma.schoolYear.findUnique({
+        where: { id: schoolYearId },
+        select: { startDate: true, endDate: true },
+      });
+      if (!year) throw new AppError(404, "NOT_FOUND", "School year not found");
+      const q = req.query as { from?: string; to?: string };
+      const from = q.from ?? year.startDate.toISOString().slice(0, 10);
+      const to = q.to ?? year.endDate.toISOString().slice(0, 10);
+
+      const rows = await prisma.noClassDay.findMany({
+        where: {
+          schoolYearId,
+          date: {
+            gte: new Date(`${from}T00:00:00Z`),
+            lte: new Date(`${to}T00:00:00Z`),
+          },
+        },
+        orderBy: { date: "desc" },
+      });
+      res.json({ schoolYearId, from, to, entries: rows.map(noClassDto) });
+    } catch (e) {
+      next(e);
+    }
+  },
+);
+
+router.post(
+  "/no-class-days",
+  validate("body", noClassBodySchema),
+  async (req, res, next) => {
+    try {
+      const body = req.body as {
+        date: string;
+        scope: "whole_day" | "am" | "pm";
+        reason: string;
+        schoolYearId?: string;
+      };
+      const schoolYearId = await resolveNoClassSchoolYear(
+        req as { termScope?: { schoolYearId?: string } },
+        body.schoolYearId,
+      );
+      const date = new Date(`${body.date}T00:00:00Z`);
+      if (Number.isNaN(date.getTime())) {
+        throw new AppError(400, "BAD_DATE", "Invalid calendar date");
+      }
+      const existing = await prisma.noClassDay.findUnique({ where: { date } });
+      const row = existing
+        ? await prisma.noClassDay.update({
+            where: { id: existing.id },
+            data: { scope: body.scope, reason: body.reason, schoolYearId },
+          })
+        : await prisma.noClassDay.create({
+            data: {
+              date,
+              scope: body.scope,
+              reason: body.reason,
+              schoolYearId,
+              createdBy: req.user!.id,
+            },
+          });
+
+      await writeAudit({
+        userId: req.user!.id,
+        actionType: existing ? "no_class_day_update" : "no_class_day_create",
+        sourceTable: "NoClassDay",
+        sourceId: row.id,
+        reason: `No class on ${body.date} (${body.scope}): ${body.reason}`,
+      });
+      await invalidateTags(NO_CLASS_CACHE_TAGS);
+      clearNoClassCache();
+      res.status(existing ? 200 : 201).json(noClassDto(row));
+    } catch (e) {
+      next(e);
+    }
+  },
+);
+
+router.delete("/no-class-days/:id", async (req, res, next) => {
+  try {
+    const row = await prisma.noClassDay.findUnique({
+      where: { id: String(req.params.id) },
+    });
+    if (!row) throw new AppError(404, "NOT_FOUND", "No-class day not found");
+    await prisma.noClassDay.delete({ where: { id: row.id } });
+    await writeAudit({
+      userId: req.user!.id,
+      actionType: "no_class_day_delete",
+      sourceTable: "NoClassDay",
+      sourceId: row.id,
+      reason: `Removed no-class day ${row.date.toISOString().slice(0, 10)}`,
+    });
+    await invalidateTags(NO_CLASS_CACHE_TAGS);
+    clearNoClassCache();
+    res.json({ id: row.id, removed: true });
+  } catch (e) {
+    next(e);
+  }
+});
 
 const auditQuerySchema = paginationQuerySchema().extend({
   actionType: z.string().trim().max(80).optional(),

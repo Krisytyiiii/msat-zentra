@@ -1,0 +1,26 @@
+/* Directory rows fade + drift in, staggered down the list so a freshly loaded
+   page resolves top-to-bottom instead of snapping in all at once. The animation
+   sits on the cells because table rows do not honour transforms in every
+   browser. */
+
+.row > td {
+  animation: table-row-in 260ms cubic-bezier(0.22, 1, 0.36, 1) backwards;
+  animation-delay: var(--row-delay, 0ms);
+}
+
+@keyframes table-row-in {
+  from {
+    opacity: 0;
+    transform: translateY(6px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .row > td {
+    animation: none;
+  }
+}

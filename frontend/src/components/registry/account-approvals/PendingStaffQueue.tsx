@@ -2,16 +2,14 @@
 
 import * as React from "react";
 import { useMutation, useQuery } from "@tanstack/react-query";
-import { Briefcase, Check, Loader2, Search, X } from "lucide-react";
+import { Briefcase, Loader2, X } from "lucide-react";
 import { apiClient } from "@/lib/api/client";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
+import { SearchField } from "@/components/ui/search-field";
 import { Textarea } from "@/components/ui/textarea";
 import { toast } from "@/components/ui/sonner";
 import { KanbanBoard } from "@/components/ui/kanban-board";
 import { KanbanOverlay } from "@/components/ui/kanban-overlay";
-import { RowList, type RowListItem } from "@/components/ui/row-list";
-import { RowListSkeleton } from "@/components/shared/zentra-skeletons/ZentraSkeletons";
 import { PAGE_SIZE, Pagination } from "@/components/shared/pagination";
 import {
   ACCOUNT_APPROVALS_BASE,
@@ -21,23 +19,17 @@ import {
   rejectAccountRequest,
   useApprovalInvalidation,
 } from "./api";
+import {
+  PendingQueueSkeleton,
+  PendingStaffTable,
+  type PendingStaffRow,
+} from "./pending-tables";
 
 /**
  * Self-registered teacher accounts awaiting approval. Teachers sign up through
  * `/register/teacher` or the staff Google portal; the administrator owns the
  * queue (the registry desks no longer review sign-ups).
  */
-
-type PendingStaffRow = {
-  id: string;
-  role?: string;
-  name: string;
-  email: string;
-  contactNumber: string;
-  employeeId?: string | null;
-  department?: string | null;
-  requestedAt: string;
-};
 
 type PendingStaffResponse = {
   students: PendingStaffRow[];
@@ -63,22 +55,7 @@ export function usePendingStaffTotal(): number {
   return data?.total ?? data?.students.length ?? 0;
 }
 
-const ROLE_LABEL: Record<string, string> = {
-  subject_teacher: "Subject Teacher",
-  adviser: "Adviser",
-};
-
-function formatRelativeTime(iso: string): string {
-  const then = new Date(iso).getTime();
-  if (Number.isNaN(then)) return "—";
-  const min = Math.round((Date.now() - then) / 60_000);
-  if (min < 60) return `${Math.max(0, min)}m ago`;
-  const hr = Math.round(min / 60);
-  if (hr < 24) return `${hr}h ago`;
-  return `${Math.round(hr / 24)}d ago`;
-}
-
-export function PendingStaffQueue() {
+export function PendingStaffQueue({ filterTabs }: { filterTabs?: React.ReactNode }) {
   const invalidate = useApprovalInvalidation();
   const [page, setPage] = React.useState(1);
   const [queryInput, setQueryInput] = React.useState("");
@@ -125,68 +102,6 @@ export function PendingStaffQueue() {
     return rows.filter((r) => `${r.name} ${r.email}`.toLowerCase().includes(q));
   }, [rows, queryInput]);
 
-  const rowItems = React.useMemo<RowListItem[]>(
-    () =>
-      visibleRows.map((r) => ({
-        key: r.id,
-        status: { label: "Pending", tone: "amber" },
-        title: r.name,
-        idLabel: ROLE_LABEL[r.role ?? ""] ?? "Teacher",
-        idLabelClassName: "text-[12px] font-medium",
-        meta: [
-          {
-            label: r.department ?? r.email,
-            tone: "muted",
-            dot: false,
-            title: r.department ? `${r.department} — ${r.email}` : r.email,
-          },
-          ...(r.employeeId
-            ? [{ label: `ID ${r.employeeId}`, tone: "amber" as const, dot: false }]
-            : []),
-          ...(r.contactNumber && r.contactNumber !== "—"
-            ? [{ label: r.contactNumber, tone: "muted" as const, dot: false }]
-            : []),
-          { label: formatRelativeTime(r.requestedAt), tone: "muted" as const, dot: false },
-        ],
-        ariaLabel: `${r.name}, pending teacher account`,
-        actions: (
-          <div className="flex items-center gap-1">
-            <Button
-              type="button"
-              size="sm"
-              className="h-6 gap-1 border border-transparent bg-emerald-600 px-2 text-[12px] font-medium text-white shadow-none hover:bg-emerald-700"
-              disabled={act.isPending}
-              onClick={() => act.mutate({ id: r.id, approve: true, name: r.name })}
-              aria-label={`Approve ${r.name}`}
-            >
-              {act.isPending && act.variables?.id === r.id && act.variables.approve ? (
-                <Loader2 className="size-3.5 animate-spin" aria-hidden />
-              ) : (
-                <Check className="size-3.5" aria-hidden />
-              )}
-              Approve
-            </Button>
-            <Button
-              type="button"
-              size="sm"
-              variant="outline"
-              className="h-6 gap-1 px-2 text-[12px] font-medium shadow-none"
-              disabled={act.isPending}
-              onClick={() => {
-                setRejectReason("");
-                setRejectTarget(r);
-              }}
-              aria-label={`Reject ${r.name}`}
-            >
-              <X className="size-3.5" aria-hidden />
-              Reject
-            </Button>
-          </div>
-        ),
-      })),
-    [visibleRows, act],
-  );
-
   return (
     <>
       <KanbanBoard
@@ -194,20 +109,17 @@ export function PendingStaffQueue() {
         icon={<Briefcase size={14} className="text-primary" aria-hidden />}
         description="Self-registered teacher accounts awaiting administrator approval."
         ariaLabel="Pending teacher accounts"
-        actions={
-          <div className="relative">
-            <Search
-              className="pointer-events-none absolute top-1/2 left-2 size-3.5 -translate-y-1/2 text-muted-foreground"
-              aria-hidden
-            />
-            <Input
-              className="h-8 w-60 rounded-[16px] pl-7 text-sm"
+        headerToolbar={
+          <>
+            {filterTabs}
+            <SearchField
+              className="w-56"
               placeholder="Search name or email…"
               value={queryInput}
-              onChange={(e) => setQueryInput(e.target.value)}
+              onChange={setQueryInput}
               aria-label="Search pending teachers"
             />
-          </div>
+          </>
         }
         footer={
           total > PAGE_SIZE ? (
@@ -216,13 +128,7 @@ export function PendingStaffQueue() {
         }
       >
         {isPending ? (
-          <RowListSkeleton
-            rows={4}
-            gutter="0.625rem"
-            withMetaAvatar={false}
-            withActions
-            metaPills={2}
-          />
+          <PendingQueueSkeleton columns={["Account", "Role", "Contact", "Status", "Requested"]} />
         ) : isError ? (
           <p className="py-4 text-sm text-muted-foreground">Could not load pending teachers.</p>
         ) : visibleRows.length === 0 ? (
@@ -232,14 +138,15 @@ export function PendingStaffQueue() {
               : "No teacher accounts are waiting for approval."}
           </p>
         ) : (
-          <RowList
-            bleed
-            gutter="0.625rem"
-            animateOnMount
-            motionPreset="desk"
-            items={rowItems}
-            emptyText="No pending teacher accounts."
-            ariaLabel="Pending teacher accounts"
+          <PendingStaffTable
+            rows={visibleRows}
+            busy={act.isPending}
+            actingId={act.isPending ? act.variables?.id : undefined}
+            onApprove={(row) => act.mutate({ id: row.id, approve: true, name: row.name })}
+            onReject={(row) => {
+              setRejectReason("");
+              setRejectTarget(row);
+            }}
           />
         )}
       </KanbanBoard>
@@ -268,7 +175,7 @@ export function PendingStaffQueue() {
             <Button
               type="button"
               size="sm"
-              className="bg-red-600 text-white hover:bg-red-700"
+              variant="destructive"
               disabled={act.isPending || rejectReason.trim().length === 0}
               onClick={() => {
                 const target = rejectTarget;

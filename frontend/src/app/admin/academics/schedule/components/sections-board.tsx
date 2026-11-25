@@ -3,30 +3,23 @@
 import * as React from "react";
 import {
   Check,
-  CircleDashed,
   Copy,
   Layers,
   Loader2,
   Lock,
   Plus,
-  Search,
   Trash2,
-  Upload,
   Users,
-  X,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { FilterTabs } from "@/components/ui/filter-tabs";
-import {
-  InputGroup,
-  InputGroupAddon,
-  InputGroupButton,
-  InputGroupInput,
-} from "@/components/ui/input-group";
 import { Pill } from "@/components/ui/pill";
+import { SearchField } from "@/components/ui/search-field";
+import { AdvisoryCodeBadge } from "@/components/shared/advisory-code-badge";
 import { PageEmptyCallout } from "@/components/shared/page-empty-callout";
 import { StudentMascot } from "@/components/student-mascot/StudentMascot";
 import { toast } from "@/components/ui/sonner";
+import { EmptyActionCard } from "./schedule-empty-kanban";
 import type { ScheduleSection } from "../page";
 // One card kit for both desks: the administrator's section board reads exactly
 // like the principal's advisory-assignment board.
@@ -120,7 +113,6 @@ export function SectionsBoard({
 
   const boardEmpty = sections.length === 0 && pending.length === 0;
   const filtersActive = grade != null || needle.length > 0;
-  const shownCount = sections.length + pending.length;
 
   return (
     <section className={styles.board} aria-label="Sections">
@@ -151,56 +143,44 @@ export function SectionsBoard({
         <div className={styles.toolbar}>
           <FilterTabs
             label="Filter by grade level"
+            variant="tags"
             options={[
-              { value: "all", label: "All grades" },
-              ...GRADES.map((g) => ({ value: g, label: gradeLabel(g) })),
+              { value: "all", label: "All grades", tone: "neutral" },
+              ...GRADES.map((g) => ({ value: g, label: gradeLabel(g), tone: "neutral" as const })),
             ]}
             value={grade ?? "all"}
             onChange={(next) => setGrade(next === "all" ? null : next)}
           />
-          <InputGroup className="w-60 max-w-full shrink-0 rounded-[16px]">
-            <InputGroupAddon>
-              <Search />
-            </InputGroupAddon>
-            <InputGroupInput
-              placeholder="Find a section, adviser, or code…"
-              value={query}
-              onChange={(event) => setQuery(event.target.value)}
-              aria-label="Find a section"
-            />
-            {query ? (
-              <InputGroupAddon align="inline-end">
-                <InputGroupButton
-                  size="icon-xs"
-                  aria-label="Clear search"
-                  title="Clear search"
-                  onClick={() => setQuery("")}
-                >
-                  <X aria-hidden />
-                </InputGroupButton>
-              </InputGroupAddon>
-            ) : null}
-          </InputGroup>
+          <SearchField
+            className="w-60"
+            placeholder="Find a section, adviser, or code…"
+            value={query}
+            onChange={setQuery}
+            aria-label="Find a section"
+          />
         </div>
       ) : null}
 
-      {shownCount === 0 || (visibleSections.length === 0 && visiblePending.length === 0) ? (
-        <PageEmptyCallout
-          action={
-            boardEmpty ? (
-              <Button className="h-6 gap-1 px-2.5 text-[12px]" onClick={onCreate}>
-                <Plus size={12} aria-hidden />
-                Add section
-              </Button>
-            ) : undefined
-          }
-        >
-          {boardEmpty ? (
-            <>
-              No sections yet for this school year — add the first one and its advisory code is
-              issued with it.
-            </>
-          ) : filtersActive ? (
+      {boardEmpty ? (
+        <div className="flex min-h-[calc(100dvh-18rem)] items-center justify-center py-8">
+          <EmptyActionCard
+            icon={Layers}
+            title="No sections yet"
+            description="Add the first section for this school year. It gets an advisory code you can hand to the adviser who will claim it."
+            actions={[
+              {
+                title: "Add section",
+                description: "Pick a grade level and name the section",
+                icon: Plus,
+                accent: "text-amber-500",
+                onClick: onCreate,
+              },
+            ]}
+          />
+        </div>
+      ) : visibleSections.length === 0 && visiblePending.length === 0 ? (
+        <PageEmptyCallout>
+          {filtersActive ? (
             <>
               <strong>No sections match these filters.</strong> Try another grade or search.
             </>
@@ -213,7 +193,7 @@ export function SectionsBoard({
           {visiblePending.map((s, index) => (
             <article
               key={s.id}
-              className={styles.card}
+              className={`${styles.card} ${styles.cardAmber}`}
               aria-busy="true"
               aria-label={`${s.name} section being saved`}
               style={{ animationDelay: `${Math.min(index, 11) * 35}ms` }}
@@ -231,14 +211,12 @@ export function SectionsBoard({
                     </span>
                   </span>
                 </div>
-                <Pill field="grade" className={styles.gradePill}>
+                <span className="shrink-0 text-[12px] font-semibold text-muted-foreground">
                   {gradeLabel(s.gradeLevel)}
-                </Pill>
+                </span>
               </header>
               <div className={styles.metaRow}>
-                <Pill tone="neutral" label="Adviser status">
-                  Saving…
-                </Pill>
+                <span className="text-[12px] font-medium text-muted-foreground">Saving…</span>
               </div>
             </article>
           ))}
@@ -253,15 +231,13 @@ export function SectionsBoard({
             const approved = (s.timetableEntries ?? []).filter(
               (entry) => entry.status === "APPROVED",
             ).length;
-            const gridState =
-              slots === 0 ? "empty" : approved === slots ? "published" : "draft";
             const locked = Boolean(s.locked);
             const lockLabel = sectionLinkLabel(s.links);
 
             return (
               <article
                 key={s.id}
-                className={`${styles.card} ${claimed ? styles.cardClaimed : ""}`}
+                className={`${styles.card} ${styles.cardAmber} ${claimed ? styles.cardClaimed : ""}`}
                 aria-label={`${s.name} section`}
                 style={{ animationDelay: `${Math.min(index + visiblePending.length, 11) * 35}ms` }}
               >
@@ -279,74 +255,33 @@ export function SectionsBoard({
                       {adviserName || <span className={styles.teacherNone}>No adviser yet</span>}
                     </span>
                   </div>
-                  <Pill field="grade" className={styles.gradePill}>
+                  <span className="shrink-0 text-[12px] font-semibold text-muted-foreground">
                     {gradeLabel(s.gradeLevel)}
-                  </Pill>
+                  </span>
                 </header>
 
                 <div className={styles.metaRow}>
-                  <Pill
-                    tone={
-                      gridState === "published"
-                        ? "green"
-                        : gridState === "draft"
-                          ? "amber"
-                          : "neutral"
-                    }
-                    label="Timetable status"
-                  >
-                    {gridState === "published" ? (
-                      <>
-                        <Upload size={11} aria-hidden />
-                        Published
-                      </>
-                    ) : gridState === "draft" ? (
-                      <>
-                        <CircleDashed size={11} aria-hidden />
-                        Draft grid
-                      </>
-                    ) : (
-                      <>
-                        <CircleDashed size={11} aria-hidden />
-                        No grid yet
-                      </>
-                    )}
-                  </Pill>
-
                   {claimed ? (
-                    <Pill tone="green" label="Adviser status">
+                    <span className="inline-flex items-center gap-1 text-[12px] font-medium text-green-700 dark:text-green-400">
                       <Check size={11} aria-hidden />
                       Claimed
-                    </Pill>
+                    </span>
                   ) : status === "awaiting" ? (
-                    <Pill tone="amber" label="Adviser status">
+                    <span className="text-[12px] font-medium text-amber-700 dark:text-amber-400">
                       Awaiting claim
-                    </Pill>
+                    </span>
                   ) : (
-                    <Pill tone="neutral" label="Adviser status">
-                      Unassigned
-                    </Pill>
+                    <span className="text-[12px] font-medium text-muted-foreground">Unassigned</span>
                   )}
 
                   {code ? (
-                    <div className={styles.codeRow}>
-                      <Pill tone="violet" label="Advisory code" className={styles.codePill}>
-                        {code}
-                      </Pill>
-                      <Button
-                        variant="ghost"
-                        size="icon-xs"
-                        className={styles.codeBtn}
-                        aria-label={`Copy advisory code for ${s.name}`}
-                        title="Copy advisory code"
-                        onClick={() => void copyCode(code)}
-                      >
-                        {copiedCode === code ? (
-                          <Check size={12} aria-hidden />
-                        ) : (
-                          <Copy size={12} aria-hidden />
-                        )}
-                      </Button>
+                    <div className={`${styles.codeRow} ml-auto`}>
+                      <AdvisoryCodeBadge
+                        code={code}
+                        copied={copiedCode === code}
+                        ariaLabel={`Copy advisory code for ${s.name}`}
+                        onCopy={() => void copyCode(code)}
+                      />
                     </div>
                   ) : (
                     <Pill tone="neutral" label="Advisory code">

@@ -1,6 +1,7 @@
 import { prisma } from "../lib/prisma.js";
 import { dailyFromDayCounts, type DayCountCell } from "./attendance.agg.utils.js";
 import { isWeekendKey } from "./attendance.date.utils.js";
+import { blocksPeriod, noClassContextForTerm } from "./noClass.js";
 import {
   archivedAdvisoryLearnerIds,
   excludeArchivedProfiles,
@@ -145,26 +146,31 @@ async function elapsedSubjectMeetupDates(
   sectionIds: string[],
   termId: string
 ): Promise<Map<string, Set<string>>> {
-  const [entries, term] = await Promise.all([
+  const [entries, term, noClass] = await Promise.all([
     prisma.sectionTimetableEntry.findMany({
       where: {
         sectionId: { in: sectionIds },
         termId,
         status: { in: ["APPROVED", "SUBMITTED"] },
       },
-      select: { sectionId: true, subjectId: true, day: true },
+      select: { sectionId: true, subjectId: true, day: true, period: true },
     }),
     prisma.term.findUnique({
       where: { id: termId },
       select: { startDate: true, endDate: true },
     }),
+    noClassContextForTerm(termId),
   ]);
 
-  const meetups = new Map<string, number[]>();
+  // A subject can meet more than once on the same weekday (double periods).
+  // Keep each period so an AM/PM cancellation only drops the cancelled half.
+  const meetups = new Map<string, { day: number; period: number }[]>();
   for (const e of entries) {
     const k = `${e.sectionId}|${e.subjectId}`;
     const arr = meetups.get(k) ?? [];
-    if (!arr.includes(e.day)) arr.push(e.day);
+    if (!arr.some((m) => m.day === e.day && m.period === e.period)) {
+      arr.push({ day: e.day, period: e.period });
+    }
     meetups.set(k, arr);
   }
 
@@ -177,7 +183,7 @@ async function elapsedSubjectMeetupDates(
     return termEnd < todayStr ? termEnd : todayStr;
   })();
   if (startStr && startStr <= endStr) {
-    for (const [k, days] of meetups) {
+    for (const [k, slots] of meetups) {
       const set = new Set<string>();
       for (
         let d = new Date(`${startStr}T00:00:00Z`);
@@ -186,7 +192,12 @@ async function elapsedSubjectMeetupDates(
       ) {
         const dow = d.getUTCDay();
         const day = dow === 0 ? 7 : dow;
-        if (days.includes(day)) set.add(d.toISOString().slice(0, 10));
+        const dateKey = d.toISOString().slice(0, 10);
+        const cancellation = noClass.map.get(dateKey);
+        const held = slots.some(
+          (s) => s.day === day && !blocksPeriod(cancellation, noClass.config, s.period),
+        );
+        if (held) set.add(dateKey);
       }
       if (set.size > 0) elapsed.set(k, set);
     }

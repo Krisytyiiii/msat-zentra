@@ -5,6 +5,7 @@ import { notifyInterventionDetected } from "../lib/notify.js";
 import { invalidateTags } from "../lib/cache.js";
 import { bumpRiskCohortVersion } from "../lib/riskCohortCache.js";
 import { isAdmExempt } from "./adm/attendancePolicy.js";
+import { blocksPeriod, blocksSession, noClassContextForTerm } from "./noClass.js";
 import {
   ATTENDANCE_RISK_CUTOFF,
   learnerSubjectAverageAttendance,
@@ -100,7 +101,7 @@ export async function sectionMeetupDates(
   const ids = Array.from(new Set(sectionIds.filter((id): id is string => !!id)));
   if (ids.length === 0) return out;
 
-  const [term, entries, sheets] = await Promise.all([
+  const [term, entries, sheets, noClass] = await Promise.all([
     prisma.term.findUnique({
       where: { id: termId },
       select: { startDate: true, endDate: true },
@@ -111,16 +112,20 @@ export async function sectionMeetupDates(
         termId,
         status: { in: ["APPROVED", "SUBMITTED"] },
       },
-      select: { sectionId: true, subjectId: true, day: true },
+      select: { sectionId: true, subjectId: true, day: true, period: true },
     }),
     prisma.attendanceRecord.findMany({
       where: { sectionId: { in: ids }, termId },
       select: { sectionId: true, date: true, subjectId: true, slot: true, session: true },
     }),
+    noClassContextForTerm(termId),
   ]);
 
   // One meetup is one subject-slot sheet, or a legacy AM/PM session.
-  const recordedBySection = new Map<string, string[]>();
+  const recordedBySection = new Map<
+    string,
+    { date: string; subjectId: string | null; slot: number | null; session: string | null }[]
+  >();
   const seenSheets = new Set<string>();
   for (const s of sheets) {
     const day = s.date.toISOString().slice(0, 10);
@@ -128,16 +133,18 @@ export async function sectionMeetupDates(
     if (seenSheets.has(`${s.sectionId}|${key}`)) continue;
     seenSheets.add(`${s.sectionId}|${key}`);
     const arr = recordedBySection.get(s.sectionId) ?? [];
-    arr.push(day);
+    arr.push({ date: day, subjectId: s.subjectId, slot: s.slot, session: s.session });
     recordedBySection.set(s.sectionId, arr);
   }
 
-  const daysBySectionSubject = new Map<string, Set<number>>();
+  const daysBySectionSubject = new Map<string, { day: number; period: number }[]>();
   for (const e of entries) {
     const key = `${e.sectionId}|${e.subjectId}`;
-    const set = daysBySectionSubject.get(key) ?? new Set<number>();
-    set.add(e.day);
-    daysBySectionSubject.set(key, set);
+    const list = daysBySectionSubject.get(key) ?? [];
+    if (!list.some((s) => s.day === e.day && s.period === e.period)) {
+      list.push({ day: e.day, period: e.period });
+    }
+    daysBySectionSubject.set(key, list);
   }
 
   const startStr = term?.startDate?.toISOString().slice(0, 10) ?? null;
@@ -151,7 +158,7 @@ export async function sectionMeetupDates(
   for (const sectionId of ids) {
     const timetableDates: string[] = [];
     if (startStr && startStr <= endStr) {
-      for (const [key, days] of daysBySectionSubject) {
+      for (const [key, slots] of daysBySectionSubject) {
         if (!key.startsWith(`${sectionId}|`)) continue;
         for (
           let d = new Date(`${startStr}T00:00:00Z`);
@@ -160,15 +167,37 @@ export async function sectionMeetupDates(
         ) {
           const dow = d.getUTCDay();
           const day = dow === 0 ? 7 : dow;
-          if (days.has(day)) timetableDates.push(d.toISOString().slice(0, 10));
+          const dateKey = d.toISOString().slice(0, 10);
+          const cancellation = noClass.map.get(dateKey);
+          if (
+            slots.some(
+              (s) => s.day === day && !blocksPeriod(cancellation, noClass.config, s.period),
+            )
+          ) {
+            timetableDates.push(dateKey);
+          }
         }
       }
     }
     // Recorded sheets act as a floor when the timetable is missing; the two
-    // sources overlap on purpose, so take the larger count, never the sum.
-    const recorded = recordedBySection.get(sectionId) ?? [];
+    // sources overlap on purpose, so take the larger count, never the sum. A
+    // sheet recorded before the administrator declared the date no-class is
+    // dropped too — the declaration rewrites history, not just today.
+    const recorded = (recordedBySection.get(sectionId) ?? [])
+      .filter((r) => {
+        const cancellation = noClass.map.get(r.date);
+        if (!cancellation) return true;
+        if (r.subjectId && r.slot != null) {
+          return !blocksPeriod(cancellation, noClass.config, r.slot - 1);
+        }
+        if (r.session === "AM" || r.session === "PM") {
+          return !blocksSession(cancellation, r.session);
+        }
+        return cancellation.scope !== "whole_day";
+      })
+      .map((r) => r.date);
     const dates =
-      timetableDates.length >= recorded.length ? timetableDates : [...recorded];
+      timetableDates.length >= recorded.length ? timetableDates : recorded;
     out.set(sectionId, dates.sort());
   }
   return out;

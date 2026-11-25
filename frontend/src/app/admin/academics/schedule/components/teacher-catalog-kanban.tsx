@@ -1,21 +1,14 @@
 "use client";
 
 import { useMemo, useState } from "react";
-import { Check, Lock, Search, Trash2, UserPlus, Users, X } from "lucide-react";
+import { Trash2, UserPlus, Users } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { Checkbox } from "@/components/ui/checkbox";
 import { FilterTabs } from "@/components/ui/filter-tabs";
 import { InsightCallout } from "@/components/ui/insight-callout";
-import {
-  InputGroup,
-  InputGroupAddon,
-  InputGroupButton,
-  InputGroupInput,
-} from "@/components/ui/input-group";
-import { PageEmptyCallout } from "@/components/shared/page-empty-callout";
-import { Pill } from "@/components/ui/pill";
-import { StudentMascot } from "@/components/student-mascot/StudentMascot";
+import { SearchField } from "@/components/ui/search-field";
+import { ShimmerGroup, ShimmerSkeleton } from "@/components/ui/shimmer-skeleton";
 import type { CatalogTeacher } from "./use-schedule-catalog";
+import { EmptyActionCard } from "./schedule-empty-kanban";
 import { TeacherAddKanban } from "./teacher-add-kanban";
 import {
   TeacherDeleteConfirm,
@@ -23,8 +16,9 @@ import {
   type TeacherDeleteProgress,
 } from "./teacher-delete-kanban";
 import type { TeacherCreateProgress } from "./use-add-teachers";
+import { TeacherWorkspaceTable } from "./teacher-workspace-table";
 // One card kit for both desks: the teacher board reads exactly like the
-// administrator's section board.
+// administrator's subject board.
 import styles from "@/app/principal/academics/assign/components/sections-kanban.module.css";
 
 interface Props {
@@ -43,21 +37,10 @@ interface Props {
   onDeleteProgress?: (p: TeacherDeleteProgress | null) => void;
 }
 
-/** "linked account, 2 timetable slots" — what keeps a name locked. */
-function teacherLockLabel(teacher: CatalogTeacher): string {
-  const parts: string[] = [];
-  if (teacher.linked) parts.push("a linked account");
-  const slots = teacher.links?.timetableEntries ?? 0;
-  if (slots > 0) parts.push(`${slots} timetable slot${slots === 1 ? "" : "s"}`);
-  const grants = teacher.links?.termGrants ?? 0;
-  if (grants > 0) parts.push(`${grants} term grant${grants === 1 ? "" : "s"}`);
-  return parts.length > 0 ? parts.join(", ") : "existing records";
-}
-
 /**
- * The administrator's teacher catalog. Same card board as the section desk:
- * header, account scope + search row, then one card per teacher name with its
- * code, account state and delete lock.
+ * The administrator's teacher catalog. Same board as the subject catalog:
+ * header, account scope + search row, then a data table with the columns that
+ * matter when picking a name for a weekly grid.
  */
 export function TeacherCatalogKanban({
   teachers,
@@ -74,6 +57,7 @@ export function TeacherCatalogKanban({
   const [deleteMode, setDeleteMode] = useState(false);
   const [selectedIds, setSelectedIds] = useState<string[]>([]);
   const [confirmOpen, setConfirmOpen] = useState(false);
+  const [rowDeleteTarget, setRowDeleteTarget] = useState<CatalogTeacher | null>(null);
   const { deleteTeachers } = useTeacherDelete(onDeleteProgress);
 
   const needle = q.trim().toLowerCase();
@@ -104,7 +88,7 @@ export function TeacherCatalogKanban({
   };
 
   const handleDeleteOpen = () => {
-    // Delete mode puts a checkbox on every teacher card; the add form stays shut.
+    // Delete mode puts a checkbox on every teacher row; the add form stays shut.
     onAddOpenChange(false);
     setSelectedIds([]);
     setConfirmOpen(false);
@@ -206,37 +190,22 @@ export function TeacherCatalogKanban({
         <div className={styles.toolbar}>
           <FilterTabs
             label="Filter teachers by account state"
+            variant="tags"
             options={[
-              { value: "all", label: "All teachers" },
-              { value: "name_only", label: "Name only" },
-              { value: "linked", label: "With account" },
+              { value: "all", label: "All teachers", tone: "neutral" },
+              { value: "name_only", label: "Name only", tone: "neutral" },
+              { value: "linked", label: "With account", tone: "neutral" },
             ]}
             value={scope}
             onChange={(next) => setScope(next as "all" | "linked" | "name_only")}
           />
-          <InputGroup className="w-60 max-w-full shrink-0 rounded-[16px]">
-            <InputGroupAddon>
-              <Search />
-            </InputGroupAddon>
-            <InputGroupInput
-              placeholder="Find a name or code…"
-              value={q}
-              onChange={(event) => setQ(event.target.value)}
-              aria-label="Find a teacher"
-            />
-            {q ? (
-              <InputGroupAddon align="inline-end">
-                <InputGroupButton
-                  size="icon-xs"
-                  aria-label="Clear search"
-                  title="Clear search"
-                  onClick={() => setQ("")}
-                >
-                  <X aria-hidden />
-                </InputGroupButton>
-              </InputGroupAddon>
-            ) : null}
-          </InputGroup>
+          <SearchField
+            className="w-60"
+            placeholder="Find a name or code…"
+            value={q}
+            onChange={setQ}
+            aria-label="Find a teacher"
+          />
         </div>
       ) : null}
 
@@ -252,47 +221,91 @@ export function TeacherCatalogKanban({
         />
       ) : null}
 
+      {rowDeleteTarget ? (
+        <TeacherDeleteConfirm
+          teachers={[rowDeleteTarget]}
+          onCancel={() => setRowDeleteTarget(null)}
+          onConfirm={() => {
+            const target = rowDeleteTarget;
+            setRowDeleteTarget(null);
+            void deleteTeachers([target]);
+          }}
+        />
+      ) : null}
+
       {showList ? (
         pending ? (
-          <div className={styles.grid} aria-busy="true" aria-label="Loading teachers">
-            {Array.from({ length: 6 }).map((_, i) => (
-              <div
-                key={i}
-                className="flex flex-col gap-2 rounded-xl border border-border bg-card p-2.5"
-              >
-                <div className="flex items-center gap-2">
-                  <div className="h-9 w-9 shrink-0 rounded-full bg-muted" />
-                  <div className="flex min-w-0 flex-1 flex-col gap-1">
-                    <div className="h-3.5 w-24 rounded bg-muted" />
-                    <div className="h-3 w-20 rounded bg-muted" />
-                  </div>
-                  <div className="h-5 w-16 shrink-0 rounded-md bg-muted" />
-                </div>
-                <div className="flex items-center gap-1.5">
-                  <div className="h-5 w-20 rounded-md bg-muted" />
-                  <div className="h-5 w-20 rounded-md bg-muted" />
-                </div>
-              </div>
-            ))}
+          <div
+            className="overflow-x-auto rounded-lg border border-border bg-card"
+            aria-busy="true"
+            aria-label="Loading teachers"
+          >
+            <table className="w-full border-collapse text-[13px]">
+              <thead>
+                <tr className="border-b border-border">
+                  {["Teacher", "Code", "Account", "Timetable slots", "Availability"].map((label) => (
+                    <th
+                      key={label}
+                      scope="col"
+                      className="px-4 py-2.5 text-left text-[12px] font-medium tracking-[0.02em] whitespace-nowrap text-muted-foreground"
+                    >
+                      {label}
+                    </th>
+                  ))}
+                </tr>
+              </thead>
+              <tbody>
+                <ShimmerGroup>
+                  {Array.from({ length: 6 }).map((_, i) => (
+                    <tr key={i} className="border-b border-border/60 last:border-b-0">
+                      <td className="px-4 py-2.5 align-middle">
+                        <div className="flex items-center gap-2">
+                          <ShimmerSkeleton className="h-7 w-7 shrink-0 rounded-full" />
+                          <div className="flex flex-col gap-1">
+                            <ShimmerSkeleton className="h-3.5 w-28" />
+                            <ShimmerSkeleton className="h-3 w-20" />
+                          </div>
+                        </div>
+                      </td>
+                      <td className="px-4 py-2.5 align-middle">
+                        <ShimmerSkeleton className="h-3 w-16" />
+                      </td>
+                      <td className="px-4 py-2.5 align-middle">
+                        <ShimmerSkeleton className="h-5 w-20 rounded-md" />
+                      </td>
+                      <td className="px-4 py-2.5 align-middle">
+                        <ShimmerSkeleton className="h-3 w-14" />
+                      </td>
+                      <td className="px-4 py-2.5 align-middle">
+                        <ShimmerSkeleton className="h-3 w-24" />
+                      </td>
+                    </tr>
+                  ))}
+                </ShimmerGroup>
+              </tbody>
+            </table>
           </div>
         ) : loadError ? (
           <p role="alert" className="text-sm text-destructive">
             Could not load teachers.
           </p>
         ) : teachers.length === 0 ? (
-          <PageEmptyCallout
-            action={
-              <Button
-                className="h-6 gap-1 px-2.5 text-[12px]"
-                onClick={() => onAddOpenChange(true)}
-              >
-                <UserPlus size={12} aria-hidden />
-                Add teacher
-              </Button>
-            }
-          >
-            No teachers yet — add the first name so it can be picked in timetable slots.
-          </PageEmptyCallout>
+          <div className="flex min-h-[calc(100dvh-16rem)] items-center justify-center py-8">
+            <EmptyActionCard
+              icon={Users}
+              title="No teachers yet"
+              description="Teacher names are shared by every section timetable. Add the first name, then pick it in a slot."
+              actions={[
+                {
+                  title: "Add teacher",
+                  description: "Type one or more names — the system gives each one a code",
+                  icon: UserPlus,
+                  accent: "text-amber-500",
+                  onClick: () => onAddOpenChange(true),
+                },
+              ]}
+            />
+          </div>
         ) : filtered.length === 0 ? (
           <div className="flex min-h-64 items-center justify-center">
             <InsightCallout role="status" className="w-fit max-w-full">
@@ -301,96 +314,13 @@ export function TeacherCatalogKanban({
             </InsightCallout>
           </div>
         ) : (
-          <div className={styles.grid} aria-label="Teachers">
-            {filtered.map((t, index) => {
-              const checked = deleteMode && selectedIds.includes(t.id);
-              const locked = Boolean(t.locked);
-              return (
-                <article
-                  key={t.id}
-                  className={`${styles.card}${deleteMode && !locked ? " cursor-pointer" : ""}${
-                    checked ? " border-red-500/50 bg-red-500/5 dark:bg-red-500/10" : ""
-                  }`}
-                  aria-label={`${t.name} teacher`}
-                  onClick={deleteMode && !locked ? () => toggleSelect(t.id) : undefined}
-                  style={{ animationDelay: `${Math.min(index, 11) * 35}ms` }}
-                >
-                  <header className={styles.cardHead}>
-                    {deleteMode ? (
-                      <span onClick={(e) => e.stopPropagation()} className="flex shrink-0">
-                        <Checkbox
-                          checked={checked}
-                          disabled={locked}
-                          onCheckedChange={() => toggleSelect(t.id)}
-                          title={locked ? `Locked — used by ${teacherLockLabel(t)}` : undefined}
-                          aria-label={
-                            locked
-                              ? `${t.name} is locked and cannot be deleted`
-                              : `Select ${t.name} for deletion`
-                          }
-                        />
-                      </span>
-                    ) : (
-                      <StudentMascot name={t.name} seed={t.id} size={36} />
-                    )}
-                    <div className={styles.cardId}>
-                      <span className={styles.sectionName} title={t.name}>
-                        {t.name}
-                      </span>
-                      <span className={styles.teacher} title={t.linkedName ?? undefined}>
-                        {t.linkedName ?? <span className={styles.teacherNone}>Name only</span>}
-                      </span>
-                    </div>
-                    {t.code ? (
-                      <Pill tone="amber" label="Teacher code" className={styles.gradePill}>
-                        {t.code}
-                      </Pill>
-                    ) : (
-                      <Pill tone="neutral" label="Teacher code" className={styles.gradePill}>
-                        No code
-                      </Pill>
-                    )}
-                  </header>
-
-                  <div className={styles.metaRow}>
-                    {t.linked ? (
-                      <Pill tone="green" label="Account">
-                        <Check size={11} aria-hidden />
-                        Linked
-                      </Pill>
-                    ) : (
-                      <Pill tone="neutral" label="Account">
-                        Name only
-                      </Pill>
-                    )}
-                    {t.links && t.links.timetableEntries > 0 ? (
-                      <Pill tone="blue" label="Timetable slots">
-                        {t.links.timetableEntries} slot
-                        {t.links.timetableEntries === 1 ? "" : "s"}
-                      </Pill>
-                    ) : null}
-                  </div>
-
-                  {locked ? (
-                    <p
-                      className={`${styles.notice} ${styles.claimNotice} mt-auto`}
-                      title={`Locked — used by ${teacherLockLabel(t)}`}
-                    >
-                      <Lock size={11} aria-hidden />
-                      <span className="min-w-0 truncate">
-                        Locked — used by {teacherLockLabel(t)}
-                      </span>
-                    </p>
-                  ) : (
-                    <p className={`${styles.notice} ${styles.claimedNotice} mt-auto`}>
-                      <Check size={11} aria-hidden />
-                      <span className="min-w-0 truncate">Can be deleted — no records linked</span>
-                    </p>
-                  )}
-                </article>
-              );
-            })}
-          </div>
+          <TeacherWorkspaceTable
+            teachers={filtered}
+            deleteMode={deleteMode}
+            selectedIds={selectedIds}
+            onToggle={toggleSelect}
+            onDelete={setRowDeleteTarget}
+          />
         )
       ) : null}
     </section>

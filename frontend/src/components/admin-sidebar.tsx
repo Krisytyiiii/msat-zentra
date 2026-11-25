@@ -35,38 +35,48 @@ export const NAV: NavGroup[] = [
       },
       {
         title: "Timetable",
-        href: "/admin/academics/schedule/template?view=grid",
+        href: "/admin/academics/schedule/timetable",
         icon: NAV_ICONS.scheduleTemplate,
       },
       {
         title: "Sections",
-        href: "/admin/academics/schedule/template?view=sections",
+        href: "/admin/academics/schedule/sections",
         icon: NAV_ICONS.scheduleSections,
       },
       {
         title: "Subjects",
-        href: "/admin/academics/schedule/template?view=subjects",
+        href: "/admin/academics/schedule/subjects",
         icon: NAV_ICONS.scheduleSubjects,
       },
       {
         title: "Teachers",
-        href: "/admin/academics/schedule/template?view=teachers",
+        href: "/admin/academics/schedule/teachers",
         icon: NAV_ICONS.scheduleTeachers,
       },
       {
         title: "Configure",
-        href: "/admin/academics/schedule/template?view=config",
+        href: "/admin/academics/schedule/configure",
         icon: NAV_ICONS.scheduleConfigure,
       },
       {
         title: "School Year",
-        href: "/admin/academics/schedule/template?view=term",
+        href: "/admin/academics/schedule/school-year",
         icon: NAV_ICONS.scheduleYear,
       },
       {
         title: "Publish",
-        href: "/admin/academics/schedule/template?view=publish",
+        href: "/admin/academics/schedule/publish",
         icon: NAV_ICONS.schedulePublish,
+      },
+    ],
+  },
+  {
+    label: "Attendance",
+    items: [
+      {
+        title: "No-Class Days",
+        href: "/admin/attendance/no-class-days",
+        icon: NAV_ICONS.attendance,
       },
     ],
   },

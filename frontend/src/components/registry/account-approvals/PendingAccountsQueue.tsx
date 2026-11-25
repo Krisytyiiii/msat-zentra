@@ -2,19 +2,16 @@
 
 import * as React from "react";
 import { useMutation, useQuery } from "@tanstack/react-query";
-import { Check, Clock, Loader2, Search, UserPlus, X } from "lucide-react";
+import { Clock, Loader2, UserPlus, X } from "lucide-react";
 import { apiClient } from "@/lib/api/client";
 import { toast } from "@/components/ui/sonner";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
+import { SearchField } from "@/components/ui/search-field";
 import { Textarea } from "@/components/ui/textarea";
 import { KanbanBoard } from "@/components/ui/kanban-board";
 import { KanbanOverlay } from "@/components/ui/kanban-overlay";
 import { InsightCallout } from "@/components/ui/insight-callout";
-import { RowList, type RowListItem } from "@/components/ui/row-list";
-import { RowListSkeleton } from "@/components/shared/zentra-skeletons/ZentraSkeletons";
 import { PAGE_SIZE, Pagination } from "@/components/shared/pagination";
-import { formatGrade, formatSection } from "@/lib/utils";
 import {
   ACCOUNT_APPROVALS_BASE,
   ACCOUNT_APPROVALS_KEY,
@@ -24,7 +21,8 @@ import {
   useApprovalInvalidation,
 } from "./api";
 import { LrnVerifyDock } from "./LrnVerifyDock";
-import { formatRelativeTime, type PendingStudent, type PendingStudentsResponse } from "./types";
+import { PendingAccountsTable, PendingQueueSkeleton } from "./pending-tables";
+import { type PendingStudent, type PendingStudentsResponse } from "./types";
 
 type Kind = "student" | "parent";
 
@@ -42,7 +40,14 @@ function fetchPending(kind: Kind, page: number, signal?: AbortSignal) {
  * through LRN verification before the account is provisioned; parents have no
  * LRN, so their card is a straight approve/reject.
  */
-export function PendingAccountsQueue({ kind }: { kind: Kind }) {
+export function PendingAccountsQueue({
+  kind,
+  filterTabs,
+}: {
+  kind: Kind;
+  /** Role filter tabs rendered in the board header, from the approvals desk. */
+  filterTabs?: React.ReactNode;
+}) {
   const invalidate = useApprovalInvalidation();
   const [page, setPage] = React.useState(1);
   const [queryInput, setQueryInput] = React.useState("");
@@ -100,83 +105,6 @@ export function PendingAccountsQueue({ kind }: { kind: Kind }) {
   const approveNow = (row: PendingStudent) =>
     act.mutate({ id: row.id, approve: true, name: row.name });
 
-  const rowItems = React.useMemo<RowListItem[]>(
-    () =>
-      visibleRows.map((row) => ({
-        key: row.id,
-        status: { label: "Pending", tone: "amber" as const },
-        statusTitle: "Awaiting administrator approval",
-        title: row.name,
-        idLabel: kind === "student" ? row.lrn : row.email,
-        idLabelClassName: "text-xs font-medium",
-        meta: [
-          ...(kind === "student"
-            ? [
-                { label: formatGrade(row.gradeLevel), field: "grade" as const, dot: false },
-                { label: formatSection(row.section), field: "section" as const, dot: false },
-              ]
-            : []),
-          {
-            label: formatRelativeTime(row.requestedAt),
-            tone: "muted" as const,
-            dot: false,
-            title: `Requested ${new Date(row.requestedAt).toLocaleString()}`,
-          },
-        ],
-        ariaLabel: `${row.name}, pending ${kind} account`,
-        avatarMascot: { name: row.name, seed: row.lrn || row.id },
-        actions:
-          kind === "student" ? (
-            <Button
-              type="button"
-              variant="outline"
-              size="sm"
-              className="h-6 gap-1 px-2 text-[12px] font-medium shadow-none"
-              onClick={() => setVerifyTarget(row)}
-              aria-label={`Verify LRN for ${row.name}`}
-            >
-              <UserPlus size={12} aria-hidden />
-              Verify &amp; approve
-            </Button>
-          ) : (
-            <div className="flex items-center gap-1">
-              <Button
-                type="button"
-                size="sm"
-                className="h-6 gap-1 border border-transparent bg-emerald-600 px-2 text-[12px] font-medium text-white shadow-none hover:bg-emerald-700"
-                disabled={act.isPending}
-                onClick={() => approveNow(row)}
-                aria-label={`Approve ${row.name}`}
-              >
-                {actingId === row.id && act.variables?.approve ? (
-                  <Loader2 className="size-3.5 animate-spin" aria-hidden />
-                ) : (
-                  <Check className="size-3.5" aria-hidden />
-                )}
-                Approve
-              </Button>
-              <Button
-                type="button"
-                size="sm"
-                variant="outline"
-                className="h-6 gap-1 px-2 text-[12px] font-medium shadow-none"
-                disabled={act.isPending}
-                onClick={() => {
-                  setRejectReason("");
-                  setRejectTarget(row);
-                }}
-                aria-label={`Reject ${row.name}`}
-              >
-                <X className="size-3.5" aria-hidden />
-                Reject
-              </Button>
-            </div>
-          ),
-      })),
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-    [visibleRows, actingId, act.isPending, kind],
-  );
-
   return (
     <>
       <KanbanBoard
@@ -191,20 +119,17 @@ export function PendingAccountsQueue({ kind }: { kind: Kind }) {
             : "Parent/guardian sign-ups awaiting activation."
         }
         ariaLabel={kind === "student" ? "Pending student accounts" : "Pending parent accounts"}
-        actions={
-          <div className="relative">
-            <Search
-              className="pointer-events-none absolute top-1/2 left-2 size-3.5 -translate-y-1/2 text-muted-foreground"
-              aria-hidden
-            />
-            <Input
-              className="h-8 w-60 rounded-[16px] pl-7 text-sm"
+        headerToolbar={
+          <>
+            {filterTabs}
+            <SearchField
+              className="w-56"
               placeholder="Search name or email…"
               value={queryInput}
-              onChange={(e) => setQueryInput(e.target.value)}
+              onChange={setQueryInput}
               aria-label={`Search pending ${kind}s`}
             />
-          </div>
+          </>
         }
         footer={
           total > PAGE_SIZE ? (
@@ -213,12 +138,12 @@ export function PendingAccountsQueue({ kind }: { kind: Kind }) {
         }
       >
         {isPending ? (
-          <RowListSkeleton
-            rows={6}
-            gutter="0.625rem"
-            withMetaAvatar={false}
-            withActions
-            metaPills={kind === "student" ? 3 : 1}
+          <PendingQueueSkeleton
+            columns={
+              kind === "student"
+                ? ["Account", "Grade", "Section", "Status", "Requested"]
+                : ["Account", "Status", "Requested"]
+            }
           />
         ) : isError ? (
           <p className="py-4 text-sm text-muted-foreground">
@@ -242,14 +167,17 @@ export function PendingAccountsQueue({ kind }: { kind: Kind }) {
             )}
           </div>
         ) : (
-          <RowList
-            bleed
-            gutter="0.625rem"
-            animateOnMount
-            motionPreset="desk"
-            items={rowItems}
-            emptyText={`No pending ${kind} accounts.`}
-            ariaLabel={`Pending ${kind} accounts`}
+          <PendingAccountsTable
+            rows={visibleRows}
+            kind={kind}
+            busy={act.isPending}
+            actingId={actingId}
+            onVerify={(row) => setVerifyTarget(row)}
+            onApprove={approveNow}
+            onReject={(row) => {
+              setRejectReason("");
+              setRejectTarget(row);
+            }}
           />
         )}
       </KanbanBoard>
@@ -301,7 +229,7 @@ export function PendingAccountsQueue({ kind }: { kind: Kind }) {
             <Button
               type="button"
               size="sm"
-              className="bg-red-600 text-white hover:bg-red-700"
+              variant="destructive"
               disabled={act.isPending || rejectReason.trim().length === 0}
               onClick={() => {
                 const target = rejectTarget;

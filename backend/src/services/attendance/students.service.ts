@@ -9,6 +9,7 @@ import {
   type AttendanceStatus,
 } from "../attendance.js";
 import { computeAttendanceRate, computeSubjectAttendanceRate } from "../attendance.js";
+import { activeDayKeys } from "../noClass.js";
 import { AppError } from "../../lib/errors.js";
 import {
   archivedAdvisoryLearnerIds,
@@ -32,7 +33,9 @@ export interface AtRiskQuery {
 export async function getAtRiskStudents(query: AtRiskQuery) {
   const { session, schoolYearId, displayTerm, sharedOnly } = query;
   const termId = displayTerm.id;
-  const schoolDays = countSchoolDays(buildDayAxis(displayTerm.startDate, displayTerm.endDate));
+  const schoolDays = countSchoolDays(
+    await activeDayKeys(buildDayAxis(displayTerm.startDate, displayTerm.endDate), session),
+  );
 
   const sections = await prisma.section.findMany({
     where: {
@@ -172,8 +175,11 @@ export async function getAtRiskStudents(query: AtRiskQuery) {
     buildOfferedMap(entries)
   );
 
-  const outcomeKeys = buildDayAxis(displayTerm.startDate, displayTerm.endDate).filter(
-    (k) => !isWeekendKey(k)
+  const outcomeKeys = await activeDayKeys(
+    buildDayAxis(displayTerm.startDate, displayTerm.endDate).filter(
+      (k) => !isWeekendKey(k)
+    ),
+    session,
   );
   const days = outcomeKeys.length;
 

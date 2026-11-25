@@ -1,6 +1,7 @@
 import { prisma } from "../../lib/prisma.js";
 import { AppError } from "../../lib/errors.js";
 import { adviserSectionsOr404 } from "../../modules/teacher/advisory.repository.js";
+import { noClassContextForTerm } from "../noClass.js";
 
 export interface OfferedSubjectsQuery {
   teacherId: string;
@@ -159,7 +160,7 @@ export async function getSubjectDays(query: SubjectDaysQuery) {
   if (!allowed) {
     throw new AppError(403, "FORBIDDEN", "Section is not in your teaching load");
   }
-  const [term, records] = await Promise.all([
+  const [term, records, noClass] = await Promise.all([
     prisma.term.findUnique({
       where: { id: termId },
       select: { startDate: true, endDate: true },
@@ -174,6 +175,7 @@ export async function getSubjectDays(query: SubjectDaysQuery) {
       select: { studentId: true, rosterId: true, date: true, status: true, slot: true },
       orderBy: { date: "asc" },
     }),
+    noClassContextForTerm(termId),
   ]);
   return {
     sectionId,
@@ -182,6 +184,9 @@ export async function getSubjectDays(query: SubjectDaysQuery) {
     mineOnly,
     termStart: term?.startDate ? term.startDate.toISOString() : null,
     termEnd: term?.endDate ? term.endDate.toISOString() : null,
+    noClassDays: [...noClass.map.entries()]
+      .map(([date, entry]) => ({ date, scope: entry.scope, reason: entry.reason }))
+      .sort((a, b) => (a.date < b.date ? -1 : a.date > b.date ? 1 : 0)),
     records: records.map((r) => ({
       key: r.rosterId ? `roster:${r.rosterId}` : (r.studentId as string),
       date: r.date.toISOString().slice(0, 10),

@@ -249,20 +249,27 @@ export function useMeetupDates(
   meetupDays: number[],
 ) {
   const daysQuery = useSubjectDays(sectionId, subjectId);
-  const dateKeys = useMemo(
-    () =>
-      daysQuery.data
-        ? enumerateMeetupDates(
-            daysQuery.data.termStart,
-            daysQuery.data.termEnd,
-            meetupDays,
-          )
-        : null,
-    [daysQuery.data, meetupDays],
+  const noClassDays = useMemo(
+    () => daysQuery.data?.noClassDays ?? [],
+    [daysQuery.data],
   );
+  const dateKeys = useMemo(() => {
+    if (!daysQuery.data) return null;
+    const cancelledWholeDay = new Set(
+      (daysQuery.data.noClassDays ?? [])
+        .filter((n) => n.scope === "whole_day")
+        .map((n) => n.date),
+    );
+    return enumerateMeetupDates(
+      daysQuery.data.termStart,
+      daysQuery.data.termEnd,
+      meetupDays,
+    ).filter((key) => !cancelledWholeDay.has(key));
+  }, [daysQuery.data, meetupDays]);
   return {
     days: daysQuery.data,
     dateKeys,
+    noClassDays,
     isPending: daysQuery.isPending,
     hasTerm: !!daysQuery.data?.termStart,
   };

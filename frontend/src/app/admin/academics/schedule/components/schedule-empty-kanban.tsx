@@ -1,144 +1,211 @@
 "use client";
 
 import Link from "next/link";
-import { CalendarRange, ExternalLink, Layers, Settings2 } from "lucide-react";
-import { Button } from "@/components/ui/button";
+import type { ComponentType } from "react";
+import {
+  BookOpen,
+  CalendarRange,
+  ChevronRight,
+  GraduationCap,
+  Layers,
+  Settings2,
+} from "lucide-react";
 
 /**
- * Empty-state board for `/admin/academics/schedule` — the same 3-up kanban
- * "starter" shape the teacher referral desk uses before its first record, so
- * the desk still offers the real actions (open the template workspace, its
- * school-day config, or its section creator) instead of a bare callout. Every
- * card is a link that opens the workspace.
+ * Shared empty-state card for the admin schedule desks. Both
+ * `/admin/academics/schedule` (no sections yet) and the template workspace
+ * (no subjects/teachers yet) render the same single centered card with the
+ * real starter actions as rows, so an empty desk never dead-ends on a bare
+ * callout.
  */
 
-function ColumnHead({
-  icon,
-  title,
-  action,
-}: {
-  icon: React.ReactNode;
+type ActionIcon = ComponentType<{
+  size?: number | string;
+  className?: string;
+  "aria-hidden"?: boolean;
+}>;
+
+export interface EmptyAction {
+  href?: string;
+  onClick?: () => void;
   title: string;
-  action?: React.ReactNode;
-}) {
-  return (
-    <div
-      className="-mx-2.5 flex items-center justify-between gap-2 border-b border-border px-3.5 pb-2"
-      aria-label={title}
-    >
-      <span className="inline-flex min-w-0 items-center gap-1.5 text-[13px] font-semibold">
-        {icon} <span className="truncate">{title}</span>
+  description: string;
+  icon: ActionIcon;
+  accent?: string;
+}
+
+function ActionRow({
+  href,
+  onClick,
+  title,
+  description,
+  icon: Icon,
+  accent,
+}: EmptyAction) {
+  const content = (
+    <>
+      <span
+        className="flex h-7 w-7 shrink-0 items-center justify-center rounded-md bg-muted text-muted-foreground"
+        aria-hidden
+      >
+        <Icon size={14} className={accent} />
       </span>
-      <span className="flex shrink-0 items-center gap-1.5">{action ?? null}</span>
-    </div>
+      <span className="flex min-w-0 flex-1 flex-col">
+        <span className="truncate text-[13px] font-semibold leading-snug text-foreground">
+          {title}
+        </span>
+        <span className="truncate text-[12px] leading-snug text-muted-foreground">
+          {description}
+        </span>
+      </span>
+      <ChevronRight
+        size={15}
+        aria-hidden
+        className="shrink-0 text-muted-foreground transition-transform group-hover:translate-x-0.5"
+      />
+    </>
+  );
+
+  const className =
+    "group flex w-full min-w-0 cursor-pointer items-center gap-3 rounded-lg border border-border bg-background px-3 py-2.5 text-left transition-colors hover:border-primary/60 hover:bg-muted/40";
+
+  if (href) {
+    return (
+      <Link href={href} aria-label={`Open ${title}`} className={className}>
+        {content}
+      </Link>
+    );
+  }
+
+  return (
+    <button type="button" onClick={onClick} aria-label={title} className={className}>
+      {content}
+    </button>
   );
 }
 
-function LinkCard({
-  href,
+export function EmptyActionCard({
+  icon: HeaderIcon,
   title,
   description,
-  icon,
-  newTab = false,
+  actions,
 }: {
-  href: string;
+  icon: ActionIcon;
   title: string;
   description: string;
-  icon: React.ComponentType<{
-    size?: number | string;
-    className?: string;
-    "aria-hidden"?: boolean | "true" | "false";
-  }>;
-  newTab?: boolean;
+  actions: EmptyAction[];
 }) {
-  const Icon = icon;
   return (
-    <Link
-      href={href}
-      {...(newTab ? { target: "_blank", rel: "noopener noreferrer" } : {})}
-      aria-label={`Open ${title}${newTab ? " (opens in a new tab)" : ""}`}
-      className="flex min-w-0 flex-1 cursor-pointer flex-col gap-1.5 rounded-lg border bg-white p-3 shadow-sm transition-colors [font-family:var(--font-inter)] hover:border-primary/60 hover:shadow dark:bg-card"
-    >
-      <span className="flex items-center justify-between gap-2">
-        <span className="truncate text-[12px] font-medium text-muted-foreground" title={href}>
-          {href}
-        </span>
-        <span
-          className="flex h-6 w-6 shrink-0 items-center justify-center overflow-hidden rounded-full bg-muted text-muted-foreground"
-          aria-hidden
-        >
-          <Icon size={13} />
-        </span>
-      </span>
-      <span className="truncate text-sm font-semibold leading-snug" title={title}>
-        {title}
-      </span>
-      <span className="text-xs leading-snug text-muted-foreground">{description}</span>
-    </Link>
+    <div className="w-full max-w-md">
+      <div className="rounded-xl border border-border bg-card p-5 shadow-sm [font-family:var(--font-inter)]">
+        <div className="flex items-start gap-3">
+          <span
+            className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-amber-500/10 text-amber-500"
+            aria-hidden
+          >
+            <HeaderIcon size={17} />
+          </span>
+          <div className="min-w-0">
+            <h2 className="m-0 text-[0.9375rem] font-bold tracking-[-0.01em] text-foreground">
+              {title}
+            </h2>
+            <p className="m-0 mt-1 text-[0.8125rem] leading-[1.45] text-muted-foreground">
+              {description}
+            </p>
+          </div>
+        </div>
+
+        <div className="mt-4 flex flex-col gap-2">
+          {actions.map((action) => (
+            <ActionRow key={action.href ?? action.title} {...action} />
+          ))}
+        </div>
+      </div>
+    </div>
   );
 }
 
 export function ScheduleEmptyKanban() {
   return (
-    <div
-      className="grid min-w-0 grid-cols-1 gap-3 md:grid-cols-3"
-      role="group"
-      aria-label="Schedule starter actions"
-    >
-      <div
-        className="flex min-w-0 flex-col gap-2 rounded-xl border border-border p-2.5 [font-family:var(--font-inter)]"
-        aria-label="Schedule template"
-      >
-        <ColumnHead
-          icon={<CalendarRange size={14} aria-hidden className="text-amber-500" />}
-          title="Schedule template"
-          action={
-            <Button asChild className="h-6 px-2 text-[12px]">
-              <Link href="/admin/academics/schedule/template" target="_blank" rel="noopener noreferrer">
-                Open
-              </Link>
-            </Button>
-          }
-        />
-        <LinkCard
-          href="/admin/academics/schedule/template"
-          title="Open schedule template"
-          description="Build and publish each section's weekly grid"
-          icon={ExternalLink}
-          newTab
-        />
-      </div>
+    <EmptyActionCard
+      icon={CalendarRange}
+      title="No sections yet"
+      description="Create the first section inside the schedule template workspace, then build and publish its weekly grid."
+      actions={[
+        {
+          href: "/admin/academics/schedule/subjects",
+          title: "Add subjects",
+          description: "Create the subjects this year's grids can use",
+          icon: BookOpen,
+          accent: "text-amber-500",
+        },
+        {
+          href: "/admin/academics/schedule/teachers",
+          title: "Add teachers",
+          description: "Register the teachers available to take a class",
+          icon: GraduationCap,
+          accent: "text-sky-500",
+        },
+        {
+          href: "/admin/academics/schedule/sections",
+          title: "Create the first section",
+          description: "Add its name and grade, then timetable it",
+          icon: Layers,
+          accent: "text-muted-foreground",
+        },
+        {
+          href: "/admin/academics/schedule/timetable",
+          title: "Open schedule template",
+          description: "Build and publish each section's weekly grid",
+          icon: CalendarRange,
+          accent: "text-amber-500",
+        },
+        {
+          href: "/admin/academics/schedule/configure",
+          title: "Open school day",
+          description: "Set the bell schedule, lunch and breaks",
+          icon: Settings2,
+          accent: "text-sky-500",
+        },
+      ]}
+    />
+  );
+}
 
-      <div
-        className="flex min-w-0 flex-col gap-2 rounded-xl border border-border p-2.5 [font-family:var(--font-inter)]"
-        aria-label="School day"
-      >
-        <ColumnHead
-          icon={<Settings2 size={14} aria-hidden className="text-sky-500" />}
-          title="School day"
-        />
-        <LinkCard
-          href="/admin/academics/schedule/template?view=config"
-          title="Open school day"
-          description="Set the bell schedule, lunch and breaks before placing subjects"
-          icon={Settings2}
-          newTab
-        />
-      </div>
-
-      <div
-        className="flex min-w-0 flex-col gap-2 rounded-xl border border-border p-2.5 [font-family:var(--font-inter)]"
-        aria-label="Sections"
-      >
-        <ColumnHead icon={<Layers size={14} aria-hidden className="text-muted-foreground" />} title="Sections" />
-        <LinkCard
-          href="/admin/academics/schedule/template?view=add-section"
-          title="Create the first section"
-          description="Add its name and grade, then timetable it"
-          icon={Layers}
-          newTab
-        />
-      </div>
-    </div>
+/**
+ * Template-workspace empty state: no subject or no teacher exists yet, so a
+ * timetable cell has nothing to offer. The rows jump straight into each add
+ * form in the same workspace.
+ */
+export function TemplateSetupEmptyCard() {
+  return (
+    <EmptyActionCard
+      icon={BookOpen}
+      title="Add subjects and teachers first"
+      description="A timetable cell needs a subject and a teacher. Add at least one of each, then create or pick a section to fill its weekly grid."
+      actions={[
+        {
+          href: "/admin/academics/schedule/subjects",
+          title: "Add subjects",
+          description: "Create the subjects this year's grids can use",
+          icon: BookOpen,
+          accent: "text-amber-500",
+        },
+        {
+          href: "/admin/academics/schedule/teachers",
+          title: "Add teachers",
+          description: "Register the teachers available to take a class",
+          icon: GraduationCap,
+          accent: "text-sky-500",
+        },
+        {
+          href: "/admin/academics/schedule/sections",
+          title: "Create a section",
+          description: "Add its grade and adviser, then timetable it",
+          icon: Layers,
+          accent: "text-muted-foreground",
+        },
+      ]}
+    />
   );
 }

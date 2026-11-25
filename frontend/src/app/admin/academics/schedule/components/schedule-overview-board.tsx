@@ -3,11 +3,10 @@
 import * as React from "react";
 import Link from "next/link";
 import {
-  ArrowUpRight,
   BookOpen,
   CalendarDays,
   Check,
-  Copy,
+  ChevronRight,
   Download,
   Layers,
   Users,
@@ -17,6 +16,7 @@ import { Button } from "@/components/ui/button";
 import { FilterTabs } from "@/components/ui/filter-tabs";
 import { SearchField } from "@/components/ui/search-field";
 import { StatDeck } from "@/components/ui/stat-deck";
+import { AdvisoryCodeBadge } from "@/components/shared/advisory-code-badge";
 import { PageEmptyCallout } from "@/components/shared/page-empty-callout";
 import { StudentMascot } from "@/components/student-mascot/StudentMascot";
 import { sectionSlug } from "@/lib/sectionSlug";
@@ -235,22 +235,12 @@ export function ScheduleOverviewBoard({ sections }: { sections: ScheduleSectionS
                   )}
                   {section.adviserCode ? (
                     <span className={styles.codeBadgeWrap}>
-                      <span className={styles.codeBadge} title="Advisory code">
-                        {section.adviserCode}
-                        <button
-                          type="button"
-                          className={styles.codeCopy}
-                          aria-label={`Copy advisory code for ${section.name}`}
-                          title="Copy advisory code"
-                          onClick={() => void copyCode(section.adviserCode ?? "")}
-                        >
-                          {copiedCode === section.adviserCode ? (
-                            <Check size={12} aria-hidden />
-                          ) : (
-                            <Copy size={12} aria-hidden />
-                          )}
-                        </button>
-                      </span>
+                      <AdvisoryCodeBadge
+                        code={section.adviserCode}
+                        copied={copiedCode === section.adviserCode}
+                        ariaLabel={`Copy advisory code for ${section.name}`}
+                        onCopy={() => void copyCode(section.adviserCode ?? "")}
+                      />
                     </span>
                   ) : null}
                 </div>
@@ -308,12 +298,10 @@ export function ScheduleOverviewBoard({ sections }: { sections: ScheduleSectionS
                   >
                     <Link
                       href={href}
-                      target="_blank"
-                      rel="noopener noreferrer"
                       aria-label={`Open timetable for ${section.name}`}
                     >
                       Open timetable
-                      <ArrowUpRight size={12} aria-hidden />
+                      <ChevronRight size={12} aria-hidden />
                     </Link>
                   </Button>
                 </div>

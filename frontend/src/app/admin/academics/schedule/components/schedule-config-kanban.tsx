@@ -2,6 +2,7 @@
 
 import { useState, type ComponentType } from "react";
 import {
+  CalendarRange,
   Check,
   ChevronLeft,
   ChevronRight,
@@ -18,6 +19,7 @@ import {
   X,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { SelectionCard } from "@/components/ui/selection-card";
 import { Switch } from "@/components/ui/switch";
 import { KanbanBoard } from "@/components/ui/kanban-board";
 import { ScrollList } from "@/components/ui/scroll-list";
@@ -157,7 +159,12 @@ export function describeConfig(next: DayConfig): { items: ConfigSaveItem[]; summ
   return { items, summary };
 }
 
-const inputClass = "rounded-md border border-input bg-transparent px-2 py-1 font-sans text-sm";
+/**
+ * Field shell shared with the section drawer (`add-section-kanban.tsx`) so every
+ * input on this desk reads the same: 32px, rounded-lg, amber focus edge.
+ */
+const inputClass =
+  "h-8 rounded-lg border border-input bg-transparent px-2.5 font-sans text-sm transition-[border-color,box-shadow] duration-150 focus-visible:border-amber-500 focus-visible:ring-2 focus-visible:ring-amber-500/25 focus-visible:outline-none dark:bg-transparent";
 const FOOTER_BUTTON = "h-6 gap-1 px-2 font-sans text-[12px]";
 const APPLY_BUTTON =
   "border-input bg-white text-black hover:bg-neutral-100 hover:text-black dark:border-transparent dark:bg-white dark:text-black dark:hover:bg-neutral-200 dark:hover:text-black";
@@ -280,6 +287,8 @@ interface Props {
   config: DayConfig;
   initialName?: string;
   heading?: string;
+  /** School year the configuration belongs to — shown as fixed context. */
+  year?: { name: string; isActive: boolean } | null;
   onClose: () => void;
   onApply: (config: DayConfig, name: string) => void;
   saving?: boolean;
@@ -289,6 +298,7 @@ export function ScheduleConfigKanban({
   config,
   initialName = "Default",
   heading = "Configure school day",
+  year = null,
   onClose,
   onApply,
   saving,
@@ -296,8 +306,9 @@ export function ScheduleConfigKanban({
   const [draft, setDraft] = useState<DayConfig>(config);
   const [name, setName] = useState(initialName);
   const [step, setStep] = useState(0);
-  // Dropdown triggers are native buttons (centered text by default) — force left.
-  const left = kanbanStyles.triggerLeft;
+  // Dropdown triggers are native buttons (centered text by default) — force left
+  // and match the 32px field shell of the inputs beside them.
+  const left = `${kanbanStyles.triggerLeft} ${styles.fieldTrigger}`;
 
   const preview = buildTimetable(draft);
   const isRecess = (
@@ -442,17 +453,23 @@ export function ScheduleConfigKanban({
   );
 
   return (
-    <div className={kanbanStyles.view} aria-label="Configure school day">
-      <div className={`${kanbanStyles.column} mx-auto w-full max-w-5xl`}>
+    <div
+      className={`${kanbanStyles.view} ${styles.flatBoard} flex h-full min-h-0 flex-col`}
+      aria-label="Configure school day"
+    >
+      <div
+        className={`${kanbanStyles.column} mx-auto flex h-full min-h-0 w-full max-w-5xl flex-col`}
+      >
         <KanbanBoard
           title={heading}
+          sectionClassName="min-h-0 flex-1"
           icon={
             <span className="text-amber-500" aria-hidden>
               <Settings2 size={14} />
             </span>
           }
           description="Day shape for the whole school year. Saving applies to every timetable of the year; keep other presets for adjusted schedules."
-          className="h-full bg-card shadow-xl"
+          className="min-h-0 flex-1 bg-card shadow-xl"
           actions={
             <button
               type="button"
@@ -525,7 +542,36 @@ export function ScheduleConfigKanban({
             </div>
           }
         >
-          <div className="flex flex-col gap-3 px-1">
+          <div
+            className={`${styles.scrollArea} flex min-h-0 flex-1 flex-col gap-3 overflow-y-auto px-1`}
+          >
+            {/* Fixed context, worded like the New-sections drawer: the shape is
+                saved against this school year, so the admin always sees it. */}
+            <div className="flex flex-col gap-1.5">
+              <span className="font-sans text-[12px] font-medium text-foreground">School year</span>
+              {year ? (
+                <SelectionCard
+                  icon={<CalendarRange size={15} aria-hidden />}
+                  title={year.name}
+                  description="The configuration is saved for this school year."
+                  meta={
+                    year.isActive ? (
+                      <span className="shrink-0 rounded bg-green-500/10 px-1 text-[12px] font-medium text-green-700 dark:text-green-400">
+                        Active
+                      </span>
+                    ) : null
+                  }
+                  selected
+                />
+              ) : (
+                <SelectionCard
+                  icon={<CalendarRange size={15} aria-hidden />}
+                  title="No school year selected"
+                  description="Pick a school year before saving a configuration."
+                />
+              )}
+            </div>
+
             {stepHeader}
             <p className={styles.hint}>{STEP_HINTS[step]}</p>
 
