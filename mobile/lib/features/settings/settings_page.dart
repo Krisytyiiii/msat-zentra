@@ -10,6 +10,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:lucide_icons_flutter/lucide_icons.dart';
+import 'package:go_router/go_router.dart';
 
 import '../../core/session.dart';
 import '../../design/brand.dart';
@@ -98,7 +99,7 @@ class _State extends ConsumerState<SettingsPage> {
           mainAxisSize: MainAxisSize.min,
           children: [
             ListTile(
-              leading: const Icon(Icons.photo_camera_outlined),
+              leading: const Icon(LucideIcons.camera),
               title: const Text('Take photo', style: TextStyle(fontSize: 13)),
               onTap: () {
                 Navigator.pop(ctx);
@@ -238,17 +239,41 @@ class _State extends ConsumerState<SettingsPage> {
     final profile = ref.watch(teacherProfileProvider);
     return Theme(
       data: theme,
-      child: ColoredBox(
-        color: Colors.white,
-        child: ListView(
-          padding: const EdgeInsets.fromLTRB(12, 16, 12, 32),
+      child: Scaffold(
+        backgroundColor: Colors.white,
+        appBar: AppBar(
+          centerTitle: true,
+          shape: const Border(
+            bottom: BorderSide(color: Color(0xFFEDF0F6)),
+          ),
+          leading: ZBackButton(
+            onPressed: () {
+              final router = GoRouter.maybeOf(context);
+              if (router != null) {
+                if (router.canPop()) {
+                  router.pop();
+                } else {
+                  router.go('/workspace/overview');
+                }
+              } else {
+                Navigator.of(context).maybePop();
+              }
+            },
+          ),
+          title: const Text('Settings'),
+        ),
+        body: ListView(
+          padding: const EdgeInsets.fromLTRB(16, 12, 16, 24),
           children: [
             const ZContentHeader(
               title: 'Settings',
               icon: LucideIcons.settings,
               description: 'Your profile, appearance, and account security.',
             ),
-            const SizedBox(height: 12),
+            const Padding(
+              padding: EdgeInsets.symmetric(vertical: 12),
+              child: Divider(height: 1, color: Color(0xFFF1F5F9)),
+            ),
             profile.when(
               loading: () => const ZSkeletonList(count: 2),
               error: (e, _) => ErrorView(
@@ -277,7 +302,7 @@ class _State extends ConsumerState<SettingsPage> {
                                   icon: _photoBusy
                                       ? const ZSpinner(size: 14)
                                       : const Icon(
-                                          Icons.photo_camera_outlined,
+                                          LucideIcons.camera,
                                           size: 16,
                                         ),
                                   label: Text(
@@ -427,16 +452,58 @@ class _State extends ConsumerState<SettingsPage> {
     child: Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Text(
-          title,
-          style: const TextStyle(fontSize: 15, fontWeight: FontWeight.w600),
+        Row(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Container(
+              padding: const EdgeInsets.all(8),
+              decoration: BoxDecoration(
+                color: const Color(0xFF2563EB),
+                borderRadius: BorderRadius.circular(10),
+              ),
+              child: Icon(
+                switch (title) {
+                  'Profile' => LucideIcons.user,
+                  'Adviser' => LucideIcons.graduationCap,
+                  'Master Teacher' => LucideIcons.badgeCheck,
+                  'Appearance' => LucideIcons.sun,
+                  _ => LucideIcons.lock,
+                },
+                color: Colors.white,
+                size: 16,
+              ),
+            ),
+            const SizedBox(width: 12),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    title,
+                    style: const TextStyle(
+                      fontSize: 15,
+                      fontWeight: FontWeight.w700,
+                      color: Color(0xFF0F172A),
+                    ),
+                  ),
+                  const SizedBox(height: 4),
+                  Text(
+                    subtitle,
+                    style: const TextStyle(
+                      fontSize: 12,
+                      height: 1.45,
+                      color: Color(0xFF64748B),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ],
         ),
-        const SizedBox(height: 2),
-        Text(
-          subtitle,
-          style: settingsScreenTheme(Theme.of(context)).textTheme.bodySmall,
+        const Padding(
+          padding: EdgeInsets.symmetric(vertical: 12),
+          child: Divider(height: 1, color: Color(0xFFF1F5F9)),
         ),
-        const SizedBox(height: 12),
         child,
       ],
     ),
@@ -495,8 +562,7 @@ class _AdviserCard extends ConsumerWidget {
             ),
           const SizedBox(height: 8),
           sections.when(
-            loading: () =>
-                const SkeletonBox(height: 32),
+            loading: () => const SkeletonBox(height: 32),
             error: (e, _) => Text(
               userMessage(e),
               style: TextStyle(color: theme.colorScheme.error, fontSize: 13),

@@ -165,7 +165,7 @@ class _ZentraShellState extends ConsumerState<ZentraShell> {
           extendBody: showBottomNavigation,
           // Record pages retain their own title/Back header. Only their body
           // changes inside this shell; the bottom navigation stays mounted.
-          appBar: recordDestination != null
+          appBar: recordDestination != null || location == '/teacher/more'
               ? null
               : PreferredSize(
                   preferredSize: Size.fromHeight(
@@ -177,15 +177,7 @@ class _ZentraShellState extends ConsumerState<ZentraShell> {
                     child: AppBar(
                       titleSpacing: 0,
                       leadingWidth: 64,
-                      leading:
-                          location == '/adviser/bama' &&
-                              (router?.canPop() ?? false)
-                          ? ZBackButton(
-                              tooltip: 'Back',
-                              icon: const Icon(Icons.arrow_back),
-                              onPressed: () => router!.pop(),
-                            )
-                          : Builder(
+                      leading: Builder(
                               builder: (ctx) => Center(
                                 child: IconButton(
                                   style: IconButton.styleFrom(
@@ -215,7 +207,7 @@ class _ZentraShellState extends ConsumerState<ZentraShell> {
                     ),
                   ),
                 ),
-          drawer: recordDestination != null
+          drawer: recordDestination != null || location == '/teacher/more'
               ? null
               : ZentraDrawer(selectedPath: widget.selectedPath),
           bottomNavigationBar: showBottomNavigation
@@ -896,9 +888,21 @@ Future<void> showZNotifications(BuildContext context, WidgetRef ref) async {
                   centerTitle: true,
                   actionsPadding: const EdgeInsets.only(right: 12),
                   actions: [
-                    IconButton(
-                      tooltip: 'Mark all read',
-                      onPressed: () async {
+                    PopupMenuButton<String>(
+                      tooltip: 'Actions',
+                      style: IconButton.styleFrom(
+                        side: const BorderSide(color: Color(0xFFE5E8F0)),
+                        minimumSize: const Size(42, 42),
+                        shape: const CircleBorder(),
+                      ),
+                      icon: const Icon(Icons.more_vert, size: 22),
+                      itemBuilder: (_) => const [
+                        PopupMenuItem(
+                          value: 'mark-all-read',
+                          child: Text('Mark all read'),
+                        ),
+                      ],
+                      onSelected: (_) async {
                         try {
                           await markAllNotificationsRead(ref);
                         } catch (e) {
@@ -909,7 +913,6 @@ Future<void> showZNotifications(BuildContext context, WidgetRef ref) async {
                           }
                         }
                       },
-                      icon: const Icon(Icons.done_all, size: 22),
                     ),
                   ],
                 ),
@@ -1483,28 +1486,25 @@ class _ProfileScreen extends ConsumerWidget {
                             size: 18,
                           ),
                         ),
+                        const Divider(),
+                        ListTile(
+                          key: const ValueKey('profile-logout'),
+                          onTap: () => _logout(context, ref),
+                          leading: const Icon(LucideIcons.logOut, size: 20),
+                          title: const Text(
+                            'Logout',
+                            style: TextStyle(fontSize: 14),
+                          ),
+                          trailing: const Icon(
+                            LucideIcons.chevronRight,
+                            size: 18,
+                          ),
+                        ),
                       ],
                     ),
                   ),
                 ],
               ),
-            ),
-          ),
-        ),
-        bottomNavigationBar: SafeArea(
-          top: false,
-          minimum: const EdgeInsets.fromLTRB(12, 0, 12, 12),
-          child: ZCard(
-            padding: EdgeInsets.zero,
-            child: ListTile(
-              key: const ValueKey('profile-logout'),
-              onTap: () => _logout(context, ref),
-              leading: const Icon(LucideIcons.logOut, size: 20),
-              title: const Text(
-                'Logout',
-                style: TextStyle(fontSize: 14),
-              ),
-              trailing: const Icon(LucideIcons.chevronRight, size: 18),
             ),
           ),
         ),

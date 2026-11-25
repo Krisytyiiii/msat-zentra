@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:lucide_icons_flutter/lucide_icons.dart';
 
 import 'attendance_data.dart';
@@ -22,6 +23,8 @@ class AttendanceScanSnapshot {
     this.schoolYear,
     this.term,
     this.grade,
+    this.section,
+    this.date,
     this.start,
     this.late,
     this.absent,
@@ -29,7 +32,7 @@ class AttendanceScanSnapshot {
   });
   final List<AttendanceScanEntry> learners;
   final Map<String, String> marks;
-  final String? schoolYear, term, grade, start, late, absent;
+  final String? schoolYear, term, grade, section, date, start, late, absent;
   final int lateAfterMinutes;
 }
 
@@ -40,14 +43,13 @@ class AttendanceScanView extends StatefulWidget {
     required this.title,
     required this.historyEdit,
     required this.automatic,
-    required this.allowAutomatic,
     required this.manual,
     required this.message,
     required this.error,
     required this.busy,
     required this.camera,
     required this.onDone,
-    required this.onAutomaticChanged,
+    this.onSave,
     required this.onManualChanged,
     this.onTorch,
     this.torchOn = false,
@@ -57,14 +59,14 @@ class AttendanceScanView extends StatefulWidget {
   });
 
   final String title;
-  final bool historyEdit, automatic, allowAutomatic, error, busy, torchOn;
+  final bool historyEdit, automatic, error, busy, torchOn;
   final String manual, message;
   final Widget camera;
   final AttendanceScanSnapshot? snapshot;
   final Map<String, DateTime> scanTimes;
   final VoidCallback onDone;
+  final VoidCallback? onSave;
   final VoidCallback? onTorch;
-  final ValueChanged<bool> onAutomaticChanged;
   final ValueChanged<String> onManualChanged;
   final ValueChanged<int>? onLateAfterChanged;
 
@@ -74,10 +76,17 @@ class AttendanceScanView extends StatefulWidget {
 
 class _AttendanceScanViewState extends State<AttendanceScanView> {
   final _search = TextEditingController();
-  String _tab = 'scanned';
+  String _filter = 'scanned';
+  String _sort = 'time';
   String _query = '';
-  bool _descending = false;
-  bool _rulesOpen = true;
+  bool _rulesOpen = false;
+
+  @override
+  void initState() {
+    super.initState();
+    // History corrections stay on the manual P/A/L/E controls.
+    _rulesOpen = widget.historyEdit;
+  }
 
   @override
   void dispose() {
@@ -88,12 +97,16 @@ class _AttendanceScanViewState extends State<AttendanceScanView> {
   String _status(AttendanceScanEntry learner) =>
       widget.snapshot?.marks[learner.id] ?? '';
 
-  int _count(String tab) {
+  int _count(String status) {
     final learners = widget.snapshot?.learners ?? const <AttendanceScanEntry>[];
-    if (tab == 'scanned') {
+    if (status == 'scanned') {
       return learners.where((l) => _status(l).isNotEmpty).length;
     }
-    return learners.where((l) => _status(l) == tab).length;
+    return learners.where((l) => _status(l) == status).length;
+  }
+
+  void _selectFilter(String status) {
+    setState(() => _filter = _filter == status ? 'scanned' : status);
   }
 
   @override
@@ -103,55 +116,47 @@ class _AttendanceScanViewState extends State<AttendanceScanView> {
     final query = _query.trim().toLowerCase();
     final filtered = learners.where((l) {
       final status = _status(l);
-      if (_tab == 'scanned' ? status.isEmpty : status != _tab) return false;
+      if (_filter == 'scanned' ? status.isEmpty : status != _filter) {
+        return false;
+      }
       return l.name.toLowerCase().contains(query) ||
           l.lrn.toLowerCase().contains(query);
-    }).toList();
-    filtered.sort(
-      (a, b) =>
-          _descending ? b.name.compareTo(a.name) : a.name.compareTo(b.name),
-    );
+    }).toList()..sort(_compare);
 
     return Scaffold(
-      backgroundColor: const Color(0xFFF8FAFD),
+      backgroundColor: Colors.white,
       appBar: AppBar(
         shape: const Border(bottom: BorderSide(color: Color(0xFFEDF0F6))),
-        backgroundColor: Colors.white,
-        surfaceTintColor: Colors.white,
-        centerTitle: false,
-        titleSpacing: 4,
-        leadingWidth: 64,
+        centerTitle: true,
         leading: ZBackButton(
-            tooltip: 'Back',
-            icon: const Icon(LucideIcons.chevronLeft, size: 20),
-            onPressed: widget.busy ? null : widget.onDone,
+          tooltip: 'Back',
+          icon: const Icon(Icons.chevron_left),
+          onPressed: widget.busy ? null : widget.onDone,
         ),
-        title: const Text(
-          'Scan Attendance',
-          style: TextStyle(
-            fontSize: 19,
-            fontWeight: FontWeight.w700,
-            color: Color(0xFF101828),
-          ),
-        ),
+        title: const Text('Scan Attendance'),
       ),
-      bottomNavigationBar: SafeArea(
-        child: Padding(
-          padding: const EdgeInsets.fromLTRB(16, 10, 16, 12),
-          child: FilledButton.icon(
-            style: FilledButton.styleFrom(
-              backgroundColor: const Color(0xFF2563EB),
-              foregroundColor: Colors.white,
-              minimumSize: const Size.fromHeight(52),
-              shape: const StadiumBorder(),
-              textStyle: const TextStyle(
-                fontSize: 15,
-                fontWeight: FontWeight.w600,
+      bottomNavigationBar: Container(
+        decoration: const BoxDecoration(
+          color: Colors.white,
+          border: Border(top: BorderSide(color: Color(0xFFEDF0F6))),
+        ),
+        child: SafeArea(
+          child: Padding(
+            padding: const EdgeInsets.fromLTRB(16, 10, 16, 12),
+            child: FilledButton(
+              style: FilledButton.styleFrom(
+                backgroundColor: const Color(0xFF2563EB),
+                foregroundColor: Colors.white,
+                minimumSize: const Size.fromHeight(52),
+                shape: const StadiumBorder(),
+                textStyle: const TextStyle(
+                  fontSize: 15,
+                  fontWeight: FontWeight.w600,
+                ),
               ),
+              onPressed: widget.busy ? null : widget.onSave ?? widget.onDone,
+              child: const Text('Save'),
             ),
-            onPressed: widget.busy ? null : widget.onDone,
-            icon: const Icon(LucideIcons.clipboardCheck, size: 19),
-            label: const Text('Done · Review Attendance'),
           ),
         ),
       ),
@@ -159,40 +164,70 @@ class _AttendanceScanViewState extends State<AttendanceScanView> {
         child: ConstrainedBox(
           constraints: const BoxConstraints(maxWidth: 640),
           child: ListView(
-            padding: const EdgeInsets.fromLTRB(16, 8, 16, 24),
+            padding: const EdgeInsets.fromLTRB(12, 16, 12, 24),
             children: [
-              _scopeCard(snapshot),
+              ZContentHeader(
+                title: widget.title,
+                icon: LucideIcons.graduationCap,
+                titleTrailing: snapshot?.date?.isNotEmpty == true
+                    ? Tooltip(
+                        message: 'Date',
+                        child: Container(
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 8,
+                            vertical: 4,
+                          ),
+                          decoration: BoxDecoration(
+                            color: const Color(0xFFF3F4F6),
+                            border: Border.all(color: const Color(0xFFE5E7EB)),
+                            borderRadius: BorderRadius.circular(999),
+                          ),
+                          child: Row(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              const Icon(
+                                LucideIcons.calendarDays,
+                                size: 14,
+                                color: Color(0xFF6B7280),
+                              ),
+                              const SizedBox(width: 4),
+                              Text(
+                                snapshot!.date!,
+                                style: const TextStyle(
+                                  fontSize: 12,
+                                  fontWeight: FontWeight.w600,
+                                  color: Color(0xFF6B7280),
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                      )
+                    : null,
+                description: widget.historyEdit
+                    ? 'Correct a learner’s mark for the selected meeting.'
+                    : 'Scan each learner’s Zentra QR code to draft attendance.',
+              ),
               const SizedBox(height: 12),
-              _cameraCard(),
+              _scopePills(snapshot),
+              const SizedBox(height: 4),
+              _rulesSummary(snapshot),
+              if (_rulesOpen) ...[const SizedBox(height: 8), _rulesCard()],
+              const SizedBox(height: 14),
+              _scanCard(),
               const SizedBox(height: 10),
               _messageBanner(),
-              const SizedBox(height: 12),
-              _rulesCard(),
               const SizedBox(height: 14),
-              _tabs(),
-              const SizedBox(height: 10),
+              _summary(),
+              const SizedBox(height: 12),
               _searchRow(),
-              const SizedBox(height: 10),
+              const SizedBox(height: 2),
+              _listHeader(filtered.length),
+              const SizedBox(height: 4),
               if (filtered.isEmpty)
                 _empty()
               else
-                for (final learner in filtered) ...[
-                  _learnerCard(learner),
-                  const SizedBox(height: 8),
-                ],
-              if (widget.snapshot != null) ...[
-                const SizedBox(height: 4),
-                Text(
-                  widget.historyEdit
-                      ? 'Only the scanned student’s mark is replaced. Everyone else stays unchanged; ADM-exempt students are skipped.'
-                      : 'Scans are kept as drafts. Review and save attendance on the next screen. Existing marks and ADM-exempt students are not overwritten.',
-                  style: const TextStyle(
-                    fontSize: 12,
-                    color: Color(0xFF71809B),
-                    height: 1.35,
-                  ),
-                ),
-              ],
+                for (final learner in filtered) _learnerRow(learner),
             ],
           ),
         ),
@@ -200,136 +235,225 @@ class _AttendanceScanViewState extends State<AttendanceScanView> {
     );
   }
 
-  Widget _scopeCard(AttendanceScanSnapshot? snapshot) => Container(
-    padding: const EdgeInsets.all(14),
-    decoration: BoxDecoration(
-      color: const Color(0xFFF3F7FF),
-      border: Border.all(color: const Color(0xFFDCE7F8)),
-      borderRadius: BorderRadius.circular(20),
-    ),
-    child: Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
+  int _compare(AttendanceScanEntry a, AttendanceScanEntry b) {
+    if (_sort.startsWith('time')) {
+      final left = widget.scanTimes[a.id];
+      final right = widget.scanTimes[b.id];
+      if (left != null || right != null) {
+        if (left == null) return 1;
+        if (right == null) return -1;
+        final order = left.compareTo(right);
+        if (order != 0) return _sort == 'time' ? -order : order;
+      }
+    }
+    final order = a.name.toLowerCase().compareTo(b.name.toLowerCase());
+    return _sort == 'nameDesc' ? -order : order;
+  }
+
+  Widget _scopePills(AttendanceScanSnapshot? snapshot) {
+    final grade = [
+      snapshot?.grade,
+      snapshot?.section,
+    ].where((value) => value != null && value.isNotEmpty).join(' · ');
+    final time = [
+      snapshot?.start,
+      snapshot?.absent,
+    ].where((value) => value != null && value.isNotEmpty).join(' – ');
+    if ([grade, time].every((value) => value.isEmpty)) {
+      return const SizedBox.shrink();
+    }
+    return Wrap(
+      spacing: 6,
+      runSpacing: 6,
       children: [
-        Row(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Container(
-              width: 44,
-              height: 44,
-              decoration: BoxDecoration(
-                color: Colors.white,
-                border: Border.all(color: const Color(0xFFBFD4FA)),
-                borderRadius: BorderRadius.circular(12),
-              ),
-              child: const Icon(
-                LucideIcons.scanLine,
-                color: Color(0xFF2563EB),
-                size: 22,
-              ),
-            ),
-            const SizedBox(width: 12),
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  const Text(
-                    'QR ATTENDANCE',
-                    style: TextStyle(
-                      fontSize: 11,
-                      letterSpacing: .4,
-                      color: Color(0xFF2563EB),
-                      fontWeight: FontWeight.w700,
-                    ),
-                  ),
-                  const SizedBox(height: 2),
-                  Text(
-                    widget.title,
-                    maxLines: 2,
-                    overflow: TextOverflow.ellipsis,
-                    style: const TextStyle(
-                      fontSize: 18,
-                      fontWeight: FontWeight.w700,
-                      color: Color(0xFF101828),
-                    ),
-                  ),
-                  const SizedBox(height: 3),
-                  Text(
-                    widget.historyEdit
-                        ? 'Correct a learner’s mark for the selected meeting.'
-                        : 'Scan each learner’s Zentra QR code to draft attendance.',
-                    style: const TextStyle(
-                      fontSize: 12,
-                      color: Color(0xFF667085),
-                      height: 1.3,
-                    ),
-                  ),
-                ],
+        if (grade.isNotEmpty)
+          ZScopePill(
+            text: grade,
+            kind: ScopePillKind.grade,
+            label: 'Grade and section',
+            compact: true,
+          ),
+        if (time.isNotEmpty)
+          ZScopePill(
+            text: time,
+            kind: ScopePillKind.schoolYear,
+            label: 'Class time',
+            compact: true,
+          ),
+      ],
+    );
+  }
+
+  Widget _rulesSummary(AttendanceScanSnapshot? snapshot) => Column(
+    children: [
+      Row(
+        children: [
+          const Expanded(
+            child: Text(
+              'TIMING OVERVIEW',
+              style: TextStyle(
+                fontSize: 12,
+                fontWeight: FontWeight.w600,
+                color: Color(0xFF667085),
               ),
             ),
-          ],
-        ),
-        if ([
-          snapshot?.schoolYear,
-          snapshot?.term,
-          snapshot?.grade,
-        ].any((value) => value != null && value.isNotEmpty)) ...[
-          const SizedBox(height: 10),
-          Wrap(
-            spacing: 8,
-            runSpacing: 6,
-            children: [
-              if (snapshot?.schoolYear != null &&
-                  snapshot!.schoolYear!.isNotEmpty)
-                ZScopePill(text: snapshot.schoolYear!, kind: ScopePillKind.schoolYear, compact: true),
-              if (snapshot?.term != null && snapshot!.term!.isNotEmpty)
-                ZScopePill(text: snapshot.term!, kind: ScopePillKind.term, compact: true),
-              if (snapshot?.grade != null && snapshot!.grade!.isNotEmpty)
-                ZScopePill(text: snapshot.grade!, kind: ScopePillKind.grade, compact: true),
-            ],
+          ),
+          TextButton(
+            style: TextButton.styleFrom(
+              minimumSize: const Size(48, 32),
+              padding: const EdgeInsets.symmetric(horizontal: 8),
+              visualDensity: VisualDensity.compact,
+              tapTargetSize: MaterialTapTargetSize.padded,
+              textStyle: const TextStyle(
+                fontSize: 13,
+                fontWeight: FontWeight.w400,
+              ),
+            ),
+            onPressed: () => setState(() => _rulesOpen = !_rulesOpen),
+            child: Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                const Text('Rules'),
+                const SizedBox(width: 4),
+                Icon(
+                  _rulesOpen
+                      ? LucideIcons.chevronDown
+                      : LucideIcons.chevronRight,
+                  size: 16,
+                ),
+              ],
+            ),
           ),
         ],
+      ),
+      Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Expanded(
+            child: _summaryTile(
+              icon: LucideIcons.clock,
+              tint: const Color(0xFFEEF2FF),
+              ink: const Color(0xFF4263F0),
+              label: 'Late After',
+              value: snapshot?.late ?? '—',
+            ),
+          ),
+          const SizedBox(width: 8),
+          Expanded(
+            child: _summaryTile(
+              icon: LucideIcons.calendarCheck,
+              tint: const Color(0xFFFFF6E5),
+              ink: const Color(0xFFB77908),
+              label: 'Auto Absent',
+              value: snapshot?.absent == null
+                  ? '—'
+                  : 'After ${snapshot!.absent}',
+            ),
+          ),
+        ],
+      ),
+    ],
+  );
+
+  Widget _summaryTile({
+    required IconData icon,
+    required Color tint,
+    required Color ink,
+    required String label,
+    required String value,
+  }) => Container(
+    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 8),
+    decoration: BoxDecoration(
+      color: Colors.white,
+      border: Border.all(color: const Color(0xFFE6ECF4)),
+      borderRadius: BorderRadius.circular(12),
+    ),
+    child: Row(
+      children: [
+        Container(
+          width: 32,
+          height: 32,
+          decoration: BoxDecoration(
+            color: tint,
+            borderRadius: BorderRadius.circular(9),
+          ),
+          child: Icon(icon, size: 16, color: ink),
+        ),
+        const SizedBox(width: 8),
+        Expanded(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Text(
+                label,
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                style: const TextStyle(fontSize: 12, color: Color(0xFF667085)),
+              ),
+              const SizedBox(height: 2),
+              FittedBox(
+                fit: BoxFit.scaleDown,
+                alignment: Alignment.centerLeft,
+                child: Text(
+                  value,
+                  maxLines: 1,
+                  style: const TextStyle(
+                    fontSize: 13,
+                    fontWeight: FontWeight.w700,
+                    color: Color(0xFF172033),
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ),
       ],
     ),
   );
 
-  Widget _cameraCard() => ClipRRect(
-    borderRadius: BorderRadius.circular(22),
+  Widget _scanCard() => ClipRRect(
+    borderRadius: BorderRadius.circular(18),
     child: AspectRatio(
-      aspectRatio: 1.45,
+      aspectRatio: 1.9,
       child: Stack(
         fit: StackFit.expand,
         children: [
+          const DecoratedBox(
+            decoration: BoxDecoration(
+              gradient: LinearGradient(
+                begin: Alignment.topLeft,
+                end: Alignment.bottomRight,
+                colors: [Color(0xFFEDF2FF), Color(0xFFF6F2FF)],
+              ),
+            ),
+          ),
           widget.camera,
           IgnorePointer(
             child: Center(
               child: FractionallySizedBox(
-                widthFactor: .56,
-                heightFactor: .62,
-                child: Stack(
-                  alignment: Alignment.center,
-                  children: [
-                    DecoratedBox(
-                      decoration: BoxDecoration(
-                        border: Border.all(color: Colors.white, width: 3),
-                        borderRadius: BorderRadius.circular(18),
-                      ),
-                    ),
-                    Container(
-                      height: 2,
-                      margin: const EdgeInsets.symmetric(horizontal: 14),
-                      decoration: BoxDecoration(
-                        color: const Color(0xFF60A5FA),
-                        boxShadow: [
-                          BoxShadow(
-                            color: const Color(0xFF3B82F6)
-                                .withValues(alpha: .8),
-                            blurRadius: 12,
-                            spreadRadius: 2,
-                          ),
-                        ],
-                      ),
-                    ),
-                  ],
+                widthFactor: .44,
+                heightFactor: .6,
+                child: CustomPaint(
+                  painter: _ScanCornersPainter(const Color(0xFFD97706)),
+                ),
+              ),
+            ),
+          ),
+          const IgnorePointer(
+            child: Center(
+              child: DecoratedBox(
+                decoration: BoxDecoration(
+                  color: Color(0xF2FFFFFF),
+                  shape: BoxShape.circle,
+                ),
+                child: Padding(
+                  padding: EdgeInsets.all(10),
+                  child: Icon(
+                    LucideIcons.qrCode,
+                    size: 30,
+                    color: Color(0xFF1F2937),
+                  ),
                 ),
               ),
             ),
@@ -342,7 +466,7 @@ class _AttendanceScanViewState extends State<AttendanceScanView> {
                   ? 'Turn off flashlight'
                   : 'Turn on flashlight',
               style: IconButton.styleFrom(
-                backgroundColor: Colors.black.withValues(alpha: .42),
+                backgroundColor: Colors.black.withValues(alpha: .32),
                 foregroundColor: Colors.white,
                 minimumSize: const Size(40, 40),
               ),
@@ -355,18 +479,28 @@ class _AttendanceScanViewState extends State<AttendanceScanView> {
               ),
             ),
           ),
-          const Positioned(
+          Positioned(
             bottom: 12,
             left: 16,
             right: 16,
-            child: Text(
-              'Align QR code inside the frame',
-              textAlign: TextAlign.center,
-              style: TextStyle(
-                color: Colors.white,
-                fontSize: 12,
-                fontWeight: FontWeight.w500,
-                shadows: [Shadow(blurRadius: 6)],
+            child: Center(
+              child: Container(
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 10,
+                  vertical: 5,
+                ),
+                decoration: BoxDecoration(
+                  color: Colors.white.withValues(alpha: .92),
+                  borderRadius: BorderRadius.circular(999),
+                ),
+                child: const Text(
+                  'Tap to Scan',
+                  style: TextStyle(
+                    fontSize: 11,
+                    fontWeight: FontWeight.w600,
+                    color: Color(0xFF172033),
+                  ),
+                ),
               ),
             ),
           ),
@@ -380,13 +514,13 @@ class _AttendanceScanViewState extends State<AttendanceScanView> {
     child: Container(
       padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
       decoration: BoxDecoration(
-        color: widget.error ? const Color(0xFFFFF4F4) : Colors.white,
+        color: widget.error ? const Color(0xFFFFF4F4) : const Color(0xFFEFF6FF),
         border: Border.all(
           color: widget.error
               ? const Color(0xFFFECACA)
-              : const Color(0xFFE6ECF4),
+              : const Color(0xFFD4E4FF),
         ),
-        borderRadius: BorderRadius.circular(14),
+        borderRadius: BorderRadius.circular(12),
       ),
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -416,17 +550,182 @@ class _AttendanceScanViewState extends State<AttendanceScanView> {
     ),
   );
 
+  Widget _summary() => Column(
+    crossAxisAlignment: CrossAxisAlignment.start,
+    children: [
+      const Text(
+        'ATTENDANCE SUMMARY',
+        style: TextStyle(
+          fontSize: 12,
+          fontWeight: FontWeight.w600,
+          letterSpacing: .3,
+          color: Color(0xFF71809B),
+        ),
+      ),
+      const SizedBox(height: 8),
+      Row(
+        children: [
+          Expanded(
+            child: _counter(
+              'present',
+              'Present',
+              const Color(0xFF4263F0),
+              const Color(0xFFEEF1FF),
+            ),
+          ),
+          const SizedBox(width: 8),
+          Expanded(
+            child: _counter(
+              'late',
+              'Late',
+              const Color(0xFFB45309),
+              const Color(0xFFFFF6E5),
+            ),
+          ),
+          const SizedBox(width: 8),
+          Expanded(
+            child: _counter(
+              'absent',
+              'Absent',
+              const Color(0xFFE11D48),
+              const Color(0xFFFFEDEF),
+            ),
+          ),
+        ],
+      ),
+    ],
+  );
+
+  Widget _counter(String status, String label, Color ink, Color background) {
+    final selected = _filter == status;
+    return InkWell(
+      key: ValueKey('scan-filter-$status'),
+      borderRadius: BorderRadius.circular(12),
+      onTap: () => _selectFilter(status),
+      child: Container(
+        padding: const EdgeInsets.all(10),
+        decoration: BoxDecoration(
+          color: background,
+          borderRadius: BorderRadius.circular(12),
+          border: Border.all(
+            color: selected ? ink : ink.withValues(alpha: 0),
+            width: selected ? 1.5 : 1,
+          ),
+        ),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(
+              label,
+              style: TextStyle(
+                fontSize: 12,
+                fontWeight: FontWeight.w600,
+                color: ink,
+              ),
+            ),
+            const SizedBox(height: 6),
+            Text(
+              _count(status).toString(),
+              key: ValueKey('scan-count-$status'),
+              style: TextStyle(
+                fontSize: 22,
+                fontWeight: FontWeight.w700,
+                color: ink,
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _searchRow() => TextField(
+    controller: _search,
+    onChanged: (value) => setState(() => _query = value),
+    style: const TextStyle(fontSize: 12),
+    decoration: InputDecoration(
+      hintText: 'Search student or LRN',
+      hintStyle: const TextStyle(fontSize: 12, color: Color(0xFF98A2B3)),
+      prefixIcon: const Icon(Icons.search, size: 20),
+      suffixIcon: _query.trim().isEmpty
+          ? null
+          : IconButton(
+              tooltip: 'Clear search',
+              icon: const Icon(Icons.close, size: 16),
+              onPressed: () {
+                _search.clear();
+                setState(() => _query = '');
+              },
+            ),
+      filled: true,
+      fillColor: const Color(0xFFF5F7FA),
+      border: OutlineInputBorder(
+        borderRadius: BorderRadius.circular(999),
+        borderSide: const BorderSide(color: Color(0xFFE6ECF4)),
+      ),
+      enabledBorder: OutlineInputBorder(
+        borderRadius: BorderRadius.circular(999),
+        borderSide: const BorderSide(color: Color(0xFFE6ECF4)),
+      ),
+      focusedBorder: OutlineInputBorder(
+        borderRadius: BorderRadius.circular(999),
+        borderSide: const BorderSide(color: Color(0xFFBFD4FA)),
+      ),
+    ),
+  );
+
+  Widget _listHeader(int count) => Row(
+    children: [
+      Expanded(
+        child: Text(
+          'Showing $count records',
+          semanticsLabel: '$_filterLabel: $count records',
+          maxLines: 1,
+          overflow: TextOverflow.ellipsis,
+          style: const TextStyle(fontSize: 12, color: Color(0xFF9999A6)),
+        ),
+      ),
+      TextButton.icon(
+        onPressed: () => setState(() {
+          const sorts = ['time', 'timeAsc', 'name', 'nameDesc'];
+          _sort = sorts[(sorts.indexOf(_sort) + 1) % sorts.length];
+        }),
+        icon: const Icon(LucideIcons.listFilter, size: 14),
+        label: Text(_sortLabel, style: const TextStyle(fontSize: 12)),
+        style: TextButton.styleFrom(
+          foregroundColor: const Color(0xFF334155),
+          padding: const EdgeInsets.symmetric(horizontal: 8),
+          minimumSize: const Size(48, 48),
+        ),
+      ),
+    ],
+  );
+
+  String get _filterLabel => switch (_filter) {
+    'present' => 'Present Students',
+    'late' => 'Late Students',
+    'absent' => 'Absent Students',
+    _ => 'Scanned Students',
+  };
+
+  String get _sortLabel => switch (_sort) {
+    'timeAsc' => 'Time (Earliest)',
+    'name' => 'Name (A–Z)',
+    'nameDesc' => 'Name (Z–A)',
+    _ => 'Time (Latest)',
+  };
+
   Widget _rulesCard() => Container(
     decoration: BoxDecoration(
       color: Colors.white,
       border: Border.all(color: const Color(0xFFE6ECF4)),
-      borderRadius: BorderRadius.circular(20),
+      borderRadius: BorderRadius.circular(16),
     ),
     child: Column(
       children: [
         InkWell(
-          borderRadius: BorderRadius.circular(20),
-          onTap: () => setState(() => _rulesOpen = !_rulesOpen),
+          borderRadius: BorderRadius.circular(16),
+          onTap: () => setState(() => _rulesOpen = false),
           child: Padding(
             padding: const EdgeInsets.fromLTRB(14, 12, 14, 12),
             child: Row(
@@ -434,7 +733,7 @@ class _AttendanceScanViewState extends State<AttendanceScanView> {
                 const Icon(
                   LucideIcons.settings,
                   size: 17,
-                  color: Color(0xFF475467),
+                  color: Color(0xFF52627C),
                 ),
                 const SizedBox(width: 8),
                 const Expanded(
@@ -443,14 +742,14 @@ class _AttendanceScanViewState extends State<AttendanceScanView> {
                     style: TextStyle(
                       fontSize: 14,
                       fontWeight: FontWeight.w600,
-                      color: Color(0xFF101828),
+                      color: Color(0xFF172033),
                     ),
                   ),
                 ),
                 Icon(
                   _rulesOpen ? LucideIcons.chevronUp : LucideIcons.chevronDown,
                   size: 18,
-                  color: const Color(0xFF667085),
+                  color: const Color(0xFF71809B),
                 ),
               ],
             ),
@@ -470,103 +769,52 @@ class _AttendanceScanViewState extends State<AttendanceScanView> {
                     ),
                     const SizedBox(width: 8),
                     Expanded(
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          const Text(
-                            'Late After',
-                            style: TextStyle(
-                              fontSize: 12,
-                              color: Color(0xFF667085),
-                            ),
-                          ),
-                          DropdownButtonFormField<int>(
-                            key: ValueKey(
-                              widget.snapshot?.lateAfterMinutes ?? 20,
-                            ),
-                            initialValue:
-                                widget.snapshot?.lateAfterMinutes ?? 20,
-                            isExpanded: true,
-                            decoration: const InputDecoration(
-                              isDense: true,
-                              contentPadding: EdgeInsets.symmetric(
-                                horizontal: 8,
-                                vertical: 8,
-                              ),
-                            ),
-                            style: const TextStyle(
-                              fontSize: 12,
-                              color: Color(0xFF101828),
-                            ),
-                            items: [
-                              for (var minutes = 0; minutes <= 240; minutes++)
-                                DropdownMenuItem(
-                                  value: minutes,
-                                  child: Text(
-                                    '$minutes min',
-                                    overflow: TextOverflow.ellipsis,
-                                  ),
-                                ),
-                            ],
-                            onChanged:
-                                widget.busy || widget.onLateAfterChanged == null
-                                ? null
-                                : (value) {
-                                    if (value != null) {
-                                      widget.onLateAfterChanged!(value);
-                                    }
-                                  },
-                          ),
-                          if (widget.snapshot?.late != null)
-                            Text(
-                              widget.snapshot!.late!,
-                              style: const TextStyle(
-                                fontSize: 12,
-                                color: Color(0xFF667085),
-                              ),
-                            ),
-                        ],
-                      ),
-                    ),
-                    const SizedBox(width: 8),
-                    Expanded(
                       child: _ruleTime('Absent After', widget.snapshot?.absent),
                     ),
                   ],
                 ),
-                if (widget.allowAutomatic) ...[
-                  const SizedBox(height: 6),
-                  Material(
-                    color: Colors.transparent,
-                    child: SwitchListTile.adaptive(
-                      contentPadding: EdgeInsets.zero,
-                      dense: true,
-                      title: const Text(
-                        'Automatic marking',
+                const SizedBox(height: 12),
+                Row(
+                  children: [
+                    const Expanded(
+                      child: Text(
+                        'Late threshold',
                         style: TextStyle(
-                          fontSize: 13,
-                          fontWeight: FontWeight.w600,
+                          fontSize: 12,
+                          color: Color(0xFF667085),
                         ),
                       ),
-                      subtitle: Text(
-                        widget.historyEdit
-                            ? 'Late from ${widget.snapshot?.lateAfterMinutes ?? 20} minutes after start. Only the scanned student changes.'
-                            : 'Late from ${widget.snapshot?.lateAfterMinutes ?? 20} minutes after start. Unmarked students become Absent after the period.',
+                    ),
+                    if (widget.snapshot?.late != null)
+                      Text(
+                        'Late from ${widget.snapshot!.late}',
                         style: const TextStyle(
-                          fontSize: 11,
-                          color: Color(0xFF71809B),
+                          fontSize: 12,
+                          color: Color(0xFF98A2B3),
                         ),
                       ),
-                      value: widget.automatic,
-                      onChanged: widget.busy ? null : widget.onAutomaticChanged,
+                  ],
+                ),
+                const SizedBox(height: 6),
+                SingleChildScrollView(
+                  scrollDirection: Axis.horizontal,
+                  child: Row(
+                    spacing: 4,
+                    children: _lateChips(
+                      widget.snapshot?.lateAfterMinutes ?? 20,
                     ),
                   ),
-                ],
+                ),
                 if (!widget.automatic) ...[
-                  const SizedBox(height: 8),
+                  const SizedBox(height: 12),
+                  const Text(
+                    'Mark scanned student as',
+                    style: TextStyle(fontSize: 12, color: Color(0xFF667085)),
+                  ),
+                  const SizedBox(height: 6),
                   Wrap(
-                    spacing: 8,
-                    runSpacing: 8,
+                    spacing: 6,
+                    runSpacing: 6,
                     children: [
                       for (final entry in {
                         'present': widget.historyEdit ? 'P' : 'Present',
@@ -593,6 +841,69 @@ class _AttendanceScanViewState extends State<AttendanceScanView> {
       ],
     ),
   );
+
+  List<Widget> _lateChips(int late) {
+    const presets = [10, 15, 30];
+    final enabled = !widget.busy && widget.onLateAfterChanged != null;
+    final custom = !presets.contains(late);
+    return [
+      for (final minutes in presets)
+        _thresholdChip(
+          '$minutes min',
+          late == minutes,
+          enabled ? () => widget.onLateAfterChanged!(minutes) : null,
+        ),
+      _thresholdChip(
+        custom ? '$late min' : 'Custom',
+        custom,
+        enabled ? () => _pickCustomLate(late) : null,
+        edit: custom,
+      ),
+    ];
+  }
+
+  Widget _thresholdChip(
+    String label,
+    bool selected,
+    VoidCallback? onTap, {
+    bool edit = false,
+  }) => ChoiceChip(
+    padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 0),
+    labelPadding: const EdgeInsets.symmetric(horizontal: 4),
+    visualDensity: VisualDensity.compact,
+    label: Row(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        Text(label),
+        if (edit) ...[
+          const SizedBox(width: 4),
+          const Icon(LucideIcons.pencil, size: 14, color: Color(0xFF2442A8)),
+        ],
+      ],
+    ),
+    labelStyle: TextStyle(
+      fontSize: 12,
+      fontWeight: selected ? FontWeight.w600 : FontWeight.w500,
+      color: selected ? const Color(0xFF2442A8) : const Color(0xFF52627C),
+    ),
+    selected: selected,
+    showCheckmark: false,
+    selectedColor: const Color(0xFFEEF2FF),
+    backgroundColor: Colors.white,
+    side: BorderSide(
+      color: selected ? const Color(0xFFBFD4FA) : const Color(0xFFE4E9F2),
+    ),
+    materialTapTargetSize: MaterialTapTargetSize.padded,
+    onSelected: onTap == null ? null : (_) => onTap(),
+  );
+
+  Future<void> _pickCustomLate(int current) async {
+    final minutes = await showDialog<int>(
+      context: context,
+      builder: (_) => _CustomLateDialog(initial: current),
+    );
+    if (minutes != null && mounted) widget.onLateAfterChanged?.call(minutes);
+  }
 
   Widget _ruleTime(String label, String? value) => Column(
     crossAxisAlignment: CrossAxisAlignment.start,
@@ -630,160 +941,36 @@ class _AttendanceScanViewState extends State<AttendanceScanView> {
     ],
   );
 
-  Widget _tabs() {
-    const tabs = [
-      ('scanned', 'Scanned', LucideIcons.scanLine, Color(0xFF2563EB)),
-      ('present', 'Present', LucideIcons.circleCheck, Color(0xFF16A34A)),
-      ('late', 'Late', LucideIcons.clock, Color(0xFFD97706)),
-      ('absent', 'Absent', LucideIcons.circleX, Color(0xFFDC2626)),
-    ];
-    return SingleChildScrollView(
-      scrollDirection: Axis.horizontal,
-      child: Row(
-        children: [
-          for (final tab in tabs)
-            InkWell(
-              borderRadius: BorderRadius.circular(10),
-              onTap: () => setState(() => _tab = tab.$1),
-              child: Container(
-                padding: const EdgeInsets.fromLTRB(10, 6, 10, 7),
-                decoration: BoxDecoration(
-                  border: Border(
-                    bottom: BorderSide(
-                      width: 2,
-                      color: _tab == tab.$1 ? tab.$4 : Colors.transparent,
-                    ),
-                  ),
-                ),
-                child: Row(
-                  children: [
-                    Icon(
-                      tab.$3,
-                      size: 15,
-                      color: _tab == tab.$1 ? tab.$4 : const Color(0xFF98A2B3),
-                    ),
-                    const SizedBox(width: 5),
-                    Text(
-                      '${tab.$2} (${_count(tab.$1)})',
-                      style: TextStyle(
-                        fontSize: 12,
-                        fontWeight: _tab == tab.$1
-                            ? FontWeight.w700
-                            : FontWeight.w500,
-                        color: _tab == tab.$1
-                            ? tab.$4
-                            : const Color(0xFF667085),
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-            ),
-        ],
-      ),
-    );
-  }
-
-  Widget _searchRow() => Row(
-    children: [
-      Expanded(
-        child: TextField(
-          controller: _search,
-          onChanged: (value) => setState(() => _query = value),
-          style: const TextStyle(fontSize: 13),
-          decoration: InputDecoration(
-            hintText: 'Search learner or LRN...',
-            hintStyle: const TextStyle(fontSize: 13, color: Color(0xFF98A2B3)),
-            prefixIcon: const Icon(
-              LucideIcons.search,
-              size: 18,
-              color: Color(0xFF667085),
-            ),
-            isDense: true,
-            filled: true,
-            fillColor: const Color(0xFFF2F5F9),
-            contentPadding: const EdgeInsets.symmetric(vertical: 12),
-            border: OutlineInputBorder(
-              borderRadius: BorderRadius.circular(24),
-              borderSide: BorderSide.none,
-            ),
-            enabledBorder: OutlineInputBorder(
-              borderRadius: BorderRadius.circular(24),
-              borderSide: BorderSide.none,
-            ),
-            focusedBorder: OutlineInputBorder(
-              borderRadius: BorderRadius.circular(24),
-              borderSide: const BorderSide(color: Color(0xFFBFD4FA)),
-            ),
-          ),
-        ),
-      ),
-      const SizedBox(width: 8),
-      PopupMenuButton<bool>(
-        tooltip: 'Sort learners',
-        initialValue: _descending,
-        onSelected: (value) => setState(() => _descending = value),
-        itemBuilder: (_) => const [
-          PopupMenuItem(value: false, child: Text('Name (A-Z)')),
-          PopupMenuItem(value: true, child: Text('Name (Z-A)')),
-        ],
-        child: Container(
-          width: 46,
-          height: 46,
-          decoration: BoxDecoration(
-            color: Colors.white,
-            border: Border.all(color: const Color(0xFFE4E9F2)),
-            borderRadius: BorderRadius.circular(14),
-          ),
-          child: const Icon(
-            LucideIcons.listFilter,
-            size: 18,
-            color: Color(0xFF475467),
-          ),
-        ),
-      ),
-    ],
-  );
-
-  Widget _learnerCard(AttendanceScanEntry learner) {
+  Widget _learnerRow(AttendanceScanEntry learner) {
     final status = _status(learner);
     final time = widget.scanTimes[learner.id];
-    final initials = learner.name
-        .split(RegExp(r'\s+'))
-        .where((part) => part.isNotEmpty)
+    final words = learner.name
+        .split(RegExp(r'[\s,]+'))
+        .where((word) => word.isNotEmpty)
         .toList();
-    final colors = [
-      (const Color(0xFFEFF6FF), const Color(0xFF2563EB)),
-      (const Color(0xFFF5F3FF), const Color(0xFF7C3AED)),
-      (const Color(0xFFFFFBEB), const Color(0xFFB45309)),
-      (const Color(0xFFECFDF5), const Color(0xFF0F766E)),
-    ];
-    final color = colors[learner.id.hashCode.abs() % colors.length];
+    final initials = words.isEmpty
+        ? '?'
+        : '${words.first.characters.first}${words.length > 1 ? words.last.characters.first : ''}'
+              .toUpperCase();
+    final colors = _statusColors(status);
     return Container(
-      padding: const EdgeInsets.all(12),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        border: Border.all(color: const Color(0xFFE9EEF6)),
-        borderRadius: BorderRadius.circular(16),
+      key: ValueKey('scan-learner-${learner.id}'),
+      padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 10),
+      decoration: const BoxDecoration(
+        border: Border(bottom: BorderSide(color: Color(0xFFF0F3F8))),
       ),
       child: Row(
         children: [
           CircleAvatar(
-            radius: 20,
-            backgroundColor: color.$1,
+            radius: 19,
+            backgroundColor: colors.$2,
+            foregroundColor: colors.$1,
             child: Text(
-              initials.isEmpty
-                  ? '?'
-                  : '${initials.first.characters.first}${initials.length > 1 ? initials.last.characters.first : ''}'
-                        .toUpperCase(),
-              style: TextStyle(
-                fontSize: 13,
-                fontWeight: FontWeight.w700,
-                color: color.$2,
-              ),
+              initials,
+              style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w600),
             ),
           ),
-          const SizedBox(width: 10),
+          const SizedBox(width: 12),
           Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
@@ -793,62 +980,56 @@ class _AttendanceScanViewState extends State<AttendanceScanView> {
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
                   style: const TextStyle(
-                    fontSize: 13,
+                    fontSize: 14,
                     fontWeight: FontWeight.w600,
-                    color: Color(0xFF101828),
+                    color: Color(0xFF172033),
                   ),
                 ),
-                const SizedBox(height: 2),
+                const SizedBox(height: 3),
                 Text(
                   'LRN ${learner.lrn}',
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
                   style: const TextStyle(
-                    fontSize: 11,
-                    color: Color(0xFF98A2B3),
+                    fontSize: 12,
+                    color: Color(0xFF71809B),
                   ),
                 ),
               ],
             ),
           ),
-          const SizedBox(width: 8),
+          const SizedBox(width: 6),
           Column(
             crossAxisAlignment: CrossAxisAlignment.end,
             children: [
-              if (time != null)
+              if (time != null) ...[
                 Text(
                   _timeLabel(time),
                   style: const TextStyle(
                     fontSize: 11,
-                    color: Color(0xFF667085),
+                    color: Color(0xFF71809B),
                   ),
                 ),
-              const SizedBox(height: 4),
-              _statusPill(status),
+                const SizedBox(height: 4),
+              ],
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                decoration: BoxDecoration(
+                  color: colors.$2,
+                  borderRadius: BorderRadius.circular(8),
+                ),
+                child: Text(
+                  attendanceLabels[status] ?? 'Unmarked',
+                  style: TextStyle(
+                    fontSize: 12,
+                    fontWeight: FontWeight.w500,
+                    color: colors.$1,
+                  ),
+                ),
+              ),
             ],
           ),
         ],
-      ),
-    );
-  }
-
-  Widget _statusPill(String status) {
-    final label = attendanceLabels[status] ?? 'Unmarked';
-    final colors = _statusColors(status);
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-      decoration: BoxDecoration(
-        color: colors.$2,
-        border: Border.all(color: colors.$3),
-        borderRadius: BorderRadius.circular(999),
-      ),
-      child: Text(
-        label,
-        style: TextStyle(
-          fontSize: 11,
-          fontWeight: FontWeight.w600,
-          color: colors.$1,
-        ),
       ),
     );
   }
@@ -882,7 +1063,7 @@ class _AttendanceScanViewState extends State<AttendanceScanView> {
   };
 
   Widget _empty() {
-    final label = switch (_tab) {
+    final label = switch (_filter) {
       'present' => 'No learners marked Present yet.',
       'late' => 'No learners marked Late yet.',
       'absent' => 'No learners marked Absent yet.',
@@ -899,4 +1080,109 @@ class _AttendanceScanViewState extends State<AttendanceScanView> {
     final minute = time.minute.toString().padLeft(2, '0');
     return '$hour:$minute ${time.hour < 12 ? 'AM' : 'PM'}';
   }
+}
+
+/// Amber corner brackets for the scan frame, matching the scanner mock.
+class _ScanCornersPainter extends CustomPainter {
+  const _ScanCornersPainter(this.color);
+  final Color color;
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    const stroke = 3.0;
+    const inset = stroke / 2;
+    final length = size.shortestSide * 0.34;
+    final paint = Paint()
+      ..color = color
+      ..style = PaintingStyle.stroke
+      ..strokeWidth = stroke
+      ..strokeCap = StrokeCap.round;
+    final radius = 12.0;
+    final rect = Offset.zero & size;
+    final path = Path()
+      ..moveTo(inset, rect.top + length)
+      ..lineTo(inset, rect.top + radius)
+      ..quadraticBezierTo(inset, inset, inset + radius, inset)
+      ..lineTo(inset + length, inset)
+      ..moveTo(rect.right - length, inset)
+      ..lineTo(rect.right - radius, inset)
+      ..quadraticBezierTo(
+        rect.right - inset,
+        inset,
+        rect.right - inset,
+        inset + radius,
+      )
+      ..lineTo(rect.right - inset, inset + length)
+      ..moveTo(inset, rect.bottom - length)
+      ..lineTo(inset, rect.bottom - radius)
+      ..quadraticBezierTo(
+        inset,
+        rect.bottom - inset,
+        inset + radius,
+        rect.bottom - inset,
+      )
+      ..lineTo(inset + length, rect.bottom - inset)
+      ..moveTo(rect.right - length, rect.bottom - inset)
+      ..lineTo(rect.right - radius, rect.bottom - inset)
+      ..quadraticBezierTo(
+        rect.right - inset,
+        rect.bottom - inset,
+        rect.right - inset,
+        rect.bottom - radius,
+      )
+      ..lineTo(rect.right - inset, rect.bottom - length);
+    canvas.drawPath(path, paint);
+  }
+
+  @override
+  bool shouldRepaint(_ScanCornersPainter oldDelegate) =>
+      oldDelegate.color != color;
+}
+
+/// Owns its controller so disposal happens with the dialog route.
+class _CustomLateDialog extends StatefulWidget {
+  const _CustomLateDialog({required this.initial});
+  final int initial;
+
+  @override
+  State<_CustomLateDialog> createState() => _CustomLateDialogState();
+}
+
+class _CustomLateDialogState extends State<_CustomLateDialog> {
+  late final _controller = TextEditingController(text: '${widget.initial}');
+
+  @override
+  void dispose() {
+    _controller.dispose();
+    super.dispose();
+  }
+
+  void _submit() {
+    final parsed = int.tryParse(_controller.text.trim());
+    if (parsed == null) return;
+    Navigator.of(context).pop(parsed.clamp(0, 240).toInt());
+  }
+
+  @override
+  Widget build(BuildContext context) => AlertDialog(
+    title: const Text('Custom late threshold'),
+    content: TextField(
+      controller: _controller,
+      autofocus: true,
+      keyboardType: TextInputType.number,
+      inputFormatters: [FilteringTextInputFormatter.digitsOnly],
+      decoration: const InputDecoration(
+        labelText: 'Minutes after start',
+        suffixText: 'min',
+      ),
+      onSubmitted: (_) => _submit(),
+    ),
+    actions: [
+      TextButton(
+        onPressed: () => Navigator.of(context).pop(),
+        child: const Text('Cancel'),
+      ),
+      FilledButton(onPressed: _submit, child: const Text('Apply')),
+    ],
+  );
 }

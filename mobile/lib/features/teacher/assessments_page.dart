@@ -8,7 +8,6 @@ import 'package:lucide_icons_flutter/lucide_icons.dart';
 import '../../core/api_client.dart';
 import '../../core/session.dart';
 import '../../design/overview_theme.dart';
-import '../../design/status_palette.dart';
 import '../../shared/widgets.dart';
 import 'assessment_score_page.dart';
 import 'gradebook_data.dart';
@@ -202,6 +201,25 @@ class _AssessmentsState extends ConsumerState<AssessmentsPage>
             title: record.assignment['subjectName']?.toString() ?? 'Assessments',
             icon: LucideIcons.clipboardList,
             description: 'Choose an assessment to enter scores.',
+            titleTrailing: Tooltip(
+              message: 'Assessment audience',
+              child: Container(
+                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                decoration: BoxDecoration(
+                  color: const Color(0xFFEFF6FF),
+                  border: Border.all(color: const Color(0xFFBFDBFE)),
+                  borderRadius: BorderRadius.circular(999),
+                ),
+                child: Text(
+                  widget.audience == 'adm' ? 'ADM' : 'Regular',
+                  style: const TextStyle(
+                    fontSize: 12,
+                    fontWeight: FontWeight.w600,
+                    color: Color(0xFF2563EB),
+                  ),
+                ),
+              ),
+            ),
           ),
           const SizedBox(height: 12),
           Wrap(
@@ -220,21 +238,22 @@ class _AssessmentsState extends ConsumerState<AssessmentsPage>
                   kind: ScopePillKind.term,
                   compact: true,
                 ),
-              if (record.assignment['gradeLevel'] != null)
+              if (record.assignment['gradeLevel'] != null ||
+                  record.assignment['sectionName'] != null)
                 ZScopePill(
-                  text: record.assignment['gradeLevel'].toString().replaceFirst(
-                    RegExp(r'^Grade\s*', caseSensitive: false),
-                    'G',
-                  ),
+                  text: [
+                    if (record.assignment['gradeLevel'] != null)
+                      record.assignment['gradeLevel'].toString().replaceFirst(
+                        RegExp(r'^Grade\s*', caseSensitive: false),
+                        'G',
+                      ),
+                    if (record.assignment['sectionName'] != null)
+                      record.assignment['sectionName'].toString(),
+                  ].where((value) => value.isNotEmpty).join(' · '),
                   kind: ScopePillKind.grade,
+                  label: 'Grade and section',
                   compact: true,
                 ),
-              if (record.assignment['sectionName'] != null)
-                ZStatusPill(
-                  text: record.assignment['sectionName'].toString(),
-                  tone: StatusTone.violet,
-                ),
-              ZStatusPill(text: widget.audience == 'adm' ? 'ADM' : 'Regular'),
             ],
           ),
           const SizedBox(height: 12),

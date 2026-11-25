@@ -25,35 +25,6 @@ class ClassRecordCards extends StatelessWidget {
   final Map<String, double> queued;
   final ValueChanged<RecordAssessment> onOpen;
 
-  Future<void> _open(
-    BuildContext context,
-    List<RecordAssessment> assessments,
-  ) async {
-    if (assessments.isEmpty) return;
-    if (assessments.length == 1) {
-      onOpen(assessments.single);
-      return;
-    }
-    final selected = await showModalBottomSheet<RecordAssessment>(
-      context: context,
-      showDragHandle: true,
-      builder: (context) => SafeArea(
-        child: ListView(
-          shrinkWrap: true,
-          children: [
-            for (final assessment in assessments)
-              ListTile(
-                title: Text(assessment.title),
-                subtitle: Text('Max ${gradeNumber(assessment.maxScore)}'),
-                onTap: () => Navigator.pop(context, assessment),
-              ),
-          ],
-        ),
-      ),
-    );
-    if (selected != null && context.mounted) onOpen(selected);
-  }
-
   @override
   Widget build(BuildContext context) => ListView.separated(
     key: const ValueKey('class-record-cards'),
@@ -211,19 +182,14 @@ class ClassRecordCards extends StatelessWidget {
     final pending = assessments.any(
       (a) => queued.containsKey('${a.id}|${learner.id}'),
     );
-    return Material(
+    return Container(
       key: ValueKey('category-$type-${learner.id}'),
-      color: Colors.transparent,
-      child: InkWell(
-        borderRadius: BorderRadius.circular(18),
-        onTap: assessments.isEmpty ? null : () => _open(context, assessments),
-        child: _tile(
+      child: _tile(
           title: '$label (${_twoDecimals(earned)}/${_twoDecimals(possible)} pts)',
           value: scored && possible > 0
               ? '${_twoDecimals(earned / possible * 100)}%'
               : '—',
           footer: pending ? 'Queued' : '',
-        ),
       ),
     );
   }

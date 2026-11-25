@@ -66,14 +66,26 @@ void main() {
           decoration.color,
           capsule.kind == ScopePillKind.term
               ? const Color(0xFFFFF6E5)
+              : capsule.kind == ScopePillKind.grade
+              ? const Color(0xFFF5F3FF)
               : const Color(0xFFEAF2FF),
         );
         expect(
           (decoration.border! as Border).top.color,
           capsule.kind == ScopePillKind.term
               ? const Color(0xFFFDE6B0)
+              : capsule.kind == ScopePillKind.grade
+              ? const Color(0xFFDDD6FE)
               : const Color(0xFFD4E4FF),
         );
+        final icon = tester.widget<Icon>(
+          find.descendant(of: find.byWidget(capsule), matching: find.byType(Icon)),
+        );
+        expect(icon.color, switch (capsule.kind) {
+          ScopePillKind.schoolYear => const Color(0xFF2563EB),
+          ScopePillKind.term => const Color(0xFFB45309),
+          ScopePillKind.grade => const Color(0xFF7C3AED),
+        });
       }
       final status = tester.widget<Container>(
         find.descendant(

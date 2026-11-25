@@ -308,14 +308,16 @@ class _HistoryState extends ConsumerState<AttendanceHistoryPage>
                         subtitle: 'Recorded class meetings will appear here.',
                       ),
                     for (final date in dates)
-                      Container(
+                      Card(
                         key: ValueKey('attendance-history-$date'),
-                        margin: const EdgeInsets.only(bottom: 10),
-                        decoration: BoxDecoration(
-                          color: Colors.white,
-                          border: Border.all(color: const Color(0xFFE6ECF4)),
+                        margin: const EdgeInsets.only(bottom: 12),
+                        elevation: 0,
+                        color: Colors.white,
+                        shape: RoundedRectangleBorder(
                           borderRadius: BorderRadius.circular(16),
+                          side: const BorderSide(color: Color(0xFFE6ECF4)),
                         ),
+                        clipBehavior: Clip.antiAlias,
                         child: Material(
                           color: Colors.transparent,
                           borderRadius: BorderRadius.circular(16),
@@ -329,19 +331,45 @@ class _HistoryState extends ConsumerState<AttendanceHistoryPage>
                                 children: [
                                   Row(
                                     children: [
-                                      Expanded(
-                                        child: Text(
-                                          DateFormat('EEE, MMM d, yyyy')
-                                              .format(DateTime.parse(date)),
-                                          style: const TextStyle(
-                                            fontWeight: FontWeight.w600,
-                                          ),
+                                      const CircleAvatar(
+                                        radius: 19,
+                                        backgroundColor: Color(0xFFEFF6FF),
+                                        foregroundColor: Color(0xFF52627C),
+                                        child: Icon(
+                                          Icons.calendar_month_outlined,
+                                          size: 20,
                                         ),
                                       ),
+                                      const SizedBox(width: 12),
+                                      Expanded(
+                                        child: Column(
+                                          crossAxisAlignment: CrossAxisAlignment.start,
+                                          children: [
+                                            Text(
+                                              DateFormat('EEE, MMM d, yyyy')
+                                                  .format(DateTime.parse(date)),
+                                              style: const TextStyle(
+                                                fontSize: 14,
+                                                fontWeight: FontWeight.w600,
+                                                color: Color(0xFF172033),
+                                              ),
+                                            ),
+                                            const SizedBox(height: 3),
+                                            const Text(
+                                              'Attendance record',
+                                              style: TextStyle(
+                                                fontSize: 12,
+                                                color: Color(0xFF71809B),
+                                              ),
+                                            ),
+                                          ],
+                                        ),
+                                      ),
+                                      const SizedBox(width: 8),
                                       Tooltip(
                                         message: date.compareTo(monday) < 0
                                             ? 'Read-only'
-                                            : 'Edit attendance',
+                                            : 'Editable',
                                         child: Icon(
                                           date.compareTo(monday) < 0
                                               ? Icons.visibility_outlined

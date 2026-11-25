@@ -191,6 +191,8 @@ Frontend (paths relative to `frontend/src/`):
 
 ## Speed rules (default mode)
 
+- **Mobile Scan Attendance Save (2026-11-25)**: Scanner footer is text-only **Save**. It hands changed marks to the existing app-owned attendance save queue and closes the scanner/editor back to Attendance Record, where the save-task pill reports progress. No review modal on this QR path; Back does not submit. Manual attendance retains its review flow and all scope/access/roster/save guards remain.
+
 - **Mobile Edit Scores (2026-11-25)**: `features/teacher/assessment_score_page.dart` is titled Edit Scores and follows Edit Record's compact heading/read-only date, scope metadata, rounded search, Category + Save-status dropdowns, count/name sort, learner cards and full-width text-only save footer. Save validates then opens Review scores (changed-only old → new values; zero distinct from Missing, queued baselines labeled); Back keeps drafts and no write runs until confirmation. Account snapshot, generation and term scope are rechecked after the modal. Existing bulk/outbox/save-history behavior remains. Coverage: `test/gradebook_test.dart`.
 
 - **Mobile staff Notifications screen (2026-11-24)**: `showZNotifications` in `design/shell.dart` now pushes a root-level full-screen light inbox (named `/workspace/notifications` imperative route), not a bottom sheet. Profile's See all keeps the same entrypoint. Circular Back, top-right Mark all read, full notification messages, rounded read/unread cards, pull-to-refresh and retry/empty/loading states reuse existing notification contracts. Navigation/save pill stay hidden; Back returns to Profile. Coverage remains `test/notifications_sheet_test.dart` (legacy filename), `screen_search_test.dart` and `bama_chat_test.dart`.

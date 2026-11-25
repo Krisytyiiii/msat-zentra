@@ -349,15 +349,10 @@ class _State extends ConsumerState<GradebookPage> {
           );
           return _descending ? -order : order;
         });
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.stretch,
-      children: [
-        ConstrainedBox(
-          constraints: BoxConstraints(
-            maxHeight: MediaQuery.sizeOf(context).height * 0.45,
-          ),
-          child: SingleChildScrollView(
-            child: Padding(
+    return NestedScrollView(
+      headerSliverBuilder: (context, innerBoxIsScrolled) => [
+        SliverToBoxAdapter(
+          child: Padding(
               padding: const EdgeInsets.fromLTRB(12, 16, 12, 8),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
@@ -519,11 +514,13 @@ class _State extends ConsumerState<GradebookPage> {
                 ],
               ),
             ),
-          ),
         ),
-        if (_refreshing) const LinearProgressIndicator(minHeight: 2),
-        Expanded(
-          child: learners.isEmpty
+        if (_refreshing)
+          const SliverToBoxAdapter(
+            child: LinearProgressIndicator(minHeight: 2),
+          ),
+      ],
+      body: learners.isEmpty
               ? SingleChildScrollView(
                   padding: const EdgeInsets.fromLTRB(12, 4, 12, 120),
                   child: ZEmpty(
@@ -542,8 +539,6 @@ class _State extends ConsumerState<GradebookPage> {
                   queued: _queued,
                   onOpen: (assessment) => _openAssessment(assessment.id),
                 ),
-        ),
-      ],
     );
   }
 

@@ -56,7 +56,7 @@ class _ScannerState extends State<AttendanceScannerPage>
   @override
   void initState() {
     super.initState();
-    _automatic = !widget.historyEdit && widget.allowAutomatic;
+    _automatic = widget.allowAutomatic;
     WidgetsBinding.instance.addObserver(this);
     _timer = Timer.periodic(const Duration(seconds: 1), (_) => _tick());
   }
@@ -185,7 +185,6 @@ class _ScannerState extends State<AttendanceScannerPage>
       title: widget.title,
       historyEdit: widget.historyEdit,
       automatic: _automatic,
-      allowAutomatic: widget.allowAutomatic,
       manual: _manual,
       message: _message,
       error: _error,
@@ -197,12 +196,8 @@ class _ScannerState extends State<AttendanceScannerPage>
           ? null
           : _changeLateAfter,
       onDone: () => Navigator.of(context).pop(),
+      onSave: () => Navigator.of(context).pop(true),
       onTorch: _toggleTorch,
-      onAutomaticChanged: (value) => setState(() {
-        _automatic = value;
-        _lastRaw = null;
-        _handled.clear();
-      }),
       onManualChanged: (value) => setState(() {
         _manual = value;
         _lastRaw = null;

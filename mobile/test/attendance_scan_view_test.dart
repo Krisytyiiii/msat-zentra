@@ -13,6 +13,8 @@ const snapshot = AttendanceScanSnapshot(
   schoolYear: 'SY 2026–2027',
   term: 'Term 2',
   grade: 'G7',
+  section: 'dfdsfd',
+  date: 'Nov 25, 2026',
   start: '7:30 AM',
   late: '7:35 AM',
   absent: '8:00 AM',
@@ -35,7 +37,6 @@ Future<void> mount(
         title: 'English 7 · dfdsfd',
         historyEdit: false,
         automatic: true,
-        allowAutomatic: true,
         manual: 'present',
         message: 'Point the camera at a student’s Zentra QR code.',
         error: false,
@@ -45,7 +46,6 @@ Future<void> mount(
         onLateAfterChanged: onLateAfterChanged,
         camera: const ColoredBox(color: Color(0xFF111827)),
         onDone: () {},
-        onAutomaticChanged: (_) {},
         onManualChanged: (_) {},
       ),
     ),
@@ -59,17 +59,12 @@ void main() {
   ) async {
     int? selected;
     await mount(tester, onLateAfterChanged: (value) => selected = value);
-    await tester.ensureVisible(find.byType(DropdownButtonFormField<int>));
-    await tester.tap(find.byType(DropdownButtonFormField<int>));
+    await tester.ensureVisible(find.text('Late After'));
+    await tester.tap(find.text('Late After').first);
     await tester.pumpAndSettle();
-    await tester.scrollUntilVisible(
-      find.text('10 min').last,
-      -150,
-      scrollable: find.byType(Scrollable).last,
-    );
-    await tester.tap(find.text('10 min').last);
+    await tester.tap(find.text('15 min'));
     await tester.pumpAndSettle();
-    expect(selected, 10);
+    expect(selected, 15);
     expect(snapshot.marks, {'1': 'present', '2': 'present', '3': 'late'});
   });
   for (final width in [320.0, 360.0, 700.0]) {
@@ -79,62 +74,97 @@ void main() {
       await mount(tester, width: width);
       expect(find.text('Scan Attendance'), findsOneWidget);
       expect(find.text('English 7 · dfdsfd'), findsOneWidget);
-      expect(find.text('SY 2026–2027'), findsOneWidget);
-      expect(find.text('Term 2'), findsOneWidget);
-      expect(find.text('G7'), findsOneWidget);
-      expect(find.text('Attendance Rules'), findsOneWidget);
-      expect(find.text('Start Time'), findsOneWidget);
+      expect(find.text('G7 · dfdsfd'), findsOneWidget);
+      expect(find.text('Nov 25, 2026'), findsOneWidget);
+      expect(find.text('7:30 AM – 8:00 AM'), findsOneWidget);
       expect(find.text('Late After'), findsOneWidget);
-      expect(find.text('Absent After'), findsOneWidget);
-      expect(find.text('7:30 AM'), findsOneWidget);
+      expect(find.text('Auto Absent'), findsOneWidget);
       expect(find.text('7:35 AM'), findsOneWidget);
-      expect(find.text('8:00 AM'), findsOneWidget);
-      expect(find.text('Scanned (3)'), findsOneWidget);
-      expect(find.text('Present (2)'), findsOneWidget);
-      expect(find.text('Late (1)'), findsOneWidget);
-      expect(find.text('Absent (0)'), findsOneWidget);
+      expect(find.text('After 8:00 AM'), findsOneWidget);
+      expect(find.text('ATTENDANCE SUMMARY'), findsOneWidget);
+      expect(find.byKey(const ValueKey('scan-count-present')), findsOneWidget);
+      expect(
+        tester
+            .widget<Text>(find.byKey(const ValueKey('scan-count-present')))
+            .data,
+        '2',
+      );
+      expect(
+        tester.widget<Text>(find.byKey(const ValueKey('scan-count-late'))).data,
+        '1',
+      );
+      expect(
+        tester
+            .widget<Text>(find.byKey(const ValueKey('scan-count-absent')))
+            .data,
+        '0',
+      );
+      expect(find.text('Scanned Students (3)'), findsOneWidget);
       expect(find.text('Dela Cruz, Agnes'), findsOneWidget);
       expect(find.text('Reyes, Clarence'), findsOneWidget);
       expect(find.text('Cruz, Unmarked'), findsNothing);
-      expect(find.text('Done · Review Attendance'), findsOneWidget);
+      expect(find.text('Save'), findsOneWidget);
       expect(tester.takeException(), isNull);
     });
   }
 
-  testWidgets('status tabs and search filter the scanned roster', (
+  testWidgets('summary counters and search filter the scanned roster', (
     tester,
   ) async {
     await mount(tester, times: {'3': DateTime(2026, 11, 23, 7, 37)});
     expect(find.text('7:37 AM'), findsOneWidget);
-    await tester.ensureVisible(find.text('Late (1)'));
-    await tester.tap(find.text('Late (1)'));
+    await tester.ensureVisible(find.byKey(const ValueKey('scan-filter-late')));
+    await tester.tap(find.byKey(const ValueKey('scan-filter-late')));
     await tester.pumpAndSettle();
+    expect(find.text('Late Students (1)'), findsOneWidget);
     expect(find.text('Reyes, Clarence'), findsOneWidget);
     expect(find.text('Dela Cruz, Agnes'), findsNothing);
-    await tester.ensureVisible(find.text('Absent (0)'));
-    await tester.tap(find.text('Absent (0)'));
+    await tester.ensureVisible(
+      find.byKey(const ValueKey('scan-filter-absent')),
+    );
+    await tester.tap(find.byKey(const ValueKey('scan-filter-absent')));
     await tester.pumpAndSettle();
     expect(find.text('No learners marked Absent yet.'), findsOneWidget);
-    await tester.ensureVisible(find.text('Scanned (3)'));
-    await tester.tap(find.text('Scanned (3)'));
+    await tester.ensureVisible(
+      find.byKey(const ValueKey('scan-filter-absent')),
+    );
+    await tester.tap(find.byKey(const ValueKey('scan-filter-absent')));
     await tester.pumpAndSettle();
+    expect(find.text('Scanned Students (3)'), findsOneWidget);
     await tester.enterText(find.byType(TextField), '123456789012');
     await tester.pumpAndSettle();
     expect(find.text('Dela Cruz, Agnes'), findsOneWidget);
     expect(find.text('Santos, Benedict'), findsNothing);
   });
 
-  testWidgets('rules collapse and automatic marking stays available', (
+  testWidgets('custom late threshold accepts a typed value', (tester) async {
+    int? selected;
+    await mount(tester, onLateAfterChanged: (value) => selected = value);
+    await tester.ensureVisible(find.text('Late After'));
+    await tester.tap(find.text('Late After').first);
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Custom · 20 min'));
+    await tester.pumpAndSettle();
+    await tester.enterText(find.byType(TextField).last, '12');
+    await tester.tap(find.text('Apply'));
+    await tester.pumpAndSettle();
+    expect(selected, 12);
+  });
+
+  testWidgets('rules collapse and manual status stays available', (
     tester,
   ) async {
     await mount(tester);
-    expect(find.byType(Switch), findsOneWidget);
+    expect(find.text('Late threshold'), findsNothing);
+    expect(find.text('10 min'), findsNothing);
+    await tester.tap(find.text('Late After'));
+    await tester.pumpAndSettle();
+    expect(find.text('Start Time'), findsOneWidget);
+    expect(find.text('Late threshold'), findsOneWidget);
+    expect(find.text('10 min'), findsOneWidget);
     await tester.tap(find.text('Attendance Rules'));
     await tester.pumpAndSettle();
     expect(find.text('Start Time'), findsNothing);
-    expect(find.byType(Switch), findsNothing);
-    await tester.tap(find.text('Attendance Rules'));
-    await tester.pumpAndSettle();
-    expect(find.text('Start Time'), findsOneWidget);
+    expect(find.text('Late threshold'), findsNothing);
   });
 }

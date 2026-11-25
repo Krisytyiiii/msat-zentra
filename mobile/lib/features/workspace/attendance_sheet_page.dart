@@ -62,6 +62,7 @@ class _SheetState extends ConsumerState<AttendanceSheetPage>
   Timer? _timer;
   Future<void> _draftWrites = Future.value();
   bool _openedInitialQr = false;
+  bool _finishedInitialQr = false;
   AttendanceService get _service =>
       AttendanceService(ref.read(apiClientProvider));
   DateTime get _now => ref.read(attendanceClockProvider)();
@@ -251,8 +252,13 @@ class _SheetState extends ConsumerState<AttendanceSheetPage>
       _draft.removeWhere((id, value) => value == _baseline(id));
       if (widget.openQr && !_openedInitialQr) {
         _openedInitialQr = true;
-        WidgetsBinding.instance.addPostFrameCallback((_) {
-          if (mounted) _openScanner();
+        WidgetsBinding.instance.addPostFrameCallback((_) async {
+          if (!mounted) return;
+          try {
+            await _openScanner();
+          } finally {
+            if (mounted) setState(() => _finishedInitialQr = true);
+          }
         });
       }
     } catch (error) {
@@ -322,12 +328,14 @@ class _SheetState extends ConsumerState<AttendanceSheetPage>
         ? storedMinutes
         : 20;
     var finishedAbsences = false;
+    var announcedOngoing = false;
     _reviewing = true;
+    bool? saveRequested;
     try {
-      await Navigator.of(context, rootNavigator: true).push(
-        MaterialPageRoute<void>(
+      saveRequested = await Navigator.of(context, rootNavigator: true).push<bool>(
+        MaterialPageRoute<bool>(
           builder: (_) => AttendanceScannerPage(
-            title: '${widget.pair.subjectName} · ${widget.pair.sectionName}',
+            title: widget.pair.subjectName,
             historyEdit: historyEdit,
             allowAutomatic: !historyEdit || live,
             onLateAfterChanged: (minutes) async {
@@ -362,6 +370,8 @@ class _SheetState extends ConsumerState<AttendanceSheetPage>
               schoolYear: term?.schoolYearName,
               term: term == null ? null : 'Term ${term.termNumber}',
               grade: widget.pair.gradeLevel,
+              section: widget.pair.sectionName,
+              date: DateFormat('MMM d, yyyy').format(DateTime.parse(_date)),
               start: clockLabel(period?.start),
               late: clockLabel(
                 period == null ? null : period.start + lateMinutes,
@@ -434,7 +444,16 @@ class _SheetState extends ConsumerState<AttendanceSheetPage>
                   'The class date changed. Return to review your drafts.',
                 );
               }
-              if (end == null || clock.isBefore(end)) return null;
+              if (end == null) return null;
+              if (clock.isBefore(end)) {
+                if (start != null &&
+                    !clock.isBefore(start) &&
+                    !announcedOngoing) {
+                  announcedOngoing = true;
+                  return 'Class is ongoing. Scan student QR codes to mark attendance.';
+                }
+                return null;
+              }
               if (_lock != null) {
                 throw ApiException(
                   'SCOPE_CHANGED',
@@ -452,7 +471,7 @@ class _SheetState extends ConsumerState<AttendanceSheetPage>
               });
               await _persist();
               finishedAbsences = true;
-              return 'Period ended · ${unmarked.length} unmarked students set to Absent (draft).';
+              return 'Class ended. Tap Save to submit attendance.';
             },
           ),
         ),
@@ -460,6 +479,24 @@ class _SheetState extends ConsumerState<AttendanceSheetPage>
     } finally {
       _reviewing = false;
       if (mounted) setState(() {});
+    }
+    if (saveRequested == true && mounted) {
+      if (_fetching ||
+          _stale ||
+          _scope != _currentScope ||
+          key != _storageKey ||
+          _lock != null) {
+        _alert('Attendance access changed. Refresh before saving.');
+        return;
+      }
+      final records = Map<String, String>.from(_delta);
+      final submitted = records.isEmpty || await _save(records, key);
+      if (submitted && mounted) {
+        setState(() => _allowPop = true);
+        WidgetsBinding.instance.addPostFrameCallback((_) {
+          if (mounted) Navigator.of(context).pop();
+        });
+      }
     }
   }
 
@@ -515,10 +552,10 @@ class _SheetState extends ConsumerState<AttendanceSheetPage>
     }
   }
 
-  Future<void> _save(Map<String, String> records, String key) async {
-    if (_saving || _stale || _scope != _currentScope) return;
+  Future<bool> _save(Map<String, String> records, String key) async {
+    if (_saving || _stale || _scope != _currentScope) return false;
     final sheet = _sheet;
-    if (sheet == null) return;
+    if (sheet == null) return false;
     // Online saves recheck ownership, roster/exemptions, permissions and the
     // live period on the server; the sheet only hands over live, eligible rows.
     final eligible = sheet.learners
@@ -533,7 +570,7 @@ class _SheetState extends ConsumerState<AttendanceSheetPage>
     };
     if (jobs.isEmpty) {
       _alert('Nothing left to save. The sheet already has these marks.');
-      return;
+      return false;
     }
     final tasks = ref.read(saveTasksProvider);
     final term = ref.read(termProvider);
@@ -580,6 +617,7 @@ class _SheetState extends ConsumerState<AttendanceSheetPage>
         },
       ),
     );
+    return true;
   }
 
   void _afterSave(
@@ -674,6 +712,7 @@ class _SheetState extends ConsumerState<AttendanceSheetPage>
     });
     final sheet = _sheet;
     final lock = _lock;
+    final preparingQr = widget.openQr && !_finishedInitialQr;
     return PopScope(
       canPop: _allowPop,
       onPopInvokedWithResult: (didPop, _) {
@@ -689,7 +728,7 @@ class _SheetState extends ConsumerState<AttendanceSheetPage>
             onPressed: _leave,
             icon: const Icon(Icons.chevron_left),
           ),
-          title: const Text('Edit Record'),
+          title: Text(preparingQr ? 'Scan Attendance' : 'Edit Record'),
         ),
         body: AdviserBamaAccess(
           busy: _saving,
@@ -699,7 +738,7 @@ class _SheetState extends ConsumerState<AttendanceSheetPage>
                   title: 'Selected term changed',
                   subtitle: 'Return to Attendance to open the selected term.',
                 )
-              : _loading
+              : _loading || (preparingQr && sheet != null)
               ? const LoadingView(layout: SkeletonLayout.marking)
               : sheet == null
               ? ErrorView(
@@ -713,7 +752,7 @@ class _SheetState extends ConsumerState<AttendanceSheetPage>
                   ),
                 ),
         ),
-        bottomNavigationBar: sheet == null
+        bottomNavigationBar: sheet == null || preparingQr
             ? null
             : Padding(
                 padding: EdgeInsets.only(
@@ -809,28 +848,27 @@ class _SheetState extends ConsumerState<AttendanceSheetPage>
     );
     final dateChip = Container(
       key: const ValueKey('attendance-date-chip'),
-      height: 40,
-      padding: const EdgeInsets.symmetric(horizontal: 10),
+      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
       decoration: BoxDecoration(
-        color: const Color(0xFFF8F9FB),
-        border: Border.all(color: const Color(0xFFE6ECF4)),
-        borderRadius: BorderRadius.circular(12),
+        color: const Color(0xFFF3F4F6),
+        border: Border.all(color: const Color(0xFFE5E7EB)),
+        borderRadius: BorderRadius.circular(999),
       ),
       child: Row(
         mainAxisSize: MainAxisSize.min,
         children: [
           const Icon(
-            Icons.calendar_today_outlined,
+            LucideIcons.calendarDays,
             size: 14,
-            color: Color(0xFF192034),
+            color: Color(0xFF6B7280),
           ),
-          const SizedBox(width: 6),
+          const SizedBox(width: 4),
           Text(
             DateFormat('MMM d, yyyy').format(selectedDate),
             style: const TextStyle(
               fontSize: 12,
               fontWeight: FontWeight.w600,
-              color: Color(0xFF192034),
+              color: Color(0xFF6B7280),
             ),
           ),
         ],
@@ -875,14 +913,24 @@ class _SheetState extends ConsumerState<AttendanceSheetPage>
             ),
             child: SingleChildScrollView(
               child: Padding(
-                padding: const EdgeInsets.fromLTRB(16, 8, 16, 8),
+                padding: const EdgeInsets.fromLTRB(12, 16, 12, 8),
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.stretch,
                   children: [
-                    ZContentHeader(title: widget.pair.subjectName,
-                      icon: Icons.calendar_month_outlined,
-                      description: 'View the learners in this class.',
-                      trailing: dateChip,
+                    ZContentHeader(
+                      title: widget.pair.subjectName,
+                      icon: Icons.edit_note_outlined,
+                      titleTrailing: dateChip,
+                      titleMetadata: const [
+                        Text(
+                          'View the learners in this class.',
+                          style: TextStyle(
+                            fontSize: 12,
+                            height: 1.3,
+                            color: Color(0xFF626B82),
+                          ),
+                        ),
+                      ],
                     ),
                     const SizedBox(height: 12),
                     Wrap(
@@ -901,15 +949,18 @@ class _SheetState extends ConsumerState<AttendanceSheetPage>
                             compact: true,
                           ),
                         ],
-                        if (widget.pair.gradeLevel != null)
-                          ZScopePill(
-                            text: widget.pair.gradeLevel!,
-                            kind: ScopePillKind.grade,
-                            compact: true,
-                          ),
-                        ZStatusPill(
-                          text: widget.pair.sectionName,
-                          tone: StatusTone.violet,
+                        ZScopePill(
+                          text: [
+                            if (widget.pair.gradeLevel != null)
+                              widget.pair.gradeLevel!.replaceFirst(
+                                RegExp(r'^Grade\s*', caseSensitive: false),
+                                'G',
+                              ),
+                            widget.pair.sectionName,
+                          ].where((value) => value.isNotEmpty).join(' · '),
+                          kind: ScopePillKind.grade,
+                          label: 'Grade and section',
+                          compact: true,
                         ),
                       ],
                     ),

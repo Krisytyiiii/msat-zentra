@@ -2,19 +2,19 @@ import 'package:flutter/material.dart';
 
 /// Scoped light settings presentation; other workspaces retain their palette.
 ThemeData settingsScreenTheme(ThemeData base) {
-  const ink = Color(0xFF101715);
-  const border = Color(0xFFD8DBD8);
+  const ink = Color(0xFF0F172A);
+  const border = Color(0xFFE2E8F0);
   const surface = Colors.white;
   return base.copyWith(
     brightness: Brightness.light,
     scaffoldBackgroundColor: surface,
     colorScheme: const ColorScheme.light(
-      primary: Color(0xFF061A25),
+      primary: Color(0xFF2563EB),
       onPrimary: Colors.white,
       surface: surface,
       onSurface: ink,
-      onSurfaceVariant: Color(0xFF626B66),
-      surfaceContainerLow: Color(0xFFF0F1EF),
+      onSurfaceVariant: Color(0xFF64748B),
+      surfaceContainerLow: Color(0xFFF3F9FF),
       outline: border,
       outlineVariant: border,
       error: Color(0xFFBB303A),
@@ -31,38 +31,40 @@ ThemeData settingsScreenTheme(ThemeData base) {
       elevation: 0,
       surfaceTintColor: Colors.transparent,
       shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(9),
+        borderRadius: BorderRadius.circular(14),
         side: const BorderSide(color: border),
       ),
     ),
     inputDecorationTheme: InputDecorationTheme(
-      filled: false,
-      labelStyle: const TextStyle(color: Color(0xFF626B66), fontSize: 13),
-      contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
+      filled: true,
+      fillColor: surface,
+      labelStyle: const TextStyle(color: Color(0xFF64748B), fontSize: 12),
+      helperStyle: const TextStyle(color: Color(0xFF64748B), fontSize: 12),
+      contentPadding: const EdgeInsets.all(14),
       enabledBorder: OutlineInputBorder(
-        borderRadius: BorderRadius.circular(7),
-        borderSide: const BorderSide(color: Color(0xFF9DA59F)),
+        borderRadius: BorderRadius.circular(14),
+        borderSide: const BorderSide(color: border),
       ),
       focusedBorder: OutlineInputBorder(
-        borderRadius: BorderRadius.circular(7),
-        borderSide: const BorderSide(color: ink),
+        borderRadius: BorderRadius.circular(14),
+        borderSide: const BorderSide(color: Color(0xFF2563EB)),
       ),
     ),
     filledButtonTheme: FilledButtonThemeData(
       style: FilledButton.styleFrom(
         foregroundColor: Colors.white,
-        backgroundColor: const Color(0xFF061A25),
+        backgroundColor: const Color(0xFF2563EB),
         minimumSize: const Size(48, 48),
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(7)),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
         textStyle: const TextStyle(fontSize: 13, fontWeight: FontWeight.w500),
       ),
     ),
     outlinedButtonTheme: OutlinedButtonThemeData(
       style: OutlinedButton.styleFrom(
         foregroundColor: ink,
-        side: const BorderSide(color: ink),
+        side: const BorderSide(color: border),
         minimumSize: const Size(48, 48),
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(7)),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
         textStyle: const TextStyle(fontSize: 13),
       ),
     ),
@@ -70,7 +72,7 @@ ThemeData settingsScreenTheme(ThemeData base) {
       thumbColor: const WidgetStatePropertyAll(Colors.white),
       trackColor: WidgetStateProperty.resolveWith(
         (states) => states.contains(WidgetState.selected)
-            ? const Color(0xFF3AB893)
+            ? const Color(0xFF2563EB)
             : const Color(0xFFB9C0BC),
       ),
     ),

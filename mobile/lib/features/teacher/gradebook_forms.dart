@@ -123,54 +123,9 @@ class _EditorState extends State<GradebookEditor> {
 
   static const _sheetInk = Color(0xFF0F172A);
   static const _sheetMuted = Color(0xFF64748B);
-  static const _sheetLine = Color(0xFFE2E8F0);
   static const _sheetAccent = Color(0xFF1D4ED8);
-  static const _sheetIcon = Color(0xFF94A3B8);
-  static const _sheetValue = TextStyle(
-    fontSize: 13,
-    fontWeight: FontWeight.w600,
-    color: _sheetInk,
-  );
-
-  InputDecoration _sheetInput(String label, {String? hint}) =>
-      InputDecoration(
-        labelText: label,
-        hintText: hint,
-        floatingLabelBehavior: FloatingLabelBehavior.always,
-        border: InputBorder.none,
-        enabledBorder: InputBorder.none,
-        focusedBorder: InputBorder.none,
-        isDense: true,
-        contentPadding: const EdgeInsets.only(top: 2),
-        hintStyle: const TextStyle(
-          fontSize: 13,
-          fontWeight: FontWeight.w500,
-          color: _sheetIcon,
-        ),
-        labelStyle: const TextStyle(fontSize: 11, color: _sheetMuted),
-        floatingLabelStyle: const TextStyle(
-          fontSize: 11,
-          fontWeight: FontWeight.w500,
-          color: _sheetMuted,
-        ),
-        errorStyle: const TextStyle(fontSize: 11),
-        counterText: '',
-      );
-
-  Widget _sheetField(Widget child) => Container(
-    padding: const EdgeInsets.fromLTRB(12, 6, 12, 6),
-    decoration: BoxDecoration(
-      color: Colors.white,
-      borderRadius: BorderRadius.circular(20),
-      border: Border.all(color: _sheetLine),
-    ),
-    child: child,
-  );
-
-  Widget _sheetLeading(IconData icon) => Icon(icon, size: 18, color: _sheetIcon);
 
   Widget _assessmentSheet(BuildContext context) {
-    final dateText = DateFormat('MM/dd/yyyy').format(_date);
     return PopScope(
       canPop: !_saving,
       child: Padding(
@@ -179,336 +134,281 @@ class _EditorState extends State<GradebookEditor> {
         ),
         child: SafeArea(
           top: false,
-          child: SingleChildScrollView(
-            padding: const EdgeInsets.fromLTRB(16, 8, 16, 16),
-            child: Form(
-              key: _form,
+          child: ClipRRect(
+            borderRadius: const BorderRadius.vertical(top: Radius.circular(28)),
+            child: Container(
+              color: Colors.white,
+              height: MediaQuery.sizeOf(context).height * 0.5,
               child: Column(
-                mainAxisSize: MainAxisSize.min,
-                crossAxisAlignment: CrossAxisAlignment.stretch,
                 children: [
-                  Center(
-                    child: Container(
-                      width: 40,
-                      height: 4,
-                      decoration: BoxDecoration(
-                        color: const Color(0xFFD8DEE9),
-                        borderRadius: BorderRadius.circular(2),
+                  Padding(
+                    padding: const EdgeInsets.only(top: 22, bottom: 24),
+                    child: Center(
+                      child: Container(
+                        width: 32,
+                        height: 4,
+                        decoration: BoxDecoration(
+                          color: const Color(0xFF737373),
+                          borderRadius: BorderRadius.circular(2),
+                        ),
                       ),
                     ),
                   ),
-                  const SizedBox(height: 14),
-                  Row(
-                    children: [
-                      Container(
-                        width: 40,
-                        height: 40,
-                        decoration: BoxDecoration(
-                          color: const Color(0xFFEEF4FF),
-                          borderRadius: BorderRadius.circular(12),
-                        ),
-                        child: const Icon(
-                          LucideIcons.clipboardCheck,
-                          size: 20,
-                          color: _sheetAccent,
-                        ),
-                      ),
-                      const SizedBox(width: 10),
-                      Expanded(
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Text(
-                              'Add ${assessmentTypes[widget.type]}',
-                              style: const TextStyle(
-                                fontSize: 17,
-                                fontWeight: FontWeight.w700,
-                                color: _sheetInk,
+                  Expanded(
+                    child: SingleChildScrollView(
+                      padding: const EdgeInsets.fromLTRB(13, 12, 16, 16),
+                      child: Theme(
+                        data: Theme.of(context).copyWith(
+                          colorScheme: ColorScheme.fromSeed(
+                            seedColor: _sheetAccent,
+                            brightness: Brightness.light,
+                            primary: _sheetAccent,
+                            surface: Colors.white,
+                          ),
+                          textTheme: Theme.of(context).textTheme.apply(
+                            bodyColor: _sheetInk,
+                            displayColor: _sheetInk,
+                          ),
+                          inputDecorationTheme: InputDecorationTheme(
+                            filled: true,
+                            fillColor: Colors.white,
+                            labelStyle: const TextStyle(
+                              fontSize: 12,
+                              color: _sheetMuted,
+                            ),
+                            helperStyle: const TextStyle(
+                              fontSize: 12,
+                              color: _sheetMuted,
+                            ),
+                            contentPadding: const EdgeInsets.all(14),
+                            border: OutlineInputBorder(
+                              borderRadius: BorderRadius.circular(14),
+                              borderSide: const BorderSide(
+                                color: Color(0xFFE2E8F0),
                               ),
                             ),
-                            const SizedBox(height: 1),
-                            Text(
-                              '${_audience == 'adm' ? 'ADM' : 'Regular'} assessment',
-                              style: const TextStyle(
-                                fontSize: 12,
-                                color: _sheetMuted,
+                            enabledBorder: OutlineInputBorder(
+                              borderRadius: BorderRadius.circular(14),
+                              borderSide: const BorderSide(
+                                color: Color(0xFFE2E8F0),
                               ),
                             ),
-                          ],
-                        ),
-                      ),
-                      ClipRRect(
-                        borderRadius: BorderRadius.circular(8),
-                        child: Image.asset(
-                          'assets/zentra.png',
-                          width: 32,
-                          height: 32,
-                          fit: BoxFit.contain,
-                        ),
-                      ),
-                    ],
-                  ),
-                  const SizedBox(height: 12),
-                  _sheetField(
-                    Row(
-                      children: [
-                        _sheetLeading(LucideIcons.graduationCap),
-                        const SizedBox(width: 12),
-                        Expanded(
-                          child: DropdownButtonFormField<String>(
-                            key: const ValueKey('assessment-student-type'),
-                            initialValue: _audience,
-                            isExpanded: true,
-                            icon: const Icon(
-                              LucideIcons.chevronDown,
-                              size: 18,
-                              color: _sheetIcon,
+                            focusedBorder: OutlineInputBorder(
+                              borderRadius: BorderRadius.circular(14),
+                              borderSide: const BorderSide(color: _sheetAccent),
                             ),
-                            decoration: _sheetInput('Student type'),
-                            style: _sheetValue,
-                            dropdownColor: Colors.white,
-                            borderRadius: BorderRadius.circular(16),
-                            items: const [
-                              DropdownMenuItem(
-                                value: 'regular',
-                                child: Text('Regular'),
+                          ),
+                          outlinedButtonTheme: OutlinedButtonThemeData(
+                            style: OutlinedButton.styleFrom(
+                              foregroundColor: _sheetInk,
+                              minimumSize: const Size.fromHeight(48),
+                              alignment: Alignment.centerLeft,
+                              side: const BorderSide(color: Color(0xFFE2E8F0)),
+                              shape: RoundedRectangleBorder(
+                                borderRadius: BorderRadius.circular(14),
                               ),
-                              DropdownMenuItem(value: 'adm', child: Text('ADM')),
-                            ],
-                            onChanged: _saving
-                                ? null
-                                : (value) {
-                                    if (value != null) {
-                                      setState(() => _audience = value);
-                                    }
-                                  },
+                            ),
                           ),
                         ),
-                      ],
-                    ),
-                  ),
-                  const SizedBox(height: 10),
-                  Material(
-                    color: Colors.transparent,
-                    child: InkWell(
-                      key: const ValueKey('assessment-date'),
-                      borderRadius: BorderRadius.circular(20),
-                      onTap: _saving ? null : _pickDate,
-                      child: _sheetField(
-                        Row(
-                          children: [
-                            _sheetLeading(LucideIcons.calendarDays),
-                            const SizedBox(width: 12),
-                            Expanded(
-                              child: Column(
-                                crossAxisAlignment: CrossAxisAlignment.start,
-                                children: [
-                                  const Text(
-                                    'Date',
+                        child: Form(
+                          key: _form,
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.stretch,
+                            children: [
+                              ColoredBox(
+                                color: Colors.white,
+                                child: Padding(
+                                  padding: EdgeInsets.zero,
+                                  child: Column(
+                                    children: [
+                                      Row(
+                                        children: [
+                                          Container(
+                                            width: 46,
+                                            height: 46,
+                                            alignment: Alignment.center,
+                                            decoration: BoxDecoration(
+                                              color: const Color(0xFF2563EB),
+                                              borderRadius:
+                                                  BorderRadius.circular(13),
+                                            ),
+                                            child: const Icon(
+                                              LucideIcons.clipboardCheck,
+                                              size: 18,
+                                              color: Colors.white,
+                                            ),
+                                          ),
+                                          const SizedBox(width: 12),
+                                          Expanded(
+                                            child: Column(
+                                              crossAxisAlignment:
+                                                  CrossAxisAlignment.start,
+                                              children: [
+                                                Text(
+                                                  'Add ${assessmentTypes[widget.type]}',
+                                                  style: const TextStyle(
+                                                    fontSize: 15,
+                                                    fontWeight: FontWeight.w700,
+                                                    color: _sheetInk,
+                                                  ),
+                                                ),
+                                                const SizedBox(height: 4),
+                                                Text(
+                                                  '${_audience == 'adm' ? 'ADM' : 'Regular'} assessment',
+                                                  style: const TextStyle(
+                                                    fontSize: 12,
+                                                    color: _sheetMuted,
+                                                  ),
+                                                ),
+                                              ],
+                                            ),
+                                          ),
+                                          IconButton(
+                                            tooltip: 'Close',
+                                            onPressed: _saving || _completed
+                                                ? null
+                                                : () =>
+                                                      Navigator.of(context)
+                                                          .pop(),
+                                            icon: const Icon(
+                                              LucideIcons.x,
+                                              size: 20,
+                                            ),
+                                            style: IconButton.styleFrom(
+                                              foregroundColor: _sheetMuted,
+                                              side: const BorderSide(
+                                                color: Color(0xFFE5E8F0),
+                                              ),
+                                              minimumSize: const Size(42, 42),
+                                              shape: const CircleBorder(),
+                                            ),
+                                          ),
+                                        ],
+                                      ),
+                                    ],
+                                  ),
+                                ),
+                              ),
+                              const Padding(
+                                padding: EdgeInsets.symmetric(vertical: 12),
+                                child: Divider(
+                                  height: 1,
+                                  color: Color(0xFFF1F5F9),
+                                ),
+                              ),
+                              DropdownButtonFormField<String>(
+                                key: const ValueKey('assessment-student-type'),
+                                initialValue: _audience,
+                                decoration: const InputDecoration(
+                                  labelText: 'Student type',
+                                ),
+                                items: const [
+                                  DropdownMenuItem(
+                                    value: 'regular',
+                                    child: Text('Regular'),
+                                  ),
+                                  DropdownMenuItem(
+                                    value: 'adm',
+                                    child: Text('ADM'),
+                                  ),
+                                ],
+                                onChanged: _saving || _completed
+                                    ? null
+                                    : (value) {
+                                        if (value != null) {
+                                          setState(() => _audience = value);
+                                        }
+                                      },
+                              ),
+                              const SizedBox(height: 16),
+                              OutlinedButton.icon(
+                                key: const ValueKey('assessment-date'),
+                                onPressed: _saving || _completed
+                                    ? null
+                                    : _pickDate,
+                                icon: const Icon(
+                                  LucideIcons.calendarDays,
+                                  size: 18,
+                                ),
+                                label: Text(
+                                  'Date: ${DateFormat('MM/dd/yyyy').format(_date)}',
+                                ),
+                              ),
+                              const SizedBox(height: 16),
+                              TextFormField(
+                                controller: _title,
+                                enabled: !_saving && !_completed,
+                                decoration: const InputDecoration(
+                                  labelText: 'Assessment title',
+                                ),
+                                maxLength: 120,
+                                textCapitalization:
+                                    TextCapitalization.sentences,
+                                validator: (text) =>
+                                    (text?.trim().isEmpty ?? true)
+                                    ? 'Enter an assessment title.'
+                                    : null,
+                              ),
+                              const SizedBox(height: 16),
+                              TextFormField(
+                                key: const ValueKey('assessment-max-score'),
+                                controller: _value,
+                                enabled: !_saving && !_completed,
+                                decoration: const InputDecoration(
+                                  labelText: 'Maximum score',
+                                  helperText: 'Greater than 0, up to 100,000',
+                                ),
+                                keyboardType:
+                                    const TextInputType.numberWithOptions(
+                                      decimal: true,
+                                    ),
+                                textInputAction: TextInputAction.done,
+                                onFieldSubmitted: (_) => _save(),
+                                validator: (text) {
+                                  final number = double.tryParse(
+                                    text?.trim() ?? '',
+                                  );
+                                  if (number == null ||
+                                      !number.isFinite ||
+                                      number <= 0 ||
+                                      number > 100000) {
+                                    return 'Enter a maximum score greater than 0 and up to 100,000.';
+                                  }
+                                  return null;
+                                },
+                              ),
+                              if (_error != null) ...[
+                                const SizedBox(height: 12),
+                                Semantics(
+                                  liveRegion: true,
+                                  child: Text(
+                                    _error!,
                                     style: TextStyle(
-                                      fontSize: 11,
-                                      fontWeight: FontWeight.w500,
-                                      color: _sheetMuted,
+                                      color: Theme.of(context)
+                                          .colorScheme
+                                          .error,
                                     ),
                                   ),
-                                  const SizedBox(height: 1),
-                                  Text(dateText, style: _sheetValue),
-                                ],
-                              ),
-                            ),
-                            Container(
-                              width: 32,
-                              height: 32,
-                              decoration: const BoxDecoration(
-                                color: Color(0xFFEEF4FF),
-                                shape: BoxShape.circle,
-                              ),
-                              child: const Icon(
-                                LucideIcons.calendar,
-                                size: 16,
-                                color: _sheetAccent,
-                              ),
-                            ),
-                          ],
-                        ),
-                      ),
-                    ),
-                  ),
-                  const SizedBox(height: 10),
-                  _sheetField(
-                    Row(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Padding(
-                          padding: const EdgeInsets.only(top: 4),
-                          child: _sheetLeading(LucideIcons.fileText),
-                        ),
-                        const SizedBox(width: 10),
-                        Expanded(
-                          child: TextFormField(
-                            controller: _title,
-                            enabled: !_saving,
-                            style: _sheetValue,
-                            maxLength: 120,
-                            textCapitalization: TextCapitalization.sentences,
-                            decoration: _sheetInput(
-                              'Assessment title',
-                              hint: 'Enter assessment title',
-                            ),
-                            validator: (text) =>
-                                (text?.trim().isEmpty ?? true)
-                                ? 'Enter an assessment title.'
-                                : null,
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                  Padding(
-                    padding: const EdgeInsets.only(top: 2, right: 4),
-                    child: Align(
-                      alignment: Alignment.centerRight,
-                      child: ValueListenableBuilder<TextEditingValue>(
-                        valueListenable: _title,
-                        builder: (context, value, _) => Text(
-                          '${value.text.length}/120',
-                          style: const TextStyle(
-                            fontSize: 11,
-                            color: _sheetIcon,
-                          ),
-                        ),
-                      ),
-                    ),
-                  ),
-                  const SizedBox(height: 8),
-                  _sheetField(
-                    Row(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Padding(
-                          padding: const EdgeInsets.only(top: 4),
-                          child: _sheetLeading(LucideIcons.badgeCheck),
-                        ),
-                        const SizedBox(width: 10),
-                        Expanded(
-                          child: TextFormField(
-                            key: const ValueKey('assessment-max-score'),
-                            controller: _value,
-                            enabled: !_saving,
-                            style: _sheetValue,
-                            keyboardType:
-                                const TextInputType.numberWithOptions(
-                                  decimal: true,
                                 ),
-                            textInputAction: TextInputAction.done,
-                            onFieldSubmitted: (_) => _save(),
-                            decoration: _sheetInput('Maximum score'),
-                            validator: (text) {
-                              final number = double.tryParse(
-                                text?.trim() ?? '',
-                              );
-                              if (number == null ||
-                                  !number.isFinite ||
-                                  number > 100000 ||
-                                  number <= 0) {
-                                return 'Enter a maximum score greater than 0 and up to 100,000.';
-                              }
-                              return null;
-                            },
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                  const Padding(
-                    padding: EdgeInsets.fromLTRB(6, 6, 0, 0),
-                    child: Row(
-                      children: [
-                        Icon(
-                          LucideIcons.info,
-                          size: 12,
-                          color: Color(0xFF60A5FA),
-                        ),
-                        SizedBox(width: 4),
-                        Expanded(
-                          child: Text(
-                            'Greater than 0, up to 100,000',
-                            style: TextStyle(fontSize: 11, color: _sheetIcon),
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                  if (_error != null) ...[
-                    const SizedBox(height: 10),
-                    Semantics(
-                      liveRegion: true,
-                      child: Text(
-                        _error!,
-                        style: TextStyle(
-                          color: Theme.of(context).colorScheme.error,
-                        ),
-                      ),
-                    ),
-                  ],
-                  const SizedBox(height: 14),
-                  Row(
-                    children: [
-                      Expanded(
-                        flex: 4,
-                        child: SizedBox(
-                          height: 48,
-                          child: OutlinedButton(
-                            onPressed: _saving
-                                ? null
-                                : () => Navigator.of(context).pop(),
-                            style: OutlinedButton.styleFrom(
-                              backgroundColor: Colors.white,
-                              foregroundColor: _sheetInk,
-                              side: const BorderSide(color: _sheetLine),
-                              shape: const StadiumBorder(),
-                              textStyle: const TextStyle(
-                                fontSize: 13,
-                                fontWeight: FontWeight.w600,
-                              ),
-                            ),
-                            child: const Text('Cancel'),
-                          ),
-                        ),
-                      ),
-                      const SizedBox(width: 10),
-                      Expanded(
-                        flex: 7,
-                        child: SizedBox(
-                          height: 48,
-                          child: FilledButton(
-                            onPressed: _saving || _completed ? null : _save,
-                            style: FilledButton.styleFrom(
-                              backgroundColor: _sheetAccent,
-                              foregroundColor: Colors.white,
-                              shape: const StadiumBorder(),
-                              textStyle: const TextStyle(
-                                fontSize: 13,
-                                fontWeight: FontWeight.w600,
-                              ),
-                            ),
-                            child: FittedBox(
-                              fit: BoxFit.scaleDown,
-                              child: Row(
-                                mainAxisSize: MainAxisSize.min,
-                                children: [
-                                  Text(
-                                    _saving ? 'Saving…' : 'Add assessment',
+                              ],
+                              const SizedBox(height: 20),
+                              FilledButton(
+                                style: FilledButton.styleFrom(
+                                  backgroundColor: _sheetAccent,
+                                  foregroundColor: Colors.white,
+                                  minimumSize: const Size.fromHeight(48),
+                                  shape: RoundedRectangleBorder(
+                                    borderRadius: BorderRadius.circular(14),
                                   ),
-                                  const SizedBox(width: 4),
-                                  const Icon(LucideIcons.plus, size: 16),
-                                ],
+                                ),
+                                onPressed: _saving || _completed ? null : _save,
+                                child: Text(_saving ? 'Adding…' : 'Add'),
                               ),
-                            ),
+                            ],
                           ),
                         ),
                       ),
-                    ],
+                    ),
                   ),
                 ],
               ),

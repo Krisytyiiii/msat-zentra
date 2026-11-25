@@ -216,7 +216,8 @@ class ZScopePill extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final amber = kind == ScopePillKind.term;
-    final foreground = amber ? const Color(0xFFB45309) : const Color(0xFF2563EB);
+    final violet = kind == ScopePillKind.grade;
+    final foreground = amber ? const Color(0xFFB45309) : violet ? const Color(0xFF7C3AED) : const Color(0xFF2563EB);
     final fieldLabel = label ?? switch (kind) {
       ScopePillKind.schoolYear => 'School year',
       ScopePillKind.term => 'Term',
@@ -228,8 +229,8 @@ class ZScopePill extends StatelessWidget {
       child: Container(
         padding: EdgeInsets.symmetric(horizontal: compact ? 7 : 10, vertical: compact ? 3 : 5),
         decoration: BoxDecoration(
-          color: amber ? const Color(0xFFFFF6E5) : const Color(0xFFEAF2FF),
-          border: Border.all(color: amber ? const Color(0xFFFDE6B0) : const Color(0xFFD4E4FF)),
+          color: amber ? const Color(0xFFFFF6E5) : violet ? const Color(0xFFF5F3FF) : const Color(0xFFEAF2FF),
+          border: Border.all(color: amber ? const Color(0xFFFDE6B0) : violet ? const Color(0xFFDDD6FE) : const Color(0xFFD4E4FF)),
           borderRadius: BorderRadius.circular(999),
         ),
         child: Row(mainAxisSize: MainAxisSize.min, children: [

@@ -341,7 +341,7 @@ void main() {
   );
 
   testWidgets(
-    'camera detects QR, throttles duplicate frames and supports manual mode',
+    'camera detects QR and throttles duplicate frames',
     (tester) async {
       final previous = MobileScannerPlatform.instance;
       tester.view.devicePixelRatio = 1;
@@ -378,14 +378,6 @@ void main() {
       camera.captures.add(capture);
       await tester.pumpAndSettle();
       expect(calls, [true]);
-      await tester.tap(find.byType(Switch));
-      await tester.pumpAndSettle();
-      expect(find.byType(ChoiceChip), findsNWidgets(2));
-      camera.captures.add(
-        BarcodeCapture(barcodes: [Barcode(rawValue: payload('222'))]),
-      );
-      await tester.pumpAndSettle();
-      expect(calls, [true, false]);
       await tester.pumpWidget(const SizedBox());
       await tester.pumpAndSettle();
     },
@@ -425,9 +417,6 @@ void main() {
           ),
         ),
       );
-      await tester.pumpAndSettle();
-      expect(tester.widget<Switch>(find.byType(Switch)).value, isFalse);
-      await tester.tap(find.byType(Switch));
       await tester.pumpAndSettle();
       final capture = BarcodeCapture(
         barcodes: [Barcode(rawValue: payload('111'))],
@@ -535,14 +524,8 @@ void main() {
         'two': 'late',
         'unmarked': 'absent',
       });
-      await tester.ensureVisible(find.text('Done · Review Attendance'));
-      await tester.tap(find.text('Done · Review Attendance'));
-      await tester.pumpAndSettle();
-      await tester.tap(find.text('Save attendance'));
-      await tester.pumpAndSettle();
+      await tester.ensureVisible(find.text('Save'));
       await tester.tap(find.text('Save'));
-      await tester.pumpAndSettle();
-      await tester.tap(find.text('Save attendance'));
       await tester.pumpAndSettle();
       expect(api.marks, {
         'one': 'present',

@@ -910,6 +910,7 @@ void main() {
         await tester.pumpAndSettle();
         await tester.tap(find.byKey(ValueKey('assessment-dial-$type')));
         await tester.pumpAndSettle();
+        await tester.ensureVisible(find.text('Add assessment'));
         await tester.tap(find.text('Add assessment'));
         await tester.pumpAndSettle();
         expect(find.text('Enter an assessment title.'), findsOneWidget);
@@ -921,6 +922,7 @@ void main() {
           find.byKey(const ValueKey('assessment-max-score')),
           '0',
         );
+        await tester.ensureVisible(find.text('Add assessment'));
         await tester.tap(find.text('Add assessment'));
         await tester.pumpAndSettle();
         expect(api.requests.where((r) => r.method == 'POST'), isEmpty);
@@ -928,6 +930,7 @@ void main() {
           find.byKey(const ValueKey('assessment-max-score')),
           '25',
         );
+        await tester.ensureVisible(find.text('Add assessment'));
         await tester.tap(find.text('Add assessment'));
         await tester.pumpAndSettle();
         final post = api.requests.singleWhere((r) => r.method == 'POST');
