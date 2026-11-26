@@ -12,9 +12,9 @@ import '../../design/screen_search.dart';
 import '../../design/theme.dart';
 import '../../design/tokens.dart';
 import '../../shared/models.dart' show Term;
-import '../../shared/user_messages.dart';
 import '../../shared/widgets.dart';
 import '../teacher/classes_data.dart';
+import 'overview_components.dart';
 import 'overview_data.dart';
 import 'overview_insights.dart';
 
@@ -124,26 +124,29 @@ class _OverviewPageState extends ConsumerState<OverviewPage>
               crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
                 if (!inShell) ...[
-                  const ZContentHeader(title: 'Overview', icon: LucideIcons.layoutDashboard),
+                  const ZContentHeader(
+                    title: 'Overview',
+                    icon: LucideIcons.layoutDashboard,
+                  ),
                   const SizedBox(height: 10),
                 ],
                 _welcome(summary, term),
                 const SizedBox(height: 16),
-                _Board(
+                OverviewBoard(
                   icon: LucideIcons.bell,
                   title: 'Needs attention',
                   count: attentionCount > 0 ? attentionCount : null,
                   child: _attention(summary, attention),
                 ),
                 const SizedBox(height: 16),
-                _Board(
+                OverviewBoard(
                   icon: LucideIcons.clock,
                   title: 'Up next',
                   action: 'View schedule',
                   onAction: () => _open('/workspace/classes'),
                   child: schedule.when(
                     loading: () => const ZSkeletonRow(),
-                    error: (error, _) => _InlineError(
+                    error: (error, _) => OverviewInlineError(
                       error: error,
                       retry: () {
                         ref.invalidate(teachingWeekProvider);
@@ -155,7 +158,7 @@ class _OverviewPageState extends ConsumerState<OverviewPage>
                   ),
                 ),
                 const SizedBox(height: 16),
-                _Board(
+                OverviewBoard(
                   key: const ValueKey('overview-stats-panel'),
                   icon: LucideIcons.activity,
                   title: 'At a glance',
@@ -164,7 +167,7 @@ class _OverviewPageState extends ConsumerState<OverviewPage>
                       layout: SkeletonLayout.summary,
                       section: true,
                     ),
-                    error: (error, _) => _InlineError(
+                    error: (error, _) => OverviewInlineError(
                       error: error,
                       retry: () => ref.invalidate(overviewProvider),
                     ),
@@ -172,7 +175,7 @@ class _OverviewPageState extends ConsumerState<OverviewPage>
                   ),
                 ),
                 const SizedBox(height: 16),
-                _Board(
+                OverviewBoard(
                   icon: LucideIcons.chartPie,
                   title: 'Risk mix',
                   child: insights.when(
@@ -180,7 +183,7 @@ class _OverviewPageState extends ConsumerState<OverviewPage>
                       layout: SkeletonLayout.chart,
                       section: true,
                     ),
-                    error: (error, _) => _InlineError(
+                    error: (error, _) => OverviewInlineError(
                       error: error,
                       retry: () => ref.invalidate(overviewInsightsProvider),
                     ),
@@ -188,7 +191,7 @@ class _OverviewPageState extends ConsumerState<OverviewPage>
                   ),
                 ),
                 const SizedBox(height: 16),
-                _Board(
+                OverviewBoard(
                   icon: LucideIcons.chartColumn,
                   title: 'Attendance, day by day',
                   child: insights.when(
@@ -196,7 +199,7 @@ class _OverviewPageState extends ConsumerState<OverviewPage>
                       layout: SkeletonLayout.chart,
                       section: true,
                     ),
-                    error: (error, _) => _InlineError(
+                    error: (error, _) => OverviewInlineError(
                       error: error,
                       retry: () => ref.invalidate(overviewInsightsProvider),
                     ),
@@ -211,10 +214,7 @@ class _OverviewPageState extends ConsumerState<OverviewPage>
     );
   }
 
-  Widget _welcome(
-    AsyncValue<OverviewSummary> summary,
-    Term? term,
-  ) {
+  Widget _welcome(AsyncValue<OverviewSummary> summary, Term? term) {
     final theme = Theme.of(context);
     final schoolYear = term == null
         ? null
@@ -236,7 +236,7 @@ class _OverviewPageState extends ConsumerState<OverviewPage>
             ),
           ),
           loading: () => const SkeletonBox(height: 48),
-          error: (error, _) => _InlineError(
+          error: (error, _) => OverviewInlineError(
             error: error,
             retry: () => ref.invalidate(overviewProvider),
           ),
@@ -248,7 +248,11 @@ class _OverviewPageState extends ConsumerState<OverviewPage>
           crossAxisAlignment: WrapCrossAlignment.center,
           children: [
             if (schoolYear != null)
-              ZScopePill(text: schoolYear, kind: ScopePillKind.schoolYear, compact: true),
+              ZScopePill(
+                text: schoolYear,
+                kind: ScopePillKind.schoolYear,
+                compact: true,
+              ),
             if (term != null)
               ZScopePill(
                 text: 'Term ${term.termNumber}',
@@ -270,7 +274,7 @@ class _OverviewPageState extends ConsumerState<OverviewPage>
         (slot) => slot.day == ph.weekday && slot.status == 'APPROVED',
       );
       return notice != null
-          ? _BoardNote(notice)
+          ? OverviewBoardNote(notice)
           : ZEmpty(
               icon: LucideIcons.calendarDays,
               title: 'No classes',
@@ -350,15 +354,18 @@ class _OverviewPageState extends ConsumerState<OverviewPage>
                 children: [
                   _ScheduleMeta(
                     icon: LucideIcons.calendar,
-                    text: !_now.isBefore(next.startsAt) && _now.isBefore(next.endsAt)
-                    ? 'Now'
-                    : today
-                    ? 'Today'
-                    : DateFormat('EEE, MMM d').format(start),
+                    text:
+                        !_now.isBefore(next.startsAt) &&
+                            _now.isBefore(next.endsAt)
+                        ? 'Now'
+                        : today
+                        ? 'Today'
+                        : DateFormat('EEE, MMM d').format(start),
                   ),
                   _ScheduleMeta(
                     icon: LucideIcons.clock,
-                    text: '${DateFormat('h:mm a').format(start)} – ${DateFormat('h:mm a').format(end)}',
+                    text:
+                        '${DateFormat('h:mm a').format(start)} – ${DateFormat('h:mm a').format(end)}',
                   ),
                 ],
               ),
@@ -384,21 +391,21 @@ class _OverviewPageState extends ConsumerState<OverviewPage>
       children: [
         attention.when(
           loading: () => const ZSkeletonRow(),
-          error: (error, _) => _InlineError(
+          error: (error, _) => OverviewInlineError(
             error: error,
             retry: () => ref.invalidate(overviewSecondaryProvider),
           ),
           data: (data) {
             final count = data.pendingAssessments;
             if (count == null) {
-              return _ActionRequired(
+              return OverviewActionRequired(
                 message: 'Grading summary is unavailable.',
                 action: 'Check Gradebook',
                 onAction: () => _open('/workspace/gradebook'),
               );
             }
             if (count == 0) return const SizedBox.shrink();
-            return _AttentionRow(
+            return OverviewAttentionRow(
               icon: LucideIcons.notebookPen,
               title:
                   '$count assessment${count == 1 ? '' : 's'} with missing scores',
@@ -418,7 +425,7 @@ class _OverviewPageState extends ConsumerState<OverviewPage>
               padding: EdgeInsets.only(
                 top: pending != null && pending > 0 ? 8 : 0,
               ),
-              child: _AttentionRow(
+              child: OverviewAttentionRow(
                 icon: LucideIcons.heart,
                 title:
                     '$support learner${support == 1 ? '' : 's'} may need support',
@@ -432,7 +439,7 @@ class _OverviewPageState extends ConsumerState<OverviewPage>
             'Learner support checks are unavailable. Retry the overview summary above.',
           ),
         if (clear)
-          _AllClear(
+          OverviewAllClear(
             text: data.isAdviser
                 ? 'No missing scores or advisory risk alerts from these checks.'
                 : 'No missing scores from these checks.',
@@ -460,187 +467,6 @@ class _ScheduleMeta extends StatelessWidget {
         ),
       ),
     ],
-  );
-}
-
-/// Shared overview chrome, with the blue/white schedule reference variant.
-class _Board extends StatelessWidget {
-  const _Board({
-    super.key,
-    required this.icon,
-    required this.title,
-    required this.child,
-    this.count,
-    this.action,
-    this.onAction,
-  });
-  final IconData icon;
-  final String title;
-  final Widget child;
-  final int? count;
-  final String? action;
-  final VoidCallback? onAction;
-
-  @override
-  Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-    final isSchedule = title == 'Up next';
-    final accent = isSchedule ? const Color(0xff0755dc) : theme.colorScheme.primary;
-    final hairline = isSchedule
-        ? const Color(0xffe7ecf2)
-        : theme.colorScheme.outline.withValues(alpha: 0.7);
-    return Material(
-      color: isSchedule ? Colors.white : theme.cardTheme.color ?? theme.colorScheme.surface,
-      elevation: 1,
-      shadowColor: Colors.black.withValues(alpha: 0.08),
-      shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(isSchedule ? 18 : 16),
-        side: BorderSide(color: isSchedule ? const Color(0xffdce5ef) : theme.colorScheme.outline),
-      ),
-      clipBehavior: Clip.antiAlias,
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.stretch,
-        children: [
-          Padding(
-            padding: isSchedule
-                ? const EdgeInsets.symmetric(horizontal: 12, vertical: 6)
-                : EdgeInsets.fromLTRB(14, 8, action == null ? 14 : 6, 8),
-            child: Row(
-              children: [
-                Container(
-                  padding: EdgeInsets.all(isSchedule ? 7 : 5),
-                  decoration: BoxDecoration(
-                    color: (isSchedule ? const Color(0xffb45309) : accent)
-                        .withValues(alpha: 0.08),
-                    borderRadius: BorderRadius.circular(11),
-                  ),
-                  child: Icon(
-                    icon,
-                    size: isSchedule ? 20 : 18,
-                    color: isSchedule ? const Color(0xffb45309) : accent,
-                  ),
-                ),
-                const SizedBox(width: 8),
-                Expanded(
-                  flex: 2,
-                  child: Text(
-                    title,
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                    style: theme.textTheme.titleSmall?.copyWith(
-                      fontSize: isSchedule ? 16 : 14,
-                      color: isSchedule ? const Color(0xff080d23) : null,
-                      fontWeight: FontWeight.w700,
-                    ),
-                  ),
-                ),
-                if (count != null)
-                  Padding(
-                    padding: const EdgeInsets.only(left: 8),
-                    child: Text(
-                      '$count',
-                      style: theme.textTheme.labelSmall?.copyWith(
-                        color: accent,
-                        fontWeight: FontWeight.w700,
-                        fontFeatures: const [FontFeature.tabularFigures()],
-                      ),
-                    ),
-                  ),
-                if (action != null)
-                  // Keep the action at the trailing edge, while allowing
-                  // its label to shrink on narrow or large-text layouts.
-                  Flexible(
-                    flex: 3,
-                    fit: FlexFit.loose,
-                    child: Align(
-                      alignment: Alignment.centerRight,
-                      child: TextButton(
-                        onPressed: onAction,
-                        style: TextButton.styleFrom(
-                          backgroundColor: isSchedule ? const Color(0xffeaf2fd) : null,
-                          shape: isSchedule ? const StadiumBorder() : null,
-                          minimumSize: Size(0, isSchedule ? 32 : 40),
-                          padding: const EdgeInsets.symmetric(horizontal: 10),
-                          tapTargetSize: isSchedule
-                              ? MaterialTapTargetSize.padded
-                              : MaterialTapTargetSize.shrinkWrap,
-                          foregroundColor: isSchedule ? accent : theme.colorScheme.onSurfaceVariant,
-                          textStyle: theme.textTheme.labelSmall?.copyWith(
-                            fontSize: 12,
-                            fontWeight: FontWeight.w600,
-                          ),
-                        ),
-                        child: Row(
-                          mainAxisSize: MainAxisSize.min,
-                          children: [
-                            if (isSchedule) ...[
-                              const Icon(LucideIcons.calendar, size: 16),
-                              const SizedBox(width: 6),
-                            ],
-                            Flexible(
-                              child: Text(
-                                action!,
-                                maxLines: 1,
-                                softWrap: false,
-                                overflow: TextOverflow.ellipsis,
-                              ),
-                            ),
-                            if (isSchedule) ...[
-                              const SizedBox(width: 4),
-                              const Icon(LucideIcons.chevronRight, size: 16),
-                            ],
-                          ],
-                        ),
-                      ),
-                    ),
-                  ),
-              ],
-            ),
-          ),
-          // Hairline as a plain box: a header `Divider` would be counted as a
-          // stats row separator elsewhere and can't be themed per board.
-          Container(height: 1, color: hairline),
-          Padding(
-            padding: isSchedule
-                ? const EdgeInsets.fromLTRB(12, 12, 12, 12)
-                : const EdgeInsets.fromLTRB(14, 12, 14, 12),
-            child: child,
-          ),
-        ],
-      ),
-    );
-  }
-}
-
-/// Quiet body copy for an empty board.
-class _BoardNote extends StatelessWidget {
-  const _BoardNote(this.text);
-  final String text;
-  @override
-  Widget build(BuildContext context) => Padding(
-    padding: const EdgeInsets.symmetric(vertical: 4),
-    child: Row(
-      children: [
-        CircleAvatar(
-          radius: 18,
-          backgroundColor: Theme.of(context).colorScheme.surfaceContainerLow,
-          child: Icon(
-            LucideIcons.calendarDays,
-            size: 18,
-            color: Theme.of(context).colorScheme.onSurfaceVariant,
-          ),
-        ),
-        const SizedBox(width: 10),
-        Expanded(
-          child: Text(
-            text,
-            style: Theme.of(context).textTheme.bodySmall?.copyWith(
-              color: Theme.of(context).colorScheme.onSurfaceVariant,
-            ),
-          ),
-        ),
-      ],
-    ),
   );
 }
 
@@ -722,239 +548,27 @@ class OverviewStats extends StatelessWidget {
   final ValueChanged<String> onOpen;
 
   @override
-  Widget build(BuildContext context) => LayoutBuilder(
-    builder: (context, constraints) {
-      final items = [
-        (
-          label: 'Classes',
-          value: summary.classCount,
-          path: '/workspace/classes',
-        ),
-        (
-          label: summary.isAdviser ? 'Advisees' : 'Learners',
-          value: summary.learnerCount,
-          path: summary.isAdviser ? '/adviser/advisory' : '/workspace/classes',
-        ),
-        if (summary.isAdviser)
-          (
-            label: 'Need support',
-            value: summary.supportCount,
-            path: '/adviser/advisory',
-          ),
-      ];
-      final row =
-          constraints.maxWidth >= 330 &&
-          MediaQuery.textScalerOf(context).scale(13) <= 16;
-      final theme = Theme.of(context);
-      final accent = theme.colorScheme.primary;
-      final tiles = [
-        for (final item in items)
-          Semantics(
-            button: true,
-            child: InkWell(
-              onTap: () => onOpen(item.path),
-              focusColor: theme.colorScheme.primary.withValues(alpha: 0.12),
-              hoverColor: theme.colorScheme.primary.withValues(alpha: 0.04),
-              highlightColor: theme.colorScheme.primary.withValues(alpha: 0.08),
-              child: Padding(
-                padding: const EdgeInsets.fromLTRB(6, 10, 6, 12),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.center,
-                  children: [
-                    Text(
-                      item.value?.toString() ?? '—',
-                      style: theme.textTheme.headlineSmall?.copyWith(
-                        fontSize: 22,
-                        fontWeight: FontWeight.w700,
-                        color: accent,
-                        fontFeatures: const [FontFeature.tabularFigures()],
-                      ),
-                    ),
-                    const SizedBox(height: 4),
-                    Text(
-                      item.label.toUpperCase(),
-                      style: theme.textTheme.labelSmall?.copyWith(
-                        fontSize: 10,
-                        fontWeight: FontWeight.w600,
-                        letterSpacing: 0.7,
-                        color: theme.colorScheme.onSurfaceVariant,
-                      ),
-                    ),
-                    if (item.value == null)
-                      Text(
-                        'Unavailable',
-                        style: theme.textTheme.bodySmall?.copyWith(
-                          fontSize: 11,
-                          color: theme.colorScheme.onSurfaceVariant,
-                        ),
-                      ),
-                  ],
-                ),
-              ),
-            ),
-          ),
-      ];
-      final dividerColor = theme.colorScheme.outline.withValues(alpha: 0.7);
-      return row
-          ? IntrinsicHeight(
-              child: Row(
-                crossAxisAlignment: CrossAxisAlignment.stretch,
-                children: [
-                  for (var i = 0; i < tiles.length; i++) ...[
-                    if (i > 0)
-                      VerticalDivider(
-                        width: 1,
-                        thickness: 1,
-                        indent: 10,
-                        endIndent: 10,
-                        color: dividerColor,
-                      ),
-                    Expanded(child: tiles[i]),
-                  ],
-                ],
-              ),
-            )
-          : Column(
-              crossAxisAlignment: CrossAxisAlignment.stretch,
-              children: [
-                for (var i = 0; i < tiles.length; i++) ...[
-                  if (i > 0)
-                    Divider(
-                      height: 1,
-                      indent: 14,
-                      endIndent: 14,
-                      color: dividerColor,
-                    ),
-                  tiles[i],
-                ],
-              ],
-            );
-    },
-  );
-}
-
-class _AttentionRow extends StatelessWidget {
-  const _AttentionRow({
-    required this.icon,
-    required this.title,
-    required this.subtitle,
-    required this.onTap,
-  });
-  final IconData icon;
-  final String title;
-  final String subtitle;
-  final VoidCallback onTap;
-  @override
-  Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-    final accent = ZDesk.dataAccent(context);
-    return Material(
-      color: Colors.transparent,
-      child: Semantics(
-        button: true,
-        child: InkWell(
-          onTap: onTap,
-          borderRadius: BorderRadius.circular(ZTokens.radiusMd),
-          focusColor: accent.withValues(alpha: 0.12),
-          hoverColor: accent.withValues(alpha: 0.04),
-          child: Padding(
-            padding: const EdgeInsets.symmetric(vertical: 6),
-            child: Row(
-              children: [
-                Container(
-                  width: 30,
-                  height: 30,
-                  decoration: BoxDecoration(
-                    color: accent.withValues(alpha: 0.12),
-                    borderRadius: BorderRadius.circular(ZTokens.radiusMd),
-                  ),
-                  child: Icon(icon, size: 17, color: accent),
-                ),
-                const SizedBox(width: 10),
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(title, style: theme.textTheme.titleSmall),
-                      const SizedBox(height: 2),
-                      Text(
-                        subtitle,
-                        style: theme.textTheme.bodySmall?.copyWith(
-                          color: theme.colorScheme.onSurfaceVariant,
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-                const SizedBox(width: 6),
-                Icon(
-                  LucideIcons.chevronRight,
-                  size: 18,
-                  color: theme.colorScheme.onSurfaceVariant,
-                ),
-              ],
-            ),
-          ),
-        ),
+  Widget build(BuildContext context) => OverviewStatsGrid(
+    items: [
+      OverviewStatItem(
+        label: 'Classes',
+        value: summary.classCount,
+        path: '/workspace/classes',
       ),
-    );
-  }
-}
-
-class _ActionRequired extends StatelessWidget {
-  const _ActionRequired({
-    required this.message,
-    required this.action,
-    required this.onAction,
-  });
-  final String message;
-  final String action;
-  final VoidCallback onAction;
-  @override
-  Widget build(BuildContext context) => Column(
-    crossAxisAlignment: CrossAxisAlignment.start,
-    children: [
-      Text(message),
-      Align(
-        alignment: Alignment.centerLeft,
-        child: TextButton(onPressed: onAction, child: Text(action)),
+      OverviewStatItem(
+        label: summary.isAdviser ? 'Advisees' : 'Learners',
+        value: summary.learnerCount,
+        path: summary.isAdviser ? '/adviser/advisory' : '/workspace/classes',
       ),
+      if (summary.isAdviser)
+        OverviewStatItem(
+          label: 'Need support',
+          value: summary.supportCount,
+          path: '/adviser/advisory',
+        ),
     ],
+    onOpen: onOpen,
   );
-}
-
-/// Amber-tinted "nothing needs action" callout — the web `InsightCallout`
-/// shape, one message per board.
-class _AllClear extends StatelessWidget {
-  const _AllClear({required this.text});
-  final String text;
-  @override
-  Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-    const accent = Color(0xFF059669);
-    return Container(
-      width: double.infinity,
-      margin: const EdgeInsets.only(top: 6),
-      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
-      decoration: BoxDecoration(
-        color: accent.withValues(alpha: ZDesk.isDark(context) ? 0.10 : 0.08),
-        borderRadius: BorderRadius.circular(14),
-        border: Border.all(color: accent.withValues(alpha: 0.32)),
-      ),
-      child: Row(
-        children: [
-          Icon(LucideIcons.circleCheck, size: 16, color: accent),
-          const SizedBox(width: 8),
-          Expanded(
-            child: Text(
-              text,
-              style: theme.textTheme.bodySmall?.copyWith(height: 1.35),
-            ),
-          ),
-        ],
-      ),
-    );
-  }
 }
 
 class _OverviewActionTile extends StatelessWidget {
@@ -1072,27 +686,6 @@ class _OverviewActionTile extends StatelessWidget {
             ),
     );
   }
-}
-
-class _InlineError extends StatelessWidget {
-  const _InlineError({required this.error, required this.retry});
-  final Object error;
-  final VoidCallback retry;
-  @override
-  Widget build(BuildContext context) => Semantics(
-    liveRegion: true,
-    child: Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Text(
-          userMessage(error),
-          style: Theme.of(context).textTheme.bodySmall
-              ?.copyWith(color: Theme.of(context).colorScheme.onSurfaceVariant),
-        ),
-        TextButton(onPressed: retry, child: const Text('Try again')),
-      ],
-    ),
-  );
 }
 
 @Preview(

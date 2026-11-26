@@ -12,7 +12,6 @@ import '../../core/api_client.dart';
 import '../../core/session.dart';
 import '../../design/overview_theme.dart';
 import '../../design/screen_search.dart';
-import '../../design/status_palette.dart';
 import '../../design/shell.dart';
 import '../../shared/widgets.dart';
 import '../home/overview_data.dart';
@@ -223,39 +222,48 @@ class _AdmCasesState extends ConsumerState<AdmCasesPage> {
               Row(
                 children: [
                   Expanded(
-                    child: _filter(
-                      context,
-                      'Stage',
-                      _stage,
-                      {
+                    child: AdmCaseFilterPill(
+                      label: 'Stage',
+                      value: _stage,
+                      options: {
                         '': 'All stages',
                         for (final stage in admStageOrder.keys)
                           stage: _label(stage),
                       },
-                      (v) => _stage = v,
+                      update: (v) => setState(() => _stage = v),
                       primary: true,
                     ),
                   ),
                   const SizedBox(width: 6),
                   Expanded(
-                    child: _filter(context, 'Eligibility', _eligibility, {
-                      '': 'All',
-                      for (final value
-                          in list
-                              .map((c) => c['eligibilityStatus']?.toString())
-                              .whereType<String>()
-                              .where((v) => v.isNotEmpty)
-                              .toSet())
-                        value: _label(value),
-                    }, (v) => _eligibility = v),
+                    child: AdmCaseFilterPill(
+                      label: 'Eligibility',
+                      value: _eligibility,
+                      options: {
+                        '': 'All',
+                        for (final value
+                            in list
+                                .map((c) => c['eligibilityStatus']?.toString())
+                                .whereType<String>()
+                                .where((v) => v.isNotEmpty)
+                                .toSet())
+                          value: _label(value),
+                      },
+                      update: (v) => setState(() => _eligibility = v),
+                    ),
                   ),
                   const SizedBox(width: 6),
                   Expanded(
-                    child: _filter(context, 'Approval', _approval, const {
-                      '': 'All',
-                      'pending': 'Pending',
-                      'approved': 'Approved',
-                    }, (v) => _approval = v),
+                    child: AdmCaseFilterPill(
+                      label: 'Approval',
+                      value: _approval,
+                      options: const {
+                        '': 'All',
+                        'pending': 'Pending',
+                        'approved': 'Approved',
+                      },
+                      update: (v) => setState(() => _approval = v),
+                    ),
                   ),
                 ],
               ),
@@ -325,104 +333,6 @@ class _AdmCasesState extends ConsumerState<AdmCasesPage> {
       ('Approved', list.where((c) => c['approved'] == true).length),
       ('Completed', list.where((c) => c['stage'] == 'completion').length),
     ];
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
-      decoration: BoxDecoration(
-        color: const Color(0xFFF9F9FA),
-        border: Border.all(color: const Color(0xFFE8E8ED)),
-        borderRadius: BorderRadius.circular(12),
-      ),
-      child: Row(
-        children: [
-          for (var i = 0; i < counts.length; i++) ...[
-            if (i > 0)
-              const SizedBox(height: 30, child: VerticalDivider(width: 16)),
-            Expanded(
-              child: Text.rich(
-                TextSpan(
-                  text: '${counts[i].$2}',
-                  style: const TextStyle(
-                    fontWeight: FontWeight.w700,
-                    color: Color(0xFF1E293B),
-                  ),
-                  children: [
-                    TextSpan(
-                      text: '\n${counts[i].$1}',
-                      style: const TextStyle(
-                        fontWeight: FontWeight.w400,
-                        color: Color(0xFF71809B),
-                      ),
-                    ),
-                  ],
-                ),
-                textAlign: TextAlign.center,
-                style: const TextStyle(fontSize: 12, height: 1.6),
-              ),
-            ),
-          ],
-        ],
-      ),
-    );
-  }
-
-  Widget _filter(
-    BuildContext context,
-    String label,
-    String value,
-    Map<String, String> options,
-    ValueChanged<String> update, {
-    bool primary = false,
-  }) {
-    final blue = statusColors(StatusTone.blue, Theme.of(context));
-    final active = primary || value.isNotEmpty;
-    return PopupMenuButton<String>(
-      tooltip: label,
-      initialValue: value,
-      onSelected: (v) => setState(() => update(v)),
-      itemBuilder: (_) => [
-        for (final entry in options.entries)
-          PopupMenuItem(value: entry.key, child: Text(entry.value)),
-      ],
-      child: ConstrainedBox(
-        constraints: const BoxConstraints(minHeight: 48),
-        child: Center(
-          child: Container(
-            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 7),
-            decoration: BoxDecoration(
-              color: active ? blue.background : Colors.white,
-              borderRadius: BorderRadius.circular(999),
-              border: Border.all(
-                color: active
-                    ? blue.foreground.withValues(alpha: 0.25)
-                    : const Color(0xFFE5E5EA),
-              ),
-            ),
-            child: Row(
-              children: [
-                Expanded(
-                  child: Text(
-                    label == 'Stage'
-                        ? options[value] ?? _label(value)
-                        : '$label: ${options[value] ?? _label(value)}',
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                    style: TextStyle(
-                      fontSize: 12,
-                      color: active ? blue.foreground : const Color(0xFF7185A4),
-                    ),
-                  ),
-                ),
-                const SizedBox(width: 6),
-                Icon(
-                  LucideIcons.chevronDown,
-                  size: 12,
-                  color: active ? blue.foreground : const Color(0xFF7185A4),
-                ),
-              ],
-            ),
-          ),
-        ),
-      ),
-    );
+    return AdmCaseCounters(counts: counts);
   }
 }

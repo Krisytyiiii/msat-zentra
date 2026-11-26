@@ -4,6 +4,7 @@
 // Status-only, never clinical detail.
 
 import 'package:flutter/material.dart';
+import 'package:lucide_icons_flutter/lucide_icons.dart';
 
 import '../../shared/widgets.dart';
 import '../../design/status_palette.dart';
@@ -144,6 +145,134 @@ String _initials(String name) {
   if (words.isEmpty) return '?';
   return '${words.first.characters.first}${words.length > 1 ? words.last.characters.first : ''}'
       .toUpperCase();
+}
+
+/// The adviser ADM Cases counters strip: three centred figures over labels.
+class AdmCaseCounters extends StatelessWidget {
+  const AdmCaseCounters({super.key, required this.counts});
+  final List<(String, int)> counts;
+
+  @override
+  Widget build(BuildContext context) => Container(
+    padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+    decoration: BoxDecoration(
+      color: const Color(0xFFF9F9FA),
+      border: Border.all(color: const Color(0xFFE8E8ED)),
+      borderRadius: BorderRadius.circular(12),
+    ),
+    child: Row(
+      children: [
+        for (var i = 0; i < counts.length; i++) ...[
+          if (i > 0)
+            const SizedBox(height: 30, child: VerticalDivider(width: 16)),
+          Expanded(
+            child: Text.rich(
+              TextSpan(
+                text: '${counts[i].$2}',
+                style: const TextStyle(
+                  fontWeight: FontWeight.w700,
+                  color: Color(0xFF1E293B),
+                ),
+                children: [
+                  TextSpan(
+                    text: '\n${counts[i].$1}',
+                    style: const TextStyle(
+                      fontWeight: FontWeight.w400,
+                      color: Color(0xFF71809B),
+                    ),
+                  ),
+                ],
+              ),
+              textAlign: TextAlign.center,
+              style: const TextStyle(fontSize: 12, height: 1.6),
+            ),
+          ),
+        ],
+      ],
+    ),
+  );
+}
+
+/// Blue pill dropdown used by the ADM Cases filter row.
+class AdmCaseFilterPill extends StatelessWidget {
+  const AdmCaseFilterPill({
+    super.key,
+    required this.label,
+    required this.value,
+    required this.options,
+    required this.update,
+    this.primary = false,
+  });
+
+  final String label;
+  final String value;
+  final Map<String, String> options;
+  final ValueChanged<String> update;
+  final bool primary;
+
+  String _pretty(String value) => value
+      .split('_')
+      .map(
+        (word) => word.isEmpty
+            ? word
+            : '${word[0].toUpperCase()}${word.substring(1)}',
+      )
+      .join(' ');
+
+  @override
+  Widget build(BuildContext context) {
+    final blue = statusColors(StatusTone.blue, Theme.of(context));
+    final active = primary || value.isNotEmpty;
+    return PopupMenuButton<String>(
+      tooltip: label,
+      initialValue: value,
+      onSelected: update,
+      itemBuilder: (_) => [
+        for (final entry in options.entries)
+          PopupMenuItem(value: entry.key, child: Text(entry.value)),
+      ],
+      child: ConstrainedBox(
+        constraints: const BoxConstraints(minHeight: 48),
+        child: Center(
+          child: Container(
+            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 7),
+            decoration: BoxDecoration(
+              color: active ? blue.background : Colors.white,
+              borderRadius: BorderRadius.circular(999),
+              border: Border.all(
+                color: active
+                    ? blue.foreground.withValues(alpha: 0.25)
+                    : const Color(0xFFE5E5EA),
+              ),
+            ),
+            child: Row(
+              children: [
+                Expanded(
+                  child: Text(
+                    label == 'Stage'
+                        ? options[value] ?? _pretty(value)
+                        : '$label: ${options[value] ?? _pretty(value)}',
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: TextStyle(
+                      fontSize: 12,
+                      color: active ? blue.foreground : const Color(0xFF7185A4),
+                    ),
+                  ),
+                ),
+                const SizedBox(width: 6),
+                Icon(
+                  LucideIcons.chevronDown,
+                  size: 12,
+                  color: active ? blue.foreground : const Color(0xFF7185A4),
+                ),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+  }
 }
 
 class AdmCaseDetails extends StatelessWidget {

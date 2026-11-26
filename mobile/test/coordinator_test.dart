@@ -551,7 +551,7 @@ void main() {
   ) async {
     final api = CoordinatorApi();
     await mount(tester, api, const Scaffold(body: CoordinatorOverviewPage()));
-    expect(find.text('Welcome, Coordinator Name'), findsOneWidget);
+    expect(find.text('Welcome back,\nCoordinator Name.'), findsOneWidget);
     expect(find.text('24'), findsOneWidget);
     expect(find.text('21'), findsOneWidget);
     expect(api.requests.any((r) => r.path.contains('/teacher/')), isFalse);
@@ -656,11 +656,29 @@ void main() {
     await settle(tester);
     expect(api.requests.last.queryParameters['page'], 1);
     expect(api.requests.last.queryParameters['q'], 'Mira');
-    await tester.tap(find.byType(DropdownButtonFormField<String>));
+    await tester.tap(find.text('All stages'));
     await settle(tester);
     await tester.tap(find.text('Parent meeting').last);
     await settle(tester);
     expect(api.requests.last.queryParameters['stage'], 'meeting_parents');
+    expect(tester.takeException(), isNull);
+  });
+
+  testWidgets('devices desk floats the issue-device add button', (
+    tester,
+  ) async {
+    final api = CoordinatorApi();
+    await mount(
+      tester,
+      api,
+      const Scaffold(body: CoordinatorListPage(desk: 'devices')),
+    );
+    expect(
+      find.byKey(const ValueKey('coordinator-issue-device')),
+      findsOneWidget,
+    );
+    expect(find.byType(FloatingActionButton), findsOneWidget);
+    expect(find.text('Issue device'), findsNothing);
     expect(tester.takeException(), isNull);
   });
 
@@ -678,6 +696,16 @@ void main() {
       api,
       Scaffold(body: CoordinatorDeviceCard(device: device)),
     );
+    expect(find.text('Tablet'), findsOneWidget);
+    await tester.tap(find.byKey(const ValueKey('device-card-device/1')));
+    await settle(tester);
+    expect(find.text('Device Details'), findsOneWidget);
+    await tester.scrollUntilVisible(
+      find.text('Record return'),
+      120,
+      scrollable: find.byType(Scrollable).last,
+    );
+    await settle(tester);
     await tester.tap(find.text('Record return'));
     await settle(tester);
     expect(api.writes, isEmpty);
@@ -808,7 +836,10 @@ void main() {
     }
     // Settings moved into the account panel, not the bottom bar.
     expect(find.text('Settings'), findsNothing);
-    await tester.tap(find.byTooltip('Menu'));
+    // The coordinator header shows the Zentra mark, not a menu button.
+    expect(find.byTooltip('Menu'), findsNothing);
+    expect(find.byKey(const ValueKey('coordinator-logo')), findsOneWidget);
+    tester.state<ScaffoldState>(find.byType(Scaffold).first).openDrawer();
     await settle(tester);
     expect(find.text('ADM workspace'), findsOneWidget);
     expect(find.text('Settings'), findsNothing);
@@ -855,7 +886,7 @@ void main() {
       'subject_teacher',
     );
     await settle(tester);
-    expect(find.textContaining('Welcome,'), findsNothing);
+    expect(find.textContaining('Welcome'), findsNothing);
     expect(find.text('ADM coordinator access required.'), findsOneWidget);
   });
 

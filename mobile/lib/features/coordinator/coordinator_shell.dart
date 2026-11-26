@@ -1,9 +1,10 @@
 // ADM coordinator workspace shell.
 //
-// Reuses the adviser desk chrome: white menu/search/avatar header, the same
-// floating pill bottom navigation and the same account panel. The content
-// area stays the coordinator's own dark workspace. Navigation lives in the
-// bottom bar; Settings is reached from the account panel.
+// Reuses the adviser desk chrome: white search/avatar header, the same
+// floating pill bottom navigation and the same account panel. The header,
+// search results and pill use the adviser Overview's light palette on every
+// desk. Navigation lives in the bottom bar; Settings opens from the account
+// panel.
 
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -15,7 +16,9 @@ import '../../design/adviser_navigation.dart';
 import '../../design/brand.dart';
 import '../../design/overview_theme.dart';
 import '../../design/screen_search.dart';
+import '../../design/shell.dart' show staffNavigationHiddenProvider;
 import '../../design/staff_profile.dart';
+import '../../design/theme.dart' show zLightTheme;
 import '../../shared/widgets.dart';
 import 'coordinator_data.dart';
 import 'coordinator_notifications.dart';
@@ -115,7 +118,10 @@ class _CoordinatorShellState extends ConsumerState<CoordinatorShell>
     final name = profile?['fullName']?.toString() ?? 'ADM Coordinator';
     // The header is always the adviser desk's white tool bar, scoped here so
     // the dark coordinator content keeps its own palette.
-    final headerTheme = overviewScreenTheme(Theme.of(context)).copyWith(
+    // The header is light on every desk, so build it from the same light
+    // palette the adviser Overview uses. Deriving it from the dark login
+    // workspace left icon buttons, hover fills and the search cursor dark.
+    final headerTheme = overviewScreenTheme(zLightTheme()).copyWith(
       appBarTheme: const AppBarTheme(
         backgroundColor: Colors.white,
         foregroundColor: Color(0xFF242B42),
@@ -127,6 +133,9 @@ class _CoordinatorShellState extends ConsumerState<CoordinatorShell>
     );
     final query = _search.query.trim().toLowerCase();
     final isSettings = widget.path == '/coordinator/settings';
+    final isOverview = widget.path == '/coordinator/overview';
+    final showBottomBar =
+        !isSettings && !ref.watch(staffNavigationHiddenProvider);
     final showingPages =
         spec.mode == ScreenSearchMode.pages && query.isNotEmpty;
     final destinations = showingPages
@@ -138,66 +147,72 @@ class _CoordinatorShellState extends ConsumerState<CoordinatorShell>
           ]
         : const <ScreenSearchDestination>[];
 
-    return ScreenSearchScope(
-      controller: _search,
-      child: Scaffold(
-        appBar: isSettings
-            ? null
-            : PreferredSize(
-                preferredSize: const Size.fromHeight(73),
-                child: Theme(
-                  data: headerTheme,
-                  child: AppBar(
-                    titleSpacing: 0,
-                    leadingWidth: 64,
-                    leading: Builder(
-                      builder: (ctx) => Center(
-                        child: IconButton(
-                          style: IconButton.styleFrom(
-                            side: const BorderSide(color: Color(0xFFE5E8F0)),
-                            minimumSize: const Size(42, 42),
-                            shape: const CircleBorder(),
-                          ),
-                          icon: const Icon(Icons.menu, size: 20),
-                          tooltip: 'Menu',
-                          onPressed: () => Scaffold.of(ctx).openDrawer(),
+    return Theme(
+      // The Overview desk shares the adviser overview's light palette,
+      // including the floating bottom navigation; other desks stay dark.
+      data: isOverview
+          ? overviewScreenTheme(Theme.of(context))
+          : Theme.of(context),
+      child: ScreenSearchScope(
+        controller: _search,
+        child: Scaffold(
+          // The adviser desk floats its pill navigation over the scroll
+          // content; keep the same overlay behavior here (pages keep bottom
+          // clearance). Half-height detail sheets hide it, like referrals.
+          extendBody: showBottomBar,
+          appBar: isSettings
+              ? null
+              : PreferredSize(
+                  preferredSize: const Size.fromHeight(73),
+                  child: Theme(
+                    data: headerTheme,
+                    child: AppBar(
+                      titleSpacing: 0,
+                      leadingWidth: 64,
+                      leading: const Center(
+                        child: ZLogo(
+                          key: ValueKey('coordinator-logo'),
+                          size: 36,
+                          radius: 9,
                         ),
                       ),
-                    ),
-                    title: _searchField(context, spec),
-                    actions: [_CoordinatorProfileButton(name: name)],
-                    bottom: const PreferredSize(
-                      preferredSize: Size.fromHeight(1),
-                      child: Divider(height: 1, color: Color(0xFFEDF0F6)),
+                      title: _searchField(context, spec),
+                      actions: [_CoordinatorProfileButton(name: name)],
+                      bottom: const PreferredSize(
+                        preferredSize: Size.fromHeight(1),
+                        child: Divider(height: 1, color: Color(0xFFEDF0F6)),
+                      ),
                     ),
                   ),
                 ),
-              ),
-        drawer: isSettings ? null : _CoordinatorDrawer(name: name),
-        bottomNavigationBar: isSettings
-            ? null
-            : CoordinatorBottomNavigation(selectedPath: widget.path),
-        body: ListenableBuilder(
-          listenable: _search,
-          builder: (context, _) {
-            if (showingPages) {
-              return _CoordinatorPageResults(
-                destinations: destinations,
-                onOpen: (path) {
-                  _clearSearch();
-                  context.go(path);
-                },
-              );
-            }
-            return widget.child;
-          },
+          drawer: isSettings ? null : _CoordinatorDrawer(name: name),
+          bottomNavigationBar: showBottomBar
+              ? CoordinatorBottomNavigation(selectedPath: widget.path)
+              : null,
+          body: ListenableBuilder(
+            listenable: _search,
+            builder: (context, _) {
+              if (showingPages) {
+                return _CoordinatorPageResults(
+                  destinations: destinations,
+                  onOpen: (path) {
+                    _clearSearch();
+                    context.go(path);
+                  },
+                );
+              }
+              return widget.child;
+            },
+          ),
         ),
       ),
     );
   }
 
   Widget _searchField(BuildContext context, ScreenSearchSpec spec) {
-    final theme = Theme.of(context);
+    // Match the light header: the search text and its clear control must use
+    // the adviser's light ink, not the ambient dark workspace text.
+    final theme = overviewScreenTheme(zLightTheme());
     final border = OutlineInputBorder(
       borderRadius: BorderRadius.circular(999),
       borderSide: const BorderSide(color: Color(0xFFDDE2EE)),
@@ -266,54 +281,57 @@ class _CoordinatorPageResults extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-    return ColoredBox(
-      color: theme.colorScheme.surface,
-      child: destinations.isEmpty
-          ? Center(
-              child: Padding(
-                padding: const EdgeInsets.all(24),
-                child: ZEmpty(
-                  icon: Icons.search_off,
-                  title: 'No pages match',
-                  subtitle:
-                      'Try a menu name such as Cases, Enrolled, or Devices.',
-                ),
-              ),
-            )
-          : ListView(
-              key: const ValueKey('screen-search-results'),
-              padding: const EdgeInsets.fromLTRB(16, 16, 16, 32),
-              children: [
-                Text(
-                  'PAGES',
-                  style: theme.textTheme.labelSmall?.copyWith(
-                    letterSpacing: 0.6,
-                    color: theme.colorScheme.onSurfaceVariant,
+    final theme = overviewScreenTheme(zLightTheme());
+    return Theme(
+      data: theme,
+      child: ColoredBox(
+        color: theme.colorScheme.surface,
+        child: destinations.isEmpty
+            ? Center(
+                child: Padding(
+                  padding: const EdgeInsets.all(24),
+                  child: ZEmpty(
+                    icon: Icons.search_off,
+                    title: 'No pages match',
+                    subtitle:
+                        'Try a menu name such as Cases, Enrolled, or Devices.',
                   ),
                 ),
-                const SizedBox(height: 8),
-                for (final d in destinations)
-                  Padding(
-                    padding: const EdgeInsets.only(bottom: 8),
-                    child: ZCard(
-                      padding: EdgeInsets.zero,
-                      onTap: () => onOpen(d.path),
-                      child: ListTile(
-                        leading: Icon(d.icon, size: 20),
-                        title: Text(
-                          d.label,
-                          style: const TextStyle(
-                            fontSize: 13,
-                            fontWeight: FontWeight.w600,
-                          ),
-                        ),
-                        trailing: const Icon(Icons.chevron_right, size: 18),
-                      ),
+              )
+            : ListView(
+                key: const ValueKey('screen-search-results'),
+                padding: const EdgeInsets.fromLTRB(16, 16, 16, 112),
+                children: [
+                  Text(
+                    'PAGES',
+                    style: theme.textTheme.labelSmall?.copyWith(
+                      letterSpacing: 0.6,
+                      color: theme.colorScheme.onSurfaceVariant,
                     ),
                   ),
-              ],
-            ),
+                  const SizedBox(height: 8),
+                  for (final d in destinations)
+                    Padding(
+                      padding: const EdgeInsets.only(bottom: 8),
+                      child: ZCard(
+                        padding: EdgeInsets.zero,
+                        onTap: () => onOpen(d.path),
+                        child: ListTile(
+                          leading: Icon(d.icon, size: 20),
+                          title: Text(
+                            d.label,
+                            style: const TextStyle(
+                              fontSize: 13,
+                              fontWeight: FontWeight.w600,
+                            ),
+                          ),
+                          trailing: const Icon(Icons.chevron_right, size: 18),
+                        ),
+                      ),
+                    ),
+                ],
+              ),
+      ),
     );
   }
 }
@@ -325,7 +343,7 @@ class _CoordinatorDrawer extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final base = Theme.of(context);
+    final base = zLightTheme();
     final drawerTheme = base.copyWith(
       brightness: Brightness.light,
       colorScheme: const ColorScheme.light(

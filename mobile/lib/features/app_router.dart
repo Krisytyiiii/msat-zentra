@@ -43,11 +43,14 @@ import 'teacher/assessments_page.dart';
 import 'workspace/workspace_attendance_page.dart';
 import 'workspace/attendance_record_page.dart';
 import 'workspace/attendance_data.dart';
-import '../core/session.dart' show authProvider, sessionRoleHint, mobilePortalForRole;
+import '../core/session.dart'
+    show authProvider, sessionRoleHint, mobilePortalForRole;
 import '../design/theme.dart' show zWorkspaceTheme;
 import 'coordinator/coordinator_shell.dart';
 import 'coordinator/coordinator_pages.dart';
 import 'coordinator/coordinator_case_page.dart';
+import 'coordinator/coordinator_devices.dart';
+import 'coordinator/coordinator_models.dart' show AdmDevice;
 import 'coordinator/coordinator_monitoring.dart';
 import 'coordinator/coordinator_settings.dart';
 import 'coordinator/coordinator_notifications.dart';
@@ -55,7 +58,9 @@ import 'coordinator/coordinator_notifications.dart';
 String? coordinatorRedirect(String? role, String location, bool hasTerm) {
   if (role == 'adm_coordinator') {
     if (location == '/coordinator') return '/coordinator/overview';
-    return location.startsWith('/coordinator/') ? null : '/coordinator/overview';
+    return location.startsWith('/coordinator/')
+        ? null
+        : '/coordinator/overview';
   }
   if (location == '/coordinator' || location.startsWith('/coordinator/')) {
     return hasTerm ? '/gate' : '/term';
@@ -63,7 +68,43 @@ String? coordinatorRedirect(String? role, String location, bool hasTerm) {
   return null;
 }
 
-Widget _coordinatorView(Widget child) => Theme(data: zWorkspaceTheme(), child: child);
+Widget _coordinatorView(Widget child) =>
+    Theme(data: zWorkspaceTheme(), child: child);
+
+/// The five coordinator desks (plus Settings) share one persistent shell, so
+/// the header and floating pill navigation stay mounted exactly like the
+/// adviser workspace while only the body changes. Case details and
+/// notifications remain root-level full screens.
+List<RouteBase> _coordinatorDeskRoute() => [
+  ShellRoute(
+    builder: (context, state, child) =>
+        _coordinatorView(CoordinatorShell(path: state.uri.path, child: child)),
+    routes: [
+      GoRoute(
+        path: '/coordinator/overview',
+        pageBuilder: (_, state) => NoTransitionPage<void>(
+          key: state.pageKey,
+          child: const CoordinatorOverviewPage(),
+        ),
+      ),
+      for (final desk in ['referrals', 'enrolled', 'certifications', 'devices'])
+        GoRoute(
+          path: '/coordinator/$desk',
+          pageBuilder: (_, state) => NoTransitionPage<void>(
+            key: state.pageKey,
+            child: CoordinatorListPage(desk: desk),
+          ),
+        ),
+      GoRoute(
+        path: '/coordinator/settings',
+        pageBuilder: (_, state) => NoTransitionPage<void>(
+          key: state.pageKey,
+          child: const CoordinatorSettingsPage(),
+        ),
+      ),
+    ],
+  ),
+];
 
 // Workspace/list and record destinations share chrome. Editing screens,
 // other details, conversations and authentication stay on the root navigator.
@@ -108,13 +149,15 @@ List<RouteBase> persistentStaffRoutes(List<RouteBase> routes) {
   final root = <RouteBase>[];
   for (final route in routes) {
     if (route is GoRoute && _staffShellPaths.contains(route.path)) {
-      staff.add(GoRoute(
-        path: route.path,
-        pageBuilder: (context, state) => NoTransitionPage<void>(
-          key: state.pageKey,
-          child: route.builder!(context, state),
+      staff.add(
+        GoRoute(
+          path: route.path,
+          pageBuilder: (context, state) => NoTransitionPage<void>(
+            key: state.pageKey,
+            child: route.builder!(context, state),
+          ),
         ),
-      ));
+      );
     } else {
       root.add(route);
     }
@@ -144,18 +187,28 @@ final routerProvider = Provider<GoRouter>((ref) {
       final loc = state.matchedLocation;
       if (token == null && loc != '/login') return '/login';
       if (token != null) {
-        final role = container.read(authProvider).role ?? sessionRoleHint(
-          Hive.box(AppConfig.portalBox).get('role') as String?, token);
+        final role =
+            container.read(authProvider).role ??
+            sessionRoleHint(
+              Hive.box(AppConfig.portalBox).get('role') as String?,
+              token,
+            );
         final coordinator = coordinatorRedirect(role, loc, hasTerm);
         if (coordinator != null) return coordinator;
         if (role == 'adm_coordinator') return null;
-        final portal = mobilePortalForRole(role) ?? container.read(authProvider).portal ??
-            Hive.box(AppConfig.portalBox).get('portal') as String? ?? 'staff';
+        final portal =
+            mobilePortalForRole(role) ??
+            container.read(authProvider).portal ??
+            Hive.box(AppConfig.portalBox).get('portal') as String? ??
+            'staff';
         if (portal == 'student' || portal == 'parent') {
-          if (loc == '/portal/notifications' || loc.startsWith('/$portal/')) return null;
+          if (loc == '/portal/notifications' || loc.startsWith('/$portal/'))
+            return null;
           return '/$portal/home';
         }
-        if (loc.startsWith('/student') || loc.startsWith('/parent') || loc.startsWith('/portal/')) {
+        if (loc.startsWith('/student') ||
+            loc.startsWith('/parent') ||
+            loc.startsWith('/portal/')) {
           return hasTerm ? '/gate' : '/term';
         }
       }
@@ -163,7 +216,8 @@ final routerProvider = Provider<GoRouter>((ref) {
       if (token != null && !hasTerm && loc != '/term') return '/term';
       // Role gate for adviser routes (cached role set by overviewProvider).
       final role = container.read(authProvider).role;
-      if (loc.startsWith('/adviser/') && role == 'subject_teacher') return '/workspace/classes';
+      if (loc.startsWith('/adviser/') && role == 'subject_teacher')
+        return '/workspace/classes';
       // Root redirects to defaults.
       if (loc == '/adviser') return '/workspace/overview';
       if (loc == '/teacher') return '/workspace/overview';
@@ -171,43 +225,123 @@ final routerProvider = Provider<GoRouter>((ref) {
     },
     routes: persistentStaffRoutes([
       GoRoute(path: '/login', builder: (context, _) => const LoginPage()),
-      GoRoute(path: '/coordinator', redirect: (_, _) => '/coordinator/overview'),
-      GoRoute(path: '/coordinator/overview', builder: (_, _) => _coordinatorView(
-        const CoordinatorShell(path: '/coordinator/overview', child: CoordinatorOverviewPage()))),
-      for (final desk in ['referrals', 'enrolled', 'certifications', 'devices'])
-        GoRoute(path: '/coordinator/$desk', builder: (_, _) => _coordinatorView(
-          CoordinatorShell(key: ValueKey('coordinator-$desk'),
-            path: '/coordinator/$desk', child: CoordinatorListPage(desk: desk)))),
-      GoRoute(path: '/coordinator/referrals/:id', builder: (_, state) => _coordinatorView(
-        CoordinatorCasePage(key: ValueKey(state.pathParameters['id']),
-          caseId: state.pathParameters['id']!))),
-      GoRoute(path: '/coordinator/enrolled/:id', builder: (_, state) => _coordinatorView(
-        CoordinatorMonitoringPage(key: ValueKey(state.pathParameters['id']),
-          caseId: state.pathParameters['id']!))),
-      GoRoute(path: '/coordinator/settings', builder: (_, _) => _coordinatorView(
-        const CoordinatorShell(path: '/coordinator/settings', child: CoordinatorSettingsPage()))),
-      GoRoute(path: '/coordinator/notifications', builder: (_, _) => _coordinatorView(
-        const CoordinatorNotificationsPage())),
-      GoRoute(path: '/student/home', builder: (context, _) => const StudentHomePage()),
-      GoRoute(path: '/student/profile', builder: (context, _) => const StudentIdentityPage()),
-      GoRoute(path: '/student/profile/qr', builder: (context, _) => const StudentIdentityPage(qr: true)),
-      GoRoute(path: '/student/grades', builder: (context, _) => const StudentGradesPage()),
-      GoRoute(path: '/student/attendance', builder: (context, _) => const StudentAttendancePage()),
-      GoRoute(path: '/student/schedule', builder: (context, _) => const StudentSchedulePage()),
-      GoRoute(path: '/student/modules', builder: (context, _) => const StudentModulesPage()),
-      GoRoute(path: '/student/sessions', builder: (context, _) => const StudentSessionsPage()),
-      GoRoute(path: '/parent/home', builder: (context, _) => const ParentHomePage()),
-      GoRoute(path: '/parent/grades', builder: (context, _) => const ParentGradesPage()),
-      GoRoute(path: '/parent/attendance', builder: (context, _) => const ParentAttendancePage()),
-      GoRoute(path: '/parent/schedule', builder: (context, _) => const ParentSchedulePage()),
-      GoRoute(path: '/parent/modules', builder: (context, _) => const ParentModulesPage()),
-      GoRoute(path: '/parent/sessions', builder: (context, _) => const ParentSessionsPage()),
+      GoRoute(
+        path: '/coordinator',
+        redirect: (_, _) => '/coordinator/overview',
+      ),
+      ..._coordinatorDeskRoute(),
+      GoRoute(
+        path: '/coordinator/referrals/:id',
+        builder: (_, state) => _coordinatorView(
+          CoordinatorCasePage(
+            key: ValueKey(state.pathParameters['id']),
+            caseId: state.pathParameters['id']!,
+          ),
+        ),
+      ),
+      GoRoute(
+        path: '/coordinator/enrolled/:id',
+        builder: (_, state) => _coordinatorView(
+          CoordinatorMonitoringPage(
+            key: ValueKey(state.pathParameters['id']),
+            caseId: state.pathParameters['id']!,
+          ),
+        ),
+      ),
+      GoRoute(
+        path: '/coordinator/devices/issue',
+        builder: (_, _) => _coordinatorView(const CoordinatorIssueDevicePage()),
+      ),
+      GoRoute(
+        path: '/coordinator/devices/detail/:id',
+        builder: (_, state) {
+          final extra = state.extra;
+          return _coordinatorView(
+            CoordinatorDeviceDetailPage(
+              deviceId: Uri.decodeComponent(state.pathParameters['id'] ?? ''),
+              initial: extra is AdmDevice ? extra : null,
+            ),
+          );
+        },
+      ),
+      GoRoute(
+        path: '/coordinator/notifications',
+        builder: (_, _) =>
+            _coordinatorView(const CoordinatorNotificationsPage()),
+      ),
+      GoRoute(
+        path: '/student/home',
+        builder: (context, _) => const StudentHomePage(),
+      ),
+      GoRoute(
+        path: '/student/profile',
+        builder: (context, _) => const StudentIdentityPage(),
+      ),
+      GoRoute(
+        path: '/student/profile/qr',
+        builder: (context, _) => const StudentIdentityPage(qr: true),
+      ),
+      GoRoute(
+        path: '/student/grades',
+        builder: (context, _) => const StudentGradesPage(),
+      ),
+      GoRoute(
+        path: '/student/attendance',
+        builder: (context, _) => const StudentAttendancePage(),
+      ),
+      GoRoute(
+        path: '/student/schedule',
+        builder: (context, _) => const StudentSchedulePage(),
+      ),
+      GoRoute(
+        path: '/student/modules',
+        builder: (context, _) => const StudentModulesPage(),
+      ),
+      GoRoute(
+        path: '/student/sessions',
+        builder: (context, _) => const StudentSessionsPage(),
+      ),
+      GoRoute(
+        path: '/parent/home',
+        builder: (context, _) => const ParentHomePage(),
+      ),
+      GoRoute(
+        path: '/parent/grades',
+        builder: (context, _) => const ParentGradesPage(),
+      ),
+      GoRoute(
+        path: '/parent/attendance',
+        builder: (context, _) => const ParentAttendancePage(),
+      ),
+      GoRoute(
+        path: '/parent/schedule',
+        builder: (context, _) => const ParentSchedulePage(),
+      ),
+      GoRoute(
+        path: '/parent/modules',
+        builder: (context, _) => const ParentModulesPage(),
+      ),
+      GoRoute(
+        path: '/parent/sessions',
+        builder: (context, _) => const ParentSessionsPage(),
+      ),
       GoRoute(path: '/term', builder: (context, _) => const TermSelectPage()),
       GoRoute(path: '/gate', builder: (context, _) => const FirstTimeGate()),
       // Adviser section (drawer replace-targets)
-      GoRoute(path: '/adviser/interventions', builder: (context, _) =>
-          const AdviserShell(selected: AdviserRoute.interventions, child: InterventionsPage())),
-      GoRoute(path: '/adviser/advisory', builder: (context, _) => const AdviserShell(selected: AdviserRoute.advisory, child: AdvisoryListPage())),
+      GoRoute(
+        path: '/adviser/interventions',
+        builder: (context, _) => const AdviserShell(
+          selected: AdviserRoute.interventions,
+          child: InterventionsPage(),
+        ),
+      ),
+      GoRoute(
+        path: '/adviser/advisory',
+        builder: (context, _) => const AdviserShell(
+          selected: AdviserRoute.advisory,
+          child: AdvisoryListPage(),
+        ),
+      ),
       GoRoute(
         path: '/adviser/advisory/attendance',
         builder: (context, _) => const AdviserShell(
@@ -232,18 +366,50 @@ final routerProvider = Provider<GoRouter>((ref) {
           );
         },
       ),
-      GoRoute(path: '/adviser/academic', builder: (context, _) => const AdviserShell(selected: AdviserRoute.academic, child: AcademicOverviewPage())),
-      GoRoute(path: '/adviser/adm-cases', builder: (context, _) => const AdviserShell(selected: AdviserRoute.admCases, child: AdmCasesPage())),
-      GoRoute(path: '/adviser/anecdotal', builder: (context, _) => const AdviserShell(selected: AdviserRoute.anecdotal, child: AnecdotalRepoPage())),
-      GoRoute(path: '/adviser/schedule', builder: (context, _) => const AdviserShell(selected: AdviserRoute.schedule, child: AdviserSchedulePage())),
+      GoRoute(
+        path: '/adviser/academic',
+        builder: (context, _) => const AdviserShell(
+          selected: AdviserRoute.academic,
+          child: AcademicOverviewPage(),
+        ),
+      ),
+      GoRoute(
+        path: '/adviser/adm-cases',
+        builder: (context, _) => const AdviserShell(
+          selected: AdviserRoute.admCases,
+          child: AdmCasesPage(),
+        ),
+      ),
+      GoRoute(
+        path: '/adviser/anecdotal',
+        builder: (context, _) => const AdviserShell(
+          selected: AdviserRoute.anecdotal,
+          child: AnecdotalRepoPage(),
+        ),
+      ),
+      GoRoute(
+        path: '/adviser/schedule',
+        builder: (context, _) => const AdviserShell(
+          selected: AdviserRoute.schedule,
+          child: AdviserSchedulePage(),
+        ),
+      ),
       GoRoute(
         path: '/adviser/bama',
         builder: (context, state) => AdviserShell(
           selected: AdviserRoute.bama,
-          child: BamaChatPage(freshEntry: state.uri.queryParameters['new'] == '1'),
+          child: BamaChatPage(
+            freshEntry: state.uri.queryParameters['new'] == '1',
+          ),
         ),
       ),
-      GoRoute(path: '/adviser/referrals', builder: (context, _) => const AdviserShell(selected: AdviserRoute.referrals, child: ReferralPage())),
+      GoRoute(
+        path: '/adviser/referrals',
+        builder: (context, _) => const AdviserShell(
+          selected: AdviserRoute.referrals,
+          child: ReferralPage(),
+        ),
+      ),
       GoRoute(
         path: '/adviser/bama/conversation/:conversationId',
         builder: (context, state) => BamaChatPage(
@@ -262,13 +428,23 @@ final routerProvider = Provider<GoRouter>((ref) {
           Future<void> Function(String) onResume = (_) async {};
           ValueChanged<BamaConversation> onDelete = (_) {};
           if (extra is Map) {
-            if (extra['conversations'] is List) convos = (extra['conversations'] as List).whereType<BamaConversation>().toList();
-            if (extra['onResume'] is Future<void> Function(String)) onResume = extra['onResume'] as Future<void> Function(String);
-            if (extra['onDelete'] is ValueChanged<BamaConversation>) onDelete = extra['onDelete'] as ValueChanged<BamaConversation>;
+            if (extra['conversations'] is List)
+              convos = (extra['conversations'] as List)
+                  .whereType<BamaConversation>()
+                  .toList();
+            if (extra['onResume'] is Future<void> Function(String))
+              onResume = extra['onResume'] as Future<void> Function(String);
+            if (extra['onDelete'] is ValueChanged<BamaConversation>)
+              onDelete = extra['onDelete'] as ValueChanged<BamaConversation>;
           }
           return AdviserShell(
             selected: AdviserRoute.bama,
-            child: BamaHistoryPage(type: type, conversations: convos, onResume: onResume, onDelete: onDelete),
+            child: BamaHistoryPage(
+              type: type,
+              conversations: convos,
+              onResume: onResume,
+              onDelete: onDelete,
+            ),
           );
         },
       ),
@@ -279,23 +455,55 @@ final routerProvider = Provider<GoRouter>((ref) {
           // Pushed from AdvisoryListPage with the full object; fallback to
           // deep-link stub (detail fetches live data itself). Detail screens
           // sit outside the shell: one header, the learner's name.
-          if (extra is AdvisoryStudent) return StudentDetailPage(student: extra);
+          if (extra is AdvisoryStudent)
+            return StudentDetailPage(student: extra);
           final id = state.pathParameters['id'] ?? '';
           return StudentDetailPage(
-            student: AdvisoryStudent(studentId: Uri.decodeComponent(id), name: 'Student', lrn: '—', hasAccount: true),
+            student: AdvisoryStudent(
+              studentId: Uri.decodeComponent(id),
+              name: 'Student',
+              lrn: '—',
+              hasAccount: true,
+            ),
           );
         },
       ),
       // Shared Workspace (both roles, same web data)
-      GoRoute(path: '/workspace/overview', builder: (context, _) => const WorkspaceShell(selected: WorkspaceRoute.overview, child: OverviewPage())),
-      GoRoute(path: '/workspace/schedule', builder: (context, _) => const WorkspaceShell(selected: WorkspaceRoute.schedule, child: AdviserSchedulePage(advisory: false))),
-      GoRoute(path: '/workspace/classes', builder: (context, _) => const WorkspaceShell(selected: WorkspaceRoute.classes, child: ClassesPage())),
-      GoRoute(path: '/workspace/gradebook', builder: (context, _) => const WorkspaceShell(selected: WorkspaceRoute.gradebook, child: GradebookDashboardPage())),
+      GoRoute(
+        path: '/workspace/overview',
+        builder: (context, _) => const WorkspaceShell(
+          selected: WorkspaceRoute.overview,
+          child: OverviewPage(),
+        ),
+      ),
+      GoRoute(
+        path: '/workspace/schedule',
+        builder: (context, _) => const WorkspaceShell(
+          selected: WorkspaceRoute.schedule,
+          child: AdviserSchedulePage(advisory: false),
+        ),
+      ),
+      GoRoute(
+        path: '/workspace/classes',
+        builder: (context, _) => const WorkspaceShell(
+          selected: WorkspaceRoute.classes,
+          child: ClassesPage(),
+        ),
+      ),
+      GoRoute(
+        path: '/workspace/gradebook',
+        builder: (context, _) => const WorkspaceShell(
+          selected: WorkspaceRoute.gradebook,
+          child: GradebookDashboardPage(),
+        ),
+      ),
       GoRoute(
         path: '/workspace/classes/:id/assessments',
         builder: (context, state) => AssessmentsPage(
           classId: state.pathParameters['id']!,
-          audience: state.uri.queryParameters['audience'] == 'adm' ? 'adm' : 'regular',
+          audience: state.uri.queryParameters['audience'] == 'adm'
+              ? 'adm'
+              : 'regular',
         ),
       ),
       GoRoute(
@@ -322,7 +530,13 @@ final routerProvider = Provider<GoRouter>((ref) {
           return GradebookPage(classId: id, title: title);
         },
       ),
-      GoRoute(path: '/workspace/attendance', builder: (context, _) => const WorkspaceShell(selected: WorkspaceRoute.attendance, child: WorkspaceAttendancePage())),
+      GoRoute(
+        path: '/workspace/attendance',
+        builder: (context, _) => const WorkspaceShell(
+          selected: WorkspaceRoute.attendance,
+          child: WorkspaceAttendancePage(),
+        ),
+      ),
       GoRoute(
         path: '/workspace/attendance/records/:sectionId/:subjectId',
         builder: (context, state) {
@@ -330,15 +544,26 @@ final routerProvider = Provider<GoRouter>((ref) {
           final subjectId = state.pathParameters['subjectId']!;
           final pair = state.extra;
           if (pair is AttendancePair &&
-              pair.sectionId == sectionId && pair.subjectId == subjectId) {
+              pair.sectionId == sectionId &&
+              pair.subjectId == subjectId) {
             return AttendanceRecordPage(
-              key: ValueKey('$sectionId|$subjectId'), pair: pair,
+              key: ValueKey('$sectionId|$subjectId'),
+              pair: pair,
             );
           }
-          return AttendanceRecordRoute(sectionId: sectionId, subjectId: subjectId);
+          return AttendanceRecordRoute(
+            sectionId: sectionId,
+            subjectId: subjectId,
+          );
         },
       ),
-      GoRoute(path: '/teacher/more', builder: (context, _) => const WorkspaceShell(selected: WorkspaceRoute.more, child: TeacherMorePage())),
+      GoRoute(
+        path: '/teacher/more',
+        builder: (context, _) => const WorkspaceShell(
+          selected: WorkspaceRoute.more,
+          child: TeacherMorePage(),
+        ),
+      ),
       // Deprecated aliases (one release): old installs may hold these paths.
       GoRoute(
         path: '/workspace/gradebook/:id',
@@ -348,9 +573,18 @@ final routerProvider = Provider<GoRouter>((ref) {
           return '/workspace/classes/$id${title == null ? '' : '?title=${Uri.encodeComponent(title)}'}';
         },
       ),
-      GoRoute(path: '/adviser/attendance', redirect: (context, _) => '/workspace/attendance'),
-      GoRoute(path: '/teacher/classes', redirect: (context, _) => '/workspace/classes'),
-      GoRoute(path: '/teacher/attendance', redirect: (context, _) => '/workspace/attendance'),
+      GoRoute(
+        path: '/adviser/attendance',
+        redirect: (context, _) => '/workspace/attendance',
+      ),
+      GoRoute(
+        path: '/teacher/classes',
+        redirect: (context, _) => '/workspace/classes',
+      ),
+      GoRoute(
+        path: '/teacher/attendance',
+        redirect: (context, _) => '/workspace/attendance',
+      ),
       GoRoute(
         path: '/teacher/gradebook/:id',
         redirect: (context, state) {
@@ -360,8 +594,12 @@ final routerProvider = Provider<GoRouter>((ref) {
         },
       ),
     ]),
-    errorBuilder: (context, _) => const Scaffold(body: Center(child: Text('Page not found'))),
+    errorBuilder: (context, _) =>
+        const Scaffold(body: Center(child: Text('Page not found'))),
   );
-  ref.onDispose(() { router.dispose(); authChanges.dispose(); });
+  ref.onDispose(() {
+    router.dispose();
+    authChanges.dispose();
+  });
   return router;
 });
