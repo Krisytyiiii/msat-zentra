@@ -790,7 +790,7 @@ void main() {
     });
   }
 
-  testWidgets('shell has all six destinations and no teacher requests', (
+  testWidgets('shell reuses the adviser chrome with five desk destinations', (
     tester,
   ) async {
     final api = CoordinatorApi();
@@ -802,12 +802,40 @@ void main() {
         child: CoordinatorOverviewPage(),
       ),
     );
-    await tester.tap(find.byTooltip('Open navigation menu'));
-    await settle(tester);
+    expect(find.byKey(const ValueKey('coordinator-nav-bar')), findsOneWidget);
     for (final destination in coordinatorDestinations) {
       expect(find.text(destination.label), findsWidgets);
     }
+    // Settings moved into the account panel, not the bottom bar.
+    expect(find.text('Settings'), findsNothing);
+    await tester.tap(find.byTooltip('Menu'));
+    await settle(tester);
+    expect(find.text('ADM workspace'), findsOneWidget);
+    expect(find.text('Settings'), findsNothing);
     expect(api.requests.any((r) => r.path.contains('/teacher/')), isFalse);
+    expect(tester.takeException(), isNull);
+  });
+
+  testWidgets('account panel hosts settings, appearance and logout', (
+    tester,
+  ) async {
+    final api = CoordinatorApi();
+    await mount(
+      tester,
+      api,
+      const CoordinatorShell(
+        path: '/coordinator/overview',
+        child: CoordinatorOverviewPage(),
+      ),
+    );
+    await tester.tap(find.byKey(const ValueKey('profile-avatar')));
+    await settle(tester);
+    expect(find.text('Profile'), findsOneWidget);
+    expect(find.text('ADM Coordinator'), findsWidgets);
+    expect(find.text('Notifications'), findsOneWidget);
+    expect(find.text('Appearance'), findsOneWidget);
+    expect(find.text('Settings'), findsOneWidget);
+    expect(find.text('Logout'), findsOneWidget);
     expect(tester.takeException(), isNull);
   });
 

@@ -21,15 +21,14 @@ class _Auth extends AuthNotifier {
   }
 }
 
-const _shortcut = ValueKey('adviser-bama-shortcut');
 const _paths = [
   '/workspace/overview',
   '/workspace/classes',
   '/workspace/gradebook',
   '/workspace/attendance',
   '/adviser/academic',
+  '/adviser/schedule',
   '/adviser/bama',
-  '/adviser/bama/conversation/thread',
 ];
 
 Future<GoRouter> _mount(
@@ -51,43 +50,9 @@ Future<GoRouter> _mount(
           path: path,
           builder: (context, state) => ZentraShell(
             selectedPath: state.uri.path,
-            child: const Center(
-              child: TextField(
-                key: ValueKey('draft'),
-                decoration: InputDecoration(labelText: 'Draft'),
-              ),
-            ),
+            child: const Center(child: Text('Desk content')),
           ),
         ),
-      GoRoute(
-        path: '/detail',
-        builder: (context, state) => Scaffold(
-          appBar: AppBar(title: const Text('Full-screen detail')),
-          body: AdviserBamaAccess(
-            child: Stack(
-              children: [
-                const Center(child: Text('Detail content')),
-                Positioned(
-                  bottom: 16,
-                  right: 16,
-                  child: FloatingActionButton(
-                    key: const ValueKey('existing-add'),
-                    heroTag: null,
-                    onPressed: () {},
-                    child: const Icon(Icons.add),
-                  ),
-                ),
-              ],
-            ),
-          ),
-          bottomNavigationBar: SafeArea(
-            child: FilledButton(
-              onPressed: () {},
-              child: const Text('Save changes'),
-            ),
-          ),
-        ),
-      ),
     ],
   );
   addTearDown(router.dispose);
@@ -100,7 +65,7 @@ Future<GoRouter> _mount(
           (ref) async => {'isAdviser': role == 'adviser'},
         ),
         teacherProfileProvider.overrideWith(
-          (ref) async => const TeacherProfile(fullName: 'Adviser'),
+          (ref) async => const TeacherProfile(fullName: 'Teacher'),
         ),
         notificationsProvider.overrideWith((ref) => <ZNotification>[]),
       ],
@@ -136,11 +101,13 @@ void main() {
         await tester.tap(target);
         await tester.pumpAndSettle();
         expect(router.routeInformationProvider.value.uri.path, entry.value);
-        final semantics = tester.widget<Semantics>(
-          find.ancestor(of: target, matching: find.byType(Semantics)).first,
+        final semantics = tester.widgetList<Semantics>(
+          find.ancestor(of: target, matching: find.byType(Semantics)),
         );
-        expect(semantics.properties.selected, isTrue);
-        expect(find.byKey(_shortcut), findsOneWidget);
+        expect(
+          semantics.any((widget) => widget.properties.selected == true),
+          isTrue,
+        );
       }
       router.go('/adviser/academic');
       await tester.pumpAndSettle();
@@ -152,108 +119,24 @@ void main() {
     },
   );
 
-  testWidgets('Bama pushes without a new flag and Back preserves the draft', (
-    tester,
-  ) async {
-    final router = await _mount(tester);
-    await tester.enterText(
-      find.byKey(const ValueKey('draft')),
-      'Unsaved draft',
-    );
-    FocusManager.instance.primaryFocus?.unfocus();
-    await tester.pumpAndSettle();
-    await tester.tap(find.byKey(_shortcut));
-    await tester.pumpAndSettle();
-    expect(
-      tester.widget<ZentraShell>(find.byType(ZentraShell)).selectedPath,
-      '/adviser/bama',
-    );
-    expect(find.byKey(_shortcut), findsNothing);
-    await tester.tap(find.byTooltip('Back'));
-    await tester.pumpAndSettle();
-    expect(
-      router.routeInformationProvider.value.uri.path,
-      '/workspace/overview',
-    );
-    expect(find.text('Unsaved draft'), findsOneWidget);
-    expect(find.byKey(_shortcut), findsOneWidget);
-  });
-
-  testWidgets(
-    'detail shortcut avoids add and save controls and preserves Back',
-    (tester) async {
-      final router = await _mount(tester, initial: '/detail');
-      expect(find.byType(AdviserBottomNavigation), findsNothing);
-      final bama = tester.getRect(find.byKey(_shortcut));
-      final add = tester.getRect(find.byKey(const ValueKey('existing-add')));
-      final save = tester.getRect(find.text('Save changes'));
-      expect(bama.overlaps(add), isFalse);
-      expect(bama.bottom, lessThan(add.top));
-      expect(bama.bottom, lessThan(save.top));
-      await tester.tap(find.byKey(_shortcut));
-      await tester.pumpAndSettle();
-      router.pop();
-      await tester.pumpAndSettle();
-      expect(find.text('Full-screen detail'), findsOneWidget);
-      expect(find.byKey(_shortcut), findsOneWidget);
-    },
-  );
-
-  testWidgets('shortcut hides for the keyboard and returns when dismissed', (
-    tester,
-  ) async {
+  testWidgets('Bama is no longer a bottom destination', (tester) async {
     await _mount(tester);
-    tester.view.viewInsets = const FakeViewPadding(bottom: 300);
-    await tester.pumpAndSettle();
-    expect(find.byKey(_shortcut), findsNothing);
-    tester.view.resetViewInsets();
-    await tester.pumpAndSettle();
-    expect(find.byKey(_shortcut), findsOneWidget);
-    addTearDown(tester.view.resetViewInsets);
+    expect(find.byKey(const ValueKey('adviser-nav-Bama')), findsNothing);
+    expect(find.byTooltip('Chat with Bama'), findsNothing);
   });
 
-  testWidgets('Bama returns to an imperative attendance-style route', (
-    tester,
-  ) async {
-    final router = await _mount(tester);
-    final caller = tester.element(find.byType(ZentraShell));
-    final detail = Navigator.of(caller).push<void>(
-      MaterialPageRoute(
-        builder: (context) => const Scaffold(
-          body: AdviserBamaAccess(
-            child: Center(child: Text('Attendance draft still here')),
-          ),
-        ),
-      ),
-    );
-    await tester.pumpAndSettle();
-    await tester.tap(find.byKey(_shortcut));
-    await tester.pumpAndSettle();
-    expect(find.byTooltip('Back'), findsOneWidget);
-    router.pop();
-    await tester.pumpAndSettle();
-    expect(find.text('Attendance draft still here'), findsOneWidget);
-    Navigator.of(tester.element(find.text('Attendance draft still here')))
-        .pop();
-    await detail;
-    await tester.pumpAndSettle();
+  testWidgets('subject teachers share the four-desk bar', (tester) async {
+    await _mount(tester, role: 'subject_teacher');
+    expect(find.byType(AdviserBottomNavigation), findsOneWidget);
+    for (final label in ['Overview', 'Class', 'Gradebook', 'Attendance']) {
+      expect(find.byKey(ValueKey('adviser-nav-$label')), findsOneWidget);
+    }
   });
 
-  for (final role in [
-    'subject_teacher',
-    'adm_coordinator',
-    'student',
-    'parent',
-  ]) {
-    testWidgets('$role does not receive adviser navigation or Bama', (
-      tester,
-    ) async {
-      final router = await _mount(tester, role: role);
+  for (final role in ['adm_coordinator', 'student', 'parent']) {
+    testWidgets('$role does not receive the teacher bar', (tester) async {
+      await _mount(tester, role: role);
       expect(find.byType(AdviserBottomNavigation), findsNothing);
-      expect(find.byKey(_shortcut), findsNothing);
-      router.go('/detail');
-      await tester.pumpAndSettle();
-      expect(find.byKey(_shortcut), findsNothing);
     });
   }
 
@@ -261,22 +144,14 @@ void main() {
     testWidgets('navigation fits width $width with large text', (tester) async {
       await _mount(tester, width: width, scale: 2);
       final bar = tester.getRect(find.byType(AdviserBottomNavigation));
-      final bama = tester.getRect(find.byKey(_shortcut));
-      expect(bama.bottom, lessThan(bar.top));
       for (final label in ['Overview', 'Class', 'Gradebook', 'Attendance']) {
         expect(
           tester.getRect(find.byKey(ValueKey('adviser-nav-$label'))).height,
           greaterThanOrEqualTo(48),
         );
+        expect(bar.contains(tester.getCenter(find.text(label))), isTrue);
       }
       expect(tester.takeException(), isNull);
     });
   }
-
-  testWidgets('Bama conversation never offers a duplicate shortcut', (
-    tester,
-  ) async {
-    await _mount(tester, initial: '/adviser/bama/conversation/thread');
-    expect(find.byKey(_shortcut), findsNothing);
-  });
 }

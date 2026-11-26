@@ -823,7 +823,12 @@ void main() {
       await tester.pumpAndSettle();
       await tester.tap(find.text('CLASSES'));
       await tester.pumpAndSettle();
-      expect(find.text('Opened /workspace/classes'), findsOneWidget);
+      expect(
+        find.text(
+          'Opened /workspace/classes',
+        ),
+        findsOneWidget,
+      );
       expect(tester.takeException(), isNull);
     });
   }
@@ -902,23 +907,35 @@ void main() {
       );
     }
   }
-  testWidgets('class linking still precedes Overview', (tester) async {
+  testWidgets('an unlinked teacher still lands on Overview', (tester) async {
     final api = TestApi()..linked = false;
     addTearDown(api.dio.close);
+    final router = GoRouter(
+      initialLocation: '/gate',
+      routes: [
+        GoRoute(path: '/gate', builder: (_, _) => const FirstTimeGate()),
+        GoRoute(
+          path: '/workspace/overview',
+          builder: (_, _) => const Scaffold(body: Text('Overview landing')),
+        ),
+      ],
+    );
+    addTearDown(router.dispose);
     await tester.pumpWidget(
       ProviderScope(
         overrides: [
           apiClientProvider.overrideWithValue(api),
           overviewProvider.overrideWith((ref) => critical()),
         ],
-        child: MaterialApp(
+        child: MaterialApp.router(
           theme: zWorkspaceTheme(),
-          home: const FirstTimeGate(),
+          routerConfig: router,
         ),
       ),
     );
     await tester.pumpAndSettle();
-    expect(find.text('Link your classes'), findsNWidgets(2));
+    expect(find.text('Overview landing'), findsOneWidget);
+    expect(find.text('Link your classes'), findsNothing);
     expect(find.byType(OverviewPage), findsNothing);
   });
 }

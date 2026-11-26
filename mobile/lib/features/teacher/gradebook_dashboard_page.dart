@@ -14,6 +14,7 @@ import '../../design/overview_theme.dart';
 import '../../design/status_palette.dart';
 import '../../shared/models.dart';
 import '../../shared/widgets.dart';
+import '../auth/link_classes_card.dart';
 
 String _initials(String name) {
   final parts = name
@@ -48,12 +49,25 @@ class _GradebookDashboardState extends ConsumerState<GradebookDashboardPage> {
     final critical = ref.watch(overviewProvider);
     final secondary = ref.watch(overviewSecondaryProvider);
     final term = ref.watch(termProvider);
+    final link = ref.watch(teacherLinkProvider).valueOrNull;
     return Theme(
       data: overviewScreenTheme(Theme.of(context)),
       child: ColoredBox(
         color: Colors.white,
         child: Builder(
-          builder: (context) => critical.when(
+          builder: (context) => link?.linked == false
+              ? TeacherLinkPlaceholder(
+                  onLinked: () async {
+                    ref.invalidate(overviewProvider);
+                    ref.invalidate(overviewSecondaryProvider);
+                    try {
+                      await ref.read(overviewProvider.future);
+                    } catch (_) {
+                      // The desk renders its own retryable error.
+                    }
+                  },
+                )
+              : critical.when(
             loading: () => const Padding(
               padding: EdgeInsets.all(16),
               child: ZSkeletonList(count: 4),

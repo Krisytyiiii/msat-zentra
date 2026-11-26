@@ -722,7 +722,7 @@ class _SheetState extends ConsumerState<AttendanceSheetPage>
         appBar: AppBar(
           shape: const Border(bottom: BorderSide(color: Color(0xFFEDF0F6))),
           centerTitle: true,
-          backgroundColor: Theme.of(context).scaffoldBackgroundColor,
+          backgroundColor: Colors.white,
           leading: ZBackButton(
             tooltip: 'Back',
             onPressed: _leave,

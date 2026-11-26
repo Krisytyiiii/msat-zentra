@@ -28,6 +28,12 @@
 		<true/>
 		<key>NSCameraUsageDescription</key>
 		<string>Zentra uses the camera to scan student QR codes for class attendance.</string>
+		<!-- Push notifications: lets APNs wake the app to hand a tapped
+		     notification to its destination screen. -->
+		<key>UIBackgroundModes</key>
+		<array>
+			<string>remote-notification</string>
+		</array>
 		<key>UIApplicationSceneManifest</key>
 		<dict>
 			<key>UIApplicationSupportsMultipleScenes</key>

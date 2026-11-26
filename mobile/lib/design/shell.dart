@@ -1,10 +1,9 @@
-// Zentra app shell — adviser bottom navigation + secondary drawer destinations.
-// Header mirrors the Drive app: [≡] · rounded search field · profile avatar.
-// Branding and the screen list live in the drawer; the profile avatar opens a
-// full-screen account panel (notifications, appearance, settings, logout).
+// Zentra app shell — teacher bottom navigation + advisory drawer.
+// Header mirrors the Drive app: [logo] · rounded search field · profile avatar.
+// The drawer is the advisory menu only; Overview, Class, Gradebook and
+// Attendance live in the bottom navigation for both teacher roles.
 // Search is contextual: desks with a filterable list consume the shared
 // query (hiding their inline field), every other desk opens a page finder.
-// Drawer: brand → term switcher dropdown → Advisory → Workspace.
 
 import 'package:flutter/material.dart';
 import 'package:lucide_icons_flutter/lucide_icons.dart';
@@ -26,10 +25,17 @@ import '../shared/user_messages.dart';
 import 'brand.dart';
 import 'adviser_navigation.dart';
 import 'overview_theme.dart';
-import 'screen_search.dart';
+import 'screen_search.dart'
+    show
+        ScreenSearchController,
+        ScreenSearchMode,
+        ScreenSearchSpec,
+        ScreenSearchDestination,
+        ScreenSearchScope,
+        screenSearchCatalog,
+        screenSearchSpecFor;
 import 'settings_theme.dart';
-import 'theme_mode.dart' show themeSettingsProvider;
-import 'theme_picker.dart';
+import 'staff_profile.dart';
 
 final staffNavigationHiddenProvider = StateProvider<bool>((ref) => false);
 
@@ -135,12 +141,18 @@ class _ZentraShellState extends ConsumerState<ZentraShell> {
     final recordDestination = staffRecordDestination(location);
     _syncLocation(location);
     final spec = widget.spec ?? screenSearchSpecFor(location, routeState?.uri);
+    final auth = ref.watch(authProvider);
     final isAdviser = ref
         .watch(overviewProvider)
         .maybeWhen(
           data: (d) => d['isAdviser'] == true,
-          orElse: () => ref.read(authProvider).role == 'adviser',
+          orElse: () => auth.role == 'adviser',
         );
+    final isStudent = auth.role == 'student';
+    final isParent = auth.role == 'parent';
+    // Both teacher roles share the four-desk bottom navigation (and its save
+    // pill); the drawer is reserved for advisory desks.
+    final isTeacher = isAdviser || auth.role == 'subject_teacher';
     final query = _search.query.trim().toLowerCase();
     final showingPages =
         spec.mode == ScreenSearchMode.pages && query.isNotEmpty;
@@ -154,7 +166,7 @@ class _ZentraShellState extends ConsumerState<ZentraShell> {
         : const <ScreenSearchDestination>[];
 
     final showBottomNavigation =
-        isAdviser &&
+        (isTeacher || isStudent || isParent) &&
         location != '/teacher/more' &&
         !ref.watch(staffNavigationHiddenProvider);
     return Theme(
@@ -178,22 +190,19 @@ class _ZentraShellState extends ConsumerState<ZentraShell> {
                       titleSpacing: 0,
                       leadingWidth: 64,
                       leading: Builder(
-                              builder: (ctx) => Center(
-                                child: IconButton(
-                                  style: IconButton.styleFrom(
-                                    side: const BorderSide(
-                                      color: Color(0xFFE5E8F0),
-                                    ),
-                                    minimumSize: const Size(42, 42),
-                                    shape: const CircleBorder(),
-                                  ),
-                                  icon: const Icon(Icons.menu, size: 20),
-                                  tooltip: 'Menu',
-                                  onPressed: () =>
-                                      Scaffold.of(ctx).openDrawer(),
-                                ),
-                              ),
+                        builder: (ctx) => Center(
+                          child: IconButton(
+                            style: IconButton.styleFrom(
+                              side: const BorderSide(color: Color(0xFFE5E8F0)),
+                              minimumSize: const Size(42, 42),
+                              shape: const CircleBorder(),
                             ),
+                            icon: const Icon(Icons.menu, size: 20),
+                            tooltip: 'Menu',
+                            onPressed: () => Scaffold.of(ctx).openDrawer(),
+                          ),
+                        ),
+                      ),
                       // Drive-style header: the search field owns the middle lane.
                       title: _searchField(context, spec, referenceHeader: true),
                       actions: [const _ProfileButton(referenceHeader: true)],
@@ -211,13 +220,23 @@ class _ZentraShellState extends ConsumerState<ZentraShell> {
               ? null
               : ZentraDrawer(selectedPath: widget.selectedPath),
           bottomNavigationBar: showBottomNavigation
-              ? AdviserBottomNavigation(
-                  selectedPath: recordDestination ?? location,
-                  rerouteOnSelect: recordDestination != null,
-                )
+              ? (isStudent
+                    ? StudentBottomNavigation(
+                        selectedPath: recordDestination ?? location,
+                        rerouteOnSelect: recordDestination != null,
+                      )
+                    : isParent
+                    ? ParentBottomNavigation(
+                        selectedPath: recordDestination ?? location,
+                        rerouteOnSelect: recordDestination != null,
+                      )
+                    : AdviserBottomNavigation(
+                        selectedPath: recordDestination ?? location,
+                        rerouteOnSelect: recordDestination != null,
+                      ))
               : null,
           body: SaveTaskHost(
-            enabled: showBottomNavigation,
+            enabled: showBottomNavigation && isTeacher,
             child: AdviserBamaAccess(
               enabled: isAdviser && !location.startsWith('/adviser/bama'),
               child: Stack(
@@ -444,14 +463,6 @@ class ZentraDrawer extends ConsumerWidget {
                     const SizedBox(height: 8),
                     const ZTermSwitcher(),
                     const SizedBox(height: 4),
-                    if (!isAdviser)
-                      _item(
-                        context,
-                        Icons.dashboard_outlined,
-                        'Overview',
-                        '/workspace/overview',
-                        _selected('/workspace/overview'),
-                      ),
                     if (isAdviser) ...[
                       const _DrawerHeader('Advisory'),
                       _item(
@@ -468,6 +479,20 @@ class ZentraDrawer extends ConsumerWidget {
                         '/adviser/advisory',
                         _selected('/adviser/advisory') &&
                             !_selected('/adviser/advisory/attendance'),
+                      ),
+                      _item(
+                        context,
+                        Icons.fact_check_outlined,
+                        'Advisory attendance',
+                        '/adviser/advisory/attendance',
+                        _selected('/adviser/advisory/attendance'),
+                      ),
+                      _item(
+                        context,
+                        Icons.school_outlined,
+                        'Academic',
+                        '/adviser/academic',
+                        _selected('/adviser/academic'),
                       ),
                       _item(
                         context,
@@ -491,38 +516,6 @@ class ZentraDrawer extends ConsumerWidget {
                         _selected('/adviser/referrals'),
                       ),
                     ],
-                    if (!isAdviser) ...[
-                      const _DrawerHeader('Workspace'),
-                      _item(
-                        context,
-                        Icons.class_outlined,
-                        'Class',
-                        '/workspace/classes',
-                        _selected('/workspace/classes'),
-                      ),
-                      _item(
-                        context,
-                        Icons.grade_outlined,
-                        'Gradebook',
-                        '/workspace/gradebook',
-                        _selected('/workspace/gradebook'),
-                      ),
-                      _item(
-                        context,
-                        Icons.fact_check_outlined,
-                        'Attendance',
-                        '/workspace/attendance',
-                        _selected('/workspace/attendance'),
-                      ),
-                    ],
-                    if (!isAdviser)
-                      _item(
-                        context,
-                        Icons.calendar_month_outlined,
-                        'My schedule',
-                        '/workspace/schedule',
-                        _selected('/workspace/schedule'),
-                      ),
                   ],
                 ),
               ),
@@ -1139,90 +1132,9 @@ class _ProfileScreen extends ConsumerWidget {
     _ => 'Staff',
   };
 
-  static String _modeLabel(ThemeMode mode) => switch (mode) {
-    ThemeMode.light => 'Light',
-    ThemeMode.dark => 'Dark',
-    ThemeMode.system => 'System',
-  };
-
-  void _openAppearance(BuildContext context) {
-    showModalBottomSheet<void>(
-      context: context,
-      isScrollControlled: true,
-      showDragHandle: true,
-      backgroundColor: const Color(0xFFF2F0E7),
-      barrierColor: Colors.black.withValues(alpha: 0.68),
-      shape: const RoundedRectangleBorder(
-        borderRadius: BorderRadius.vertical(top: Radius.circular(30)),
-      ),
-      builder: (ctx) => SafeArea(
-        top: false,
-        child: SingleChildScrollView(
-          padding: const EdgeInsets.fromLTRB(16, 0, 16, 24),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Row(
-                children: [
-                  const Expanded(
-                    child: Text(
-                      'Appearance',
-                      style: TextStyle(
-                        fontSize: 25,
-                        fontWeight: FontWeight.w700,
-                        color: Color(0xFF181B19),
-                      ),
-                    ),
-                  ),
-                  IconButton(
-                    tooltip: 'Close appearance',
-                    onPressed: () => Navigator.pop(ctx),
-                    style: IconButton.styleFrom(
-                      backgroundColor: const Color(0xFFE3E4DF),
-                    ),
-                    icon: const Icon(
-                      LucideIcons.x,
-                      color: Color(0xFF181B19),
-                      size: 20,
-                    ),
-                  ),
-                ],
-              ),
-              const SizedBox(height: 2),
-              Text(
-                'Choose how the app appears on your device',
-                style: const TextStyle(fontSize: 14, color: Color(0xFF181B19)),
-              ),
-              const SizedBox(height: 22),
-              WorkspaceThemePicker(onApplied: () => Navigator.pop(ctx)),
-            ],
-          ),
-        ),
-      ),
-    );
-  }
-
-  void _openSettings(BuildContext context) {
-    final router = GoRouter.maybeOf(context);
-    Navigator.of(context).pop();
-    router?.go('/teacher/more');
-  }
-
-  Future<void> _logout(BuildContext context, WidgetRef ref) async {
-    final router = GoRouter.maybeOf(context);
-    final navigator = Navigator.of(context);
-    await ref.read(authProvider.notifier).logout();
-    if (!navigator.mounted) return;
-    navigator.pop();
-    router?.go('/login');
-  }
-
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final theme = Theme.of(context);
     final profile = ref.watch(teacherProfileProvider);
-    final inbox = ref.watch(notificationsProvider);
     final role = ref.watch(authProvider).role;
     final isAdviser = ref
         .watch(overviewProvider)
@@ -1230,379 +1142,24 @@ class _ProfileScreen extends ConsumerWidget {
           data: (d) => d['isAdviser'] == true,
           orElse: () => role == 'adviser',
         );
-    final mode = ref.watch(themeSettingsProvider).mode;
-
-    final lightTheme = theme.copyWith(
-      brightness: Brightness.light,
-      scaffoldBackgroundColor: const Color(0xFFFAFAF9),
-      colorScheme: const ColorScheme.light(
-        primary: Color(0xFF2563EB),
-        surface: Colors.white,
-        onSurface: Color(0xFF181B19),
-        onSurfaceVariant: Color(0xFF707572),
-        surfaceContainerLow: Color(0xFFF0F1EF),
-        outline: Color(0xFFDDE0DD),
-        outlineVariant: Color(0xFFDDE0DD),
-        error: Color(0xFFBE3545),
-      ),
-      textTheme: theme.textTheme.apply(
-        bodyColor: const Color(0xFF181B19),
-        displayColor: const Color(0xFF181B19),
-      ),
-      appBarTheme: const AppBarTheme(
-        backgroundColor: Color(0xFFFAFAF9),
-        foregroundColor: Color(0xFF181B19),
-        surfaceTintColor: Colors.transparent,
-        elevation: 0,
-        scrolledUnderElevation: 0,
-      ),
-      cardTheme: CardThemeData(
-        color: Colors.white,
-        surfaceTintColor: Colors.transparent,
-        elevation: 0,
-        shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(16),
-          side: const BorderSide(color: Color(0xFFDDE0DD)),
+    return StaffProfileScreen(
+      data: StaffProfileData(
+        name: profile.maybeWhen(
+          data: (p) => p.fullName,
+          orElse: () => 'Account',
         ),
-      ),
-      dividerTheme: const DividerThemeData(
-        color: Color(0xFFDDE0DD),
-        space: 1,
-        thickness: 1,
-      ),
-      listTileTheme: const ListTileThemeData(
-        minTileHeight: 48,
-        contentPadding: EdgeInsets.symmetric(horizontal: 12),
-        horizontalTitleGap: 12,
-        minVerticalPadding: 8,
-        textColor: Color(0xFF181B19),
-        iconColor: Color(0xFF181B19),
-        shape: StadiumBorder(),
-      ),
-    );
-    return Theme(
-      data: lightTheme,
-      child: Scaffold(
-        appBar: AppBar(
-          automaticallyImplyLeading: false,
-          title: const Text(
-            'Profile',
-            style: TextStyle(fontSize: 22, fontWeight: FontWeight.w700),
-          ),
-          actionsPadding: const EdgeInsets.only(right: 12),
-          actions: [
-            IconButton(
-              key: const ValueKey('profile-close'),
-              tooltip: 'Close',
-              style: IconButton.styleFrom(
-                side: const BorderSide(color: Color(0xFFE5E8F0)),
-                minimumSize: const Size(42, 42),
-                shape: const CircleBorder(),
-              ),
-              icon: const Icon(LucideIcons.x, size: 20),
-              onPressed: () => Navigator.of(context).pop(),
-            ),
-          ],
+        photoUrl: profile.maybeWhen(
+          data: (p) => p.photoUrl,
+          orElse: () => null,
         ),
-        body: LayoutBuilder(
-          builder: (context, constraints) => SingleChildScrollView(
-            padding: const EdgeInsets.fromLTRB(12, 12, 12, 12),
-            child: ConstrainedBox(
-              constraints: BoxConstraints(
-                minHeight: (constraints.maxHeight - 24).clamp(
-                  0,
-                  double.infinity,
-                ),
-              ),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.stretch,
-                children: [
-                  ZCard(
-                    key: const ValueKey('profile-identity'),
-                    padding: const EdgeInsets.all(12),
-                    child: Row(
-                      children: [
-                        TeacherAvatar(
-                          photoUrl: profile.maybeWhen(
-                            data: (p) => p.photoUrl,
-                            orElse: () => null,
-                          ),
-                          radius: 28,
-                        ),
-                        const SizedBox(width: 12),
-                        Expanded(
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              Text(
-                                profile.maybeWhen(
-                                  data: (p) => p.fullName,
-                                  orElse: () => 'Account',
-                                ),
-                                style: const TextStyle(
-                                  fontSize: 19,
-                                  fontWeight: FontWeight.w700,
-                                ),
-                              ),
-                              Container(
-                                margin: const EdgeInsets.only(top: 4),
-                                padding: const EdgeInsets.symmetric(
-                                  horizontal: 7,
-                                  vertical: 2,
-                                ),
-                                decoration: BoxDecoration(
-                                  color: const Color(0xFFDBEAFE),
-                                  borderRadius: BorderRadius.circular(8),
-                                ),
-                                child: Text(
-                                  _roleLabel(role ?? ''),
-                                  style: const TextStyle(
-                                    fontSize: 12,
-                                    color: Color(0xFF2563EB),
-                                  ),
-                                ),
-                              ),
-                            ],
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                  const SizedBox(height: 16),
-                  Row(
-                    children: [
-                      const Icon(LucideIcons.bell, size: 20),
-                      const SizedBox(width: 8),
-                      const Expanded(
-                        child: Text(
-                          'Notifications',
-                          style: TextStyle(
-                            fontSize: 19,
-                            fontWeight: FontWeight.w600,
-                          ),
-                        ),
-                      ),
-                      TextButton(
-                        key: const ValueKey('profile-see-all'),
-                        onPressed: () => showZNotifications(context, ref),
-                        child: const Text(
-                          'See all',
-                          style: TextStyle(fontSize: 13),
-                        ),
-                      ),
-                    ],
-                  ),
-                  const SizedBox(height: 4),
-                  inbox.when(
-                    loading: () => const SizedBox(
-                      height: 160,
-                      child: ZSkeletonList(count: 2),
-                    ),
-                    error: (e, _) => Padding(
-                      padding: const EdgeInsets.symmetric(vertical: 12),
-                      child: Text(
-                        userMessage(e),
-                        style: lightTheme.textTheme.bodySmall,
-                      ),
-                    ),
-                    data: (items) {
-                      if (items.isEmpty) {
-                        return const ZEmpty(
-                          icon: LucideIcons.bell,
-                          title: 'No notifications yet',
-                          subtitle: 'Referral updates, absent alerts, and meeting reminders appear here.',
-                          compact: true,
-                        );
-                      }
-                      return Column(
-                        children: [
-                          for (final n in items.take(3))
-                            Padding(
-                              padding: const EdgeInsets.only(bottom: 8),
-                              child: _ProfileNotificationTile(
-                                notification: n,
-                                isAdviser: isAdviser,
-                              ),
-                            ),
-                        ],
-                      );
-                    },
-                  ),
-                  const SizedBox(height: 12),
-                  const Padding(
-                    padding: EdgeInsets.only(bottom: 12),
-                    child: Row(
-                      children: [
-                        Icon(LucideIcons.slidersHorizontal, size: 20),
-                        SizedBox(width: 8),
-                        Expanded(
-                          child: Text(
-                            'Preferences',
-                            style: TextStyle(
-                              fontSize: 19,
-                              fontWeight: FontWeight.w600,
-                            ),
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                  ZCard(
-                    padding: EdgeInsets.zero,
-                    child: Column(
-                      children: [
-                        ListTile(
-                          onTap: () => _openAppearance(context),
-                          leading: const Icon(LucideIcons.sun, size: 20),
-                          title: const Text(
-                            'Appearance',
-                            style: TextStyle(fontSize: 14),
-                          ),
-                          trailing: Row(
-                            mainAxisSize: MainAxisSize.min,
-                            children: [
-                              Text(
-                                _modeLabel(mode),
-                                style: const TextStyle(
-                                  fontSize: 12,
-                                  color: Color(0xFF707572),
-                                ),
-                              ),
-                              const SizedBox(width: 8),
-                              const Icon(LucideIcons.chevronRight, size: 18),
-                            ],
-                          ),
-                        ),
-                        const Divider(),
-                        ListTile(
-                          onTap: () => _openSettings(context),
-                          leading: const Icon(LucideIcons.settings, size: 20),
-                          title: const Text(
-                            'Settings',
-                            style: TextStyle(fontSize: 14),
-                          ),
-                          trailing: const Icon(
-                            LucideIcons.chevronRight,
-                            size: 18,
-                          ),
-                        ),
-                        const Divider(),
-                        ListTile(
-                          key: const ValueKey('profile-logout'),
-                          onTap: () => _logout(context, ref),
-                          leading: const Icon(LucideIcons.logOut, size: 20),
-                          title: const Text(
-                            'Logout',
-                            style: TextStyle(fontSize: 14),
-                          ),
-                          trailing: const Icon(
-                            LucideIcons.chevronRight,
-                            size: 18,
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                ],
-              ),
-            ),
-          ),
-        ),
-      ),
-    );
-  }
-}
-
-/// Compact inbox row used inside the account panel. Tapping marks the update
-/// read and opens its destination, matching the full notifications sheet.
-class _ProfileNotificationTile extends ConsumerWidget {
-  final ZNotification notification;
-  final bool isAdviser;
-  const _ProfileNotificationTile({
-    required this.notification,
-    required this.isAdviser,
-  });
-
-  @override
-  Widget build(BuildContext context, WidgetRef ref) {
-    final n = notification;
-    final theme = Theme.of(context);
-    return Theme(
-      data: theme.copyWith(
-        cardTheme: theme.cardTheme.copyWith(
-          color: const Color(0xFFF0F1EF),
-          elevation: 0,
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(12),
-          ),
-        ),
-      ),
-      child: ZCard(
-        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
-        onTap: () async {
-          if (!n.isRead) {
-            try {
-              await markNotificationRead(ref, n.id);
-            } catch (_) {}
-          }
-          final target = teacherNotificationTarget(n, isAdviser: isAdviser);
-          if (!context.mounted) return;
-          if (target != null) {
-            final router = GoRouter.of(context);
-            Navigator.of(context).pop();
-            router.go(target);
-          } else {
-            ScaffoldMessenger.of(context).showSnackBar(
-              const SnackBar(
-                content: Text(
-                  'This update is available on the Zentra website. Open Zentra in your browser to view it.',
-                ),
-              ),
-            );
-          }
-        },
-        child: Row(
-          children: [
-            if (!n.isRead)
-              Container(
-                width: 8,
-                height: 8,
-                margin: const EdgeInsets.only(right: 8),
-                decoration: BoxDecoration(
-                  shape: BoxShape.circle,
-                  color: theme.colorScheme.primary,
-                ),
-              ),
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    teacherNotificationTitle(n),
-                    style: const TextStyle(
-                      fontSize: 13,
-                      fontWeight: FontWeight.w600,
-                    ),
-                  ),
-                  const SizedBox(height: 2),
-                  Text(
-                    n.message,
-                    maxLines: 2,
-                    overflow: TextOverflow.ellipsis,
-                    style: theme.textTheme.bodySmall,
-                  ),
-                  const SizedBox(height: 2),
-                  Text(
-                    formatBellDate(n.createdAt),
-                    style: theme.textTheme.bodySmall?.copyWith(
-                      fontFeatures: const [FontFeature.tabularFigures()],
-                    ),
-                  ),
-                ],
-              ),
-            ),
-          ],
-        ),
+        roleLabel: _roleLabel(role ?? ''),
+        inbox: ref.watch(notificationsProvider),
+        onSeeAll: (ctx) => showZNotifications(ctx, ref),
+        settingsPath: '/teacher/more',
+        notificationTitle: teacherNotificationTitle,
+        notificationTarget: (n) =>
+            teacherNotificationTarget(n, isAdviser: isAdviser),
+        emptySubtitle: 'Referral updates, absent alerts, and meeting reminders appear here.',
       ),
     );
   }

@@ -343,6 +343,7 @@ export type UserWhereInput = {
   sf10Versions?: Prisma.Sf10RecordVersionListRelationFilter
   auditLogs?: Prisma.AuditLogListRelationFilter
   notifications?: Prisma.NotificationListRelationFilter
+  deviceTokens?: Prisma.DeviceTokenListRelationFilter
   refreshTokens?: Prisma.RefreshTokenListRelationFilter
   loginEvents?: Prisma.LoginEventListRelationFilter
   sectionsAdvised?: Prisma.SectionListRelationFilter
@@ -405,6 +406,7 @@ export type UserOrderByWithRelationInput = {
   sf10Versions?: Prisma.Sf10RecordVersionOrderByRelationAggregateInput
   auditLogs?: Prisma.AuditLogOrderByRelationAggregateInput
   notifications?: Prisma.NotificationOrderByRelationAggregateInput
+  deviceTokens?: Prisma.DeviceTokenOrderByRelationAggregateInput
   refreshTokens?: Prisma.RefreshTokenOrderByRelationAggregateInput
   loginEvents?: Prisma.LoginEventOrderByRelationAggregateInput
   sectionsAdvised?: Prisma.SectionOrderByRelationAggregateInput
@@ -470,6 +472,7 @@ export type UserWhereUniqueInput = Prisma.AtLeast<{
   sf10Versions?: Prisma.Sf10RecordVersionListRelationFilter
   auditLogs?: Prisma.AuditLogListRelationFilter
   notifications?: Prisma.NotificationListRelationFilter
+  deviceTokens?: Prisma.DeviceTokenListRelationFilter
   refreshTokens?: Prisma.RefreshTokenListRelationFilter
   loginEvents?: Prisma.LoginEventListRelationFilter
   sectionsAdvised?: Prisma.SectionListRelationFilter
@@ -580,6 +583,7 @@ export type UserCreateInput = {
   sf10Versions?: Prisma.Sf10RecordVersionCreateNestedManyWithoutChangerInput
   auditLogs?: Prisma.AuditLogCreateNestedManyWithoutUserInput
   notifications?: Prisma.NotificationCreateNestedManyWithoutUserInput
+  deviceTokens?: Prisma.DeviceTokenCreateNestedManyWithoutUserInput
   refreshTokens?: Prisma.RefreshTokenCreateNestedManyWithoutUserInput
   loginEvents?: Prisma.LoginEventCreateNestedManyWithoutUserInput
   sectionsAdvised?: Prisma.SectionCreateNestedManyWithoutAdviserInput
@@ -642,6 +646,7 @@ export type UserUncheckedCreateInput = {
   sf10Versions?: Prisma.Sf10RecordVersionUncheckedCreateNestedManyWithoutChangerInput
   auditLogs?: Prisma.AuditLogUncheckedCreateNestedManyWithoutUserInput
   notifications?: Prisma.NotificationUncheckedCreateNestedManyWithoutUserInput
+  deviceTokens?: Prisma.DeviceTokenUncheckedCreateNestedManyWithoutUserInput
   refreshTokens?: Prisma.RefreshTokenUncheckedCreateNestedManyWithoutUserInput
   loginEvents?: Prisma.LoginEventUncheckedCreateNestedManyWithoutUserInput
   sectionsAdvised?: Prisma.SectionUncheckedCreateNestedManyWithoutAdviserInput
@@ -704,6 +709,7 @@ export type UserUpdateInput = {
   sf10Versions?: Prisma.Sf10RecordVersionUpdateManyWithoutChangerNestedInput
   auditLogs?: Prisma.AuditLogUpdateManyWithoutUserNestedInput
   notifications?: Prisma.NotificationUpdateManyWithoutUserNestedInput
+  deviceTokens?: Prisma.DeviceTokenUpdateManyWithoutUserNestedInput
   refreshTokens?: Prisma.RefreshTokenUpdateManyWithoutUserNestedInput
   loginEvents?: Prisma.LoginEventUpdateManyWithoutUserNestedInput
   sectionsAdvised?: Prisma.SectionUpdateManyWithoutAdviserNestedInput
@@ -766,6 +772,7 @@ export type UserUncheckedUpdateInput = {
   sf10Versions?: Prisma.Sf10RecordVersionUncheckedUpdateManyWithoutChangerNestedInput
   auditLogs?: Prisma.AuditLogUncheckedUpdateManyWithoutUserNestedInput
   notifications?: Prisma.NotificationUncheckedUpdateManyWithoutUserNestedInput
+  deviceTokens?: Prisma.DeviceTokenUncheckedUpdateManyWithoutUserNestedInput
   refreshTokens?: Prisma.RefreshTokenUncheckedUpdateManyWithoutUserNestedInput
   loginEvents?: Prisma.LoginEventUncheckedUpdateManyWithoutUserNestedInput
   sectionsAdvised?: Prisma.SectionUncheckedUpdateManyWithoutAdviserNestedInput
@@ -1551,6 +1558,20 @@ export type UserUpdateOneRequiredWithoutNotificationsNestedInput = {
   update?: Prisma.XOR<Prisma.XOR<Prisma.UserUpdateToOneWithWhereWithoutNotificationsInput, Prisma.UserUpdateWithoutNotificationsInput>, Prisma.UserUncheckedUpdateWithoutNotificationsInput>
 }
 
+export type UserCreateNestedOneWithoutDeviceTokensInput = {
+  create?: Prisma.XOR<Prisma.UserCreateWithoutDeviceTokensInput, Prisma.UserUncheckedCreateWithoutDeviceTokensInput>
+  connectOrCreate?: Prisma.UserCreateOrConnectWithoutDeviceTokensInput
+  connect?: Prisma.UserWhereUniqueInput
+}
+
+export type UserUpdateOneRequiredWithoutDeviceTokensNestedInput = {
+  create?: Prisma.XOR<Prisma.UserCreateWithoutDeviceTokensInput, Prisma.UserUncheckedCreateWithoutDeviceTokensInput>
+  connectOrCreate?: Prisma.UserCreateOrConnectWithoutDeviceTokensInput
+  upsert?: Prisma.UserUpsertWithoutDeviceTokensInput
+  connect?: Prisma.UserWhereUniqueInput
+  update?: Prisma.XOR<Prisma.XOR<Prisma.UserUpdateToOneWithWhereWithoutDeviceTokensInput, Prisma.UserUpdateWithoutDeviceTokensInput>, Prisma.UserUncheckedUpdateWithoutDeviceTokensInput>
+}
+
 export type UserCreateNestedOneWithoutRefreshTokensInput = {
   create?: Prisma.XOR<Prisma.UserCreateWithoutRefreshTokensInput, Prisma.UserUncheckedCreateWithoutRefreshTokensInput>
   connectOrCreate?: Prisma.UserCreateOrConnectWithoutRefreshTokensInput
@@ -1610,6 +1631,7 @@ export type UserCreateWithoutLoginEventsInput = {
   sf10Versions?: Prisma.Sf10RecordVersionCreateNestedManyWithoutChangerInput
   auditLogs?: Prisma.AuditLogCreateNestedManyWithoutUserInput
   notifications?: Prisma.NotificationCreateNestedManyWithoutUserInput
+  deviceTokens?: Prisma.DeviceTokenCreateNestedManyWithoutUserInput
   refreshTokens?: Prisma.RefreshTokenCreateNestedManyWithoutUserInput
   sectionsAdvised?: Prisma.SectionCreateNestedManyWithoutAdviserInput
   sf10AccessRequests?: Prisma.AdviserSf10AccessRequestCreateNestedManyWithoutAdviserInput
@@ -1671,6 +1693,7 @@ export type UserUncheckedCreateWithoutLoginEventsInput = {
   sf10Versions?: Prisma.Sf10RecordVersionUncheckedCreateNestedManyWithoutChangerInput
   auditLogs?: Prisma.AuditLogUncheckedCreateNestedManyWithoutUserInput
   notifications?: Prisma.NotificationUncheckedCreateNestedManyWithoutUserInput
+  deviceTokens?: Prisma.DeviceTokenUncheckedCreateNestedManyWithoutUserInput
   refreshTokens?: Prisma.RefreshTokenUncheckedCreateNestedManyWithoutUserInput
   sectionsAdvised?: Prisma.SectionUncheckedCreateNestedManyWithoutAdviserInput
   sf10AccessRequests?: Prisma.AdviserSf10AccessRequestUncheckedCreateNestedManyWithoutAdviserInput
@@ -1748,6 +1771,7 @@ export type UserUpdateWithoutLoginEventsInput = {
   sf10Versions?: Prisma.Sf10RecordVersionUpdateManyWithoutChangerNestedInput
   auditLogs?: Prisma.AuditLogUpdateManyWithoutUserNestedInput
   notifications?: Prisma.NotificationUpdateManyWithoutUserNestedInput
+  deviceTokens?: Prisma.DeviceTokenUpdateManyWithoutUserNestedInput
   refreshTokens?: Prisma.RefreshTokenUpdateManyWithoutUserNestedInput
   sectionsAdvised?: Prisma.SectionUpdateManyWithoutAdviserNestedInput
   sf10AccessRequests?: Prisma.AdviserSf10AccessRequestUpdateManyWithoutAdviserNestedInput
@@ -1809,6 +1833,7 @@ export type UserUncheckedUpdateWithoutLoginEventsInput = {
   sf10Versions?: Prisma.Sf10RecordVersionUncheckedUpdateManyWithoutChangerNestedInput
   auditLogs?: Prisma.AuditLogUncheckedUpdateManyWithoutUserNestedInput
   notifications?: Prisma.NotificationUncheckedUpdateManyWithoutUserNestedInput
+  deviceTokens?: Prisma.DeviceTokenUncheckedUpdateManyWithoutUserNestedInput
   refreshTokens?: Prisma.RefreshTokenUncheckedUpdateManyWithoutUserNestedInput
   sectionsAdvised?: Prisma.SectionUncheckedUpdateManyWithoutAdviserNestedInput
   sf10AccessRequests?: Prisma.AdviserSf10AccessRequestUncheckedUpdateManyWithoutAdviserNestedInput
@@ -1869,6 +1894,7 @@ export type UserCreateWithoutStudentProfileInput = {
   sf10Versions?: Prisma.Sf10RecordVersionCreateNestedManyWithoutChangerInput
   auditLogs?: Prisma.AuditLogCreateNestedManyWithoutUserInput
   notifications?: Prisma.NotificationCreateNestedManyWithoutUserInput
+  deviceTokens?: Prisma.DeviceTokenCreateNestedManyWithoutUserInput
   refreshTokens?: Prisma.RefreshTokenCreateNestedManyWithoutUserInput
   loginEvents?: Prisma.LoginEventCreateNestedManyWithoutUserInput
   sectionsAdvised?: Prisma.SectionCreateNestedManyWithoutAdviserInput
@@ -1930,6 +1956,7 @@ export type UserUncheckedCreateWithoutStudentProfileInput = {
   sf10Versions?: Prisma.Sf10RecordVersionUncheckedCreateNestedManyWithoutChangerInput
   auditLogs?: Prisma.AuditLogUncheckedCreateNestedManyWithoutUserInput
   notifications?: Prisma.NotificationUncheckedCreateNestedManyWithoutUserInput
+  deviceTokens?: Prisma.DeviceTokenUncheckedCreateNestedManyWithoutUserInput
   refreshTokens?: Prisma.RefreshTokenUncheckedCreateNestedManyWithoutUserInput
   loginEvents?: Prisma.LoginEventUncheckedCreateNestedManyWithoutUserInput
   sectionsAdvised?: Prisma.SectionUncheckedCreateNestedManyWithoutAdviserInput
@@ -2007,6 +2034,7 @@ export type UserUpdateWithoutStudentProfileInput = {
   sf10Versions?: Prisma.Sf10RecordVersionUpdateManyWithoutChangerNestedInput
   auditLogs?: Prisma.AuditLogUpdateManyWithoutUserNestedInput
   notifications?: Prisma.NotificationUpdateManyWithoutUserNestedInput
+  deviceTokens?: Prisma.DeviceTokenUpdateManyWithoutUserNestedInput
   refreshTokens?: Prisma.RefreshTokenUpdateManyWithoutUserNestedInput
   loginEvents?: Prisma.LoginEventUpdateManyWithoutUserNestedInput
   sectionsAdvised?: Prisma.SectionUpdateManyWithoutAdviserNestedInput
@@ -2068,6 +2096,7 @@ export type UserUncheckedUpdateWithoutStudentProfileInput = {
   sf10Versions?: Prisma.Sf10RecordVersionUncheckedUpdateManyWithoutChangerNestedInput
   auditLogs?: Prisma.AuditLogUncheckedUpdateManyWithoutUserNestedInput
   notifications?: Prisma.NotificationUncheckedUpdateManyWithoutUserNestedInput
+  deviceTokens?: Prisma.DeviceTokenUncheckedUpdateManyWithoutUserNestedInput
   refreshTokens?: Prisma.RefreshTokenUncheckedUpdateManyWithoutUserNestedInput
   loginEvents?: Prisma.LoginEventUncheckedUpdateManyWithoutUserNestedInput
   sectionsAdvised?: Prisma.SectionUncheckedUpdateManyWithoutAdviserNestedInput
@@ -2129,6 +2158,7 @@ export type UserCreateWithoutParentProfileInput = {
   sf10Versions?: Prisma.Sf10RecordVersionCreateNestedManyWithoutChangerInput
   auditLogs?: Prisma.AuditLogCreateNestedManyWithoutUserInput
   notifications?: Prisma.NotificationCreateNestedManyWithoutUserInput
+  deviceTokens?: Prisma.DeviceTokenCreateNestedManyWithoutUserInput
   refreshTokens?: Prisma.RefreshTokenCreateNestedManyWithoutUserInput
   loginEvents?: Prisma.LoginEventCreateNestedManyWithoutUserInput
   sectionsAdvised?: Prisma.SectionCreateNestedManyWithoutAdviserInput
@@ -2190,6 +2220,7 @@ export type UserUncheckedCreateWithoutParentProfileInput = {
   sf10Versions?: Prisma.Sf10RecordVersionUncheckedCreateNestedManyWithoutChangerInput
   auditLogs?: Prisma.AuditLogUncheckedCreateNestedManyWithoutUserInput
   notifications?: Prisma.NotificationUncheckedCreateNestedManyWithoutUserInput
+  deviceTokens?: Prisma.DeviceTokenUncheckedCreateNestedManyWithoutUserInput
   refreshTokens?: Prisma.RefreshTokenUncheckedCreateNestedManyWithoutUserInput
   loginEvents?: Prisma.LoginEventUncheckedCreateNestedManyWithoutUserInput
   sectionsAdvised?: Prisma.SectionUncheckedCreateNestedManyWithoutAdviserInput
@@ -2267,6 +2298,7 @@ export type UserUpdateWithoutParentProfileInput = {
   sf10Versions?: Prisma.Sf10RecordVersionUpdateManyWithoutChangerNestedInput
   auditLogs?: Prisma.AuditLogUpdateManyWithoutUserNestedInput
   notifications?: Prisma.NotificationUpdateManyWithoutUserNestedInput
+  deviceTokens?: Prisma.DeviceTokenUpdateManyWithoutUserNestedInput
   refreshTokens?: Prisma.RefreshTokenUpdateManyWithoutUserNestedInput
   loginEvents?: Prisma.LoginEventUpdateManyWithoutUserNestedInput
   sectionsAdvised?: Prisma.SectionUpdateManyWithoutAdviserNestedInput
@@ -2328,6 +2360,7 @@ export type UserUncheckedUpdateWithoutParentProfileInput = {
   sf10Versions?: Prisma.Sf10RecordVersionUncheckedUpdateManyWithoutChangerNestedInput
   auditLogs?: Prisma.AuditLogUncheckedUpdateManyWithoutUserNestedInput
   notifications?: Prisma.NotificationUncheckedUpdateManyWithoutUserNestedInput
+  deviceTokens?: Prisma.DeviceTokenUncheckedUpdateManyWithoutUserNestedInput
   refreshTokens?: Prisma.RefreshTokenUncheckedUpdateManyWithoutUserNestedInput
   loginEvents?: Prisma.LoginEventUncheckedUpdateManyWithoutUserNestedInput
   sectionsAdvised?: Prisma.SectionUncheckedUpdateManyWithoutAdviserNestedInput
@@ -2389,6 +2422,7 @@ export type UserCreateWithoutStaffProfileInput = {
   sf10Versions?: Prisma.Sf10RecordVersionCreateNestedManyWithoutChangerInput
   auditLogs?: Prisma.AuditLogCreateNestedManyWithoutUserInput
   notifications?: Prisma.NotificationCreateNestedManyWithoutUserInput
+  deviceTokens?: Prisma.DeviceTokenCreateNestedManyWithoutUserInput
   refreshTokens?: Prisma.RefreshTokenCreateNestedManyWithoutUserInput
   loginEvents?: Prisma.LoginEventCreateNestedManyWithoutUserInput
   sectionsAdvised?: Prisma.SectionCreateNestedManyWithoutAdviserInput
@@ -2450,6 +2484,7 @@ export type UserUncheckedCreateWithoutStaffProfileInput = {
   sf10Versions?: Prisma.Sf10RecordVersionUncheckedCreateNestedManyWithoutChangerInput
   auditLogs?: Prisma.AuditLogUncheckedCreateNestedManyWithoutUserInput
   notifications?: Prisma.NotificationUncheckedCreateNestedManyWithoutUserInput
+  deviceTokens?: Prisma.DeviceTokenUncheckedCreateNestedManyWithoutUserInput
   refreshTokens?: Prisma.RefreshTokenUncheckedCreateNestedManyWithoutUserInput
   loginEvents?: Prisma.LoginEventUncheckedCreateNestedManyWithoutUserInput
   sectionsAdvised?: Prisma.SectionUncheckedCreateNestedManyWithoutAdviserInput
@@ -2527,6 +2562,7 @@ export type UserUpdateWithoutStaffProfileInput = {
   sf10Versions?: Prisma.Sf10RecordVersionUpdateManyWithoutChangerNestedInput
   auditLogs?: Prisma.AuditLogUpdateManyWithoutUserNestedInput
   notifications?: Prisma.NotificationUpdateManyWithoutUserNestedInput
+  deviceTokens?: Prisma.DeviceTokenUpdateManyWithoutUserNestedInput
   refreshTokens?: Prisma.RefreshTokenUpdateManyWithoutUserNestedInput
   loginEvents?: Prisma.LoginEventUpdateManyWithoutUserNestedInput
   sectionsAdvised?: Prisma.SectionUpdateManyWithoutAdviserNestedInput
@@ -2588,6 +2624,7 @@ export type UserUncheckedUpdateWithoutStaffProfileInput = {
   sf10Versions?: Prisma.Sf10RecordVersionUncheckedUpdateManyWithoutChangerNestedInput
   auditLogs?: Prisma.AuditLogUncheckedUpdateManyWithoutUserNestedInput
   notifications?: Prisma.NotificationUncheckedUpdateManyWithoutUserNestedInput
+  deviceTokens?: Prisma.DeviceTokenUncheckedUpdateManyWithoutUserNestedInput
   refreshTokens?: Prisma.RefreshTokenUncheckedUpdateManyWithoutUserNestedInput
   loginEvents?: Prisma.LoginEventUncheckedUpdateManyWithoutUserNestedInput
   sectionsAdvised?: Prisma.SectionUncheckedUpdateManyWithoutAdviserNestedInput
@@ -2650,6 +2687,7 @@ export type UserCreateWithoutSectionsAdvisedInput = {
   sf10Versions?: Prisma.Sf10RecordVersionCreateNestedManyWithoutChangerInput
   auditLogs?: Prisma.AuditLogCreateNestedManyWithoutUserInput
   notifications?: Prisma.NotificationCreateNestedManyWithoutUserInput
+  deviceTokens?: Prisma.DeviceTokenCreateNestedManyWithoutUserInput
   refreshTokens?: Prisma.RefreshTokenCreateNestedManyWithoutUserInput
   loginEvents?: Prisma.LoginEventCreateNestedManyWithoutUserInput
   sf10AccessRequests?: Prisma.AdviserSf10AccessRequestCreateNestedManyWithoutAdviserInput
@@ -2711,6 +2749,7 @@ export type UserUncheckedCreateWithoutSectionsAdvisedInput = {
   sf10Versions?: Prisma.Sf10RecordVersionUncheckedCreateNestedManyWithoutChangerInput
   auditLogs?: Prisma.AuditLogUncheckedCreateNestedManyWithoutUserInput
   notifications?: Prisma.NotificationUncheckedCreateNestedManyWithoutUserInput
+  deviceTokens?: Prisma.DeviceTokenUncheckedCreateNestedManyWithoutUserInput
   refreshTokens?: Prisma.RefreshTokenUncheckedCreateNestedManyWithoutUserInput
   loginEvents?: Prisma.LoginEventUncheckedCreateNestedManyWithoutUserInput
   sf10AccessRequests?: Prisma.AdviserSf10AccessRequestUncheckedCreateNestedManyWithoutAdviserInput
@@ -2788,6 +2827,7 @@ export type UserUpdateWithoutSectionsAdvisedInput = {
   sf10Versions?: Prisma.Sf10RecordVersionUpdateManyWithoutChangerNestedInput
   auditLogs?: Prisma.AuditLogUpdateManyWithoutUserNestedInput
   notifications?: Prisma.NotificationUpdateManyWithoutUserNestedInput
+  deviceTokens?: Prisma.DeviceTokenUpdateManyWithoutUserNestedInput
   refreshTokens?: Prisma.RefreshTokenUpdateManyWithoutUserNestedInput
   loginEvents?: Prisma.LoginEventUpdateManyWithoutUserNestedInput
   sf10AccessRequests?: Prisma.AdviserSf10AccessRequestUpdateManyWithoutAdviserNestedInput
@@ -2849,6 +2889,7 @@ export type UserUncheckedUpdateWithoutSectionsAdvisedInput = {
   sf10Versions?: Prisma.Sf10RecordVersionUncheckedUpdateManyWithoutChangerNestedInput
   auditLogs?: Prisma.AuditLogUncheckedUpdateManyWithoutUserNestedInput
   notifications?: Prisma.NotificationUncheckedUpdateManyWithoutUserNestedInput
+  deviceTokens?: Prisma.DeviceTokenUncheckedUpdateManyWithoutUserNestedInput
   refreshTokens?: Prisma.RefreshTokenUncheckedUpdateManyWithoutUserNestedInput
   loginEvents?: Prisma.LoginEventUncheckedUpdateManyWithoutUserNestedInput
   sf10AccessRequests?: Prisma.AdviserSf10AccessRequestUncheckedUpdateManyWithoutAdviserNestedInput
@@ -2910,6 +2951,7 @@ export type UserCreateWithoutTermRosterConfirmationsInput = {
   sf10Versions?: Prisma.Sf10RecordVersionCreateNestedManyWithoutChangerInput
   auditLogs?: Prisma.AuditLogCreateNestedManyWithoutUserInput
   notifications?: Prisma.NotificationCreateNestedManyWithoutUserInput
+  deviceTokens?: Prisma.DeviceTokenCreateNestedManyWithoutUserInput
   refreshTokens?: Prisma.RefreshTokenCreateNestedManyWithoutUserInput
   loginEvents?: Prisma.LoginEventCreateNestedManyWithoutUserInput
   sectionsAdvised?: Prisma.SectionCreateNestedManyWithoutAdviserInput
@@ -2971,6 +3013,7 @@ export type UserUncheckedCreateWithoutTermRosterConfirmationsInput = {
   sf10Versions?: Prisma.Sf10RecordVersionUncheckedCreateNestedManyWithoutChangerInput
   auditLogs?: Prisma.AuditLogUncheckedCreateNestedManyWithoutUserInput
   notifications?: Prisma.NotificationUncheckedCreateNestedManyWithoutUserInput
+  deviceTokens?: Prisma.DeviceTokenUncheckedCreateNestedManyWithoutUserInput
   refreshTokens?: Prisma.RefreshTokenUncheckedCreateNestedManyWithoutUserInput
   loginEvents?: Prisma.LoginEventUncheckedCreateNestedManyWithoutUserInput
   sectionsAdvised?: Prisma.SectionUncheckedCreateNestedManyWithoutAdviserInput
@@ -3048,6 +3091,7 @@ export type UserUpdateWithoutTermRosterConfirmationsInput = {
   sf10Versions?: Prisma.Sf10RecordVersionUpdateManyWithoutChangerNestedInput
   auditLogs?: Prisma.AuditLogUpdateManyWithoutUserNestedInput
   notifications?: Prisma.NotificationUpdateManyWithoutUserNestedInput
+  deviceTokens?: Prisma.DeviceTokenUpdateManyWithoutUserNestedInput
   refreshTokens?: Prisma.RefreshTokenUpdateManyWithoutUserNestedInput
   loginEvents?: Prisma.LoginEventUpdateManyWithoutUserNestedInput
   sectionsAdvised?: Prisma.SectionUpdateManyWithoutAdviserNestedInput
@@ -3109,6 +3153,7 @@ export type UserUncheckedUpdateWithoutTermRosterConfirmationsInput = {
   sf10Versions?: Prisma.Sf10RecordVersionUncheckedUpdateManyWithoutChangerNestedInput
   auditLogs?: Prisma.AuditLogUncheckedUpdateManyWithoutUserNestedInput
   notifications?: Prisma.NotificationUncheckedUpdateManyWithoutUserNestedInput
+  deviceTokens?: Prisma.DeviceTokenUncheckedUpdateManyWithoutUserNestedInput
   refreshTokens?: Prisma.RefreshTokenUncheckedUpdateManyWithoutUserNestedInput
   loginEvents?: Prisma.LoginEventUncheckedUpdateManyWithoutUserNestedInput
   sectionsAdvised?: Prisma.SectionUncheckedUpdateManyWithoutAdviserNestedInput
@@ -3170,6 +3215,7 @@ export type UserCreateWithoutTeacherAssignmentsInput = {
   sf10Versions?: Prisma.Sf10RecordVersionCreateNestedManyWithoutChangerInput
   auditLogs?: Prisma.AuditLogCreateNestedManyWithoutUserInput
   notifications?: Prisma.NotificationCreateNestedManyWithoutUserInput
+  deviceTokens?: Prisma.DeviceTokenCreateNestedManyWithoutUserInput
   refreshTokens?: Prisma.RefreshTokenCreateNestedManyWithoutUserInput
   loginEvents?: Prisma.LoginEventCreateNestedManyWithoutUserInput
   sectionsAdvised?: Prisma.SectionCreateNestedManyWithoutAdviserInput
@@ -3231,6 +3277,7 @@ export type UserUncheckedCreateWithoutTeacherAssignmentsInput = {
   sf10Versions?: Prisma.Sf10RecordVersionUncheckedCreateNestedManyWithoutChangerInput
   auditLogs?: Prisma.AuditLogUncheckedCreateNestedManyWithoutUserInput
   notifications?: Prisma.NotificationUncheckedCreateNestedManyWithoutUserInput
+  deviceTokens?: Prisma.DeviceTokenUncheckedCreateNestedManyWithoutUserInput
   refreshTokens?: Prisma.RefreshTokenUncheckedCreateNestedManyWithoutUserInput
   loginEvents?: Prisma.LoginEventUncheckedCreateNestedManyWithoutUserInput
   sectionsAdvised?: Prisma.SectionUncheckedCreateNestedManyWithoutAdviserInput
@@ -3308,6 +3355,7 @@ export type UserUpdateWithoutTeacherAssignmentsInput = {
   sf10Versions?: Prisma.Sf10RecordVersionUpdateManyWithoutChangerNestedInput
   auditLogs?: Prisma.AuditLogUpdateManyWithoutUserNestedInput
   notifications?: Prisma.NotificationUpdateManyWithoutUserNestedInput
+  deviceTokens?: Prisma.DeviceTokenUpdateManyWithoutUserNestedInput
   refreshTokens?: Prisma.RefreshTokenUpdateManyWithoutUserNestedInput
   loginEvents?: Prisma.LoginEventUpdateManyWithoutUserNestedInput
   sectionsAdvised?: Prisma.SectionUpdateManyWithoutAdviserNestedInput
@@ -3369,6 +3417,7 @@ export type UserUncheckedUpdateWithoutTeacherAssignmentsInput = {
   sf10Versions?: Prisma.Sf10RecordVersionUncheckedUpdateManyWithoutChangerNestedInput
   auditLogs?: Prisma.AuditLogUncheckedUpdateManyWithoutUserNestedInput
   notifications?: Prisma.NotificationUncheckedUpdateManyWithoutUserNestedInput
+  deviceTokens?: Prisma.DeviceTokenUncheckedUpdateManyWithoutUserNestedInput
   refreshTokens?: Prisma.RefreshTokenUncheckedUpdateManyWithoutUserNestedInput
   loginEvents?: Prisma.LoginEventUncheckedUpdateManyWithoutUserNestedInput
   sectionsAdvised?: Prisma.SectionUncheckedUpdateManyWithoutAdviserNestedInput
@@ -3430,6 +3479,7 @@ export type UserCreateWithoutSubmittedTimetablesInput = {
   sf10Versions?: Prisma.Sf10RecordVersionCreateNestedManyWithoutChangerInput
   auditLogs?: Prisma.AuditLogCreateNestedManyWithoutUserInput
   notifications?: Prisma.NotificationCreateNestedManyWithoutUserInput
+  deviceTokens?: Prisma.DeviceTokenCreateNestedManyWithoutUserInput
   refreshTokens?: Prisma.RefreshTokenCreateNestedManyWithoutUserInput
   loginEvents?: Prisma.LoginEventCreateNestedManyWithoutUserInput
   sectionsAdvised?: Prisma.SectionCreateNestedManyWithoutAdviserInput
@@ -3491,6 +3541,7 @@ export type UserUncheckedCreateWithoutSubmittedTimetablesInput = {
   sf10Versions?: Prisma.Sf10RecordVersionUncheckedCreateNestedManyWithoutChangerInput
   auditLogs?: Prisma.AuditLogUncheckedCreateNestedManyWithoutUserInput
   notifications?: Prisma.NotificationUncheckedCreateNestedManyWithoutUserInput
+  deviceTokens?: Prisma.DeviceTokenUncheckedCreateNestedManyWithoutUserInput
   refreshTokens?: Prisma.RefreshTokenUncheckedCreateNestedManyWithoutUserInput
   loginEvents?: Prisma.LoginEventUncheckedCreateNestedManyWithoutUserInput
   sectionsAdvised?: Prisma.SectionUncheckedCreateNestedManyWithoutAdviserInput
@@ -3557,6 +3608,7 @@ export type UserCreateWithoutReviewedTimetablesInput = {
   sf10Versions?: Prisma.Sf10RecordVersionCreateNestedManyWithoutChangerInput
   auditLogs?: Prisma.AuditLogCreateNestedManyWithoutUserInput
   notifications?: Prisma.NotificationCreateNestedManyWithoutUserInput
+  deviceTokens?: Prisma.DeviceTokenCreateNestedManyWithoutUserInput
   refreshTokens?: Prisma.RefreshTokenCreateNestedManyWithoutUserInput
   loginEvents?: Prisma.LoginEventCreateNestedManyWithoutUserInput
   sectionsAdvised?: Prisma.SectionCreateNestedManyWithoutAdviserInput
@@ -3618,6 +3670,7 @@ export type UserUncheckedCreateWithoutReviewedTimetablesInput = {
   sf10Versions?: Prisma.Sf10RecordVersionUncheckedCreateNestedManyWithoutChangerInput
   auditLogs?: Prisma.AuditLogUncheckedCreateNestedManyWithoutUserInput
   notifications?: Prisma.NotificationUncheckedCreateNestedManyWithoutUserInput
+  deviceTokens?: Prisma.DeviceTokenUncheckedCreateNestedManyWithoutUserInput
   refreshTokens?: Prisma.RefreshTokenUncheckedCreateNestedManyWithoutUserInput
   loginEvents?: Prisma.LoginEventUncheckedCreateNestedManyWithoutUserInput
   sectionsAdvised?: Prisma.SectionUncheckedCreateNestedManyWithoutAdviserInput
@@ -3695,6 +3748,7 @@ export type UserUpdateWithoutSubmittedTimetablesInput = {
   sf10Versions?: Prisma.Sf10RecordVersionUpdateManyWithoutChangerNestedInput
   auditLogs?: Prisma.AuditLogUpdateManyWithoutUserNestedInput
   notifications?: Prisma.NotificationUpdateManyWithoutUserNestedInput
+  deviceTokens?: Prisma.DeviceTokenUpdateManyWithoutUserNestedInput
   refreshTokens?: Prisma.RefreshTokenUpdateManyWithoutUserNestedInput
   loginEvents?: Prisma.LoginEventUpdateManyWithoutUserNestedInput
   sectionsAdvised?: Prisma.SectionUpdateManyWithoutAdviserNestedInput
@@ -3756,6 +3810,7 @@ export type UserUncheckedUpdateWithoutSubmittedTimetablesInput = {
   sf10Versions?: Prisma.Sf10RecordVersionUncheckedUpdateManyWithoutChangerNestedInput
   auditLogs?: Prisma.AuditLogUncheckedUpdateManyWithoutUserNestedInput
   notifications?: Prisma.NotificationUncheckedUpdateManyWithoutUserNestedInput
+  deviceTokens?: Prisma.DeviceTokenUncheckedUpdateManyWithoutUserNestedInput
   refreshTokens?: Prisma.RefreshTokenUncheckedUpdateManyWithoutUserNestedInput
   loginEvents?: Prisma.LoginEventUncheckedUpdateManyWithoutUserNestedInput
   sectionsAdvised?: Prisma.SectionUncheckedUpdateManyWithoutAdviserNestedInput
@@ -3828,6 +3883,7 @@ export type UserUpdateWithoutReviewedTimetablesInput = {
   sf10Versions?: Prisma.Sf10RecordVersionUpdateManyWithoutChangerNestedInput
   auditLogs?: Prisma.AuditLogUpdateManyWithoutUserNestedInput
   notifications?: Prisma.NotificationUpdateManyWithoutUserNestedInput
+  deviceTokens?: Prisma.DeviceTokenUpdateManyWithoutUserNestedInput
   refreshTokens?: Prisma.RefreshTokenUpdateManyWithoutUserNestedInput
   loginEvents?: Prisma.LoginEventUpdateManyWithoutUserNestedInput
   sectionsAdvised?: Prisma.SectionUpdateManyWithoutAdviserNestedInput
@@ -3889,6 +3945,7 @@ export type UserUncheckedUpdateWithoutReviewedTimetablesInput = {
   sf10Versions?: Prisma.Sf10RecordVersionUncheckedUpdateManyWithoutChangerNestedInput
   auditLogs?: Prisma.AuditLogUncheckedUpdateManyWithoutUserNestedInput
   notifications?: Prisma.NotificationUncheckedUpdateManyWithoutUserNestedInput
+  deviceTokens?: Prisma.DeviceTokenUncheckedUpdateManyWithoutUserNestedInput
   refreshTokens?: Prisma.RefreshTokenUncheckedUpdateManyWithoutUserNestedInput
   loginEvents?: Prisma.LoginEventUncheckedUpdateManyWithoutUserNestedInput
   sectionsAdvised?: Prisma.SectionUncheckedUpdateManyWithoutAdviserNestedInput
@@ -3950,6 +4007,7 @@ export type UserCreateWithoutTeacherNameInput = {
   sf10Versions?: Prisma.Sf10RecordVersionCreateNestedManyWithoutChangerInput
   auditLogs?: Prisma.AuditLogCreateNestedManyWithoutUserInput
   notifications?: Prisma.NotificationCreateNestedManyWithoutUserInput
+  deviceTokens?: Prisma.DeviceTokenCreateNestedManyWithoutUserInput
   refreshTokens?: Prisma.RefreshTokenCreateNestedManyWithoutUserInput
   loginEvents?: Prisma.LoginEventCreateNestedManyWithoutUserInput
   sectionsAdvised?: Prisma.SectionCreateNestedManyWithoutAdviserInput
@@ -4011,6 +4069,7 @@ export type UserUncheckedCreateWithoutTeacherNameInput = {
   sf10Versions?: Prisma.Sf10RecordVersionUncheckedCreateNestedManyWithoutChangerInput
   auditLogs?: Prisma.AuditLogUncheckedCreateNestedManyWithoutUserInput
   notifications?: Prisma.NotificationUncheckedCreateNestedManyWithoutUserInput
+  deviceTokens?: Prisma.DeviceTokenUncheckedCreateNestedManyWithoutUserInput
   refreshTokens?: Prisma.RefreshTokenUncheckedCreateNestedManyWithoutUserInput
   loginEvents?: Prisma.LoginEventUncheckedCreateNestedManyWithoutUserInput
   sectionsAdvised?: Prisma.SectionUncheckedCreateNestedManyWithoutAdviserInput
@@ -4088,6 +4147,7 @@ export type UserUpdateWithoutTeacherNameInput = {
   sf10Versions?: Prisma.Sf10RecordVersionUpdateManyWithoutChangerNestedInput
   auditLogs?: Prisma.AuditLogUpdateManyWithoutUserNestedInput
   notifications?: Prisma.NotificationUpdateManyWithoutUserNestedInput
+  deviceTokens?: Prisma.DeviceTokenUpdateManyWithoutUserNestedInput
   refreshTokens?: Prisma.RefreshTokenUpdateManyWithoutUserNestedInput
   loginEvents?: Prisma.LoginEventUpdateManyWithoutUserNestedInput
   sectionsAdvised?: Prisma.SectionUpdateManyWithoutAdviserNestedInput
@@ -4149,6 +4209,7 @@ export type UserUncheckedUpdateWithoutTeacherNameInput = {
   sf10Versions?: Prisma.Sf10RecordVersionUncheckedUpdateManyWithoutChangerNestedInput
   auditLogs?: Prisma.AuditLogUncheckedUpdateManyWithoutUserNestedInput
   notifications?: Prisma.NotificationUncheckedUpdateManyWithoutUserNestedInput
+  deviceTokens?: Prisma.DeviceTokenUncheckedUpdateManyWithoutUserNestedInput
   refreshTokens?: Prisma.RefreshTokenUncheckedUpdateManyWithoutUserNestedInput
   loginEvents?: Prisma.LoginEventUncheckedUpdateManyWithoutUserNestedInput
   sectionsAdvised?: Prisma.SectionUncheckedUpdateManyWithoutAdviserNestedInput
@@ -4210,6 +4271,7 @@ export type UserCreateWithoutTermGrantsInput = {
   sf10Versions?: Prisma.Sf10RecordVersionCreateNestedManyWithoutChangerInput
   auditLogs?: Prisma.AuditLogCreateNestedManyWithoutUserInput
   notifications?: Prisma.NotificationCreateNestedManyWithoutUserInput
+  deviceTokens?: Prisma.DeviceTokenCreateNestedManyWithoutUserInput
   refreshTokens?: Prisma.RefreshTokenCreateNestedManyWithoutUserInput
   loginEvents?: Prisma.LoginEventCreateNestedManyWithoutUserInput
   sectionsAdvised?: Prisma.SectionCreateNestedManyWithoutAdviserInput
@@ -4271,6 +4333,7 @@ export type UserUncheckedCreateWithoutTermGrantsInput = {
   sf10Versions?: Prisma.Sf10RecordVersionUncheckedCreateNestedManyWithoutChangerInput
   auditLogs?: Prisma.AuditLogUncheckedCreateNestedManyWithoutUserInput
   notifications?: Prisma.NotificationUncheckedCreateNestedManyWithoutUserInput
+  deviceTokens?: Prisma.DeviceTokenUncheckedCreateNestedManyWithoutUserInput
   refreshTokens?: Prisma.RefreshTokenUncheckedCreateNestedManyWithoutUserInput
   loginEvents?: Prisma.LoginEventUncheckedCreateNestedManyWithoutUserInput
   sectionsAdvised?: Prisma.SectionUncheckedCreateNestedManyWithoutAdviserInput
@@ -4348,6 +4411,7 @@ export type UserUpdateWithoutTermGrantsInput = {
   sf10Versions?: Prisma.Sf10RecordVersionUpdateManyWithoutChangerNestedInput
   auditLogs?: Prisma.AuditLogUpdateManyWithoutUserNestedInput
   notifications?: Prisma.NotificationUpdateManyWithoutUserNestedInput
+  deviceTokens?: Prisma.DeviceTokenUpdateManyWithoutUserNestedInput
   refreshTokens?: Prisma.RefreshTokenUpdateManyWithoutUserNestedInput
   loginEvents?: Prisma.LoginEventUpdateManyWithoutUserNestedInput
   sectionsAdvised?: Prisma.SectionUpdateManyWithoutAdviserNestedInput
@@ -4409,6 +4473,7 @@ export type UserUncheckedUpdateWithoutTermGrantsInput = {
   sf10Versions?: Prisma.Sf10RecordVersionUncheckedUpdateManyWithoutChangerNestedInput
   auditLogs?: Prisma.AuditLogUncheckedUpdateManyWithoutUserNestedInput
   notifications?: Prisma.NotificationUncheckedUpdateManyWithoutUserNestedInput
+  deviceTokens?: Prisma.DeviceTokenUncheckedUpdateManyWithoutUserNestedInput
   refreshTokens?: Prisma.RefreshTokenUncheckedUpdateManyWithoutUserNestedInput
   loginEvents?: Prisma.LoginEventUncheckedUpdateManyWithoutUserNestedInput
   sectionsAdvised?: Prisma.SectionUncheckedUpdateManyWithoutAdviserNestedInput
@@ -4470,6 +4535,7 @@ export type UserCreateWithoutArchivedAdviseesInput = {
   sf10Versions?: Prisma.Sf10RecordVersionCreateNestedManyWithoutChangerInput
   auditLogs?: Prisma.AuditLogCreateNestedManyWithoutUserInput
   notifications?: Prisma.NotificationCreateNestedManyWithoutUserInput
+  deviceTokens?: Prisma.DeviceTokenCreateNestedManyWithoutUserInput
   refreshTokens?: Prisma.RefreshTokenCreateNestedManyWithoutUserInput
   loginEvents?: Prisma.LoginEventCreateNestedManyWithoutUserInput
   sectionsAdvised?: Prisma.SectionCreateNestedManyWithoutAdviserInput
@@ -4531,6 +4597,7 @@ export type UserUncheckedCreateWithoutArchivedAdviseesInput = {
   sf10Versions?: Prisma.Sf10RecordVersionUncheckedCreateNestedManyWithoutChangerInput
   auditLogs?: Prisma.AuditLogUncheckedCreateNestedManyWithoutUserInput
   notifications?: Prisma.NotificationUncheckedCreateNestedManyWithoutUserInput
+  deviceTokens?: Prisma.DeviceTokenUncheckedCreateNestedManyWithoutUserInput
   refreshTokens?: Prisma.RefreshTokenUncheckedCreateNestedManyWithoutUserInput
   loginEvents?: Prisma.LoginEventUncheckedCreateNestedManyWithoutUserInput
   sectionsAdvised?: Prisma.SectionUncheckedCreateNestedManyWithoutAdviserInput
@@ -4608,6 +4675,7 @@ export type UserUpdateWithoutArchivedAdviseesInput = {
   sf10Versions?: Prisma.Sf10RecordVersionUpdateManyWithoutChangerNestedInput
   auditLogs?: Prisma.AuditLogUpdateManyWithoutUserNestedInput
   notifications?: Prisma.NotificationUpdateManyWithoutUserNestedInput
+  deviceTokens?: Prisma.DeviceTokenUpdateManyWithoutUserNestedInput
   refreshTokens?: Prisma.RefreshTokenUpdateManyWithoutUserNestedInput
   loginEvents?: Prisma.LoginEventUpdateManyWithoutUserNestedInput
   sectionsAdvised?: Prisma.SectionUpdateManyWithoutAdviserNestedInput
@@ -4669,6 +4737,7 @@ export type UserUncheckedUpdateWithoutArchivedAdviseesInput = {
   sf10Versions?: Prisma.Sf10RecordVersionUncheckedUpdateManyWithoutChangerNestedInput
   auditLogs?: Prisma.AuditLogUncheckedUpdateManyWithoutUserNestedInput
   notifications?: Prisma.NotificationUncheckedUpdateManyWithoutUserNestedInput
+  deviceTokens?: Prisma.DeviceTokenUncheckedUpdateManyWithoutUserNestedInput
   refreshTokens?: Prisma.RefreshTokenUncheckedUpdateManyWithoutUserNestedInput
   loginEvents?: Prisma.LoginEventUncheckedUpdateManyWithoutUserNestedInput
   sectionsAdvised?: Prisma.SectionUncheckedUpdateManyWithoutAdviserNestedInput
@@ -4730,6 +4799,7 @@ export type UserCreateWithoutGradeFlagsRaisedInput = {
   sf10Versions?: Prisma.Sf10RecordVersionCreateNestedManyWithoutChangerInput
   auditLogs?: Prisma.AuditLogCreateNestedManyWithoutUserInput
   notifications?: Prisma.NotificationCreateNestedManyWithoutUserInput
+  deviceTokens?: Prisma.DeviceTokenCreateNestedManyWithoutUserInput
   refreshTokens?: Prisma.RefreshTokenCreateNestedManyWithoutUserInput
   loginEvents?: Prisma.LoginEventCreateNestedManyWithoutUserInput
   sectionsAdvised?: Prisma.SectionCreateNestedManyWithoutAdviserInput
@@ -4791,6 +4861,7 @@ export type UserUncheckedCreateWithoutGradeFlagsRaisedInput = {
   sf10Versions?: Prisma.Sf10RecordVersionUncheckedCreateNestedManyWithoutChangerInput
   auditLogs?: Prisma.AuditLogUncheckedCreateNestedManyWithoutUserInput
   notifications?: Prisma.NotificationUncheckedCreateNestedManyWithoutUserInput
+  deviceTokens?: Prisma.DeviceTokenUncheckedCreateNestedManyWithoutUserInput
   refreshTokens?: Prisma.RefreshTokenUncheckedCreateNestedManyWithoutUserInput
   loginEvents?: Prisma.LoginEventUncheckedCreateNestedManyWithoutUserInput
   sectionsAdvised?: Prisma.SectionUncheckedCreateNestedManyWithoutAdviserInput
@@ -4857,6 +4928,7 @@ export type UserCreateWithoutGradeFlagsOwnedInput = {
   sf10Versions?: Prisma.Sf10RecordVersionCreateNestedManyWithoutChangerInput
   auditLogs?: Prisma.AuditLogCreateNestedManyWithoutUserInput
   notifications?: Prisma.NotificationCreateNestedManyWithoutUserInput
+  deviceTokens?: Prisma.DeviceTokenCreateNestedManyWithoutUserInput
   refreshTokens?: Prisma.RefreshTokenCreateNestedManyWithoutUserInput
   loginEvents?: Prisma.LoginEventCreateNestedManyWithoutUserInput
   sectionsAdvised?: Prisma.SectionCreateNestedManyWithoutAdviserInput
@@ -4918,6 +4990,7 @@ export type UserUncheckedCreateWithoutGradeFlagsOwnedInput = {
   sf10Versions?: Prisma.Sf10RecordVersionUncheckedCreateNestedManyWithoutChangerInput
   auditLogs?: Prisma.AuditLogUncheckedCreateNestedManyWithoutUserInput
   notifications?: Prisma.NotificationUncheckedCreateNestedManyWithoutUserInput
+  deviceTokens?: Prisma.DeviceTokenUncheckedCreateNestedManyWithoutUserInput
   refreshTokens?: Prisma.RefreshTokenUncheckedCreateNestedManyWithoutUserInput
   loginEvents?: Prisma.LoginEventUncheckedCreateNestedManyWithoutUserInput
   sectionsAdvised?: Prisma.SectionUncheckedCreateNestedManyWithoutAdviserInput
@@ -4984,6 +5057,7 @@ export type UserCreateWithoutGradeFlagsResolvedInput = {
   sf10Versions?: Prisma.Sf10RecordVersionCreateNestedManyWithoutChangerInput
   auditLogs?: Prisma.AuditLogCreateNestedManyWithoutUserInput
   notifications?: Prisma.NotificationCreateNestedManyWithoutUserInput
+  deviceTokens?: Prisma.DeviceTokenCreateNestedManyWithoutUserInput
   refreshTokens?: Prisma.RefreshTokenCreateNestedManyWithoutUserInput
   loginEvents?: Prisma.LoginEventCreateNestedManyWithoutUserInput
   sectionsAdvised?: Prisma.SectionCreateNestedManyWithoutAdviserInput
@@ -5045,6 +5119,7 @@ export type UserUncheckedCreateWithoutGradeFlagsResolvedInput = {
   sf10Versions?: Prisma.Sf10RecordVersionUncheckedCreateNestedManyWithoutChangerInput
   auditLogs?: Prisma.AuditLogUncheckedCreateNestedManyWithoutUserInput
   notifications?: Prisma.NotificationUncheckedCreateNestedManyWithoutUserInput
+  deviceTokens?: Prisma.DeviceTokenUncheckedCreateNestedManyWithoutUserInput
   refreshTokens?: Prisma.RefreshTokenUncheckedCreateNestedManyWithoutUserInput
   loginEvents?: Prisma.LoginEventUncheckedCreateNestedManyWithoutUserInput
   sectionsAdvised?: Prisma.SectionUncheckedCreateNestedManyWithoutAdviserInput
@@ -5122,6 +5197,7 @@ export type UserUpdateWithoutGradeFlagsRaisedInput = {
   sf10Versions?: Prisma.Sf10RecordVersionUpdateManyWithoutChangerNestedInput
   auditLogs?: Prisma.AuditLogUpdateManyWithoutUserNestedInput
   notifications?: Prisma.NotificationUpdateManyWithoutUserNestedInput
+  deviceTokens?: Prisma.DeviceTokenUpdateManyWithoutUserNestedInput
   refreshTokens?: Prisma.RefreshTokenUpdateManyWithoutUserNestedInput
   loginEvents?: Prisma.LoginEventUpdateManyWithoutUserNestedInput
   sectionsAdvised?: Prisma.SectionUpdateManyWithoutAdviserNestedInput
@@ -5183,6 +5259,7 @@ export type UserUncheckedUpdateWithoutGradeFlagsRaisedInput = {
   sf10Versions?: Prisma.Sf10RecordVersionUncheckedUpdateManyWithoutChangerNestedInput
   auditLogs?: Prisma.AuditLogUncheckedUpdateManyWithoutUserNestedInput
   notifications?: Prisma.NotificationUncheckedUpdateManyWithoutUserNestedInput
+  deviceTokens?: Prisma.DeviceTokenUncheckedUpdateManyWithoutUserNestedInput
   refreshTokens?: Prisma.RefreshTokenUncheckedUpdateManyWithoutUserNestedInput
   loginEvents?: Prisma.LoginEventUncheckedUpdateManyWithoutUserNestedInput
   sectionsAdvised?: Prisma.SectionUncheckedUpdateManyWithoutAdviserNestedInput
@@ -5255,6 +5332,7 @@ export type UserUpdateWithoutGradeFlagsOwnedInput = {
   sf10Versions?: Prisma.Sf10RecordVersionUpdateManyWithoutChangerNestedInput
   auditLogs?: Prisma.AuditLogUpdateManyWithoutUserNestedInput
   notifications?: Prisma.NotificationUpdateManyWithoutUserNestedInput
+  deviceTokens?: Prisma.DeviceTokenUpdateManyWithoutUserNestedInput
   refreshTokens?: Prisma.RefreshTokenUpdateManyWithoutUserNestedInput
   loginEvents?: Prisma.LoginEventUpdateManyWithoutUserNestedInput
   sectionsAdvised?: Prisma.SectionUpdateManyWithoutAdviserNestedInput
@@ -5316,6 +5394,7 @@ export type UserUncheckedUpdateWithoutGradeFlagsOwnedInput = {
   sf10Versions?: Prisma.Sf10RecordVersionUncheckedUpdateManyWithoutChangerNestedInput
   auditLogs?: Prisma.AuditLogUncheckedUpdateManyWithoutUserNestedInput
   notifications?: Prisma.NotificationUncheckedUpdateManyWithoutUserNestedInput
+  deviceTokens?: Prisma.DeviceTokenUncheckedUpdateManyWithoutUserNestedInput
   refreshTokens?: Prisma.RefreshTokenUncheckedUpdateManyWithoutUserNestedInput
   loginEvents?: Prisma.LoginEventUncheckedUpdateManyWithoutUserNestedInput
   sectionsAdvised?: Prisma.SectionUncheckedUpdateManyWithoutAdviserNestedInput
@@ -5388,6 +5467,7 @@ export type UserUpdateWithoutGradeFlagsResolvedInput = {
   sf10Versions?: Prisma.Sf10RecordVersionUpdateManyWithoutChangerNestedInput
   auditLogs?: Prisma.AuditLogUpdateManyWithoutUserNestedInput
   notifications?: Prisma.NotificationUpdateManyWithoutUserNestedInput
+  deviceTokens?: Prisma.DeviceTokenUpdateManyWithoutUserNestedInput
   refreshTokens?: Prisma.RefreshTokenUpdateManyWithoutUserNestedInput
   loginEvents?: Prisma.LoginEventUpdateManyWithoutUserNestedInput
   sectionsAdvised?: Prisma.SectionUpdateManyWithoutAdviserNestedInput
@@ -5449,6 +5529,7 @@ export type UserUncheckedUpdateWithoutGradeFlagsResolvedInput = {
   sf10Versions?: Prisma.Sf10RecordVersionUncheckedUpdateManyWithoutChangerNestedInput
   auditLogs?: Prisma.AuditLogUncheckedUpdateManyWithoutUserNestedInput
   notifications?: Prisma.NotificationUncheckedUpdateManyWithoutUserNestedInput
+  deviceTokens?: Prisma.DeviceTokenUncheckedUpdateManyWithoutUserNestedInput
   refreshTokens?: Prisma.RefreshTokenUncheckedUpdateManyWithoutUserNestedInput
   loginEvents?: Prisma.LoginEventUncheckedUpdateManyWithoutUserNestedInput
   sectionsAdvised?: Prisma.SectionUncheckedUpdateManyWithoutAdviserNestedInput
@@ -5509,6 +5590,7 @@ export type UserCreateWithoutAnecdotalRecordsInput = {
   sf10Versions?: Prisma.Sf10RecordVersionCreateNestedManyWithoutChangerInput
   auditLogs?: Prisma.AuditLogCreateNestedManyWithoutUserInput
   notifications?: Prisma.NotificationCreateNestedManyWithoutUserInput
+  deviceTokens?: Prisma.DeviceTokenCreateNestedManyWithoutUserInput
   refreshTokens?: Prisma.RefreshTokenCreateNestedManyWithoutUserInput
   loginEvents?: Prisma.LoginEventCreateNestedManyWithoutUserInput
   sectionsAdvised?: Prisma.SectionCreateNestedManyWithoutAdviserInput
@@ -5570,6 +5652,7 @@ export type UserUncheckedCreateWithoutAnecdotalRecordsInput = {
   sf10Versions?: Prisma.Sf10RecordVersionUncheckedCreateNestedManyWithoutChangerInput
   auditLogs?: Prisma.AuditLogUncheckedCreateNestedManyWithoutUserInput
   notifications?: Prisma.NotificationUncheckedCreateNestedManyWithoutUserInput
+  deviceTokens?: Prisma.DeviceTokenUncheckedCreateNestedManyWithoutUserInput
   refreshTokens?: Prisma.RefreshTokenUncheckedCreateNestedManyWithoutUserInput
   loginEvents?: Prisma.LoginEventUncheckedCreateNestedManyWithoutUserInput
   sectionsAdvised?: Prisma.SectionUncheckedCreateNestedManyWithoutAdviserInput
@@ -5647,6 +5730,7 @@ export type UserUpdateWithoutAnecdotalRecordsInput = {
   sf10Versions?: Prisma.Sf10RecordVersionUpdateManyWithoutChangerNestedInput
   auditLogs?: Prisma.AuditLogUpdateManyWithoutUserNestedInput
   notifications?: Prisma.NotificationUpdateManyWithoutUserNestedInput
+  deviceTokens?: Prisma.DeviceTokenUpdateManyWithoutUserNestedInput
   refreshTokens?: Prisma.RefreshTokenUpdateManyWithoutUserNestedInput
   loginEvents?: Prisma.LoginEventUpdateManyWithoutUserNestedInput
   sectionsAdvised?: Prisma.SectionUpdateManyWithoutAdviserNestedInput
@@ -5708,6 +5792,7 @@ export type UserUncheckedUpdateWithoutAnecdotalRecordsInput = {
   sf10Versions?: Prisma.Sf10RecordVersionUncheckedUpdateManyWithoutChangerNestedInput
   auditLogs?: Prisma.AuditLogUncheckedUpdateManyWithoutUserNestedInput
   notifications?: Prisma.NotificationUncheckedUpdateManyWithoutUserNestedInput
+  deviceTokens?: Prisma.DeviceTokenUncheckedUpdateManyWithoutUserNestedInput
   refreshTokens?: Prisma.RefreshTokenUncheckedUpdateManyWithoutUserNestedInput
   loginEvents?: Prisma.LoginEventUncheckedUpdateManyWithoutUserNestedInput
   sectionsAdvised?: Prisma.SectionUncheckedUpdateManyWithoutAdviserNestedInput
@@ -5769,6 +5854,7 @@ export type UserCreateWithoutAnecdotalFoldersInput = {
   sf10Versions?: Prisma.Sf10RecordVersionCreateNestedManyWithoutChangerInput
   auditLogs?: Prisma.AuditLogCreateNestedManyWithoutUserInput
   notifications?: Prisma.NotificationCreateNestedManyWithoutUserInput
+  deviceTokens?: Prisma.DeviceTokenCreateNestedManyWithoutUserInput
   refreshTokens?: Prisma.RefreshTokenCreateNestedManyWithoutUserInput
   loginEvents?: Prisma.LoginEventCreateNestedManyWithoutUserInput
   sectionsAdvised?: Prisma.SectionCreateNestedManyWithoutAdviserInput
@@ -5830,6 +5916,7 @@ export type UserUncheckedCreateWithoutAnecdotalFoldersInput = {
   sf10Versions?: Prisma.Sf10RecordVersionUncheckedCreateNestedManyWithoutChangerInput
   auditLogs?: Prisma.AuditLogUncheckedCreateNestedManyWithoutUserInput
   notifications?: Prisma.NotificationUncheckedCreateNestedManyWithoutUserInput
+  deviceTokens?: Prisma.DeviceTokenUncheckedCreateNestedManyWithoutUserInput
   refreshTokens?: Prisma.RefreshTokenUncheckedCreateNestedManyWithoutUserInput
   loginEvents?: Prisma.LoginEventUncheckedCreateNestedManyWithoutUserInput
   sectionsAdvised?: Prisma.SectionUncheckedCreateNestedManyWithoutAdviserInput
@@ -5907,6 +5994,7 @@ export type UserUpdateWithoutAnecdotalFoldersInput = {
   sf10Versions?: Prisma.Sf10RecordVersionUpdateManyWithoutChangerNestedInput
   auditLogs?: Prisma.AuditLogUpdateManyWithoutUserNestedInput
   notifications?: Prisma.NotificationUpdateManyWithoutUserNestedInput
+  deviceTokens?: Prisma.DeviceTokenUpdateManyWithoutUserNestedInput
   refreshTokens?: Prisma.RefreshTokenUpdateManyWithoutUserNestedInput
   loginEvents?: Prisma.LoginEventUpdateManyWithoutUserNestedInput
   sectionsAdvised?: Prisma.SectionUpdateManyWithoutAdviserNestedInput
@@ -5968,6 +6056,7 @@ export type UserUncheckedUpdateWithoutAnecdotalFoldersInput = {
   sf10Versions?: Prisma.Sf10RecordVersionUncheckedUpdateManyWithoutChangerNestedInput
   auditLogs?: Prisma.AuditLogUncheckedUpdateManyWithoutUserNestedInput
   notifications?: Prisma.NotificationUncheckedUpdateManyWithoutUserNestedInput
+  deviceTokens?: Prisma.DeviceTokenUncheckedUpdateManyWithoutUserNestedInput
   refreshTokens?: Prisma.RefreshTokenUncheckedUpdateManyWithoutUserNestedInput
   loginEvents?: Prisma.LoginEventUncheckedUpdateManyWithoutUserNestedInput
   sectionsAdvised?: Prisma.SectionUncheckedUpdateManyWithoutAdviserNestedInput
@@ -6029,6 +6118,7 @@ export type UserCreateWithoutAnecdotalFollowupsInput = {
   sf10Versions?: Prisma.Sf10RecordVersionCreateNestedManyWithoutChangerInput
   auditLogs?: Prisma.AuditLogCreateNestedManyWithoutUserInput
   notifications?: Prisma.NotificationCreateNestedManyWithoutUserInput
+  deviceTokens?: Prisma.DeviceTokenCreateNestedManyWithoutUserInput
   refreshTokens?: Prisma.RefreshTokenCreateNestedManyWithoutUserInput
   loginEvents?: Prisma.LoginEventCreateNestedManyWithoutUserInput
   sectionsAdvised?: Prisma.SectionCreateNestedManyWithoutAdviserInput
@@ -6090,6 +6180,7 @@ export type UserUncheckedCreateWithoutAnecdotalFollowupsInput = {
   sf10Versions?: Prisma.Sf10RecordVersionUncheckedCreateNestedManyWithoutChangerInput
   auditLogs?: Prisma.AuditLogUncheckedCreateNestedManyWithoutUserInput
   notifications?: Prisma.NotificationUncheckedCreateNestedManyWithoutUserInput
+  deviceTokens?: Prisma.DeviceTokenUncheckedCreateNestedManyWithoutUserInput
   refreshTokens?: Prisma.RefreshTokenUncheckedCreateNestedManyWithoutUserInput
   loginEvents?: Prisma.LoginEventUncheckedCreateNestedManyWithoutUserInput
   sectionsAdvised?: Prisma.SectionUncheckedCreateNestedManyWithoutAdviserInput
@@ -6167,6 +6258,7 @@ export type UserUpdateWithoutAnecdotalFollowupsInput = {
   sf10Versions?: Prisma.Sf10RecordVersionUpdateManyWithoutChangerNestedInput
   auditLogs?: Prisma.AuditLogUpdateManyWithoutUserNestedInput
   notifications?: Prisma.NotificationUpdateManyWithoutUserNestedInput
+  deviceTokens?: Prisma.DeviceTokenUpdateManyWithoutUserNestedInput
   refreshTokens?: Prisma.RefreshTokenUpdateManyWithoutUserNestedInput
   loginEvents?: Prisma.LoginEventUpdateManyWithoutUserNestedInput
   sectionsAdvised?: Prisma.SectionUpdateManyWithoutAdviserNestedInput
@@ -6228,6 +6320,7 @@ export type UserUncheckedUpdateWithoutAnecdotalFollowupsInput = {
   sf10Versions?: Prisma.Sf10RecordVersionUncheckedUpdateManyWithoutChangerNestedInput
   auditLogs?: Prisma.AuditLogUncheckedUpdateManyWithoutUserNestedInput
   notifications?: Prisma.NotificationUncheckedUpdateManyWithoutUserNestedInput
+  deviceTokens?: Prisma.DeviceTokenUncheckedUpdateManyWithoutUserNestedInput
   refreshTokens?: Prisma.RefreshTokenUncheckedUpdateManyWithoutUserNestedInput
   loginEvents?: Prisma.LoginEventUncheckedUpdateManyWithoutUserNestedInput
   sectionsAdvised?: Prisma.SectionUncheckedUpdateManyWithoutAdviserNestedInput
@@ -6289,6 +6382,7 @@ export type UserCreateWithoutReferralsMadeInput = {
   sf10Versions?: Prisma.Sf10RecordVersionCreateNestedManyWithoutChangerInput
   auditLogs?: Prisma.AuditLogCreateNestedManyWithoutUserInput
   notifications?: Prisma.NotificationCreateNestedManyWithoutUserInput
+  deviceTokens?: Prisma.DeviceTokenCreateNestedManyWithoutUserInput
   refreshTokens?: Prisma.RefreshTokenCreateNestedManyWithoutUserInput
   loginEvents?: Prisma.LoginEventCreateNestedManyWithoutUserInput
   sectionsAdvised?: Prisma.SectionCreateNestedManyWithoutAdviserInput
@@ -6350,6 +6444,7 @@ export type UserUncheckedCreateWithoutReferralsMadeInput = {
   sf10Versions?: Prisma.Sf10RecordVersionUncheckedCreateNestedManyWithoutChangerInput
   auditLogs?: Prisma.AuditLogUncheckedCreateNestedManyWithoutUserInput
   notifications?: Prisma.NotificationUncheckedCreateNestedManyWithoutUserInput
+  deviceTokens?: Prisma.DeviceTokenUncheckedCreateNestedManyWithoutUserInput
   refreshTokens?: Prisma.RefreshTokenUncheckedCreateNestedManyWithoutUserInput
   loginEvents?: Prisma.LoginEventUncheckedCreateNestedManyWithoutUserInput
   sectionsAdvised?: Prisma.SectionUncheckedCreateNestedManyWithoutAdviserInput
@@ -6427,6 +6522,7 @@ export type UserUpdateWithoutReferralsMadeInput = {
   sf10Versions?: Prisma.Sf10RecordVersionUpdateManyWithoutChangerNestedInput
   auditLogs?: Prisma.AuditLogUpdateManyWithoutUserNestedInput
   notifications?: Prisma.NotificationUpdateManyWithoutUserNestedInput
+  deviceTokens?: Prisma.DeviceTokenUpdateManyWithoutUserNestedInput
   refreshTokens?: Prisma.RefreshTokenUpdateManyWithoutUserNestedInput
   loginEvents?: Prisma.LoginEventUpdateManyWithoutUserNestedInput
   sectionsAdvised?: Prisma.SectionUpdateManyWithoutAdviserNestedInput
@@ -6488,6 +6584,7 @@ export type UserUncheckedUpdateWithoutReferralsMadeInput = {
   sf10Versions?: Prisma.Sf10RecordVersionUncheckedUpdateManyWithoutChangerNestedInput
   auditLogs?: Prisma.AuditLogUncheckedUpdateManyWithoutUserNestedInput
   notifications?: Prisma.NotificationUncheckedUpdateManyWithoutUserNestedInput
+  deviceTokens?: Prisma.DeviceTokenUncheckedUpdateManyWithoutUserNestedInput
   refreshTokens?: Prisma.RefreshTokenUncheckedUpdateManyWithoutUserNestedInput
   loginEvents?: Prisma.LoginEventUncheckedUpdateManyWithoutUserNestedInput
   sectionsAdvised?: Prisma.SectionUncheckedUpdateManyWithoutAdviserNestedInput
@@ -6549,6 +6646,7 @@ export type UserCreateWithoutSessionsCreatedInput = {
   sf10Versions?: Prisma.Sf10RecordVersionCreateNestedManyWithoutChangerInput
   auditLogs?: Prisma.AuditLogCreateNestedManyWithoutUserInput
   notifications?: Prisma.NotificationCreateNestedManyWithoutUserInput
+  deviceTokens?: Prisma.DeviceTokenCreateNestedManyWithoutUserInput
   refreshTokens?: Prisma.RefreshTokenCreateNestedManyWithoutUserInput
   loginEvents?: Prisma.LoginEventCreateNestedManyWithoutUserInput
   sectionsAdvised?: Prisma.SectionCreateNestedManyWithoutAdviserInput
@@ -6610,6 +6708,7 @@ export type UserUncheckedCreateWithoutSessionsCreatedInput = {
   sf10Versions?: Prisma.Sf10RecordVersionUncheckedCreateNestedManyWithoutChangerInput
   auditLogs?: Prisma.AuditLogUncheckedCreateNestedManyWithoutUserInput
   notifications?: Prisma.NotificationUncheckedCreateNestedManyWithoutUserInput
+  deviceTokens?: Prisma.DeviceTokenUncheckedCreateNestedManyWithoutUserInput
   refreshTokens?: Prisma.RefreshTokenUncheckedCreateNestedManyWithoutUserInput
   loginEvents?: Prisma.LoginEventUncheckedCreateNestedManyWithoutUserInput
   sectionsAdvised?: Prisma.SectionUncheckedCreateNestedManyWithoutAdviserInput
@@ -6687,6 +6786,7 @@ export type UserUpdateWithoutSessionsCreatedInput = {
   sf10Versions?: Prisma.Sf10RecordVersionUpdateManyWithoutChangerNestedInput
   auditLogs?: Prisma.AuditLogUpdateManyWithoutUserNestedInput
   notifications?: Prisma.NotificationUpdateManyWithoutUserNestedInput
+  deviceTokens?: Prisma.DeviceTokenUpdateManyWithoutUserNestedInput
   refreshTokens?: Prisma.RefreshTokenUpdateManyWithoutUserNestedInput
   loginEvents?: Prisma.LoginEventUpdateManyWithoutUserNestedInput
   sectionsAdvised?: Prisma.SectionUpdateManyWithoutAdviserNestedInput
@@ -6748,6 +6848,7 @@ export type UserUncheckedUpdateWithoutSessionsCreatedInput = {
   sf10Versions?: Prisma.Sf10RecordVersionUncheckedUpdateManyWithoutChangerNestedInput
   auditLogs?: Prisma.AuditLogUncheckedUpdateManyWithoutUserNestedInput
   notifications?: Prisma.NotificationUncheckedUpdateManyWithoutUserNestedInput
+  deviceTokens?: Prisma.DeviceTokenUncheckedUpdateManyWithoutUserNestedInput
   refreshTokens?: Prisma.RefreshTokenUncheckedUpdateManyWithoutUserNestedInput
   loginEvents?: Prisma.LoginEventUncheckedUpdateManyWithoutUserNestedInput
   sectionsAdvised?: Prisma.SectionUncheckedUpdateManyWithoutAdviserNestedInput
@@ -6809,6 +6910,7 @@ export type UserCreateWithoutSessionAttachmentsInput = {
   sf10Versions?: Prisma.Sf10RecordVersionCreateNestedManyWithoutChangerInput
   auditLogs?: Prisma.AuditLogCreateNestedManyWithoutUserInput
   notifications?: Prisma.NotificationCreateNestedManyWithoutUserInput
+  deviceTokens?: Prisma.DeviceTokenCreateNestedManyWithoutUserInput
   refreshTokens?: Prisma.RefreshTokenCreateNestedManyWithoutUserInput
   loginEvents?: Prisma.LoginEventCreateNestedManyWithoutUserInput
   sectionsAdvised?: Prisma.SectionCreateNestedManyWithoutAdviserInput
@@ -6870,6 +6972,7 @@ export type UserUncheckedCreateWithoutSessionAttachmentsInput = {
   sf10Versions?: Prisma.Sf10RecordVersionUncheckedCreateNestedManyWithoutChangerInput
   auditLogs?: Prisma.AuditLogUncheckedCreateNestedManyWithoutUserInput
   notifications?: Prisma.NotificationUncheckedCreateNestedManyWithoutUserInput
+  deviceTokens?: Prisma.DeviceTokenUncheckedCreateNestedManyWithoutUserInput
   refreshTokens?: Prisma.RefreshTokenUncheckedCreateNestedManyWithoutUserInput
   loginEvents?: Prisma.LoginEventUncheckedCreateNestedManyWithoutUserInput
   sectionsAdvised?: Prisma.SectionUncheckedCreateNestedManyWithoutAdviserInput
@@ -6947,6 +7050,7 @@ export type UserUpdateWithoutSessionAttachmentsInput = {
   sf10Versions?: Prisma.Sf10RecordVersionUpdateManyWithoutChangerNestedInput
   auditLogs?: Prisma.AuditLogUpdateManyWithoutUserNestedInput
   notifications?: Prisma.NotificationUpdateManyWithoutUserNestedInput
+  deviceTokens?: Prisma.DeviceTokenUpdateManyWithoutUserNestedInput
   refreshTokens?: Prisma.RefreshTokenUpdateManyWithoutUserNestedInput
   loginEvents?: Prisma.LoginEventUpdateManyWithoutUserNestedInput
   sectionsAdvised?: Prisma.SectionUpdateManyWithoutAdviserNestedInput
@@ -7008,6 +7112,7 @@ export type UserUncheckedUpdateWithoutSessionAttachmentsInput = {
   sf10Versions?: Prisma.Sf10RecordVersionUncheckedUpdateManyWithoutChangerNestedInput
   auditLogs?: Prisma.AuditLogUncheckedUpdateManyWithoutUserNestedInput
   notifications?: Prisma.NotificationUncheckedUpdateManyWithoutUserNestedInput
+  deviceTokens?: Prisma.DeviceTokenUncheckedUpdateManyWithoutUserNestedInput
   refreshTokens?: Prisma.RefreshTokenUncheckedUpdateManyWithoutUserNestedInput
   loginEvents?: Prisma.LoginEventUncheckedUpdateManyWithoutUserNestedInput
   sectionsAdvised?: Prisma.SectionUncheckedUpdateManyWithoutAdviserNestedInput
@@ -7069,6 +7174,7 @@ export type UserCreateWithoutAssignedInterventionsInput = {
   sf10Versions?: Prisma.Sf10RecordVersionCreateNestedManyWithoutChangerInput
   auditLogs?: Prisma.AuditLogCreateNestedManyWithoutUserInput
   notifications?: Prisma.NotificationCreateNestedManyWithoutUserInput
+  deviceTokens?: Prisma.DeviceTokenCreateNestedManyWithoutUserInput
   refreshTokens?: Prisma.RefreshTokenCreateNestedManyWithoutUserInput
   loginEvents?: Prisma.LoginEventCreateNestedManyWithoutUserInput
   sectionsAdvised?: Prisma.SectionCreateNestedManyWithoutAdviserInput
@@ -7130,6 +7236,7 @@ export type UserUncheckedCreateWithoutAssignedInterventionsInput = {
   sf10Versions?: Prisma.Sf10RecordVersionUncheckedCreateNestedManyWithoutChangerInput
   auditLogs?: Prisma.AuditLogUncheckedCreateNestedManyWithoutUserInput
   notifications?: Prisma.NotificationUncheckedCreateNestedManyWithoutUserInput
+  deviceTokens?: Prisma.DeviceTokenUncheckedCreateNestedManyWithoutUserInput
   refreshTokens?: Prisma.RefreshTokenUncheckedCreateNestedManyWithoutUserInput
   loginEvents?: Prisma.LoginEventUncheckedCreateNestedManyWithoutUserInput
   sectionsAdvised?: Prisma.SectionUncheckedCreateNestedManyWithoutAdviserInput
@@ -7207,6 +7314,7 @@ export type UserUpdateWithoutAssignedInterventionsInput = {
   sf10Versions?: Prisma.Sf10RecordVersionUpdateManyWithoutChangerNestedInput
   auditLogs?: Prisma.AuditLogUpdateManyWithoutUserNestedInput
   notifications?: Prisma.NotificationUpdateManyWithoutUserNestedInput
+  deviceTokens?: Prisma.DeviceTokenUpdateManyWithoutUserNestedInput
   refreshTokens?: Prisma.RefreshTokenUpdateManyWithoutUserNestedInput
   loginEvents?: Prisma.LoginEventUpdateManyWithoutUserNestedInput
   sectionsAdvised?: Prisma.SectionUpdateManyWithoutAdviserNestedInput
@@ -7268,6 +7376,7 @@ export type UserUncheckedUpdateWithoutAssignedInterventionsInput = {
   sf10Versions?: Prisma.Sf10RecordVersionUncheckedUpdateManyWithoutChangerNestedInput
   auditLogs?: Prisma.AuditLogUncheckedUpdateManyWithoutUserNestedInput
   notifications?: Prisma.NotificationUncheckedUpdateManyWithoutUserNestedInput
+  deviceTokens?: Prisma.DeviceTokenUncheckedUpdateManyWithoutUserNestedInput
   refreshTokens?: Prisma.RefreshTokenUncheckedUpdateManyWithoutUserNestedInput
   loginEvents?: Prisma.LoginEventUncheckedUpdateManyWithoutUserNestedInput
   sectionsAdvised?: Prisma.SectionUncheckedUpdateManyWithoutAdviserNestedInput
@@ -7329,6 +7438,7 @@ export type UserCreateWithoutHealthRecordsInput = {
   sf10Versions?: Prisma.Sf10RecordVersionCreateNestedManyWithoutChangerInput
   auditLogs?: Prisma.AuditLogCreateNestedManyWithoutUserInput
   notifications?: Prisma.NotificationCreateNestedManyWithoutUserInput
+  deviceTokens?: Prisma.DeviceTokenCreateNestedManyWithoutUserInput
   refreshTokens?: Prisma.RefreshTokenCreateNestedManyWithoutUserInput
   loginEvents?: Prisma.LoginEventCreateNestedManyWithoutUserInput
   sectionsAdvised?: Prisma.SectionCreateNestedManyWithoutAdviserInput
@@ -7390,6 +7500,7 @@ export type UserUncheckedCreateWithoutHealthRecordsInput = {
   sf10Versions?: Prisma.Sf10RecordVersionUncheckedCreateNestedManyWithoutChangerInput
   auditLogs?: Prisma.AuditLogUncheckedCreateNestedManyWithoutUserInput
   notifications?: Prisma.NotificationUncheckedCreateNestedManyWithoutUserInput
+  deviceTokens?: Prisma.DeviceTokenUncheckedCreateNestedManyWithoutUserInput
   refreshTokens?: Prisma.RefreshTokenUncheckedCreateNestedManyWithoutUserInput
   loginEvents?: Prisma.LoginEventUncheckedCreateNestedManyWithoutUserInput
   sectionsAdvised?: Prisma.SectionUncheckedCreateNestedManyWithoutAdviserInput
@@ -7467,6 +7578,7 @@ export type UserUpdateWithoutHealthRecordsInput = {
   sf10Versions?: Prisma.Sf10RecordVersionUpdateManyWithoutChangerNestedInput
   auditLogs?: Prisma.AuditLogUpdateManyWithoutUserNestedInput
   notifications?: Prisma.NotificationUpdateManyWithoutUserNestedInput
+  deviceTokens?: Prisma.DeviceTokenUpdateManyWithoutUserNestedInput
   refreshTokens?: Prisma.RefreshTokenUpdateManyWithoutUserNestedInput
   loginEvents?: Prisma.LoginEventUpdateManyWithoutUserNestedInput
   sectionsAdvised?: Prisma.SectionUpdateManyWithoutAdviserNestedInput
@@ -7528,6 +7640,7 @@ export type UserUncheckedUpdateWithoutHealthRecordsInput = {
   sf10Versions?: Prisma.Sf10RecordVersionUncheckedUpdateManyWithoutChangerNestedInput
   auditLogs?: Prisma.AuditLogUncheckedUpdateManyWithoutUserNestedInput
   notifications?: Prisma.NotificationUncheckedUpdateManyWithoutUserNestedInput
+  deviceTokens?: Prisma.DeviceTokenUncheckedUpdateManyWithoutUserNestedInput
   refreshTokens?: Prisma.RefreshTokenUncheckedUpdateManyWithoutUserNestedInput
   loginEvents?: Prisma.LoginEventUncheckedUpdateManyWithoutUserNestedInput
   sectionsAdvised?: Prisma.SectionUncheckedUpdateManyWithoutAdviserNestedInput
@@ -7589,6 +7702,7 @@ export type UserCreateWithoutHomeVisitationsInput = {
   sf10Versions?: Prisma.Sf10RecordVersionCreateNestedManyWithoutChangerInput
   auditLogs?: Prisma.AuditLogCreateNestedManyWithoutUserInput
   notifications?: Prisma.NotificationCreateNestedManyWithoutUserInput
+  deviceTokens?: Prisma.DeviceTokenCreateNestedManyWithoutUserInput
   refreshTokens?: Prisma.RefreshTokenCreateNestedManyWithoutUserInput
   loginEvents?: Prisma.LoginEventCreateNestedManyWithoutUserInput
   sectionsAdvised?: Prisma.SectionCreateNestedManyWithoutAdviserInput
@@ -7650,6 +7764,7 @@ export type UserUncheckedCreateWithoutHomeVisitationsInput = {
   sf10Versions?: Prisma.Sf10RecordVersionUncheckedCreateNestedManyWithoutChangerInput
   auditLogs?: Prisma.AuditLogUncheckedCreateNestedManyWithoutUserInput
   notifications?: Prisma.NotificationUncheckedCreateNestedManyWithoutUserInput
+  deviceTokens?: Prisma.DeviceTokenUncheckedCreateNestedManyWithoutUserInput
   refreshTokens?: Prisma.RefreshTokenUncheckedCreateNestedManyWithoutUserInput
   loginEvents?: Prisma.LoginEventUncheckedCreateNestedManyWithoutUserInput
   sectionsAdvised?: Prisma.SectionUncheckedCreateNestedManyWithoutAdviserInput
@@ -7727,6 +7842,7 @@ export type UserUpdateWithoutHomeVisitationsInput = {
   sf10Versions?: Prisma.Sf10RecordVersionUpdateManyWithoutChangerNestedInput
   auditLogs?: Prisma.AuditLogUpdateManyWithoutUserNestedInput
   notifications?: Prisma.NotificationUpdateManyWithoutUserNestedInput
+  deviceTokens?: Prisma.DeviceTokenUpdateManyWithoutUserNestedInput
   refreshTokens?: Prisma.RefreshTokenUpdateManyWithoutUserNestedInput
   loginEvents?: Prisma.LoginEventUpdateManyWithoutUserNestedInput
   sectionsAdvised?: Prisma.SectionUpdateManyWithoutAdviserNestedInput
@@ -7788,6 +7904,7 @@ export type UserUncheckedUpdateWithoutHomeVisitationsInput = {
   sf10Versions?: Prisma.Sf10RecordVersionUncheckedUpdateManyWithoutChangerNestedInput
   auditLogs?: Prisma.AuditLogUncheckedUpdateManyWithoutUserNestedInput
   notifications?: Prisma.NotificationUncheckedUpdateManyWithoutUserNestedInput
+  deviceTokens?: Prisma.DeviceTokenUncheckedUpdateManyWithoutUserNestedInput
   refreshTokens?: Prisma.RefreshTokenUncheckedUpdateManyWithoutUserNestedInput
   loginEvents?: Prisma.LoginEventUncheckedUpdateManyWithoutUserNestedInput
   sectionsAdvised?: Prisma.SectionUncheckedUpdateManyWithoutAdviserNestedInput
@@ -7849,6 +7966,7 @@ export type UserCreateWithoutAdmProfilesPreparedInput = {
   sf10Versions?: Prisma.Sf10RecordVersionCreateNestedManyWithoutChangerInput
   auditLogs?: Prisma.AuditLogCreateNestedManyWithoutUserInput
   notifications?: Prisma.NotificationCreateNestedManyWithoutUserInput
+  deviceTokens?: Prisma.DeviceTokenCreateNestedManyWithoutUserInput
   refreshTokens?: Prisma.RefreshTokenCreateNestedManyWithoutUserInput
   loginEvents?: Prisma.LoginEventCreateNestedManyWithoutUserInput
   sectionsAdvised?: Prisma.SectionCreateNestedManyWithoutAdviserInput
@@ -7910,6 +8028,7 @@ export type UserUncheckedCreateWithoutAdmProfilesPreparedInput = {
   sf10Versions?: Prisma.Sf10RecordVersionUncheckedCreateNestedManyWithoutChangerInput
   auditLogs?: Prisma.AuditLogUncheckedCreateNestedManyWithoutUserInput
   notifications?: Prisma.NotificationUncheckedCreateNestedManyWithoutUserInput
+  deviceTokens?: Prisma.DeviceTokenUncheckedCreateNestedManyWithoutUserInput
   refreshTokens?: Prisma.RefreshTokenUncheckedCreateNestedManyWithoutUserInput
   loginEvents?: Prisma.LoginEventUncheckedCreateNestedManyWithoutUserInput
   sectionsAdvised?: Prisma.SectionUncheckedCreateNestedManyWithoutAdviserInput
@@ -7976,6 +8095,7 @@ export type UserCreateWithoutAdmProfilesApprovedInput = {
   sf10Versions?: Prisma.Sf10RecordVersionCreateNestedManyWithoutChangerInput
   auditLogs?: Prisma.AuditLogCreateNestedManyWithoutUserInput
   notifications?: Prisma.NotificationCreateNestedManyWithoutUserInput
+  deviceTokens?: Prisma.DeviceTokenCreateNestedManyWithoutUserInput
   refreshTokens?: Prisma.RefreshTokenCreateNestedManyWithoutUserInput
   loginEvents?: Prisma.LoginEventCreateNestedManyWithoutUserInput
   sectionsAdvised?: Prisma.SectionCreateNestedManyWithoutAdviserInput
@@ -8037,6 +8157,7 @@ export type UserUncheckedCreateWithoutAdmProfilesApprovedInput = {
   sf10Versions?: Prisma.Sf10RecordVersionUncheckedCreateNestedManyWithoutChangerInput
   auditLogs?: Prisma.AuditLogUncheckedCreateNestedManyWithoutUserInput
   notifications?: Prisma.NotificationUncheckedCreateNestedManyWithoutUserInput
+  deviceTokens?: Prisma.DeviceTokenUncheckedCreateNestedManyWithoutUserInput
   refreshTokens?: Prisma.RefreshTokenUncheckedCreateNestedManyWithoutUserInput
   loginEvents?: Prisma.LoginEventUncheckedCreateNestedManyWithoutUserInput
   sectionsAdvised?: Prisma.SectionUncheckedCreateNestedManyWithoutAdviserInput
@@ -8114,6 +8235,7 @@ export type UserUpdateWithoutAdmProfilesPreparedInput = {
   sf10Versions?: Prisma.Sf10RecordVersionUpdateManyWithoutChangerNestedInput
   auditLogs?: Prisma.AuditLogUpdateManyWithoutUserNestedInput
   notifications?: Prisma.NotificationUpdateManyWithoutUserNestedInput
+  deviceTokens?: Prisma.DeviceTokenUpdateManyWithoutUserNestedInput
   refreshTokens?: Prisma.RefreshTokenUpdateManyWithoutUserNestedInput
   loginEvents?: Prisma.LoginEventUpdateManyWithoutUserNestedInput
   sectionsAdvised?: Prisma.SectionUpdateManyWithoutAdviserNestedInput
@@ -8175,6 +8297,7 @@ export type UserUncheckedUpdateWithoutAdmProfilesPreparedInput = {
   sf10Versions?: Prisma.Sf10RecordVersionUncheckedUpdateManyWithoutChangerNestedInput
   auditLogs?: Prisma.AuditLogUncheckedUpdateManyWithoutUserNestedInput
   notifications?: Prisma.NotificationUncheckedUpdateManyWithoutUserNestedInput
+  deviceTokens?: Prisma.DeviceTokenUncheckedUpdateManyWithoutUserNestedInput
   refreshTokens?: Prisma.RefreshTokenUncheckedUpdateManyWithoutUserNestedInput
   loginEvents?: Prisma.LoginEventUncheckedUpdateManyWithoutUserNestedInput
   sectionsAdvised?: Prisma.SectionUncheckedUpdateManyWithoutAdviserNestedInput
@@ -8247,6 +8370,7 @@ export type UserUpdateWithoutAdmProfilesApprovedInput = {
   sf10Versions?: Prisma.Sf10RecordVersionUpdateManyWithoutChangerNestedInput
   auditLogs?: Prisma.AuditLogUpdateManyWithoutUserNestedInput
   notifications?: Prisma.NotificationUpdateManyWithoutUserNestedInput
+  deviceTokens?: Prisma.DeviceTokenUpdateManyWithoutUserNestedInput
   refreshTokens?: Prisma.RefreshTokenUpdateManyWithoutUserNestedInput
   loginEvents?: Prisma.LoginEventUpdateManyWithoutUserNestedInput
   sectionsAdvised?: Prisma.SectionUpdateManyWithoutAdviserNestedInput
@@ -8308,6 +8432,7 @@ export type UserUncheckedUpdateWithoutAdmProfilesApprovedInput = {
   sf10Versions?: Prisma.Sf10RecordVersionUncheckedUpdateManyWithoutChangerNestedInput
   auditLogs?: Prisma.AuditLogUncheckedUpdateManyWithoutUserNestedInput
   notifications?: Prisma.NotificationUncheckedUpdateManyWithoutUserNestedInput
+  deviceTokens?: Prisma.DeviceTokenUncheckedUpdateManyWithoutUserNestedInput
   refreshTokens?: Prisma.RefreshTokenUncheckedUpdateManyWithoutUserNestedInput
   loginEvents?: Prisma.LoginEventUncheckedUpdateManyWithoutUserNestedInput
   sectionsAdvised?: Prisma.SectionUncheckedUpdateManyWithoutAdviserNestedInput
@@ -8369,6 +8494,7 @@ export type UserCreateWithoutAdmMeetingsInput = {
   sf10Versions?: Prisma.Sf10RecordVersionCreateNestedManyWithoutChangerInput
   auditLogs?: Prisma.AuditLogCreateNestedManyWithoutUserInput
   notifications?: Prisma.NotificationCreateNestedManyWithoutUserInput
+  deviceTokens?: Prisma.DeviceTokenCreateNestedManyWithoutUserInput
   refreshTokens?: Prisma.RefreshTokenCreateNestedManyWithoutUserInput
   loginEvents?: Prisma.LoginEventCreateNestedManyWithoutUserInput
   sectionsAdvised?: Prisma.SectionCreateNestedManyWithoutAdviserInput
@@ -8430,6 +8556,7 @@ export type UserUncheckedCreateWithoutAdmMeetingsInput = {
   sf10Versions?: Prisma.Sf10RecordVersionUncheckedCreateNestedManyWithoutChangerInput
   auditLogs?: Prisma.AuditLogUncheckedCreateNestedManyWithoutUserInput
   notifications?: Prisma.NotificationUncheckedCreateNestedManyWithoutUserInput
+  deviceTokens?: Prisma.DeviceTokenUncheckedCreateNestedManyWithoutUserInput
   refreshTokens?: Prisma.RefreshTokenUncheckedCreateNestedManyWithoutUserInput
   loginEvents?: Prisma.LoginEventUncheckedCreateNestedManyWithoutUserInput
   sectionsAdvised?: Prisma.SectionUncheckedCreateNestedManyWithoutAdviserInput
@@ -8507,6 +8634,7 @@ export type UserUpdateWithoutAdmMeetingsInput = {
   sf10Versions?: Prisma.Sf10RecordVersionUpdateManyWithoutChangerNestedInput
   auditLogs?: Prisma.AuditLogUpdateManyWithoutUserNestedInput
   notifications?: Prisma.NotificationUpdateManyWithoutUserNestedInput
+  deviceTokens?: Prisma.DeviceTokenUpdateManyWithoutUserNestedInput
   refreshTokens?: Prisma.RefreshTokenUpdateManyWithoutUserNestedInput
   loginEvents?: Prisma.LoginEventUpdateManyWithoutUserNestedInput
   sectionsAdvised?: Prisma.SectionUpdateManyWithoutAdviserNestedInput
@@ -8568,6 +8696,7 @@ export type UserUncheckedUpdateWithoutAdmMeetingsInput = {
   sf10Versions?: Prisma.Sf10RecordVersionUncheckedUpdateManyWithoutChangerNestedInput
   auditLogs?: Prisma.AuditLogUncheckedUpdateManyWithoutUserNestedInput
   notifications?: Prisma.NotificationUncheckedUpdateManyWithoutUserNestedInput
+  deviceTokens?: Prisma.DeviceTokenUncheckedUpdateManyWithoutUserNestedInput
   refreshTokens?: Prisma.RefreshTokenUncheckedUpdateManyWithoutUserNestedInput
   loginEvents?: Prisma.LoginEventUncheckedUpdateManyWithoutUserNestedInput
   sectionsAdvised?: Prisma.SectionUncheckedUpdateManyWithoutAdviserNestedInput
@@ -8629,6 +8758,7 @@ export type UserCreateWithoutAdmMeetingInvitesInput = {
   sf10Versions?: Prisma.Sf10RecordVersionCreateNestedManyWithoutChangerInput
   auditLogs?: Prisma.AuditLogCreateNestedManyWithoutUserInput
   notifications?: Prisma.NotificationCreateNestedManyWithoutUserInput
+  deviceTokens?: Prisma.DeviceTokenCreateNestedManyWithoutUserInput
   refreshTokens?: Prisma.RefreshTokenCreateNestedManyWithoutUserInput
   loginEvents?: Prisma.LoginEventCreateNestedManyWithoutUserInput
   sectionsAdvised?: Prisma.SectionCreateNestedManyWithoutAdviserInput
@@ -8690,6 +8820,7 @@ export type UserUncheckedCreateWithoutAdmMeetingInvitesInput = {
   sf10Versions?: Prisma.Sf10RecordVersionUncheckedCreateNestedManyWithoutChangerInput
   auditLogs?: Prisma.AuditLogUncheckedCreateNestedManyWithoutUserInput
   notifications?: Prisma.NotificationUncheckedCreateNestedManyWithoutUserInput
+  deviceTokens?: Prisma.DeviceTokenUncheckedCreateNestedManyWithoutUserInput
   refreshTokens?: Prisma.RefreshTokenUncheckedCreateNestedManyWithoutUserInput
   loginEvents?: Prisma.LoginEventUncheckedCreateNestedManyWithoutUserInput
   sectionsAdvised?: Prisma.SectionUncheckedCreateNestedManyWithoutAdviserInput
@@ -8767,6 +8898,7 @@ export type UserUpdateWithoutAdmMeetingInvitesInput = {
   sf10Versions?: Prisma.Sf10RecordVersionUpdateManyWithoutChangerNestedInput
   auditLogs?: Prisma.AuditLogUpdateManyWithoutUserNestedInput
   notifications?: Prisma.NotificationUpdateManyWithoutUserNestedInput
+  deviceTokens?: Prisma.DeviceTokenUpdateManyWithoutUserNestedInput
   refreshTokens?: Prisma.RefreshTokenUpdateManyWithoutUserNestedInput
   loginEvents?: Prisma.LoginEventUpdateManyWithoutUserNestedInput
   sectionsAdvised?: Prisma.SectionUpdateManyWithoutAdviserNestedInput
@@ -8828,6 +8960,7 @@ export type UserUncheckedUpdateWithoutAdmMeetingInvitesInput = {
   sf10Versions?: Prisma.Sf10RecordVersionUncheckedUpdateManyWithoutChangerNestedInput
   auditLogs?: Prisma.AuditLogUncheckedUpdateManyWithoutUserNestedInput
   notifications?: Prisma.NotificationUncheckedUpdateManyWithoutUserNestedInput
+  deviceTokens?: Prisma.DeviceTokenUncheckedUpdateManyWithoutUserNestedInput
   refreshTokens?: Prisma.RefreshTokenUncheckedUpdateManyWithoutUserNestedInput
   loginEvents?: Prisma.LoginEventUncheckedUpdateManyWithoutUserNestedInput
   sectionsAdvised?: Prisma.SectionUncheckedUpdateManyWithoutAdviserNestedInput
@@ -8889,6 +9022,7 @@ export type UserCreateWithoutAdmMeetingAttachmentsInput = {
   sf10Versions?: Prisma.Sf10RecordVersionCreateNestedManyWithoutChangerInput
   auditLogs?: Prisma.AuditLogCreateNestedManyWithoutUserInput
   notifications?: Prisma.NotificationCreateNestedManyWithoutUserInput
+  deviceTokens?: Prisma.DeviceTokenCreateNestedManyWithoutUserInput
   refreshTokens?: Prisma.RefreshTokenCreateNestedManyWithoutUserInput
   loginEvents?: Prisma.LoginEventCreateNestedManyWithoutUserInput
   sectionsAdvised?: Prisma.SectionCreateNestedManyWithoutAdviserInput
@@ -8950,6 +9084,7 @@ export type UserUncheckedCreateWithoutAdmMeetingAttachmentsInput = {
   sf10Versions?: Prisma.Sf10RecordVersionUncheckedCreateNestedManyWithoutChangerInput
   auditLogs?: Prisma.AuditLogUncheckedCreateNestedManyWithoutUserInput
   notifications?: Prisma.NotificationUncheckedCreateNestedManyWithoutUserInput
+  deviceTokens?: Prisma.DeviceTokenUncheckedCreateNestedManyWithoutUserInput
   refreshTokens?: Prisma.RefreshTokenUncheckedCreateNestedManyWithoutUserInput
   loginEvents?: Prisma.LoginEventUncheckedCreateNestedManyWithoutUserInput
   sectionsAdvised?: Prisma.SectionUncheckedCreateNestedManyWithoutAdviserInput
@@ -9027,6 +9162,7 @@ export type UserUpdateWithoutAdmMeetingAttachmentsInput = {
   sf10Versions?: Prisma.Sf10RecordVersionUpdateManyWithoutChangerNestedInput
   auditLogs?: Prisma.AuditLogUpdateManyWithoutUserNestedInput
   notifications?: Prisma.NotificationUpdateManyWithoutUserNestedInput
+  deviceTokens?: Prisma.DeviceTokenUpdateManyWithoutUserNestedInput
   refreshTokens?: Prisma.RefreshTokenUpdateManyWithoutUserNestedInput
   loginEvents?: Prisma.LoginEventUpdateManyWithoutUserNestedInput
   sectionsAdvised?: Prisma.SectionUpdateManyWithoutAdviserNestedInput
@@ -9088,6 +9224,7 @@ export type UserUncheckedUpdateWithoutAdmMeetingAttachmentsInput = {
   sf10Versions?: Prisma.Sf10RecordVersionUncheckedUpdateManyWithoutChangerNestedInput
   auditLogs?: Prisma.AuditLogUncheckedUpdateManyWithoutUserNestedInput
   notifications?: Prisma.NotificationUncheckedUpdateManyWithoutUserNestedInput
+  deviceTokens?: Prisma.DeviceTokenUncheckedUpdateManyWithoutUserNestedInput
   refreshTokens?: Prisma.RefreshTokenUncheckedUpdateManyWithoutUserNestedInput
   loginEvents?: Prisma.LoginEventUncheckedUpdateManyWithoutUserNestedInput
   sectionsAdvised?: Prisma.SectionUncheckedUpdateManyWithoutAdviserNestedInput
@@ -9149,6 +9286,7 @@ export type UserCreateWithoutAdmModulesInput = {
   sf10Versions?: Prisma.Sf10RecordVersionCreateNestedManyWithoutChangerInput
   auditLogs?: Prisma.AuditLogCreateNestedManyWithoutUserInput
   notifications?: Prisma.NotificationCreateNestedManyWithoutUserInput
+  deviceTokens?: Prisma.DeviceTokenCreateNestedManyWithoutUserInput
   refreshTokens?: Prisma.RefreshTokenCreateNestedManyWithoutUserInput
   loginEvents?: Prisma.LoginEventCreateNestedManyWithoutUserInput
   sectionsAdvised?: Prisma.SectionCreateNestedManyWithoutAdviserInput
@@ -9210,6 +9348,7 @@ export type UserUncheckedCreateWithoutAdmModulesInput = {
   sf10Versions?: Prisma.Sf10RecordVersionUncheckedCreateNestedManyWithoutChangerInput
   auditLogs?: Prisma.AuditLogUncheckedCreateNestedManyWithoutUserInput
   notifications?: Prisma.NotificationUncheckedCreateNestedManyWithoutUserInput
+  deviceTokens?: Prisma.DeviceTokenUncheckedCreateNestedManyWithoutUserInput
   refreshTokens?: Prisma.RefreshTokenUncheckedCreateNestedManyWithoutUserInput
   loginEvents?: Prisma.LoginEventUncheckedCreateNestedManyWithoutUserInput
   sectionsAdvised?: Prisma.SectionUncheckedCreateNestedManyWithoutAdviserInput
@@ -9287,6 +9426,7 @@ export type UserUpdateWithoutAdmModulesInput = {
   sf10Versions?: Prisma.Sf10RecordVersionUpdateManyWithoutChangerNestedInput
   auditLogs?: Prisma.AuditLogUpdateManyWithoutUserNestedInput
   notifications?: Prisma.NotificationUpdateManyWithoutUserNestedInput
+  deviceTokens?: Prisma.DeviceTokenUpdateManyWithoutUserNestedInput
   refreshTokens?: Prisma.RefreshTokenUpdateManyWithoutUserNestedInput
   loginEvents?: Prisma.LoginEventUpdateManyWithoutUserNestedInput
   sectionsAdvised?: Prisma.SectionUpdateManyWithoutAdviserNestedInput
@@ -9348,6 +9488,7 @@ export type UserUncheckedUpdateWithoutAdmModulesInput = {
   sf10Versions?: Prisma.Sf10RecordVersionUncheckedUpdateManyWithoutChangerNestedInput
   auditLogs?: Prisma.AuditLogUncheckedUpdateManyWithoutUserNestedInput
   notifications?: Prisma.NotificationUncheckedUpdateManyWithoutUserNestedInput
+  deviceTokens?: Prisma.DeviceTokenUncheckedUpdateManyWithoutUserNestedInput
   refreshTokens?: Prisma.RefreshTokenUncheckedUpdateManyWithoutUserNestedInput
   loginEvents?: Prisma.LoginEventUncheckedUpdateManyWithoutUserNestedInput
   sectionsAdvised?: Prisma.SectionUncheckedUpdateManyWithoutAdviserNestedInput
@@ -9409,6 +9550,7 @@ export type UserCreateWithoutAdmDevicesIssuedInput = {
   sf10Versions?: Prisma.Sf10RecordVersionCreateNestedManyWithoutChangerInput
   auditLogs?: Prisma.AuditLogCreateNestedManyWithoutUserInput
   notifications?: Prisma.NotificationCreateNestedManyWithoutUserInput
+  deviceTokens?: Prisma.DeviceTokenCreateNestedManyWithoutUserInput
   refreshTokens?: Prisma.RefreshTokenCreateNestedManyWithoutUserInput
   loginEvents?: Prisma.LoginEventCreateNestedManyWithoutUserInput
   sectionsAdvised?: Prisma.SectionCreateNestedManyWithoutAdviserInput
@@ -9470,6 +9612,7 @@ export type UserUncheckedCreateWithoutAdmDevicesIssuedInput = {
   sf10Versions?: Prisma.Sf10RecordVersionUncheckedCreateNestedManyWithoutChangerInput
   auditLogs?: Prisma.AuditLogUncheckedCreateNestedManyWithoutUserInput
   notifications?: Prisma.NotificationUncheckedCreateNestedManyWithoutUserInput
+  deviceTokens?: Prisma.DeviceTokenUncheckedCreateNestedManyWithoutUserInput
   refreshTokens?: Prisma.RefreshTokenUncheckedCreateNestedManyWithoutUserInput
   loginEvents?: Prisma.LoginEventUncheckedCreateNestedManyWithoutUserInput
   sectionsAdvised?: Prisma.SectionUncheckedCreateNestedManyWithoutAdviserInput
@@ -9547,6 +9690,7 @@ export type UserUpdateWithoutAdmDevicesIssuedInput = {
   sf10Versions?: Prisma.Sf10RecordVersionUpdateManyWithoutChangerNestedInput
   auditLogs?: Prisma.AuditLogUpdateManyWithoutUserNestedInput
   notifications?: Prisma.NotificationUpdateManyWithoutUserNestedInput
+  deviceTokens?: Prisma.DeviceTokenUpdateManyWithoutUserNestedInput
   refreshTokens?: Prisma.RefreshTokenUpdateManyWithoutUserNestedInput
   loginEvents?: Prisma.LoginEventUpdateManyWithoutUserNestedInput
   sectionsAdvised?: Prisma.SectionUpdateManyWithoutAdviserNestedInput
@@ -9608,6 +9752,7 @@ export type UserUncheckedUpdateWithoutAdmDevicesIssuedInput = {
   sf10Versions?: Prisma.Sf10RecordVersionUncheckedUpdateManyWithoutChangerNestedInput
   auditLogs?: Prisma.AuditLogUncheckedUpdateManyWithoutUserNestedInput
   notifications?: Prisma.NotificationUncheckedUpdateManyWithoutUserNestedInput
+  deviceTokens?: Prisma.DeviceTokenUncheckedUpdateManyWithoutUserNestedInput
   refreshTokens?: Prisma.RefreshTokenUncheckedUpdateManyWithoutUserNestedInput
   loginEvents?: Prisma.LoginEventUncheckedUpdateManyWithoutUserNestedInput
   sectionsAdvised?: Prisma.SectionUncheckedUpdateManyWithoutAdviserNestedInput
@@ -9669,6 +9814,7 @@ export type UserCreateWithoutAdmFormsUploadedInput = {
   sf10Versions?: Prisma.Sf10RecordVersionCreateNestedManyWithoutChangerInput
   auditLogs?: Prisma.AuditLogCreateNestedManyWithoutUserInput
   notifications?: Prisma.NotificationCreateNestedManyWithoutUserInput
+  deviceTokens?: Prisma.DeviceTokenCreateNestedManyWithoutUserInput
   refreshTokens?: Prisma.RefreshTokenCreateNestedManyWithoutUserInput
   loginEvents?: Prisma.LoginEventCreateNestedManyWithoutUserInput
   sectionsAdvised?: Prisma.SectionCreateNestedManyWithoutAdviserInput
@@ -9730,6 +9876,7 @@ export type UserUncheckedCreateWithoutAdmFormsUploadedInput = {
   sf10Versions?: Prisma.Sf10RecordVersionUncheckedCreateNestedManyWithoutChangerInput
   auditLogs?: Prisma.AuditLogUncheckedCreateNestedManyWithoutUserInput
   notifications?: Prisma.NotificationUncheckedCreateNestedManyWithoutUserInput
+  deviceTokens?: Prisma.DeviceTokenUncheckedCreateNestedManyWithoutUserInput
   refreshTokens?: Prisma.RefreshTokenUncheckedCreateNestedManyWithoutUserInput
   loginEvents?: Prisma.LoginEventUncheckedCreateNestedManyWithoutUserInput
   sectionsAdvised?: Prisma.SectionUncheckedCreateNestedManyWithoutAdviserInput
@@ -9807,6 +9954,7 @@ export type UserUpdateWithoutAdmFormsUploadedInput = {
   sf10Versions?: Prisma.Sf10RecordVersionUpdateManyWithoutChangerNestedInput
   auditLogs?: Prisma.AuditLogUpdateManyWithoutUserNestedInput
   notifications?: Prisma.NotificationUpdateManyWithoutUserNestedInput
+  deviceTokens?: Prisma.DeviceTokenUpdateManyWithoutUserNestedInput
   refreshTokens?: Prisma.RefreshTokenUpdateManyWithoutUserNestedInput
   loginEvents?: Prisma.LoginEventUpdateManyWithoutUserNestedInput
   sectionsAdvised?: Prisma.SectionUpdateManyWithoutAdviserNestedInput
@@ -9868,6 +10016,7 @@ export type UserUncheckedUpdateWithoutAdmFormsUploadedInput = {
   sf10Versions?: Prisma.Sf10RecordVersionUncheckedUpdateManyWithoutChangerNestedInput
   auditLogs?: Prisma.AuditLogUncheckedUpdateManyWithoutUserNestedInput
   notifications?: Prisma.NotificationUncheckedUpdateManyWithoutUserNestedInput
+  deviceTokens?: Prisma.DeviceTokenUncheckedUpdateManyWithoutUserNestedInput
   refreshTokens?: Prisma.RefreshTokenUncheckedUpdateManyWithoutUserNestedInput
   loginEvents?: Prisma.LoginEventUncheckedUpdateManyWithoutUserNestedInput
   sectionsAdvised?: Prisma.SectionUncheckedUpdateManyWithoutAdviserNestedInput
@@ -9929,6 +10078,7 @@ export type UserCreateWithoutAdvisoryModulesInput = {
   sf10Versions?: Prisma.Sf10RecordVersionCreateNestedManyWithoutChangerInput
   auditLogs?: Prisma.AuditLogCreateNestedManyWithoutUserInput
   notifications?: Prisma.NotificationCreateNestedManyWithoutUserInput
+  deviceTokens?: Prisma.DeviceTokenCreateNestedManyWithoutUserInput
   refreshTokens?: Prisma.RefreshTokenCreateNestedManyWithoutUserInput
   loginEvents?: Prisma.LoginEventCreateNestedManyWithoutUserInput
   sectionsAdvised?: Prisma.SectionCreateNestedManyWithoutAdviserInput
@@ -9990,6 +10140,7 @@ export type UserUncheckedCreateWithoutAdvisoryModulesInput = {
   sf10Versions?: Prisma.Sf10RecordVersionUncheckedCreateNestedManyWithoutChangerInput
   auditLogs?: Prisma.AuditLogUncheckedCreateNestedManyWithoutUserInput
   notifications?: Prisma.NotificationUncheckedCreateNestedManyWithoutUserInput
+  deviceTokens?: Prisma.DeviceTokenUncheckedCreateNestedManyWithoutUserInput
   refreshTokens?: Prisma.RefreshTokenUncheckedCreateNestedManyWithoutUserInput
   loginEvents?: Prisma.LoginEventUncheckedCreateNestedManyWithoutUserInput
   sectionsAdvised?: Prisma.SectionUncheckedCreateNestedManyWithoutAdviserInput
@@ -10067,6 +10218,7 @@ export type UserUpdateWithoutAdvisoryModulesInput = {
   sf10Versions?: Prisma.Sf10RecordVersionUpdateManyWithoutChangerNestedInput
   auditLogs?: Prisma.AuditLogUpdateManyWithoutUserNestedInput
   notifications?: Prisma.NotificationUpdateManyWithoutUserNestedInput
+  deviceTokens?: Prisma.DeviceTokenUpdateManyWithoutUserNestedInput
   refreshTokens?: Prisma.RefreshTokenUpdateManyWithoutUserNestedInput
   loginEvents?: Prisma.LoginEventUpdateManyWithoutUserNestedInput
   sectionsAdvised?: Prisma.SectionUpdateManyWithoutAdviserNestedInput
@@ -10128,6 +10280,7 @@ export type UserUncheckedUpdateWithoutAdvisoryModulesInput = {
   sf10Versions?: Prisma.Sf10RecordVersionUncheckedUpdateManyWithoutChangerNestedInput
   auditLogs?: Prisma.AuditLogUncheckedUpdateManyWithoutUserNestedInput
   notifications?: Prisma.NotificationUncheckedUpdateManyWithoutUserNestedInput
+  deviceTokens?: Prisma.DeviceTokenUncheckedUpdateManyWithoutUserNestedInput
   refreshTokens?: Prisma.RefreshTokenUncheckedUpdateManyWithoutUserNestedInput
   loginEvents?: Prisma.LoginEventUncheckedUpdateManyWithoutUserNestedInput
   sectionsAdvised?: Prisma.SectionUncheckedUpdateManyWithoutAdviserNestedInput
@@ -10189,6 +10342,7 @@ export type UserCreateWithoutAdvisoryModuleSubmissionsInput = {
   sf10Versions?: Prisma.Sf10RecordVersionCreateNestedManyWithoutChangerInput
   auditLogs?: Prisma.AuditLogCreateNestedManyWithoutUserInput
   notifications?: Prisma.NotificationCreateNestedManyWithoutUserInput
+  deviceTokens?: Prisma.DeviceTokenCreateNestedManyWithoutUserInput
   refreshTokens?: Prisma.RefreshTokenCreateNestedManyWithoutUserInput
   loginEvents?: Prisma.LoginEventCreateNestedManyWithoutUserInput
   sectionsAdvised?: Prisma.SectionCreateNestedManyWithoutAdviserInput
@@ -10250,6 +10404,7 @@ export type UserUncheckedCreateWithoutAdvisoryModuleSubmissionsInput = {
   sf10Versions?: Prisma.Sf10RecordVersionUncheckedCreateNestedManyWithoutChangerInput
   auditLogs?: Prisma.AuditLogUncheckedCreateNestedManyWithoutUserInput
   notifications?: Prisma.NotificationUncheckedCreateNestedManyWithoutUserInput
+  deviceTokens?: Prisma.DeviceTokenUncheckedCreateNestedManyWithoutUserInput
   refreshTokens?: Prisma.RefreshTokenUncheckedCreateNestedManyWithoutUserInput
   loginEvents?: Prisma.LoginEventUncheckedCreateNestedManyWithoutUserInput
   sectionsAdvised?: Prisma.SectionUncheckedCreateNestedManyWithoutAdviserInput
@@ -10327,6 +10482,7 @@ export type UserUpdateWithoutAdvisoryModuleSubmissionsInput = {
   sf10Versions?: Prisma.Sf10RecordVersionUpdateManyWithoutChangerNestedInput
   auditLogs?: Prisma.AuditLogUpdateManyWithoutUserNestedInput
   notifications?: Prisma.NotificationUpdateManyWithoutUserNestedInput
+  deviceTokens?: Prisma.DeviceTokenUpdateManyWithoutUserNestedInput
   refreshTokens?: Prisma.RefreshTokenUpdateManyWithoutUserNestedInput
   loginEvents?: Prisma.LoginEventUpdateManyWithoutUserNestedInput
   sectionsAdvised?: Prisma.SectionUpdateManyWithoutAdviserNestedInput
@@ -10388,6 +10544,7 @@ export type UserUncheckedUpdateWithoutAdvisoryModuleSubmissionsInput = {
   sf10Versions?: Prisma.Sf10RecordVersionUncheckedUpdateManyWithoutChangerNestedInput
   auditLogs?: Prisma.AuditLogUncheckedUpdateManyWithoutUserNestedInput
   notifications?: Prisma.NotificationUncheckedUpdateManyWithoutUserNestedInput
+  deviceTokens?: Prisma.DeviceTokenUncheckedUpdateManyWithoutUserNestedInput
   refreshTokens?: Prisma.RefreshTokenUncheckedUpdateManyWithoutUserNestedInput
   loginEvents?: Prisma.LoginEventUncheckedUpdateManyWithoutUserNestedInput
   sectionsAdvised?: Prisma.SectionUncheckedUpdateManyWithoutAdviserNestedInput
@@ -10449,6 +10606,7 @@ export type UserCreateWithoutSf10RecordsInput = {
   sf10Versions?: Prisma.Sf10RecordVersionCreateNestedManyWithoutChangerInput
   auditLogs?: Prisma.AuditLogCreateNestedManyWithoutUserInput
   notifications?: Prisma.NotificationCreateNestedManyWithoutUserInput
+  deviceTokens?: Prisma.DeviceTokenCreateNestedManyWithoutUserInput
   refreshTokens?: Prisma.RefreshTokenCreateNestedManyWithoutUserInput
   loginEvents?: Prisma.LoginEventCreateNestedManyWithoutUserInput
   sectionsAdvised?: Prisma.SectionCreateNestedManyWithoutAdviserInput
@@ -10510,6 +10668,7 @@ export type UserUncheckedCreateWithoutSf10RecordsInput = {
   sf10Versions?: Prisma.Sf10RecordVersionUncheckedCreateNestedManyWithoutChangerInput
   auditLogs?: Prisma.AuditLogUncheckedCreateNestedManyWithoutUserInput
   notifications?: Prisma.NotificationUncheckedCreateNestedManyWithoutUserInput
+  deviceTokens?: Prisma.DeviceTokenUncheckedCreateNestedManyWithoutUserInput
   refreshTokens?: Prisma.RefreshTokenUncheckedCreateNestedManyWithoutUserInput
   loginEvents?: Prisma.LoginEventUncheckedCreateNestedManyWithoutUserInput
   sectionsAdvised?: Prisma.SectionUncheckedCreateNestedManyWithoutAdviserInput
@@ -10576,6 +10735,7 @@ export type UserCreateWithoutSf10ValidatedInput = {
   sf10Versions?: Prisma.Sf10RecordVersionCreateNestedManyWithoutChangerInput
   auditLogs?: Prisma.AuditLogCreateNestedManyWithoutUserInput
   notifications?: Prisma.NotificationCreateNestedManyWithoutUserInput
+  deviceTokens?: Prisma.DeviceTokenCreateNestedManyWithoutUserInput
   refreshTokens?: Prisma.RefreshTokenCreateNestedManyWithoutUserInput
   loginEvents?: Prisma.LoginEventCreateNestedManyWithoutUserInput
   sectionsAdvised?: Prisma.SectionCreateNestedManyWithoutAdviserInput
@@ -10637,6 +10797,7 @@ export type UserUncheckedCreateWithoutSf10ValidatedInput = {
   sf10Versions?: Prisma.Sf10RecordVersionUncheckedCreateNestedManyWithoutChangerInput
   auditLogs?: Prisma.AuditLogUncheckedCreateNestedManyWithoutUserInput
   notifications?: Prisma.NotificationUncheckedCreateNestedManyWithoutUserInput
+  deviceTokens?: Prisma.DeviceTokenUncheckedCreateNestedManyWithoutUserInput
   refreshTokens?: Prisma.RefreshTokenUncheckedCreateNestedManyWithoutUserInput
   loginEvents?: Prisma.LoginEventUncheckedCreateNestedManyWithoutUserInput
   sectionsAdvised?: Prisma.SectionUncheckedCreateNestedManyWithoutAdviserInput
@@ -10714,6 +10875,7 @@ export type UserUpdateWithoutSf10RecordsInput = {
   sf10Versions?: Prisma.Sf10RecordVersionUpdateManyWithoutChangerNestedInput
   auditLogs?: Prisma.AuditLogUpdateManyWithoutUserNestedInput
   notifications?: Prisma.NotificationUpdateManyWithoutUserNestedInput
+  deviceTokens?: Prisma.DeviceTokenUpdateManyWithoutUserNestedInput
   refreshTokens?: Prisma.RefreshTokenUpdateManyWithoutUserNestedInput
   loginEvents?: Prisma.LoginEventUpdateManyWithoutUserNestedInput
   sectionsAdvised?: Prisma.SectionUpdateManyWithoutAdviserNestedInput
@@ -10775,6 +10937,7 @@ export type UserUncheckedUpdateWithoutSf10RecordsInput = {
   sf10Versions?: Prisma.Sf10RecordVersionUncheckedUpdateManyWithoutChangerNestedInput
   auditLogs?: Prisma.AuditLogUncheckedUpdateManyWithoutUserNestedInput
   notifications?: Prisma.NotificationUncheckedUpdateManyWithoutUserNestedInput
+  deviceTokens?: Prisma.DeviceTokenUncheckedUpdateManyWithoutUserNestedInput
   refreshTokens?: Prisma.RefreshTokenUncheckedUpdateManyWithoutUserNestedInput
   loginEvents?: Prisma.LoginEventUncheckedUpdateManyWithoutUserNestedInput
   sectionsAdvised?: Prisma.SectionUncheckedUpdateManyWithoutAdviserNestedInput
@@ -10847,6 +11010,7 @@ export type UserUpdateWithoutSf10ValidatedInput = {
   sf10Versions?: Prisma.Sf10RecordVersionUpdateManyWithoutChangerNestedInput
   auditLogs?: Prisma.AuditLogUpdateManyWithoutUserNestedInput
   notifications?: Prisma.NotificationUpdateManyWithoutUserNestedInput
+  deviceTokens?: Prisma.DeviceTokenUpdateManyWithoutUserNestedInput
   refreshTokens?: Prisma.RefreshTokenUpdateManyWithoutUserNestedInput
   loginEvents?: Prisma.LoginEventUpdateManyWithoutUserNestedInput
   sectionsAdvised?: Prisma.SectionUpdateManyWithoutAdviserNestedInput
@@ -10908,6 +11072,7 @@ export type UserUncheckedUpdateWithoutSf10ValidatedInput = {
   sf10Versions?: Prisma.Sf10RecordVersionUncheckedUpdateManyWithoutChangerNestedInput
   auditLogs?: Prisma.AuditLogUncheckedUpdateManyWithoutUserNestedInput
   notifications?: Prisma.NotificationUncheckedUpdateManyWithoutUserNestedInput
+  deviceTokens?: Prisma.DeviceTokenUncheckedUpdateManyWithoutUserNestedInput
   refreshTokens?: Prisma.RefreshTokenUncheckedUpdateManyWithoutUserNestedInput
   loginEvents?: Prisma.LoginEventUncheckedUpdateManyWithoutUserNestedInput
   sectionsAdvised?: Prisma.SectionUncheckedUpdateManyWithoutAdviserNestedInput
@@ -10969,6 +11134,7 @@ export type UserCreateWithoutSf10VersionsInput = {
   sf10Validated?: Prisma.Sf10RecordCreateNestedManyWithoutValidatedByUserInput
   auditLogs?: Prisma.AuditLogCreateNestedManyWithoutUserInput
   notifications?: Prisma.NotificationCreateNestedManyWithoutUserInput
+  deviceTokens?: Prisma.DeviceTokenCreateNestedManyWithoutUserInput
   refreshTokens?: Prisma.RefreshTokenCreateNestedManyWithoutUserInput
   loginEvents?: Prisma.LoginEventCreateNestedManyWithoutUserInput
   sectionsAdvised?: Prisma.SectionCreateNestedManyWithoutAdviserInput
@@ -11030,6 +11196,7 @@ export type UserUncheckedCreateWithoutSf10VersionsInput = {
   sf10Validated?: Prisma.Sf10RecordUncheckedCreateNestedManyWithoutValidatedByUserInput
   auditLogs?: Prisma.AuditLogUncheckedCreateNestedManyWithoutUserInput
   notifications?: Prisma.NotificationUncheckedCreateNestedManyWithoutUserInput
+  deviceTokens?: Prisma.DeviceTokenUncheckedCreateNestedManyWithoutUserInput
   refreshTokens?: Prisma.RefreshTokenUncheckedCreateNestedManyWithoutUserInput
   loginEvents?: Prisma.LoginEventUncheckedCreateNestedManyWithoutUserInput
   sectionsAdvised?: Prisma.SectionUncheckedCreateNestedManyWithoutAdviserInput
@@ -11107,6 +11274,7 @@ export type UserUpdateWithoutSf10VersionsInput = {
   sf10Validated?: Prisma.Sf10RecordUpdateManyWithoutValidatedByUserNestedInput
   auditLogs?: Prisma.AuditLogUpdateManyWithoutUserNestedInput
   notifications?: Prisma.NotificationUpdateManyWithoutUserNestedInput
+  deviceTokens?: Prisma.DeviceTokenUpdateManyWithoutUserNestedInput
   refreshTokens?: Prisma.RefreshTokenUpdateManyWithoutUserNestedInput
   loginEvents?: Prisma.LoginEventUpdateManyWithoutUserNestedInput
   sectionsAdvised?: Prisma.SectionUpdateManyWithoutAdviserNestedInput
@@ -11168,6 +11336,7 @@ export type UserUncheckedUpdateWithoutSf10VersionsInput = {
   sf10Validated?: Prisma.Sf10RecordUncheckedUpdateManyWithoutValidatedByUserNestedInput
   auditLogs?: Prisma.AuditLogUncheckedUpdateManyWithoutUserNestedInput
   notifications?: Prisma.NotificationUncheckedUpdateManyWithoutUserNestedInput
+  deviceTokens?: Prisma.DeviceTokenUncheckedUpdateManyWithoutUserNestedInput
   refreshTokens?: Prisma.RefreshTokenUncheckedUpdateManyWithoutUserNestedInput
   loginEvents?: Prisma.LoginEventUncheckedUpdateManyWithoutUserNestedInput
   sectionsAdvised?: Prisma.SectionUncheckedUpdateManyWithoutAdviserNestedInput
@@ -11229,6 +11398,7 @@ export type UserCreateWithoutAuditLogsInput = {
   sf10Validated?: Prisma.Sf10RecordCreateNestedManyWithoutValidatedByUserInput
   sf10Versions?: Prisma.Sf10RecordVersionCreateNestedManyWithoutChangerInput
   notifications?: Prisma.NotificationCreateNestedManyWithoutUserInput
+  deviceTokens?: Prisma.DeviceTokenCreateNestedManyWithoutUserInput
   refreshTokens?: Prisma.RefreshTokenCreateNestedManyWithoutUserInput
   loginEvents?: Prisma.LoginEventCreateNestedManyWithoutUserInput
   sectionsAdvised?: Prisma.SectionCreateNestedManyWithoutAdviserInput
@@ -11290,6 +11460,7 @@ export type UserUncheckedCreateWithoutAuditLogsInput = {
   sf10Validated?: Prisma.Sf10RecordUncheckedCreateNestedManyWithoutValidatedByUserInput
   sf10Versions?: Prisma.Sf10RecordVersionUncheckedCreateNestedManyWithoutChangerInput
   notifications?: Prisma.NotificationUncheckedCreateNestedManyWithoutUserInput
+  deviceTokens?: Prisma.DeviceTokenUncheckedCreateNestedManyWithoutUserInput
   refreshTokens?: Prisma.RefreshTokenUncheckedCreateNestedManyWithoutUserInput
   loginEvents?: Prisma.LoginEventUncheckedCreateNestedManyWithoutUserInput
   sectionsAdvised?: Prisma.SectionUncheckedCreateNestedManyWithoutAdviserInput
@@ -11367,6 +11538,7 @@ export type UserUpdateWithoutAuditLogsInput = {
   sf10Validated?: Prisma.Sf10RecordUpdateManyWithoutValidatedByUserNestedInput
   sf10Versions?: Prisma.Sf10RecordVersionUpdateManyWithoutChangerNestedInput
   notifications?: Prisma.NotificationUpdateManyWithoutUserNestedInput
+  deviceTokens?: Prisma.DeviceTokenUpdateManyWithoutUserNestedInput
   refreshTokens?: Prisma.RefreshTokenUpdateManyWithoutUserNestedInput
   loginEvents?: Prisma.LoginEventUpdateManyWithoutUserNestedInput
   sectionsAdvised?: Prisma.SectionUpdateManyWithoutAdviserNestedInput
@@ -11428,6 +11600,7 @@ export type UserUncheckedUpdateWithoutAuditLogsInput = {
   sf10Validated?: Prisma.Sf10RecordUncheckedUpdateManyWithoutValidatedByUserNestedInput
   sf10Versions?: Prisma.Sf10RecordVersionUncheckedUpdateManyWithoutChangerNestedInput
   notifications?: Prisma.NotificationUncheckedUpdateManyWithoutUserNestedInput
+  deviceTokens?: Prisma.DeviceTokenUncheckedUpdateManyWithoutUserNestedInput
   refreshTokens?: Prisma.RefreshTokenUncheckedUpdateManyWithoutUserNestedInput
   loginEvents?: Prisma.LoginEventUncheckedUpdateManyWithoutUserNestedInput
   sectionsAdvised?: Prisma.SectionUncheckedUpdateManyWithoutAdviserNestedInput
@@ -11490,6 +11663,7 @@ export type UserCreateWithoutSf10AccessRequestsInput = {
   sf10Versions?: Prisma.Sf10RecordVersionCreateNestedManyWithoutChangerInput
   auditLogs?: Prisma.AuditLogCreateNestedManyWithoutUserInput
   notifications?: Prisma.NotificationCreateNestedManyWithoutUserInput
+  deviceTokens?: Prisma.DeviceTokenCreateNestedManyWithoutUserInput
   refreshTokens?: Prisma.RefreshTokenCreateNestedManyWithoutUserInput
   loginEvents?: Prisma.LoginEventCreateNestedManyWithoutUserInput
   sectionsAdvised?: Prisma.SectionCreateNestedManyWithoutAdviserInput
@@ -11551,6 +11725,7 @@ export type UserUncheckedCreateWithoutSf10AccessRequestsInput = {
   sf10Versions?: Prisma.Sf10RecordVersionUncheckedCreateNestedManyWithoutChangerInput
   auditLogs?: Prisma.AuditLogUncheckedCreateNestedManyWithoutUserInput
   notifications?: Prisma.NotificationUncheckedCreateNestedManyWithoutUserInput
+  deviceTokens?: Prisma.DeviceTokenUncheckedCreateNestedManyWithoutUserInput
   refreshTokens?: Prisma.RefreshTokenUncheckedCreateNestedManyWithoutUserInput
   loginEvents?: Prisma.LoginEventUncheckedCreateNestedManyWithoutUserInput
   sectionsAdvised?: Prisma.SectionUncheckedCreateNestedManyWithoutAdviserInput
@@ -11617,6 +11792,7 @@ export type UserCreateWithoutSf10AccessDecidedInput = {
   sf10Versions?: Prisma.Sf10RecordVersionCreateNestedManyWithoutChangerInput
   auditLogs?: Prisma.AuditLogCreateNestedManyWithoutUserInput
   notifications?: Prisma.NotificationCreateNestedManyWithoutUserInput
+  deviceTokens?: Prisma.DeviceTokenCreateNestedManyWithoutUserInput
   refreshTokens?: Prisma.RefreshTokenCreateNestedManyWithoutUserInput
   loginEvents?: Prisma.LoginEventCreateNestedManyWithoutUserInput
   sectionsAdvised?: Prisma.SectionCreateNestedManyWithoutAdviserInput
@@ -11678,6 +11854,7 @@ export type UserUncheckedCreateWithoutSf10AccessDecidedInput = {
   sf10Versions?: Prisma.Sf10RecordVersionUncheckedCreateNestedManyWithoutChangerInput
   auditLogs?: Prisma.AuditLogUncheckedCreateNestedManyWithoutUserInput
   notifications?: Prisma.NotificationUncheckedCreateNestedManyWithoutUserInput
+  deviceTokens?: Prisma.DeviceTokenUncheckedCreateNestedManyWithoutUserInput
   refreshTokens?: Prisma.RefreshTokenUncheckedCreateNestedManyWithoutUserInput
   loginEvents?: Prisma.LoginEventUncheckedCreateNestedManyWithoutUserInput
   sectionsAdvised?: Prisma.SectionUncheckedCreateNestedManyWithoutAdviserInput
@@ -11755,6 +11932,7 @@ export type UserUpdateWithoutSf10AccessRequestsInput = {
   sf10Versions?: Prisma.Sf10RecordVersionUpdateManyWithoutChangerNestedInput
   auditLogs?: Prisma.AuditLogUpdateManyWithoutUserNestedInput
   notifications?: Prisma.NotificationUpdateManyWithoutUserNestedInput
+  deviceTokens?: Prisma.DeviceTokenUpdateManyWithoutUserNestedInput
   refreshTokens?: Prisma.RefreshTokenUpdateManyWithoutUserNestedInput
   loginEvents?: Prisma.LoginEventUpdateManyWithoutUserNestedInput
   sectionsAdvised?: Prisma.SectionUpdateManyWithoutAdviserNestedInput
@@ -11816,6 +11994,7 @@ export type UserUncheckedUpdateWithoutSf10AccessRequestsInput = {
   sf10Versions?: Prisma.Sf10RecordVersionUncheckedUpdateManyWithoutChangerNestedInput
   auditLogs?: Prisma.AuditLogUncheckedUpdateManyWithoutUserNestedInput
   notifications?: Prisma.NotificationUncheckedUpdateManyWithoutUserNestedInput
+  deviceTokens?: Prisma.DeviceTokenUncheckedUpdateManyWithoutUserNestedInput
   refreshTokens?: Prisma.RefreshTokenUncheckedUpdateManyWithoutUserNestedInput
   loginEvents?: Prisma.LoginEventUncheckedUpdateManyWithoutUserNestedInput
   sectionsAdvised?: Prisma.SectionUncheckedUpdateManyWithoutAdviserNestedInput
@@ -11888,6 +12067,7 @@ export type UserUpdateWithoutSf10AccessDecidedInput = {
   sf10Versions?: Prisma.Sf10RecordVersionUpdateManyWithoutChangerNestedInput
   auditLogs?: Prisma.AuditLogUpdateManyWithoutUserNestedInput
   notifications?: Prisma.NotificationUpdateManyWithoutUserNestedInput
+  deviceTokens?: Prisma.DeviceTokenUpdateManyWithoutUserNestedInput
   refreshTokens?: Prisma.RefreshTokenUpdateManyWithoutUserNestedInput
   loginEvents?: Prisma.LoginEventUpdateManyWithoutUserNestedInput
   sectionsAdvised?: Prisma.SectionUpdateManyWithoutAdviserNestedInput
@@ -11949,6 +12129,7 @@ export type UserUncheckedUpdateWithoutSf10AccessDecidedInput = {
   sf10Versions?: Prisma.Sf10RecordVersionUncheckedUpdateManyWithoutChangerNestedInput
   auditLogs?: Prisma.AuditLogUncheckedUpdateManyWithoutUserNestedInput
   notifications?: Prisma.NotificationUncheckedUpdateManyWithoutUserNestedInput
+  deviceTokens?: Prisma.DeviceTokenUncheckedUpdateManyWithoutUserNestedInput
   refreshTokens?: Prisma.RefreshTokenUncheckedUpdateManyWithoutUserNestedInput
   loginEvents?: Prisma.LoginEventUncheckedUpdateManyWithoutUserNestedInput
   sectionsAdvised?: Prisma.SectionUncheckedUpdateManyWithoutAdviserNestedInput
@@ -12009,6 +12190,7 @@ export type UserCreateWithoutNotificationsInput = {
   sf10Validated?: Prisma.Sf10RecordCreateNestedManyWithoutValidatedByUserInput
   sf10Versions?: Prisma.Sf10RecordVersionCreateNestedManyWithoutChangerInput
   auditLogs?: Prisma.AuditLogCreateNestedManyWithoutUserInput
+  deviceTokens?: Prisma.DeviceTokenCreateNestedManyWithoutUserInput
   refreshTokens?: Prisma.RefreshTokenCreateNestedManyWithoutUserInput
   loginEvents?: Prisma.LoginEventCreateNestedManyWithoutUserInput
   sectionsAdvised?: Prisma.SectionCreateNestedManyWithoutAdviserInput
@@ -12070,6 +12252,7 @@ export type UserUncheckedCreateWithoutNotificationsInput = {
   sf10Validated?: Prisma.Sf10RecordUncheckedCreateNestedManyWithoutValidatedByUserInput
   sf10Versions?: Prisma.Sf10RecordVersionUncheckedCreateNestedManyWithoutChangerInput
   auditLogs?: Prisma.AuditLogUncheckedCreateNestedManyWithoutUserInput
+  deviceTokens?: Prisma.DeviceTokenUncheckedCreateNestedManyWithoutUserInput
   refreshTokens?: Prisma.RefreshTokenUncheckedCreateNestedManyWithoutUserInput
   loginEvents?: Prisma.LoginEventUncheckedCreateNestedManyWithoutUserInput
   sectionsAdvised?: Prisma.SectionUncheckedCreateNestedManyWithoutAdviserInput
@@ -12147,6 +12330,7 @@ export type UserUpdateWithoutNotificationsInput = {
   sf10Validated?: Prisma.Sf10RecordUpdateManyWithoutValidatedByUserNestedInput
   sf10Versions?: Prisma.Sf10RecordVersionUpdateManyWithoutChangerNestedInput
   auditLogs?: Prisma.AuditLogUpdateManyWithoutUserNestedInput
+  deviceTokens?: Prisma.DeviceTokenUpdateManyWithoutUserNestedInput
   refreshTokens?: Prisma.RefreshTokenUpdateManyWithoutUserNestedInput
   loginEvents?: Prisma.LoginEventUpdateManyWithoutUserNestedInput
   sectionsAdvised?: Prisma.SectionUpdateManyWithoutAdviserNestedInput
@@ -12208,6 +12392,271 @@ export type UserUncheckedUpdateWithoutNotificationsInput = {
   sf10Validated?: Prisma.Sf10RecordUncheckedUpdateManyWithoutValidatedByUserNestedInput
   sf10Versions?: Prisma.Sf10RecordVersionUncheckedUpdateManyWithoutChangerNestedInput
   auditLogs?: Prisma.AuditLogUncheckedUpdateManyWithoutUserNestedInput
+  deviceTokens?: Prisma.DeviceTokenUncheckedUpdateManyWithoutUserNestedInput
+  refreshTokens?: Prisma.RefreshTokenUncheckedUpdateManyWithoutUserNestedInput
+  loginEvents?: Prisma.LoginEventUncheckedUpdateManyWithoutUserNestedInput
+  sectionsAdvised?: Prisma.SectionUncheckedUpdateManyWithoutAdviserNestedInput
+  sf10AccessRequests?: Prisma.AdviserSf10AccessRequestUncheckedUpdateManyWithoutAdviserNestedInput
+  sf10AccessDecided?: Prisma.AdviserSf10AccessRequestUncheckedUpdateManyWithoutDecidedByUserNestedInput
+  teacherAssignments?: Prisma.TeacherSubjectAssignmentUncheckedUpdateManyWithoutTeacherNestedInput
+  submittedTimetables?: Prisma.SectionTimetableEntryUncheckedUpdateManyWithoutSubmitterNestedInput
+  reviewedTimetables?: Prisma.SectionTimetableEntryUncheckedUpdateManyWithoutReviewerNestedInput
+  teacherName?: Prisma.TeacherNameUncheckedUpdateOneWithoutUserNestedInput
+  termGrants?: Prisma.TeacherTermGrantUncheckedUpdateManyWithoutUserNestedInput
+  archivedAdvisees?: Prisma.AdviserArchivedStudentUncheckedUpdateManyWithoutTeacherNestedInput
+  termRosterConfirmations?: Prisma.TermRosterConfirmationUncheckedUpdateManyWithoutUserNestedInput
+  gradeFlagsRaised?: Prisma.GradeFlagUncheckedUpdateManyWithoutRaisedByUserNestedInput
+  gradeFlagsOwned?: Prisma.GradeFlagUncheckedUpdateManyWithoutOwnerNestedInput
+  gradeFlagsResolved?: Prisma.GradeFlagUncheckedUpdateManyWithoutResolvedByUserNestedInput
+}
+
+export type UserCreateWithoutDeviceTokensInput = {
+  id?: string
+  email: string
+  passwordHash: string
+  role: $Enums.Role
+  fullName: string
+  contactNumber?: string | null
+  lrn?: string | null
+  status?: $Enums.UserStatus
+  approvedBy?: string | null
+  approvedAt?: Date | string | null
+  createdAt?: Date | string
+  lastActiveAt?: Date | string | null
+  lastIp?: string | null
+  lastCity?: string | null
+  lastCountry?: string | null
+  lastLat?: number | null
+  lastLng?: number | null
+  studentProfile?: Prisma.StudentProfileCreateNestedOneWithoutUserInput
+  parentProfile?: Prisma.ParentProfileCreateNestedOneWithoutUserInput
+  staffProfile?: Prisma.StaffProfileCreateNestedOneWithoutUserInput
+  anecdotalRecords?: Prisma.AnecdotalRecordCreateNestedManyWithoutObserverInput
+  anecdotalFolders?: Prisma.AnecdotalFolderCreateNestedManyWithoutOwnerInput
+  anecdotalFollowups?: Prisma.AnecdotalRecordFollowupCreateNestedManyWithoutFollowupUserInput
+  referralsMade?: Prisma.ReferralCreateNestedManyWithoutReferredByUserInput
+  sessionsCreated?: Prisma.CounselingSessionCreateNestedManyWithoutCreatorInput
+  sessionAttachments?: Prisma.ClinicSessionAttachmentCreateNestedManyWithoutUploaderInput
+  assignedInterventions?: Prisma.InterventionCreateNestedManyWithoutAssigneeInput
+  healthRecords?: Prisma.HealthRecordCreateNestedManyWithoutRecorderInput
+  homeVisitations?: Prisma.HomeVisitationRecordCreateNestedManyWithoutCertifierInput
+  admProfilesPrepared?: Prisma.AdmLearnerProfileCreateNestedManyWithoutPreparedByUserInput
+  admProfilesApproved?: Prisma.AdmLearnerProfileCreateNestedManyWithoutApprovedByUserInput
+  admMeetings?: Prisma.AdmParentMeetingCreateNestedManyWithoutRecorderInput
+  admMeetingInvites?: Prisma.AdmMeetingInviteeCreateNestedManyWithoutUserInput
+  admMeetingAttachments?: Prisma.AdmMeetingAttachmentCreateNestedManyWithoutUploaderInput
+  admModules?: Prisma.AdmModuleCreateNestedManyWithoutRecorderInput
+  admDevicesIssued?: Prisma.AdmDeviceCreateNestedManyWithoutIssuerInput
+  admFormsUploaded?: Prisma.AdmFormCreateNestedManyWithoutUploaderInput
+  advisoryModules?: Prisma.AdvisoryModuleCreateNestedManyWithoutCreatorInput
+  advisoryModuleSubmissions?: Prisma.AdvisoryModuleSubmissionCreateNestedManyWithoutRecorderInput
+  sf10Records?: Prisma.Sf10RecordCreateNestedManyWithoutVerifiedByUserInput
+  sf10Validated?: Prisma.Sf10RecordCreateNestedManyWithoutValidatedByUserInput
+  sf10Versions?: Prisma.Sf10RecordVersionCreateNestedManyWithoutChangerInput
+  auditLogs?: Prisma.AuditLogCreateNestedManyWithoutUserInput
+  notifications?: Prisma.NotificationCreateNestedManyWithoutUserInput
+  refreshTokens?: Prisma.RefreshTokenCreateNestedManyWithoutUserInput
+  loginEvents?: Prisma.LoginEventCreateNestedManyWithoutUserInput
+  sectionsAdvised?: Prisma.SectionCreateNestedManyWithoutAdviserInput
+  sf10AccessRequests?: Prisma.AdviserSf10AccessRequestCreateNestedManyWithoutAdviserInput
+  sf10AccessDecided?: Prisma.AdviserSf10AccessRequestCreateNestedManyWithoutDecidedByUserInput
+  teacherAssignments?: Prisma.TeacherSubjectAssignmentCreateNestedManyWithoutTeacherInput
+  submittedTimetables?: Prisma.SectionTimetableEntryCreateNestedManyWithoutSubmitterInput
+  reviewedTimetables?: Prisma.SectionTimetableEntryCreateNestedManyWithoutReviewerInput
+  teacherName?: Prisma.TeacherNameCreateNestedOneWithoutUserInput
+  termGrants?: Prisma.TeacherTermGrantCreateNestedManyWithoutUserInput
+  archivedAdvisees?: Prisma.AdviserArchivedStudentCreateNestedManyWithoutTeacherInput
+  termRosterConfirmations?: Prisma.TermRosterConfirmationCreateNestedManyWithoutUserInput
+  gradeFlagsRaised?: Prisma.GradeFlagCreateNestedManyWithoutRaisedByUserInput
+  gradeFlagsOwned?: Prisma.GradeFlagCreateNestedManyWithoutOwnerInput
+  gradeFlagsResolved?: Prisma.GradeFlagCreateNestedManyWithoutResolvedByUserInput
+}
+
+export type UserUncheckedCreateWithoutDeviceTokensInput = {
+  id?: string
+  email: string
+  passwordHash: string
+  role: $Enums.Role
+  fullName: string
+  contactNumber?: string | null
+  lrn?: string | null
+  status?: $Enums.UserStatus
+  approvedBy?: string | null
+  approvedAt?: Date | string | null
+  createdAt?: Date | string
+  lastActiveAt?: Date | string | null
+  lastIp?: string | null
+  lastCity?: string | null
+  lastCountry?: string | null
+  lastLat?: number | null
+  lastLng?: number | null
+  studentProfile?: Prisma.StudentProfileUncheckedCreateNestedOneWithoutUserInput
+  parentProfile?: Prisma.ParentProfileUncheckedCreateNestedOneWithoutUserInput
+  staffProfile?: Prisma.StaffProfileUncheckedCreateNestedOneWithoutUserInput
+  anecdotalRecords?: Prisma.AnecdotalRecordUncheckedCreateNestedManyWithoutObserverInput
+  anecdotalFolders?: Prisma.AnecdotalFolderUncheckedCreateNestedManyWithoutOwnerInput
+  anecdotalFollowups?: Prisma.AnecdotalRecordFollowupUncheckedCreateNestedManyWithoutFollowupUserInput
+  referralsMade?: Prisma.ReferralUncheckedCreateNestedManyWithoutReferredByUserInput
+  sessionsCreated?: Prisma.CounselingSessionUncheckedCreateNestedManyWithoutCreatorInput
+  sessionAttachments?: Prisma.ClinicSessionAttachmentUncheckedCreateNestedManyWithoutUploaderInput
+  assignedInterventions?: Prisma.InterventionUncheckedCreateNestedManyWithoutAssigneeInput
+  healthRecords?: Prisma.HealthRecordUncheckedCreateNestedManyWithoutRecorderInput
+  homeVisitations?: Prisma.HomeVisitationRecordUncheckedCreateNestedManyWithoutCertifierInput
+  admProfilesPrepared?: Prisma.AdmLearnerProfileUncheckedCreateNestedManyWithoutPreparedByUserInput
+  admProfilesApproved?: Prisma.AdmLearnerProfileUncheckedCreateNestedManyWithoutApprovedByUserInput
+  admMeetings?: Prisma.AdmParentMeetingUncheckedCreateNestedManyWithoutRecorderInput
+  admMeetingInvites?: Prisma.AdmMeetingInviteeUncheckedCreateNestedManyWithoutUserInput
+  admMeetingAttachments?: Prisma.AdmMeetingAttachmentUncheckedCreateNestedManyWithoutUploaderInput
+  admModules?: Prisma.AdmModuleUncheckedCreateNestedManyWithoutRecorderInput
+  admDevicesIssued?: Prisma.AdmDeviceUncheckedCreateNestedManyWithoutIssuerInput
+  admFormsUploaded?: Prisma.AdmFormUncheckedCreateNestedManyWithoutUploaderInput
+  advisoryModules?: Prisma.AdvisoryModuleUncheckedCreateNestedManyWithoutCreatorInput
+  advisoryModuleSubmissions?: Prisma.AdvisoryModuleSubmissionUncheckedCreateNestedManyWithoutRecorderInput
+  sf10Records?: Prisma.Sf10RecordUncheckedCreateNestedManyWithoutVerifiedByUserInput
+  sf10Validated?: Prisma.Sf10RecordUncheckedCreateNestedManyWithoutValidatedByUserInput
+  sf10Versions?: Prisma.Sf10RecordVersionUncheckedCreateNestedManyWithoutChangerInput
+  auditLogs?: Prisma.AuditLogUncheckedCreateNestedManyWithoutUserInput
+  notifications?: Prisma.NotificationUncheckedCreateNestedManyWithoutUserInput
+  refreshTokens?: Prisma.RefreshTokenUncheckedCreateNestedManyWithoutUserInput
+  loginEvents?: Prisma.LoginEventUncheckedCreateNestedManyWithoutUserInput
+  sectionsAdvised?: Prisma.SectionUncheckedCreateNestedManyWithoutAdviserInput
+  sf10AccessRequests?: Prisma.AdviserSf10AccessRequestUncheckedCreateNestedManyWithoutAdviserInput
+  sf10AccessDecided?: Prisma.AdviserSf10AccessRequestUncheckedCreateNestedManyWithoutDecidedByUserInput
+  teacherAssignments?: Prisma.TeacherSubjectAssignmentUncheckedCreateNestedManyWithoutTeacherInput
+  submittedTimetables?: Prisma.SectionTimetableEntryUncheckedCreateNestedManyWithoutSubmitterInput
+  reviewedTimetables?: Prisma.SectionTimetableEntryUncheckedCreateNestedManyWithoutReviewerInput
+  teacherName?: Prisma.TeacherNameUncheckedCreateNestedOneWithoutUserInput
+  termGrants?: Prisma.TeacherTermGrantUncheckedCreateNestedManyWithoutUserInput
+  archivedAdvisees?: Prisma.AdviserArchivedStudentUncheckedCreateNestedManyWithoutTeacherInput
+  termRosterConfirmations?: Prisma.TermRosterConfirmationUncheckedCreateNestedManyWithoutUserInput
+  gradeFlagsRaised?: Prisma.GradeFlagUncheckedCreateNestedManyWithoutRaisedByUserInput
+  gradeFlagsOwned?: Prisma.GradeFlagUncheckedCreateNestedManyWithoutOwnerInput
+  gradeFlagsResolved?: Prisma.GradeFlagUncheckedCreateNestedManyWithoutResolvedByUserInput
+}
+
+export type UserCreateOrConnectWithoutDeviceTokensInput = {
+  where: Prisma.UserWhereUniqueInput
+  create: Prisma.XOR<Prisma.UserCreateWithoutDeviceTokensInput, Prisma.UserUncheckedCreateWithoutDeviceTokensInput>
+}
+
+export type UserUpsertWithoutDeviceTokensInput = {
+  update: Prisma.XOR<Prisma.UserUpdateWithoutDeviceTokensInput, Prisma.UserUncheckedUpdateWithoutDeviceTokensInput>
+  create: Prisma.XOR<Prisma.UserCreateWithoutDeviceTokensInput, Prisma.UserUncheckedCreateWithoutDeviceTokensInput>
+  where?: Prisma.UserWhereInput
+}
+
+export type UserUpdateToOneWithWhereWithoutDeviceTokensInput = {
+  where?: Prisma.UserWhereInput
+  data: Prisma.XOR<Prisma.UserUpdateWithoutDeviceTokensInput, Prisma.UserUncheckedUpdateWithoutDeviceTokensInput>
+}
+
+export type UserUpdateWithoutDeviceTokensInput = {
+  id?: Prisma.StringFieldUpdateOperationsInput | string
+  email?: Prisma.StringFieldUpdateOperationsInput | string
+  passwordHash?: Prisma.StringFieldUpdateOperationsInput | string
+  role?: Prisma.EnumRoleFieldUpdateOperationsInput | $Enums.Role
+  fullName?: Prisma.StringFieldUpdateOperationsInput | string
+  contactNumber?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  lrn?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  status?: Prisma.EnumUserStatusFieldUpdateOperationsInput | $Enums.UserStatus
+  approvedBy?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  approvedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
+  lastActiveAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  lastIp?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  lastCity?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  lastCountry?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  lastLat?: Prisma.NullableFloatFieldUpdateOperationsInput | number | null
+  lastLng?: Prisma.NullableFloatFieldUpdateOperationsInput | number | null
+  studentProfile?: Prisma.StudentProfileUpdateOneWithoutUserNestedInput
+  parentProfile?: Prisma.ParentProfileUpdateOneWithoutUserNestedInput
+  staffProfile?: Prisma.StaffProfileUpdateOneWithoutUserNestedInput
+  anecdotalRecords?: Prisma.AnecdotalRecordUpdateManyWithoutObserverNestedInput
+  anecdotalFolders?: Prisma.AnecdotalFolderUpdateManyWithoutOwnerNestedInput
+  anecdotalFollowups?: Prisma.AnecdotalRecordFollowupUpdateManyWithoutFollowupUserNestedInput
+  referralsMade?: Prisma.ReferralUpdateManyWithoutReferredByUserNestedInput
+  sessionsCreated?: Prisma.CounselingSessionUpdateManyWithoutCreatorNestedInput
+  sessionAttachments?: Prisma.ClinicSessionAttachmentUpdateManyWithoutUploaderNestedInput
+  assignedInterventions?: Prisma.InterventionUpdateManyWithoutAssigneeNestedInput
+  healthRecords?: Prisma.HealthRecordUpdateManyWithoutRecorderNestedInput
+  homeVisitations?: Prisma.HomeVisitationRecordUpdateManyWithoutCertifierNestedInput
+  admProfilesPrepared?: Prisma.AdmLearnerProfileUpdateManyWithoutPreparedByUserNestedInput
+  admProfilesApproved?: Prisma.AdmLearnerProfileUpdateManyWithoutApprovedByUserNestedInput
+  admMeetings?: Prisma.AdmParentMeetingUpdateManyWithoutRecorderNestedInput
+  admMeetingInvites?: Prisma.AdmMeetingInviteeUpdateManyWithoutUserNestedInput
+  admMeetingAttachments?: Prisma.AdmMeetingAttachmentUpdateManyWithoutUploaderNestedInput
+  admModules?: Prisma.AdmModuleUpdateManyWithoutRecorderNestedInput
+  admDevicesIssued?: Prisma.AdmDeviceUpdateManyWithoutIssuerNestedInput
+  admFormsUploaded?: Prisma.AdmFormUpdateManyWithoutUploaderNestedInput
+  advisoryModules?: Prisma.AdvisoryModuleUpdateManyWithoutCreatorNestedInput
+  advisoryModuleSubmissions?: Prisma.AdvisoryModuleSubmissionUpdateManyWithoutRecorderNestedInput
+  sf10Records?: Prisma.Sf10RecordUpdateManyWithoutVerifiedByUserNestedInput
+  sf10Validated?: Prisma.Sf10RecordUpdateManyWithoutValidatedByUserNestedInput
+  sf10Versions?: Prisma.Sf10RecordVersionUpdateManyWithoutChangerNestedInput
+  auditLogs?: Prisma.AuditLogUpdateManyWithoutUserNestedInput
+  notifications?: Prisma.NotificationUpdateManyWithoutUserNestedInput
+  refreshTokens?: Prisma.RefreshTokenUpdateManyWithoutUserNestedInput
+  loginEvents?: Prisma.LoginEventUpdateManyWithoutUserNestedInput
+  sectionsAdvised?: Prisma.SectionUpdateManyWithoutAdviserNestedInput
+  sf10AccessRequests?: Prisma.AdviserSf10AccessRequestUpdateManyWithoutAdviserNestedInput
+  sf10AccessDecided?: Prisma.AdviserSf10AccessRequestUpdateManyWithoutDecidedByUserNestedInput
+  teacherAssignments?: Prisma.TeacherSubjectAssignmentUpdateManyWithoutTeacherNestedInput
+  submittedTimetables?: Prisma.SectionTimetableEntryUpdateManyWithoutSubmitterNestedInput
+  reviewedTimetables?: Prisma.SectionTimetableEntryUpdateManyWithoutReviewerNestedInput
+  teacherName?: Prisma.TeacherNameUpdateOneWithoutUserNestedInput
+  termGrants?: Prisma.TeacherTermGrantUpdateManyWithoutUserNestedInput
+  archivedAdvisees?: Prisma.AdviserArchivedStudentUpdateManyWithoutTeacherNestedInput
+  termRosterConfirmations?: Prisma.TermRosterConfirmationUpdateManyWithoutUserNestedInput
+  gradeFlagsRaised?: Prisma.GradeFlagUpdateManyWithoutRaisedByUserNestedInput
+  gradeFlagsOwned?: Prisma.GradeFlagUpdateManyWithoutOwnerNestedInput
+  gradeFlagsResolved?: Prisma.GradeFlagUpdateManyWithoutResolvedByUserNestedInput
+}
+
+export type UserUncheckedUpdateWithoutDeviceTokensInput = {
+  id?: Prisma.StringFieldUpdateOperationsInput | string
+  email?: Prisma.StringFieldUpdateOperationsInput | string
+  passwordHash?: Prisma.StringFieldUpdateOperationsInput | string
+  role?: Prisma.EnumRoleFieldUpdateOperationsInput | $Enums.Role
+  fullName?: Prisma.StringFieldUpdateOperationsInput | string
+  contactNumber?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  lrn?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  status?: Prisma.EnumUserStatusFieldUpdateOperationsInput | $Enums.UserStatus
+  approvedBy?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  approvedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
+  lastActiveAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  lastIp?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  lastCity?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  lastCountry?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  lastLat?: Prisma.NullableFloatFieldUpdateOperationsInput | number | null
+  lastLng?: Prisma.NullableFloatFieldUpdateOperationsInput | number | null
+  studentProfile?: Prisma.StudentProfileUncheckedUpdateOneWithoutUserNestedInput
+  parentProfile?: Prisma.ParentProfileUncheckedUpdateOneWithoutUserNestedInput
+  staffProfile?: Prisma.StaffProfileUncheckedUpdateOneWithoutUserNestedInput
+  anecdotalRecords?: Prisma.AnecdotalRecordUncheckedUpdateManyWithoutObserverNestedInput
+  anecdotalFolders?: Prisma.AnecdotalFolderUncheckedUpdateManyWithoutOwnerNestedInput
+  anecdotalFollowups?: Prisma.AnecdotalRecordFollowupUncheckedUpdateManyWithoutFollowupUserNestedInput
+  referralsMade?: Prisma.ReferralUncheckedUpdateManyWithoutReferredByUserNestedInput
+  sessionsCreated?: Prisma.CounselingSessionUncheckedUpdateManyWithoutCreatorNestedInput
+  sessionAttachments?: Prisma.ClinicSessionAttachmentUncheckedUpdateManyWithoutUploaderNestedInput
+  assignedInterventions?: Prisma.InterventionUncheckedUpdateManyWithoutAssigneeNestedInput
+  healthRecords?: Prisma.HealthRecordUncheckedUpdateManyWithoutRecorderNestedInput
+  homeVisitations?: Prisma.HomeVisitationRecordUncheckedUpdateManyWithoutCertifierNestedInput
+  admProfilesPrepared?: Prisma.AdmLearnerProfileUncheckedUpdateManyWithoutPreparedByUserNestedInput
+  admProfilesApproved?: Prisma.AdmLearnerProfileUncheckedUpdateManyWithoutApprovedByUserNestedInput
+  admMeetings?: Prisma.AdmParentMeetingUncheckedUpdateManyWithoutRecorderNestedInput
+  admMeetingInvites?: Prisma.AdmMeetingInviteeUncheckedUpdateManyWithoutUserNestedInput
+  admMeetingAttachments?: Prisma.AdmMeetingAttachmentUncheckedUpdateManyWithoutUploaderNestedInput
+  admModules?: Prisma.AdmModuleUncheckedUpdateManyWithoutRecorderNestedInput
+  admDevicesIssued?: Prisma.AdmDeviceUncheckedUpdateManyWithoutIssuerNestedInput
+  admFormsUploaded?: Prisma.AdmFormUncheckedUpdateManyWithoutUploaderNestedInput
+  advisoryModules?: Prisma.AdvisoryModuleUncheckedUpdateManyWithoutCreatorNestedInput
+  advisoryModuleSubmissions?: Prisma.AdvisoryModuleSubmissionUncheckedUpdateManyWithoutRecorderNestedInput
+  sf10Records?: Prisma.Sf10RecordUncheckedUpdateManyWithoutVerifiedByUserNestedInput
+  sf10Validated?: Prisma.Sf10RecordUncheckedUpdateManyWithoutValidatedByUserNestedInput
+  sf10Versions?: Prisma.Sf10RecordVersionUncheckedUpdateManyWithoutChangerNestedInput
+  auditLogs?: Prisma.AuditLogUncheckedUpdateManyWithoutUserNestedInput
+  notifications?: Prisma.NotificationUncheckedUpdateManyWithoutUserNestedInput
   refreshTokens?: Prisma.RefreshTokenUncheckedUpdateManyWithoutUserNestedInput
   loginEvents?: Prisma.LoginEventUncheckedUpdateManyWithoutUserNestedInput
   sectionsAdvised?: Prisma.SectionUncheckedUpdateManyWithoutAdviserNestedInput
@@ -12270,6 +12719,7 @@ export type UserCreateWithoutRefreshTokensInput = {
   sf10Versions?: Prisma.Sf10RecordVersionCreateNestedManyWithoutChangerInput
   auditLogs?: Prisma.AuditLogCreateNestedManyWithoutUserInput
   notifications?: Prisma.NotificationCreateNestedManyWithoutUserInput
+  deviceTokens?: Prisma.DeviceTokenCreateNestedManyWithoutUserInput
   loginEvents?: Prisma.LoginEventCreateNestedManyWithoutUserInput
   sectionsAdvised?: Prisma.SectionCreateNestedManyWithoutAdviserInput
   sf10AccessRequests?: Prisma.AdviserSf10AccessRequestCreateNestedManyWithoutAdviserInput
@@ -12331,6 +12781,7 @@ export type UserUncheckedCreateWithoutRefreshTokensInput = {
   sf10Versions?: Prisma.Sf10RecordVersionUncheckedCreateNestedManyWithoutChangerInput
   auditLogs?: Prisma.AuditLogUncheckedCreateNestedManyWithoutUserInput
   notifications?: Prisma.NotificationUncheckedCreateNestedManyWithoutUserInput
+  deviceTokens?: Prisma.DeviceTokenUncheckedCreateNestedManyWithoutUserInput
   loginEvents?: Prisma.LoginEventUncheckedCreateNestedManyWithoutUserInput
   sectionsAdvised?: Prisma.SectionUncheckedCreateNestedManyWithoutAdviserInput
   sf10AccessRequests?: Prisma.AdviserSf10AccessRequestUncheckedCreateNestedManyWithoutAdviserInput
@@ -12408,6 +12859,7 @@ export type UserUpdateWithoutRefreshTokensInput = {
   sf10Versions?: Prisma.Sf10RecordVersionUpdateManyWithoutChangerNestedInput
   auditLogs?: Prisma.AuditLogUpdateManyWithoutUserNestedInput
   notifications?: Prisma.NotificationUpdateManyWithoutUserNestedInput
+  deviceTokens?: Prisma.DeviceTokenUpdateManyWithoutUserNestedInput
   loginEvents?: Prisma.LoginEventUpdateManyWithoutUserNestedInput
   sectionsAdvised?: Prisma.SectionUpdateManyWithoutAdviserNestedInput
   sf10AccessRequests?: Prisma.AdviserSf10AccessRequestUpdateManyWithoutAdviserNestedInput
@@ -12469,6 +12921,7 @@ export type UserUncheckedUpdateWithoutRefreshTokensInput = {
   sf10Versions?: Prisma.Sf10RecordVersionUncheckedUpdateManyWithoutChangerNestedInput
   auditLogs?: Prisma.AuditLogUncheckedUpdateManyWithoutUserNestedInput
   notifications?: Prisma.NotificationUncheckedUpdateManyWithoutUserNestedInput
+  deviceTokens?: Prisma.DeviceTokenUncheckedUpdateManyWithoutUserNestedInput
   loginEvents?: Prisma.LoginEventUncheckedUpdateManyWithoutUserNestedInput
   sectionsAdvised?: Prisma.SectionUncheckedUpdateManyWithoutAdviserNestedInput
   sf10AccessRequests?: Prisma.AdviserSf10AccessRequestUncheckedUpdateManyWithoutAdviserNestedInput
@@ -12515,6 +12968,7 @@ export type UserCountOutputType = {
   sf10Versions: number
   auditLogs: number
   notifications: number
+  deviceTokens: number
   refreshTokens: number
   loginEvents: number
   sectionsAdvised: number
@@ -12556,6 +13010,7 @@ export type UserCountOutputTypeSelect<ExtArgs extends runtime.Types.Extensions.I
   sf10Versions?: boolean | UserCountOutputTypeCountSf10VersionsArgs
   auditLogs?: boolean | UserCountOutputTypeCountAuditLogsArgs
   notifications?: boolean | UserCountOutputTypeCountNotificationsArgs
+  deviceTokens?: boolean | UserCountOutputTypeCountDeviceTokensArgs
   refreshTokens?: boolean | UserCountOutputTypeCountRefreshTokensArgs
   loginEvents?: boolean | UserCountOutputTypeCountLoginEventsArgs
   sectionsAdvised?: boolean | UserCountOutputTypeCountSectionsAdvisedArgs
@@ -12753,6 +13208,13 @@ export type UserCountOutputTypeCountNotificationsArgs<ExtArgs extends runtime.Ty
 /**
  * UserCountOutputType without action
  */
+export type UserCountOutputTypeCountDeviceTokensArgs<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
+  where?: Prisma.DeviceTokenWhereInput
+}
+
+/**
+ * UserCountOutputType without action
+ */
 export type UserCountOutputTypeCountRefreshTokensArgs<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
   where?: Prisma.RefreshTokenWhereInput
 }
@@ -12894,6 +13356,7 @@ export type UserSelect<ExtArgs extends runtime.Types.Extensions.InternalArgs = r
   sf10Versions?: boolean | Prisma.User$sf10VersionsArgs<ExtArgs>
   auditLogs?: boolean | Prisma.User$auditLogsArgs<ExtArgs>
   notifications?: boolean | Prisma.User$notificationsArgs<ExtArgs>
+  deviceTokens?: boolean | Prisma.User$deviceTokensArgs<ExtArgs>
   refreshTokens?: boolean | Prisma.User$refreshTokensArgs<ExtArgs>
   loginEvents?: boolean | Prisma.User$loginEventsArgs<ExtArgs>
   sectionsAdvised?: boolean | Prisma.User$sectionsAdvisedArgs<ExtArgs>
@@ -13001,6 +13464,7 @@ export type UserInclude<ExtArgs extends runtime.Types.Extensions.InternalArgs = 
   sf10Versions?: boolean | Prisma.User$sf10VersionsArgs<ExtArgs>
   auditLogs?: boolean | Prisma.User$auditLogsArgs<ExtArgs>
   notifications?: boolean | Prisma.User$notificationsArgs<ExtArgs>
+  deviceTokens?: boolean | Prisma.User$deviceTokensArgs<ExtArgs>
   refreshTokens?: boolean | Prisma.User$refreshTokensArgs<ExtArgs>
   loginEvents?: boolean | Prisma.User$loginEventsArgs<ExtArgs>
   sectionsAdvised?: boolean | Prisma.User$sectionsAdvisedArgs<ExtArgs>
@@ -13051,6 +13515,7 @@ export type $UserPayload<ExtArgs extends runtime.Types.Extensions.InternalArgs =
     sf10Versions: Prisma.$Sf10RecordVersionPayload<ExtArgs>[]
     auditLogs: Prisma.$AuditLogPayload<ExtArgs>[]
     notifications: Prisma.$NotificationPayload<ExtArgs>[]
+    deviceTokens: Prisma.$DeviceTokenPayload<ExtArgs>[]
     refreshTokens: Prisma.$RefreshTokenPayload<ExtArgs>[]
     loginEvents: Prisma.$LoginEventPayload<ExtArgs>[]
     sectionsAdvised: Prisma.$SectionPayload<ExtArgs>[]
@@ -13506,6 +13971,7 @@ export interface Prisma__UserClient<T, Null = never, ExtArgs extends runtime.Typ
   sf10Versions<T extends Prisma.User$sf10VersionsArgs<ExtArgs> = {}>(args?: Prisma.Subset<T, Prisma.User$sf10VersionsArgs<ExtArgs>>): Prisma.PrismaPromise<runtime.Types.Result.GetResult<Prisma.$Sf10RecordVersionPayload<ExtArgs>, T, "findMany", GlobalOmitOptions> | Null>
   auditLogs<T extends Prisma.User$auditLogsArgs<ExtArgs> = {}>(args?: Prisma.Subset<T, Prisma.User$auditLogsArgs<ExtArgs>>): Prisma.PrismaPromise<runtime.Types.Result.GetResult<Prisma.$AuditLogPayload<ExtArgs>, T, "findMany", GlobalOmitOptions> | Null>
   notifications<T extends Prisma.User$notificationsArgs<ExtArgs> = {}>(args?: Prisma.Subset<T, Prisma.User$notificationsArgs<ExtArgs>>): Prisma.PrismaPromise<runtime.Types.Result.GetResult<Prisma.$NotificationPayload<ExtArgs>, T, "findMany", GlobalOmitOptions> | Null>
+  deviceTokens<T extends Prisma.User$deviceTokensArgs<ExtArgs> = {}>(args?: Prisma.Subset<T, Prisma.User$deviceTokensArgs<ExtArgs>>): Prisma.PrismaPromise<runtime.Types.Result.GetResult<Prisma.$DeviceTokenPayload<ExtArgs>, T, "findMany", GlobalOmitOptions> | Null>
   refreshTokens<T extends Prisma.User$refreshTokensArgs<ExtArgs> = {}>(args?: Prisma.Subset<T, Prisma.User$refreshTokensArgs<ExtArgs>>): Prisma.PrismaPromise<runtime.Types.Result.GetResult<Prisma.$RefreshTokenPayload<ExtArgs>, T, "findMany", GlobalOmitOptions> | Null>
   loginEvents<T extends Prisma.User$loginEventsArgs<ExtArgs> = {}>(args?: Prisma.Subset<T, Prisma.User$loginEventsArgs<ExtArgs>>): Prisma.PrismaPromise<runtime.Types.Result.GetResult<Prisma.$LoginEventPayload<ExtArgs>, T, "findMany", GlobalOmitOptions> | Null>
   sectionsAdvised<T extends Prisma.User$sectionsAdvisedArgs<ExtArgs> = {}>(args?: Prisma.Subset<T, Prisma.User$sectionsAdvisedArgs<ExtArgs>>): Prisma.PrismaPromise<runtime.Types.Result.GetResult<Prisma.$SectionPayload<ExtArgs>, T, "findMany", GlobalOmitOptions> | Null>
@@ -14590,6 +15056,30 @@ export type User$notificationsArgs<ExtArgs extends runtime.Types.Extensions.Inte
   take?: number
   skip?: number
   distinct?: Prisma.NotificationScalarFieldEnum | Prisma.NotificationScalarFieldEnum[]
+}
+
+/**
+ * User.deviceTokens
+ */
+export type User$deviceTokensArgs<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
+  /**
+   * Select specific fields to fetch from the DeviceToken
+   */
+  select?: Prisma.DeviceTokenSelect<ExtArgs> | null
+  /**
+   * Omit specific fields from the DeviceToken
+   */
+  omit?: Prisma.DeviceTokenOmit<ExtArgs> | null
+  /**
+   * Choose, which related nodes to fetch as well
+   */
+  include?: Prisma.DeviceTokenInclude<ExtArgs> | null
+  where?: Prisma.DeviceTokenWhereInput
+  orderBy?: Prisma.DeviceTokenOrderByWithRelationInput | Prisma.DeviceTokenOrderByWithRelationInput[]
+  cursor?: Prisma.DeviceTokenWhereUniqueInput
+  take?: number
+  skip?: number
+  distinct?: Prisma.DeviceTokenScalarFieldEnum | Prisma.DeviceTokenScalarFieldEnum[]
 }
 
 /**

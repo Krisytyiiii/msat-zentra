@@ -71,6 +71,7 @@ class TestTermNotifier extends TermNotifier {
 
 class _GateApi extends ApiClient {
   bool linked = true;
+  bool verified = true;
   _GateApi() {
     dio.interceptors.clear();
     dio.interceptors.add(
@@ -82,7 +83,7 @@ class _GateApi extends ApiClient {
               statusCode: 200,
               data: {
                 'teacherName': linked ? {'name': 'Teacher'} : null,
-                'termGrant': {'id': 'grant'},
+                'termGrant': verified ? {'id': 'grant'} : null,
               },
             ),
           );
@@ -494,13 +495,13 @@ void main() {
       await tester.pump();
       expect(find.textContaining('internet connection'), findsOneWidget);
       expect(find.text('Try again'), findsOneWidget);
-      api.linked = false;
+      api.verified = false;
       await tester.tap(find.text('Try again'));
       for (var i = 0; i < 8; i++) {
         await tester.pump(const Duration(milliseconds: 10));
       }
       expect(overviewCalls, 2);
-      expect(find.text('Link your classes'), findsWidgets);
+      expect(find.text('Verify for this term'), findsWidgets);
       expect(tester.takeException(), isNull);
     },
   );
@@ -514,7 +515,7 @@ void main() {
           tester.view.devicePixelRatio = 1;
           addTearDown(tester.view.resetPhysicalSize);
           addTearDown(tester.view.resetDevicePixelRatio);
-          final api = _GateApi()..linked = false;
+          final api = _GateApi()..verified = false;
           addTearDown(api.dio.close);
           final initial = Completer<Map<String, dynamic>>();
           final retried = Completer<Map<String, dynamic>>();
@@ -559,7 +560,7 @@ void main() {
           retried.complete({'isAdviser': false});
           await tester.pumpAndSettle();
           expect(calls, 2);
-          expect(find.text('Link your classes'), findsWidgets);
+          expect(find.text('Verify for this term'), findsWidgets);
           expect(tester.takeException(), isNull);
         },
       );
@@ -569,7 +570,7 @@ void main() {
   testWidgets('a later overview error also uses the centered workspace shell', (
     tester,
   ) async {
-    final api = _GateApi()..linked = false;
+    final api = _GateApi()..verified = false;
     addTearDown(api.dio.close);
     var fail = false;
     await tester.pumpWidget(
@@ -593,7 +594,7 @@ void main() {
     for (var i = 0; i < 8; i++) {
       await tester.pump(const Duration(milliseconds: 10));
     }
-    expect(find.text('Link your classes'), findsWidgets);
+    expect(find.text('Verify for this term'), findsWidgets);
     fail = true;
     ProviderScope.containerOf(tester.element(find.byType(FirstTimeGate)))
         .invalidate(overviewProvider);

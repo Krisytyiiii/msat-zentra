@@ -32,6 +32,9 @@ const envSchema = z.object({
   TRUST_PROXY: z.string().min(1).optional(),
   // Base64 32-byte key for AES-256-GCM contact-number encryption.
   CONTACT_ENCRYPTION_KEY: z.string().min(1).optional(),
+  // Firebase service-account JSON (raw or base64). Absent => push is a no-op,
+  // so local development and CI need no Firebase project.
+  FIREBASE_SERVICE_ACCOUNT_JSON: z.string().min(1).optional(),
 }).superRefine((value, ctx) => {
   // Never ship to production with plaintext contact numbers.
   if (value.NODE_ENV === "production" && !value.CONTACT_ENCRYPTION_KEY) {

@@ -295,6 +295,7 @@ model User {
   sf10Versions        Sf10RecordVersion[]
   auditLogs           AuditLog[]
   notifications       Notification[]
+  deviceTokens        DeviceToken[]
   refreshTokens       RefreshToken[]
   loginEvents         LoginEvent[]
   sectionsAdvised     Section[]              @relation("AdviserSection")
@@ -1569,6 +1570,21 @@ model Notification {
   user        User          @relation(fields: [userId], references: [id], onDelete: Cascade)
   // Notification badge + paged list reads per user.
   @@index([userId, isRead, createdAt])
+}
+
+/// FCM registration token for one signed-in device. A user may have several
+/// (phone + tablet); `token` is unique so a device that transfers accounts is
+/// re-pointed instead of duplicated. Push fanout prunes tokens FCM rejects.
+model DeviceToken {
+  id         String   @id @default(uuid())
+  userId     String
+  token      String   @unique
+  platform   String // android | ios | web
+  createdAt  DateTime @default(now())
+  lastSeenAt DateTime @default(now())
+  user       User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
 }
 
 // Operational (not part of the 30 domain tables): refresh token store

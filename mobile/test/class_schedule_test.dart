@@ -450,15 +450,12 @@ void main() {
     expect(api.requests.length, greaterThan(before));
   });
 
-  test('Class Schedule is the advisory drawer/search title', () {
+  test('Class Schedule is no longer offered in the menu or search', () {
     expect(screenSearchSpecFor('/adviser/schedule').title, 'Class Schedule');
-    expect(
-      screenSearchCatalog(isAdviser: true).map((d) => d.label),
-      contains('Class Schedule'),
-    );
-    expect(
-      screenSearchCatalog(isAdviser: true).map((d) => d.label),
-      isNot(contains('Section schedule')),
-    );
+    final labels = screenSearchCatalog(
+      isAdviser: true,
+    ).map((d) => d.label);
+    expect(labels, isNot(contains('Class Schedule')));
+    expect(labels, isNot(contains('My schedule')));
   });
 }

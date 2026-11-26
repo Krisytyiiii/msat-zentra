@@ -12,6 +12,7 @@ import '../../design/overview_theme.dart';
 import '../../shared/models.dart';
 import '../../shared/widgets.dart';
 import '../adviser/schedule_timing.dart';
+import '../auth/link_classes_card.dart';
 import 'attendance_data.dart';
 import 'attendance_record_page.dart';
 
@@ -187,7 +188,10 @@ class _AttendanceState extends ConsumerState<WorkspaceAttendancePage>
     if (_loading) return const LoadingView(layout: SkeletonLayout.schedule);
     if (_error != null) return ErrorView(message: _error!, onRetry: _load);
     final access = _access!;
-    if (!access.linked || !access.entered) {
+    if (!access.linked) {
+      return TeacherLinkPlaceholder(onLinked: () => _load());
+    }
+    if (!access.entered) {
       return Center(
         child: Padding(
           padding: const EdgeInsets.all(20),
@@ -200,20 +204,18 @@ class _AttendanceState extends ConsumerState<WorkspaceAttendancePage>
                   const Icon(Icons.key_outlined, size: 28),
                   const SizedBox(height: 12),
                   Text(
-                    access.linked
-                        ? 'Enter your school year'
-                        : 'Link your teacher code',
+                    'Enter your school year',
                     style: Theme.of(context).textTheme.titleMedium,
                   ),
                   const SizedBox(height: 8),
                   const Text(
-                    'Use your teacher code to open the same classes and attendance sheets as web.',
+                    'Verify your teacher code for this term to open the same attendance sheets as web.',
                     textAlign: TextAlign.center,
                   ),
                   const SizedBox(height: 16),
                   FilledButton(
                     onPressed: () => context.go('/gate'),
-                    child: const Text('Open verification'),
+                    child: const Text('Verify for this term'),
                   ),
                 ],
               ),

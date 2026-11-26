@@ -50,6 +50,18 @@ ThemeData settingsScreenTheme(ThemeData base) {
         borderSide: const BorderSide(color: Color(0xFF2563EB)),
       ),
     ),
+    // The settings shell sits on white while the app-wide workspace theme is
+    // dark, so icon buttons inherit a near-white foreground and the Back
+    // chevron all but disappears. Pin header/icon tint to the settings ink.
+    iconButtonTheme: IconButtonThemeData(
+      style: IconButton.styleFrom(
+        foregroundColor: ink,
+        disabledForegroundColor: ink.withValues(alpha: 0.4),
+        minimumSize: const Size(48, 48),
+        iconSize: 20,
+        shape: const CircleBorder(),
+      ),
+    ),
     filledButtonTheme: FilledButtonThemeData(
       style: FilledButton.styleFrom(
         foregroundColor: Colors.white,

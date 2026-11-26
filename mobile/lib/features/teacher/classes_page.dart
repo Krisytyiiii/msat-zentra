@@ -11,6 +11,7 @@ import '../../design/status_palette.dart';
 import '../../shared/widgets.dart';
 import '../../shared/date_strip_selector.dart';
 import '../adviser/schedule_timing.dart';
+import '../auth/link_classes_card.dart';
 import 'classes_data.dart';
 
 class ClassesPage extends ConsumerStatefulWidget {
@@ -81,6 +82,7 @@ class _ClassesPageState extends ConsumerState<ClassesPage>
   Widget build(BuildContext context) {
     final week = ref.watch(teachingWeekProvider);
     final term = ref.watch(termProvider);
+    final link = ref.watch(teacherLinkProvider).valueOrNull;
     final now = philippineTime(DateTime.now());
     final today = DateTime.utc(now.year, now.month, now.day);
     return Theme(
@@ -89,6 +91,18 @@ class _ClassesPageState extends ConsumerState<ClassesPage>
         color: Colors.white,
         child: Builder(
           builder: (context) {
+            if (link?.linked == false) {
+              return TeacherLinkPlaceholder(
+                onLinked: () async {
+                  ref.invalidate(teachingWeekProvider);
+                  try {
+                    await ref.read(teachingWeekProvider.future);
+                  } catch (_) {
+                    // The desk renders its own retryable error.
+                  }
+                },
+              );
+            }
             final data = week.asData?.value;
             return RefreshIndicator(
               onRefresh: _refresh,

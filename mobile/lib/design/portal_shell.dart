@@ -381,12 +381,3 @@ class _PortalTermPicker extends ConsumerWidget {
     return ref.watch(parentTermsProvider(selected));
   }
 }
-
-String formatPortalDate(String? iso) {
-  if (iso == null || iso.isEmpty) return '—';
-  try {
-    return DateFormat('MMM d, y').format(DateTime.parse(iso).toLocal());
-  } catch (_) {
-    return iso;
-  }
-}

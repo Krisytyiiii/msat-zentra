@@ -390,7 +390,7 @@ class _AttendanceRecordPageState extends ConsumerState<AttendanceRecordPage>
               appBar: AppBar(
                 shape: const Border(bottom: BorderSide(color: Color(0xFFEDF0F6))),
                 centerTitle: true,
-                backgroundColor: Theme.of(context).scaffoldBackgroundColor,
+                backgroundColor: Colors.white,
                 leadingWidth: 64,
                 leading: ZBackButton(
                   icon: const Icon(Icons.chevron_left),

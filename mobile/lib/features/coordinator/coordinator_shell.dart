@@ -1,13 +1,28 @@
+// ADM coordinator workspace shell.
+//
+// Reuses the adviser desk chrome: white menu/search/avatar header, the same
+// floating pill bottom navigation and the same account panel. The content
+// area stays the coordinator's own dark workspace. Navigation lives in the
+// bottom bar; Settings is reached from the account panel.
+
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+import 'package:lucide_icons_flutter/lucide_icons.dart';
 
 import '../../core/session.dart';
+import '../../design/adviser_navigation.dart';
 import '../../design/brand.dart';
+import '../../design/overview_theme.dart';
 import '../../design/screen_search.dart';
+import '../../design/staff_profile.dart';
+import '../../shared/widgets.dart';
 import 'coordinator_data.dart';
+import 'coordinator_notifications.dart';
 import 'coordinator_widgets.dart';
 
+/// Searchable desks. Settings is deliberately absent: it lives in the account
+/// panel opened from the header avatar.
 const coordinatorDestinations = [
   ScreenSearchDestination(
     'Overview',
@@ -34,11 +49,6 @@ const coordinatorDestinations = [
     '/coordinator/devices',
     Icons.devices_outlined,
   ),
-  ScreenSearchDestination(
-    'Settings',
-    '/coordinator/settings',
-    Icons.settings_outlined,
-  ),
 ];
 
 class CoordinatorShell extends ConsumerStatefulWidget {
@@ -53,23 +63,40 @@ class _CoordinatorShellState extends ConsumerState<CoordinatorShell>
     with WidgetsBindingObserver, CoordinatorRefresh<CoordinatorShell> {
   final _search = ScreenSearchController();
   final _text = TextEditingController();
-  bool _searching = false;
+  final _focus = FocusNode();
   @override
   Future<void> reload() async =>
       ref.refresh(coordinatorInboxProvider.future).then((_) {});
+
+  @override
+  void initState() {
+    super.initState();
+    _search.addListener(_onSearchChanged);
+  }
+
+  void _onSearchChanged() {
+    if (mounted) setState(() {});
+  }
+
   @override
   void didUpdateWidget(CoordinatorShell oldWidget) {
     super.didUpdateWidget(oldWidget);
     if (oldWidget.path != widget.path) {
-      _text.clear();
-      _search.resetSilently();
-      _searching = false;
+      _clearSearch();
     }
+  }
+
+  void _clearSearch() {
+    _text.clear();
+    _search.resetSilently();
+    _focus.unfocus();
   }
 
   @override
   void dispose() {
+    _search.removeListener(_onSearchChanged);
     _text.dispose();
+    _focus.dispose();
     _search.dispose();
     super.dispose();
   }
@@ -86,122 +113,460 @@ class _CoordinatorShellState extends ConsumerState<CoordinatorShell>
     final spec = screenSearchSpecFor(widget.path);
     final profile = ref.watch(coordinatorProfileProvider).asData?.value;
     final name = profile?['fullName']?.toString() ?? 'ADM Coordinator';
-    final unread =
-        ref
-            .watch(coordinatorInboxProvider)
-            .asData
-            ?.value
-            .where((n) => !n.isRead)
-            .length ??
-        0;
+    // The header is always the adviser desk's white tool bar, scoped here so
+    // the dark coordinator content keeps its own palette.
+    final headerTheme = overviewScreenTheme(Theme.of(context)).copyWith(
+      appBarTheme: const AppBarTheme(
+        backgroundColor: Colors.white,
+        foregroundColor: Color(0xFF242B42),
+        surfaceTintColor: Colors.transparent,
+        elevation: 0,
+        scrolledUnderElevation: 0,
+        toolbarHeight: 72,
+      ),
+    );
+    final query = _search.query.trim().toLowerCase();
+    final isSettings = widget.path == '/coordinator/settings';
+    final showingPages =
+        spec.mode == ScreenSearchMode.pages && query.isNotEmpty;
+    final destinations = showingPages
+        ? [
+            for (final d in coordinatorDestinations)
+              if (d.label.toLowerCase().contains(query) ||
+                  d.path.toLowerCase().contains(query))
+                d,
+          ]
+        : const <ScreenSearchDestination>[];
+
     return ScreenSearchScope(
       controller: _search,
       child: Scaffold(
-        appBar: AppBar(
-          title: _searching
-              ? TextField(
-                  controller: _text,
-                  autofocus: true,
-                  decoration: InputDecoration(
-                    hintText: spec.hint,
-                    border: InputBorder.none,
+        appBar: isSettings
+            ? null
+            : PreferredSize(
+                preferredSize: const Size.fromHeight(73),
+                child: Theme(
+                  data: headerTheme,
+                  child: AppBar(
+                    titleSpacing: 0,
+                    leadingWidth: 64,
+                    leading: Builder(
+                      builder: (ctx) => Center(
+                        child: IconButton(
+                          style: IconButton.styleFrom(
+                            side: const BorderSide(color: Color(0xFFE5E8F0)),
+                            minimumSize: const Size(42, 42),
+                            shape: const CircleBorder(),
+                          ),
+                          icon: const Icon(Icons.menu, size: 20),
+                          tooltip: 'Menu',
+                          onPressed: () => Scaffold.of(ctx).openDrawer(),
+                        ),
+                      ),
+                    ),
+                    title: _searchField(context, spec),
+                    actions: [_CoordinatorProfileButton(name: name)],
+                    bottom: const PreferredSize(
+                      preferredSize: Size.fromHeight(1),
+                      child: Divider(height: 1, color: Color(0xFFEDF0F6)),
+                    ),
                   ),
-                  onChanged: _search.setQuery,
-                )
-              : Text(spec.title),
-          actions: [
-            IconButton(
-              tooltip: _searching ? 'Close search' : 'Search',
-              icon: Icon(_searching ? Icons.close : Icons.search),
-              onPressed: () => setState(() {
-                _searching = !_searching;
-                if (!_searching) {
-                  _text.clear();
-                  _search.clear();
-                }
-              }),
-            ),
-            IconButton(
-              tooltip: 'Notifications',
-              icon: Badge(
-                isLabelVisible: unread > 0,
-                label: Text('$unread'),
-                child: const Icon(Icons.notifications_none),
+                ),
               ),
-              onPressed: () => context.push('/coordinator/notifications'),
-            ),
-            PopupMenuButton<String>(
-              tooltip: 'Account',
-              icon: const Icon(Icons.account_circle_outlined),
-              onSelected: (value) async {
-                if (value == 'settings') {
-                  context.go('/coordinator/settings');
-                  return;
-                }
-                await ref.read(authProvider.notifier).logout();
-                if (context.mounted) context.go('/login');
-              },
-              itemBuilder: (_) => const [
-                PopupMenuItem(value: 'settings', child: Text('Settings')),
-                PopupMenuItem(value: 'logout', child: Text('Log out')),
-              ],
-            ),
-          ],
-        ),
-        drawer: Drawer(
-          child: SafeArea(
-            child: ListView(
-              children: [
-                const ListTile(leading: ZLogo(size: 32), title: Text('Zentra')),
-                ListTile(
-                  title: Text(name),
-                  subtitle: const Text('ADM Coordinator'),
-                ),
-                const ListTile(
-                  leading: Icon(Icons.lock_clock_outlined),
-                  title: Text('School-managed scope'),
-                  subtitle: Text(
-                    'Active term is resolved by the server. Case and device records may span terms.',
-                  ),
-                ),
-                const Divider(),
-                for (final item in coordinatorDestinations)
-                  ListTile(
-                    selected: item.path == widget.path,
-                    leading: Icon(item.icon),
-                    title: Text(item.label),
-                    onTap: () {
-                      Navigator.pop(context);
-                      context.go(item.path);
-                    },
-                  ),
-              ],
-            ),
-          ),
-        ),
+        drawer: isSettings ? null : _CoordinatorDrawer(name: name),
+        bottomNavigationBar: isSettings
+            ? null
+            : CoordinatorBottomNavigation(selectedPath: widget.path),
         body: ListenableBuilder(
           listenable: _search,
           builder: (context, _) {
-            if (_searching && !spec.filtersContent) {
-              final matches = coordinatorDestinations.where(
-                (d) => d.label.toLowerCase().contains(
-                  _search.query.trim().toLowerCase(),
-                ),
-              );
-              return ListView(
-                children: [
-                  for (final item in matches)
-                    ListTile(
-                      leading: Icon(item.icon),
-                      title: Text(item.label),
-                      onTap: () => context.go(item.path),
-                    ),
-                ],
+            if (showingPages) {
+              return _CoordinatorPageResults(
+                destinations: destinations,
+                onOpen: (path) {
+                  _clearSearch();
+                  context.go(path);
+                },
               );
             }
             return widget.child;
           },
         ),
+      ),
+    );
+  }
+
+  Widget _searchField(BuildContext context, ScreenSearchSpec spec) {
+    final theme = Theme.of(context);
+    final border = OutlineInputBorder(
+      borderRadius: BorderRadius.circular(999),
+      borderSide: const BorderSide(color: Color(0xFFDDE2EE)),
+    );
+    return Padding(
+      padding: const EdgeInsets.only(right: 12),
+      child: SizedBox(
+        height: 44,
+        child: TextField(
+          key: const ValueKey('screen-search-field'),
+          textAlign: TextAlign.start,
+          textAlignVertical: TextAlignVertical.center,
+          controller: _text,
+          focusNode: _focus,
+          textInputAction: TextInputAction.search,
+          onChanged: _search.setQuery,
+          style: theme.textTheme.bodyMedium,
+          decoration: InputDecoration(
+            prefixIcon: const Icon(Icons.search, size: 20),
+            hintText: spec.hint,
+            hintStyle: const TextStyle(color: Color(0xFF626B82), fontSize: 14),
+            prefixIconColor: const Color(0xFF242B42),
+            isDense: true,
+            filled: true,
+            fillColor: const Color(0xFFF3F5FA),
+            constraints: const BoxConstraints(minHeight: 40),
+            contentPadding: const EdgeInsets.symmetric(
+              vertical: 8,
+              horizontal: 16,
+            ),
+            suffixIcon: _text.text.isEmpty
+                ? null
+                : IconButton(
+                    key: const ValueKey('screen-search-clear'),
+                    icon: const Icon(Icons.close, size: 16),
+                    tooltip: 'Clear search',
+                    onPressed: () {
+                      _clearSearch();
+                      _focus.requestFocus();
+                    },
+                  ),
+            suffixIconConstraints: const BoxConstraints(
+              minWidth: 36,
+              minHeight: 36,
+            ),
+            border: border,
+            enabledBorder: border,
+            focusedBorder: border.copyWith(
+              borderSide: BorderSide(color: theme.colorScheme.primary),
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _CoordinatorPageResults extends StatelessWidget {
+  const _CoordinatorPageResults({
+    required this.destinations,
+    required this.onOpen,
+  });
+
+  final List<ScreenSearchDestination> destinations;
+  final ValueChanged<String> onOpen;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    return ColoredBox(
+      color: theme.colorScheme.surface,
+      child: destinations.isEmpty
+          ? Center(
+              child: Padding(
+                padding: const EdgeInsets.all(24),
+                child: ZEmpty(
+                  icon: Icons.search_off,
+                  title: 'No pages match',
+                  subtitle:
+                      'Try a menu name such as Cases, Enrolled, or Devices.',
+                ),
+              ),
+            )
+          : ListView(
+              key: const ValueKey('screen-search-results'),
+              padding: const EdgeInsets.fromLTRB(16, 16, 16, 32),
+              children: [
+                Text(
+                  'PAGES',
+                  style: theme.textTheme.labelSmall?.copyWith(
+                    letterSpacing: 0.6,
+                    color: theme.colorScheme.onSurfaceVariant,
+                  ),
+                ),
+                const SizedBox(height: 8),
+                for (final d in destinations)
+                  Padding(
+                    padding: const EdgeInsets.only(bottom: 8),
+                    child: ZCard(
+                      padding: EdgeInsets.zero,
+                      onTap: () => onOpen(d.path),
+                      child: ListTile(
+                        leading: Icon(d.icon, size: 20),
+                        title: Text(
+                          d.label,
+                          style: const TextStyle(
+                            fontSize: 13,
+                            fontWeight: FontWeight.w600,
+                          ),
+                        ),
+                        trailing: const Icon(Icons.chevron_right, size: 18),
+                      ),
+                    ),
+                  ),
+              ],
+            ),
+    );
+  }
+}
+
+class _CoordinatorDrawer extends StatelessWidget {
+  const _CoordinatorDrawer({required this.name});
+
+  final String name;
+
+  @override
+  Widget build(BuildContext context) {
+    final base = Theme.of(context);
+    final drawerTheme = base.copyWith(
+      brightness: Brightness.light,
+      colorScheme: const ColorScheme.light(
+        primary: Color(0xFFB45309),
+        surface: Color(0xFFFAFAF9),
+        onSurface: Color(0xFF181B19),
+        onSurfaceVariant: Color(0xFF707572),
+        outline: Color(0xFFDDE0DD),
+        outlineVariant: Color(0xFFDDE0DD),
+        surfaceContainerLow: Color(0xFFF0F1EF),
+      ),
+      textTheme: base.textTheme.apply(
+        bodyColor: const Color(0xFF181B19),
+        displayColor: const Color(0xFF181B19),
+      ),
+    );
+    return Theme(
+      data: drawerTheme,
+      child: Drawer(
+        backgroundColor: const Color(0xFFFAFAF9),
+        surfaceTintColor: Colors.transparent,
+        shape: const RoundedRectangleBorder(
+          borderRadius: BorderRadius.horizontal(right: Radius.circular(20)),
+        ),
+        child: SafeArea(
+          child: Column(
+            children: [
+              Expanded(
+                child: ListView(
+                  padding: const EdgeInsets.fromLTRB(12, 0, 12, 12),
+                  children: [
+                    const Padding(
+                      padding: EdgeInsets.symmetric(
+                        horizontal: 8,
+                        vertical: 12,
+                      ),
+                      child: Row(
+                        children: [
+                          ZLogo(size: 32, radius: 8),
+                          SizedBox(width: 10),
+                          Text(
+                            'Zentra',
+                            style: TextStyle(
+                              fontWeight: FontWeight.w700,
+                              fontSize: 17,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                    const SizedBox(height: 8),
+                    ListTile(
+                      contentPadding: const EdgeInsets.symmetric(
+                        horizontal: 8,
+                        vertical: 4,
+                      ),
+                      leading: const CircleAvatar(
+                        radius: 21,
+                        backgroundColor: Color(0xFFDBEAFE),
+                        child: Icon(
+                          LucideIcons.userRound,
+                          size: 20,
+                          color: Color(0xFF2563EB),
+                        ),
+                      ),
+                      title: Text(
+                        name,
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: const TextStyle(
+                          color: Color(0xFF181B19),
+                          fontSize: 14,
+                          fontWeight: FontWeight.w600,
+                        ),
+                      ),
+                      subtitle: const Text(
+                        'ADM Coordinator',
+                        style: TextStyle(
+                          color: Color(0xFF707572),
+                          fontSize: 12,
+                        ),
+                      ),
+                    ),
+                    const SizedBox(height: 4),
+                    Container(
+                      margin: const EdgeInsets.symmetric(horizontal: 8),
+                      padding: const EdgeInsets.all(12),
+                      decoration: BoxDecoration(
+                        color: const Color(0xFFF0F1EF),
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                      child: const Row(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Icon(
+                            Icons.lock_clock_outlined,
+                            size: 18,
+                            color: Color(0xFF707572),
+                          ),
+                          SizedBox(width: 8),
+                          Expanded(
+                            child: Text(
+                              'School-managed scope. The active term is resolved by the server; case and device records may span terms.',
+                              style: TextStyle(
+                                fontSize: 12,
+                                height: 1.4,
+                                color: Color(0xFF707572),
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              Padding(
+                padding: const EdgeInsets.fromLTRB(16, 8, 16, 16),
+                child: Column(
+                  children: [
+                    const Divider(color: Color(0xFFDDE0DD)),
+                    Container(
+                      width: double.infinity,
+                      padding: const EdgeInsets.symmetric(vertical: 14),
+                      decoration: BoxDecoration(
+                        color: const Color(0xFFD9E6FC),
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                      child: const Row(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          Icon(
+                            LucideIcons.briefcaseBusiness,
+                            size: 18,
+                            color: Color(0xFF1855B5),
+                          ),
+                          SizedBox(width: 8),
+                          Text(
+                            'ADM workspace',
+                            style: TextStyle(
+                              color: Color(0xFF1855B5),
+                              fontSize: 13,
+                              fontWeight: FontWeight.w600,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _CoordinatorProfileButton extends ConsumerWidget {
+  const _CoordinatorProfileButton({required this.name});
+
+  final String name;
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final unread = ref
+        .watch(coordinatorInboxProvider)
+        .maybeWhen(
+          data: (items) => items.where((n) => !n.isRead).length,
+          orElse: () => 0,
+        );
+    final photoUrl = ref
+        .watch(coordinatorProfileProvider)
+        .maybeWhen(data: (p) => p['photoUrl']?.toString(), orElse: () => null);
+    return Padding(
+      padding: const EdgeInsets.only(right: 12),
+      child: Tooltip(
+        message: 'Profile',
+        child: InkWell(
+          key: const ValueKey('profile-avatar'),
+          borderRadius: BorderRadius.circular(999),
+          onTap: () => showCoordinatorProfile(context),
+          child: Badge(
+            backgroundColor: const Color(0xFF2442A8),
+            textColor: Colors.white,
+            isLabelVisible: unread > 0,
+            label: Text(unread > 99 ? '99+' : '$unread'),
+            child: Container(
+              padding: const EdgeInsets.all(5),
+              decoration: BoxDecoration(
+                shape: BoxShape.circle,
+                border: Border.all(color: const Color(0xFFE5E8F0)),
+              ),
+              child: TeacherAvatar(photoUrl: photoUrl, radius: 16),
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+/// Full-screen account panel matching the adviser desk: identity, updates,
+/// appearance, Settings and Logout.
+void showCoordinatorProfile(BuildContext context) {
+  Navigator.of(context, rootNavigator: true).push<void>(
+    MaterialPageRoute(
+      fullscreenDialog: true,
+      builder: (_) => const _CoordinatorProfileScreen(),
+    ),
+  );
+}
+
+class _CoordinatorProfileScreen extends ConsumerWidget {
+  const _CoordinatorProfileScreen();
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final profile = ref.watch(coordinatorProfileProvider);
+    return StaffProfileScreen(
+      data: StaffProfileData(
+        name: profile.maybeWhen(
+          data: (p) => p['fullName']?.toString() ?? 'ADM Coordinator',
+          orElse: () => 'ADM Coordinator',
+        ),
+        photoUrl: profile.maybeWhen(
+          data: (p) => p['photoUrl']?.toString(),
+          orElse: () => null,
+        ),
+        roleLabel: 'ADM Coordinator',
+        inbox: ref.watch(coordinatorInboxProvider),
+        onSeeAll: (ctx) {
+          final router = GoRouter.maybeOf(ctx);
+          Navigator.of(ctx).pop();
+          router?.push('/coordinator/notifications');
+        },
+        settingsPath: '/coordinator/settings',
+        notificationTitle: coordinatorNotificationTitle,
+        notificationTarget: coordinatorNotificationTarget,
+        emptySubtitle: 'Case updates, meetings and device notices appear here.',
       ),
     );
   }

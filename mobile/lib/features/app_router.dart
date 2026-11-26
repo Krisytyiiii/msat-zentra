@@ -11,12 +11,10 @@ import 'package:hive_flutter/hive_flutter.dart';
 
 import '../core/api_client.dart';
 import '../core/config.dart';
-import '../design/portal_shell.dart';
 import '../design/shell.dart';
-import 'student/student_pages.dart';
 import 'student/student_identity_page.dart';
-import 'parent/parent_pages.dart';
-import 'portal/portal_views.dart';
+import 'student/student_portal_pages.dart';
+import 'parent/parent_portal_pages.dart';
 import '../shared/models.dart';
 import 'adviser/academic_overview_page.dart';
 import 'adviser/adm_cases_page.dart';
@@ -89,6 +87,20 @@ const _staffShellPaths = {
   '/adviser/referrals',
   '/adviser/bama',
   '/adviser/bama/history',
+  // Student portal
+  '/student/home',
+  '/student/grades',
+  '/student/attendance',
+  '/student/schedule',
+  '/student/modules',
+  '/student/sessions',
+  // Parent portal
+  '/parent/home',
+  '/parent/grades',
+  '/parent/attendance',
+  '/parent/schedule',
+  '/parent/modules',
+  '/parent/sessions',
 };
 
 List<RouteBase> persistentStaffRoutes(List<RouteBase> routes) {
@@ -190,11 +202,6 @@ final routerProvider = Provider<GoRouter>((ref) {
       GoRoute(path: '/parent/schedule', builder: (context, _) => const ParentSchedulePage()),
       GoRoute(path: '/parent/modules', builder: (context, _) => const ParentModulesPage()),
       GoRoute(path: '/parent/sessions', builder: (context, _) => const ParentSessionsPage()),
-      GoRoute(path: '/portal/notifications', builder: (context, _) => PortalShell(
-        portal: Hive.box(AppConfig.portalBox).get('portal') as String? ?? 'student',
-        selectedPath: '/portal/notifications',
-        child: const PortalNotificationsPage(),
-      )),
       GoRoute(path: '/term', builder: (context, _) => const TermSelectPage()),
       GoRoute(path: '/gate', builder: (context, _) => const FirstTimeGate()),
       // Adviser section (drawer replace-targets)

@@ -278,7 +278,7 @@ class _State extends ConsumerState<GradebookPage> {
           // the rest of the shell; the learner list already reserves its lane.
           extendBody: ownNavigation,
           appBar: AppBar(
-            backgroundColor: Theme.of(context).scaffoldBackgroundColor,
+            backgroundColor: Colors.white,
             surfaceTintColor: Colors.transparent,
             scrolledUnderElevation: 0,
             shape: const Border(bottom: BorderSide(color: Color(0xFFEDF0F6))),

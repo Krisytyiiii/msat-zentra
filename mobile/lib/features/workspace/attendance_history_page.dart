@@ -232,7 +232,7 @@ class _HistoryState extends ConsumerState<AttendanceHistoryPage>
         appBar: AppBar(
           shape: const Border(bottom: BorderSide(color: Color(0xFFEDF0F6))),
           centerTitle: true,
-          backgroundColor: Theme.of(context).scaffoldBackgroundColor,
+          backgroundColor: Colors.white,
           leading: ZBackButton(
             tooltip: 'Back',
             icon: const Icon(Icons.chevron_left),

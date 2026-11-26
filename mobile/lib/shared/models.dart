@@ -3,6 +3,8 @@
 // See backend/src/modules/teacher/teacher.routes.ts, attendance.routes.ts,
 // anecdotal.routes.ts, academics routes.
 
+import 'package:intl/intl.dart';
+
 class SchoolYear {
   final String id;
   final String name;
@@ -584,4 +586,14 @@ class PortalModules {
         counts: PortalModuleCounts.fromJson(Map<String, dynamic>.from((j['counts'] as Map?) ?? {})),
         modules: [for (final x in (j['data'] as List? ?? [])) PortalModule.fromJson(Map<String, dynamic>.from(x as Map))],
       );
+}
+
+// Shared date formatting for portal screens
+String formatPortalDate(String? iso) {
+  if (iso == null || iso.isEmpty) return '—';
+  try {
+    return DateFormat('MMM d, y').format(DateTime.parse(iso).toLocal());
+  } catch (_) {
+    return iso;
+  }
 }

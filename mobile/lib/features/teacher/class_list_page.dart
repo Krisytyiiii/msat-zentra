@@ -144,7 +144,7 @@ class _ClassListState extends ConsumerState<ClassListPage>
         },
         child: Scaffold(
           appBar: AppBar(
-            backgroundColor: Theme.of(context).scaffoldBackgroundColor,
+            backgroundColor: Colors.white,
             shape: const Border(bottom: BorderSide(color: Color(0xFFEDF0F6))),
             centerTitle: true,
             title: const Text('Class List'),

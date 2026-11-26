@@ -75,27 +75,6 @@ class _GateState extends ConsumerState<FirstTimeGate> {
     _load();
   }
 
-  Future<void> _claim() async {
-    final api = ref.read(apiClientProvider);
-    try {
-      await api.dio.post(
-        '/api/teacher/schedule/teachers/claim',
-        data: {'code': _code.text.trim()},
-      );
-      await _load();
-    } on DioException catch (e) {
-      final msg = userMessage(
-        e,
-        fallback:
-            'We couldn’t link your classes. Check your code and try again.',
-      );
-      if (mounted) {
-        ScaffoldMessenger.of(context)
-            .showSnackBar(SnackBar(content: Text(msg)));
-      }
-    }
-  }
-
   Future<void> _verify() async {
     final api = ref.read(apiClientProvider);
     try {
@@ -154,51 +133,12 @@ class _GateState extends ConsumerState<FirstTimeGate> {
         final teacherName = _me?['teacherName'];
         final grant = _me?['termGrant'];
         if (teacherName == null) {
-          return Scaffold(
-            appBar: AppBar(title: const Text('Link your classes')),
-            body: Center(
-              child: SingleChildScrollView(
-                padding: const EdgeInsets.all(16),
-                child: ConstrainedBox(
-                  constraints: const BoxConstraints(maxWidth: 400),
-                  child: ZCard(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.stretch,
-                      children: [
-                        const Text(
-                          'Link your classes',
-                          style: TextStyle(
-                            fontSize: 15,
-                            fontWeight: FontWeight.w600,
-                          ),
-                        ),
-                        const SizedBox(height: 4),
-                        Text(
-                          'First time here? Enter the link code from your Master Teacher to attach your timetable slots.',
-                          style: Theme.of(context).textTheme.bodySmall,
-                        ),
-                        const SizedBox(height: 12),
-                        TextField(
-                          controller: _code,
-                          decoration: const InputDecoration(
-                            labelText: 'Link code (e.g. MS-101)',
-                          ),
-                          style: const TextStyle(
-                            fontFeatures: [FontFeature.tabularFigures()],
-                          ),
-                        ),
-                        const SizedBox(height: 12),
-                        FilledButton(
-                          onPressed: _claim,
-                          child: const Text('Link classes'),
-                        ),
-                      ],
-                    ),
-                  ),
-                ),
-              ),
-            ),
-          );
+          // Do not block the workspace on a missing class link: open Overview
+          // and let each class desk offer the link card instead.
+          WidgetsBinding.instance.addPostFrameCallback((_) {
+            if (mounted) context.go('/workspace/overview');
+          });
+          return const WorkspaceSkeleton();
         }
         if (grant == null) {
           return Scaffold(

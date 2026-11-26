@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:lucide_icons_flutter/lucide_icons.dart';
 
-const _destinations = [
+const _adviserDestinations = [
   (
     path: '/workspace/overview',
     label: 'Overview',
@@ -21,6 +21,28 @@ const _destinations = [
   ),
 ];
 
+const _studentDestinations = [
+  (path: '/student/home', label: 'Home', icon: LucideIcons.layoutDashboard),
+  (path: '/student/grades', label: 'Grades', icon: LucideIcons.award),
+  (
+    path: '/student/attendance',
+    label: 'Attendance',
+    icon: LucideIcons.clipboardCheck,
+  ),
+  (path: '/student/schedule', label: 'Schedule', icon: LucideIcons.calendar),
+];
+
+const _parentDestinations = [
+  (path: '/parent/home', label: 'Home', icon: LucideIcons.layoutDashboard),
+  (path: '/parent/grades', label: 'Grades', icon: LucideIcons.award),
+  (
+    path: '/parent/attendance',
+    label: 'Attendance',
+    icon: LucideIcons.clipboardCheck,
+  ),
+  (path: '/parent/schedule', label: 'Schedule', icon: LucideIcons.calendar),
+];
+
 /// Lets a full-height editor sheet hide the floating staff bar while it is open.
 final staffNavBarHidden = ValueNotifier<bool>(false);
 
@@ -28,7 +50,8 @@ final staffNavBarHidden = ValueNotifier<bool>(false);
 String? staffRecordDestination(String location) {
   final parts = Uri.parse(location).pathSegments;
   if ((parts.length == 3 || (parts.length == 4 && parts[3] == 'list')) &&
-      parts[0] == 'workspace' && parts[1] == 'classes') {
+      parts[0] == 'workspace' &&
+      parts[1] == 'classes') {
     return '/workspace/classes';
   }
   if (parts.length == 5 &&
@@ -40,6 +63,166 @@ String? staffRecordDestination(String location) {
   return null;
 }
 
+/// One destination rendered by [ZPillBottomNavigation].
+@immutable
+class ZNavDestination {
+  const ZNavDestination({
+    required this.path,
+    required this.label,
+    required this.icon,
+  });
+
+  final String path;
+  final String label;
+  final IconData icon;
+}
+
+/// Floating stadium bottom navigation shared by the adviser and the ADM
+/// coordinator workspaces. One implementation keeps both desks identical.
+class ZPillBottomNavigation extends StatelessWidget {
+  const ZPillBottomNavigation({
+    super.key,
+    required this.destinations,
+    required this.selectedPath,
+    this.rerouteOnSelect = false,
+    this.keyPrefix = 'nav',
+  });
+
+  final List<ZNavDestination> destinations;
+  final String selectedPath;
+
+  /// Detail screens reuse this bar while showing an area's destination as
+  /// selected; tapping it must still return to that destination's page.
+  final bool rerouteOnSelect;
+
+  /// Test/preview keys: `<keyPrefix>-nav-bar`, `<keyPrefix>-nav-<label>`.
+  final String keyPrefix;
+
+  @override
+  Widget build(BuildContext context) {
+    final colors = Theme.of(context).colorScheme;
+    final light = Theme.of(context).brightness == Brightness.light;
+    final activeColor = light
+        ? const Color(0xFFF28C00)
+        : const Color(0xFFFFB900);
+    return SafeArea(
+      top: false,
+      minimum: const EdgeInsets.fromLTRB(16, 8, 16, 12),
+      child: Center(
+        heightFactor: 1,
+        child: ConstrainedBox(
+          constraints: const BoxConstraints(maxWidth: 480),
+          child: Material(
+            key: ValueKey('$keyPrefix-nav-bar'),
+            color: colors.surface,
+            elevation: 12,
+            shadowColor: Colors.black.withValues(alpha: light ? 0.08 : 0.4),
+            shape: StadiumBorder(
+              side: BorderSide(color: colors.outlineVariant),
+            ),
+            clipBehavior: Clip.antiAlias,
+            child: DecoratedBox(
+              decoration: BoxDecoration(
+                borderRadius: BorderRadius.circular(80),
+              ),
+              child: SizedBox(
+                height: 60,
+                child: Padding(
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 12,
+                    vertical: 6,
+                  ),
+                  child: Row(
+                    crossAxisAlignment: CrossAxisAlignment.stretch,
+                    children: [
+                      for (final destination in destinations)
+                        Expanded(
+                          child: Semantics(
+                            selected: selectedPath == destination.path,
+                            button: true,
+                            child: Tooltip(
+                              message: destination.label,
+                              child: InkWell(
+                                borderRadius: BorderRadius.circular(80),
+                                key: ValueKey(
+                                  '$keyPrefix-nav-${destination.label}',
+                                ),
+                                onTap: () {
+                                  if (rerouteOnSelect ||
+                                      selectedPath != destination.path) {
+                                    context.go(destination.path);
+                                  }
+                                },
+                                child: Column(
+                                  mainAxisAlignment: MainAxisAlignment.center,
+                                  children: [
+                                    AnimatedContainer(
+                                      duration: const Duration(
+                                        milliseconds: 150,
+                                      ),
+                                      padding: EdgeInsets.symmetric(
+                                        horizontal: 6,
+                                        vertical:
+                                            MediaQuery.textScalerOf(context)
+                                                    .scale(9) >
+                                                12
+                                            ? 0
+                                            : 2,
+                                      ),
+                                      decoration: BoxDecoration(
+                                        color: selectedPath == destination.path
+                                            ? activeColor.withValues(
+                                                alpha: 0.16,
+                                              )
+                                            : Colors.transparent,
+                                        borderRadius: BorderRadius.circular(40),
+                                      ),
+                                      child: Icon(
+                                        destination.icon,
+                                        size: 20,
+                                        applyTextScaling: false,
+                                        color: selectedPath == destination.path
+                                            ? activeColor
+                                            : colors.onSurfaceVariant,
+                                      ),
+                                    ),
+                                    Padding(
+                                      padding: const EdgeInsets.symmetric(
+                                        horizontal: 2,
+                                      ),
+                                      child: Text(
+                                        destination.label,
+                                        maxLines: 1,
+                                        overflow: TextOverflow.ellipsis,
+                                        style: TextStyle(
+                                          fontSize: 9,
+                                          fontWeight: FontWeight.w600,
+                                          color:
+                                              selectedPath == destination.path
+                                              ? activeColor
+                                              : colors.onSurfaceVariant,
+                                        ),
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              ),
+                            ),
+                          ),
+                        ),
+                    ],
+                  ),
+                ),
+              ),
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+/// Teacher bottom navigation shared by advisers and subject teachers.
 /// Drawer-only desks deliberately leave all four destinations unselected.
 class AdviserBottomNavigation extends StatelessWidget {
   const AdviserBottomNavigation({
@@ -49,196 +232,22 @@ class AdviserBottomNavigation extends StatelessWidget {
   });
 
   final String selectedPath;
-
-  /// Detail screens reuse this bar while showing an area's destination as
-  /// selected; tapping it must still return to that destination's page.
   final bool rerouteOnSelect;
 
   @override
   Widget build(BuildContext context) {
-    final colors = Theme.of(context).colorScheme;
-    final light = Theme.of(context).brightness == Brightness.light;
-    final activeColor = light
-        ? const Color(0xFFF28C00)
-        : const Color(0xFFFFB900);
-    final bar = SafeArea(
-      top: false,
-      minimum: const EdgeInsets.fromLTRB(16, 8, 16, 12),
-      child: Center(
-        heightFactor: 1,
-        child: ConstrainedBox(
-          constraints: const BoxConstraints(maxWidth: 480),
-          child: Row(
-            children: [
-              Expanded(
-                child: Material(
-                  key: const ValueKey('adviser-nav-bar'),
-                  color: colors.surface,
-                  elevation: 12,
-                  shadowColor: Colors.black.withValues(
-                    alpha: light ? 0.08 : 0.4,
-                  ),
-                  shape: StadiumBorder(
-                    side: BorderSide(color: colors.outlineVariant),
-                  ),
-                  clipBehavior: Clip.antiAlias,
-                  child: DecoratedBox(
-                    decoration: BoxDecoration(
-                      borderRadius: BorderRadius.circular(80),
-                    ),
-                    child: SizedBox(
-                      height: 60,
-                      child: Padding(
-                        padding: const EdgeInsets.symmetric(
-                          horizontal: 12,
-                          vertical: 6,
-                        ),
-                        child: Row(
-                          crossAxisAlignment: CrossAxisAlignment.stretch,
-                          children: [
-                            for (final destination in _destinations)
-                              Expanded(
-                                child: Semantics(
-                                  selected: selectedPath == destination.path,
-                                  button: true,
-                                  child: Tooltip(
-                                    message: destination.label,
-                                    child: InkWell(
-                                      borderRadius: BorderRadius.circular(80),
-                                      key: ValueKey(
-                                        'adviser-nav-${destination.label}',
-                                      ),
-                                      onTap: () {
-                                        if (rerouteOnSelect ||
-                                            selectedPath != destination.path) {
-                                          context.go(destination.path);
-                                        }
-                                      },
-                                      child: Column(
-                                        mainAxisAlignment:
-                                            MainAxisAlignment.center,
-                                        children: [
-                                          AnimatedContainer(
-                                            duration: const Duration(
-                                              milliseconds: 150,
-                                            ),
-                                            padding: EdgeInsets.symmetric(
-                                              horizontal: 6,
-                                              vertical:
-                                                  MediaQuery.textScalerOf(
-                                                        context,
-                                                      ).scale(9) >
-                                                      12
-                                                  ? 0
-                                                  : 2,
-                                            ),
-                                            decoration: BoxDecoration(
-                                              color:
-                                                  selectedPath ==
-                                                      destination.path
-                                                  ? activeColor.withValues(
-                                                      alpha: 0.16,
-                                                    )
-                                                  : Colors.transparent,
-                                              borderRadius:
-                                                  BorderRadius.circular(40),
-                                            ),
-                                            child: Icon(
-                                              destination.icon,
-                                              size: 20,
-                                              applyTextScaling: false,
-                                              color:
-                                                  selectedPath ==
-                                                      destination.path
-                                                  ? activeColor
-                                                  : colors.onSurfaceVariant,
-                                            ),
-                                          ),
-                                          Padding(
-                                            padding: const EdgeInsets.symmetric(
-                                              horizontal: 2,
-                                            ),
-                                            child: Text(
-                                              destination.label,
-                                              maxLines: 1,
-                                              overflow: TextOverflow.ellipsis,
-                                              style: TextStyle(
-                                                fontSize: 9,
-                                                fontWeight: FontWeight.w600,
-                                                color:
-                                                    selectedPath ==
-                                                        destination.path
-                                                    ? activeColor
-                                                    : colors.onSurfaceVariant,
-                                              ),
-                                            ),
-                                          ),
-                                        ],
-                                      ),
-                                    ),
-                                  ),
-                                ),
-                              ),
-                          ],
-                        ),
-                      ),
-                    ),
-                  ),
-                ),
-              ),
-              const SizedBox(width: 10),
-              Semantics(
-                button: true,
-                selected: selectedPath.startsWith('/adviser/bama'),
-                child: Tooltip(
-                  message: 'Chat with Bama',
-                  child: Material(
-                    key: const ValueKey('adviser-nav-Bama'),
-                    color: selectedPath.startsWith('/adviser/bama')
-                        ? activeColor.withValues(alpha: 0.16)
-                        : colors.surface,
-                    elevation: 12,
-                    shadowColor: Colors.black.withValues(
-                      alpha: light ? 0.08 : 0.4,
-                    ),
-                    shape: CircleBorder(
-                      side: BorderSide(
-                        color: selectedPath.startsWith('/adviser/bama')
-                            ? activeColor
-                            : colors.outlineVariant,
-                      ),
-                    ),
-                    clipBehavior: Clip.antiAlias,
-                    child: InkWell(
-                      splashColor: Colors.transparent,
-                      highlightColor: activeColor.withValues(alpha: 0.22),
-                      onTap: () {
-                        if (!selectedPath.startsWith('/adviser/bama')) {
-                          context.push('/adviser/bama');
-                        }
-                      },
-                      child: SizedBox(
-                        width: 60,
-                        height: 60,
-                        child: Center(
-                          child: ExcludeSemantics(
-                            child: Image.asset(
-                              'assets/mascots/bama-v2-nobg.png',
-                              width: 60,
-                              height: 60,
-                              fit: BoxFit.contain,
-                            ),
-                          ),
-                        ),
-                      ),
-                    ),
-                  ),
-                ),
-              ),
-            ],
+    final bar = ZPillBottomNavigation(
+      destinations: [
+        for (final destination in _adviserDestinations)
+          ZNavDestination(
+            path: destination.path,
+            label: destination.label,
+            icon: destination.icon,
           ),
-        ),
-      ),
+      ],
+      selectedPath: selectedPath,
+      rerouteOnSelect: rerouteOnSelect,
+      keyPrefix: 'adviser',
     );
     return ValueListenableBuilder<bool>(
       valueListenable: staffNavBarHidden,
@@ -247,6 +256,52 @@ class AdviserBottomNavigation extends StatelessWidget {
       child: bar,
     );
   }
+}
+
+const _coordinatorDestinations = [
+  (
+    path: '/coordinator/overview',
+    label: 'Overview',
+    icon: LucideIcons.layoutDashboard,
+  ),
+  (
+    path: '/coordinator/referrals',
+    label: 'ADM Cases',
+    icon: LucideIcons.folderHeart,
+  ),
+  (
+    path: '/coordinator/enrolled',
+    label: 'Enrolled',
+    icon: LucideIcons.graduationCap,
+  ),
+  (
+    path: '/coordinator/certifications',
+    label: 'Certifications',
+    icon: LucideIcons.badgeCheck,
+  ),
+  (path: '/coordinator/devices', label: 'Devices', icon: LucideIcons.tablet),
+];
+
+/// ADM coordinator bottom navigation — same pill, destinations and motion as
+/// the adviser desk. Settings lives in the account panel instead.
+class CoordinatorBottomNavigation extends StatelessWidget {
+  const CoordinatorBottomNavigation({super.key, required this.selectedPath});
+
+  final String selectedPath;
+
+  @override
+  Widget build(BuildContext context) => ZPillBottomNavigation(
+    destinations: [
+      for (final destination in _coordinatorDestinations)
+        ZNavDestination(
+          path: destination.path,
+          label: destination.label,
+          icon: destination.icon,
+        ),
+    ],
+    selectedPath: selectedPath,
+    keyPrefix: 'coordinator',
+  );
 }
 
 /// Compatibility wrapper: Bama now lives beside the bottom navigation.
@@ -264,4 +319,276 @@ class AdviserBamaAccess extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) => child;
+}
+
+/// Student portal bottom navigation (4 destinations).
+class StudentBottomNavigation extends StatelessWidget {
+  const StudentBottomNavigation({
+    super.key,
+    required this.selectedPath,
+    this.rerouteOnSelect = false,
+  });
+
+  final String selectedPath;
+  final bool rerouteOnSelect;
+
+  @override
+  Widget build(BuildContext context) {
+    final colors = Theme.of(context).colorScheme;
+    final light = Theme.of(context).brightness == Brightness.light;
+    final activeColor = light
+        ? const Color(0xFFF28C00)
+        : const Color(0xFFFFB900);
+    final bar = SafeArea(
+      top: false,
+      minimum: const EdgeInsets.fromLTRB(16, 8, 16, 12),
+      child: Center(
+        heightFactor: 1,
+        child: ConstrainedBox(
+          constraints: const BoxConstraints(maxWidth: 480),
+          child: Material(
+            key: const ValueKey('student-nav-bar'),
+            color: colors.surface,
+            elevation: 12,
+            shadowColor: Colors.black.withValues(alpha: light ? 0.08 : 0.4),
+            shape: StadiumBorder(
+              side: BorderSide(color: colors.outlineVariant),
+            ),
+            clipBehavior: Clip.antiAlias,
+            child: DecoratedBox(
+              decoration: BoxDecoration(
+                borderRadius: BorderRadius.circular(80),
+              ),
+              child: SizedBox(
+                height: 60,
+                child: Padding(
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 12,
+                    vertical: 6,
+                  ),
+                  child: Row(
+                    crossAxisAlignment: CrossAxisAlignment.stretch,
+                    children: [
+                      for (final destination in _studentDestinations)
+                        Expanded(
+                          child: Semantics(
+                            selected: selectedPath == destination.path,
+                            button: true,
+                            child: Tooltip(
+                              message: destination.label,
+                              child: InkWell(
+                                borderRadius: BorderRadius.circular(80),
+                                key: ValueKey(
+                                  'student-nav-${destination.label}',
+                                ),
+                                onTap: () {
+                                  if (rerouteOnSelect ||
+                                      selectedPath != destination.path) {
+                                    context.go(destination.path);
+                                  }
+                                },
+                                child: Column(
+                                  mainAxisAlignment: MainAxisAlignment.center,
+                                  children: [
+                                    AnimatedContainer(
+                                      duration: const Duration(
+                                        milliseconds: 150,
+                                      ),
+                                      padding: EdgeInsets.symmetric(
+                                        horizontal: 6,
+                                        vertical:
+                                            MediaQuery.textScalerOf(context)
+                                                    .scale(9) >
+                                                12
+                                            ? 0
+                                            : 2,
+                                      ),
+                                      decoration: BoxDecoration(
+                                        color: selectedPath == destination.path
+                                            ? activeColor.withValues(
+                                                alpha: 0.16,
+                                              )
+                                            : Colors.transparent,
+                                        borderRadius: BorderRadius.circular(40),
+                                      ),
+                                      child: Icon(
+                                        destination.icon,
+                                        size: 20,
+                                        applyTextScaling: false,
+                                        color: selectedPath == destination.path
+                                            ? activeColor
+                                            : colors.onSurfaceVariant,
+                                      ),
+                                    ),
+                                    Padding(
+                                      padding: const EdgeInsets.symmetric(
+                                        horizontal: 2,
+                                      ),
+                                      child: Text(
+                                        destination.label,
+                                        maxLines: 1,
+                                        overflow: TextOverflow.ellipsis,
+                                        style: TextStyle(
+                                          fontSize: 9,
+                                          fontWeight: FontWeight.w600,
+                                          color:
+                                              selectedPath == destination.path
+                                              ? activeColor
+                                              : colors.onSurfaceVariant,
+                                        ),
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              ),
+                            ),
+                          ),
+                        ),
+                    ],
+                  ),
+                ),
+              ),
+            ),
+          ),
+        ),
+      ),
+    );
+    return bar;
+  }
+}
+
+/// Parent portal bottom navigation (4 destinations).
+class ParentBottomNavigation extends StatelessWidget {
+  const ParentBottomNavigation({
+    super.key,
+    required this.selectedPath,
+    this.rerouteOnSelect = false,
+  });
+
+  final String selectedPath;
+  final bool rerouteOnSelect;
+
+  @override
+  Widget build(BuildContext context) {
+    final colors = Theme.of(context).colorScheme;
+    final light = Theme.of(context).brightness == Brightness.light;
+    final activeColor = light
+        ? const Color(0xFFF28C00)
+        : const Color(0xFFFFB900);
+    final bar = SafeArea(
+      top: false,
+      minimum: const EdgeInsets.fromLTRB(16, 8, 16, 12),
+      child: Center(
+        heightFactor: 1,
+        child: ConstrainedBox(
+          constraints: const BoxConstraints(maxWidth: 480),
+          child: Material(
+            key: const ValueKey('parent-nav-bar'),
+            color: colors.surface,
+            elevation: 12,
+            shadowColor: Colors.black.withValues(alpha: light ? 0.08 : 0.4),
+            shape: StadiumBorder(
+              side: BorderSide(color: colors.outlineVariant),
+            ),
+            clipBehavior: Clip.antiAlias,
+            child: DecoratedBox(
+              decoration: BoxDecoration(
+                borderRadius: BorderRadius.circular(80),
+              ),
+              child: SizedBox(
+                height: 60,
+                child: Padding(
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 12,
+                    vertical: 6,
+                  ),
+                  child: Row(
+                    crossAxisAlignment: CrossAxisAlignment.stretch,
+                    children: [
+                      for (final destination in _parentDestinations)
+                        Expanded(
+                          child: Semantics(
+                            selected: selectedPath == destination.path,
+                            button: true,
+                            child: Tooltip(
+                              message: destination.label,
+                              child: InkWell(
+                                borderRadius: BorderRadius.circular(80),
+                                key: ValueKey(
+                                  'parent-nav-${destination.label}',
+                                ),
+                                onTap: () {
+                                  if (rerouteOnSelect ||
+                                      selectedPath != destination.path) {
+                                    context.go(destination.path);
+                                  }
+                                },
+                                child: Column(
+                                  mainAxisAlignment: MainAxisAlignment.center,
+                                  children: [
+                                    AnimatedContainer(
+                                      duration: const Duration(
+                                        milliseconds: 150,
+                                      ),
+                                      padding: EdgeInsets.symmetric(
+                                        horizontal: 6,
+                                        vertical:
+                                            MediaQuery.textScalerOf(context)
+                                                    .scale(9) >
+                                                12
+                                            ? 0
+                                            : 2,
+                                      ),
+                                      decoration: BoxDecoration(
+                                        color: selectedPath == destination.path
+                                            ? activeColor.withValues(
+                                                alpha: 0.16,
+                                              )
+                                            : Colors.transparent,
+                                        borderRadius: BorderRadius.circular(40),
+                                      ),
+                                      child: Icon(
+                                        destination.icon,
+                                        size: 20,
+                                        applyTextScaling: false,
+                                        color: selectedPath == destination.path
+                                            ? activeColor
+                                            : colors.onSurfaceVariant,
+                                      ),
+                                    ),
+                                    Padding(
+                                      padding: const EdgeInsets.symmetric(
+                                        horizontal: 2,
+                                      ),
+                                      child: Text(
+                                        destination.label,
+                                        maxLines: 1,
+                                        overflow: TextOverflow.ellipsis,
+                                        style: TextStyle(
+                                          fontSize: 9,
+                                          fontWeight: FontWeight.w600,
+                                          color:
+                                              selectedPath == destination.path
+                                              ? activeColor
+                                              : colors.onSurfaceVariant,
+                                        ),
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              ),
+                            ),
+                          ),
+                        ),
+                    ],
+                  ),
+                ),
+              ),
+            ),
+          ),
+        ),
+      ),
+    );
+    return bar;
+  }
 }

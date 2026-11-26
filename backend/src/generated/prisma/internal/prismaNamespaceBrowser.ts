@@ -101,6 +101,7 @@ export const ModelName = {
   ReportSnapshot: 'ReportSnapshot',
   AdviserSf10AccessRequest: 'AdviserSf10AccessRequest',
   Notification: 'Notification',
+  DeviceToken: 'DeviceToken',
   RefreshToken: 'RefreshToken'
 } as const
 
@@ -930,6 +931,18 @@ export const NotificationScalarFieldEnum = {
 } as const
 
 export type NotificationScalarFieldEnum = (typeof NotificationScalarFieldEnum)[keyof typeof NotificationScalarFieldEnum]
+
+
+export const DeviceTokenScalarFieldEnum = {
+  id: 'id',
+  userId: 'userId',
+  token: 'token',
+  platform: 'platform',
+  createdAt: 'createdAt',
+  lastSeenAt: 'lastSeenAt'
+} as const
+
+export type DeviceTokenScalarFieldEnum = (typeof DeviceTokenScalarFieldEnum)[keyof typeof DeviceTokenScalarFieldEnum]
 
 
 export const RefreshTokenScalarFieldEnum = {

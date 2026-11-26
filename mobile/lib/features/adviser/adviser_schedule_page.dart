@@ -8,6 +8,7 @@ import '../../design/screen_search.dart';
 import '../../design/status_palette.dart';
 import '../../design/tokens.dart';
 import '../../shared/widgets.dart';
+import '../auth/link_classes_card.dart';
 import 'class_schedule_data.dart';
 import 'schedule_timing.dart';
 
@@ -86,6 +87,10 @@ class _ScheduleState extends ConsumerState<AdviserSchedulePage>
       setState(() => _day = today <= 5 ? today : 1);
     });
     final schedule = ref.watch(classScheduleProvider(widget.advisory));
+    final link = ref.watch(teacherLinkProvider).valueOrNull;
+    if (!widget.advisory && link?.linked == false) {
+      return TeacherLinkPlaceholder(onLinked: _reload);
+    }
     return schedule.when(
       skipLoadingOnRefresh: true,
       // Do not show a different term's cached schedule while it is loading.

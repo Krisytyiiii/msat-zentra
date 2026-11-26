@@ -19,6 +19,14 @@ const notificationsQuerySchema = z.object({
   pageSize: z.coerce.number().int().min(1).max(MAX_PAGE_SIZE).optional().default(PAGE_SIZE),
 });
 
+// FCM registration token per signed-in device. Clients re-post on every
+// sign-in and on token refresh; `token` is unique so an account switch on the
+// same device re-points the row instead of duplicating it.
+const deviceTokenSchema = z.object({
+  token: z.string().trim().min(10).max(4096),
+  platform: z.enum(["android", "ios", "web"]).default("android"),
+});
+
 router.get(
   "/",
   requireAuth,
@@ -91,5 +99,39 @@ router.post("/read-all", requireAuth, async (req, res, next) => {
     res.json({ updated: result.count });
   } catch (e) { next(e); }
 });
+
+// --- Push: device registration ---
+// The mobile app calls this after sign-in and whenever FCM rotates the token.
+router.post(
+  "/device-token",
+  requireAuth,
+  validate("body", deviceTokenSchema),
+  async (req, res, next) => {
+    try {
+      const { token, platform } = req.body as z.infer<typeof deviceTokenSchema>;
+      const device = await prisma.deviceToken.upsert({
+        where: { token },
+        create: { token, platform, userId: req.user!.id },
+        update: { userId: req.user!.id, platform, lastSeenAt: new Date() },
+        select: { id: true, platform: true },
+      });
+      res.status(201).json(device);
+    } catch (e) { next(e); }
+  },
+);
+
+// Sign-out (or account switch) stops this device from receiving pushes.
+router.post(
+  "/device-token/unregister",
+  requireAuth,
+  validate("body", deviceTokenSchema.pick({ token: true })),
+  async (req, res, next) => {
+    try {
+      const { token } = req.body as { token: string };
+      await prisma.deviceToken.deleteMany({ where: { token, userId: req.user!.id } });
+      res.json({ removed: true });
+    } catch (e) { next(e); }
+  },
+);
 
 export default router;

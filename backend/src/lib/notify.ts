@@ -2,6 +2,7 @@ import { prisma } from "./prisma.js";
 import { logger } from "./pino.js";
 import { invalidateTags } from "./cache.js";
 import { CACHE_TAGS } from "./cacheTags.js";
+import { sendPushToUser } from "./push.js";
 import type { NotifChannel } from "../generated/prisma/client.js";
 
 const TYPE_MAP: Record<string, string> = {
@@ -121,7 +122,7 @@ export async function fanoutNotification(input: NotifyInput) {
     const type = deriveNotifType(input.sourceTable, input.action);
 
     const message = input.message ?? "";
-    await prisma.$transaction(async (tx) => {
+    const created = await prisma.$transaction(async (tx) => {
       if (input.sourceId) {
         await tx.$executeRawUnsafe(
           `SELECT pg_advisory_xact_lock(hashtext($1))`,
@@ -138,9 +139,9 @@ export async function fanoutNotification(input: NotifyInput) {
           },
           select: { id: true },
         });
-        if (recent) return;
+        if (recent) return null;
       }
-      await tx.notification.create({
+      return tx.notification.create({
         data: {
           userId: input.userId,
           type,
@@ -149,11 +150,23 @@ export async function fanoutNotification(input: NotifyInput) {
           message: input.message,
           channel: input.channel ?? ["web", "mobile", "email"],
         },
+        select: { id: true },
       });
     });
     // Bust cached notification lists immediately so bell badges, rows, and
     // realtime fallback polls see the new row without waiting out the TTL.
     void invalidateTags([CACHE_TAGS.notifications]);
+    // Mirror the row onto the user's devices. `_self` types are the actor's
+    // own action echoing back into their bell — never worth a system push.
+    if (created && !type.endsWith("_self")) {
+      void sendPushToUser(input.userId, {
+        notificationId: created.id,
+        type,
+        sourceTable: input.sourceTable,
+        sourceId: input.sourceId ?? null,
+        message,
+      });
+    }
   } catch (e) {
     logger.error({ err: e, userId: input.userId }, "notification fanout failed");
   }

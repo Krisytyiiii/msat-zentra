@@ -165,16 +165,6 @@ List<ScreenSearchDestination> screenSearchCatalog({required bool isAdviser}) {
         Icons.note_outlined,
       ),
       const ScreenSearchDestination(
-        'Class Schedule',
-        '/adviser/schedule',
-        Icons.calendar_month_outlined,
-      ),
-      const ScreenSearchDestination(
-        'Chat with Bama',
-        '/adviser/bama',
-        Icons.chat_bubble_outline,
-      ),
-      const ScreenSearchDestination(
         'Referrals',
         '/adviser/referrals',
         Icons.send_outlined,
@@ -195,12 +185,6 @@ List<ScreenSearchDestination> screenSearchCatalog({required bool isAdviser}) {
       '/workspace/attendance',
       Icons.fact_check_outlined,
     ),
-    if (!isAdviser)
-      const ScreenSearchDestination(
-        'My schedule',
-        '/workspace/schedule',
-        Icons.calendar_month_outlined,
-      ),
   ];
 }
 

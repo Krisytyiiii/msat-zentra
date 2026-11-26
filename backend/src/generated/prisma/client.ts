@@ -293,6 +293,13 @@ export type AdviserSf10AccessRequest = Prisma.AdviserSf10AccessRequestModel
  */
 export type Notification = Prisma.NotificationModel
 /**
+ * Model DeviceToken
+ * FCM registration token for one signed-in device. A user may have several
+ * (phone + tablet); `token` is unique so a device that transfers accounts is
+ * re-pointed instead of duplicated. Push fanout prunes tokens FCM rejects.
+ */
+export type DeviceToken = Prisma.DeviceTokenModel
+/**
  * Model RefreshToken
  * 
  */

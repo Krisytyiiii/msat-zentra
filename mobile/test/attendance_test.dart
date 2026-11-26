@@ -342,8 +342,8 @@ void main() {
         ..entered = false;
       await mount(tester, api);
       expect(
-        find.text(linked ? 'Enter your school year' : 'Link your teacher code'),
-        findsOneWidget,
+        find.text(linked ? 'Enter your school year' : 'Enter your link code'),
+        linked ? findsOneWidget : findsWidgets,
       );
       expect(api.requests.any((r) => r.path == '/api/teacher/my-load'), false);
     });

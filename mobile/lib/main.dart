@@ -2,11 +2,15 @@
 // Reuses the SAME Express + Prisma API as the Next.js web app.
 // Run: flutter run --dart-define=API_BASE_URL=http://10.0.2.2:4000
 
+import 'package:firebase_messaging/firebase_messaging.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:hive_flutter/hive_flutter.dart';
 
+import 'core/api_client.dart';
 import 'core/config.dart';
+import 'core/push_service.dart';
+import 'core/session.dart' show authProvider;
 import 'core/sync_outbox.dart';
 import 'design/theme.dart';
 import 'design/theme_mode.dart'
@@ -24,14 +28,48 @@ Future<void> main() async {
   await Hive.openBox(AppConfig.bamaBox);
   await Hive.openBox(AppConfig.saveHistoryBox);
   await openThemeSettingsBox();
+  // Must be registered before runApp; the OS may deliver a background frame
+  // as soon as the process starts.
+  FirebaseMessaging.onBackgroundMessage(zentraPushBackgroundHandler);
   runApp(const ProviderScope(child: ZentraApp()));
 }
 
-class ZentraApp extends ConsumerWidget {
+class ZentraApp extends ConsumerStatefulWidget {
   const ZentraApp({super.key});
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
+  ConsumerState<ZentraApp> createState() => _ZentraAppState();
+}
+
+class _ZentraAppState extends ConsumerState<ZentraApp> {
+  @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addPostFrameCallback((_) => _bootPush());
+  }
+
+  /// Boots FCM after the router exists, then replays a tap that cold-started
+  /// the app (deep link into the exact screen the notification points at).
+  Future<void> _bootPush() async {
+    PushService.instance.attach(
+      api: ref.read(apiClientProvider),
+      navigate: (route) => ref.read(routerProvider).go(route),
+    );
+    await PushService.instance.start();
+    final initial = await PushService.instance.takeInitialRoute();
+    if (initial != null && mounted) {
+      ref.read(routerProvider).go(initial);
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    // Signing in (or restoring a session) registers this device for pushes.
+    ref.listen(authProvider, (previous, next) {
+      if (next.loggedIn && next.role != null) {
+        PushService.instance.register();
+      }
+    });
     final router = ref.watch(routerProvider);
     final mode = ref.watch(themeSettingsProvider.select((s) => s.mode));
     final pending = Hive.box(AppConfig.outboxBox).listenable();

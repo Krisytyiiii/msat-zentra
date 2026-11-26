@@ -265,11 +265,14 @@ void main() {
         ]),
       );
       expect(adviser, isNot(contains('My schedule')));
+      expect(adviser, isNot(contains('Class Schedule')));
+      expect(adviser, isNot(contains('Chat with Bama')));
 
       final teacher = screenSearchCatalog(isAdviser: false)
           .map((d) => d.label)
           .toList();
-      expect(teacher, contains('My schedule'));
+      expect(teacher, containsAll(['Overview', 'Class', 'Gradebook', 'Attendance']));
+      expect(teacher, isNot(contains('My schedule')));
       expect(teacher, isNot(contains('Advisory list')));
       expect(teacher, isNot(contains('Advisory attendance')));
       expect(teacher, isNot(contains('Referrals')));

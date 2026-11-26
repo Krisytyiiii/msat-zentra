@@ -18,7 +18,10 @@ ThemeData overviewScreenTheme(ThemeData base) {
   return base.copyWith(
     brightness: Brightness.light,
     colorScheme: colors,
-    scaffoldBackgroundColor: base.scaffoldBackgroundColor,
+    // The light desks paint white content (Class/Overview/records). Leaving
+    // this on the dark workspace base turned record headers and the gaps
+    // between cards black.
+    scaffoldBackgroundColor: Colors.white,
     textTheme: base.textTheme
         .apply(bodyColor: colors.onSurface, displayColor: colors.onSurface)
         .copyWith(headlineSmall: base.textTheme.headlineSmall),

@@ -56,6 +56,12 @@ class _Api extends ApiClient {
   Future<String?> accessToken() async => null;
 }
 
+class _Auth extends AuthNotifier {
+  _Auth(String role) : super(_Api()) {
+    state = AuthState(role: role, loggedIn: true);
+  }
+}
+
 class _Term extends TermNotifier {
   _Term() {
     state = Term(
@@ -70,6 +76,7 @@ class _Term extends TermNotifier {
 Future<(GoRouter, ProviderContainer)> mount(
   WidgetTester tester, {
   bool adviser = true,
+  String? role,
   double width = 390,
   String initial = '/workspace/overview',
   bool unavailable = false,
@@ -85,6 +92,7 @@ Future<(GoRouter, ProviderContainer)> mount(
     overrides: [
       apiClientProvider.overrideWithValue(api),
       termProvider.overrideWith((_) => _Term()),
+      if (role != null) authProvider.overrideWith((_) => _Auth(role)),
       overviewProvider.overrideWith((_) async => {'isAdviser': adviser}),
       teacherProfileProvider.overrideWith(
         (_) async => const TeacherProfile(fullName: 'Teacher'),
@@ -135,10 +143,7 @@ Future<(GoRouter, ProviderContainer)> mount(
   await tester.pumpWidget(
     UncontrolledProviderScope(
       container: c,
-      child: MaterialApp.router(
-        theme: zLightTheme(),
-        routerConfig: router,
-      ),
+      child: MaterialApp.router(theme: zLightTheme(), routerConfig: router),
     ),
   );
   await tester.pumpAndSettle();
@@ -228,10 +233,6 @@ void main() {
         router.routeInformationProvider.value.uri.path,
         '/workspace/attendance',
       );
-      await tester.tap(find.byKey(const ValueKey('adviser-nav-Bama')));
-      await tester.pumpAndSettle();
-      expect(find.text('/adviser/bama'), findsOneWidget);
-      expect(tester.element(find.byType(AdviserBottomNavigation)), same(bar));
       expect(tester.takeException(), isNull);
     });
   }
@@ -259,18 +260,19 @@ void main() {
     );
   });
 
-  testWidgets('subject teachers have no adviser bar on either record', (
+  testWidgets('subject teachers share the four-desk bar on both records', (
     tester,
   ) async {
     final (router, _) = await mount(
       tester,
       adviser: false,
+      role: 'subject_teacher',
       initial: '/workspace/classes/class',
     );
-    expect(find.byType(AdviserBottomNavigation), findsNothing);
+    expect(find.byType(AdviserBottomNavigation), findsOneWidget);
     router.go('/workspace/attendance/records/section/subject');
     await tester.pumpAndSettle();
-    expect(find.byType(AdviserBottomNavigation), findsNothing);
+    expect(find.byType(AdviserBottomNavigation), findsOneWidget);
     expect(find.byType(AppBar), findsOneWidget);
   });
 

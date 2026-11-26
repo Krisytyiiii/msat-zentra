@@ -2,23 +2,19 @@
 // Sections: Profile (photo + name), Adviser claim/release, Master Teacher,
 // Fixed login-inspired mobile appearance; saved web preferences are untouched.
 // Served at the existing /teacher/more path (drawer + avatar point there).
+// Presentation comes from design/staff_settings.dart, shared with the ADM
+// coordinator desk.
 
 import 'dart:convert';
 
 import 'package:dio/dio.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:image_picker/image_picker.dart';
-import 'package:lucide_icons_flutter/lucide_icons.dart';
-import 'package:go_router/go_router.dart';
 
 import '../../core/session.dart';
-import '../../design/brand.dart';
-import '../../design/settings_theme.dart';
-import '../../design/theme_picker.dart';
-import '../../shared/widgets.dart';
-import '../../shared/spinner.dart';
+import '../../design/staff_settings.dart';
 import '../../shared/user_messages.dart';
+import '../../shared/widgets.dart';
 import 'settings_data.dart';
 
 class SettingsPage extends ConsumerStatefulWidget {
@@ -28,125 +24,9 @@ class SettingsPage extends ConsumerStatefulWidget {
 }
 
 class _State extends ConsumerState<SettingsPage> {
-  final _name = TextEditingController();
-  bool _nameInit = false;
   bool _pickingSection = false;
   String? _selectedSection;
   bool _mtBusy = false;
-  bool _photoBusy = false;
-  final _current = TextEditingController();
-  final _next = TextEditingController();
-  final _confirm = TextEditingController();
-  String? _passError;
-  bool _passBusy = false;
-
-  @override
-  void dispose() {
-    _name.dispose();
-    _current.dispose();
-    _next.dispose();
-    _confirm.dispose();
-    super.dispose();
-  }
-
-  Future<void> _pickPhoto(ImageSource source) async {
-    final file = await ImagePicker().pickImage(
-      source: source,
-      maxWidth: 1024,
-      imageQuality: 85,
-    );
-    if (file == null || !mounted) return;
-    final bytes = await file.readAsBytes();
-    if (bytes.length > 2 * 1024 * 1024) {
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Photo must be 2MB or smaller.')),
-        );
-      }
-      return;
-    }
-    final ext = file.path.split('.').last.toLowerCase();
-    final mime = ext == 'png' ? 'image/png' : 'image/jpeg';
-    setState(() => _photoBusy = true);
-    try {
-      await uploadTeacherPhoto(ref, 'data:$mime;base64,${base64Encode(bytes)}');
-      if (mounted) {
-        ScaffoldMessenger.of(
-          context,
-        ).showSnackBar(const SnackBar(content: Text('Profile photo updated.')));
-      }
-    } on DioException catch (e) {
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text(settingsError(e, 'Could not update photo.'))),
-        );
-      }
-    } finally {
-      if (mounted) setState(() => _photoBusy = false);
-    }
-  }
-
-  void _choosePhotoSource() {
-    showModalBottomSheet(
-      context: context,
-      showDragHandle: true,
-      shape: const RoundedRectangleBorder(
-        borderRadius: BorderRadius.vertical(top: Radius.circular(6)),
-      ),
-      builder: (ctx) => Padding(
-        padding: const EdgeInsets.all(16),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            ListTile(
-              leading: const Icon(LucideIcons.camera),
-              title: const Text('Take photo', style: TextStyle(fontSize: 13)),
-              onTap: () {
-                Navigator.pop(ctx);
-                _pickPhoto(ImageSource.camera);
-              },
-            ),
-            ListTile(
-              leading: const Icon(Icons.photo_library_outlined),
-              title: const Text(
-                'Choose from gallery',
-                style: TextStyle(fontSize: 13),
-              ),
-              onTap: () {
-                Navigator.pop(ctx);
-                _pickPhoto(ImageSource.gallery);
-              },
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-
-  Future<void> _saveName() async {
-    final value = _name.text.trim();
-    if (value.isEmpty || value.length > 100) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Name must be 1–100 characters.')),
-      );
-      return;
-    }
-    try {
-      await patchTeacherProfile(ref, {'fullName': value});
-      if (mounted) {
-        ScaffoldMessenger.of(context)
-            .showSnackBar(const SnackBar(content: Text('Profile updated.')));
-      }
-    } on DioException catch (e) {
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text(settingsError(e, 'Could not update profile.')),
-          ),
-        );
-      }
-    }
-  }
 
   Future<void> _toggleMaster(
     bool next, {
@@ -188,332 +68,78 @@ class _State extends ConsumerState<SettingsPage> {
     }
   }
 
-  Future<void> _savePassword() async {
-    if (_next.text.length < 8) {
-      setState(
-        () => _passError = 'New password must be at least 8 characters.',
-      );
-      return;
-    }
-    if (_next.text != _confirm.text) {
-      setState(() => _passError = 'New passwords do not match.');
-      return;
-    }
-    setState(() {
-      _passError = null;
-      _passBusy = true;
-    });
-    try {
-      await changePassword(
-        ref,
-        currentPassword: _current.text,
-        newPassword: _next.text,
-      );
-      _current.clear();
-      _next.clear();
-      _confirm.clear();
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text(
-              'Password updated. Use your new password next time you sign in.',
-            ),
-          ),
-        );
-      }
-    } on DioException catch (e) {
-      setState(
-        () => _passError = settingsError(
-          e,
-          'We couldn’t update your password. Please try again.',
-        ),
-      );
-    } finally {
-      if (mounted) setState(() => _passBusy = false);
-    }
-  }
-
   @override
   Widget build(BuildContext context) {
-    final theme = settingsScreenTheme(Theme.of(context));
     final profile = ref.watch(teacherProfileProvider);
-    return Theme(
-      data: theme,
-      child: Scaffold(
-        backgroundColor: Colors.white,
-        appBar: AppBar(
-          centerTitle: true,
-          shape: const Border(
-            bottom: BorderSide(color: Color(0xFFEDF0F6)),
-          ),
-          leading: ZBackButton(
-            onPressed: () {
-              final router = GoRouter.maybeOf(context);
-              if (router != null) {
-                if (router.canPop()) {
-                  router.pop();
-                } else {
-                  router.go('/workspace/overview');
-                }
-              } else {
-                Navigator.of(context).maybePop();
-              }
-            },
-          ),
-          title: const Text('Settings'),
-        ),
-        body: ListView(
-          padding: const EdgeInsets.fromLTRB(16, 12, 16, 24),
-          children: [
-            const ZContentHeader(
-              title: 'Settings',
-              icon: LucideIcons.settings,
-              description: 'Your profile, appearance, and account security.',
-            ),
-            const Padding(
-              padding: EdgeInsets.symmetric(vertical: 12),
-              child: Divider(height: 1, color: Color(0xFFF1F5F9)),
-            ),
-            profile.when(
-              loading: () => const ZSkeletonList(count: 2),
-              error: (e, _) => ErrorView(
-                message: e,
-                onRetry: () => ref.invalidate(teacherProfileProvider),
-              ),
-              data: (p) {
-                if (!_nameInit) {
-                  _name.text = p.fullName;
-                  _nameInit = true;
-                }
-                return Column(
-                  children: [
-                    _section(
-                      context,
-                      title: 'Profile',
-                      subtitle: 'Your display name and photo.',
-                      child: Column(
-                        children: [
-                          Row(
-                            children: [
-                              TeacherAvatar(photoUrl: p.photoUrl, radius: 28),
-                              const SizedBox(width: 12),
-                              Expanded(
-                                child: OutlinedButton.icon(
-                                  icon: _photoBusy
-                                      ? const ZSpinner(size: 14)
-                                      : const Icon(
-                                          LucideIcons.camera,
-                                          size: 16,
-                                        ),
-                                  label: Text(
-                                    _photoBusy ? 'Uploading…' : 'Change photo',
-                                  ),
-                                  onPressed: _photoBusy
-                                      ? null
-                                      : _choosePhotoSource,
-                                ),
-                              ),
-                            ],
-                          ),
-                          const SizedBox(height: 12),
-                          TextField(
-                            controller: _name,
-                            decoration: const InputDecoration(
-                              labelText: 'Full name',
-                            ),
-                            maxLength: 100,
-                          ),
-                          const SizedBox(height: 8),
-                          Align(
-                            alignment: Alignment.centerRight,
-                            child: FilledButton(
-                              onPressed: _saveName,
-                              child: const Text('Save profile'),
-                            ),
-                          ),
-                        ],
-                      ),
-                    ),
-                    const SizedBox(height: 8),
-                    _AdviserCard(
-                      picking: _pickingSection,
-                      selected: _selectedSection,
-                      onPicking: (v) => setState(() {
-                        _pickingSection = v;
-                        if (!v) _selectedSection = null;
-                      }),
-                      onSelect: (id) => setState(() => _selectedSection = id),
-                    ),
-                    const SizedBox(height: 8),
-                    _MasterTeacherCard(
-                      busy: _mtBusy,
-                      onToggle: (next, {required takenByOther, holderName}) =>
-                          _toggleMaster(
-                            next,
-                            takenByOther: takenByOther,
-                            holderName: holderName,
-                          ),
-                    ),
-                    const SizedBox(height: 8),
-                    _section(
-                      context,
-                      title: 'Appearance',
-                      subtitle: 'Choose how the app appears on your device.',
-                      child: _ThemePicker(),
-                    ),
-                    const SizedBox(height: 8),
-                    _section(
-                      context,
-                      title: 'Password',
-                      subtitle:
-                          'Choose a new password at least 8 characters long.',
-                      child: Column(
-                        children: [
-                          TextField(
-                            controller: _current,
-                            decoration: const InputDecoration(
-                              labelText: 'Current password',
-                            ),
-                            obscureText: true,
-                          ),
-                          const SizedBox(height: 8),
-                          TextField(
-                            controller: _next,
-                            decoration: const InputDecoration(
-                              labelText: 'New password',
-                            ),
-                            obscureText: true,
-                          ),
-                          const SizedBox(height: 8),
-                          TextField(
-                            controller: _confirm,
-                            decoration: const InputDecoration(
-                              labelText: 'Confirm new password',
-                            ),
-                            obscureText: true,
-                          ),
-                          if (_passError != null) ...[
-                            const SizedBox(height: 4),
-                            Text(
-                              _passError!,
-                              style: TextStyle(
-                                color: theme.colorScheme.error,
-                                fontSize: 13,
-                              ),
-                            ),
-                          ],
-                          const SizedBox(height: 8),
-                          Align(
-                            alignment: Alignment.centerRight,
-                            child: FilledButton(
-                              onPressed: _passBusy ? null : _savePassword,
-                              child: Text(
-                                _passBusy ? 'Saving…' : 'Change password',
-                              ),
-                            ),
-                          ),
-                        ],
-                      ),
-                    ),
-                  ],
-                );
-              },
-            ),
-            const SizedBox(height: 8),
-            const ZCard(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    'Grade flags',
-                    style: TextStyle(fontSize: 15, fontWeight: FontWeight.w600),
-                  ),
-                  SizedBox(height: 4),
-                  Text(
-                    'Raise and resolve flags inside each class workspace. Overdue flags escalate to the Principal.',
-                    style: TextStyle(fontSize: 13),
-                  ),
-                ],
-              ),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-
-  static Widget _section(
-    BuildContext context, {
-    required String title,
-    required String subtitle,
-    required Widget child,
-  }) => ZCard(
-    padding: const EdgeInsets.all(12),
-    child: Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
+    return StaffSettingsScaffold(
+      backFallback: '/workspace/overview',
       children: [
-        Row(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Container(
-              padding: const EdgeInsets.all(8),
-              decoration: BoxDecoration(
-                color: const Color(0xFF2563EB),
-                borderRadius: BorderRadius.circular(10),
+        profile.when(
+          loading: () => const ZSkeletonList(count: 2),
+          error: (e, _) => ErrorView(
+            message: e,
+            onRetry: () => ref.invalidate(teacherProfileProvider),
+          ),
+          data: (p) => Column(
+            children: [
+              StaffProfileEditor(
+                identity: StaffIdentity(
+                  fullName: p.fullName,
+                  photoUrl: p.photoUrl,
+                ),
+                onSaveName: (value) =>
+                    patchTeacherProfile(ref, {'fullName': value}),
+                onSavePhoto: (bytes, mime) => uploadTeacherPhoto(
+                  ref,
+                  'data:$mime;base64,${base64Encode(bytes)}',
+                ),
               ),
-              child: Icon(
-                switch (title) {
-                  'Profile' => LucideIcons.user,
-                  'Adviser' => LucideIcons.graduationCap,
-                  'Master Teacher' => LucideIcons.badgeCheck,
-                  'Appearance' => LucideIcons.sun,
-                  _ => LucideIcons.lock,
-                },
-                color: Colors.white,
-                size: 16,
+              const SizedBox(height: 8),
+              _AdviserCard(
+                picking: _pickingSection,
+                selected: _selectedSection,
+                onPicking: (v) => setState(() {
+                  _pickingSection = v;
+                  if (!v) _selectedSection = null;
+                }),
+                onSelect: (id) => setState(() => _selectedSection = id),
               ),
-            ),
-            const SizedBox(width: 12),
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    title,
-                    style: const TextStyle(
-                      fontSize: 15,
-                      fontWeight: FontWeight.w700,
-                      color: Color(0xFF0F172A),
+              const SizedBox(height: 8),
+              _MasterTeacherCard(
+                busy: _mtBusy,
+                onToggle: (next, {required takenByOther, holderName}) =>
+                    _toggleMaster(
+                      next,
+                      takenByOther: takenByOther,
+                      holderName: holderName,
                     ),
-                  ),
-                  const SizedBox(height: 4),
-                  Text(
-                    subtitle,
-                    style: const TextStyle(
-                      fontSize: 12,
-                      height: 1.45,
-                      color: Color(0xFF64748B),
-                    ),
-                  ),
-                ],
               ),
-            ),
-          ],
+              const SizedBox(height: 8),
+              const StaffAppearanceSection(),
+              const SizedBox(height: 8),
+              const StaffPasswordEditor(),
+            ],
+          ),
         ),
-        const Padding(
-          padding: EdgeInsets.symmetric(vertical: 12),
-          child: Divider(height: 1, color: Color(0xFFF1F5F9)),
+        const SizedBox(height: 8),
+        const ZCard(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                'Grade flags',
+                style: TextStyle(fontSize: 15, fontWeight: FontWeight.w600),
+              ),
+              SizedBox(height: 4),
+              Text(
+                'Raise and resolve flags inside each class workspace. Overdue flags escalate to the Principal.',
+                style: TextStyle(fontSize: 13),
+              ),
+            ],
+          ),
         ),
-        child,
       ],
-    ),
-  );
-}
-
-class _ThemePicker extends ConsumerWidget {
-  @override
-  Widget build(BuildContext context, WidgetRef ref) {
-    return const WorkspaceThemePicker();
+    );
   }
 }
 
@@ -542,8 +168,7 @@ class _AdviserCard extends ConsumerWidget {
       data: (d) => d['advisorySection']?['name']?.toString(),
       orElse: () => null,
     );
-    return _State._section(
-      context,
+    return StaffSettingsSection(
       title: 'Adviser',
       subtitle: 'Pick your section from the master teacher\u2019s schedule.',
       child: Column(
@@ -748,8 +373,7 @@ class _MasterTeacherCard extends ConsumerWidget {
         if (!eligible && !isMaster) return const SizedBox.shrink();
         return Column(
           children: [
-            _State._section(
-              context,
+            StaffSettingsSection(
               title: 'Master Teacher',
               subtitle: 'Self-declared designation for grades 7–10 classes.',
               child: Row(

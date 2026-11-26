@@ -9,6 +9,7 @@ import 'package:hive_flutter/hive_flutter.dart';
 
 import 'api_client.dart';
 import 'config.dart';
+import 'push_service.dart';
 import '../shared/models.dart';
 import '../shared/user_messages.dart';
 
@@ -129,6 +130,8 @@ class AuthNotifier extends StateNotifier<AuthState> {
         await Hive.box(AppConfig.termScopeBox).clear();
       }
       state = AuthState(loggedIn: true, role: role, portal: portal);
+      // Register this device for push notifications now that a session exists.
+      PushService.instance.register();
       return true;
     } on DioException catch (e) {
       try {
@@ -145,6 +148,8 @@ class AuthNotifier extends StateNotifier<AuthState> {
 
   Future<void> logout() async {
     ++_sessionRevision;
+    // Stop pushes to this device before the access token is discarded.
+    await PushService.instance.unregister();
     await api.logout();
     await Hive.box(AppConfig.portalBox).clear();
     state = const AuthState();
