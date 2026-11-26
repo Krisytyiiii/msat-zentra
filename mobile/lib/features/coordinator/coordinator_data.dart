@@ -35,6 +35,42 @@ final coordinatorInboxProvider =
     FutureProvider.autoDispose<List<ZNotification>>(
       (ref) => ref.watch(coordinatorRepositoryProvider).inbox(),
     );
+
+/// The server-managed school scope shown on the desk header. Coordinator
+/// requests never steer a term; this resolves the active school year and the
+/// term whose dates contain today (Philippine time).
+class CoordinatorScope {
+  const CoordinatorScope({this.schoolYearName = '', this.termNumber});
+  final String schoolYearName;
+  final int? termNumber;
+}
+
+final coordinatorScopeProvider = FutureProvider.autoDispose<CoordinatorScope>((
+  ref,
+) async {
+  final years = await ref.watch(schoolYearsProvider.future);
+  final active =
+      years.where((y) => y.isActive).firstOrNull ?? years.firstOrNull;
+  if (active == null) return const CoordinatorScope();
+  final now = admPhilippineNow();
+  final day = DateTime(now.year, now.month, now.day);
+  Term? current;
+  for (final term in active.terms) {
+    final start = term.startDate;
+    final end = term.endDate;
+    if (start == null || end == null) continue;
+    if (!day.isBefore(DateTime(start.year, start.month, start.day)) &&
+        !day.isAfter(DateTime(end.year, end.month, end.day))) {
+      current = term;
+      break;
+    }
+  }
+  final term = current ?? active.terms.firstOrNull;
+  return CoordinatorScope(
+    schoolYearName: active.name,
+    termNumber: term?.termNumber,
+  );
+});
 final coordinatorListProvider = FutureProvider.autoDispose
     .family<AdmPage<AdmCaseRow>, AdmListQuery>(
       (ref, query) => ref.watch(coordinatorRepositoryProvider).cases(query),
@@ -46,10 +82,6 @@ final coordinatorDevicesProvider = FutureProvider.autoDispose
 final coordinatorCaseProvider = FutureProvider.autoDispose
     .family<AdmCaseDetail, String>(
       (ref, id) => ref.watch(coordinatorRepositoryProvider).caseFile(id),
-    );
-final coordinatorDeviceProvider = FutureProvider.autoDispose
-    .family<AdmDevice?, String>(
-      (ref, id) => ref.watch(coordinatorRepositoryProvider).device(id),
     );
 final coordinatorMonitoringProvider = FutureProvider.autoDispose
     .family<AdmMonitoring, String>(
@@ -180,16 +212,6 @@ class CoordinatorRepository {
         }),
         AdmDevice.fromJson,
       );
-
-  /// Deep-link lookup: the device list endpoint returns every row when no
-  /// paging params are sent, so a detail route can resolve its own device.
-  Future<AdmDevice?> device(String id) async {
-    final page = AdmPage.fromJson(
-      await _get('/api/adm/devices'),
-      AdmDevice.fromJson,
-    );
-    return page.rows.where((d) => d.id == id).firstOrNull;
-  }
 
   Future<AdmCaseDetail> caseFile(String id) async => AdmCaseDetail.fromJson(
     admMap(await _get('/api/adm/case/${Uri.encodeComponent(id)}')),

@@ -45,6 +45,9 @@ class _OverviewState extends ConsumerState<CoordinatorOverviewPage>
       ref
           .refresh(coordinatorListProvider(_meetingPreview).future)
           .then<void>((_) {}, onError: (Object _, StackTrace _) {}),
+      ref
+          .refresh(coordinatorScopeProvider.future)
+          .then<void>((_) {}, onError: (Object _, StackTrace _) {}),
     ]);
   }
 
@@ -57,115 +60,150 @@ class _OverviewState extends ConsumerState<CoordinatorOverviewPage>
   Widget build(BuildContext context) {
     final theme = overviewScreenTheme(zLightTheme());
     final profile = ref.watch(coordinatorProfileProvider);
+    final scope = ref.watch(coordinatorScopeProvider);
     final dashboard = ref.watch(coordinatorDashboardProvider);
     final meetings = ref.watch(coordinatorListProvider(_meetingPreview));
+    // Login hand-off: before the first profile/dashboard data lands, show the
+    // same full shimmering overview skeleton the adviser workspace uses.
+    final initialLoading =
+        !profile.hasValue &&
+        !dashboard.hasValue &&
+        !profile.hasError &&
+        !dashboard.hasError;
     return Theme(
       data: theme,
-      child: RefreshIndicator(
-        onRefresh: refresh,
-        child: SingleChildScrollView(
-          physics: const AlwaysScrollableScrollPhysics(),
-          padding: EdgeInsets.fromLTRB(
-            16,
-            16,
-            16,
-            112 + MediaQuery.paddingOf(context).bottom,
-          ),
-          child: Center(
-            child: ConstrainedBox(
-              constraints: const BoxConstraints(maxWidth: 760),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.stretch,
-                children: [
-                  _welcome(profile),
-                  const SizedBox(height: 16),
-                  OverviewBoard(
-                    icon: LucideIcons.bell,
-                    title: 'Needs attention',
-                    count: _attentionCount(dashboard.asData?.value),
-                    child: dashboard.when(
-                      loading: () => const ZSkeletonRow(),
-                      error: (error, _) => OverviewInlineError(
-                        error: error,
-                        retry: () =>
-                            ref.invalidate(coordinatorDashboardProvider),
+      child: initialLoading
+          ? const ScreenSkeleton(
+              layout: SkeletonLayout.overview,
+              label: 'Loading overview',
+            )
+          : Builder(
+              builder: (context) => RefreshIndicator(
+                onRefresh: refresh,
+                child: SingleChildScrollView(
+                  physics: const AlwaysScrollableScrollPhysics(),
+                  padding: EdgeInsets.fromLTRB(
+                    16,
+                    16,
+                    16,
+                    112 + MediaQuery.paddingOf(context).bottom,
+                  ),
+                  child: Center(
+                    child: ConstrainedBox(
+                      constraints: const BoxConstraints(maxWidth: 760),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.stretch,
+                        children: [
+                          _welcome(context, profile, scope),
+                          const SizedBox(height: 16),
+                          OverviewBoard(
+                            icon: LucideIcons.bell,
+                            title: 'Needs attention',
+                            count: _attentionCount(dashboard.asData?.value),
+                            child: dashboard.when(
+                              loading: () => const ZSkeletonRow(),
+                              error: (error, _) => OverviewInlineError(
+                                error: error,
+                                retry: () => ref.invalidate(
+                                  coordinatorDashboardProvider,
+                                ),
+                              ),
+                              data: _attention,
+                            ),
+                          ),
+                          const SizedBox(height: 16),
+                          OverviewBoard(
+                            icon: LucideIcons.clock,
+                            title: 'Up next',
+                            action: 'View cases',
+                            onAction: () => _open('/coordinator/referrals'),
+                            child: meetings.when(
+                              loading: () => const ZSkeletonRow(),
+                              error: (error, _) => OverviewInlineError(
+                                error: error,
+                                retry: () => ref.invalidate(
+                                  coordinatorListProvider(_meetingPreview),
+                                ),
+                              ),
+                              data: (page) => _upNext(context, page),
+                            ),
+                          ),
+                          const SizedBox(height: 16),
+                          OverviewBoard(
+                            icon: LucideIcons.activity,
+                            title: 'At a glance',
+                            child: dashboard.when(
+                              loading: () => const ScreenSkeleton(
+                                layout: SkeletonLayout.summary,
+                                section: true,
+                              ),
+                              error: (error, _) => OverviewInlineError(
+                                error: error,
+                                retry: () => ref.invalidate(
+                                  coordinatorDashboardProvider,
+                                ),
+                              ),
+                              data: _stats,
+                            ),
+                          ),
+                          const SizedBox(height: 16),
+                          OverviewBoard(
+                            icon: LucideIcons.chartPie,
+                            title: 'Case mix',
+                            child: dashboard.when(
+                              loading: () => const ScreenSkeleton(
+                                layout: SkeletonLayout.chart,
+                                section: true,
+                              ),
+                              error: (error, _) => OverviewInlineError(
+                                error: error,
+                                retry: () => ref.invalidate(
+                                  coordinatorDashboardProvider,
+                                ),
+                              ),
+                              data: (data) => _CaseMix(
+                                stages: admMaps(data['stageBreakdown']),
+                              ),
+                            ),
+                          ),
+                          const SizedBox(height: 16),
+                          OverviewBoard(
+                            icon: LucideIcons.chartColumn,
+                            title: 'Cases by section',
+                            child: dashboard.when(
+                              loading: () => const ScreenSkeleton(
+                                layout: SkeletonLayout.chart,
+                                section: true,
+                              ),
+                              error: (error, _) => OverviewInlineError(
+                                error: error,
+                                retry: () => ref.invalidate(
+                                  coordinatorDashboardProvider,
+                                ),
+                              ),
+                              data: (data) => _SectionMix(
+                                sections: admMaps(data['sectionBreakdown']),
+                              ),
+                            ),
+                          ),
+                        ],
                       ),
-                      data: _attention,
                     ),
                   ),
-                  const SizedBox(height: 16),
-                  OverviewBoard(
-                    icon: LucideIcons.clock,
-                    title: 'Up next',
-                    action: 'View cases',
-                    onAction: () => _open('/coordinator/referrals'),
-                    child: meetings.when(
-                      loading: () => const ZSkeletonRow(),
-                      error: (error, _) => OverviewInlineError(
-                        error: error,
-                        retry: () => ref.invalidate(
-                          coordinatorListProvider(_meetingPreview),
-                        ),
-                      ),
-                      data: _upNext,
-                    ),
-                  ),
-                  const SizedBox(height: 16),
-                  OverviewBoard(
-                    icon: LucideIcons.activity,
-                    title: 'At a glance',
-                    child: dashboard.when(
-                      loading: () => const ZSkeletonRow(),
-                      error: (error, _) => OverviewInlineError(
-                        error: error,
-                        retry: () =>
-                            ref.invalidate(coordinatorDashboardProvider),
-                      ),
-                      data: _stats,
-                    ),
-                  ),
-                  const SizedBox(height: 16),
-                  OverviewBoard(
-                    icon: LucideIcons.chartPie,
-                    title: 'Case mix',
-                    child: dashboard.when(
-                      loading: () => const ZSkeletonRow(),
-                      error: (error, _) => OverviewInlineError(
-                        error: error,
-                        retry: () =>
-                            ref.invalidate(coordinatorDashboardProvider),
-                      ),
-                      data: (data) =>
-                          _CaseMix(stages: admMaps(data['stageBreakdown'])),
-                    ),
-                  ),
-                  const SizedBox(height: 16),
-                  OverviewBoard(
-                    icon: LucideIcons.chartColumn,
-                    title: 'Cases by section',
-                    child: dashboard.when(
-                      loading: () => const ZSkeletonRow(),
-                      error: (error, _) => OverviewInlineError(
-                        error: error,
-                        retry: () =>
-                            ref.invalidate(coordinatorDashboardProvider),
-                      ),
-                      data: (data) => _SectionMix(
-                        sections: admMaps(data['sectionBreakdown']),
-                      ),
-                    ),
-                  ),
-                ],
+                ),
               ),
             ),
-          ),
-        ),
-      ),
     );
   }
 
-  Widget _welcome(AsyncValue<AdmJson> profile) {
+  Widget _welcome(
+    BuildContext context,
+    AsyncValue<AdmJson> profile,
+    AsyncValue<CoordinatorScope> scope,
+  ) {
     final theme = Theme.of(context);
+    final schoolYear = scope.asData?.value.schoolYearName ?? '';
+    final termNumber = scope.asData?.value.termNumber;
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -193,18 +231,18 @@ class _OverviewState extends ConsumerState<CoordinatorOverviewPage>
           runSpacing: 6,
           crossAxisAlignment: WrapCrossAlignment.center,
           children: [
-            ZScopePill(
-              text: 'ADM desk',
-              kind: ScopePillKind.schoolYear,
-              label: 'Desk',
-              compact: true,
-            ),
-            ZPill(
-              label: 'Scope',
-              tone: StatusTone.neutral,
-              badge: true,
-              child: const Text('School-managed scope'),
-            ),
+            if (schoolYear.isNotEmpty)
+              ZScopePill(
+                text: schoolYear,
+                kind: ScopePillKind.schoolYear,
+                compact: true,
+              ),
+            if (termNumber != null)
+              ZScopePill(
+                text: 'Term $termNumber',
+                kind: ScopePillKind.term,
+                compact: true,
+              ),
           ],
         ),
       ],
@@ -250,7 +288,7 @@ class _OverviewState extends ConsumerState<CoordinatorOverviewPage>
     );
   }
 
-  Widget _upNext(AdmPage<AdmCaseRow> page) {
+  Widget _upNext(BuildContext context, AdmPage<AdmCaseRow> page) {
     // Dashboard rows have no meetings. The queue exposes each case's latest
     // slot, so label this bounded preview honestly.
     final upcoming =
@@ -369,6 +407,7 @@ class _OverviewState extends ConsumerState<CoordinatorOverviewPage>
     final kpis = admMap(data['kpis']);
     final devices = admMap(data['deviceSummary']);
     return OverviewStatsGrid(
+      columns: 2,
       items: [
         OverviewStatItem(
           label: 'ADM profiles',
@@ -485,14 +524,16 @@ class _CaseMix extends StatelessWidget {
           ),
         ),
         const SizedBox(height: 12),
-        Wrap(
-          spacing: 8,
-          runSpacing: 8,
+        Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             for (var i = 0; i < rows.length; i++)
-              ZStatusPill(
-                text: '${rows[i].label} ${rows[i].count}',
-                tone: _stageTones[i % _stageTones.length],
+              Padding(
+                padding: EdgeInsets.only(bottom: i == rows.length - 1 ? 0 : 6),
+                child: ZStatusPill(
+                  text: '${rows[i].label} ${rows[i].count}',
+                  tone: _stageTones[i % _stageTones.length],
+                ),
               ),
           ],
         ),

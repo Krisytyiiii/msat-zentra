@@ -216,15 +216,18 @@ class OverviewStatItem {
   final String path;
 }
 
-/// Responsive row/column of Overview figures with vertical dividers.
+/// Responsive Overview figure grid. Defaults to a single row (or column on
+/// narrow screens); pass [columns] for a fixed multi-column grid (e.g. 2×2).
 class OverviewStatsGrid extends StatelessWidget {
   const OverviewStatsGrid({
     super.key,
     required this.items,
     required this.onOpen,
+    this.columns,
   });
   final List<OverviewStatItem> items;
   final ValueChanged<String> onOpen;
+  final int? columns;
 
   @override
   Widget build(BuildContext context) => LayoutBuilder(
@@ -283,6 +286,60 @@ class OverviewStatsGrid extends StatelessWidget {
           ),
       ];
       final dividerColor = theme.colorScheme.outline.withValues(alpha: 0.7);
+      final columns = this.columns;
+      if (columns != null && columns > 0) {
+        final rows = <Widget>[];
+        for (var start = 0; start < tiles.length; start += columns) {
+          final end = (start + columns).clamp(0, tiles.length);
+          final rowTiles = tiles.sublist(start, end);
+          if (rows.isNotEmpty) {
+            rows.add(
+              Divider(
+                height: 1,
+                indent: 14,
+                endIndent: 14,
+                color: dividerColor,
+              ),
+            );
+          }
+          rows.add(
+            IntrinsicHeight(
+              child: Row(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
+                  for (var i = 0; i < rowTiles.length; i++) ...[
+                    if (i > 0)
+                      VerticalDivider(
+                        width: 1,
+                        thickness: 1,
+                        indent: 10,
+                        endIndent: 10,
+                        color: dividerColor,
+                      ),
+                    Expanded(child: rowTiles[i]),
+                  ],
+                  // Keep the final partial row at the same cell width.
+                  for (var i = rowTiles.length; i < columns; i++) ...[
+                    if (i > 0)
+                      VerticalDivider(
+                        width: 1,
+                        thickness: 1,
+                        indent: 10,
+                        endIndent: 10,
+                        color: dividerColor,
+                      ),
+                    const Expanded(child: SizedBox.shrink()),
+                  ],
+                ],
+              ),
+            ),
+          );
+        }
+        return Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: rows,
+        );
+      }
       return row
           ? IntrinsicHeight(
               child: Row(

@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:go_router/go_router.dart';
 import 'package:lucide_icons_flutter/lucide_icons.dart';
 
 import '../../design/overview_theme.dart';
@@ -27,19 +26,10 @@ class _DeviceState extends ConsumerState<CoordinatorDeviceCard> {
     if (_detailsOpen) return;
     _detailsOpen = true;
     try {
-      final device = widget.device;
-      final router = GoRouter.maybeOf(context);
-      if (router != null) {
-        await router.push<void>(
-          '/coordinator/devices/detail/${Uri.encodeComponent(device.id)}',
-          extra: device,
-        );
-      } else {
-        await admPush<void>(
-          context,
-          CoordinatorDeviceDetailPage(deviceId: device.id, initial: device),
-        );
-      }
+      await admPush<void>(
+        context,
+        CoordinatorDeviceDetailPage(device: widget.device),
+      );
     } finally {
       _detailsOpen = false;
       if (mounted) ref.invalidate(coordinatorDevicesProvider);
@@ -183,15 +173,8 @@ String _initials(String name) {
 }
 
 class CoordinatorDeviceDetailPage extends ConsumerStatefulWidget {
-  const CoordinatorDeviceDetailPage({
-    super.key,
-    required this.deviceId,
-    this.initial,
-  });
-  final String deviceId;
-
-  /// Loaded card snapshot; deep links resolve the device themselves.
-  final AdmDevice? initial;
+  const CoordinatorDeviceDetailPage({super.key, required this.device});
+  final AdmDevice device;
 
   @override
   ConsumerState<CoordinatorDeviceDetailPage> createState() =>
@@ -201,17 +184,9 @@ class CoordinatorDeviceDetailPage extends ConsumerStatefulWidget {
 class _DeviceDetailState extends ConsumerState<CoordinatorDeviceDetailPage> {
   bool _busy = false;
 
-  void _close() {
-    final router = GoRouter.maybeOf(context);
-    if (router != null) {
-      router.pop();
-    } else {
-      Navigator.of(context).maybePop();
-    }
-  }
-
-  Future<void> _returnDevice(AdmDevice device) async {
+  Future<void> _returnDevice() async {
     if (_busy) return;
+    final device = widget.device;
     final repo = ref.read(coordinatorRepositoryProvider);
     final messenger = ScaffoldMessenger.of(context);
     setState(() => _busy = true);
@@ -234,7 +209,7 @@ class _DeviceDetailState extends ConsumerState<CoordinatorDeviceDetailPage> {
       }
       invalidateCoordinator(ref);
       if (!mounted) return;
-      _close();
+      Navigator.of(context).pop();
       messenger.showSnackBar(
         const SnackBar(content: Text('Device return recorded.')),
       );
@@ -248,57 +223,7 @@ class _DeviceDetailState extends ConsumerState<CoordinatorDeviceDetailPage> {
   @override
   Widget build(BuildContext context) {
     final theme = overviewScreenTheme(zLightTheme());
-    final resolved = widget.initial == null
-        ? ref.watch(coordinatorDeviceProvider(widget.deviceId))
-        : null;
-    final device = widget.initial ?? resolved?.asData?.value;
-    return Theme(
-      data: theme,
-      child: Scaffold(
-        backgroundColor: Colors.white,
-        appBar: AppBar(
-          backgroundColor: Colors.white,
-          surfaceTintColor: Colors.transparent,
-          scrolledUnderElevation: 0,
-          shape: const Border(bottom: BorderSide(color: Color(0xFFEDF0F6))),
-          centerTitle: true,
-          leadingWidth: 64,
-          leading: ZBackButton(
-            icon: const Icon(Icons.chevron_left),
-            tooltip: 'Back',
-            padding: EdgeInsets.zero,
-            onPressed: _close,
-          ),
-          title: const Text('Device Details'),
-        ),
-        body: device != null
-            ? _body(device)
-            : resolved == null
-            ? const Center(child: Text('Device unavailable.'))
-            : resolved.when(
-                loading: () => const Padding(
-                  padding: EdgeInsets.all(16),
-                  child: ZSkeletonList(),
-                ),
-                error: (e, _) => ErrorView(
-                  message: e,
-                  onRetry: () => ref.invalidate(
-                    coordinatorDeviceProvider(widget.deviceId),
-                  ),
-                ),
-                data: (value) => value == null
-                    ? const ZEmpty(
-                        icon: Icons.devices_outlined,
-                        title: 'Device unavailable',
-                        subtitle: 'This device may have been removed.',
-                      )
-                    : _body(value),
-              ),
-      ),
-    );
-  }
-
-  Widget _body(AdmDevice d) {
+    final d = widget.device;
     final name = d.student.isEmpty ? 'Device holder' : d.student;
     Widget panel(
       String title,
@@ -337,60 +262,84 @@ class _DeviceDetailState extends ConsumerState<CoordinatorDeviceDetailPage> {
         ],
       ),
     );
-    return Align(
-      alignment: Alignment.topCenter,
-      child: ConstrainedBox(
-        constraints: const BoxConstraints(maxWidth: 760),
-        child: ListView(
-          padding: const EdgeInsets.fromLTRB(12, 16, 12, 32),
-          children: [
-            ZContentHeader(
-              title: name,
-              icon: LucideIcons.tablet,
-              description:
-                  'LRN ${d.lrn.isEmpty ? '—' : d.lrn} · ${d.returned ? 'Returned' : 'Issued'}',
-            ),
-            const SizedBox(height: 12),
-            Wrap(
-              spacing: 6,
-              runSpacing: 6,
+    return Theme(
+      data: theme,
+      child: Scaffold(
+        backgroundColor: Colors.white,
+        appBar: AppBar(
+          backgroundColor: Colors.white,
+          surfaceTintColor: Colors.transparent,
+          scrolledUnderElevation: 0,
+          shape: const Border(bottom: BorderSide(color: Color(0xFFEDF0F6))),
+          centerTitle: true,
+          leadingWidth: 64,
+          leading: ZBackButton(
+            icon: const Icon(Icons.chevron_left),
+            tooltip: 'Back',
+            padding: EdgeInsets.zero,
+            onPressed: () => Navigator.of(context).maybePop(),
+          ),
+          title: const Text('Device Details'),
+        ),
+        body: Align(
+          alignment: Alignment.topCenter,
+          child: ConstrainedBox(
+            constraints: const BoxConstraints(maxWidth: 760),
+            child: ListView(
+              padding: const EdgeInsets.fromLTRB(12, 16, 12, 32),
               children: [
-                ZStatusPill(
-                  text: d.returned ? 'Returned' : 'Issued',
-                  tone: d.returned ? StatusTone.green : StatusTone.blue,
+                ZContentHeader(
+                  title: name,
+                  icon: LucideIcons.tablet,
+                  description:
+                      'LRN ${d.lrn.isEmpty ? '—' : d.lrn} · ${d.returned ? 'Returned' : 'Issued'}',
                 ),
-                if (d.type.isNotEmpty)
-                  ZStatusPill(text: d.type, tone: StatusTone.blue),
-                if (d.serial.isNotEmpty)
-                  ZStatusPill(
-                    text: 'Serial ${d.serial}',
-                    tone: StatusTone.neutral,
+                const SizedBox(height: 12),
+                Wrap(
+                  spacing: 6,
+                  runSpacing: 6,
+                  children: [
+                    ZStatusPill(
+                      text: d.returned ? 'Returned' : 'Issued',
+                      tone: d.returned ? StatusTone.green : StatusTone.blue,
+                    ),
+                    if (d.type.isNotEmpty)
+                      ZStatusPill(text: d.type, tone: StatusTone.blue),
+                    if (d.serial.isNotEmpty)
+                      ZStatusPill(
+                        text: 'Serial ${d.serial}',
+                        tone: StatusTone.neutral,
+                      ),
+                  ],
+                ),
+                panel('Device', [
+                  Text('Type: ${d.type.isEmpty ? '—' : d.type}'),
+                  Text('Serial number: ${d.serial.isEmpty ? '—' : d.serial}'),
+                ], highlighted: true),
+                panel('Issued', [Text(admDate(d.issuedDate))]),
+                panel('Returned', [
+                  Text(
+                    d.returned ? admDate(d.returnedDate) : 'Not returned yet',
                   ),
+                ]),
+                if (d.notes.isNotEmpty)
+                  panel('Condition notes', [Text(d.notes)]),
+                if (!d.returned) ...[
+                  const SizedBox(height: 24),
+                  FilledButton(
+                    style: FilledButton.styleFrom(
+                      backgroundColor: const Color(0xFF2563EB),
+                      foregroundColor: Colors.white,
+                      minimumSize: const Size.fromHeight(48),
+                    ),
+                    onPressed: _busy ? null : _returnDevice,
+                    child: Text(_busy ? 'Recording…' : 'Record return'),
+                  ),
+                ],
+                const SizedBox(height: 24),
               ],
             ),
-            panel('Device', [
-              Text('Type: ${d.type.isEmpty ? '—' : d.type}'),
-              Text('Serial number: ${d.serial.isEmpty ? '—' : d.serial}'),
-            ], highlighted: true),
-            panel('Issued', [Text(admDate(d.issuedDate))]),
-            panel('Returned', [
-              Text(d.returned ? admDate(d.returnedDate) : 'Not returned yet'),
-            ]),
-            if (d.notes.isNotEmpty) panel('Condition notes', [Text(d.notes)]),
-            if (!d.returned) ...[
-              const SizedBox(height: 24),
-              FilledButton(
-                style: FilledButton.styleFrom(
-                  backgroundColor: const Color(0xFF2563EB),
-                  foregroundColor: Colors.white,
-                  minimumSize: const Size.fromHeight(48),
-                ),
-                onPressed: _busy ? null : () => _returnDevice(d),
-                child: Text(_busy ? 'Recording…' : 'Record return'),
-              ),
-            ],
-            const SizedBox(height: 24),
-          ],
+          ),
         ),
       ),
     );
