@@ -1,11 +1,12 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:lucide_icons_flutter/lucide_icons.dart';
 
 import '../../design/overview_theme.dart';
-import '../../design/status_palette.dart';
 import '../../design/theme.dart' show zLightTheme;
 import '../../shared/widgets.dart';
+import '../adviser/student_profile_components.dart';
 
 import 'coordinator_data.dart';
 import 'coordinator_forms.dart';
@@ -53,6 +54,13 @@ class _MonitoringState extends ConsumerState<CoordinatorMonitoringPage>
     }
   }
 
+  Future<void> _copyLrn(String lrn) async {
+    await Clipboard.setData(ClipboardData(text: lrn));
+    if (!mounted) return;
+    ScaffoldMessenger.of(context)
+        .showSnackBar(const SnackBar(content: Text('LRN copied.')));
+  }
+
   @override
   Future<void> reload() async => ref
       .refresh(coordinatorMonitoringProvider(widget.caseId).future)
@@ -74,29 +82,28 @@ class _MonitoringState extends ConsumerState<CoordinatorMonitoringPage>
           centerTitle: true,
           leadingWidth: 64,
           leading: ZBackButton(
-            icon: const Icon(Icons.chevron_left),
+            icon: const Icon(LucideIcons.chevronLeft),
             tooltip: 'Back',
             padding: EdgeInsets.zero,
             onPressed: () => admClose(context, '/coordinator/enrolled'),
           ),
-          title: const Text('Enrolled Learner'),
+          title: const Text('Student Profile'),
         ),
-        body: Align(
-          alignment: Alignment.topCenter,
-          child: ConstrainedBox(
-            constraints: const BoxConstraints(maxWidth: 760),
-            child: data.when(
-              loading: () => const Padding(
-                padding: EdgeInsets.all(16),
-                child: ZSkeletonList(),
-              ),
-              error: (e, _) => ErrorView(message: e, onRetry: refresh),
-              data: (m) => RefreshIndicator(
-                onRefresh: refresh,
+        body: data.when(
+          loading: () => const Padding(
+            padding: EdgeInsets.all(16),
+            child: ZSkeletonList(count: 4),
+          ),
+          error: (e, _) => ErrorView(message: e, onRetry: refresh),
+          data: (m) => RefreshIndicator(
+            onRefresh: refresh,
+            child: Center(
+              child: ConstrainedBox(
+                constraints: const BoxConstraints(maxWidth: 900),
                 child: ListView(
                   physics: const AlwaysScrollableScrollPhysics(),
-                  padding: const EdgeInsets.fromLTRB(12, 16, 12, 32),
-                  children: [_content(m)],
+                  padding: const EdgeInsets.fromLTRB(16, 12, 16, 32),
+                  children: [_loaded(m)],
                 ),
               ),
             ),
@@ -106,286 +113,228 @@ class _MonitoringState extends ConsumerState<CoordinatorMonitoringPage>
     );
   }
 
-  Widget _content(AdmMonitoring m) {
+  Widget _loaded(AdmMonitoring m) {
     final name = admText(m.header['studentName']);
     final lrn = admText(m.header['lrn']);
     final section = admText(m.header['section']);
     final stageLabel = admText(m.header['stageLabel']);
     final approvedAt = admText(m.header['approvedAt']);
+    final completed = m.header['stage'] == 'completion';
     final total = admInt(m.progress['total']);
     final submitted = admInt(m.progress['submitted']);
     final overdue = admInt(m.progress['overdueCount']);
+    final remaining = (total - submitted).clamp(0, total);
     final nextDue = admText(m.progress['nextDueAt']);
     final canComplete =
         m.header['stage'] == 'enrollment_monitoring' &&
         total > 0 &&
         submitted == total;
+    final subtitle = [
+      if (section.isNotEmpty) section,
+      if (stageLabel.isNotEmpty) stageLabel,
+    ].join(' · ');
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
-        ZContentHeader(
-          title: name.isEmpty ? 'Enrolled learner' : name,
-          icon: LucideIcons.school,
-          description: 'Monitoring · read-only',
+        StudentIdentityCard(
+          name: name.isEmpty ? 'Enrolled learner' : name,
+          lrn: lrn,
+          subtitle: subtitle,
+          dotColor: completed ? studentGreen : studentBlue,
+          badge: StudentTonePill(
+            text: completed ? 'Completed' : 'In progress',
+            tone: completed ? StudentTone.green : StudentTone.blue,
+          ),
+          onCopyLrn: () => _copyLrn(lrn),
         ),
-        const SizedBox(height: 12),
-        Wrap(
-          spacing: 6,
-          runSpacing: 6,
-          children: [
-            if (lrn.isNotEmpty)
-              ZPill(
-                label: 'LRN',
-                tone: StatusTone.neutral,
-                badge: true,
-                child: Text(lrn),
-              ),
-            if (section.isNotEmpty)
-              ZPill(
-                label: 'Section',
-                tone: StatusTone.blue,
-                badge: true,
-                child: Text(section),
-              ),
-            if (stageLabel.isNotEmpty)
-              ZPill(
-                label: 'Stage',
-                tone: StatusTone.blue,
-                badge: true,
-                child: Text(stageLabel),
-              ),
-            if (approvedAt.isNotEmpty)
-              ZPill(
-                label: 'Principal approval',
-                tone: StatusTone.green,
-                badge: true,
-                child: Text(admDate(approvedAt)),
-              ),
-          ],
+        const StudentSectionHeader(
+          icon: LucideIcons.activity,
+          color: studentBlue,
+          title: 'MODULE PROGRESS',
         ),
-        _SectionCard(
-          title: 'Module progress',
-          children: [
-            Row(
-              children: [
-                Expanded(
-                  child: Text(
-                    '$submitted / $total submitted',
-                    style: const TextStyle(
-                      fontSize: 15,
-                      fontWeight: FontWeight.w700,
-                      color: Color(0xFF0F172A),
+        StudentSectionCard(
+          padded: true,
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              Row(
+                children: [
+                  Expanded(
+                    child: StudentMetricTile(
+                      label: 'SUBMITTED',
+                      value: '$submitted / $total',
                     ),
                   ),
-                ),
-                if (overdue > 0)
-                  ZStatusPill(text: '$overdue overdue', tone: StatusTone.red),
-              ],
-            ),
-            const SizedBox(height: 8),
-            ClipRRect(
-              borderRadius: BorderRadius.circular(6),
-              child: LinearProgressIndicator(
-                value: total == 0 ? 0 : (submitted / total).clamp(0, 1),
-                minHeight: 8,
-                backgroundColor: const Color(0xFFF1F5F9),
-                color: const Color(0xFF2563EB),
-              ),
-            ),
-            const SizedBox(height: 10),
-            Wrap(
-              spacing: 12,
-              runSpacing: 4,
-              children: [
-                if (nextDue.isNotEmpty)
-                  _Meta(
-                    icon: LucideIcons.calendar,
-                    text: 'Next due ${admDate(nextDue)}',
+                  const SizedBox(width: 8),
+                  Expanded(
+                    child: StudentMetricTile(
+                      label: 'OVERDUE',
+                      value: '$overdue',
+                      tone: overdue > 0 ? StudentTone.red : StudentTone.neutral,
+                    ),
                   ),
-                const _Meta(
-                  icon: LucideIcons.bookOpen,
-                  text: 'Adviser-managed submissions',
-                ),
-              ],
-            ),
-            if (canComplete) ...[
+                  const SizedBox(width: 8),
+                  Expanded(
+                    child: StudentMetricTile(
+                      label: 'REMAINING',
+                      value: '$remaining',
+                      tone: remaining > 0
+                          ? StudentTone.amber
+                          : StudentTone.green,
+                    ),
+                  ),
+                ],
+              ),
               const SizedBox(height: 12),
-              FilledButton(
-                style: FilledButton.styleFrom(
-                  backgroundColor: const Color(0xFF2563EB),
-                  foregroundColor: Colors.white,
-                  minimumSize: const Size.fromHeight(48),
+              ClipRRect(
+                borderRadius: BorderRadius.circular(4),
+                child: LinearProgressIndicator(
+                  value: total == 0 ? 0 : (submitted / total).clamp(0, 1),
+                  minHeight: 6,
+                  color: studentBlue,
+                  backgroundColor: studentBlue.withValues(alpha: 0.14),
                 ),
-                onPressed: _busy ? null : () => _complete(m),
-                child: Text(_busy ? 'Completing…' : 'Complete case'),
               ),
+              const SizedBox(height: 8),
+              Text(
+                total == 0
+                    ? 'No modules released yet.'
+                    : remaining == 0
+                    ? 'All $total modules submitted · On track'
+                    : '$remaining of $total modules still due${nextDue.isEmpty ? '' : ' · Next due ${admDate(nextDue)}'}',
+                style: TextStyle(
+                  fontSize: 11,
+                  height: 1.4,
+                  color: remaining == 0 ? studentGreen : studentMuted,
+                ),
+              ),
+              if (approvedAt.isNotEmpty) ...[
+                const SizedBox(height: 6),
+                Text(
+                  'Principal approval ${admDate(approvedAt)}',
+                  style: const TextStyle(fontSize: 11, color: studentMuted),
+                ),
+              ],
+              if (canComplete) ...[
+                const SizedBox(height: 12),
+                FilledButton(
+                  style: FilledButton.styleFrom(
+                    backgroundColor: studentBlue,
+                    foregroundColor: Colors.white,
+                    minimumSize: const Size.fromHeight(48),
+                  ),
+                  onPressed: _busy ? null : () => _complete(m),
+                  child: Text(_busy ? 'Completing…' : 'Complete case'),
+                ),
+              ],
             ],
-          ],
+          ),
         ),
-        _SectionCard(
-          title: 'Modules (${m.modules.length})',
-          children: [
-            if (m.modules.isEmpty)
-              const ZEmpty(
-                compact: true,
-                icon: Icons.book_outlined,
-                title: 'No modules released yet.',
-              ),
-            for (final module in m.modules) _ModuleCard(module: module),
-          ],
+        StudentSectionHeader(
+          icon: LucideIcons.bookOpen,
+          color: studentAmber,
+          title: 'MODULES (${m.modules.length})',
         ),
-        _SectionCard(
-          title: 'Devices (${m.devices.length})',
-          children: [
-            if (m.devices.isEmpty)
-              const ZEmpty(
-                compact: true,
-                icon: Icons.devices_outlined,
-                title: 'No devices recorded.',
-              ),
-            for (final d in m.devices)
-              Padding(
-                padding: const EdgeInsets.only(bottom: 8),
-                child: Row(
-                  children: [
-                    Expanded(
-                      child: Text(
-                        '${admText(d['deviceType'])} · ${admText(d['deviceSerial'])}',
-                        style: const TextStyle(
-                          fontSize: 13,
-                          fontWeight: FontWeight.w600,
-                          color: Color(0xFF172033),
-                        ),
-                      ),
-                    ),
-                    ZStatusPill(
-                      text: admText(d['returnedDate']).isEmpty
-                          ? 'Issued'
-                          : 'Returned',
-                      tone: admText(d['returnedDate']).isEmpty
-                          ? StatusTone.blue
-                          : StatusTone.green,
-                    ),
-                  ],
-                ),
-              ),
-          ],
+        if (m.modules.isEmpty)
+          const StudentSectionCard(
+            child: ZEmpty(
+              compact: true,
+              icon: Icons.book_outlined,
+              title: 'No modules released yet.',
+            ),
+          )
+        else
+          StudentSectionCard(
+            padded: true,
+            child: Column(
+              children: [
+                for (var i = 0; i < m.modules.length; i++) ...[
+                  if (i > 0) const SizedBox(height: 8),
+                  _ModuleRow(module: m.modules[i]),
+                ],
+              ],
+            ),
+          ),
+        StudentSectionHeader(
+          icon: LucideIcons.tablet,
+          color: studentGreen,
+          title: 'DEVICES (${m.devices.length})',
         ),
-        _SectionCard(
-          title: 'Case timeline (${m.timeline.length})',
-          children: [
-            if (m.timeline.isEmpty)
-              const ZEmpty(
-                compact: true,
-                icon: Icons.history,
-                title: 'No timeline entries.',
-              ),
-            for (final event in m.timeline)
-              ListTile(
-                dense: true,
-                contentPadding: EdgeInsets.zero,
-                title: Text(
-                  admText(event['label']),
-                  style: const TextStyle(
-                    fontSize: 13,
-                    fontWeight: FontWeight.w600,
-                  ),
-                ),
-                subtitle: Text(
-                  '${admText(event['detail'])}${admText(event['detail']).isEmpty ? '' : ' · '}${admDate(admText(event['at'] ?? event['date']))}',
-                  style: const TextStyle(
-                    fontSize: 12,
-                    color: Color(0xFF64748B),
-                  ),
-                ),
-              ),
-          ],
+        if (m.devices.isEmpty)
+          const StudentSectionCard(
+            child: ZEmpty(
+              compact: true,
+              icon: Icons.devices_outlined,
+              title: 'No devices recorded.',
+            ),
+          )
+        else
+          StudentSectionCard(
+            padded: true,
+            child: Column(
+              children: [
+                for (var i = 0; i < m.devices.length; i++) ...[
+                  if (i > 0) const SizedBox(height: 8),
+                  _DeviceRow(device: m.devices[i]),
+                ],
+              ],
+            ),
+          ),
+        StudentSectionHeader(
+          icon: LucideIcons.history,
+          color: studentBlue,
+          title: 'CASE TIMELINE (${m.timeline.length})',
         ),
+        if (m.timeline.isEmpty)
+          const StudentSectionCard(
+            child: ZEmpty(
+              compact: true,
+              icon: Icons.history,
+              title: 'No timeline entries.',
+            ),
+          )
+        else
+          StudentSectionCard(
+            padded: true,
+            child: Column(
+              children: [
+                for (var i = 0; i < m.timeline.length; i++) ...[
+                  if (i > 0) const SizedBox(height: 8),
+                  _TimelineRow(event: m.timeline[i]),
+                ],
+              ],
+            ),
+          ),
       ],
     );
   }
 }
 
-class _SectionCard extends StatelessWidget {
-  const _SectionCard({required this.title, required this.children});
-  final String title;
-  final List<Widget> children;
-
-  @override
-  Widget build(BuildContext context) => Container(
-    width: double.infinity,
-    margin: const EdgeInsets.only(top: 12),
-    padding: const EdgeInsets.all(12),
-    decoration: BoxDecoration(
-      color: Colors.white,
-      borderRadius: BorderRadius.circular(14),
-      border: Border.all(color: const Color(0xFFE2E8F0)),
-    ),
-    child: Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Text(
-          title,
-          style: const TextStyle(
-            fontSize: 12,
-            fontWeight: FontWeight.w700,
-            color: Color(0xFF0F172A),
-          ),
-        ),
-        const SizedBox(height: 8),
-        ...children,
-      ],
-    ),
-  );
-}
-
-class _Meta extends StatelessWidget {
-  const _Meta({required this.icon, required this.text});
-  final IconData icon;
-  final String text;
-
-  @override
-  Widget build(BuildContext context) => Row(
-    mainAxisSize: MainAxisSize.min,
-    children: [
-      Icon(icon, size: 14, color: const Color(0xFF8B9BBA)),
-      const SizedBox(width: 5),
-      Flexible(
-        child: Text(
-          text,
-          style: const TextStyle(fontSize: 12, color: Color(0xFF8B9BBA)),
-        ),
-      ),
-    ],
-  );
-}
-
-class _ModuleCard extends StatelessWidget {
-  const _ModuleCard({required this.module});
+class _ModuleRow extends StatelessWidget {
+  const _ModuleRow({required this.module});
   final AdmJson module;
 
-  StatusTone get _tone {
+  StudentTone get _tone {
     final status = admText(module['status']).toLowerCase();
     if (status.contains('submit') ||
         status.contains('complete') ||
         status.contains('graded')) {
-      return StatusTone.green;
+      return StudentTone.green;
     }
-    if (status.contains('overdue')) return StatusTone.red;
-    if (status.contains('late')) return StatusTone.amber;
-    return StatusTone.neutral;
+    if (status.contains('overdue')) return StudentTone.red;
+    if (status.contains('late')) return StudentTone.amber;
+    return StudentTone.neutral;
   }
 
   @override
   Widget build(BuildContext context) {
     final due = admText(module['dueDate']);
     return Container(
-      margin: const EdgeInsets.only(bottom: 8),
-      padding: const EdgeInsets.all(12),
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 10),
       decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: const Color(0xFFE6ECF4)),
+        color: studentSoft,
+        borderRadius: BorderRadius.circular(10),
+        border: Border.all(color: studentLine),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -393,42 +342,64 @@ class _ModuleCard extends StatelessWidget {
           Row(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
+              Container(
+                width: 7,
+                height: 7,
+                margin: const EdgeInsets.only(top: 4),
+                decoration: BoxDecoration(
+                  shape: BoxShape.circle,
+                  color: switch (_tone) {
+                    StudentTone.green => studentGreen,
+                    StudentTone.red => studentRed,
+                    StudentTone.amber => studentAmber,
+                    _ => studentBlue,
+                  },
+                ),
+              ),
+              const SizedBox(width: 8),
               Expanded(
                 child: Text(
                   admText(module['moduleName']),
                   style: const TextStyle(
-                    fontSize: 13,
+                    fontSize: 12,
                     fontWeight: FontWeight.w600,
-                    color: Color(0xFF172033),
+                    color: studentInk,
                   ),
                 ),
               ),
               const SizedBox(width: 8),
-              ZStatusPill(
+              StudentTonePill(
                 text: admLabel(admText(module['status'])),
                 tone: _tone,
               ),
             ],
           ),
           const SizedBox(height: 4),
-          Text(
-            '${module['source'] == 'section' ? 'Section module' : 'Case module'}${due.isEmpty ? '' : ' · Due ${admDate(due)}'}',
-            style: const TextStyle(fontSize: 12, color: Color(0xFF64748B)),
+          Padding(
+            padding: const EdgeInsets.only(left: 15),
+            child: Text(
+              '${module['source'] == 'section' ? 'Section module' : 'Case module'}${due.isEmpty ? '' : ' · Due ${admDate(due)}'}',
+              style: const TextStyle(fontSize: 11, color: studentMuted),
+            ),
           ),
           if (admText(module['remarks']).isNotEmpty)
             Padding(
-              padding: const EdgeInsets.only(top: 4),
+              padding: const EdgeInsets.only(left: 15, top: 4),
               child: Text(
                 admText(module['remarks']),
-                style: const TextStyle(fontSize: 12, color: Color(0xFF64748B)),
+                style: const TextStyle(
+                  fontSize: 11,
+                  height: 1.35,
+                  color: studentBody,
+                ),
               ),
             ),
           if (module['submissionKind'] == 'physical')
             const Padding(
-              padding: EdgeInsets.only(top: 4),
+              padding: EdgeInsets.only(left: 15, top: 4),
               child: Text(
                 'Submitted in person',
-                style: TextStyle(fontSize: 12, color: Color(0xFF64748B)),
+                style: TextStyle(fontSize: 11, color: studentMuted),
               ),
             ),
           for (final entry in {
@@ -441,9 +412,115 @@ class _ModuleCard extends StatelessWidget {
                 alignment: Alignment.centerLeft,
                 child: TextButton(
                   onPressed: () => admOpenUrl(context, admText(entry.value)),
+                  style: TextButton.styleFrom(
+                    foregroundColor: studentBlue,
+                    minimumSize: Size.zero,
+                    tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                    padding: const EdgeInsets.only(left: 15, top: 4),
+                    textStyle: const TextStyle(fontSize: 11),
+                  ),
                   child: Text(entry.key),
                 ),
               ),
+        ],
+      ),
+    );
+  }
+}
+
+class _DeviceRow extends StatelessWidget {
+  const _DeviceRow({required this.device});
+  final AdmJson device;
+
+  @override
+  Widget build(BuildContext context) {
+    final returned = admText(device['returnedDate']).isNotEmpty;
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 10),
+      decoration: BoxDecoration(
+        color: studentSoft,
+        borderRadius: BorderRadius.circular(10),
+        border: Border.all(color: studentLine),
+      ),
+      child: Row(
+        children: [
+          const Icon(LucideIcons.tablet, size: 16, color: studentMuted),
+          const SizedBox(width: 8),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  '${admText(device['deviceType'])} · ${admText(device['deviceSerial'])}',
+                  style: const TextStyle(
+                    fontSize: 12,
+                    fontWeight: FontWeight.w600,
+                    color: studentInk,
+                  ),
+                ),
+                if (returned)
+                  Text(
+                    'Returned ${admDate(admText(device['returnedDate']))}',
+                    style: const TextStyle(fontSize: 11, color: studentMuted),
+                  ),
+              ],
+            ),
+          ),
+          const SizedBox(width: 8),
+          StudentTonePill(
+            text: returned ? 'Returned' : 'Issued',
+            tone: returned ? StudentTone.green : StudentTone.blue,
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _TimelineRow extends StatelessWidget {
+  const _TimelineRow({required this.event});
+  final AdmJson event;
+
+  @override
+  Widget build(BuildContext context) {
+    final at = admText(event['at'] ?? event['date']);
+    final detail = admText(event['detail']);
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 10),
+      decoration: BoxDecoration(
+        color: studentSoft,
+        borderRadius: BorderRadius.circular(10),
+        border: Border.all(color: studentLine),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            admText(event['label']),
+            style: const TextStyle(
+              fontSize: 12,
+              fontWeight: FontWeight.w600,
+              color: studentInk,
+            ),
+          ),
+          if (detail.isNotEmpty) ...[
+            const SizedBox(height: 2),
+            Text(
+              detail,
+              style: const TextStyle(
+                fontSize: 11,
+                height: 1.35,
+                color: studentBody,
+              ),
+            ),
+          ],
+          if (at.isNotEmpty) ...[
+            const SizedBox(height: 2),
+            Text(
+              admDate(at),
+              style: const TextStyle(fontSize: 11, color: studentMuted),
+            ),
+          ],
         ],
       ),
     );

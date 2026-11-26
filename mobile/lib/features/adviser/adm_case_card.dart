@@ -25,7 +25,28 @@ int admOrderOf(String stage) => admStageOrder[stage] ?? 2;
 class AdmCaseCard extends StatelessWidget {
   final Map<String, dynamic> caseData;
   final VoidCallback? onTap;
-  const AdmCaseCard({super.key, required this.caseData, this.onTap});
+
+  /// Optional badge for the top-right corner; defaults to Approved/Pending.
+  final Widget? topRight;
+
+  /// Set false to hide the top-right status badge entirely.
+  final bool showStatusPill;
+
+  /// Optional custom footer row replacing stage/eligibility/modules.
+  final Widget? footer;
+
+  /// Set false when [topRight] already carries the module count.
+  final bool showModulesInline;
+
+  const AdmCaseCard({
+    super.key,
+    required this.caseData,
+    this.onTap,
+    this.topRight,
+    this.showStatusPill = true,
+    this.footer,
+    this.showModulesInline = true,
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -51,6 +72,9 @@ class AdmCaseCard extends StatelessWidget {
           child: Column(
             children: [
               Row(
+                crossAxisAlignment: topRight == null
+                    ? CrossAxisAlignment.center
+                    : CrossAxisAlignment.start,
                 children: [
                   CircleAvatar(
                     radius: 19,
@@ -88,46 +112,58 @@ class AdmCaseCard extends StatelessWidget {
                       ],
                     ),
                   ),
-                  const SizedBox(width: 8),
-                  Flexible(
-                    child: ZStatusPill(
-                      text: approved ? 'Approved' : 'Pending',
-                      tone: approved ? StatusTone.green : StatusTone.amber,
+                  if (showStatusPill) ...[
+                    const SizedBox(width: 8),
+                    Flexible(
+                      child: Align(
+                        alignment: Alignment.topRight,
+                        heightFactor: 1,
+                        child:
+                            topRight ??
+                            ZStatusPill(
+                              text: approved ? 'Approved' : 'Pending',
+                              tone: approved
+                                  ? StatusTone.green
+                                  : StatusTone.amber,
+                            ),
+                      ),
                     ),
-                  ),
+                  ],
                 ],
               ),
               const Padding(
                 padding: EdgeInsets.symmetric(vertical: 10),
                 child: Divider(height: 1, color: Color(0xFFE6ECF4)),
               ),
-              Align(
-                alignment: Alignment.centerLeft,
-                child: Wrap(
-                  spacing: 12,
-                  runSpacing: 4,
-                  children:
-                      [
-                            Text(
-                              stageLabel.isEmpty
-                                  ? 'Stage ${admOrderOf(stage)} of 8'
-                                  : stageLabel,
-                            ),
-                            Text('Eligibility: $eligibility'),
-                            Text('Modules $modulesSub/$modulesTotal'),
-                          ]
-                          .map(
-                            (child) => DefaultTextStyle(
-                              style: const TextStyle(
-                                fontSize: 12,
-                                color: Color(0xFF52627C),
-                              ),
-                              child: child,
-                            ),
-                          )
-                          .toList(),
-                ),
-              ),
+              footer ??
+                  Align(
+                    alignment: Alignment.centerLeft,
+                    child: Wrap(
+                      spacing: 12,
+                      runSpacing: 4,
+                      children:
+                          [
+                                Text(
+                                  stageLabel.isEmpty
+                                      ? 'Stage ${admOrderOf(stage)} of 8'
+                                      : stageLabel,
+                                ),
+                                Text('Eligibility: $eligibility'),
+                                if (showModulesInline)
+                                  Text('Modules $modulesSub/$modulesTotal'),
+                              ]
+                              .map(
+                                (child) => DefaultTextStyle(
+                                  style: const TextStyle(
+                                    fontSize: 12,
+                                    color: Color(0xFF52627C),
+                                  ),
+                                  child: child,
+                                ),
+                              )
+                              .toList(),
+                    ),
+                  ),
             ],
           ),
         ),

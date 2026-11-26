@@ -750,6 +750,60 @@ class _ListState extends ConsumerState<CoordinatorListPage>
     'approved': row.approvedBy.isNotEmpty,
   };
 
+  Widget _enrolledFooter(AdmCaseRow row) {
+    final completed = row.stage == 'completion';
+    final pillColor = completed
+        ? const Color(0xFF15803D)
+        : const Color(0xFF2563EB);
+    final pillBackground = completed
+        ? const Color(0xFFF0FDF4)
+        : const Color(0xFFEFF6FF);
+    final pillBorder = completed
+        ? const Color(0xFFBBF7D0)
+        : const Color(0xFFBFDBFE);
+    return Row(
+      children: [
+        Container(
+          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+          decoration: BoxDecoration(
+            color: pillBackground,
+            borderRadius: BorderRadius.circular(8),
+            border: Border.all(color: pillBorder),
+          ),
+          child: Text(
+            completed ? 'Completed' : 'In progress',
+            style: TextStyle(
+              fontSize: 12,
+              fontWeight: FontWeight.w600,
+              color: pillColor,
+            ),
+          ),
+        ),
+        const Spacer(),
+        Text.rich(
+          TextSpan(
+            text: '${row.modulesSubmitted}/${row.modulesTotal}',
+            style: const TextStyle(
+              fontSize: 13,
+              fontWeight: FontWeight.w700,
+              color: Color(0xFF172033),
+            ),
+            children: const [
+              TextSpan(
+                text: ' modules',
+                style: TextStyle(
+                  fontSize: 12,
+                  fontWeight: FontWeight.w400,
+                  color: Color(0xFF52627C),
+                ),
+              ),
+            ],
+          ),
+        ),
+      ],
+    );
+  }
+
   Future<void> _issueDevice() async {
     await context.push('/coordinator/devices/issue');
     if (mounted) await refresh();
@@ -897,6 +951,10 @@ class _ListState extends ConsumerState<CoordinatorListPage>
                                     child: AdmCaseCard(
                                       key: ValueKey(row.id),
                                       caseData: _caseJson(row),
+                                      showStatusPill: widget.desk != 'enrolled',
+                                      footer: widget.desk == 'enrolled'
+                                          ? _enrolledFooter(row)
+                                          : null,
                                       onTap: () => _open(row),
                                     ),
                                   ),

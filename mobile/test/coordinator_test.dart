@@ -813,8 +813,10 @@ void main() {
         width: width,
         scale: 1.6,
       );
-      expect(find.text('1 / 2 submitted'), findsOneWidget);
-      expect(find.text('Monitoring · read-only'), findsOneWidget);
+      expect(find.text('Student Profile'), findsOneWidget);
+      expect(find.text('1 / 2'), findsOneWidget);
+      expect(find.text('SUBMITTED'), findsOneWidget);
+      expect(find.text('In progress'), findsWidgets);
       expect(find.text('Save'), findsNothing);
       expect(api.writes, isEmpty);
       expect(tester.takeException(), isNull);
