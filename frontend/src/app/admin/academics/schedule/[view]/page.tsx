@@ -4,6 +4,7 @@ import { useParams } from "next/navigation";
 import { Suspense } from "react";
 
 import {
+  ScheduleTemplateSkeleton,
   ScheduleWorkspace,
   type TemplateView,
 } from "../template/[[...section]]/page";
@@ -41,7 +42,7 @@ export default function AdminSchedulePanelPage() {
   }
 
   return (
-    <Suspense fallback={<p className="text-sm text-muted-foreground">Loading template…</p>}>
+    <Suspense fallback={<ScheduleTemplateSkeleton view={view} />}>
       <ScheduleWorkspace key={view} initialView={view} />
     </Suspense>
   );

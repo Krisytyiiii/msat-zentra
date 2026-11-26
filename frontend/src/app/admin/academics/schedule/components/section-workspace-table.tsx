@@ -1,5 +1,6 @@
 "use client";
 
+import type { CSSProperties } from "react";
 import { CalendarDays } from "lucide-react";
 import { Pill, type PillTone } from "@/components/ui/pill";
 import { Button } from "@/components/ui/button";
@@ -9,6 +10,7 @@ import {
   type SectionCardStatus,
   type StatusEntry,
 } from "@/components/schedule/SectionScheduleCard";
+import rowStyles from "./subject-workspace-table.module.css";
 
 /** Only the fields the table reads — the page's full section rows fit as-is. */
 export interface WorkspaceSection {
@@ -54,7 +56,7 @@ export function SectionWorkspaceTable({
   onSelect: (id: string) => void;
 }) {
   return (
-    <div className="overflow-x-auto rounded-lg border border-border bg-card">
+    <div className="overflow-x-auto rounded-lg border border-border bg-card dark:bg-transparent">
       <table className="w-full border-collapse text-[13px]">
         <thead>
           <tr className="border-b border-border">
@@ -97,7 +99,7 @@ export function SectionWorkspaceTable({
           </tr>
         </thead>
         <tbody>
-          {sections.map((section) => {
+          {sections.map((section, index) => {
             const active = section.id === activeId;
             const slotCount = section.timetableEntries.length;
             const status = sectionCardStatus(section.timetableEntries);
@@ -114,7 +116,9 @@ export function SectionWorkspaceTable({
                     onSelect(section.id);
                   }
                 }}
+                style={{ "--row-delay": `${Math.min(index, 11) * 35}ms` } as CSSProperties}
                 className={cn(
+                  rowStyles.row,
                   "cursor-pointer border-b border-border/60 transition-colors duration-150 last:border-b-0",
                   active
                     ? "bg-amber-500/10 hover:bg-amber-500/15"

@@ -69,6 +69,7 @@ export function AccountApprovals() {
       <div className="flex flex-col gap-3">
         <StatDeck
           ariaLabel="Pending approval totals"
+          loading={counts.isLoading}
           items={[
             ...TABS.map((item) => ({
               key: item.value,

@@ -4,10 +4,16 @@
   gap: 1.25rem;
   /* 16px comes from the layout shell (.main padding); no extra top pad. */
   padding: 0 0 0.25rem;
+  /* Fill the shell's content column so a single centered card (link code /
+     term entry / empty load) sits in the middle of the page, not under the
+     chrome. `100%` resolves because .main is a definite flex child; the vh
+     fallback keeps the centering if it ever does not. */
+  min-height: max(100%, 66vh);
 }
 
 .body {
   display: flex;
+  flex: 1;
   flex-direction: column;
   gap: 1.25rem;
   min-width: 0;

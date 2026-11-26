@@ -1,6 +1,6 @@
 "use client";
 
-import { Suspense, useEffect, useMemo, useState, type ReactNode } from "react";
+import { Suspense, useEffect, useMemo, useState } from "react";
 import { useParams, useRouter, useSearchParams } from "next/navigation";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { useLiveQuery } from "@/lib/api/live";
@@ -63,6 +63,9 @@ import {
 } from "../../components/schedule-school-years";
 import { Skeleton } from "@/components/ui/skeleton";
 import { ShimmerGroup } from "@/components/ui/shimmer-skeleton";
+import cardStyles from "@/app/principal/academics/assign/components/sections-kanban.module.css";
+import configStyles from "../../components/schedule-config-presets.module.css";
+import schoolYearStyles from "../../components/schedule-school-years.module.css";
 import { useScheduleConflicts } from "../../components/use-schedule-conflicts";
 import { useTemplateWorkload } from "../../components/use-template-workload";
 import { useDock } from "@/components/dock/dock-store";
@@ -72,298 +75,590 @@ import type { SubjectCreateProgress } from "../../components/use-add-subjects";
 import { DELETE_STEPS, DeleteDockRows, type SubjectDeleteProgress } from "../../components/subject-delete-kanban";
 import type { ScheduleSection } from "../../page";
 
-/** The shared `KanbanBoard` shell: hairline header row, then the panel body. */
-function SkeletonBoard({ children }: { children: ReactNode }) {
+/** The weekly grid table (`ScheduleTemplateGrid`) — time column + five days. */
+function SkeletonGridTable() {
   return (
-    <div className="rounded-xl border border-border bg-card p-2.5">
-      <div className="-mx-2.5 flex items-center gap-2 border-b border-border px-3.5 pb-2">
-        <Skeleton className="h-3.5 w-28" />
-        <span className="ml-auto flex items-center gap-2">
-          <Skeleton className="h-6 w-24 rounded-md" />
-          <Skeleton className="h-3 w-8" />
-        </span>
-      </div>
-      <div className="pt-2">{children}</div>
-    </div>
-  );
-}
-
-/** Default view: section picker + warning pills + the weekly grid table. */
-function SkeletonTimetable() {
-  return (
-    <>
-      <div className="flex items-center justify-end gap-2">
-        {Array.from({ length: 3 }).map((_, i) => (
-          <Skeleton key={i} className="h-6 w-24 rounded-md" />
-        ))}
-      </div>
-      <div className="flex flex-col gap-3">
-        <div className="flex flex-col items-center gap-2">
-          <div className="flex items-center gap-2">
-            <Skeleton className="h-3 w-12" />
-            <Skeleton className="h-8 w-48 rounded-md" />
-          </div>
-          <div className="flex flex-wrap items-center justify-center gap-1.5">
-            <Skeleton className="h-5 w-40 rounded-full" />
-            <Skeleton className="h-5 w-36 rounded-full" />
-          </div>
-        </div>
-        <SkeletonBoard>
-          <div className="overflow-hidden rounded-lg border">
-            <div className="grid grid-cols-[10rem_repeat(5,minmax(0,1fr))]">
-              {Array.from({ length: 6 }).map((_, i) => (
-                <Skeleton key={`h-${i}`} className="m-2 h-4" />
-              ))}
-              {Array.from({ length: 6 }).flatMap((_, row) =>
-                Array.from({ length: 6 }).map((__, col) => (
-                  <Skeleton
-                    key={`c-${row}-${col}`}
-                    className={`m-1.5 ${col === 0 ? "h-4" : "h-14"}`}
-                  />
-                )),
-              )}
-            </div>
-          </div>
-        </SkeletonBoard>
-      </div>
-    </>
-  );
-}
-
-/** Sections view: header + toolbar + the section card grid (same as loaded). */
-function SkeletonSections() {
-  return (
-    <div className="flex flex-col gap-3.5">
-      <div className="flex flex-wrap items-start justify-between gap-3">
-        <div className="flex flex-col gap-1.5">
-          <Skeleton className="h-4 w-24" />
-          <Skeleton className="h-3 w-80 max-w-full" />
-        </div>
-        <Skeleton className="h-6 w-28 rounded-md" />
-      </div>
-      <div className="flex flex-wrap items-center justify-between gap-2">
-        <Skeleton className="h-7 w-72 max-w-full rounded-full" />
-        <Skeleton className="h-7 w-60 max-w-full rounded-[16px]" />
-      </div>
-      <div className="grid gap-3 [grid-template-columns:repeat(auto-fill,minmax(16.5rem,1fr))]">
-        {Array.from({ length: 6 }).map((_, i) => (
-          <div key={i} className="flex flex-col gap-2 rounded-xl border border-border bg-card p-2.5">
-            <div className="flex items-center gap-2">
-              <Skeleton className="h-9 w-9 shrink-0 rounded-full" />
-              <div className="flex min-w-0 flex-1 flex-col gap-1">
-                <Skeleton className="h-3.5 w-24" />
+    <div className="overflow-x-auto rounded-lg border">
+      <table className="w-full min-w-[52rem] table-fixed border-collapse text-sm">
+        <thead>
+          <tr>
+            <th scope="col" className="w-40 p-2 text-left">
+              <span className="sr-only">Time</span>
+            </th>
+            {Array.from({ length: 5 }).map((_, day) => (
+              <th key={day} scope="col" className="p-2 text-center">
+                <Skeleton className="mx-auto h-3 w-10" />
+              </th>
+            ))}
+          </tr>
+        </thead>
+        <tbody>
+          {Array.from({ length: 6 }).flatMap((_, row) => (
+            <tr key={row}>
+              <th scope="row" className="border-t p-2 text-left">
                 <Skeleton className="h-3 w-20" />
-              </div>
-              <Skeleton className="h-5 w-16 shrink-0 rounded-full" />
-            </div>
-            <div className="flex items-center gap-1.5">
-              <Skeleton className="h-5 w-24 rounded-full" />
-              <Skeleton className="h-5 w-24 rounded-full" />
-            </div>
-            <Skeleton className="h-3 w-40" />
-            <div className="mt-auto flex justify-end border-t border-border pt-1.5">
-              <Skeleton className="h-5 w-20 rounded-md" />
-            </div>
-          </div>
-        ))}
-      </div>
+              </th>
+              {Array.from({ length: 5 }).map((__, day) => (
+                <td key={day} className="border-t p-1 align-top">
+                  <div className="flex flex-col gap-1 rounded-md border border-input bg-card p-1.5">
+                    <div className="flex items-center justify-between gap-1.5">
+                      <Skeleton className="h-3 w-20" />
+                      <Skeleton className="h-3 w-10" />
+                    </div>
+                    <Skeleton className="h-3 w-16" />
+                  </div>
+                </td>
+              ))}
+            </tr>
+          ))}
+        </tbody>
+      </table>
     </div>
   );
 }
 
 /**
- * Subjects view: the catalog board — title + subtitle, the header actions,
- * the grade scope/search row, then the subject data table (`subject-catalog-kanban`
- * → `SubjectWorkspaceTable`). Deliberately not the sections card grid.
+ * Default view. With no section picked the desk is the "Section workspace"
+ * card: icon + title/subtitle, the three catalog actions, then the section
+ * table (Section, Grade, Learners, Slots, Timetable, open action). With a
+ * section open it is the workspace toolbar (back button, warning pills, save
+ * actions) above the `KanbanBoard` grid — the same two shapes it renders live.
  */
-function SkeletonSubjects() {
+function SkeletonTimetable({ hasSection = false }: { hasSection?: boolean }) {
+  if (!hasSection) {
+    return (
+      <div className="flex flex-col gap-3">
+        <div className="flex flex-col gap-2.5">
+          <div className="flex flex-wrap items-center justify-between gap-2">
+            <div className="flex min-w-0 items-center gap-2">
+              <Skeleton className="h-7 w-7 shrink-0 rounded-lg" />
+              <Skeleton className="h-3.5 w-36" />
+            </div>
+            <div className="flex flex-wrap items-center gap-1.5">
+              <Skeleton className="h-6 w-28 rounded-md" />
+              <Skeleton className="h-6 w-28 rounded-md" />
+              <Skeleton className="h-6 w-28 rounded-md" />
+            </div>
+          </div>
+
+          <div className="overflow-x-auto rounded-lg border border-border bg-card dark:bg-transparent">
+            <table className="w-full border-collapse text-[13px]">
+              <thead>
+                <tr className="border-b border-border">
+                  {["Section", "Grade", "Learners", "Slots", "Timetable"].map((label) => (
+                    <th
+                      key={label}
+                      scope="col"
+                      className="px-4 py-2.5 text-left text-[12px] font-medium tracking-[0.02em] whitespace-nowrap text-muted-foreground"
+                    >
+                      {label}
+                    </th>
+                  ))}
+                  <th scope="col" className="px-4 py-2.5 text-right">
+                    <span className="sr-only">Open grid</span>
+                  </th>
+                </tr>
+              </thead>
+              <tbody>
+                {Array.from({ length: 6 }).map((_, row) => (
+                  <tr key={row} className="border-b border-border/60 last:border-b-0">
+                    <td className="px-4 py-2.5 align-middle">
+                      <Skeleton className="h-3.5 w-28" />
+                      <Skeleton className="mt-1 h-3 w-40" />
+                    </td>
+                    <td className="px-4 py-2.5 align-middle">
+                      <Skeleton className="h-3 w-14" />
+                    </td>
+                    <td className="px-4 py-2.5 align-middle">
+                      <Skeleton className="h-3 w-8" />
+                    </td>
+                    <td className="px-4 py-2.5 align-middle">
+                      <Skeleton className="h-3 w-8" />
+                    </td>
+                    <td className="px-4 py-2.5 align-middle">
+                      <Skeleton className="h-5 w-20 rounded-full" />
+                    </td>
+                    <td className="px-4 py-2.5 text-right align-middle">
+                      <Skeleton className="ml-auto h-6 w-24 rounded-md" />
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
   return (
-    <div className="flex flex-col gap-3.5">
-      <div className="flex flex-wrap items-start justify-between gap-3">
-        <div className="flex flex-col gap-1.5">
-          <div className="flex items-center gap-2">
-            <Skeleton className="h-[1.625rem] w-[1.625rem] shrink-0 rounded-lg" />
+    <>
+      <div className="flex flex-wrap items-center justify-between gap-3 px-1">
+        <Skeleton className="h-6 w-28 rounded-md" />
+        <div className="ml-auto flex flex-wrap items-center justify-end gap-1.5">
+          <Skeleton className="h-5 w-40 rounded-full" />
+          <Skeleton className="h-5 w-44 rounded-full" />
+        </div>
+        <div className="flex flex-wrap items-center justify-end gap-2">
+          <Skeleton className="h-6 w-24 rounded-md" />
+          <Skeleton className="h-6 w-20 rounded-md" />
+        </div>
+      </div>
+
+      <div className="rounded-xl border border-border bg-card p-2.5">
+        <div className="-mx-2.5 flex items-center gap-2 border-b border-border px-3.5 pb-2">
+          <Skeleton className="h-[1.125rem] w-[1.125rem] rounded-md" />
+          <Skeleton className="h-3.5 w-52 max-w-full" />
+          <span className="ml-auto flex items-center gap-2">
+            <Skeleton className="h-6 w-20 rounded-md" />
+            <Skeleton className="h-3 w-12" />
+          </span>
+        </div>
+        <div className="pt-2">
+          <SkeletonGridTable />
+        </div>
+      </div>
+    </>
+  );
+}
+
+/** Sections view: the same card board as `SectionsBoard` — header, grade/search
+ *  toolbar, then section cards (mascot + name/adviser, status, links, action). */
+function SkeletonSections() {
+  return (
+    <section className={cardStyles.board} aria-hidden="true">
+      <header className={cardStyles.header}>
+        <div className={cardStyles.headerText}>
+          <div className={cardStyles.titleRow}>
+            <Skeleton className={cardStyles.titleIcon} />
             <Skeleton className="h-4 w-24" />
           </div>
-          <Skeleton className="h-3 w-[46rem] max-w-full" />
+          <Skeleton className="h-3 w-[42rem] max-w-full" />
         </div>
-        <div className="flex items-center gap-1.5">
-          <Skeleton className="h-6 w-28 rounded-md" />
+        <div className={cardStyles.headerActions}>
           <Skeleton className="h-6 w-28 rounded-md" />
         </div>
-      </div>
-      <div className="flex flex-wrap items-center justify-between gap-2">
-        <Skeleton className="h-7 w-80 max-w-full rounded-full" />
+      </header>
+
+      <div className={cardStyles.toolbar}>
+        <Skeleton className="h-7 w-72 max-w-full rounded-full" />
         <Skeleton className="h-7 w-60 max-w-full rounded-[16px]" />
       </div>
-      <div
-        className="overflow-x-auto rounded-lg border border-border bg-card"
-        aria-busy="true"
-      >
-        <div className="grid grid-cols-[minmax(0,1fr)_6rem_7rem_8rem_9rem] items-center gap-3 border-b border-border px-4 py-2.5">
-          {Array.from({ length: 5 }).map((_, i) => (
-            <Skeleton key={i} className="h-3 w-14" />
-          ))}
-        </div>
-        {Array.from({ length: 6 }).map((_, row) => (
-          <div
-            key={row}
-            className="grid grid-cols-[minmax(0,1fr)_6rem_7rem_8rem_9rem] items-center gap-3 border-b border-border/60 px-4 py-2.5 last:border-b-0"
-          >
-            <div className="flex items-center gap-2">
-              <Skeleton className="h-7 w-7 shrink-0 rounded-md" />
-              <Skeleton className="h-3.5 w-32 max-w-full" />
+
+      <div className={cardStyles.grid}>
+        {Array.from({ length: 6 }).map((_, i) => (
+          <div key={i} className={`${cardStyles.card} ${cardStyles.cardAmber}`}>
+            <header className={cardStyles.cardHead}>
+              <Skeleton className={cardStyles.skelAvatar} />
+              <div className={cardStyles.cardId}>
+                <Skeleton className={cardStyles.skelName} />
+                <Skeleton className={cardStyles.skelTeacher} />
+              </div>
+              <Skeleton className={cardStyles.skelPill} />
+            </header>
+
+            <div className={cardStyles.metaRow}>
+              <Skeleton className="h-3 w-20" />
+              <Skeleton className="ml-auto h-5 w-24 rounded-md" />
             </div>
-            <Skeleton className="h-3 w-14" />
-            <Skeleton className="h-5 w-16 rounded-md" />
-            <Skeleton className="h-5 w-20 rounded-md" />
-            <Skeleton className="h-3 w-24" />
+
+            <div className={cardStyles.linksRow}>
+              <Skeleton className="h-3 w-16" />
+              <Skeleton className="h-3 w-20" />
+            </div>
+
+            <Skeleton className="h-1.5 w-full rounded-full" />
+            <Skeleton className="h-8 w-full rounded-md" />
+
+            <div className={cardStyles.cardActions}>
+              <Skeleton className="h-3 w-28" />
+              <Skeleton className="h-6 w-20 rounded-md" />
+            </div>
           </div>
         ))}
       </div>
-    </div>
+    </section>
   );
 }
 
-/** Configure view: the applied day-shape board, centered like the real panel. */
-function SkeletonDayConfig() {
+/**
+ * Subjects view: the catalog board — header with its delete/add actions, the
+ * grade scope + search row, then the six-column subject data table
+ * (`SubjectWorkspaceTable`: Subject, Grade, Category, Code, Availability,
+ * Actions).
+ */
+function SkeletonSubjects() {
   return (
-    <div className="flex min-h-[calc(100dvh-12rem)] flex-col justify-center gap-4">
-      <div className="mx-auto w-full max-w-xl">
-        <SkeletonBoard>
-          <div className="flex flex-wrap content-start gap-1.5 px-1">
-            {Array.from({ length: 6 }).map((_, i) => (
-              <Skeleton key={i} className="h-6 w-28 rounded-full" />
-            ))}
+    <section className={cardStyles.board} aria-hidden="true">
+      <header className={cardStyles.header}>
+        <div className={cardStyles.headerText}>
+          <div className={cardStyles.titleRow}>
+            <Skeleton className={cardStyles.titleIcon} />
+            <Skeleton className="h-4 w-24" />
           </div>
-          <div className="flex justify-end px-1 pt-2">
-            <Skeleton className="h-6 w-24 rounded-md" />
-          </div>
-        </SkeletonBoard>
+          <Skeleton className="h-3 w-[42rem] max-w-full" />
+        </div>
+        <div className={cardStyles.headerActions}>
+          <Skeleton className="h-6 w-28 rounded-md" />
+          <Skeleton className="h-6 w-28 rounded-md" />
+        </div>
+      </header>
+
+      <div className={cardStyles.toolbar}>
+        <Skeleton className="h-7 w-80 max-w-full rounded-full" />
+        <Skeleton className="h-7 w-60 max-w-full rounded-[16px]" />
       </div>
-    </div>
+
+      <div className="overflow-x-auto rounded-lg border border-border bg-card dark:bg-transparent">
+        <table className="w-full border-collapse text-[13px]">
+          <thead>
+            <tr className="border-b border-border">
+              {["Subject", "Grade", "Category", "Code", "Availability"].map((label) => (
+                <th
+                  key={label}
+                  scope="col"
+                  className="px-4 py-2.5 text-left text-[12px] font-medium tracking-[0.02em] whitespace-nowrap text-muted-foreground"
+                >
+                  {label}
+                </th>
+              ))}
+              <th scope="col" className="px-4 py-2.5 text-right">
+                <span className="sr-only">Actions</span>
+              </th>
+            </tr>
+          </thead>
+          <tbody>
+            {Array.from({ length: 6 }).map((_, row) => (
+              <tr key={row} className="border-b border-border/60 last:border-b-0">
+                <td className="px-4 py-2.5 align-middle">
+                  <div className="flex items-center gap-2">
+                    <Skeleton className="h-7 w-7 shrink-0 rounded-md" />
+                    <Skeleton className="h-3.5 w-32 max-w-full" />
+                  </div>
+                </td>
+                <td className="px-4 py-2.5 align-middle">
+                  <Skeleton className="h-3 w-14" />
+                </td>
+                <td className="px-4 py-2.5 align-middle">
+                  <Skeleton className="h-5 w-16 rounded-md" />
+                </td>
+                <td className="px-4 py-2.5 align-middle">
+                  <Skeleton className="h-3 w-14" />
+                </td>
+                <td className="px-4 py-2.5 align-middle">
+                  <Skeleton className="h-3 w-24" />
+                </td>
+                <td className="px-4 py-2.5 text-right align-middle">
+                  <div className="flex items-center justify-end gap-1">
+                    <Skeleton className="size-6 rounded-md" />
+                    <Skeleton className="size-6 rounded-md" />
+                  </div>
+                </td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+    </section>
   );
 }
 
-/** School year view: header, the year card grid, then the scope strip. */
-function SkeletonSchoolYears() {
+/**
+ * Teachers view: the same catalog board as Subjects but the teacher table —
+ * Teacher (mascot + name/linked account), Code, Account pill, Timetable slots,
+ * Availability and Actions.
+ */
+function SkeletonTeachers() {
   return (
-    <>
-      <div className="flex flex-wrap items-start justify-between gap-3">
-        <div className="flex flex-col gap-1.5">
-          <div className="flex items-center gap-2">
-            <Skeleton className="h-[1.625rem] w-[1.625rem] shrink-0 rounded-lg" />
+    <section className={cardStyles.board} aria-hidden="true">
+      <header className={cardStyles.header}>
+        <div className={cardStyles.headerText}>
+          <div className={cardStyles.titleRow}>
+            <Skeleton className={cardStyles.titleIcon} />
             <Skeleton className="h-4 w-28" />
           </div>
-          <Skeleton className="h-3 w-[46rem] max-w-full" />
+          <Skeleton className="h-3 w-[42rem] max-w-full" />
         </div>
-        <Skeleton className="h-7 w-32 rounded-md" />
+        <div className={cardStyles.headerActions}>
+          <Skeleton className="h-6 w-28 rounded-md" />
+          <Skeleton className="h-6 w-28 rounded-md" />
+        </div>
+      </header>
+
+      <div className={cardStyles.toolbar}>
+        <Skeleton className="h-7 w-72 max-w-full rounded-full" />
+        <Skeleton className="h-7 w-60 max-w-full rounded-[16px]" />
       </div>
-      <div className="grid gap-3.5 sm:grid-cols-2 xl:grid-cols-3">
+
+      <div className="overflow-x-auto rounded-lg border border-border bg-card dark:bg-transparent">
+        <table className="w-full border-collapse text-[13px]">
+          <thead>
+            <tr className="border-b border-border">
+              {["Teacher", "Code", "Account", "Timetable slots", "Availability"].map((label) => (
+                <th
+                  key={label}
+                  scope="col"
+                  className="px-4 py-2.5 text-left text-[12px] font-medium tracking-[0.02em] whitespace-nowrap text-muted-foreground"
+                >
+                  {label}
+                </th>
+              ))}
+              <th scope="col" className="px-4 py-2.5 text-right">
+                <span className="sr-only">Actions</span>
+              </th>
+            </tr>
+          </thead>
+          <tbody>
+            {Array.from({ length: 6 }).map((_, row) => (
+              <tr key={row} className="border-b border-border/60 last:border-b-0">
+                <td className="px-4 py-2.5 align-middle">
+                  <div className="flex items-center gap-2">
+                    <Skeleton className="h-7 w-7 shrink-0 rounded-full" />
+                    <div className="flex flex-col gap-1">
+                      <Skeleton className="h-3.5 w-28" />
+                      <Skeleton className="h-3 w-20" />
+                    </div>
+                  </div>
+                </td>
+                <td className="px-4 py-2.5 align-middle">
+                  <Skeleton className="h-3 w-14" />
+                </td>
+                <td className="px-4 py-2.5 align-middle">
+                  <Skeleton className="h-5 w-20 rounded-md" />
+                </td>
+                <td className="px-4 py-2.5 align-middle">
+                  <Skeleton className="h-3 w-14" />
+                </td>
+                <td className="px-4 py-2.5 align-middle">
+                  <Skeleton className="h-3 w-24" />
+                </td>
+                <td className="px-4 py-2.5 text-right align-middle">
+                  <Skeleton className="ml-auto size-6 rounded-md" />
+                </td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+    </section>
+  );
+}
+
+/**
+ * Configure view: the school-day configuration board — header + New
+ * configuration action, the school-year scope strip, then the preset cards
+ * (day-shape strip, 8 detail rows, action row).
+ */
+function SkeletonDayConfig() {
+  return (
+    <section className={configStyles.board} aria-hidden="true">
+      <header className={configStyles.header}>
+        <div className={configStyles.headerText}>
+          <div className={configStyles.titleRow}>
+            <Skeleton className={configStyles.titleIcon} />
+            <Skeleton className="h-4 w-48" />
+          </div>
+          <Skeleton className="h-3 w-[42rem] max-w-full" />
+        </div>
+        <div className={configStyles.headerActions}>
+          <Skeleton className="h-7 w-40 rounded-md" />
+        </div>
+      </header>
+
+      <div className={configStyles.scope}>
+        <Skeleton className="h-3 w-24" />
+        <Skeleton className="h-7 w-72 max-w-full rounded-full" />
+      </div>
+
+      <div className={configStyles.grid}>
         {Array.from({ length: 3 }).map((_, i) => (
-          <div
-            key={i}
-            className="flex flex-col gap-2.5 rounded-xl border border-border bg-card p-[0.9375rem]"
-          >
-            <div className="flex items-center gap-2">
-              <div className="flex min-w-0 flex-1 flex-col gap-1">
+          <div key={i} className={configStyles.card}>
+            <header className={configStyles.cardHead}>
+              <div className={configStyles.cardId}>
+                <Skeleton className="h-4 w-28" />
+                <Skeleton className="h-3 w-36" />
+              </div>
+              <Skeleton className="h-[1.125rem] w-16 shrink-0 rounded-full" />
+              <Skeleton className="size-[1.125rem] shrink-0 rounded-full" />
+            </header>
+
+            <div className={configStyles.shape}>
+              <Skeleton className="h-2.5 w-full rounded-full" />
+              <div className={configStyles.shapeCaption}>
+                <Skeleton className="h-3 w-12" />
+                <div className={configStyles.shapeLegend}>
+                  <Skeleton className="h-3 w-16" />
+                  <Skeleton className="h-3 w-14" />
+                  <Skeleton className="h-3 w-12" />
+                </div>
+                <Skeleton className="h-3 w-12" />
+              </div>
+            </div>
+
+            <dl className={configStyles.details}>
+              {Array.from({ length: 8 }).map((__, k) => (
+                <div key={k} className={configStyles.detail}>
+                  <Skeleton className="h-3 w-16" />
+                  <Skeleton className="h-3.5 w-20" />
+                </div>
+              ))}
+            </dl>
+
+            <div className={configStyles.cardActions}>
+              <Skeleton className="h-6 w-20 rounded-md" />
+              <Skeleton className="h-6 w-14 rounded-md" />
+              <Skeleton className="h-6 w-20 rounded-md" />
+            </div>
+          </div>
+        ))}
+      </div>
+    </section>
+  );
+}
+
+/** School year view: the year-card board (`ScheduleSchoolYears`) — header,
+ *  three-per-row year cards with chips, term-date strip, three term rows,
+ *  details grid and action row. */
+function SkeletonSchoolYears() {
+  return (
+    <section className={schoolYearStyles.board} aria-hidden="true">
+      <header className={schoolYearStyles.header}>
+        <div className={schoolYearStyles.headerText}>
+          <div className={schoolYearStyles.titleRow}>
+            <Skeleton className={schoolYearStyles.titleIcon} />
+            <Skeleton className="h-4 w-32" />
+          </div>
+          <Skeleton className="h-3 w-[42rem] max-w-full" />
+        </div>
+        <div className={schoolYearStyles.headerActions}>
+          <Skeleton className="h-7 w-36 rounded-md" />
+        </div>
+      </header>
+
+      <div className={schoolYearStyles.grid}>
+        {Array.from({ length: 3 }).map((_, i) => (
+          <div key={i} className={schoolYearStyles.card}>
+            <header className={schoolYearStyles.cardHead}>
+              <div className={schoolYearStyles.cardId}>
                 <Skeleton className="h-4 w-24" />
                 <Skeleton className="h-3 w-36" />
               </div>
               <Skeleton className="h-[1.125rem] w-16 shrink-0 rounded-full" />
-            </div>
-            <div className="flex gap-1">
+            </header>
+
+            <div className={schoolYearStyles.chips}>
               <Skeleton className="h-[1.125rem] w-20 rounded-full" />
               <Skeleton className="h-[1.125rem] w-16 rounded-full" />
             </div>
-            <div className="flex flex-col gap-1.5">
+
+            <div className={schoolYearStyles.shape}>
               <Skeleton className="h-1.5 w-full rounded-full" />
-              <div className="flex justify-between">
+              <div className={schoolYearStyles.shapeCaption}>
                 <Skeleton className="h-3 w-24" />
                 <Skeleton className="h-3 w-16" />
               </div>
             </div>
-            <div className="flex flex-col gap-1">
+
+            <div className={schoolYearStyles.termList}>
               {Array.from({ length: 3 }).map((__, j) => (
-                <div key={j} className="flex items-center gap-2 px-2 py-1.5">
-                  <Skeleton className="h-5 w-5 shrink-0 rounded" />
-                  <div className="flex min-w-0 flex-1 flex-col gap-1">
+                <div key={j} className={schoolYearStyles.termRow}>
+                  <Skeleton className="size-5 shrink-0 rounded" />
+                  <div className={schoolYearStyles.termBody}>
                     <Skeleton className="h-3 w-14" />
                     <Skeleton className="h-3 w-32" />
                   </div>
                 </div>
               ))}
             </div>
-            <div className="grid grid-cols-2 gap-2">
+
+            <dl className={schoolYearStyles.details}>
               {Array.from({ length: 4 }).map((__, k) => (
-                <div key={k} className="flex flex-col gap-1">
+                <div key={k} className={schoolYearStyles.detail}>
                   <Skeleton className="h-3 w-16" />
                   <Skeleton className="h-3.5 w-20" />
                 </div>
               ))}
-            </div>
-            <div className="flex justify-between border-t border-border pt-2">
+            </dl>
+
+            <div className={schoolYearStyles.cardActions}>
               <Skeleton className="h-6 w-20 rounded-md" />
-              <Skeleton className="h-6 w-6 rounded-md" />
+              <Skeleton className="size-6 rounded-md" />
             </div>
           </div>
         ))}
       </div>
-      <div className="flex items-center gap-1.5 px-1">
-        <Skeleton className="h-1.5 w-1.5 rounded-full" />
-        <Skeleton className="h-3 w-64 max-w-full" />
-      </div>
-    </>
+    </section>
   );
 }
 
-/** Publish view: the same section card grid as the loaded board. */
+/** Publish view: the same publish board (`PublishTimetableKanban`) — header
+ *  with both bulk actions, the status/search toolbar, then section cards. */
 function SkeletonPublish() {
   return (
-    <div className="flex flex-col gap-3.5">
-      <div className="flex flex-wrap items-start justify-between gap-3">
-        <div className="flex flex-col gap-1.5">
-          <div className="flex items-center gap-2">
-            <Skeleton className="h-[1.625rem] w-[1.625rem] shrink-0 rounded-lg" />
-            <Skeleton className="h-4 w-24" />
+    <section className={cardStyles.board} aria-hidden="true">
+      <header className={cardStyles.header}>
+        <div className={cardStyles.headerText}>
+          <div className={cardStyles.titleRow}>
+            <Skeleton className={cardStyles.titleIcon} />
+            <Skeleton className="h-4 w-20" />
           </div>
-          <Skeleton className="h-3 w-80 max-w-full" />
+          <Skeleton className="h-3 w-[42rem] max-w-full" />
         </div>
-        <div className="flex items-center gap-1.5">
+        <div className={cardStyles.headerActions}>
           <Skeleton className="h-6 w-28 rounded-md" />
           <Skeleton className="h-6 w-32 rounded-md" />
         </div>
-      </div>
-      <div className="flex flex-wrap items-center justify-between gap-2">
+      </header>
+
+      <div className={cardStyles.toolbar}>
         <Skeleton className="h-7 w-72 max-w-full rounded-full" />
         <Skeleton className="h-7 w-60 max-w-full rounded-[16px]" />
       </div>
-      <div className="grid gap-3 [grid-template-columns:repeat(auto-fill,minmax(16.5rem,1fr))]">
+
+      <div className={cardStyles.grid}>
         {Array.from({ length: 6 }).map((_, i) => (
-          <div key={i} className="flex flex-col gap-2 rounded-xl border border-border bg-card p-2.5">
-            <div className="flex items-center gap-2">
-              <Skeleton className="h-9 w-9 shrink-0 rounded-full" />
-              <div className="flex min-w-0 flex-1 flex-col gap-1">
-                <Skeleton className="h-3.5 w-24" />
-                <Skeleton className="h-3 w-20" />
+          <div key={i} className={`${cardStyles.card} ${cardStyles.cardAmber}`}>
+            <header className={cardStyles.cardHead}>
+              <Skeleton className={cardStyles.skelAvatar} />
+              <div className={cardStyles.cardId}>
+                <Skeleton className={cardStyles.skelName} />
+                <Skeleton className={cardStyles.skelTeacher} />
               </div>
-              <Skeleton className="h-4 w-14 shrink-0" />
+              <Skeleton className="h-3 w-14 shrink-0" />
+            </header>
+
+            <div className={cardStyles.metaRow}>
+              <Skeleton className="h-3 w-24" />
             </div>
-            <Skeleton className="h-3 w-24" />
-            <Skeleton className="h-3 w-40" />
+
+            <div className={cardStyles.linksRow}>
+              <Skeleton className="h-3 w-16" />
+              <Skeleton className="h-3 w-24" />
+              <Skeleton className="h-3 w-14" />
+            </div>
+
             <Skeleton className="h-1.5 w-full rounded-full" />
-            <div className="mt-auto flex justify-end gap-1.5 border-t border-border pt-1.5">
-              <Skeleton className="h-5 w-20 rounded-md" />
-              <Skeleton className="h-5 w-16 rounded-md" />
+            <Skeleton className="h-8 w-full rounded-md" />
+
+            <div className={cardStyles.cardActions}>
+              <Skeleton className="h-3 w-20" />
+              <Skeleton className="h-6 w-20 rounded-md" />
+              <Skeleton className="h-6 w-20 rounded-md" />
             </div>
           </div>
         ))}
       </div>
-    </div>
+    </section>
   );
 }
 
-function ScheduleTemplateSkeleton({ view }: { view: TemplateView }) {
+export function ScheduleTemplateSkeleton({
+  view,
+  hasSection = false,
+}: {
+  view: TemplateView;
+  hasSection?: boolean;
+}) {
   return (
     <ShimmerGroup>
       <section
@@ -373,13 +668,13 @@ function ScheduleTemplateSkeleton({ view }: { view: TemplateView }) {
       >
         <div className="flex min-w-0 flex-1 flex-col gap-6">
           {view === "grid" ? (
-            <SkeletonTimetable />
+            <SkeletonTimetable hasSection={hasSection} />
           ) : view === "sections" ? (
             <SkeletonSections />
           ) : view === "subjects" ? (
             <SkeletonSubjects />
           ) : view === "teachers" ? (
-            <SkeletonSubjects />
+            <SkeletonTeachers />
           ) : view === "config" ? (
             <SkeletonDayConfig />
           ) : view === "term" ? (
@@ -1206,7 +1501,7 @@ function TemplateInner({ initialView }: { initialView?: TemplateView }) {
 
   // One panel at a time — the skeleton mirrors whichever panel is open.
   if (sectionsQuery.isLoading) {
-    return <ScheduleTemplateSkeleton view={view} />;
+    return <ScheduleTemplateSkeleton view={view} hasSection={Boolean(section)} />;
   }
 
   const gradeSubjects = section
@@ -1452,7 +1747,7 @@ function TemplateInner({ initialView }: { initialView?: TemplateView }) {
               ) : (
                 <div className="flex flex-col gap-3">
                   {section ? null : (
-                  <div className="flex flex-col gap-2.5 rounded-xl border border-border bg-card p-3">
+                  <div className="flex flex-col gap-2.5">
                     <div className="flex flex-wrap items-center justify-between gap-2">
                       <div className="flex min-w-0 items-center gap-2">
                         <span
@@ -1461,15 +1756,9 @@ function TemplateInner({ initialView }: { initialView?: TemplateView }) {
                         >
                           <CalendarDays size={14} />
                         </span>
-                        <div className="min-w-0">
-                          <p className="text-[13px] leading-tight font-semibold">
-                            Section workspace
-                          </p>
-                          <p className="truncate text-[12px] leading-tight text-muted-foreground">
-                            {sections.length} section{sections.length === 1 ? "" : "s"} this
-                            year — pick one to build its weekly grid.
-                          </p>
-                        </div>
+                        <p className="text-[13px] leading-tight font-semibold">
+                          Section workspace
+                        </p>
                       </div>
                       <div className="flex flex-wrap items-center gap-1.5">
                         <Button

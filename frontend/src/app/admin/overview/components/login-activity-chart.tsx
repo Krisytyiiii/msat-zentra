@@ -100,11 +100,15 @@ export default function LoginActivityChart({
   total,
   signOuts,
   windowHours,
+  withLatest = true,
 }: {
   events: AdminLoginActivityEvent[];
   total: number;
   signOuts: number;
   windowHours: number;
+  /** Render the "Latest logins / sign-outs" list under the chart. Off when the
+   *  desk lays that list out as its own panel (admin overview). */
+  withLatest?: boolean;
 }) {
   // Hourly buckets across the window, each carrying its own sign-in / sign-out
   // count — an area chart needs per-interval activity so it rises and falls
@@ -245,13 +249,13 @@ export default function LoginActivityChart({
         </ul>
       ) : null}
 
-      <LatestAccess events={events} />
+      {withLatest ? <LatestAccess events={events} /> : null}
     </div>
   );
 }
 
 /** Twelve most recent sign-ins or sign-outs, switched with the shared tag tabs. */
-function LatestAccess({ events }: { events: AdminLoginActivityEvent[] }) {
+export function LatestAccess({ events }: { events: AdminLoginActivityEvent[] }) {
   const [tab, setTab] = React.useState<"login" | "logout">("login");
   const rows = React.useMemo(
     () =>

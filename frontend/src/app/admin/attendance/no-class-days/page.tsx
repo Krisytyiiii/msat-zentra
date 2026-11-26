@@ -7,9 +7,11 @@ import { CalendarOff, Info, Loader2, Save, Trash2, X } from "lucide-react";
 
 import { useDock } from "@/components/dock/dock-store";
 import { Button } from "@/components/ui/button";
-import { Calendar } from "@/components/ui/calendar";
+import { Calendar, CalendarDayButton } from "@/components/ui/calendar";
 import { ConfirmDialog } from "@/components/ui/confirm-dialog";
 import { SidePanel } from "@/components/ui/side-panel";
+import { Skeleton } from "@/components/ui/skeleton";
+import { ShimmerGroup, ShimmerSkeleton } from "@/components/ui/shimmer-skeleton";
 import { Textarea } from "@/components/ui/textarea";
 import { toast } from "@/components/ui/sonner";
 import { apiErrorMessage } from "@/lib/api/errors";
@@ -56,6 +58,65 @@ const LEGEND: { scope: NoClassScope; label: string }[] = [
   { scope: "pm", label: "Afternoon" },
 ];
 
+/**
+ * Loading shell for the school calendar — the same card as the loaded board
+ * (month caption, 7-column weekday header, six week rows, legend and note) so
+ * declaring a date never shifts the desk.
+ */
+function NoClassDaysSkeleton() {
+  return (
+    <ShimmerGroup>
+      <section
+        className={styles.page}
+        role="status"
+        aria-label="Loading no-class days"
+        aria-busy="true"
+      >
+        <div className={styles.grid}>
+          <section className={styles.calendarCard}>
+            <Skeleton className="mx-auto h-5 w-40 rounded-md" />
+
+            <div className="grid w-full grid-cols-7 gap-1" aria-hidden="true">
+              {Array.from({ length: 7 }).map((_, i) => (
+                <Skeleton key={`weekday-${i}`} className="mx-auto h-3 w-8" />
+              ))}
+            </div>
+
+            <div
+              className="grid w-full flex-1 auto-rows-[minmax(0,1fr)] grid-cols-7 gap-1"
+              aria-hidden="true"
+            >
+              {Array.from({ length: 42 }).map((_, i) => (
+                <Skeleton key={`day-${i}`} className="h-full min-h-[3.75rem] w-full" />
+              ))}
+            </div>
+
+            <div className={styles.legend} aria-hidden="true">
+              {LEGEND.map((item) => (
+                <span key={item.scope} className={styles.legendItem}>
+                  <ShimmerSkeleton className={styles.legendDot} />
+                  <ShimmerSkeleton className="h-3 w-14" />
+                </span>
+              ))}
+              <span className={`${styles.legendCount} inline-flex`}>
+                <ShimmerSkeleton className="h-3 w-44" />
+              </span>
+            </div>
+
+            <div className={styles.note} aria-hidden="true">
+              <ShimmerSkeleton className={`${styles.noteIcon} size-3.5 rounded-sm`} />
+              <div className="flex w-full flex-col gap-1.5">
+                <ShimmerSkeleton className="h-3 w-full" />
+                <ShimmerSkeleton className="h-3 w-4/5" />
+              </div>
+            </div>
+          </section>
+        </div>
+      </section>
+    </ShimmerGroup>
+  );
+}
+
 export default function AdminNoClassDaysPage() {
   const [drawerDate, setDrawerDate] = React.useState<string | null>(null);
   const [editing, setEditing] = React.useState<NoClassDay | null>(null);
@@ -86,6 +147,10 @@ export default function AdminNoClassDaysPage() {
     }
     return { whole_day: buckets.whole_day, am: buckets.am, pm: buckets.pm };
   }, [entries]);
+
+  if (listQuery.isPending) {
+    return <NoClassDaysSkeleton />;
+  }
 
   const openDay = (key: string) => {
     const entry = byDate.get(key) ?? null;
@@ -230,6 +295,24 @@ export default function AdminNoClassDaysPage() {
               whole_day: styles.wholeDayCell,
               am: styles.amCell,
               pm: styles.pmCell,
+            }}
+            components={{
+              // Each declared date carries its reason inside the cell, so the
+              // calendar reads as a schedule of suspensions instead of a row of
+              // unexplained colour dots.
+              DayButton: ({ children, ...props }) => {
+                const entry = byDate.get(dayKey(props.day.date));
+                return (
+                  <CalendarDayButton {...props}>
+                    {children}
+                    {entry ? (
+                      <span className={styles.dayReason} title={entry.reason}>
+                        {entry.reason}
+                      </span>
+                    ) : null}
+                  </CalendarDayButton>
+                );
+              },
             }}
           />
 

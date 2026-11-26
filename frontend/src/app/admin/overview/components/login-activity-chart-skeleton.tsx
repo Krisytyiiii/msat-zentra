@@ -10,7 +10,11 @@ import styles from "./login-activity-chart.module.css";
  * latest-activity list) so the board does not jump when the data lands. The
  * shimmer group makes every placeholder sweep together.
  */
-export default function LoginActivityChartSkeleton() {
+export default function LoginActivityChartSkeleton({
+  withLatest = true,
+}: {
+  withLatest?: boolean;
+}) {
   return (
     <ShimmerGroup>
       <div className={styles.chart} aria-hidden="true">
@@ -40,21 +44,35 @@ export default function LoginActivityChartSkeleton() {
           </li>
         </ul>
 
-        <div className={styles.latest}>
-          <div className={styles.filterTabs}>
-            <Skeleton className="h-6 w-24 rounded-md" />
-            <Skeleton className="h-6 w-28 rounded-md" />
-          </div>
-          <ul className={styles.latestList}>
-            {Array.from({ length: 12 }, (_, index) => (
-              <li key={index} className={styles.latestRow}>
-                <Skeleton className="h-[22px] w-[22px] rounded-full" />
-                <Skeleton className="h-3 flex-1" />
-                <Skeleton className="h-3 w-16" />
-              </li>
-            ))}
-          </ul>
+        {withLatest ? <LatestAccessSkeleton /> : null}
+      </div>
+    </ShimmerGroup>
+  );
+}
+
+/**
+ * Loading shell for the standalone latest-activity rail card: the tag filter
+ * row and twelve rows with mascot, name, role and time — the same anatomy as
+ * `LatestAccess`, so the rail keeps its height while the events load.
+ */
+export function LatestAccessSkeleton() {
+  return (
+    <ShimmerGroup>
+      <div className={styles.latest} aria-hidden="true">
+        <div className={styles.filterTabs}>
+          <Skeleton className="h-6 w-24 rounded-md" />
+          <Skeleton className="h-6 w-28 rounded-md" />
         </div>
+        <ul className={styles.latestList}>
+          {Array.from({ length: 12 }, (_, index) => (
+            <li key={index} className={styles.latestRow}>
+              <Skeleton className="h-[22px] w-[22px] rounded-full" />
+              <Skeleton className="h-3 flex-1" />
+              <Skeleton className="h-3 w-20" />
+              <Skeleton className="h-3 w-10" />
+            </li>
+          ))}
+        </ul>
       </div>
     </ShimmerGroup>
   );

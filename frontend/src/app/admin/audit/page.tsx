@@ -126,7 +126,7 @@ function AdminAuditPageInner() {
       <KanbanBoard
         title="Audit trail"
         icon={<ShieldCheck size={14} className="text-primary" aria-hidden />}
-        className={styles.boardTransparent}
+        bare
         description="Every recorded write, newest first. Search or open a row for the full before/after payload."
         ariaLabel="Audit log"
         headerToolbar={

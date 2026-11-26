@@ -1,13 +1,10 @@
 "use client";
 
 import * as React from "react";
-import Link from "next/link";
-import { KeyRound, Lock } from "lucide-react";
-import { Button } from "@/components/ui/button";
+import { Lock } from "lucide-react";
 import { TeacherSearchField, searchEmptyMessage } from "@/app/teacher/components/TeacherSearchField";
-import { Pill } from "@/components/ui/pill";
+import { TeacherGateCard } from "@/app/teacher/components/TeacherGateCard";
 import { InsightCallout } from "@/components/ui/insight-callout";
-import { KanbanBoard } from "@/components/ui/kanban-board";
 import { useTerm } from "@/lib/term/TermContext";
 import {
   Select,
@@ -20,8 +17,6 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { Pagination } from "@/components/shared/pagination";
 import { useLockGrades, type LockGradesView } from "@/services/teacher/lockGrades.service";
 import { FilterTabs } from "@/app/teacher/advisory/interventions/components/filter-tabs";
-import emptyStyles from "@/components/schedule/schedule-empty.module.css";
-import kanbanStyles from "@/components/schedule/subject-kanban.module.css";
 import { LockGradesClassCard } from "./components/class-card";
 import { LockGradesAdviseeCard } from "./components/advisee-card";
 import styles from "./components/lock-grades.module.css";
@@ -39,62 +34,35 @@ function EmptyCallout({ children }: { children: React.ReactNode }) {
   );
 }
 
-/** Gate card — identical shape to /teacher/grading's link-code card. */
+/** Gate card — same shape as the My Classes action card, deep-linking there. */
 function GateCard({
   title,
   description,
+  status,
+  facts,
   actionLabel,
 }: {
   title: string;
   description: string;
-  actionLabel: string;
+  status: string;
+  facts?: string[];
+  actionLabel?: string;
 }) {
   const { activeTerm } = useTerm();
   const termLabel = activeTerm
     ? `${activeTerm.schoolYearName} · Term ${activeTerm.termNumber}`
     : "this term";
-  const parts = termLabel
-    .split("·")
-    .map((part) => part.trim())
-    .filter(Boolean);
 
   return (
-    <div className={emptyStyles.emptyWrap}>
-      <div className={`${kanbanStyles.column} mx-auto w-full max-w-md`}>
-        <KanbanBoard
-          title={title}
-          icon={
-            <span className="text-amber-500" aria-hidden>
-              <KeyRound size={14} />
-            </span>
-          }
-          actions={
-            <span className="flex items-center gap-1.5">
-              {parts.map((part, index) => (
-                <Pill
-                  key={part}
-                  tone="amber"
-                  label={index === 0 ? "School year" : "Active term"}
-                >
-                  {part}
-                </Pill>
-              ))}
-            </span>
-          }
-          description={description}
-        >
-          <div className="flex justify-end px-1 pb-1">
-            <Button
-              asChild
-              size="sm"
-              className="h-6 rounded-lg bg-black px-3 text-xs text-white hover:bg-neutral-800 dark:bg-white dark:text-black dark:hover:bg-neutral-200"
-            >
-              <Link href="/teacher/classes">{actionLabel}</Link>
-            </Button>
-          </div>
-        </KanbanBoard>
-      </div>
-    </div>
+    <TeacherGateCard
+      title={title}
+      subtitle="Lock grades follows your linked teacher row"
+      status={status}
+      description={description}
+      termLabel={termLabel}
+      facts={facts}
+      actionLabel={actionLabel}
+    />
   );
 }
 
@@ -157,9 +125,14 @@ function ClassesMode() {
   if (!data.isSubjectTeacher) {
     return (
       <GateCard
-        title="Link code"
-        description="Your subjects will appear here only after you link your teacher code on the classes page. Without a link code, nothing is displayed here."
-        actionLabel="Go to classes to link code"
+        title="Link your teacher code"
+        status="Not linked yet"
+        description="Lock statuses appear only for a linked teacher. Link the code printed beside your name on My Classes and this board fills with your classes."
+        facts={[
+          "The code sits beside your name in the administrator's teacher list.",
+          "Linking attaches your subject × section load to this login.",
+          "Locking still happens in the gradebook — this desk only reads status.",
+        ]}
       />
     );
   }
@@ -167,9 +140,13 @@ function ClassesMode() {
   if (!data.gates.linked) {
     return (
       <GateCard
-        title="Link code"
-        description="Your classes will appear here only after you link your teacher code on the classes page."
-        actionLabel="Go to classes to link code"
+        title="Link your teacher code"
+        status="Not linked yet"
+        description="Your classes appear here only after you link the teacher code printed beside your name. The link button opens the form on My Classes."
+        facts={[
+          "One code per teacher row, valid for the whole school year.",
+          "Lock statuses are read-only on this desk.",
+        ]}
       />
     );
   }
@@ -177,9 +154,14 @@ function ClassesMode() {
   if (!data.gates.termGrant) {
     return (
       <GateCard
-        title="Enter term"
-        description="Your classes will appear here only after you enter this term's code on the classes page."
-        actionLabel="Go to classes to enter code"
+        title="Open this term"
+        status="Term not entered"
+        description="Your classes appear here only after you enter this term's code on My Classes. Nothing needs relinking — just open the term."
+        facts={[
+          "The entry carries to every term of this school year.",
+          "The term picker in the top bar decides which grid you see.",
+        ]}
+        actionLabel="Enter term"
       />
     );
   }
@@ -188,9 +170,14 @@ function ClassesMode() {
     <div className="flex flex-col gap-3">
       {data.classes.length === 0 ? (
         <GateCard
-          title="Link code"
-          description="Your subjects will appear here only after you link your teacher code on the classes page. Without a link code, nothing is displayed here."
-          actionLabel="Go to classes to link code"
+          title="No classes assigned yet"
+          status="No classes"
+          description="Your linked load is empty for this term — classes appear once the administrator publishes the section grid with your teacher row on it."
+          facts={[
+            "Your load follows the linked teacher row, not a manual pick.",
+            "Ask the administrator if your subjects are missing from the grid.",
+          ]}
+          actionLabel="Open classes"
         />
       ) : (
         <div className={`${styles.grid} ${styles.gridEnter}`}>

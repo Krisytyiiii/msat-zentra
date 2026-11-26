@@ -174,15 +174,14 @@ export default function PresenceGlobe({ users }: { users: AdminPresenceUser[] })
     globe.rotation.z = 0.28;
     scene.add(globe);
 
-    // Push the globe to the right of the viewport instead of dead centre. The
-    // offset is a fraction of the visible width, so it holds while zooming and
-    // on narrow screens.
+    // Nudge the globe slightly right of dead centre. The offset is a fraction
+    // of the visible width, so it holds while zooming and on narrow cards.
     function shiftGlobe() {
       const halfWidth =
         Math.abs(camera.position.z) *
         Math.tan(THREE.MathUtils.degToRad(camera.fov) / 2) *
         camera.aspect;
-      globe.position.x = halfWidth * 0.22;
+      globe.position.x = halfWidth * 0.08;
     }
     shiftGlobe();
 

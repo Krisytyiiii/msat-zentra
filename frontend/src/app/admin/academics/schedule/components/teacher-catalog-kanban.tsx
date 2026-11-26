@@ -236,7 +236,7 @@ export function TeacherCatalogKanban({
       {showList ? (
         pending ? (
           <div
-            className="overflow-x-auto rounded-lg border border-border bg-card"
+            className="overflow-x-auto rounded-lg border border-border bg-card dark:bg-transparent"
             aria-busy="true"
             aria-label="Loading teachers"
           >

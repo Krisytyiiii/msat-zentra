@@ -4,20 +4,24 @@ import Link from "next/link";
 import { Suspense } from "react";
 import { useRouter } from "next/navigation";
 import { useQueryClient } from "@tanstack/react-query";
-import { ShieldCheck } from "lucide-react";
 import { logout } from "@/lib/api/client";
+import { Skeleton } from "@/components/ui/skeleton";
+import { ShimmerGroup } from "@/components/ui/shimmer-skeleton";
+import { StudentMascot } from "@/components/student-mascot/StudentMascot";
 import { AdminSidebar } from "@/components/admin-sidebar";
 import { GlassUserMenu } from "@/components/account/glass-user-menu";
 import { AppBreadcrumbs } from "@/components/nav/AppBreadcrumbs";
 import { useRoleGuard } from "@/lib/auth/useRoleGuard";
 import { ActiveTermBadge } from "@/components/term/ActiveTermBadge";
 import { AdminBell } from "./components/admin-bell";
+import { useAdminProfile } from "@/services/admin/admin.service";
 import styles from "./admin.module.css";
 
 function AdminShell({ children }: { children: React.ReactNode }) {
   const router = useRouter();
   const queryClient = useQueryClient();
   const { allowed } = useRoleGuard(["admin"]);
+  const profile = useAdminProfile();
 
   const handleLogout = () => {
     void logout();
@@ -31,14 +35,20 @@ function AdminShell({ children }: { children: React.ReactNode }) {
   if (!allowed) {
     return (
       <div className={styles.wrapper}>
-        <section
-          className={styles.main}
-          aria-busy="true"
-          aria-label="Checking access"
-          role="status"
-        >
-          <p>Checking access…</p>
-        </section>
+        <ShimmerGroup>
+          <section
+            className={styles.main}
+            aria-busy="true"
+            aria-label="Checking access"
+            role="status"
+          >
+            <div className="flex flex-col gap-4">
+              <Skeleton className="h-8 w-56 rounded-md" />
+              <Skeleton className="h-40 w-full rounded-lg" />
+              <Skeleton className="h-64 w-full rounded-lg" />
+            </div>
+          </section>
+        </ShimmerGroup>
       </div>
     );
   }
@@ -67,7 +77,13 @@ function AdminShell({ children }: { children: React.ReactNode }) {
             className={styles.avatarButton}
             aria-label="Account menu"
           >
-            <ShieldCheck className={styles.avatarIcon} aria-hidden="true" />
+            <span className="flex size-8 items-center justify-center overflow-hidden rounded-full border border-border bg-muted/40">
+              <StudentMascot
+                name={profile.data?.fullName || "Administrator"}
+                character={profile.data?.mascot ?? undefined}
+                size={32}
+              />
+            </span>
           </button>
         </GlassUserMenu>
       </header>

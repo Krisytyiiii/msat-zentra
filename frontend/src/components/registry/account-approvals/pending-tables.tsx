@@ -58,7 +58,7 @@ export function PendingAccountsTable({
   onReject: (row: PendingStudent) => void;
 }) {
   return (
-    <div className="overflow-x-auto rounded-lg border border-border bg-card">
+    <div className="overflow-x-auto rounded-lg border border-border bg-card dark:bg-transparent">
       <table className="w-full border-collapse text-[13px]">
         <thead>
           <tr className="border-b border-border">
@@ -195,7 +195,7 @@ export function PendingStaffTable({
   onReject: (row: PendingStaffRow) => void;
 }) {
   return (
-    <div className="overflow-x-auto rounded-lg border border-border bg-card">
+    <div className="overflow-x-auto rounded-lg border border-border bg-card dark:bg-transparent">
       <table className="w-full border-collapse text-[13px]">
         <thead>
           <tr className="border-b border-border">
@@ -315,7 +315,7 @@ export function PendingQueueSkeleton({ columns }: { columns: string[] }) {
   return (
     <ShimmerGroup>
       <div
-        className="overflow-x-auto rounded-lg border border-border bg-card"
+        className="overflow-x-auto rounded-lg border border-border bg-card dark:bg-transparent"
         role="status"
         aria-label="Loading pending accounts"
         aria-busy="true"

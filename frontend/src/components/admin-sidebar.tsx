@@ -7,12 +7,18 @@ import type { LucideIcon } from "lucide-react";
 import { GlassDock } from "./nav/GlassDock";
 import { NAV_ICONS } from "./nav/sidebar-icons";
 import { usePendingApprovalCounts } from "@/components/registry/account-approvals/api";
+import {
+  useAdminNavDotInvalidation,
+  useAdminNavDots,
+  type AdminNavDots,
+} from "@/services/admin/navCounts.service";
 
 type NavItem = {
   title: string;
   href: string;
   icon: LucideIcon;
   badge?: string;
+  dot?: boolean;
 };
 
 type NavGroup = {
@@ -114,6 +120,34 @@ export const NAV: NavGroup[] = [
 
 const PENDING_APPROVALS_HREF = "/admin/users/pending";
 
+/* Which live page each nav entry watches. The dot comes from
+   `/api/admin/nav-counts`; a page with nothing unseen shows no dot. */
+const QUEUE_FOR_HREF: Record<string, keyof AdminNavDots> = {
+  "/admin/overview": "overview",
+  "/admin/academics/schedule": "schedule",
+  "/admin/academics/schedule/timetable": "timetable",
+  "/admin/academics/schedule/sections": "sections",
+  "/admin/academics/schedule/subjects": "subjects",
+  "/admin/academics/schedule/teachers": "teachers",
+  "/admin/academics/schedule/configure": "configure",
+  "/admin/academics/schedule/school-year": "schoolYear",
+  "/admin/academics/schedule/publish": "publish",
+  "/admin/attendance/no-class-days": "noClassDays",
+  "/admin/users": "users",
+  "/admin/users/pending": "pending",
+  "/admin/audit": "audit",
+};
+
+function withDots(groups: NavGroup[], dots: AdminNavDots): NavGroup[] {
+  return groups.map((group) => ({
+    ...group,
+    items: group.items.map((item) => ({
+      ...item,
+      dot: Boolean(QUEUE_FOR_HREF[item.href] && dots[QUEUE_FOR_HREF[item.href]]),
+    })),
+  }));
+}
+
 /** Show the live pending-sign-up count on the administrator approval item. */
 function withPendingBadge(groups: NavGroup[], total: number): NavGroup[] {
   if (total <= 0) return groups;
@@ -134,7 +168,12 @@ export function AdminSidebar() {
   const pathname = usePathname();
   const search = useSearchParams();
   const { total: pendingTotal } = usePendingApprovalCounts();
-  const nav = React.useMemo(() => withPendingBadge(NAV, pendingTotal), [pendingTotal]);
+  const dots = useAdminNavDots();
+  useAdminNavDotInvalidation(dots);
+  const nav = React.useMemo(
+    () => withDots(withPendingBadge(NAV, pendingTotal), dots),
+    [pendingTotal, dots],
+  );
 
   return (
     <GlassDock

@@ -14,6 +14,7 @@ import { AppError } from "../../lib/errors.js";
 import { invalidateTags } from "../../lib/cache.js";
 import { clearNoClassCache } from "../../services/noClass.js";
 import { listAudit, summarizeAudit } from "../../services/audit/audit.service.js";
+import { getAdminNavQueues } from "../../services/admin/navCounts.service.js";
 import { listActivePresence, listLoginActivity } from "../../services/presence.service.js";
 import {
   approveAccount,
@@ -65,6 +66,90 @@ router.get("/login-activity", async (req, res, next) => {
     const raw = Number(req.query.hours ?? 24);
     const hours = Number.isFinite(raw) ? raw : 24;
     res.json(await listLoginActivity(hours));
+  } catch (e) {
+    next(e);
+  }
+});
+
+/**
+ * The administrator's own account card. Admin accounts are created without a
+ * staff profile, so the mascot falls back to the sprite derived from the name
+ * on the client — this endpoint only reports what is stored.
+ */
+router.get("/profile", async (req, res, next) => {
+  try {
+    const user = await prisma.user.findUnique({
+      where: { id: req.user!.id },
+      select: {
+        id: true,
+        fullName: true,
+        email: true,
+        role: true,
+        staffProfile: { select: { mascot: true, photoUrl: true } },
+      },
+    });
+    if (!user) throw new AppError(404, "NOT_FOUND", "Account not found");
+    res.json({
+      id: user.id,
+      fullName: user.fullName,
+      email: user.email,
+      role: user.role,
+      mascot: user.staffProfile?.mascot ?? null,
+      photoUrl: user.staffProfile?.photoUrl ?? null,
+    });
+  } catch (e) {
+    next(e);
+  }
+});
+
+/**
+ * System-wide notification feed for the administrator bell: every desk's
+ * notices, newest first, each tagged with its recipient. The admin owns no
+ * desk data, so its own inbox is nearly empty; the console is the place where
+ * "what just happened in the school" is visible.
+ */
+router.get("/notifications", async (req, res, next) => {
+  try {
+    const rawTake = Number(req.query.take);
+    const take = Number.isFinite(rawTake)
+      ? Math.min(Math.max(Math.floor(rawTake), 1), 100)
+      : 50;
+    const rows = await prisma.notification.findMany({
+      orderBy: { createdAt: "desc" },
+      take,
+      select: {
+        id: true,
+        type: true,
+        message: true,
+        isRead: true,
+        createdAt: true,
+        sourceTable: true,
+        sourceId: true,
+        user: { select: { fullName: true, role: true } },
+      },
+    });
+    res.json(
+      rows.map(({ user, ...note }) => ({
+        ...note,
+        createdAt: note.createdAt.toISOString(),
+        recipientName: user.fullName,
+        recipientRole: user.role,
+      })),
+    );
+  } catch (e) {
+    next(e);
+  }
+});
+
+/**
+ * Sidebar dots for the administrator console: one version per page, so a page
+ * whose data changed since the admin last opened it shows the same red dot the
+ * other desks use. Realtime cannot cover the console (RLS scopes the published
+ * streams per role), so the rail polls this while the console is visible.
+ */
+router.get("/nav-counts", async (_req, res, next) => {
+  try {
+    res.json(await getAdminNavQueues());
   } catch (e) {
     next(e);
   }

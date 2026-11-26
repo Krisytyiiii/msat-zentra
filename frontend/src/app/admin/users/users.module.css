@@ -5,13 +5,6 @@
   width: 100%;
 }
 
-/* Dark theme: let the Accounts board sit on the page instead of on a raised
-   card — the account table already carries its own surface. Doubled class so
-   this beats the global `.dark .board-surface` fill regardless of CSS order. */
-:global(.dark) .boardTransparent.boardTransparent {
-  background-color: transparent;
-}
-
 .empty {
   margin: 0;
   padding: 1.5rem 0.875rem;

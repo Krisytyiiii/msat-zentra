@@ -221,7 +221,7 @@ function AdminUsersPageInner() {
         <KanbanBoard
           title="Accounts"
           icon={<Users size={14} className="text-primary" aria-hidden />}
-          className={styles.boardTransparent}
+          bare
           description="Search every account, then suspend or restore access."
           ariaLabel="User accounts"
           headerToolbar={

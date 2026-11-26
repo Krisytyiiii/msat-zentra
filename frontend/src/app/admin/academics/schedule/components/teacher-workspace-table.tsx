@@ -43,7 +43,7 @@ export function TeacherWorkspaceTable({
   onDelete?: (teacher: CatalogTeacher) => void;
 }) {
   return (
-    <div className="overflow-x-auto rounded-lg border border-border bg-card">
+    <div className="overflow-x-auto rounded-lg border border-border bg-card dark:bg-transparent">
       <table className="w-full border-collapse text-[13px]">
         <thead>
           <tr className="border-b border-border">

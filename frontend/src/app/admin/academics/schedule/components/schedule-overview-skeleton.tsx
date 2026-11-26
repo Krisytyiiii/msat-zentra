@@ -1,6 +1,5 @@
 "use client";
 
-import { CalendarDays } from "lucide-react";
 import { Skeleton } from "@/components/ui/skeleton";
 import { ShimmerGroup } from "@/components/ui/shimmer-skeleton";
 import { StatDeck } from "@/components/ui/stat-deck";
@@ -14,10 +13,10 @@ const SKELETON_TABS = 7;
 
 /**
  * Loading state for the schedule overview. Mirrors `ScheduleOverviewBoard`
- * exactly — same board shell, header rail, stat deck strip (4 tiles), filter
- * toolbar and section-card grid — so the swap to live data causes no shift.
- * Wrapped in `ShimmerGroup` so every placeholder (including the stat deck's
- * own tiles) sweeps together instead of pulsing one shape at a time.
+ * exactly — the same headerless stat strip (4 clickable tiles), grade/search
+ * toolbar and elevated section-card grid — so the swap to live data causes no
+ * shift. Wrapped in `ShimmerGroup` so every placeholder (including the stat
+ * deck's own tiles) sweeps together instead of pulsing one shape at a time.
  */
 export function ScheduleOverviewSkeleton() {
   return (
@@ -28,25 +27,7 @@ export function ScheduleOverviewSkeleton() {
         aria-label="Loading schedule"
         aria-busy="true"
       >
-        <header className={cardStyles.header}>
-          <div className={cardStyles.headerText}>
-            <div className={cardStyles.titleRow}>
-              <span className={cardStyles.titleIcon} aria-hidden>
-                <CalendarDays size={16} />
-              </span>
-              <h1 className={cardStyles.title}>Schedule</h1>
-            </div>
-            <p className={cardStyles.subtitle}>
-              School-wide timetable workspace. Open a section to build its weekly grid and publish it —
-              published sections are what teachers see in grading and attendance.
-            </p>
-          </div>
-          <div className={cardStyles.headerActions} aria-hidden>
-            <Skeleton className="h-6 w-28 rounded-md" />
-          </div>
-        </header>
-
-        <StatDeck title="This term" icon={CalendarDays} items={[]} loading />
+        <StatDeck ariaLabel="Schedule at a glance" items={[]} loading />
 
         <div className={cardStyles.toolbar} aria-hidden>
           <div className={styles.skelTrack}>
@@ -59,28 +40,28 @@ export function ScheduleOverviewSkeleton() {
 
         <div className={cardStyles.grid} aria-hidden>
           {Array.from({ length: SKELETON_CARDS }).map((_, i) => (
-            <div key={i} className={cardStyles.card}>
-              <div className={cardStyles.cardHead}>
+            <div key={i} className={styles.card}>
+              <header className={cardStyles.cardHead}>
                 <Skeleton className={cardStyles.skelAvatar} />
                 <div className={cardStyles.cardId}>
                   <Skeleton className={cardStyles.skelName} />
                   <Skeleton className={cardStyles.skelTeacher} />
                 </div>
-                <Skeleton className={cardStyles.skelPill} />
-              </div>
+                <Skeleton className="h-3 w-14 shrink-0" />
+              </header>
 
               <div className={cardStyles.metaRow}>
-                <Skeleton className={cardStyles.skelPill} />
+                <Skeleton className="h-3 w-20" />
               </div>
 
               <div className={styles.progress}>
-                <span className={styles.progressFill} style={{ width: "40%" }} />
+                <span className={styles.progressFill} style={{ width: "45%" }} />
               </div>
               <Skeleton className="h-3 w-32" />
 
               <div className={cardStyles.linksRow}>
                 <Skeleton className="h-3 w-14" />
-                <Skeleton className="h-3 w-16" />
+                <Skeleton className="h-3 w-20" />
                 <Skeleton className="h-3 w-16" />
               </div>
 

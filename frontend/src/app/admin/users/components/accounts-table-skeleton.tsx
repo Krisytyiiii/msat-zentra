@@ -16,7 +16,7 @@ export function AccountsTableSkeleton() {
   return (
     <ShimmerGroup>
       <div
-        className="overflow-x-auto rounded-lg border border-border bg-card"
+        className="overflow-x-auto rounded-lg border border-border bg-card dark:bg-transparent"
         role="status"
         aria-label="Loading accounts"
         aria-busy="true"

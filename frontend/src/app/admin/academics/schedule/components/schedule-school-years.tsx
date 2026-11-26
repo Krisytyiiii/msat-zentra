@@ -4,6 +4,7 @@ import { CalendarDays, CalendarRange, Check, Lock, Pencil, Plus, Trash2 } from "
 import { format, parseISO } from "date-fns";
 
 import { Button } from "@/components/ui/button";
+import { ShimmerGroup, ShimmerSkeleton } from "@/components/ui/shimmer-skeleton";
 import type { SchoolYearOption } from "@/lib/term/TermContext";
 import { EmptyActionCard } from "./schedule-empty-kanban";
 import { PENDING_SCHOOL_YEAR_PREFIX, localTodayKey } from "./add-school-year-kanban";
@@ -112,7 +113,60 @@ export function ScheduleSchoolYears({
       </header>
 
       {loading && years.length === 0 ? (
-        <p className="text-sm text-muted-foreground">Loading school years…</p>
+        <ShimmerGroup>
+          <div
+            className={styles.grid}
+            role="status"
+            aria-label="Loading school years"
+            aria-busy="true"
+          >
+            {Array.from({ length: 3 }).map((_, i) => (
+              <div key={i} className={styles.card} aria-hidden="true">
+                <header className={styles.cardHead}>
+                  <div className={styles.cardId}>
+                    <ShimmerSkeleton className="h-4 w-24" />
+                    <ShimmerSkeleton className="h-3 w-36" />
+                  </div>
+                  <ShimmerSkeleton className="h-[1.125rem] w-16 shrink-0 rounded-full" />
+                </header>
+                <div className={styles.chips}>
+                  <ShimmerSkeleton className="h-[1.125rem] w-20 rounded-full" />
+                  <ShimmerSkeleton className="h-[1.125rem] w-16 rounded-full" />
+                </div>
+                <div className={styles.shape}>
+                  <ShimmerSkeleton className="h-1.5 w-full rounded-full" />
+                  <div className={styles.shapeCaption}>
+                    <ShimmerSkeleton className="h-3 w-24" />
+                    <ShimmerSkeleton className="h-3 w-16" />
+                  </div>
+                </div>
+                <div className={styles.termList}>
+                  {Array.from({ length: 3 }).map((__, j) => (
+                    <div key={j} className={styles.termRow} aria-hidden="true">
+                      <ShimmerSkeleton className="size-5 shrink-0 rounded" />
+                      <div className={styles.termBody}>
+                        <ShimmerSkeleton className="h-3 w-14" />
+                        <ShimmerSkeleton className="h-3 w-32" />
+                      </div>
+                    </div>
+                  ))}
+                </div>
+                <dl className={styles.details}>
+                  {Array.from({ length: 4 }).map((__, k) => (
+                    <div key={k} className={styles.detail}>
+                      <ShimmerSkeleton className="h-3 w-16" />
+                      <ShimmerSkeleton className="h-3.5 w-20" />
+                    </div>
+                  ))}
+                </dl>
+                <div className={styles.cardActions}>
+                  <ShimmerSkeleton className="h-6 w-20 rounded-md" />
+                  <ShimmerSkeleton className="size-6 rounded-md" />
+                </div>
+              </div>
+            ))}
+          </div>
+        </ShimmerGroup>
       ) : years.length === 0 ? (
         <div className="flex min-h-[calc(100dvh-16rem)] items-center justify-center py-8">
           <EmptyActionCard

@@ -110,9 +110,9 @@ export function PendingAccountsQueue({
       <KanbanBoard
         title={kind === "student" ? "Pending Students" : "Pending Parents"}
         icon={<UserPlus size={14} className="text-primary" aria-hidden />}
-        // Sit directly on the page canvas — the queue is a review list, not a
-        // raised panel (matches the accounts board on the same desk).
-        style={{ backgroundColor: "transparent" }}
+        // No parent card — the queue is a review list, so the table is the only
+        // surface (matches the accounts board on the same desk).
+        bare
         description={
           kind === "student"
             ? "Sign-ups awaiting LRN verification and activation."

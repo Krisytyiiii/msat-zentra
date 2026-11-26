@@ -114,11 +114,6 @@
   box-shadow: 0 0 0 2px var(--ring);
 }
 
-.avatarIcon {
-  width: 1.125rem;
-  height: 1.125rem;
-}
-
 @media (prefers-reduced-motion: reduce) {
   .shell {
     transition: none;

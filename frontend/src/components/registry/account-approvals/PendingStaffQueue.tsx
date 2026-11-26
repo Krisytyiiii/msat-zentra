@@ -107,6 +107,9 @@ export function PendingStaffQueue({ filterTabs }: { filterTabs?: React.ReactNode
       <KanbanBoard
         title="Pending Teachers"
         icon={<Briefcase size={14} className="text-primary" aria-hidden />}
+        // No parent card — the queue is a review list, so the table is the only
+        // surface (matches the student/parent queue and accounts board).
+        bare
         description="Self-registered teacher accounts awaiting administrator approval."
         ariaLabel="Pending teacher accounts"
         headerToolbar={

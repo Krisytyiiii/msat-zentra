@@ -32,6 +32,9 @@ export interface BellNotice {
   message: string;
   isRead: boolean;
   createdAt: string;
+  /** Present on the admin's system-wide feed. */
+  recipientName?: string | null;
+  recipientRole?: string | null;
 }
 
 const VISIBLE_COUNT = 5;
@@ -44,15 +47,17 @@ function bellApiErrorMessage(err: unknown, fallback: string): string {
   return fallback;
 }
 
-async function fetchBellNotices(signal?: AbortSignal): Promise<BellNotice[]> {
-  const { data } = await apiClient.get<BellNotice[]>("/api/notifications/", {
+async function fetchBellNotices(
+  path: string,
+  signal?: AbortSignal,
+): Promise<BellNotice[]> {
+  const { data } = await apiClient.get<BellNotice[]>(path, {
     signal,
   });
   return Array.isArray(data) ? data : [];
 }
 
 interface NotificationsBellProps {
-
   queryKey: string[];
 
   refreshKeys?: string[][];
@@ -60,9 +65,41 @@ interface NotificationsBellProps {
   resolveTarget: (n: BellNotice) => BellNotificationTarget;
 
   titleFor?: (n: BellNotice) => string;
+
+  /** Feed endpoint. Defaults to the signed-in user's own notifications. */
+  fetchPath?: string;
+
+  /**
+   * System feeds (the administrator's console) list other users' notices, so
+   * they cannot be marked read from this bell — rows only deep-link.
+   */
+  readOnly?: boolean;
+
+  /** Recipient line for system feeds, e.g. "Jane Cruz · Teacher". */
+  recipientLabel?: (n: BellNotice) => string | null;
+
+  /**
+   * System feeds have no per-user read state, so they mark new items against a
+   * stored "seen" stamp instead: notices newer than this ISO timestamp count as
+   * new.
+   */
+  seenAt?: string | null;
+
+  /** Called with the newest notice timestamp when the feed is opened. */
+  onSeen?: (latestIso: string | null) => void;
 }
 
-export function NotificationsBell({ queryKey, refreshKeys, resolveTarget, titleFor }: NotificationsBellProps) {
+export function NotificationsBell({
+  queryKey,
+  refreshKeys,
+  resolveTarget,
+  titleFor,
+  fetchPath = "/api/notifications/",
+  readOnly = false,
+  recipientLabel,
+  seenAt = null,
+  onSeen,
+}: NotificationsBellProps) {
   const titleOf = titleFor ?? ((n: BellNotice) => prettifyNotificationType(n.type));
   const router = useRouter();
   const queryClient = useQueryClient();
@@ -71,12 +108,13 @@ export function NotificationsBell({ queryKey, refreshKeys, resolveTarget, titleF
 
   const notificationsQuery = useLiveQuery({
     queryKey,
-    queryFn: ({ signal }) => fetchBellNotices(signal),
+    queryFn: ({ signal }) => fetchBellNotices(fetchPath, signal),
     staleTime: 30_000,
   });
 
   // Badge uses a dedicated count so it reflects the true unread total, not just
-  // the unread items within the first page of the list.
+  // the unread items within the first page of the list. A system feed has no
+  // per-user read state of its own.
   const unreadQuery = useLiveQuery({
     queryKey: [...queryKey, "unread-count"],
     queryFn: async ({ signal }) => {
@@ -87,10 +125,37 @@ export function NotificationsBell({ queryKey, refreshKeys, resolveTarget, titleF
       return typeof data?.count === "number" ? data.count : 0;
     },
     staleTime: 30_000,
+    enabled: !readOnly,
   });
 
   const notifications = notificationsQuery.data ?? [];
-  const unread = unreadQuery.data ?? notifications.filter((n) => !n.isRead).length;
+  const latestCreatedAt = React.useMemo(() => {
+    let latest: string | null = null;
+    let latestMs = -Infinity;
+    for (const n of notifications) {
+      const ms = Date.parse(n.createdAt);
+      if (Number.isFinite(ms) && ms > latestMs) {
+        latestMs = ms;
+        latest = n.createdAt;
+      }
+    }
+    return latest;
+  }, [notifications]);
+
+  const newSince = React.useMemo(() => {
+    if (!readOnly) return 0;
+    if (!seenAt) return 0;
+    const since = Date.parse(seenAt);
+    if (!Number.isFinite(since)) return 0;
+    return notifications.filter((n) => {
+      const ms = Date.parse(n.createdAt);
+      return Number.isFinite(ms) && ms > since;
+    }).length;
+  }, [readOnly, seenAt, notifications]);
+
+  const unread = readOnly
+    ? newSince
+    : unreadQuery.data ?? notifications.filter((n) => !n.isRead).length;
 
   const refresh = () => {
     for (const key of targets) {
@@ -145,8 +210,16 @@ export function NotificationsBell({ queryKey, refreshKeys, resolveTarget, titleF
     : null;
 
   const openNotice = (n: BellNotice) => {
-    if (readingId === n.id) return;
     const target = resolveTarget(n);
+    // A system feed row belongs to another user; this bell only deep-links.
+    if (readOnly) {
+      if (target) {
+        setViewAllOpen(false);
+        router.push(target.href);
+      }
+      return;
+    }
+    if (readingId === n.id) return;
     if (!n.isRead) readOneMutation.mutate({ id: n.id, href: target?.href ?? null });
     else if (target) {
       setViewAllOpen(false);
@@ -154,35 +227,45 @@ export function NotificationsBell({ queryKey, refreshKeys, resolveTarget, titleF
     }
   };
 
-  const renderBody = (n: BellNotice) => (
-    <>
-      <span
-        className={`${styles.bellDot} ${!n.isRead ? styles.bellDotUnread : ""}`}
-        aria-hidden="true"
-      />
-      <span className={styles.bellMain}>
-        <span className={styles.bellTitle}>{titleOf(n)}</span>
-        <span
-          className={styles.bellMsg}
-          data-profile-created={
-            /created the learner profile/i.test(n.message ?? "")
-              ? "true"
-              : undefined
-          }
-        >
-          {n.message}
+  const renderBody = (n: BellNotice) => {
+    const recipient = recipientLabel?.(n) ?? null;
+    return (
+      <>
+        {readOnly ? null : (
+          <span
+            className={`${styles.bellDot} ${!n.isRead ? styles.bellDotUnread : ""}`}
+            aria-hidden="true"
+          />
+        )}
+        <span className={styles.bellMain}>
+          <span className={styles.bellTitle}>{titleOf(n)}</span>
+          <span
+            className={styles.bellMsg}
+            data-profile-created={
+              /created the learner profile/i.test(n.message ?? "")
+                ? "true"
+                : undefined
+            }
+          >
+            {n.message}
+          </span>
+          <span className={styles.bellDate}>
+            {recipient ? `${recipient} · ` : ""}
+            {formatBellDate(n.createdAt)}
+            {readingId === n.id ? " · Marking…" : ""}
+          </span>
         </span>
-        <span className={styles.bellDate}>
-          {formatBellDate(n.createdAt)}
-          {readingId === n.id ? " · Marking…" : ""}
-        </span>
-      </span>
-    </>
-  );
+      </>
+    );
+  };
 
   return (
     <>
-      <DropdownMenu>
+      <DropdownMenu
+        onOpenChange={(open) => {
+          if (open) onSeen?.(latestCreatedAt);
+        }}
+      >
         <DropdownMenuTrigger asChild>
           <button
             type="button"
@@ -204,7 +287,7 @@ export function NotificationsBell({ queryKey, refreshKeys, resolveTarget, titleF
                 ? "Notifications"
                 : `${unread} unread notification${unread === 1 ? "" : "s"}`}
             </span>
-            {unread > 0 ? (
+            {!readOnly && unread > 0 ? (
               <Button
                 variant="ghost"
                 size="xs"
@@ -239,7 +322,9 @@ export function NotificationsBell({ queryKey, refreshKeys, resolveTarget, titleF
               return (
                 <DropdownMenuItem
                   key={n.id}
-                  disabled={readingId === n.id || (n.isRead && !target)}
+                  disabled={
+                    readOnly ? !target : readingId === n.id || (n.isRead && !target)
+                  }
                   onSelect={(e) => {
                     e.preventDefault();
                     openNotice(n);
@@ -272,9 +357,13 @@ export function NotificationsBell({ queryKey, refreshKeys, resolveTarget, titleF
           size="md"
           title="Notifications"
           description={
-            unread === 0
-              ? "You're all caught up."
-              : `${unread} unread notification${unread === 1 ? "" : "s"}.`
+            readOnly
+              ? newSince > 0
+                ? `${newSince} new update${newSince === 1 ? "" : "s"} since you last checked.`
+                : "Latest activity across every desk."
+              : unread === 0
+                ? "You're all caught up."
+                : `${unread} unread notification${unread === 1 ? "" : "s"}.`
           }
           watchKey={[notifications.length, unread, readingId]}
         >
@@ -285,7 +374,9 @@ export function NotificationsBell({ queryKey, refreshKeys, resolveTarget, titleF
                   <button
                     key={n.id}
                     type="button"
-                    disabled={readingId === n.id || (n.isRead && !target)}
+                    disabled={
+                      readOnly ? !target : readingId === n.id || (n.isRead && !target)
+                    }
                     onClick={() => openNotice(n)}
                     className={styles.modalItem}
                   >

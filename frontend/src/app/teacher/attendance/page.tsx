@@ -1,6 +1,7 @@
 "use client";
 import { useEffect, useMemo, useState } from "react";
 import { useMutation } from "@tanstack/react-query";
+import { CalendarDays } from "lucide-react";
 import { liveQueryOptions, useLiveQuery } from "@/lib/api/live";
 import { markSelfNotified } from "@/lib/realtime/teacherChannel";
 import { useTeacherInvalidate } from "../components/use-teacher-invalidate";
@@ -24,7 +25,7 @@ import {
   useSheetContext,
 } from "@/services/teacher/attendance.service";
 import type { SheetContext } from "@/services/teacher/attendance.types";
-import { NoTermRecordsPanel } from "@/components/schedule/NoTermRecordsPanel";
+import { TeacherGateCard } from "@/app/teacher/components/TeacherGateCard";
 import { useTerm } from "@/lib/term/TermContext";
 import {
   buildTimetable,
@@ -436,14 +437,22 @@ export default function TeacherAdvisoryAttendancePage() {
   return (
     <section className={styles.page}>
       {pairs.length === 0 ? (
-        <div className="flex min-h-[calc(100dvh-10rem)] items-center justify-center">
-          <div className="w-full max-w-3xl">
-            <NoTermRecordsPanel
-              termLabel={termLabel}
-              teacherName={linked?.name ?? "your linked name"}
-            />
-          </div>
-        </div>
+        <TeacherGateCard
+          icon={CalendarDays}
+          title={`No records for ${termLabel} yet`}
+          subtitle={`Nothing scheduled for ${linked?.name ?? "your linked name"} this term`}
+          status="No sheets"
+          tone="neutral"
+          description="Your classes appear here once the administrator publishes the section schedules. Records are kept per term, so switching term loads that term's own sheets."
+          termLabel={termLabel}
+          facts={[
+            "Sheets follow the published section grid of the selected term.",
+            "Nothing is lost when you switch terms — each term keeps its own records.",
+            "Ask the administrator if your subject is missing from the grid.",
+          ]}
+          actionLabel="Open classes"
+          href="/teacher/classes"
+        />
       ) : (
         <div className={styles.layout}>
           <AttendanceRail
