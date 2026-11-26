@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:go_router/go_router.dart';
 import 'package:lucide_icons_flutter/lucide_icons.dart';
 
 import '../../design/overview_theme.dart';
@@ -26,10 +27,23 @@ class _DeviceState extends ConsumerState<CoordinatorDeviceCard> {
     if (_detailsOpen) return;
     _detailsOpen = true;
     try {
-      await admPush<void>(
-        context,
-        CoordinatorDeviceDetailPage(device: widget.device),
-      );
+      final router = GoRouter.maybeOf(context);
+      final device = widget.device;
+      if (router != null) {
+        await router.push<void>(
+          '/coordinator/devices/detail/${Uri.encodeComponent(device.id)}',
+          extra: device,
+        );
+      } else {
+        await Navigator.of(context, rootNavigator: true).push<void>(
+          MaterialPageRoute(
+            builder: (_) => CoordinatorDeviceDetailPage(
+              deviceId: device.id,
+              initial: device,
+            ),
+          ),
+        );
+      }
     } finally {
       _detailsOpen = false;
       if (mounted) ref.invalidate(coordinatorDevicesProvider);
@@ -109,20 +123,6 @@ class _DeviceState extends ConsumerState<CoordinatorDeviceCard> {
                   ),
                 ],
               ),
-              const SizedBox(height: 6),
-              Wrap(
-                spacing: 6,
-                runSpacing: 6,
-                children: [
-                  if (d.type.isNotEmpty)
-                    ZStatusPill(text: d.type, tone: StatusTone.blue),
-                  if (d.serial.isNotEmpty)
-                    ZStatusPill(
-                      text: 'Serial ${d.serial}',
-                      tone: StatusTone.neutral,
-                    ),
-                ],
-              ),
               const Padding(
                 padding: EdgeInsets.symmetric(vertical: 12),
                 child: Divider(height: 1, color: Color(0xFFF0F3F8)),
@@ -139,17 +139,12 @@ class _DeviceState extends ConsumerState<CoordinatorDeviceCard> {
                     child: Text(
                       d.returned
                           ? 'Returned ${admDate(d.returnedDate)}'
-                          : 'Issued ${admDate(d.issuedDate)}',
+                          : admDate(d.issuedDate),
                       style: const TextStyle(
                         fontSize: 12,
                         color: Color(0xFF8B9BBA),
                       ),
                     ),
-                  ),
-                  const Icon(
-                    Icons.chevron_right,
-                    size: 18,
-                    color: Color(0xFF8B9BBA),
                   ),
                 ],
               ),
@@ -173,8 +168,13 @@ String _initials(String name) {
 }
 
 class CoordinatorDeviceDetailPage extends ConsumerStatefulWidget {
-  const CoordinatorDeviceDetailPage({super.key, required this.device});
-  final AdmDevice device;
+  const CoordinatorDeviceDetailPage({
+    super.key,
+    required this.deviceId,
+    this.initial,
+  });
+  final String deviceId;
+  final AdmDevice? initial;
 
   @override
   ConsumerState<CoordinatorDeviceDetailPage> createState() =>
@@ -184,9 +184,17 @@ class CoordinatorDeviceDetailPage extends ConsumerStatefulWidget {
 class _DeviceDetailState extends ConsumerState<CoordinatorDeviceDetailPage> {
   bool _busy = false;
 
-  Future<void> _returnDevice() async {
+  void _close() {
+    final navigator = Navigator.of(context);
+    if (navigator.canPop()) {
+      navigator.pop();
+      return;
+    }
+    GoRouter.maybeOf(context)?.go('/coordinator/devices');
+  }
+
+  Future<void> _returnDevice(AdmDevice device) async {
     if (_busy) return;
-    final device = widget.device;
     final repo = ref.read(coordinatorRepositoryProvider);
     final messenger = ScaffoldMessenger.of(context);
     setState(() => _busy = true);
@@ -209,7 +217,7 @@ class _DeviceDetailState extends ConsumerState<CoordinatorDeviceDetailPage> {
       }
       invalidateCoordinator(ref);
       if (!mounted) return;
-      Navigator.of(context).pop();
+      _close();
       messenger.showSnackBar(
         const SnackBar(content: Text('Device return recorded.')),
       );
@@ -223,45 +231,28 @@ class _DeviceDetailState extends ConsumerState<CoordinatorDeviceDetailPage> {
   @override
   Widget build(BuildContext context) {
     final theme = overviewScreenTheme(zLightTheme());
-    final d = widget.device;
-    final name = d.student.isEmpty ? 'Device holder' : d.student;
-    Widget panel(
-      String title,
-      List<Widget> children, {
-      bool highlighted = false,
-    }) => Container(
-      width: double.infinity,
-      margin: const EdgeInsets.only(top: 12),
-      padding: const EdgeInsets.all(12),
-      decoration: BoxDecoration(
-        color: highlighted ? const Color(0xFFF3F9FF) : Colors.white,
-        borderRadius: BorderRadius.circular(14),
-        border: Border.all(
-          color: highlighted
-              ? const Color(0xFFBFDBFE)
-              : const Color(0xFFE2E8F0),
-        ),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Text(
-            title,
-            style: TextStyle(
-              fontSize: 12,
-              fontWeight: FontWeight.w700,
-              color: highlighted
-                  ? const Color(0xFF1E3A8A)
-                  : const Color(0xFF0F172A),
-            ),
-          ),
-          const SizedBox(height: 8),
-          ...children.map(
-            (child) => Material(type: MaterialType.transparency, child: child),
-          ),
-        ],
-      ),
-    );
+    final initial = widget.initial;
+    final resolved = initial == null
+        ? ref.watch(coordinatorDeviceProvider(widget.deviceId))
+        : null;
+    final device = initial ?? resolved?.asData?.value;
+    Widget body;
+    if (device != null) {
+      body = _content(device);
+    } else if (resolved != null && resolved.hasError) {
+      body = ErrorView(
+        message: resolved.error!,
+        onRetry: () =>
+            ref.invalidate(coordinatorDeviceProvider(widget.deviceId)),
+      );
+    } else if (resolved != null && resolved.isLoading) {
+      body = const Padding(
+        padding: EdgeInsets.all(16),
+        child: ZSkeletonList(count: 4),
+      );
+    } else {
+      body = const Center(child: Text('This device is no longer available.'));
+    }
     return Theme(
       data: theme,
       child: Scaffold(
@@ -277,7 +268,7 @@ class _DeviceDetailState extends ConsumerState<CoordinatorDeviceDetailPage> {
             icon: const Icon(Icons.chevron_left),
             tooltip: 'Back',
             padding: EdgeInsets.zero,
-            onPressed: () => Navigator.of(context).maybePop(),
+            onPressed: _close,
           ),
           title: const Text('Device Details'),
         ),
@@ -285,63 +276,426 @@ class _DeviceDetailState extends ConsumerState<CoordinatorDeviceDetailPage> {
           alignment: Alignment.topCenter,
           child: ConstrainedBox(
             constraints: const BoxConstraints(maxWidth: 760),
-            child: ListView(
-              padding: const EdgeInsets.fromLTRB(12, 16, 12, 32),
-              children: [
-                ZContentHeader(
-                  title: name,
-                  icon: LucideIcons.tablet,
-                  description:
-                      'LRN ${d.lrn.isEmpty ? '—' : d.lrn} · ${d.returned ? 'Returned' : 'Issued'}',
+            child: body,
+          ),
+        ),
+      ),
+    );
+  }
+
+  BoxDecoration _card(double radius) => BoxDecoration(
+    color: Colors.white,
+    borderRadius: BorderRadius.circular(radius),
+    border: Border.all(color: const Color(0xFFE6ECF4)),
+  );
+
+  Widget _content(AdmDevice d) {
+    final name = d.student.isEmpty ? 'Device holder' : d.student;
+    final specs = _DeviceSpecs.parse(d.type);
+    final serial = d.serial.isEmpty ? '—' : d.serial;
+    final notes = d.notes.trim();
+    return ListView(
+      padding: const EdgeInsets.fromLTRB(12, 14, 12, 32),
+      children: [
+        Container(
+          padding: const EdgeInsets.all(14),
+          decoration: _card(16),
+          child: Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Container(
+                width: 44,
+                height: 44,
+                decoration: BoxDecoration(
+                  color: const Color(0xFFEAF2FF),
+                  borderRadius: BorderRadius.circular(12),
+                  border: Border.all(color: const Color(0xFFD4E4FF)),
                 ),
-                const SizedBox(height: 12),
-                Wrap(
-                  spacing: 6,
-                  runSpacing: 6,
+                child: const Icon(
+                  LucideIcons.tablet,
+                  size: 22,
+                  color: Color(0xFF2563EB),
+                ),
+              ),
+              const SizedBox(width: 12),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
+                    Text(
+                      name,
+                      style: const TextStyle(
+                        fontSize: 15,
+                        fontWeight: FontWeight.w700,
+                        color: Color(0xFF172033),
+                      ),
+                    ),
+                    const SizedBox(height: 2),
+                    Text(
+                      'LRN ${d.lrn.isEmpty ? '—' : d.lrn}',
+                      style: const TextStyle(
+                        fontSize: 12,
+                        color: Color(0xFF8B9BBA),
+                        fontFeatures: [FontFeature.tabularFigures()],
+                      ),
+                    ),
+                    const SizedBox(height: 8),
                     ZStatusPill(
                       text: d.returned ? 'Returned' : 'Issued',
                       tone: d.returned ? StatusTone.green : StatusTone.blue,
                     ),
-                    if (d.type.isNotEmpty)
-                      ZStatusPill(text: d.type, tone: StatusTone.blue),
-                    if (d.serial.isNotEmpty)
-                      ZStatusPill(
-                        text: 'Serial ${d.serial}',
-                        tone: StatusTone.neutral,
-                      ),
                   ],
                 ),
-                panel('Device', [
-                  Text('Type: ${d.type.isEmpty ? '—' : d.type}'),
-                  Text('Serial number: ${d.serial.isEmpty ? '—' : d.serial}'),
-                ], highlighted: true),
-                panel('Issued', [Text(admDate(d.issuedDate))]),
-                panel('Returned', [
-                  Text(
-                    d.returned ? admDate(d.returnedDate) : 'Not returned yet',
+              ),
+              const SizedBox(width: 8),
+              Transform.rotate(
+                angle: 0.12,
+                child: const Icon(
+                  LucideIcons.tablet,
+                  size: 40,
+                  color: Color(0xFFCBD9EE),
+                ),
+              ),
+            ],
+          ),
+        ),
+        const SizedBox(height: 18),
+        const Padding(
+          padding: EdgeInsets.symmetric(horizontal: 2),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                'Overview',
+                style: TextStyle(
+                  fontSize: 14,
+                  fontWeight: FontWeight.w700,
+                  color: Color(0xFF172033),
+                ),
+              ),
+              SizedBox(height: 5),
+              DecoratedBox(
+                decoration: BoxDecoration(
+                  color: Color(0xFF2563EB),
+                  borderRadius: BorderRadius.all(Radius.circular(2)),
+                ),
+                child: SizedBox(width: 34, height: 3),
+              ),
+            ],
+          ),
+        ),
+        const SizedBox(height: 10),
+        IntrinsicHeight(
+          child: Row(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              Expanded(
+                child: _DeviceStatTile(
+                  icon: LucideIcons.calendar,
+                  label: 'Issued',
+                  value: admDate(d.issuedDate),
+                  foreground: const Color(0xFF2563EB),
+                  background: const Color(0xFFEAF2FF),
+                ),
+              ),
+              const SizedBox(width: 8),
+              Expanded(
+                child: _DeviceStatTile(
+                  icon: LucideIcons.undo2,
+                  label: 'Returned',
+                  value: d.returned
+                      ? admDate(d.returnedDate)
+                      : 'Not returned yet',
+                  foreground: d.returned
+                      ? const Color(0xFF15803D)
+                      : const Color(0xFFB45309),
+                  background: d.returned
+                      ? const Color(0xFFF0FDF4)
+                      : const Color(0xFFFFF6E5),
+                ),
+              ),
+              const SizedBox(width: 8),
+              Expanded(
+                child: _DeviceStatTile(
+                  icon: LucideIcons.hash,
+                  label: 'Serial Number',
+                  value: serial,
+                  foreground: const Color(0xFF7C6BD0),
+                  background: const Color(0xFFF3F0FF),
+                ),
+              ),
+            ],
+          ),
+        ),
+        const SizedBox(height: 12),
+        Container(
+          padding: const EdgeInsets.all(14),
+          decoration: _card(14),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              const Row(
+                children: [
+                  _DeviceTitleIcon(
+                    icon: LucideIcons.layers,
+                    foreground: Color(0xFF2563EB),
+                    background: Color(0xFFEAF2FF),
                   ),
-                ]),
-                if (d.notes.isNotEmpty)
-                  panel('Condition notes', [Text(d.notes)]),
-                if (!d.returned) ...[
-                  const SizedBox(height: 24),
-                  FilledButton(
-                    style: FilledButton.styleFrom(
-                      backgroundColor: const Color(0xFF2563EB),
-                      foregroundColor: Colors.white,
-                      minimumSize: const Size.fromHeight(48),
+                  SizedBox(width: 8),
+                  Text(
+                    'Device Information',
+                    style: TextStyle(
+                      fontSize: 13,
+                      fontWeight: FontWeight.w700,
+                      color: Color(0xFF172033),
                     ),
-                    onPressed: _busy ? null : _returnDevice,
-                    child: Text(_busy ? 'Recording…' : 'Record return'),
                   ),
                 ],
-                const SizedBox(height: 24),
+              ),
+              const SizedBox(height: 12),
+              _DeviceInfoRow(label: 'Type', value: specs.type),
+              const SizedBox(height: 8),
+              _DeviceInfoRow(label: 'Display', value: specs.display),
+              const SizedBox(height: 8),
+              _DeviceInfoRow(label: 'Operating System', value: specs.os),
+              const SizedBox(height: 8),
+              _DeviceInfoRow(label: 'Storage', value: specs.storage),
+            ],
+          ),
+        ),
+        if (notes.isNotEmpty) ...[
+          const SizedBox(height: 12),
+          Container(
+            padding: const EdgeInsets.all(14),
+            decoration: _card(14),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                const Row(
+                  children: [
+                    _DeviceTitleIcon(
+                      icon: LucideIcons.fileText,
+                      foreground: Color(0xFFB45309),
+                      background: Color(0xFFFFF6E5),
+                    ),
+                    SizedBox(width: 8),
+                    Text(
+                      'Condition Notes',
+                      style: TextStyle(
+                        fontSize: 13,
+                        fontWeight: FontWeight.w700,
+                        color: Color(0xFF172033),
+                      ),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 10),
+                Container(
+                  padding: const EdgeInsets.only(left: 10),
+                  decoration: const BoxDecoration(
+                    border: Border(
+                      left: BorderSide(color: Color(0xFFF5B544), width: 3),
+                    ),
+                  ),
+                  child: Text(
+                    notes,
+                    style: const TextStyle(
+                      fontSize: 12,
+                      height: 1.5,
+                      color: Color(0xFF41506B),
+                    ),
+                  ),
+                ),
               ],
             ),
           ),
+        ],
+        if (!d.returned) ...[
+          const SizedBox(height: 20),
+          FilledButton(
+            style: FilledButton.styleFrom(
+              backgroundColor: const Color(0xFF2563EB),
+              foregroundColor: Colors.white,
+              minimumSize: const Size.fromHeight(48),
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(14),
+              ),
+            ),
+            onPressed: _busy ? null : () => _returnDevice(d),
+            child: Text(_busy ? 'Recording…' : 'Record return'),
+          ),
+        ],
+        const SizedBox(height: 24),
+      ],
+    );
+  }
+}
+
+class _DeviceStatTile extends StatelessWidget {
+  const _DeviceStatTile({
+    required this.icon,
+    required this.label,
+    required this.value,
+    required this.foreground,
+    required this.background,
+  });
+
+  final IconData icon;
+  final String label;
+  final String value;
+  final Color foreground;
+  final Color background;
+
+  @override
+  Widget build(BuildContext context) => Container(
+    padding: const EdgeInsets.all(10),
+    decoration: BoxDecoration(
+      color: Colors.white,
+      borderRadius: BorderRadius.circular(14),
+      border: Border.all(color: const Color(0xFFE6ECF4)),
+    ),
+    child: Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Container(
+          width: 28,
+          height: 28,
+          decoration: BoxDecoration(
+            color: background,
+            borderRadius: BorderRadius.circular(9),
+          ),
+          child: Icon(icon, size: 15, color: foreground),
+        ),
+        const SizedBox(height: 8),
+        Text(
+          label,
+          style: const TextStyle(fontSize: 11, color: Color(0xFF8B9BBA)),
+        ),
+        const SizedBox(height: 2),
+        Text(
+          value,
+          maxLines: 2,
+          overflow: TextOverflow.ellipsis,
+          style: const TextStyle(
+            fontSize: 12,
+            fontWeight: FontWeight.w700,
+            color: Color(0xFF172033),
+          ),
+        ),
+      ],
+    ),
+  );
+}
+
+class _DeviceInfoRow extends StatelessWidget {
+  const _DeviceInfoRow({required this.label, required this.value});
+
+  final String label;
+  final String value;
+
+  @override
+  Widget build(BuildContext context) => Row(
+    crossAxisAlignment: CrossAxisAlignment.start,
+    children: [
+      Text(
+        label,
+        style: const TextStyle(fontSize: 12, color: Color(0xFF8B9BBA)),
+      ),
+      const SizedBox(width: 12),
+      Expanded(
+        child: Text(
+          value,
+          textAlign: TextAlign.right,
+          style: const TextStyle(
+            fontSize: 12,
+            fontWeight: FontWeight.w600,
+            color: Color(0xFF172033),
+          ),
         ),
       ),
+    ],
+  );
+}
+
+class _DeviceTitleIcon extends StatelessWidget {
+  const _DeviceTitleIcon({
+    required this.icon,
+    required this.foreground,
+    required this.background,
+  });
+
+  final IconData icon;
+  final Color foreground;
+  final Color background;
+
+  @override
+  Widget build(BuildContext context) => Container(
+    width: 28,
+    height: 28,
+    decoration: BoxDecoration(
+      color: background,
+      borderRadius: BorderRadius.circular(9),
+    ),
+    child: Icon(icon, size: 15, color: foreground),
+  );
+}
+
+/// The registry stores display/OS/storage inside the free-text device type
+/// (e.g. `Learning tablet · 10.1" Android 14, 64GB`). Pull them out when the
+/// value follows that shape and show `—` when it doesn't, never invent data.
+class _DeviceSpecs {
+  const _DeviceSpecs({
+    required this.type,
+    required this.display,
+    required this.os,
+    required this.storage,
+  });
+
+  final String type;
+  final String display;
+  final String os;
+  final String storage;
+
+  static final _displayPattern = RegExp(
+    r'(\d+(?:\.\d+)?)\s*(?:"|″|”|inch(?:es)?|in\b)',
+    caseSensitive: false,
+  );
+  static final _osPattern = RegExp(
+    r'(android|ios|ipados|windows|chromeos|harmonyos)\s*\d+(?:\.\d+)*',
+    caseSensitive: false,
+  );
+  static final _storagePattern = RegExp(
+    r'^\d+\s*(?:gb|tb)$',
+    caseSensitive: false,
+  );
+
+  factory _DeviceSpecs.parse(String raw) {
+    final value = raw.trim();
+    final parts = value.split('·');
+    final type = parts.first.trim();
+    var display = '—';
+    var os = '—';
+    var storage = '—';
+    for (final part in parts.skip(1)) {
+      for (final segment in part.split(',')) {
+        final text = segment.trim();
+        if (text.isEmpty) continue;
+        if (display == '—') {
+          final match = _displayPattern.firstMatch(text);
+          if (match != null) display = '${match.group(1)}"';
+        }
+        if (os == '—') {
+          final match = _osPattern.firstMatch(text);
+          if (match != null) os = match.group(0)!.trim();
+        }
+        if (storage == '—' && _storagePattern.hasMatch(text)) storage = text;
+      }
+    }
+    return _DeviceSpecs(
+      type: type.isEmpty ? '—' : type,
+      display: display,
+      os: os,
+      storage: storage,
     );
   }
 }

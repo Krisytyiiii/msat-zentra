@@ -50,6 +50,7 @@ import 'coordinator/coordinator_shell.dart';
 import 'coordinator/coordinator_pages.dart';
 import 'coordinator/coordinator_case_page.dart';
 import 'coordinator/coordinator_devices.dart';
+import 'coordinator/coordinator_models.dart' show AdmDevice;
 import 'coordinator/coordinator_monitoring.dart';
 import 'coordinator/coordinator_settings.dart';
 import 'coordinator/coordinator_notifications.dart';
@@ -250,6 +251,18 @@ final routerProvider = Provider<GoRouter>((ref) {
       GoRoute(
         path: '/coordinator/devices/issue',
         builder: (_, _) => _coordinatorView(const CoordinatorIssueDevicePage()),
+      ),
+      GoRoute(
+        path: '/coordinator/devices/detail/:id',
+        builder: (_, state) {
+          final extra = state.extra;
+          return _coordinatorView(
+            CoordinatorDeviceDetailPage(
+              deviceId: Uri.decodeComponent(state.pathParameters['id'] ?? ''),
+              initial: extra is AdmDevice ? extra : null,
+            ),
+          );
+        },
       ),
       GoRoute(
         path: '/coordinator/notifications',

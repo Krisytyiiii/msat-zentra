@@ -699,10 +699,12 @@ void main() {
       api,
       Scaffold(body: CoordinatorDeviceCard(device: device)),
     );
-    expect(find.text('Tablet'), findsOneWidget);
+    expect(find.text('Tablet'), findsNothing);
+    expect(find.text('Serial SN-1'), findsNothing);
     await tester.tap(find.byKey(const ValueKey('device-card-device/1')));
     await settle(tester);
     expect(find.text('Device Details'), findsOneWidget);
+    expect(find.text('Tablet'), findsWidgets);
     await tester.scrollUntilVisible(
       find.text('Record return'),
       120,

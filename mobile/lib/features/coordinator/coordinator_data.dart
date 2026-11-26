@@ -79,6 +79,10 @@ final coordinatorDevicesProvider = FutureProvider.autoDispose
     .family<AdmPage<AdmDevice>, AdmListQuery>(
       (ref, query) => ref.watch(coordinatorRepositoryProvider).devices(query),
     );
+final coordinatorDeviceProvider = FutureProvider.autoDispose
+    .family<AdmDevice?, String>(
+      (ref, id) => ref.watch(coordinatorRepositoryProvider).device(id),
+    );
 final coordinatorCaseProvider = FutureProvider.autoDispose
     .family<AdmCaseDetail, String>(
       (ref, id) => ref.watch(coordinatorRepositoryProvider).caseFile(id),
@@ -214,6 +218,16 @@ class CoordinatorRepository {
         }),
         AdmDevice.fromJson,
       );
+
+  /// Deep-link lookup: the devices endpoint returns the full list when no
+  /// paging params are sent.
+  Future<AdmDevice?> device(String id) async {
+    final page = AdmPage.fromJson(
+      await _get('/api/adm/devices'),
+      AdmDevice.fromJson,
+    );
+    return page.rows.where((device) => device.id == id).firstOrNull;
+  }
 
   Future<AdmCaseDetail> caseFile(String id) async => AdmCaseDetail.fromJson(
     admMap(await _get('/api/adm/case/${Uri.encodeComponent(id)}')),
