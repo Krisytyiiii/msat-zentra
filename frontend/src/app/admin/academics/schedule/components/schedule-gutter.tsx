@@ -1,11 +1,11 @@
 "use client";
 
 import * as React from "react";
+import Link from "next/link";
 import { useLiveQuery } from "@/lib/api/live";
 import {
   BookPlus,
   CalendarDays,
-  ExternalLink,
   Send,
   SlidersHorizontal,
   UserPlus,
@@ -170,7 +170,7 @@ export function ScheduleGutter() {
               </GutterIconButton>
             </TooltipTrigger>
             <TooltipContent side="bottom" sideOffset={6}>
-              <GutterTip title="Schedule template" hint="Per-section builder — new tab" />
+              <GutterTip title="Schedule template" hint="Per-section builder" />
             </TooltipContent>
           </Tooltip>
           <div
@@ -191,16 +191,16 @@ export function ScheduleGutter() {
               footer={
                 <div className="flex justify-end gap-1.5 px-1 pb-1">
                   <Button asChild size="sm" className="h-6 px-2 text-xs">
-                    <a href="/admin/academics/schedule/template" target="_blank" rel="noopener noreferrer">
-                      <ExternalLink size={14} aria-hidden />
+                    <Link href="/admin/academics/schedule/timetable">
+                      <CalendarDays size={14} aria-hidden />
                       Open schedule template
-                    </a>
+                    </Link>
                   </Button>
                 </div>
               }
             >
               <p className="flex-1 px-1 text-xs text-muted-foreground">
-                Opens in a new tab so the workspace stays in place.
+                Opens the workspace right here.
               </p>
             </KanbanBoard>
           </div>
@@ -251,14 +251,14 @@ export function ScheduleGutter() {
               footer={
                 <div className="flex justify-end gap-1.5 px-1 pb-1">
                   <Button asChild variant="outline" size="sm" className="h-6 px-2 text-xs">
-                    <a href="/admin/academics/schedule/template?view=subjects" target="_blank" rel="noopener noreferrer">
+                    <Link href="/admin/academics/schedule/subjects">
                       See all
-                    </a>
+                    </Link>
                   </Button>
                   <Button asChild size="sm" className="h-6 px-2 text-xs">
-                    <a href="/admin/academics/schedule/template?view=add-subject" target="_blank" rel="noopener noreferrer">
+                    <Link href="/admin/academics/schedule/subjects">
                       Add subject
-                    </a>
+                    </Link>
                   </Button>
                 </div>
               }
@@ -319,14 +319,14 @@ export function ScheduleGutter() {
               footer={
                 <div className="flex justify-end gap-1.5 px-1 pb-1">
                   <Button asChild variant="outline" size="sm" className="h-6 px-2 text-xs">
-                    <a href="/admin/academics/schedule/template?view=teachers" target="_blank" rel="noopener noreferrer">
+                    <Link href="/admin/academics/schedule/teachers">
                       See all
-                    </a>
+                    </Link>
                   </Button>
                   <Button asChild size="sm" className="h-6 px-2 text-xs">
-                    <a href="/admin/academics/schedule/template?view=add-teacher" target="_blank" rel="noopener noreferrer">
+                    <Link href="/admin/academics/schedule/teachers">
                       Add teacher
-                    </a>
+                    </Link>
                   </Button>
                 </div>
               }
@@ -393,10 +393,10 @@ export function ScheduleGutter() {
               footer={
                 <div className="flex justify-end gap-1.5 px-1 pb-1">
                   <Button asChild size="sm" className="h-6 px-2 text-xs">
-                    <a href="/admin/academics/schedule/template?view=publish" target="_blank" rel="noopener noreferrer">
+                    <Link href="/admin/academics/schedule/publish">
                       <Send size={14} aria-hidden />
                       {`Publish timetable${totalDrafts > 0 ? ` (${totalDrafts})` : ""}`}
-                    </a>
+                    </Link>
                   </Button>
                 </div>
               }
@@ -445,10 +445,10 @@ export function ScheduleGutter() {
               footer={
                 <div className="flex justify-end gap-1.5 px-1 pb-1">
                   <Button asChild size="sm" className="h-6 px-2 text-xs">
-                    <a href="/admin/academics/schedule/template?view=config" target="_blank" rel="noopener noreferrer">
+                    <Link href="/admin/academics/schedule/configure">
                       <SlidersHorizontal size={14} aria-hidden />
                       Configure
-                    </a>
+                    </Link>
                   </Button>
                 </div>
               }

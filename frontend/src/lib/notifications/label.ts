@@ -477,6 +477,23 @@ export function adminNotificationTarget(n: {
   sourceId: string | null;
   message?: string | null;
 }): BellNotificationTarget {
-  if (n.sourceTable === "users") return { href: "/admin/users/pending" };
+  if (n.sourceTable === "users") {
+    // Sign-ups wait on the approval board; other account notices land in the
+    // directory.
+    return /sign-?up|awaiting approval|pending/i.test(n.message ?? "")
+      ? { href: "/admin/users/pending" }
+      : { href: "/admin/users" };
+  }
+  if (
+    n.sourceTable === "section_timetable_entries" ||
+    n.sourceTable === "subjects" ||
+    n.sourceTable === "sections" ||
+    n.sourceTable === "teacher_subject_assignments"
+  )
+    return { href: "/admin/academics/schedule" };
+  if (n.sourceTable === "no_class_day") {
+    return { href: "/admin/attendance/no-class-days" };
+  }
+  if (n.sourceTable === "audit_logs") return { href: "/admin/audit" };
   return null;
 }

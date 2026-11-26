@@ -4,7 +4,6 @@ import { prisma } from "../../lib/prisma.js";
 import { AppError } from "../../lib/errors.js";
 import { requireAuth, requireRole, requireOwnershipOrRole } from "../../middleware/auth.js";
 import { invalidateTags } from "../../lib/cache.js";
-import { gradeBandGuard } from "../../middleware/gradeBand.js";
 import { validate } from "../../middleware/validate.js";
 import { computeSubjectGrade, recomputeSubjectFinal } from "../../services/grading.js";
 import { recomputeRisk, recomputeRosterRisk } from "../../services/risk.js";
@@ -516,7 +515,7 @@ router.post(
         where: { id: fg.id },
         data: { lockStatus: "locked", lockedBy: req.user!.id, lockedAt: new Date() },
       });
-      await writeAudit({ userId: req.user!.id, actionType: "grade_lock", sourceTable: "final_grades", sourceId: fg.id, reason: "Subject teacher submitted final grade for adviser approval" });
+      await writeAudit({ userId: req.user!.id, actionType: "grade_lock", sourceTable: "final_grades", sourceId: fg.id, reason: "Subject teacher locked final grade" });
       await invalidateTags(["registrar", "registrar-finals", "registrar-overview", "record-keeper", "record-keeper-finals", "academics", "overview", "principal", "risk", "teacher"]);
       res.json(updated);
       void (async () => {
@@ -539,11 +538,11 @@ router.post(
             const subjectNoun = `${full.subject.name} (${full.subject.code})`;
             const locker = await prisma.user.findUnique({ where: { id: req.user!.id }, select: { fullName: true } });
             const lockerName = locker?.fullName ?? "A subject teacher";
-            const message = `${lockerName} locked ${subjectNoun} for ${name} (${sectionName}) — ${termSentence}. Awaiting adviser approval.`;
+            const message = `${lockerName} locked ${subjectNoun} for ${name} (${sectionName}) — ${termSentence}. The grade is final.`;
             await fanoutToRole(bandRole, { sourceTable: "final_grades", action: "grade_locked", message, sourceId: fg.id, excludeUserId: req.user!.id });
             const adviserId = full.student?.section?.adviserId ?? full.roster?.section?.adviserId ?? null;
             if (adviserId && adviserId !== req.user!.id) {
-              await fanoutNotification({ userId: adviserId, sourceTable: "final_grades", action: "grade_locked", message: `${message} Review it in your advisory queue.`, sourceId: fg.id });
+              await fanoutNotification({ userId: adviserId, sourceTable: "final_grades", action: "grade_locked", message: `${message} No approval needed — review it in Lock Grades.`, sourceId: fg.id });
             }
           }
         } catch { /* best-effort */ }
@@ -612,125 +611,14 @@ router.post(
           const teacherName = teacher?.fullName ?? "A subject teacher";
           const unit = targets.length === 1 ? "grade" : "grades";
           const subjectNoun = `${assignment.subject.name} (${assignment.subject.code})`;
-          const message = `${teacherName} locked ${targets.length} ${subjectNoun} ${unit} for ${assignment.section.name} — ${termSentence}. They are awaiting adviser approval.`;
-          const adviserMessage = `${message} Review them in your advisory queue.`;
+          const message = `${teacherName} locked ${targets.length} ${subjectNoun} ${unit} for ${assignment.section.name} — ${termSentence}. The grades are final.`;
+          const adviserMessage = `${message} No approval needed — review them in Lock Grades.`;
           await fanoutToRole(bandRole, { sourceTable: "final_grades", action: "grade_locked", message, sourceId: assignmentId, excludeUserId: teacherId });
           const section = await prisma.section.findUnique({ where: { id: assignment.sectionId }, select: { adviserId: true } });
           if (section?.adviserId && section.adviserId !== teacherId) {
             await fanoutNotification({ userId: section.adviserId, sourceTable: "final_grades", action: "grade_locked", message: adviserMessage, sourceId: assignmentId });
           }
         } catch { /* best-effort */ }
-      })();
-    } catch (e) { next(e); }
-  }
-);
-
-router.post(
-  "/final-grades/:id/adviser-approve",
-  requireAuth,
-  requireRole("adviser"),
-  gradeBandGuard(async (req) => {
-    const fg = await prisma.finalGrade.findUnique({ where: { id: String(String(req.params.id)) }, select: { studentId: true, rosterId: true } });
-    if (!fg) throw new AppError(404, "FINAL_NOT_FOUND", "Final grade not found");
-    return fg.studentId ?? (fg.rosterId ? `roster:${fg.rosterId}` : "");
-  }),
-  async (req, res, next) => {
-    try {
-      const fg = await prisma.finalGrade.findUnique({
-        where: { id: String(String(req.params.id)) },
-        select: {
-          id: true,
-          termId: true,
-          lockStatus: true,
-          student: { select: { section: { select: { adviserId: true } } } },
-          roster: { select: { section: { select: { adviserId: true } } } },
-        },
-      });
-      if (!fg) throw new AppError(404, "FINAL_NOT_FOUND", "Final grade not found");
-      const termId = req.termScope?.termId ?? null;
-      if (!termId) throw new AppError(400, "NO_ACTIVE_TERM", "No active term selected");
-      if (fg.termId !== termId) {
-        throw new AppError(404, "FINAL_NOT_FOUND", "Final grade not found in the active term");
-      }
-      // Ownership: only the adviser of the student's section may approve —
-      // a matching grade band alone must not grant approval rights.
-      const sectionAdviserId = fg.student?.section?.adviserId ?? fg.roster?.section?.adviserId ?? null;
-      if (sectionAdviserId !== req.user!.id) {
-        throw new AppError(403, "FORBIDDEN", "Only the section adviser can approve this final grade");
-      }
-      if (fg.lockStatus !== "locked") throw new AppError(409, "NOT_LOCKED", "Final must be locked by the subject teacher before adviser approval");
-      const updated = await prisma.finalGrade.update({
-        where: { id: fg.id },
-        data: { lockStatus: "adviser_approved", adviserApprovedBy: req.user!.id, adviserApprovedAt: new Date() },
-      });
-      await writeAudit({ userId: req.user!.id, actionType: "grade_lock", sourceTable: "final_grades", sourceId: fg.id, reason: "Adviser approved final grade" });
-      await invalidateTags(["registrar", "registrar-finals", "registrar-overview", "academics", "overview", "principal", "risk", "teacher"]);
-      res.json(updated);
-
-      void (async () => {
-        try {
-          const full = await prisma.finalGrade.findUnique({
-            where: { id: fg.id },
-            select: {
-              termId: true,
-              studentId: true,
-              rosterId: true,
-              lockedBy: true,
-              subject: { select: { name: true, code: true } },
-              term: { select: { termNumber: true, schoolYear: { select: { name: true } } } },
-              student: {
-                select: {
-                  gradeLevel: true,
-                  lrn: true,
-                  section: { select: { name: true } },
-                  user: { select: { fullName: true } },
-                },
-              },
-              roster: { select: { gradeLevel: true, lrn: true, fullName: true, section: { select: { name: true } } } },
-            },
-          });
-          if (!full) return;
-          const gradeLevel = full.student?.gradeLevel ?? full.roster?.gradeLevel ?? null;
-          const name = full.student?.user.fullName ?? full.roster?.fullName ?? "A student";
-          const section = full.student?.section?.name ?? full.roster?.section?.name ?? "—";
-          const remaining = await prisma.finalGrade.count({
-            where: {
-              termId: full.termId,
-              ...(full.studentId ? { studentId: full.studentId } : { rosterId: full.rosterId }),
-              NOT: { lockStatus: "adviser_approved" },
-            },
-          });
-          if (remaining > 0) return;
-          const bandRole =
-            gradeLevel === "G7" || gradeLevel === "G8" || gradeLevel === "G9" || gradeLevel === "G10"
-              ? "record_keeper"
-              : "registrar";
-          const termSentence = `Term ${full.term.termNumber}, ${full.term.schoolYear.name}`;
-          const approver = await prisma.user.findUnique({ where: { id: req.user!.id }, select: { fullName: true } });
-          const approverName = approver?.fullName ?? "The adviser";
-          const subjectNoun = full.subject ? ` ${full.subject.name} (${full.subject.code})` : "";
-          if (full.lockedBy && full.lockedBy !== req.user!.id) {
-            try {
-              await fanoutNotification({
-                userId: full.lockedBy,
-                sourceTable: "final_grades",
-                action: "adviser_approved",
-                message: `${approverName} approved${subjectNoun} for ${name} (${section}) — ${termSentence}.`,
-                sourceId: fg.id,
-              });
-            } catch { /* best-effort */ }
-          }
-          if (remaining > 0) return;
-          await fanoutToRole(bandRole, {
-            sourceTable: "final_grades",
-            action: "adviser_approved",
-            message: `${approverName} approved all subjects for ${name} (${section}) — ${termSentence}. The record is complete and ready for your review.`,
-            sourceId: fg.id,
-            excludeUserId: req.user!.id,
-          });
-        } catch {
-
-        }
       })();
     } catch (e) { next(e); }
   }

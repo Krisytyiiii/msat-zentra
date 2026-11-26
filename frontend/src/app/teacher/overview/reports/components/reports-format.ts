@@ -37,7 +37,7 @@ export function termStatus(start: string | null, end: string | null): string | n
 export const LOCK_LABELS: Record<string, string> = {
   unlocked: "Unlocked",
   locked: "Locked",
-  adviser_approved: "Adviser approved",
+  adviser_approved: "Final",
 };
 
 export const FLAG_LABELS: Record<string, string> = {

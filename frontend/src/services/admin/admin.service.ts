@@ -13,6 +13,16 @@ export interface AdminUser {
   mascot: string | null;
 }
 
+export interface AdminProfile {
+  id: string;
+  fullName: string;
+  email: string;
+  role: string;
+  /** Stored mascot character; null falls back to a sprite derived from the name. */
+  mascot: string | null;
+  photoUrl: string | null;
+}
+
 export interface AdminOverview {
   users: {
     total: number;
@@ -107,6 +117,25 @@ export interface AdminLoginActivityResponse {
 export async function fetchAdminOverview(): Promise<AdminOverview> {
   const { data } = await apiClient.get<AdminOverview>("/api/admin/overview");
   return data;
+}
+
+export async function fetchAdminProfile(): Promise<AdminProfile> {
+  const { data } = await apiClient.get<AdminProfile>("/api/admin/profile");
+  return data;
+}
+
+/**
+ * The console avatar. Not a live query — it runs in the admin layout on every
+ * page and the mascot rarely changes; the name-derived sprite renders until it
+ * resolves.
+ */
+export function useAdminProfile() {
+  return useQuery({
+    queryKey: ["admin", "profile"],
+    queryFn: fetchAdminProfile,
+    staleTime: 5 * 60_000,
+    gcTime: 15 * 60_000,
+  });
 }
 
 export async function fetchAdminPresence(): Promise<AdminPresenceResponse> {

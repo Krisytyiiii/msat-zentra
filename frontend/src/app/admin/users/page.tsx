@@ -1,28 +1,17 @@
 "use client";
 
 import * as React from "react";
-import Link from "next/link";
 import { keepPreviousData, useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import {
-  ArrowRight,
-  Clock,
-  Loader2,
-  Search,
-  ShieldCheck,
-  UserCheck,
-  Users,
-  UserX,
-} from "lucide-react";
+import { Clock, ShieldCheck, UserCheck, Users, UserX } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { InsightCallout } from "@/components/ui/insight-callout";
 import { FilterTabs } from "@/components/ui/filter-tabs";
-import { InputGroup, InputGroupAddon, InputGroupInput } from "@/components/ui/input-group";
+import { SearchField } from "@/components/ui/search-field";
+import { ShimmerGroup } from "@/components/ui/shimmer-skeleton";
 import { StatDeck } from "@/components/ui/stat-deck";
 import { toast } from "@/components/ui/sonner";
 import { KanbanBoard } from "@/components/ui/kanban-board";
 import { KanbanOverlay } from "@/components/ui/kanban-overlay";
-import { RowList, type RowListItem, type RowTone } from "@/components/ui/row-list";
-import { RowListSkeleton } from "@/components/shared/zentra-skeletons/ZentraSkeletons";
 import { PAGE_SIZE, Pagination } from "@/components/shared/pagination";
 import { useUrlPager } from "@/components/shared/pagination/useUrlPager";
 import { roleLabel } from "@/lib/auth/roles";
@@ -34,37 +23,9 @@ import {
   type AdminUser,
 } from "@/services/admin/admin.service";
 import type { PaginatedEnvelope } from "@/lib/api/usePaginatedQuery";
+import { AccountsTable } from "./components/accounts-table";
+import { AccountsTableSkeleton } from "./components/accounts-table-skeleton";
 import styles from "./users.module.css";
-
-function formatDate(value: string): string {
-  return new Date(value).toLocaleDateString(undefined, {
-    year: "numeric",
-    month: "short",
-    day: "numeric",
-  });
-}
-
-/** Status → kanban row tone (green / amber / red). */
-const STATUS_TONE: Record<string, RowTone> = {
-  active: "green",
-  pending: "amber",
-  suspended: "red",
-};
-
-/** Role → kanban row tone, grouped by the presence legend's colour families. */
-const ROLE_TONE: Record<string, RowTone> = {
-  student: "blue",
-  parent: "blue",
-  subject_teacher: "amber",
-  adviser: "amber",
-  nurse: "red",
-  adm_coordinator: "red",
-  guidance_counselor: "green",
-  record_keeper: "amber",
-  registrar: "blue",
-  principal: "red",
-  admin: "green",
-};
 
 type StatusFilter = "" | "active" | "suspended";
 
@@ -202,311 +163,208 @@ function AdminUsersPageInner() {
     next: "active" | "suspended";
   } | null>(null);
 
-  const rowItems = React.useMemo<RowListItem[]>(
-    () =>
-      visibleRows.map((user: AdminUser) => ({
-        key: user.id,
-        status: {
-          label: user.status.charAt(0).toUpperCase() + user.status.slice(1),
-          tone: STATUS_TONE[user.status] ?? "muted",
-        },
-        statusTitle: "Account status",
-        title: user.fullName,
-        subtitle: user.email,
-        leadPill: {
-          label: roleLabel(user.role),
-          tone: ROLE_TONE[user.role] ?? "muted",
-          title: "Role",
-        },
-        meta: [
-          {
-            label: formatDate(user.createdAt),
-            tone: "muted",
-            dot: false,
-            title: `Created ${new Date(user.createdAt).toLocaleString()}`,
-          },
-        ],
-        avatarMascot: {
-          name: user.fullName,
-          seed: user.id,
-          character: user.mascot,
-        },
-        ariaLabel: `${user.fullName}, ${roleLabel(user.role)}, ${user.status} account`,
-        actions: (
-          <span className={styles.rowAction}>
-            {user.role === "admin" ? (
-              <span className={styles.muted}>—</span>
-            ) : user.status === "pending" ? (
-              <Link href="/admin/users/pending" className={styles.reviewLink}>
-                Review
-                <ArrowRight size={12} aria-hidden />
-              </Link>
-            ) : user.status === "suspended" ? (
-              <button
-                type="button"
-                className={styles.actionBtn}
-                disabled={statusMutation.isPending}
-                onClick={() => setConfirmTarget({ user, next: "active" })}
-                aria-label={`Restore ${user.fullName}`}
-              >
-                {actingId === user.id ? (
-                  <Loader2 size={12} className={styles.spin} aria-hidden="true" />
-                ) : (
-                  <UserCheck size={12} aria-hidden="true" />
-                )}
-                Restore
-              </button>
-            ) : (
-              <button
-                type="button"
-                className={styles.actionBtnDanger}
-                disabled={statusMutation.isPending}
-                onClick={() => setConfirmTarget({ user, next: "suspended" })}
-                aria-label={`Suspend ${user.fullName}`}
-              >
-                {actingId === user.id ? (
-                  <Loader2 size={12} className={styles.spin} aria-hidden="true" />
-                ) : (
-                  <UserX size={12} aria-hidden="true" />
-                )}
-                Suspend
-              </button>
-            )}
-          </span>
-        ),
-      })),
-    [visibleRows, actingId, statusMutation.isPending],
-  );
-
-  const filtersDirty = status !== "active" || queryInput.trim().length > 0;
-
   return (
-    <section className={styles.page}>
-      <StatDeck
-        title="Account overview"
-        icon={Users}
-        ariaLabel="Account totals"
-        loading={overview.isPending}
-        error={overview.isError}
-        items={[
-          {
-            key: "total",
-            icon: Users,
-            label: "Total accounts",
-            unit: "",
-            value: counts?.total ?? 0,
-            hint: "All statuses",
-            onClick: () => setStatus(""),
-            active: status === "",
-            indicator: "none",
-          },
-          {
-            key: "active",
-            icon: UserCheck,
-            label: "Active",
-            unit: "",
-            value: counts?.active ?? 0,
-            hint: "Signed-in ready",
-            onClick: () => setStatus("active"),
-            active: status === "active",
-            indicator: "none",
-          },
-          {
-            key: "suspended",
-            icon: UserX,
-            label: "Suspended",
-            unit: "",
-            value: counts?.suspended ?? 0,
-            hint: "Access revoked",
-            onClick: () => setStatus("suspended"),
-            active: status === "suspended",
-            indicator: "none",
-            tone: "red",
-          },
-          {
-            key: "pending",
-            icon: Clock,
-            label: "Pending",
-            unit: "",
-            value: counts?.pending ?? 0,
-            hint: "Awaiting approval",
-            href: "/admin/users/pending",
-            tone: "amber",
-          },
-        ]}
-      />
+      <ShimmerGroup>
+      <section className={styles.page}>
+        <StatDeck
+          ariaLabel="Account totals"
+          loading={overview.isPending}
+          error={overview.isError}
+          items={[
+            {
+              key: "total",
+              icon: Users,
+              label: "Total accounts",
+              unit: "",
+              value: counts?.total ?? 0,
+              hint: "All statuses",
+              onClick: () => setStatus(""),
+              active: status === "",
+              indicator: "none",
+            },
+            {
+              key: "active",
+              icon: UserCheck,
+              label: "Active",
+              unit: "",
+              value: counts?.active ?? 0,
+              hint: "Signed-in ready",
+              onClick: () => setStatus("active"),
+              active: status === "active",
+              indicator: "none",
+            },
+            {
+              key: "suspended",
+              icon: UserX,
+              label: "Suspended",
+              unit: "",
+              value: counts?.suspended ?? 0,
+              hint: "Access revoked",
+              onClick: () => setStatus("suspended"),
+              active: status === "suspended",
+              indicator: "none",
+              tone: "red",
+            },
+            {
+              key: "pending",
+              icon: Clock,
+              label: "Pending",
+              unit: "",
+              value: counts?.pending ?? 0,
+              hint: "Awaiting approval",
+              href: "/admin/users/pending",
+              tone: "amber",
+            },
+          ]}
+        />
 
-      <KanbanBoard
-        title="Accounts"
-        icon={<Users size={14} className="text-primary" aria-hidden />}
-        className={styles.boardTransparent}
-        description="Search every account, then suspend or restore access."
-        ariaLabel="User accounts"
-        headerToolbar={
-          <>
-            <InputGroup className="w-56 max-w-full rounded-[16px]">
-              <InputGroupInput
+        <KanbanBoard
+          title="Accounts"
+          icon={<Users size={14} className="text-primary" aria-hidden />}
+          bare
+          description="Search every account, then suspend or restore access."
+          ariaLabel="User accounts"
+          headerToolbar={
+            <>
+              <FilterTabs
+                label="Account status filter"
+                variant="tags"
+                value={status}
+                onChange={setStatus}
+                options={STATUS_FILTERS.map((item) => ({
+                  value: item.value,
+                  label: item.label,
+                  tone:
+                    item.value === "active"
+                      ? ("green" as const)
+                      : item.value === "suspended"
+                        ? ("red" as const)
+                        : item.value === ""
+                          ? ("neutral" as const)
+                          : ("amber" as const),
+                  ...(item.value === "active" ? { count: counts?.active } : {}),
+                  ...(item.value === "suspended" ? { count: counts?.suspended } : {}),
+                  ...(item.value === "" ? { count: counts?.total } : {}),
+                }))}
+              />
+
+              <SearchField
+                className="w-56"
                 placeholder="Filter accounts..."
                 value={queryInput}
-                onChange={(event) => setQueryInput(event.target.value)}
+                onChange={setQueryInput}
                 aria-label="Filter accounts"
               />
-              <InputGroupAddon>
-                <Search />
-              </InputGroupAddon>
-            </InputGroup>
+            </>
+          }
+          footer={
+            <Pagination
+              currentPage={pager.page}
+              totalItems={total}
+              pageSize={PAGE_SIZE}
+              onPageChange={pager.setPage}
+            />
+          }
+        >
+          {query.isPending ? (
+            <AccountsTableSkeleton />
+          ) : query.isError ? (
+            <p className={styles.empty}>
+              Could not load accounts.{" "}
+              <button type="button" className={styles.inlineBtn} onClick={() => void query.refetch()}>
+                Retry
+              </button>
+            </p>
+          ) : searching && visibleRows.length === 0 ? (
+            <div className="flex w-full justify-center py-4">
+              <InsightCallout role="status" className="w-full max-w-xl text-left">
+                <strong>No accounts match &ldquo;{queryInput.trim()}&rdquo;.</strong> Try a
+                different name or email — or clear the filter to see every account.
+              </InsightCallout>
+            </div>
+          ) : rows.length === 0 ? (
+            <div className="flex w-full justify-center py-4">
+              <InsightCallout role="status" className="w-full max-w-xl text-left">
+                No accounts in this view.{" "}
+                {status === "active" ? "Every live account is suspended." : "Try another filter."}
+              </InsightCallout>
+            </div>
+          ) : (
+            <AccountsTable
+              rows={visibleRows}
+              busy={statusMutation.isPending}
+              actingId={actingId}
+              onRequest={(user, next) => setConfirmTarget({ user, next })}
+            />
+          )}
+        </KanbanBoard>
 
-            {filtersDirty ? (
+        <p className={styles.note}>
+          <ShieldCheck size={14} aria-hidden="true" /> Administrator accounts are protected and cannot
+          be suspended from this console.
+        </p>
+
+        <KanbanOverlay
+          open={confirmTarget !== null}
+          onClose={() => {
+            if (!statusMutation.isPending) setConfirmTarget(null);
+          }}
+          title={confirmTarget?.next === "suspended" ? "Suspend account" : "Restore account"}
+          description={
+            confirmTarget
+              ? confirmTarget.next === "suspended"
+                ? `${confirmTarget.user.fullName} will be signed out and blocked from signing in until restored.`
+                : `${confirmTarget.user.fullName} will be able to sign in again.`
+              : undefined
+          }
+          icon={
+            confirmTarget?.next === "suspended" ? (
+              <UserX size={14} className="text-red-500" aria-hidden />
+            ) : (
+              <UserCheck size={14} className="text-emerald-500" aria-hidden />
+            )
+          }
+          busy={statusMutation.isPending}
+          dismissable={!statusMutation.isPending}
+          footer={
+            <div className="flex w-full justify-end gap-2">
               <Button
-                variant="ghost"
+                type="button"
                 size="sm"
-                className="h-8 text-[12px]"
+                variant={confirmTarget?.next === "suspended" ? "destructive" : "default"}
+                className="px-2.5 text-[12px]"
+                disabled={statusMutation.isPending}
                 onClick={() => {
-                  setStatus("active");
-                  setQueryInput("");
+                  const target = confirmTarget;
+                  if (!target) return;
+                  // Close first: the optimistic write already flipped the row.
+                  setConfirmTarget(null);
+                  statusMutation.mutate({ id: target.user.id, next: target.next });
                 }}
               >
-                Reset
+                {confirmTarget?.next === "suspended" ? "Suspend account" : "Restore account"}
               </Button>
-            ) : null}
-          </>
-        }
-        toolbar={
-          <FilterTabs
-            label="Account status filter"
-            value={status}
-            onChange={setStatus}
-            className="w-fit self-start"
-            options={STATUS_FILTERS.map((item) => ({
-              value: item.value,
-              label: item.label,
-              ...(item.value === "active" ? { count: counts?.active } : {}),
-              ...(item.value === "suspended" ? { count: counts?.suspended } : {}),
-              ...(item.value === "" ? { count: counts?.total } : {}),
-            }))}
-          />
-        }
-        footer={
-          <Pagination
-            currentPage={pager.page}
-            totalItems={total}
-            pageSize={PAGE_SIZE}
-            onPageChange={pager.setPage}
-          />
-        }
-      >
-        {query.isPending ? (
-          <RowListSkeleton
-            rows={PAGE_SIZE}
-            gutter="0.625rem"
-            hasLead
-            withMetaAvatar={false}
-            withActions
-            metaPills={1}
-          />
-        ) : query.isError ? (
-          <p className={styles.empty}>
-            Could not load accounts.{" "}
-            <button type="button" className={styles.inlineBtn} onClick={() => void query.refetch()}>
-              Retry
-            </button>
-          </p>
-        ) : searching && visibleRows.length === 0 ? (
-          <div className="flex w-full justify-center py-4">
-            <InsightCallout role="status" className="w-full max-w-xl text-left">
-              <strong>No accounts match &ldquo;{queryInput.trim()}&rdquo;.</strong> Try a
-              different name or email — or clear the filter to see every account.
-            </InsightCallout>
-          </div>
-        ) : rows.length === 0 ? (
-          <div className="flex w-full justify-center py-4">
-            <InsightCallout role="status" className="w-full max-w-xl text-left">
-              No accounts in this view.{" "}
-              {status === "active" ? "Every live account is suspended." : "Try another filter."}
-            </InsightCallout>
-          </div>
-        ) : (
-          <RowList
-            bleed
-            gutter="0.625rem"
-            animateOnMount
-            motionPreset="desk"
-            items={rowItems}
-            emptyText="No accounts match these filters."
-            ariaLabel="User accounts"
-          />
-        )}
-      </KanbanBoard>
-
-      <p className={styles.note}>
-        <ShieldCheck size={14} aria-hidden="true" /> Administrator accounts are protected and cannot
-        be suspended from this console.
-      </p>
-
-      <KanbanOverlay
-        open={confirmTarget !== null}
-        onClose={() => {
-          if (!statusMutation.isPending) setConfirmTarget(null);
-        }}
-        title={confirmTarget?.next === "suspended" ? "Suspend account" : "Restore account"}
-        description={
-          confirmTarget
-            ? confirmTarget.next === "suspended"
-              ? `${confirmTarget.user.fullName} will be signed out and blocked from signing in until restored.`
-              : `${confirmTarget.user.fullName} will be able to sign in again.`
-            : undefined
-        }
-        icon={
-          confirmTarget?.next === "suspended" ? (
-            <UserX size={14} className="text-red-500" aria-hidden />
-          ) : (
-            <UserCheck size={14} className="text-emerald-500" aria-hidden />
-          )
-        }
-        busy={statusMutation.isPending}
-        dismissable={!statusMutation.isPending}
-        footer={
-          <div className="flex w-full justify-end gap-2">
-            <Button
-              type="button"
-              size="sm"
-              className={[
-                "h-6 px-2.5 text-[12px]",
-                confirmTarget?.next === "suspended"
-                  ? "bg-red-600 text-white hover:bg-red-700"
-                  : "bg-emerald-600 text-white hover:bg-emerald-700",
-              ].join(" ")}
-              disabled={statusMutation.isPending}
-              onClick={() => {
-                const target = confirmTarget;
-                if (!target) return;
-                // Close first: the optimistic write already flipped the row.
-                setConfirmTarget(null);
-                statusMutation.mutate({ id: target.user.id, next: target.next });
-              }}
-            >
-              {confirmTarget?.next === "suspended" ? "Suspend account" : "Restore account"}
-            </Button>
-          </div>
-        }
-      >
-        {confirmTarget ? (
-          <dl className={styles.confirmSummary}>
-            <div>
-              <dt>Name</dt>
-              <dd>{confirmTarget.user.fullName}</dd>
             </div>
-            <div>
-              <dt>Email</dt>
-              <dd>{confirmTarget.user.email}</dd>
-            </div>
-            <div>
-              <dt>Role</dt>
-              <dd>{roleLabel(confirmTarget.user.role)}</dd>
-            </div>
-          </dl>
-        ) : null}
+          }
+        >
+          {confirmTarget ? (
+            <dl className={styles.confirmSummary}>
+              <div>
+                <dt>Name</dt>
+                <dd>{confirmTarget.user.fullName}</dd>
+              </div>
+              <div>
+                <dt>Email</dt>
+                <dd>{confirmTarget.user.email}</dd>
+              </div>
+              <div>
+                <dt>Role</dt>
+                <dd>{roleLabel(confirmTarget.user.role)}</dd>
+              </div>
+            </dl>
+          ) : null}
       </KanbanOverlay>
-    </section>
+      </section>
+    </ShimmerGroup>
   );
 }

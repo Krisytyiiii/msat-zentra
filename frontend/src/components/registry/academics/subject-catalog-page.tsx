@@ -4,22 +4,16 @@ import * as React from "react";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { keepPreviousData, useQuery } from "@tanstack/react-query";
 import {
+  ArrowUpRight,
   BookOpen,
-  ChevronRight,
-  GraduationCap,
   Layers,
-  Search,
-  TrendingUp,
-  Users,
-  type LucideIcon,
 } from "lucide-react";
 import { Skeleton } from "@/components/ui/skeleton";
-import { StatDeck } from "@/components/ui/stat-deck";
+import { ShimmerGroup } from "@/components/ui/shimmer-skeleton";
 import { FilterTabs } from "@/components/ui/filter-tabs";
-import { Input } from "@/components/ui/input";
-import { InsightCallout } from "@/components/ui/insight-callout";
-import { KanbanBoard } from "@/components/ui/kanban-board";
+import { SearchField } from "@/components/ui/search-field";
 import { Pill } from "@/components/ui/pill";
+import { Button } from "@/components/ui/button";
 import { formatGrade } from "@/lib/utils";
 import {
   fetchRegistrySubjects,
@@ -35,7 +29,7 @@ function OutcomeMeter({ passed, failed }: { passed: number; failed: number }) {
   const pct = graded === 0 ? 0 : Math.round((passed / graded) * 100);
   return (
     <span
-      className="flex w-full items-center gap-2"
+      className="flex w-full min-w-0 items-center gap-2"
       title={
         graded === 0
           ? "No final grades filed yet"
@@ -57,22 +51,189 @@ function OutcomeMeter({ passed, failed }: { passed: number; failed: number }) {
   );
 }
 
-interface StatItem {
-  key: string;
-  icon: LucideIcon;
-  label: string;
-  unit: string;
-  hint: string;
-  value: number | null;
-  /** Slice of the largest stat, 0–100. */
-  share: number;
+function SubjectRow({
+  subject,
+  index,
+  onOpen,
+}: {
+  subject: RegistrySubject;
+  index: number;
+  onOpen: (subject: RegistrySubject) => void;
+}) {
+  const handleKeyDown = (event: React.KeyboardEvent<HTMLLIElement>) => {
+    if (event.target !== event.currentTarget) return;
+    if (event.key === "Enter" || event.key === " ") {
+      event.preventDefault();
+      onOpen(subject);
+    }
+  };
+
+  return (
+    <li
+      style={{ animationDelay: `${Math.min(index, 11) * 35}ms` }}
+      className={styles.row}
+      onClick={() => onOpen(subject)}
+      onKeyDown={handleKeyDown}
+      tabIndex={0}
+      role="button"
+      aria-label={`Open ${subject.name} learners`}
+    >
+      <div className={`${styles.cell} ${styles.cellSubject}`}>
+        <span className={styles.subjectIcon} aria-hidden>
+          <BookOpen size={14} />
+        </span>
+        <div className={styles.personText}>
+          <p className={styles.personName} title={subject.name}>
+            {subject.name}
+          </p>
+          <span className={styles.personLrn}>{subject.code}</span>
+        </div>
+      </div>
+
+      <div className={`${styles.cell} ${styles.cellGrade}`}>
+        <Pill tone="blue" label="Grade level">
+          {formatGrade(String(subject.gradeLevel))}
+        </Pill>
+      </div>
+
+      <div className={`${styles.cell} ${styles.cellMetaRow} ${styles.cellCategory}`}>
+        <span className={styles.cellValue}>{subject.category}</span>
+        <span className={styles.cellMuted}>
+          {subject.active ? "Offered" : "Inactive"}
+        </span>
+      </div>
+
+      <div className={`${styles.cell} ${styles.cellMetaRow} ${styles.cellEnrolled}`}>
+        <span className={styles.cellLabel}>Enrolled</span>
+        <span className={styles.cellValue}>{subject.enrolled}</span>
+      </div>
+
+      <div className={`${styles.cell} ${styles.cellMetaRow} ${styles.cellPassed}`}>
+        <span className={styles.cellLabel}>Passed</span>
+        <span className={`${styles.cellValue} ${styles.cellPassedValue}`}>
+          {subject.passed}
+        </span>
+      </div>
+
+      <div className={`${styles.cell} ${styles.cellMetaRow} ${styles.cellFailed}`}>
+        <span className={styles.cellLabel}>Failed</span>
+        <span className={`${styles.cellValue} ${styles.cellFailedValue}`}>
+          {subject.failed}
+        </span>
+      </div>
+
+      <div className={`${styles.cell} ${styles.cellOutcome}`}>
+        <OutcomeMeter passed={subject.passed} failed={subject.failed} />
+      </div>
+
+      <div className={`${styles.cell} ${styles.cellAction}`}>
+        <Button
+          variant="outline"
+          className="h-6 gap-1 bg-card px-2 text-[12px] text-foreground"
+          aria-label={`View ${subject.name} learners`}
+          onClick={(event) => {
+            event.stopPropagation();
+            onOpen(subject);
+          }}
+        >
+          <ArrowUpRight size={12} className="text-amber-500" aria-hidden />
+          View learners
+        </Button>
+      </div>
+    </li>
+  );
+}
+
+const HEAD_LABELS: { key: string; label: string; className?: string }[] = [
+  { key: "subject", label: "Subject" },
+  { key: "grade", label: "Grade" },
+  { key: "category", label: "Category", className: styles.headCategory },
+  { key: "enrolled", label: "Enrolled" },
+  { key: "passed", label: "Passed" },
+  { key: "failed", label: "Failed" },
+  { key: "outcome", label: "Outcome" },
+  { key: "action", label: "" },
+];
+
+/** Filter chips the live toolbar shows: All + one per banded grade. */
+const SKEL_TAGS = [5, 7, 7, 7];
+
+/**
+ * Loading state for the subject catalog — one shimmer sweep over a copy of the
+ * live layout (header + count pill, grade tags + search, the list panel head
+ * and six rows), so nothing shifts when the catalog lands.
+ */
+function SubjectCatalogSkeleton() {
+  return (
+    <ShimmerGroup>
+      <section className={styles.page} aria-busy="true" aria-label="Loading subjects">
+        <div className={styles.boardShell}>
+          <header className={styles.header}>
+            <div className={styles.headerText}>
+              <div className={styles.titleRow}>
+                <Skeleton className={styles.skelTitleIcon} />
+                <Skeleton className={styles.skelTitle} />
+              </div>
+              <Skeleton className={styles.skelDescription} />
+            </div>
+            <Skeleton className={styles.skelCountPill} />
+          </header>
+
+          <div className={styles.toolbar}>
+            <div className={styles.toolbarFilters}>
+              {SKEL_TAGS.map((width, index) => (
+                <Skeleton
+                  key={index}
+                  className={styles.skelTag}
+                  style={{ width: `${width}rem` }}
+                />
+              ))}
+            </div>
+            <Skeleton className={styles.skelSearch} />
+          </div>
+
+          <div className={styles.listPanel} role="status" aria-label="Loading subjects">
+            <div className={styles.listHead} aria-hidden>
+              {HEAD_LABELS.map((head) => (
+                <span key={head.key} className={head.className}>
+                  <Skeleton className={styles.skelHeadLabel} />
+                </span>
+              ))}
+            </div>
+            <ul className={styles.listBody} aria-hidden>
+              {Array.from({ length: 6 }).map((_, row) => (
+                <li key={row} className={styles.skelRow}>
+                  <div className={styles.skelPersonCell}>
+                    <Skeleton className={styles.skelAvatar} />
+                    <div className={styles.skelPersonLines}>
+                      <Skeleton className={styles.skelBar} style={{ width: "8rem" }} />
+                      <Skeleton className={styles.skelBar} style={{ width: "4.5rem" }} />
+                    </div>
+                  </div>
+                  <Skeleton className={styles.skelPill} style={{ width: "4rem" }} />
+                  <div className={`${styles.cell} ${styles.cellCategory}`}>
+                    <Skeleton className={styles.skelBar} style={{ width: "3.5rem" }} />
+                  </div>
+                  <Skeleton className={styles.skelBar} style={{ width: "2.25rem" }} />
+                  <Skeleton className={styles.skelBar} style={{ width: "2.25rem" }} />
+                  <Skeleton className={styles.skelBar} style={{ width: "2.25rem" }} />
+                  <Skeleton className={styles.skelMeter} />
+                  <Skeleton className={styles.skelAction} />
+                </li>
+              ))}
+            </ul>
+          </div>
+        </div>
+      </section>
+    </ShimmerGroup>
+  );
 }
 
 /**
  * Registry academics — the banded subject catalog (record keeper G7–10,
- * registrar G11-12). Search, grade filter, a single-column
- * subject list, and a per-subject learner drill-down with the filed final
- * grades.
+ * registrar G11-12). Grade tabs + search over one list panel, in the same
+ * shape as the advisory interventions desk, with a per-subject learner
+ * drill-down holding the filed final grades.
  */
 export function SubjectCatalogPage({
   desk,
@@ -121,44 +282,6 @@ export function SubjectCatalogPage({
     return map;
   }, [subjects]);
 
-  // Learners per grade live on every subject row of that grade (same value),
-  // so one row per grade is enough — summing the rows would multiply them.
-  const learnersTotal = React.useMemo(() => {
-    const seen = new Map<number, number>();
-    for (const s of subjects) if (!seen.has(s.gradeLevel)) seen.set(s.gradeLevel, s.enrolled);
-    return [...seen.values()].reduce((n, v) => n + v, 0);
-  }, [subjects]);
-
-  const totals = React.useMemo(() => {
-    let passed = 0;
-    let failed = 0;
-    for (const s of subjects) {
-      passed += s.passed;
-      failed += s.failed;
-    }
-    const graded = passed + failed;
-    return {
-      passed,
-      failed,
-      rate: graded > 0 ? Math.round((passed / graded) * 100) : null,
-    };
-  }, [subjects]);
-
-  const learningAreas = React.useMemo(
-    () => new Set(subjects.map((s) => s.name.trim().toLowerCase())).size,
-    [subjects],
-  );
-
-  const categoryCounts = React.useMemo(() => {
-    let core = 0;
-    let elective = 0;
-    for (const s of subjects) {
-      if (s.category === "Elective") elective += 1;
-      else core += 1;
-    }
-    return { core, elective };
-  }, [subjects]);
-
   const filtered = React.useMemo(() => {
     const needle = q.trim().toLowerCase();
     return subjects.filter((s) => {
@@ -172,55 +295,32 @@ export function SubjectCatalogPage({
     });
   }, [subjects, grade, q]);
 
-  const peak = Math.max(subjects.length, learnersTotal, gradeCounts.size, 1);
-  const stats: StatItem[] = [
-    {
-      key: "subjects",
-      icon: BookOpen,
-      label: "Subjects",
-      unit: "offerings",
-      hint: `${learningAreas} learning area${learningAreas === 1 ? "" : "s"}`,
-      value: subjects.length,
-      share: Math.round((subjects.length / peak) * 100),
-    },
-    {
-      key: "learners",
-      icon: Users,
-      label: "Learners",
-      unit: "enrolled",
-      hint: `${formatGrade(String(grades[0]))} to ${formatGrade(
-        String(grades[grades.length - 1]),
-      )}`,
-      value: learnersTotal,
-      share: Math.round((learnersTotal / peak) * 100),
-    },
-    {
-      key: "grades",
-      icon: Layers,
-      label: "Grade levels",
-      unit: "grades",
-      hint: `${categoryCounts.core} core · ${categoryCounts.elective} elective`,
-      value: gradeCounts.size,
-      share: Math.round((gradeCounts.size / peak) * 100),
-    },
-    {
-      key: "rate",
-      icon: TrendingUp,
-      label: "Pass rate",
-      unit: "%",
-      hint:
-        totals.rate === null
-          ? "No final grades filed yet"
-          : `${totals.passed} passed · ${totals.failed} failed`,
-      value: totals.rate,
-      share: totals.rate ?? 0,
-    },
-  ];
-
   const openRow = (s: RegistrySubject) => setOpenSubject(s);
 
+  const gradeOptions = React.useMemo(
+    () => [
+      { value: "all", label: "All", count: subjects.length },
+      ...grades.map((g) => ({
+        value: String(g),
+        label: formatGrade(String(g)),
+        count: gradeCounts.get(g) ?? 0,
+      })),
+    ],
+    [grades, subjects.length, gradeCounts],
+  );
+
+  const hasFilterChips = grade !== null || q.trim() !== "";
+
+  const clearFilters = () => {
+    setQ("");
+    setGrade(null);
+  };
+
+  // First load → shimmer copy of the live board, so nothing shifts on arrival.
+  if (isPending && !data) return <SubjectCatalogSkeleton />;
+
   // No catalog at all → one centered callout instead of an empty board.
-  const isTrueEmpty = !isPending && !isError && subjects.length === 0;
+  const isTrueEmpty = !isError && subjects.length === 0;
   if (isTrueEmpty) {
     return (
       <section className="flex min-w-0 flex-col gap-4 font-sans">
@@ -233,67 +333,53 @@ export function SubjectCatalogPage({
   }
 
   return (
-    <section className="flex min-w-0 flex-col gap-3 font-sans">
-      {/* Desk snapshot — the shared stat deck used by every desk. */}
-      <StatDeck
-        title="Subject catalog at a glance"
-        icon={GraduationCap}
-        items={stats.map((item) => ({
-          key: item.key,
-          icon: item.icon,
-          label: item.label,
-          unit: item.unit,
-          hint: item.hint,
-          value: item.value ?? "—",
-          meter: item.share,
-        }))}
-        loading={isPending}
-      />
-
-      <KanbanBoard
-        title="Subject catalog"
-        icon={<BookOpen size={14} className="text-amber-500" aria-hidden />}
-        ariaLabel="Subject catalog"
-        className={styles.boardIn}
-        count={`${filtered.length}/${subjects.length}`}
-        description={`Grades ${grades[0]}–${grades[grades.length - 1]} subject catalog for this desk — search it or open a subject to see every learner's filed final grade.`}
-        toolbar={
-          <div className="flex w-full flex-wrap items-center justify-between gap-2 px-0.5">
-            <FilterTabs
-              label="Filter by grade"
-              options={[
-                { value: "all", label: "All" },
-                ...grades.map((g) => ({
-                  value: String(g),
-                  label: formatGrade(String(g)),
-                })),
-              ]}
-              value={grade === null ? "all" : String(grade)}
-              onChange={(next) => setGrade(next === "all" ? null : Number(next))}
-            />
-
-            <div className="ml-auto flex min-w-0 flex-1 items-center justify-end sm:flex-none">
-              <div className={styles.searchWrap}>
-                <Search className={styles.searchIcon} aria-hidden />
-                <Input
-                  className={styles.search}
-                  placeholder="Search code, learning area…"
-                  value={q}
-                  onChange={(e) => setQ(e.target.value)}
-                  aria-label="Search subjects"
-                />
-              </div>
+    <section className={styles.page} aria-label="Subject catalog">
+      <div className={styles.boardShell}>
+        <header className={styles.header}>
+          <div className={styles.headerText}>
+            <div className={styles.titleRow}>
+              <span className={styles.titleIcon} aria-hidden>
+                <Layers size={16} />
+              </span>
+              <h2 className={styles.title}>Subject catalog</h2>
             </div>
+            <p className={styles.subtitle}>
+              Grades {grades[0]}–{grades[grades.length - 1]} subject catalog for
+              this desk — open a subject to see every learner&rsquo;s filed final
+              grade.
+            </p>
           </div>
-        }
-      >
-        {isPending ? (
-          <div className="flex flex-col gap-1.5 p-0.5" aria-hidden="true">
-            {Array.from({ length: 8 }).map((_, i) => (
-              <Skeleton key={i} className="h-14 w-full rounded-lg" />
-            ))}
+          {subjects.length > 0 ? (
+            <div className={styles.headerActions}>
+              <Pill tone="amber" className={styles.countPill}>
+                {filtered.length} subject{filtered.length === 1 ? "" : "s"}
+              </Pill>
+            </div>
+          ) : null}
+        </header>
+
+        {subjects.length > 0 ? (
+          <div className={styles.toolbar}>
+            <div className={styles.toolbarFilters}>
+              <FilterTabs
+                label="Filter by grade"
+                options={gradeOptions}
+                value={grade === null ? "all" : String(grade)}
+                onChange={(next) => setGrade(next === "all" ? null : Number(next))}
+                variant="tags"
+              />
+            </div>
+            <SearchField
+              className="w-60 max-w-full"
+              placeholder="Search code, learning area, or category…"
+              value={q}
+              onChange={setQ}
+              aria-label="Search subjects"
+            />
           </div>
-        ) : isError ? (
+        ) : null}
+
+        {isError ? (
           <div className="flex min-h-24 flex-col items-center justify-center gap-2 py-8 text-center">
             <p className="text-xs text-muted-foreground">Could not load subjects.</p>
             <button
@@ -305,76 +391,54 @@ export function SubjectCatalogPage({
             </button>
           </div>
         ) : filtered.length === 0 ? (
-          <div className="flex justify-center px-1 py-6">
-            <InsightCallout role="status" className="w-full max-w-xl text-left">
-              {q.trim() ? (
-                <>
-                  No subjects match &ldquo;{q.trim()}&rdquo;. Try a different code or
-                  learning area.
-                </>
-              ) : (
-                <>
-                  No subjects are offered for the selected grade yet. Pick another grade
-                  or clear the filter.
-                </>
-              )}
-            </InsightCallout>
-          </div>
-        ) : (
-          <ul className={styles.subjectList}>
-            {filtered.map((s, index) => (
-              <li key={s.id}>
+          <PageEmptyCallout
+            fit
+            action={
+              hasFilterChips ? (
                 <button
                   type="button"
-                  onClick={() => openRow(s)}
-                  aria-label={`Open ${s.name} learners`}
-                  className={styles.subjectRow}
-                  style={{ animationDelay: `${Math.min(index, 11) * 40}ms` }}
+                  className="h-6 rounded-md border border-border bg-card px-2.5 text-[12px] text-foreground transition-colors hover:bg-muted"
+                  onClick={clearFilters}
                 >
-                  <span className={styles.subjectCode}>{s.code}</span>
-
-                  <span className={styles.subjectMain}>
-                    <span className={styles.subjectName}>{s.name}</span>
-                    <span className={styles.subjectMeta}>
-                      <Pill tone="blue" label="Grade level">
-                        {formatGrade(String(s.gradeLevel))}
-                      </Pill>
-                      <Pill tone="amber" label="Category">
-                        {s.category}
-                      </Pill>
-                      <span className={styles.subjectMetaSmall}>
-                        {s.enrolled} enrolled · {s.passed} passed · {s.failed} failed
-                      </span>
-                    </span>
-                  </span>
-
-                  <span className={styles.subjectStats}>
-                    <span className={styles.subjectStat}>
-                      <span className={styles.subjectStatValue}>{s.enrolled}</span>
-                      <span className={styles.subjectStatLabel}>Enrolled</span>
-                    </span>
-                    <span className={`${styles.subjectStat} ${styles.subjectStatPassed}`}>
-                      <span className={styles.subjectStatValue}>{s.passed}</span>
-                      <span className={styles.subjectStatLabel}>Passed</span>
-                    </span>
-                    <span className={`${styles.subjectStat} ${styles.subjectStatFailed}`}>
-                      <span className={styles.subjectStatValue}>{s.failed}</span>
-                      <span className={styles.subjectStatLabel}>Failed</span>
-                    </span>
-                  </span>
-
-                  <span className={styles.subjectOutcome}>
-                    <span className={styles.subjectOutcomeLabel}>Outcome</span>
-                    <OutcomeMeter passed={s.passed} failed={s.failed} />
-                  </span>
-
-                  <ChevronRight size={15} className={styles.subjectChevron} aria-hidden />
+                  Clear filters
                 </button>
-              </li>
-            ))}
-          </ul>
+              ) : undefined
+            }
+          >
+            {q.trim() ? (
+              <>
+                No subjects match &ldquo;{q.trim()}&rdquo;. Try another code or
+                learning area.
+              </>
+            ) : (
+              <>
+                No subjects are offered for the selected grade yet. Pick another
+                grade or clear the filter.
+              </>
+            )}
+          </PageEmptyCallout>
+        ) : (
+          <div className={styles.listPanel}>
+            <div className={styles.listHead} aria-hidden="true">
+              {HEAD_LABELS.map((head) => (
+                <span key={head.key} className={head.className}>
+                  {head.label}
+                </span>
+              ))}
+            </div>
+            <ul className={styles.listBody} aria-label="Subjects on this desk">
+              {filtered.map((s, index) => (
+                <SubjectRow
+                  key={s.id}
+                  subject={s}
+                  index={index}
+                  onOpen={openRow}
+                />
+              ))}
+            </ul>
+          </div>
         )}
-      </KanbanBoard>
+      </div>
 
       <SubjectLearnersOverlay
         key={openSubject?.id ?? "none"}

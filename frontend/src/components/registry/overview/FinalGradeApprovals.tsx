@@ -97,7 +97,7 @@ export function FinalGradeApprovals({
       </span>
       <p className={styles.emptyTitle}>No complete grade sets yet</p>
       <p className={styles.emptyHint}>
-        Students appear once every subject is adviser-approved.
+        Students appear once every subject is locked.
       </p>
     </div>
   ) : (
@@ -129,8 +129,7 @@ export function FinalGradeApprovals({
             <FileSignature size={14} />
           </span>
         }
-        count={isPending ? undefined : (data?.complete ?? "—")}
-        description="Students whose grades are fully adviser-approved and ready for you to view."
+        description="Students whose grades are fully locked and ready for you to view."
       >
         <div className={styles.kanbanBody}>{body}</div>
         {viewable.length > 0 && (
@@ -156,7 +155,7 @@ export function FinalGradeApprovals({
               Final Grade Approvals
             </h2>
             <p className="mt-1 text-sm text-muted-foreground">
-              Students whose grades are fully adviser-approved and ready for you to view.
+              Students whose grades are fully locked and ready for you to view.
             </p>
           </div>
         </div>

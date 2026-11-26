@@ -8,6 +8,7 @@ import {
   toScheduleConfig,
 } from "../modules/teacher/teacher.labels.js";
 import { activeScheduleConfigForYear } from "../lib/schedule-config.js";
+import { blocksPeriod, loadNoClassDays } from "./noClass.js";
 
 const RECORDED_BY = "system:auto-absent";
 const LOOKBACK_DAYS = 14;
@@ -88,6 +89,7 @@ export async function sweepAutoAbsent(
 
     const cfgRow = await activeScheduleConfigForYear(term.schoolYearId);
     const cfg: ScheduleLike = cfgRow ? toScheduleConfig(cfgRow) : SCHEDULE_CONFIG_DEFAULTS;
+    const noClass = await loadNoClassDays(winStart, winEnd);
 
     const [entries, taken, profiles, rosters] = await Promise.all([
       prisma.sectionTimetableEntry.findMany({
@@ -184,6 +186,10 @@ export async function sweepAutoAbsent(
         const dow = new Date(`${d}T00:00:00Z`).getUTCDay();
         const day = dow === 0 ? 7 : dow;
         if (day !== e.day) continue;
+        // An administrator "no class" declaration cancels the meetup entirely:
+        // never synthesize absences for a day (or half-day) the school did not
+        // hold classes.
+        if (blocksPeriod(noClass.get(d), cfg, e.period)) continue;
         // Subject time done? Past days: whole day. Today: period must have ended.
         if (d === todayStr && periodEndMinutes(cfg, e.period) > ph.min) continue;
         const key = `${e.sectionId}|${e.subjectId}|${d}|${slot}`;

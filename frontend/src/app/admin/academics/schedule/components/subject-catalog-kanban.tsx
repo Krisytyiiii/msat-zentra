@@ -1,26 +1,26 @@
 "use client";
 
 import { useMemo, useState } from "react";
-import { BookOpen, BookPlus, Check, Lock, Search, Trash2, X } from "lucide-react";
+import { BookOpen, BookPlus, Trash2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { Checkbox } from "@/components/ui/checkbox";
 import { FilterTabs } from "@/components/ui/filter-tabs";
 import { InsightCallout } from "@/components/ui/insight-callout";
-import {
-  InputGroup,
-  InputGroupAddon,
-  InputGroupButton,
-  InputGroupInput,
-} from "@/components/ui/input-group";
-import { PageEmptyCallout } from "@/components/shared/page-empty-callout";
-import { Pill } from "@/components/ui/pill";
+import { SearchField } from "@/components/ui/search-field";
+import { ShimmerGroup, ShimmerSkeleton } from "@/components/ui/shimmer-skeleton";
+import { EmptyActionCard } from "./schedule-empty-kanban";
 import type { ScheduleSubject } from "../page";
 import { SubjectAddKanban } from "./subject-add-kanban";
+import { SubjectEditKanban } from "./subject-edit-kanban";
+import { TemplateFormOverlay } from "./TemplateFormOverlay";
 import {
   SubjectDeleteConfirm,
   useSubjectDelete,
   type SubjectDeleteProgress,
 } from "./subject-delete-kanban";
+import {
+  SubjectWorkspaceTable,
+  categoryLabel,
+} from "./subject-workspace-table";
 import type { SubjectCreateProgress } from "./use-add-subjects";
 // One card kit for both desks: the subject board reads exactly like the
 // administrator's section board.
@@ -34,34 +34,6 @@ const GRADES = [
   { key: "G11", label: "Grade 11" },
   { key: "G12", label: "Grade 12" },
 ] as const;
-
-function gradeLabel(grade: string): string {
-  return GRADES.find((g) => g.key === grade)?.label ?? grade;
-}
-
-function categoryLabel(category: string): string {
-  return category === "ELECTIVE" ? "Elective" : "Core";
-}
-
-/** "Locked — used by 3 timetable slots, 1 teacher assignment, gradebook records". */
-function lockReason(links: ScheduleSubject["links"]): string {
-  if (!links) return "Locked — used by existing records";
-  const parts: string[] = [];
-  if (links.timetableEntries > 0) {
-    parts.push(
-      `${links.timetableEntries} timetable slot${links.timetableEntries === 1 ? "" : "s"}`,
-    );
-  }
-  if (links.assignments > 0) {
-    parts.push(
-      `${links.assignments} teacher assignment${links.assignments === 1 ? "" : "s"}`,
-    );
-  }
-  if (links.gradebook > 0) parts.push("gradebook records");
-  return parts.length > 0
-    ? `Locked — used by ${parts.join(", ")}`
-    : "Locked — used by existing records";
-}
 
 interface Props {
   subjects: ScheduleSubject[];
@@ -124,6 +96,8 @@ export function SubjectCatalogKanban({
   const [deleteMode, setDeleteMode] = useState(false);
   const [selectedIds, setSelectedIds] = useState<string[]>([]);
   const [confirmOpen, setConfirmOpen] = useState(false);
+  const [rowDeleteTarget, setRowDeleteTarget] = useState<ScheduleSubject | null>(null);
+  const [editTarget, setEditTarget] = useState<ScheduleSubject | null>(null);
   const { deleteSubjects, deleting } = useSubjectDelete(onDeleteProgress);
 
   const selected = useMemo(
@@ -241,36 +215,21 @@ export function SubjectCatalogKanban({
         <div className={styles.toolbar}>
           <FilterTabs
             label="Filter subjects by grade"
+            variant="tags"
             options={[
-              { value: "all", label: "All grades" },
-              ...GRADES.map((g) => ({ value: g.key, label: g.label })),
+              { value: "all", label: "All grades", tone: "neutral" },
+              ...GRADES.map((g) => ({ value: g.key, label: g.label, tone: "neutral" as const })),
             ]}
             value={activeGrade ?? "all"}
             onChange={(next) => setActiveGrade(next === "all" ? null : next)}
           />
-          <InputGroup className="w-60 max-w-full shrink-0 rounded-[16px]">
-            <InputGroupAddon>
-              <Search />
-            </InputGroupAddon>
-            <InputGroupInput
-              placeholder="Find a subject or code…"
-              value={query}
-              onChange={(event) => setQuery(event.target.value)}
-              aria-label="Find a subject"
-            />
-            {query ? (
-              <InputGroupAddon align="inline-end">
-                <InputGroupButton
-                  size="icon-xs"
-                  aria-label="Clear search"
-                  title="Clear search"
-                  onClick={() => setQuery("")}
-                >
-                  <X aria-hidden />
-                </InputGroupButton>
-              </InputGroupAddon>
-            ) : null}
-          </InputGroup>
+          <SearchField
+            className="w-60"
+            placeholder="Find a subject or code…"
+            value={query}
+            onChange={setQuery}
+            aria-label="Find a subject"
+          />
         </div>
       ) : null}
 
@@ -287,45 +246,104 @@ export function SubjectCatalogKanban({
         />
       ) : null}
 
+      {rowDeleteTarget ? (
+        <SubjectDeleteConfirm
+          subjects={[rowDeleteTarget]}
+          pending={deleting}
+          onCancel={() => setRowDeleteTarget(null)}
+          onConfirm={() => {
+            const target = rowDeleteTarget;
+            setRowDeleteTarget(null);
+            void deleteSubjects([target]);
+          }}
+        />
+      ) : null}
+
+      <TemplateFormOverlay
+        open={editTarget !== null}
+        onClose={() => setEditTarget(null)}
+        label={editTarget ? `Edit ${editTarget.name}` : "Edit subject"}
+        variant="drawer"
+      >
+        {editTarget ? (
+          <SubjectEditKanban
+            key={editTarget.id}
+            subject={editTarget}
+            onClose={() => setEditTarget(null)}
+          />
+        ) : null}
+      </TemplateFormOverlay>
+
       {showGrid ? (
         pending ? (
-          <div className={styles.grid} aria-busy="true" aria-label="Loading subjects">
-            {Array.from({ length: 6 }).map((_, i) => (
-              <div
-                key={i}
-                className="flex flex-col gap-2 rounded-xl border border-border bg-card p-2.5"
-              >
-                <div className="flex items-center gap-2">
-                  <div className="h-9 w-9 shrink-0 rounded-lg bg-muted" />
-                  <div className="flex min-w-0 flex-1 flex-col gap-1">
-                    <div className="h-3.5 w-24 rounded bg-muted" />
-                    <div className="h-3 w-20 rounded bg-muted" />
-                  </div>
-                  <div className="h-5 w-16 shrink-0 rounded-md bg-muted" />
-                </div>
-                <div className="flex items-center gap-1.5">
-                  <div className="h-5 w-20 rounded-md bg-muted" />
-                  <div className="h-5 w-20 rounded-md bg-muted" />
-                </div>
-              </div>
-            ))}
+          <div
+            className="overflow-x-auto rounded-lg border border-border bg-card dark:bg-transparent"
+            aria-busy="true"
+            aria-label="Loading subjects"
+          >
+            <table className="w-full border-collapse text-[13px]">
+              <thead>
+                <tr className="border-b border-border">
+                  {["Subject", "Grade", "Category", "Code", "Availability"].map((label) => (
+                    <th
+                      key={label}
+                      scope="col"
+                      className="px-4 py-2.5 text-left text-[12px] font-medium tracking-[0.02em] whitespace-nowrap text-muted-foreground"
+                    >
+                      {label}
+                    </th>
+                  ))}
+                </tr>
+              </thead>
+              <tbody>
+                <ShimmerGroup>
+                  {Array.from({ length: 6 }).map((_, i) => (
+                    <tr key={i} className="border-b border-border/60 last:border-b-0">
+                      <td className="px-4 py-2.5 align-middle">
+                        <div className="flex items-center gap-2">
+                          <ShimmerSkeleton className="h-7 w-7 shrink-0 rounded-md" />
+                          <ShimmerSkeleton className="h-3.5 w-28" />
+                        </div>
+                      </td>
+                      <td className="px-4 py-2.5 align-middle">
+                        <ShimmerSkeleton className="h-3 w-16" />
+                      </td>
+                      <td className="px-4 py-2.5 align-middle">
+                        <ShimmerSkeleton className="h-5 w-16 rounded-md" />
+                      </td>
+                      <td className="px-4 py-2.5 align-middle">
+                        <ShimmerSkeleton className="h-5 w-20 rounded-md" />
+                      </td>
+                      <td className="px-4 py-2.5 align-middle">
+                        <ShimmerSkeleton className="h-3 w-24" />
+                      </td>
+                    </tr>
+                  ))}
+                </ShimmerGroup>
+              </tbody>
+            </table>
           </div>
         ) : loadError ? (
           <p role="alert" className="text-sm text-destructive">
             Could not load subjects.
           </p>
         ) : subjects.length === 0 ? (
-          <PageEmptyCallout
-            action={
-              <Button className="h-6 gap-1 px-2.5 text-[12px]" onClick={() => onAddOpenChange(true)}>
-                <BookPlus size={12} aria-hidden />
-                Add subject
-              </Button>
-            }
-          >
-            No subjects yet for this term — add the first one, then place it on a section&apos;s
-            weekly timetable.
-          </PageEmptyCallout>
+          <div className="flex min-h-[calc(100dvh-16rem)] items-center justify-center py-8">
+            <EmptyActionCard
+              icon={BookOpen}
+              title="No subjects yet"
+              description="Each subject is created for a grade level and gets its code automatically. Add the first one, then place it on a section's weekly timetable."
+              actions={[
+                {
+                  title: "Add subject",
+                  description: "Choose grade levels, categories and subject names",
+                  icon: BookPlus,
+                  accent: "text-amber-500",
+                  onClick: () => onAddOpenChange(true),
+                },
+              ]}
+            />
+          </div>
         ) : filtered.length === 0 ? (
           <div className="flex min-h-64 items-center justify-center">
             <InsightCallout role="status" className="w-fit max-w-full">
@@ -336,84 +354,14 @@ export function SubjectCatalogKanban({
             </InsightCallout>
           </div>
         ) : (
-          <div className={styles.grid} aria-label="Subjects">
-            {filtered.map((s, index) => {
-              const checked = deleteMode && selectedIds.includes(s.id);
-              const locked = Boolean(s.locked);
-              return (
-                <article
-                  key={s.id}
-                  className={`${styles.card}${deleteMode && !locked ? " cursor-pointer" : ""}${
-                    checked ? " border-red-500/50 bg-red-500/5 dark:bg-red-500/10" : ""
-                  }`}
-                  aria-label={`${s.name} subject`}
-                  onClick={deleteMode && !locked ? () => toggleSelect(s.id) : undefined}
-                  style={{ animationDelay: `${Math.min(index, 11) * 35}ms` }}
-                >
-                  <header className={styles.cardHead}>
-                    {deleteMode ? (
-                      <span onClick={(e) => e.stopPropagation()} className="flex shrink-0">
-                        <Checkbox
-                          checked={checked}
-                          disabled={locked}
-                          onCheckedChange={() => toggleSelect(s.id)}
-                          title={locked ? lockReason(s.links) : undefined}
-                          aria-label={
-                            locked
-                              ? `${s.name} (${s.code}) is locked and cannot be deleted`
-                              : `Select ${s.name} (${s.code}) for deletion`
-                          }
-                        />
-                      </span>
-                    ) : (
-                      <span
-                        className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg border border-border bg-muted/40 text-muted-foreground"
-                        aria-hidden
-                      >
-                        <BookOpen size={16} />
-                      </span>
-                    )}
-                    <div className={styles.cardId}>
-                      <span className={styles.sectionName} title={s.name}>
-                        {s.name}
-                      </span>
-                      <span className={styles.teacher}>{categoryLabel(s.category)} subject</span>
-                    </div>
-                    <Pill field="grade" className={styles.gradePill}>
-                      {gradeLabel(s.gradeLevel)}
-                    </Pill>
-                  </header>
-
-                  <div className={styles.metaRow}>
-                    <Pill tone="green" label="Subject code">
-                      {s.code}
-                    </Pill>
-                    <Pill
-                      tone={s.category === "ELECTIVE" ? "sky" : "amber"}
-                      label="Subject category"
-                    >
-                      {categoryLabel(s.category)}
-                    </Pill>
-                  </div>
-
-                  {locked ? (
-                    <p
-                      className={`${styles.notice} ${styles.claimNotice} mt-auto`}
-                      title={lockReason(s.links)}
-                    >
-                      <Lock size={11} aria-hidden />
-                      <span className="min-w-0 truncate">{lockReason(s.links)}</span>
-                    </p>
-                  ) : (
-                    <p className={`${styles.notice} ${styles.claimedNotice} mt-auto`}>
-                      <Check size={11} aria-hidden />
-                      <span className="min-w-0 truncate">Can be deleted — no records linked</span>
-                    </p>
-                  )}
-                </article>
-              );
-            })}
-          </div>
+          <SubjectWorkspaceTable
+            subjects={filtered}
+            deleteMode={deleteMode}
+            selectedIds={selectedIds}
+            onToggle={toggleSelect}
+            onEdit={setEditTarget}
+            onDelete={setRowDeleteTarget}
+          />
         )
       ) : null}
     </section>

@@ -5,18 +5,14 @@ import { useQuery } from "@tanstack/react-query";
 import {
   CheckCircle2,
   Clock,
-  FileSearch,
-  Loader2,
   Megaphone,
   ShieldCheck,
   Users,
   type LucideIcon,
 } from "lucide-react";
-import { Button } from "@/components/ui/button";
 import { Pill } from "@/components/ui/pill";
 import { StatDeck } from "@/components/ui/stat-deck";
 import { StudentMascot } from "@/components/student-mascot/StudentMascot";
-import { useAdviserAccessCheck } from "@/components/shared/adviser-access/adviser-access-check-context";
 import { apiClient } from "@/lib/api/client";
 import type { RegistryDesk } from "@/services/registry/overview.service";
 import type {
@@ -27,7 +23,6 @@ import {
   mergeConfirmedMarks,
 } from "@/components/shared/adviser-access/adviser-access-types";
 import { ZentraEmptyCard } from "@/components/shared/zentra-empty-card/ZentraEmptyCard";
-import { Sf10RequestsRail } from "./Sf10RequestsRail";
 import { RequestStudentsOverlay } from "./RequestStudentsOverlay";
 import { AccessWorkbench, type StatusFilter } from "./AccessWorkbench";
 import {
@@ -64,6 +59,7 @@ interface StatItem {
   unit: string;
   hint: string;
   count: number;
+  tone?: "amber" | "red" | "green";
 }
 
 export function AdviserAccessWorkspace({ desk }: { desk: RegistryDesk }) {
@@ -77,8 +73,6 @@ export function AdviserAccessWorkspace({ desk }: { desk: RegistryDesk }) {
     placeholderData: (prev) => prev,
   });
 
-  const { checkAll, checkingId } = useAdviserAccessCheck();
-
   const [statusFilter, setStatusFilter] = React.useState<StatusFilter>("all");
   // Card click opens a read-only learner overlay; it never scopes the workbench.
   const [openRequestId, setOpenRequestId] = React.useState<string | null>(null);
@@ -90,11 +84,6 @@ export function AdviserAccessWorkspace({ desk }: { desk: RegistryDesk }) {
   );
 
   const stats = React.useMemo(() => getStudentListStats(pendingRequests), [pendingRequests]);
-
-  const uncheckedIds = React.useMemo(
-    () => pendingRequests.filter((r) => !r.checkedAt).map((r) => r.id),
-    [pendingRequests],
-  );
 
   // Request cards: resolved = any per-student decision recorded.
   const requestCards = React.useMemo(
@@ -114,13 +103,6 @@ export function AdviserAccessWorkspace({ desk }: { desk: RegistryDesk }) {
     [pendingRequests],
   );
 
-  const runChecks = () => {
-    if (uncheckedIds.length === 0) return;
-    checkAll(desk, uncheckedIds);
-  };
-
-  const checking = checkingId !== null;
-
   const kpis: StatItem[] = [
     {
       key: "pendingChecking",
@@ -129,6 +111,7 @@ export function AdviserAccessWorkspace({ desk }: { desk: RegistryDesk }) {
       unit: "to check",
       hint: "Awaiting the SF10 check",
       count: stats.pendingChecking,
+      tone: "amber",
     },
     {
       key: "approved",
@@ -137,6 +120,7 @@ export function AdviserAccessWorkspace({ desk }: { desk: RegistryDesk }) {
       unit: "granted",
       hint: "Access granted per learner",
       count: stats.approved,
+      tone: "green",
     },
     {
       key: "reportedMissing",
@@ -145,6 +129,7 @@ export function AdviserAccessWorkspace({ desk }: { desk: RegistryDesk }) {
       unit: "reported",
       hint: "No record — adviser notified",
       count: stats.reportedMissing,
+      tone: "red",
     },
     {
       key: "totalRequested",
@@ -175,181 +160,119 @@ export function AdviserAccessWorkspace({ desk }: { desk: RegistryDesk }) {
     setStatusFilter(next);
   };
 
-  const hero = (
-    <header className={styles.hero}>
-      <div className={styles.heroMain}>
-        <h1 className={styles.heroTitle}>Adviser access</h1>
-        <p className={styles.heroSubtitle}>
-          Review every {BAND[desk].title} adviser request in one workbench — run the
-          SF10 check, then approve or report each learner.
-        </p>
-      </div>
-      <div className={styles.heroSide}>
-        <Button
-          type="button"
-          size="sm"
-          className="h-6 px-2.5 text-[12px] font-medium"
-          onClick={runChecks}
-          disabled={checking || uncheckedIds.length === 0}
-          title={
-            uncheckedIds.length === 0
-              ? "Every pending request is already checked"
-              : "Run the SF10 check for every unchecked request"
-          }
-        >
-          {checking ? (
-            <Loader2 size={13} className="animate-spin" aria-hidden />
-          ) : (
-            <FileSearch size={13} aria-hidden />
-          )}
-          {checking
-            ? "Checking…"
-            : uncheckedIds.length > 0
-              ? `Run SF10 check (${uncheckedIds.length})`
-              : "All requests checked"}
-        </Button>
-      </div>
-    </header>
-  );
-
   if (isError) {
     return (
       <section className={styles.page}>
-        <div className={styles.layout}>
-          <div className={styles.stack}>
-            {hero}
-            <div className={styles.errorCard} role="alert">
-              Failed to load access requests. Refresh to try again.
-            </div>
-          </div>
-          <Sf10RequestsRail desk={desk} />
+        <div className={styles.errorCard} role="alert">
+          Failed to load access requests. Refresh to try again.
         </div>
       </section>
     );
   }
 
-  if (isPending) {
+  if (isPending || (isFetching && requests.length === 0)) {
     return (
       <section className={styles.page}>
-        <div className={styles.layout}>
-          <div className={styles.stack}>
-            {hero}
-            <AdviserAccessDeckSkeleton />
-            <AdviserAccessStripSkeleton />
-            <AdviserAccessWorkbenchSkeleton />
-          </div>
-          <Sf10RequestsRail desk={desk} />
-        </div>
+        <AdviserAccessDeckSkeleton />
+        <AdviserAccessStripSkeleton />
+        <AdviserAccessWorkbenchSkeleton />
       </section>
     );
   }
 
-  if (pendingRequests.length === 0) {
+  if (pendingRequests.length === 0 && !isFetching) {
+    // Nothing to work: the empty message is the whole page — no header banner
+    // and no request rail until a request actually arrives.
     return (
       <section className={styles.page}>
-        <div className={styles.layout}>
-          <div className={styles.stack}>
-            {hero}
-            <ZentraEmptyCard
-              icon={ShieldCheck}
-              title="No adviser access requests"
-              hint={`No pending adviser access requests for grades ${BAND[desk].range}. New requests appear here in real time.`}
-              label="No access requests"
-              centered
-            />
-          </div>
-          <Sf10RequestsRail desk={desk} />
-        </div>
+        <ZentraEmptyCard
+          icon={ShieldCheck}
+          title="No adviser access requests"
+          hint={`No pending adviser access requests for grades ${BAND[desk].range}. New requests appear here in real time.`}
+          label="No access requests"
+          centered
+        />
       </section>
     );
   }
 
   return (
     <section className={styles.page}>
-      <div className={styles.layout}>
-        <div className={styles.stack}>
-          {hero}
+      <StatDeck
+        ariaLabel="Access request stats"
+        items={kpis.map((item) => ({
+          key: item.key,
+          icon: item.icon,
+          label: item.label,
+          unit: item.unit,
+          hint: item.hint,
+          value: item.count,
+          tone: item.tone,
+          meter: Math.round((item.count / shareBase) * 100),
+          onClick: () => onKpiClick(item.key),
+          active: kpiActive(item.key),
+          ariaLabel: `${item.label}: ${item.count} ${item.unit} — filter the workbench`,
+        }))}
+      />
 
-          <StatDeck
-            title="Access requests at a glance"
-            icon={FileSearch}
-            ariaLabel="Access request stats"
-            items={kpis.map((item) => ({
-              key: item.key,
-              icon: item.icon,
-              label: item.label,
-              unit: item.unit,
-              hint: item.hint,
-              value: item.count,
-              meter: Math.round((item.count / shareBase) * 100),
-              onClick: () => onKpiClick(item.key),
-              active: kpiActive(item.key),
-              ariaLabel: `${item.label}: ${item.count} ${item.unit} — filter the workbench`,
-            }))}
-          />
-
-          <section className={styles.requestStrip} aria-label="Pending adviser requests">
-            <div className={styles.stripHead}>
-              <span className={styles.stripTitle}>
-                Pending requests
-                <span className={styles.stripCount}>{requestCards.length}</span>
-              </span>
-            </div>
-            <div className={styles.requestCards}>
-              {requestCards.map(({ request: r, total, decided, attached, checked }) => {
-                const active = openRequestId === r.id;
-                const pct = total > 0 ? Math.round((decided / total) * 100) : 0;
-                return (
-                  <button
-                    key={r.id}
-                    type="button"
-                    className={`${styles.requestCard} ${active ? styles.requestCardActive : ""}`}
-                    aria-haspopup="dialog"
-                    onClick={() => setOpenRequestId(r.id)}
-                    title={`${r.adviserName}, ${r.section} — click to view this request's learners`}
-                  >
-                    <span className={styles.requestCardHead}>
-                      <StudentMascot name={r.adviserName} seed={r.adviserId} size={28} />
-                      <span className={styles.requestCardWho}>
-                        <span className={styles.requestCardName} title={r.adviserName}>
-                          {r.adviserName}
-                        </span>
-                        <span className={styles.requestCardMeta}>
-                          {r.section}, {r.gradeLevel}
-                        </span>
-                      </span>
-                      <Pill tone={checked ? "green" : "amber"} label="SF10 check">
-                        {checked ? "Checked" : "Unchecked"}
-                      </Pill>
-                    </span>
-                    <span className={styles.requestCardReason} title={r.reason}>
-                      {r.reason}
-                    </span>
-                    <span className={styles.progress}>
-                      <span className={styles.progressFill} style={{ width: `${pct}%` }} />
-                    </span>
-                    <span className={styles.requestCardFoot}>
-                      <span>
-                        {decided} of {total} decided
-                      </span>
-                      <span className={styles.requestCardAttached}>{attached} attached</span>
-                    </span>
-                  </button>
-                );
-              })}
-            </div>
-          </section>
-
-          <AccessWorkbench
-            desk={desk}
-            requests={pendingRequests}
-            statusFilter={statusFilter}
-            onStatusFilterChange={setStatusFilter}
-            isFetching={isFetching}
-          />
+      <section className={styles.requestStrip} aria-label="Pending adviser requests">
+        <div className={styles.stripHead}>
+          <span className={styles.stripTitle}>
+            Pending requests
+          </span>
         </div>
-        <Sf10RequestsRail desk={desk} />
-      </div>
+        <div className={styles.requestCards}>
+          {requestCards.map(({ request: r, total, decided, attached, checked }) => {
+            const active = openRequestId === r.id;
+            const pct = total > 0 ? Math.round((decided / total) * 100) : 0;
+            return (
+              <button
+                key={r.id}
+                type="button"
+                className={`${styles.requestCard} ${active ? styles.requestCardActive : ""}`}
+                aria-haspopup="dialog"
+                onClick={() => setOpenRequestId(r.id)}
+                title={`${r.adviserName}, ${r.section} — click to view this request's learners`}
+              >
+                <span className={styles.requestCardHead}>
+                  <StudentMascot name={r.adviserName} seed={r.adviserId} size={28} />
+                  <span className={styles.requestCardWho}>
+                    <span className={styles.requestCardName} title={r.adviserName}>
+                      {r.adviserName}
+                    </span>
+                    <span className={styles.requestCardMeta}>
+                      {r.section}, {r.gradeLevel}
+                    </span>
+                  </span>
+                  <Pill tone={checked ? "green" : "amber"} label="SF10 check">
+                    {checked ? "Checked" : "Unchecked"}
+                  </Pill>
+                </span>
+                <span className={styles.requestCardReason} title={r.reason}>
+                  {r.reason}
+                </span>
+                <span className={styles.progress}>
+                  <span className={styles.progressFill} style={{ width: `${pct}%` }} />
+                </span>
+                <span className={styles.requestCardFoot}>
+                  <span>
+                    {decided} of {total} decided
+                  </span>
+                  <span className={styles.requestCardAttached}>{attached} attached</span>
+                </span>
+              </button>
+            );
+          })}
+        </div>
+      </section>
+
+      <AccessWorkbench
+        desk={desk}
+        requests={pendingRequests}
+        statusFilter={statusFilter}
+        onStatusFilterChange={setStatusFilter}
+        isFetching={isFetching}
+      />
 
       <RequestStudentsOverlay
         request={requestCards.find((c) => c.request.id === openRequestId)?.request ?? null}

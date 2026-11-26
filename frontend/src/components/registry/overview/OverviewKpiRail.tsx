@@ -155,7 +155,7 @@ export function OverviewKpiRail({ desk }: { desk: RegistryDesk }) {
       href: `/${desk}/final-grades`,
       hint: "Ready to view",
       cta: "Open queue",
-      description: `Adviser-approved finals ready for the ${deskLabel} queue.`,
+      description: `Locked finals ready for the ${deskLabel} queue.`,
       accent: "text-primary",
     },
     {

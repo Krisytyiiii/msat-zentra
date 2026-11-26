@@ -28,6 +28,7 @@ import {
   setTimetableStatus,
   updateScheduleConfig,
   updateScheduleConfigPreset,
+  updateSubject,
   updateTermDates,
   writeEntry,
 } from "../../services/schedule/schedule.service.js";
@@ -494,6 +495,25 @@ router.post("/subjects", validate("body", subjectSchema), async (req, res, next)
     const subject = await createSubject(ctxOf(req), { name, code, gradeLevel, category });
     await invalidateTags(SCHEDULE_TAGS);
     res.status(201).json(subject);
+  } catch (e) {
+    next(e);
+  }
+});
+
+const subjectUpdateSchema = z.object({
+  name: z.string().min(1).max(120).optional(),
+  category: z.enum(["CORE", "ELECTIVE"]).optional(),
+});
+
+router.patch("/subjects/:id", validate("body", subjectUpdateSchema), async (req, res, next) => {
+  try {
+    const { name, category } = req.body as {
+      name?: string;
+      category?: "CORE" | "ELECTIVE";
+    };
+    const subject = await updateSubject(ctxOf(req), req.params.id as string, { name, category });
+    await invalidateTags(SCHEDULE_TAGS);
+    res.json(subject);
   } catch (e) {
     next(e);
   }

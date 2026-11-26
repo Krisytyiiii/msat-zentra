@@ -2,7 +2,7 @@ import { prisma } from "../../lib/prisma.js";
 import type { PortalLearner, PortalTerm } from "../../lib/portalAccess.js";
 import { learnerSectionForTerm } from "../../lib/portalAccess.js";
 import { computeAttendanceRate } from "../attendance.rate.service.js";
-import { listModulesForStudent } from "../student/modules.service.js";
+import { listStudentModules } from "../student/modules.service.js";
 import type { ModuleStatus } from "../../modules/teacher/advisory-modules.schemas.js";
 
 function iso(value: Date | null): string | null {
@@ -167,9 +167,10 @@ export async function getLearnerSchedule(studentId: string, term: PortalTerm) {
 
 export async function getLearnerModules(
   studentId: string,
+  termId: string,
   query: { page: number; pageSize: number; status?: ModuleStatus },
 ) {
-  return listModulesForStudent(studentId, query);
+  return listStudentModules({ userId: studentId, termId }, query);
 }
 
 export interface PortalSessionRow {

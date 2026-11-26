@@ -38,6 +38,26 @@ export function extractLrn(text: string): string | null {
   return any ? any[0] : null;
 }
 
+/**
+ * Diagnostic for the "no LRN" failure: the digit run that was probably meant to
+ * be the LRN. A 12-digit number would have matched `extractLrn`, so an 10–13
+ * digit run here is a malformed one (11 digits is the usual case — a typed LRN
+ * with a dropped digit, or a leading zero Excel stored as a number). Labelled
+ * lines are preferred so an unrelated long number is not blamed.
+ */
+export function findMalformedLrn(text: string): string | null {
+  const lines = text.split(/\r?\n/);
+  const labelled = lines.filter((l) => /lrn|learner\s*reference/i.test(l));
+  const pick = (source: string[]): string | null => {
+    for (const line of source) {
+      const m = ` ${line} `.match(/(?<![0-9])[0-9]{10,13}(?![0-9])/);
+      if (m) return m[0];
+    }
+    return null;
+  };
+  return pick(labelled) ?? pick(lines);
+}
+
 function pullSuffix(tokens: string[]): { tokens: string[]; suffix: string | null } {
   if (tokens.length === 0) return { tokens, suffix: null };
   const last = cleanToken(tokens[tokens.length - 1]);

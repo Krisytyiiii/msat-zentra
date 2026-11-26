@@ -1,6 +1,7 @@
 import { prisma } from "../../lib/prisma.js";
 import { rosterCountsByGrade } from "../enrollment.js";
 import { buildDayAxis, phTodayKey } from "../attendance.js";
+import { activeDayKeys } from "../noClass.js";
 import type { GradeLevel } from "../../generated/prisma/client.js";
 import { GRADE_LABEL, GRADE_ORDER } from "../../modules/attendance/attendance.repository.js";
 import {
@@ -48,7 +49,7 @@ export async function getHeatmap(query: HeatmapQuery) {
   for (const [gl, n] of rosterByGrade) enrolledByGrade[gl] = (enrolledByGrade[gl] ?? 0) + n;
 
   const axisStart = startDate ?? records[0]?.date ?? null;
-  const dayKeys = buildDayAxis(axisStart, endDate ?? null);
+  const dayKeys = await activeDayKeys(buildDayAxis(axisStart, endDate ?? null), "all");
 
   const gradeDayStatus: Record<string, Map<string, { present: number; late: number; excused: number }>> = {};
   for (const r of records) {
@@ -121,6 +122,10 @@ export async function getSummary(query: SummaryQuery) {
     if (wd !== 0 && wd !== 6) dayKeys.push(d.toISOString().slice(0, 10));
   }
   dayKeys.reverse();
+  const active = new Set(await activeDayKeys(dayKeys, "all"));
+  const kept = dayKeys.filter((key) => active.has(key));
+  dayKeys.length = 0;
+  dayKeys.push(...kept);
 
   if (dayKeys.length === 0) {
     return { session: session ?? "ALL", trend: [], grades: [] };

@@ -64,179 +64,57 @@
   line-height: 1.3;
 }
 
-.searchWrap {
-  position: relative;
-  display: flex;
-  align-items: center;
-}
+/* --------------------------------------------------------------- filters -- */
 
-.searchIcon {
-  position: absolute;
-  left: 0.625rem;
-  width: 0.9375rem;
-  height: 0.9375rem;
-  color: var(--muted-foreground);
-  pointer-events: none;
-}
-
-/* Board-header search inside the Grade sets column — full width of the
-   index, 16px radius like the other registry board searches. */
-.search {
-  width: 240px;
-  max-width: 100%;
-  height: 2rem;
-  padding-left: 2rem;
-  border-radius: 1rem;
-}
-
-/* ----------------------------------------------------------- stat deck -- */
-
-/* Same anatomy as the overview's attention deck: one bordered strip with a
-   muted header row and a divided tile per stat (icon + label, big number,
-   3px meter, hint). Amber is the registry accent, so the meter carries it. */
-.stats {
-  display: flex;
-  flex-direction: column;
-  overflow: hidden;
-  border: 1px solid var(--border);
-  border-radius: var(--radius-xl);
-  background-color: var(--card);
-}
-
-.statsHead {
+/* Grade → section tabs under the coverage deck (nurse-desk glass pills). */
+.filters {
   display: flex;
   flex-wrap: wrap;
   align-items: center;
-  justify-content: space-between;
-  gap: 0.375rem 0.75rem;
-  padding: 0.5rem 0.875rem;
-  border-bottom: 1px solid var(--border);
-  background-color: color-mix(in oklch, var(--muted) 45%, transparent);
+  gap: 0.5rem;
+  min-width: 0;
 }
 
-.statsTitle {
-  display: inline-flex;
-  align-items: center;
-  gap: 0.375rem;
-  font-size: 0.8125rem;
-  font-weight: 600;
-}
-
-.statsTitle > svg {
-  width: 0.875rem;
-  height: 0.875rem;
-  color: var(--muted-foreground);
-}
-
-.statTiles {
-  display: grid;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
-}
-
-.statTile {
-  position: relative;
+.filterRow {
   display: flex;
-  flex-direction: column;
-  gap: 0.4375rem;
-  min-width: 0;
-  padding: 0.6875rem 0.875rem 0.75rem;
-  border-right: 1px solid var(--border);
-}
-
-.statTile:last-child {
-  border-right: 0;
-}
-
-.statTop {
-  display: flex;
+  flex-wrap: nowrap;
   align-items: center;
-  gap: 0.4375rem;
+  gap: 0.5rem 0.75rem;
   min-width: 0;
+  overflow-x: auto;
+  scrollbar-width: none;
 }
 
-.statIcon {
-  display: inline-flex;
-  flex-shrink: 0;
-  align-items: center;
-  justify-content: center;
-  width: 1.375rem;
-  height: 1.375rem;
-  border: 1px solid var(--border);
-  border-radius: var(--radius-sm);
-  background-color: color-mix(in oklch, var(--muted) 55%, transparent);
-  color: var(--muted-foreground);
+.filterRow::-webkit-scrollbar {
+  display: none;
 }
 
-.statIcon > svg {
-  width: 0.8125rem;
-  height: 0.8125rem;
-}
-
-.statLabel {
-  min-width: 0;
-  overflow: hidden;
-  font-size: 0.75rem;
-  font-weight: 600;
-  color: var(--muted-foreground);
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
-.statValue {
+.filterGroup {
   display: flex;
-  align-items: baseline;
-  gap: 0.3125rem;
   min-width: 0;
+  flex: none;
+  flex-wrap: nowrap;
+  align-items: center;
+  gap: 0.5rem;
 }
 
-.statNumber {
-  font-size: 1.75rem;
-  font-weight: 700;
-  line-height: 1;
-  letter-spacing: -0.02em;
-  font-variant-numeric: tabular-nums;
+/* One row only: the tab group never wraps inside its own slot — the row
+   scrolls horizontally instead of stacking the chips onto a second line. */
+.filterGroup > div {
+  flex: none;
+  flex-wrap: nowrap;
 }
 
-.statTileClear .statNumber {
-  font-weight: 600;
-  color: var(--muted-foreground);
+.filterGroup + .filterGroup {
+  padding-left: 0.5rem;
+  border-left: 1px solid var(--border);
 }
 
-.statUnit {
-  font-size: 0.75rem;
-  font-weight: 600;
-  letter-spacing: 0.07em;
-  text-transform: uppercase;
-  color: var(--muted-foreground);
-  white-space: nowrap;
-}
-
-.statMeter {
-  position: relative;
-  height: 3px;
-  overflow: hidden;
-  border-radius: 9999px;
-  background-color: color-mix(in oklch, var(--foreground), transparent 92%);
-}
-
-.statMeterFill {
-  display: block;
-  height: 100%;
-  border-radius: inherit;
-  background-color: #f59e0b;
-  transition: width 640ms cubic-bezier(0.22, 1, 0.36, 1);
-}
-
-.statTileClear .statMeterFill {
-  background-color: color-mix(in oklch, var(--foreground), transparent 72%);
-}
-
-.statHint {
-  overflow: hidden;
-  font-size: 0.75rem;
-  color: var(--muted-foreground);
-  text-overflow: ellipsis;
-  white-space: nowrap;
+@media (max-width: 720px) {
+  .filterGroup + .filterGroup {
+    padding-left: 0;
+    border-left: 0;
+  }
 }
 
 /* ------------------------------------------------------------- workspace -- */
@@ -513,6 +391,10 @@
   display: flex;
   flex-direction: column;
   min-width: 0;
+  /* Fill the desk's content area down to the bottom of the viewport so the
+     sheet never floats as a short card on a tall screen. Top chrome is the
+     topbar (3rem) + main padding, title bar and filter tabs (~7rem). */
+  min-height: clamp(24rem, calc(100dvh - 10rem), 56rem);
   border: 1px solid var(--border);
   border-radius: var(--radius-lg);
   background-color: var(--card);
@@ -608,66 +490,33 @@
   color: #f87171;
 }
 
-/* Subject tiles — the sheet's centrepiece. Each subject gets its own card so
-   the subject name, its teacher and the final grade read at a glance instead
-   of competing for space in a table row. */
-.subjectGrid {
-  list-style: none;
-  margin: 0;
-  padding: 0.75rem;
-  display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(15.5rem, 1fr));
-  align-content: start;
-  gap: 0.5rem;
+/* Subject list — a data table, not a card grid: one important column per
+   field, and the final grade owns the last column (right-aligned) so the
+   desk scans grades down a single edge. */
+.tableWrap {
+  padding: 0.5rem 0.75rem 0.75rem;
   flex: 1;
-  max-height: clamp(14rem, 46vh, 30rem);
+  min-width: 0;
+  min-height: 0;
   overflow-y: auto;
   scrollbar-width: thin;
 }
 
-.subjectCard {
-  display: flex;
-  flex-direction: column;
-  gap: 0.4375rem;
-  min-width: 0;
-  padding: 0.625rem 0.6875rem 0.5625rem;
-  border: 1px solid var(--border);
-  border-radius: var(--radius-md);
-  background-color: color-mix(in oklch, var(--muted) 25%, transparent);
-  transition:
-    border-color 140ms ease-out,
-    background-color 140ms ease-out;
+.subjectTable {
+  min-width: 44rem;
 }
 
-.subjectCard:hover {
-  border-color: color-mix(in oklch, var(--foreground), transparent 78%);
-  background-color: color-mix(in oklch, var(--muted) 45%, transparent);
-}
-
-.subjectTop {
-  display: flex;
-  align-items: flex-start;
-  justify-content: space-between;
-  gap: 0.5rem;
-  min-width: 0;
-}
-
-.subjectHeading {
-  display: flex;
-  flex-direction: column;
-  gap: 0.125rem;
-  min-width: 0;
+.subjectCell {
+  min-width: 12rem;
+  white-space: normal;
 }
 
 .subjectName {
+  display: block;
   font-size: 0.875rem;
   font-weight: 650;
   letter-spacing: -0.01em;
   line-height: 1.3;
-  display: -webkit-box;
-  -webkit-line-clamp: 2;
-  -webkit-box-orient: vertical;
-  overflow: hidden;
 }
 
 .subjectCode {
@@ -678,56 +527,12 @@
   color: var(--muted-foreground);
 }
 
-.subjectGradeWrap {
-  display: flex;
-  flex-direction: column;
-  align-items: flex-end;
-  gap: 0.0625rem;
-  flex-shrink: 0;
-}
-
-.subjectGradeLabel {
-  font-size: 0.75rem;
-  font-weight: 600;
-  letter-spacing: 0.08em;
-  text-transform: uppercase;
-  color: var(--muted-foreground);
-}
-
-.subjectGrade {
-  font-size: 1.25rem;
-  font-weight: 700;
-  line-height: 1;
-  letter-spacing: -0.02em;
-  font-variant-numeric: tabular-nums;
-}
-
-/* Teacher line — the field the desk uses to chase a grade, so it carries the
-   strongest text after the subject name. */
-.subjectTeacher {
-  display: flex;
+/* Teacher cell — the field the desk uses to chase a grade. */
+.teacherName {
+  display: inline-flex;
   align-items: center;
   gap: 0.3125rem;
-  margin: 0;
-  min-width: 0;
-  font-size: 0.75rem;
-  color: var(--muted-foreground);
-}
-
-.subjectTeacher > svg {
-  flex-shrink: 0;
-  opacity: 0.75;
-}
-
-.teacherLabel {
-  font-size: 0.75rem;
-  font-weight: 600;
-  letter-spacing: 0.07em;
-  text-transform: uppercase;
-  color: var(--muted-foreground);
-}
-
-.teacherName {
+  max-width: 16rem;
   font-size: 0.75rem;
   font-weight: 600;
   color: var(--foreground);
@@ -736,60 +541,31 @@
   text-overflow: ellipsis;
 }
 
-.subjectTeacher[data-empty="true"] .teacherName {
+.teacherName > svg {
+  flex-shrink: 0;
+  opacity: 0.75;
+}
+
+.tableMuted {
+  font-size: 0.75rem;
   font-weight: 500;
   font-style: italic;
   color: var(--muted-foreground);
 }
 
-.subjectTrack {
-  position: relative;
-  height: 5px;
-  margin-top: auto;
-  border-radius: 9999px;
-  background-color: color-mix(in oklch, var(--muted-foreground) 18%, transparent);
-  overflow: hidden;
-}
-
-.subjectFoot {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 0.5rem;
-}
-
-.subjectComputed {
+.computed {
   font-size: 0.75rem;
   color: var(--muted-foreground);
   font-variant-numeric: tabular-nums;
-  white-space: nowrap;
 }
 
-.subjectFill {
-  position: absolute;
-  inset-block: 0;
-  left: 0;
-  border-radius: inherit;
-  transform-origin: left center;
-  animation: subject-fill-in 520ms cubic-bezier(0.22, 1, 0.36, 1) both;
-  transition: width 480ms cubic-bezier(0.22, 1, 0.36, 1);
-}
-
-@keyframes subject-fill-in {
-  from {
-    transform: scaleX(0);
-  }
-  to {
-    transform: scaleX(1);
-  }
-}
-
-.subjectFill[data-tone="green"] {
-  background-color: #10b981;
-}
-
-.subjectFill[data-tone="red"] {
-  background-color: #ef4444;
+/* Final grade — the table's last column and its strongest figure. */
+.subjectGrade {
+  font-size: 1rem;
+  font-weight: 700;
+  line-height: 1;
+  letter-spacing: -0.02em;
+  font-variant-numeric: tabular-nums;
 }
 
 .subjectGrade[data-tone="green"] {
@@ -833,54 +609,30 @@
   padding: 3rem 1rem;
 }
 
+/* Dark mode: the desk's aurora canvas is the surface, so the coverage deck and
+   both boards go glass like the nurse/registry overview panels instead of
+   solid slabs sitting on top of it. */
+:global(.dark) .index,
+:global(.dark) .detail {
+  background-color: color-mix(in oklch, var(--card), transparent 62%);
+  backdrop-filter: blur(10px);
+}
+
 /* -------------------------------------------------------------- responsive -- */
 
-@media (max-width: 900px) {
-  .statTiles {
-    grid-template-columns: repeat(2, minmax(0, 1fr));
-  }
-
-  .statTile:nth-child(2) {
-    border-right: 0;
-  }
-
-  .statTile:nth-child(-n + 2) {
-    border-bottom: 1px solid var(--border);
-  }
-}
-
-@media (max-width: 520px) {
-  .statTiles {
-    grid-template-columns: 1fr;
-  }
-
-  .statTile {
-    border-right: 0;
-    border-bottom: 1px solid var(--border);
-  }
-
-  .statTile:last-child {
-    border-bottom: 0;
-  }
-}
-
 @media (max-width: 720px) {
-  .subjectGrid {
-    grid-template-columns: minmax(0, 1fr);
-    padding: 0.625rem;
+  .tableWrap {
+    padding: 0.5rem;
   }
 }
 
 @media (prefers-reduced-motion: reduce) {
   .ringFill,
-  .subjectFill,
-  .statMeterFill,
   .indexItem {
     transition: none;
   }
 
-  .ring,
-  .subjectFill {
+  .ring {
     animation: none;
   }
 }

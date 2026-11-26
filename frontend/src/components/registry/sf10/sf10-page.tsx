@@ -6,18 +6,15 @@ import {
   Archive,
   FileCheck,
   Files,
-  FolderOpen,
   Paperclip,
-  Search,
   Upload,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { FilterTabs } from "@/components/ui/filter-tabs";
-import { InsightCallout } from "@/components/ui/insight-callout";
+import { SearchField } from "@/components/ui/search-field";
+import { FilterTabs, type FilterTabOption } from "@/components/ui/filter-tabs";
 import { Skeleton } from "@/components/ui/skeleton";
+import { ShimmerGroup } from "@/components/ui/shimmer-skeleton";
 import { StatDeck } from "@/components/ui/stat-deck";
-import { KanbanBoard } from "@/components/ui/kanban-board";
 import { useDebouncedValue } from "@/lib/useDebouncedValue";
 import { Pagination } from "@/components/shared/pagination";
 import { PageEmptyCallout } from "@/components/shared/page-empty-callout";
@@ -32,11 +29,15 @@ import {
 } from "@/services/registry/sf10.types";
 import assign from "@/app/principal/academics/assign/components/section-assignments.module.css";
 import styles from "@/components/registry/sf10/sf10.module.css";
-const STATUS_FILTERS: { key: Sf10Status | "all"; label: string }[] = [
-  { key: "all", label: "All" },
-  { key: "attach", label: "Attached" },
-  { key: "available", label: "Available" },
-  { key: "released", label: "Released" },
+const STATUS_FILTERS: {
+  key: Sf10Status | "all";
+  label: string;
+  tone: NonNullable<FilterTabOption<string>["tone"]>;
+}[] = [
+  { key: "all", label: "All", tone: "neutral" },
+  { key: "attach", label: "Attached", tone: "amber" },
+  { key: "available", label: "Available", tone: "green" },
+  { key: "released", label: "Released", tone: "blue" },
 ];
 export function Sf10Page({
   desk,
@@ -161,22 +162,17 @@ export function Sf10Page({
   if (!isPending && !isError && counts.total === 0) {
     return (
       <section className={styles.page}>
-        <header className={styles.hero}>
-          <div className={styles.heroMain}>
-            <h1 className={styles.heroTitle}>SF10 records</h1>
-            <p className={styles.heroSubtitle}>
-              Every learner SF10 file fielded by the {deskLabel} desk — search a name,
-              LRN or section, open a folder, or attach a new record.
-            </p>
-          </div>
-          <Button asChild size="sm" className="h-7 shrink-0 px-2.5 text-[12px] font-medium">
-            <Link href={`/${desk}/sf10/upload`}>
-              <Upload size={13} aria-hidden />
-              Upload SF10
-            </Link>
-          </Button>
-        </header>
-        <PageEmptyCallout fit>
+        <PageEmptyCallout
+          fit
+          action={
+            <Button asChild size="sm" className="h-7 shrink-0 px-2.5 text-[12px] font-medium">
+              <Link href={`/${desk}/sf10/upload`}>
+                <Upload size={13} aria-hidden />
+                Upload SF10
+              </Link>
+            </Button>
+          }
+        >
           No SF10 records yet. Upload a file to attach the first SF10 record filed by
           the {deskLabel}.
         </PageEmptyCallout>
@@ -189,39 +185,33 @@ export function Sf10Page({
   // classic list head + folder grid. The board variant drops the Upload
   // button (the stats row owns upload there) and rounds the search to 16px.
   const recordsDescription = `Learner SF10 files filed by the ${deskLabel}.`;
-  const recordsActions = (variant: "board" | "head") => {
-    const board = variant === "board";
+  const recordsActions = () => {
     return (
       <div className={styles.headerActions}>
-        {!board && (
-          <Button asChild variant="outline" size="sm" className="h-8">
-            <Link href={`/${desk}/sf10/upload`}>
-              <Upload aria-hidden />
-              Upload
-            </Link>
-          </Button>
-        )}
-        <div className={styles.searchWrap}>
-          <Search className={styles.searchIcon} aria-hidden />
-          <Input
-            className={board ? `${styles.search} rounded-[16px]` : styles.search}
-            placeholder="Search name, LRN, or section…"
-            value={queryInput}
-            onChange={(e) => {
-              setQueryInput(e.target.value);
-            }}
-            aria-label="Search SF10 records"
-          />
-        </div>
+        <Button asChild variant="outline" size="sm" className="h-8">
+          <Link href={`/${desk}/sf10/upload`}>
+            <Upload aria-hidden />
+            Upload
+          </Link>
+        </Button>
+        <SearchField
+          className="w-60"
+          placeholder="Search name, LRN, or section…"
+          value={queryInput}
+          onChange={setQueryInput}
+          aria-label="Search SF10 records"
+        />
       </div>
     );
   };
   const recordsFilters = (
     <FilterTabs
       label="Filter by status"
+      variant="tags"
       options={STATUS_FILTERS.map((f) => ({
         value: f.key,
         label: f.label,
+        tone: f.tone,
         count:
           f.key === "all"
             ? counts.total
@@ -238,54 +228,40 @@ export function Sf10Page({
   return (
     <section className={styles.page}>
       <div className={styles.stack}>
-        <header className={styles.hero}>
-          <div className={styles.heroMain}>
-            <h1 className={styles.heroTitle}>SF10 records</h1>
-            <p className={styles.heroSubtitle}>
-              Every learner SF10 file fielded by the {deskLabel} desk — search a name,
-              LRN or section, open a folder, or attach a new record.
-            </p>
-          </div>
-          <Button asChild size="sm" className="h-7 shrink-0 px-2.5 text-[12px] font-medium">
-            <Link href={`/${desk}/sf10/upload`}>
-              <Upload size={13} aria-hidden />
-              Upload SF10
-            </Link>
-          </Button>
-        </header>
-
         {recordKeeper ? (
-          <StatDeck
-            title="Records at a glance"
-            icon={Files}
-            ariaLabel="SF10 summary"
-            items={kpiTiles.map((tile) => ({
-              key: tile.key,
-              icon: tile.icon,
-              label: tile.label,
-              unit: tile.unit,
-              value: tile.value,
-              hint: tile.hint,
-              meter: Math.round((tile.value / shareBase) * 100),
-              onClick: () => setStatus(tile.status),
-              active: status === tile.status,
-              ariaLabel: `${tile.label}: ${tile.value} ${tile.unit} — filter the records board`,
-            }))}
-            loading={isPending}
-          />
+          <ShimmerGroup>
+            <StatDeck
+              ariaLabel="SF10 summary"
+              items={kpiTiles.map((tile) => ({
+                key: tile.key,
+                icon: tile.icon,
+                label: tile.label,
+                unit: tile.unit,
+                value: tile.value,
+                hint: tile.hint,
+                meter: Math.round((tile.value / shareBase) * 100),
+                onClick: () => setStatus(tile.status),
+                active: status === tile.status,
+                ariaLabel: `${tile.label}: ${tile.value} ${tile.unit} — filter the records board`,
+              }))}
+              loading={isPending}
+            />
+          </ShimmerGroup>
         ) : (
           <section className={assign.card} aria-label="SF10 summary">
             <span className={assign.glowClip} aria-hidden="true">
               <span className={assign.cardGlow} />
             </span>
             {isPending ? (
-              <ul className={`${styles.tiles} relative`}>
-                {Array.from({ length: 3 }).map((_, i) => (
-                  <li key={i}>
-                    <Skeleton className={styles.tileSkel} />
-                  </li>
-                ))}
-              </ul>
+              <ShimmerGroup>
+                <ul className={`${styles.tiles} relative`}>
+                  {Array.from({ length: 3 }).map((_, i) => (
+                    <li key={i}>
+                      <Skeleton className={styles.tileSkel} />
+                    </li>
+                  ))}
+                </ul>
+              </ShimmerGroup>
             ) : (
               <ul className={`${styles.tiles} relative`}>
                 <li className={styles.tile}>
@@ -308,41 +284,28 @@ export function Sf10Page({
           </section>
         )}
         {recordKeeper ? (
-          <KanbanBoard
-            title="SF10 Records"
-            icon={<FolderOpen size={14} className="text-amber-500" aria-hidden />}
-            description={recordsDescription}
-            ariaLabel="SF10 Records"
-            actions={recordsActions("board")}
-            headerCenter={recordsFilters}
-            footer={
-              filteredTotal > pageSize ? (
-                <Pagination
-                  currentPage={safePage}
-                  totalItems={filteredTotal}
-                  pageSize={pageSize}
-                  onPageChange={setPage}
-                />
-              ) : undefined
-            }
-          >
+          <section className={styles.recordsBoard} aria-label="SF10 Records">
+            <div className={styles.recordsToolbar}>
+              {recordsFilters}
+              {recordsActions()}
+            </div>
             {isPending || isPlaceholderData ? (
-              <div className={styles.folderKanbanGrid} aria-hidden="true">
-                {/* One placeholder folder per card a full page renders. */}
-                {Array.from({ length: pageSize }).map((_, i) => (
-                  <Skeleton key={i} className={styles.folderKanbanSkel} />
-                ))}
-              </div>
+              <ShimmerGroup>
+                <div className={styles.folderKanbanGrid} aria-hidden="true">
+                  {/* One placeholder folder per card a full page renders. */}
+                  {Array.from({ length: pageSize }).map((_, i) => (
+                    <Skeleton key={i} className={styles.folderKanbanSkel} />
+                  ))}
+                </div>
+              </ShimmerGroup>
             ) : isError ? (
               <p className={styles.empty}>Could not load SF10 records.</p>
             ) : visibleRows.length === 0 ? (
-              <div className={styles.emptyCallout}>
-                <InsightCallout role="status">
-                  {filtering
-                    ? "No SF10 records match your search or filters. Try a different name, LRN, or section."
-                    : "No SF10 records on this page."}
-                </InsightCallout>
-              </div>
+              <PageEmptyCallout fit>
+                {filtering
+                  ? "No SF10 records match your search or filters. Try a different name, LRN, or section."
+                  : "No SF10 records on this page."}
+              </PageEmptyCallout>
             ) : (
               // Keyed by page/filter/search so every pagination or filter
               // swap remounts the grid and replays the slow-mo card cascade
@@ -353,9 +316,17 @@ export function Sf10Page({
                 onOpen={openRecord}
               />
             )}
-          </KanbanBoard>
+            {filteredTotal > pageSize ? (
+              <Pagination
+                currentPage={safePage}
+                totalItems={filteredTotal}
+                pageSize={pageSize}
+                onPageChange={setPage}
+              />
+            ) : null}
+          </section>
         ) : (
-          <section aria-labelledby="sf10-records">
+          <section className={styles.recordsSection} aria-labelledby="sf10-records">
             <div className={`${styles.listHead} relative`}>
               <div className={styles.listHeadText}>
                 <h2 id="sf10-records" className="text-base font-semibold">
@@ -363,26 +334,26 @@ export function Sf10Page({
                 </h2>
                 <p className="mt-1 text-sm text-muted-foreground">{recordsDescription}</p>
               </div>
-              {recordsActions("head")}
+              {recordsActions()}
             </div>
             {recordsFilters}
             <div className={`${styles.content} relative`}>
               {isPending || isPlaceholderData ? (
-                <div className={styles.folderGrid} aria-hidden="true">
-                  {Array.from({ length: 8 }).map((_, i) => (
-                    <Skeleton key={i} className="h-44 w-full rounded-xl" />
-                  ))}
-                </div>
+                <ShimmerGroup>
+                  <div className={styles.folderGrid} aria-hidden="true">
+                    {Array.from({ length: 8 }).map((_, i) => (
+                      <Skeleton key={i} className="h-44 w-full rounded-xl" />
+                    ))}
+                  </div>
+                </ShimmerGroup>
               ) : isError ? (
                 <p className={styles.empty}>Could not load SF10 records.</p>
               ) : visibleRows.length === 0 ? (
-                <div className={styles.emptyCallout}>
-                  <InsightCallout role="status">
-                    {filtering
-                      ? "No SF10 records match your search or filters. Try a different name, LRN, or section."
-                      : "No SF10 records on this page."}
-                  </InsightCallout>
-                </div>
+                <PageEmptyCallout fit>
+                  {filtering
+                    ? "No SF10 records match your search or filters. Try a different name, LRN, or section."
+                    : "No SF10 records on this page."}
+                </PageEmptyCallout>
               ) : (
                 <Sf10FolderGrid records={visibleRows} onOpen={openRecord} />
               )}

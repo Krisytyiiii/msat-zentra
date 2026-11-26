@@ -220,7 +220,7 @@ export function FinalGradeDetail({ desk }: { desk: RegistryDesk }) {
               <ul className="text-muted-foreground space-y-2 text-sm">
                 <li className="flex items-start gap-2">
                   <span className="mt-1.5 size-1.5 shrink-0 rounded-full bg-current" />
-                  <span>All {totalSubjects} subject(s) are locked and adviser-approved for {student.term}.</span>
+                  <span>All {totalSubjects} subject(s) are locked (final) for {student.term}.</span>
                 </li>
                 <li className="flex items-start gap-2">
                   <span className="mt-1.5 size-1.5 shrink-0 rounded-full bg-current" />

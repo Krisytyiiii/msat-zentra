@@ -1,6 +1,7 @@
 "use client";
 import { useEffect, useMemo, useState } from "react";
 import { useMutation } from "@tanstack/react-query";
+import { CalendarDays } from "lucide-react";
 import { liveQueryOptions, useLiveQuery } from "@/lib/api/live";
 import { markSelfNotified } from "@/lib/realtime/teacherChannel";
 import { useTeacherInvalidate } from "../components/use-teacher-invalidate";
@@ -24,7 +25,7 @@ import {
   useSheetContext,
 } from "@/services/teacher/attendance.service";
 import type { SheetContext } from "@/services/teacher/attendance.types";
-import { NoTermRecordsPanel } from "@/components/schedule/NoTermRecordsPanel";
+import { TeacherGateCard } from "@/app/teacher/components/TeacherGateCard";
 import { useTerm } from "@/lib/term/TermContext";
 import {
   buildTimetable,
@@ -196,7 +197,7 @@ export default function TeacherAdvisoryAttendancePage() {
     return days.length > 0 ? days : [1, 2, 3, 4, 5];
   }, [mySlotsQuery.data, resolvedSectionId, resolvedSubjectId]);
   /* eslint-enable react-hooks/preserve-manual-memoization */
-  const { dateKeys: meetupDateKeys } = useMeetupDates(
+  const { dateKeys: meetupDateKeys, noClassDays: subjectNoClassDays } = useMeetupDates(
     resolvedSectionId,
     resolvedSubjectId,
     resolvedMeetupDays,
@@ -204,9 +205,42 @@ export default function TeacherAdvisoryAttendancePage() {
   const nowMin = now.getHours() * 60 + now.getMinutes();
   const todayDow = now.getDay();
   const todayKey = now.toISOString().slice(0, 10);
+  // Administrator "no class" declaration for the selected date. Whole-day rows
+  // always cancel; AM/PM rows cancel only when every one of this subject's
+  // meetups that weekday falls inside the cancelled half.
+  /* eslint-disable react-hooks/preserve-manual-memoization -- plain derived value */
+  const noClassForDate = useMemo(() => {
+    const hit = subjectNoClassDays.find((n) => n.date === date);
+    if (!hit) return null;
+    if (hit.scope === "whole_day") return hit;
+    const cfg = configQuery.data?.config;
+    if (!cfg) return null;
+    const dow = new Date(`${date}T00:00:00Z`).getUTCDay();
+    const day = dow === 0 ? 7 : dow;
+    const periods = (selectedPair?.slots ?? [])
+      .filter((s) => s.day === day)
+      .map((s) => s.period);
+    if (periods.length === 0) return hit;
+    const outside = periods.some(
+      (p) => (p < cfg.lunch.afterPeriod ? "am" : "pm") !== hit.scope,
+    );
+    return outside ? null : hit;
+  }, [subjectNoClassDays, date, configQuery.data, selectedPair]);
+  /* eslint-enable react-hooks/preserve-manual-memoization */
   const gate: { live: AttendanceLive; slot: number } = (() => {
     const base = { nowMin, todayKey, todayEnd: null as number | null };
     const todayPH = phTodayKey();
+    if (noClassForDate) {
+      return {
+        live: {
+          ...base,
+          locked: true,
+          tone: "lock",
+          message: `No class on ${date}${noClassForDate.scope === "whole_day" ? "" : ` (${noClassForDate.scope.toUpperCase()} only)`} — ${noClassForDate.reason}`,
+        },
+        slot: 1,
+      };
+    }
     if (date < todayPH) {
       const subjectName = selectedPair?.subject?.name;
       // The API locks anything before this week (PAST_LOCKED); mirror it here
@@ -403,14 +437,22 @@ export default function TeacherAdvisoryAttendancePage() {
   return (
     <section className={styles.page}>
       {pairs.length === 0 ? (
-        <div className="flex min-h-[calc(100dvh-10rem)] items-center justify-center">
-          <div className="w-full max-w-3xl">
-            <NoTermRecordsPanel
-              termLabel={termLabel}
-              teacherName={linked?.name ?? "your linked name"}
-            />
-          </div>
-        </div>
+        <TeacherGateCard
+          icon={CalendarDays}
+          title={`No records for ${termLabel} yet`}
+          subtitle={`Nothing scheduled for ${linked?.name ?? "your linked name"} this term`}
+          status="No sheets"
+          tone="neutral"
+          description="Your classes appear here once the administrator publishes the section schedules. Records are kept per term, so switching term loads that term's own sheets."
+          termLabel={termLabel}
+          facts={[
+            "Sheets follow the published section grid of the selected term.",
+            "Nothing is lost when you switch terms — each term keeps its own records.",
+            "Ask the administrator if your subject is missing from the grid.",
+          ]}
+          actionLabel="Open classes"
+          href="/teacher/classes"
+        />
       ) : (
         <div className={styles.layout}>
           <AttendanceRail
@@ -463,6 +505,15 @@ export default function TeacherAdvisoryAttendancePage() {
               {takenByOther && resolvedOffered ? (
                 <div role="alert" className="rounded-lg border border-amber-500/40 bg-amber-500/10 px-4 py-3 text-sm">
                   This subject ({resolvedOffered.name}) is linked to {resolvedOffered.ownerTeacherName ?? resolvedOffered.teacherName} — only their linked students can be marked here. Select your own linked subject.
+                </div>
+              ) : null}
+              {noClassForDate ? (
+                <div role="alert" className="rounded-lg border border-amber-500/40 bg-amber-500/10 px-4 py-3 text-sm">
+                  <span className="font-medium">No class on this date.</span>{" "}
+                  {noClassForDate.scope === "whole_day"
+                    ? "Classes are cancelled for the whole day."
+                    : `Classes are cancelled in the ${noClassForDate.scope.toUpperCase()} only for this subject's meetups.`}{" "}
+                  <span className="text-muted-foreground">Reason: {noClassForDate.reason}</span>
                 </div>
               ) : null}
               <AttendanceRosterTable

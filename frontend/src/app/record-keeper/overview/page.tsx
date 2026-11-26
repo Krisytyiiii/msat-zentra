@@ -7,13 +7,24 @@ import { RegistryAttentionDeck } from "@/components/registry/overview/RegistryAt
 import { RegistryGradePanel } from "@/components/registry/overview/RegistryGradePanel";
 import { RegistryRequestsPanel } from "@/components/registry/overview/RegistryRequestsPanel";
 import { RegistryRecordsLedger } from "@/components/registry/overview/RegistryRecordsLedger";
+import { RegistryOverviewSkeleton } from "@/components/registry/overview/RegistryOverviewSkeleton";
 import { registryOverviewQuery } from "@/components/registry/overview/registryOverviewQuery";
 import { PageEmptyCallout } from "@/components/shared/page-empty-callout";
 import styles from "./components/overview.module.css";
 
 export default function RecordKeeperOverviewPage() {
   // Same key every widget reads, so this only observes the shared cache.
-  const { data } = useQuery(registryOverviewQuery("record-keeper"));
+  const { data, isPending } = useQuery(registryOverviewQuery("record-keeper"));
+
+  // First load: one shimmer skeleton of the whole board, never a stack of
+  // per-widget pulses.
+  if (isPending && !data) {
+    return (
+      <section className={styles.page}>
+        <RegistryOverviewSkeleton desk="record-keeper" />
+      </section>
+    );
+  }
 
   // The daily request series is pre-seeded with a zero row per day for the
   // chart axis, so emptiness must look at activity, not row count.
@@ -52,14 +63,15 @@ export default function RecordKeeperOverviewPage() {
         <RegistryAttentionDeck desk="record-keeper" />
 
         {/* Analytics first — where the band stands, then what needs filing. */}
-        <div className={styles.duo}>
-          <RegistryGradePanel desk="record-keeper" />
-          <RegistryRequestsPanel desk="record-keeper" />
-        </div>
-
-        <div className={styles.duo}>
+        {/* Left: the SF10 attach rail. Right: grade spread, request activity
+            and the finals queue. */}
+        <div className={styles.split}>
           <Sf10AttachFeed desk="record-keeper" variant="kanban" />
-          <FinalGradeApprovals desk="record-keeper" variant="kanban" />
+          <div className={styles.splitStack}>
+            <RegistryGradePanel desk="record-keeper" />
+            <RegistryRequestsPanel desk="record-keeper" />
+            <FinalGradeApprovals desk="record-keeper" variant="kanban" />
+          </div>
         </div>
 
         <RegistryRecordsLedger desk="record-keeper" />

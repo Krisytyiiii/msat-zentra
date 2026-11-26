@@ -16,7 +16,7 @@ type Props = {
 };
 
 function lockLabel(lockStatus: string | null): string {
-  if (lockStatus === "adviser_approved") return "Adviser approved";
+  if (lockStatus === "adviser_approved") return "Final";
   if (lockStatus === "locked") return "Locked";
   if (lockStatus === "unlocked") return "Unlocked";
   return "—";

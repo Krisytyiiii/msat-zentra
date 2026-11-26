@@ -62,6 +62,33 @@ export async function fetchRecordKeeperSubjects(
   return fetchRegistrySubjects("record-keeper", signal);
 }
 
+/** One banded section option (the finals desk's grade → section tabs). */
+export interface RegistrySectionOption {
+  id: string;
+  name: string;
+  /** Prisma band value — "G11" / "G12" / "G7"… */
+  gradeLevel: string;
+}
+
+/**
+ * Sections in the desk's band for the active school year. Served by the same
+ * `GET /api/<desk>/academics/sections` the Subjects workspace uses, so the
+ * finals tabs and the academics desk never disagree about a section's name.
+ */
+export async function fetchRegistrySections(
+  desk: "record-keeper" | "registrar",
+  signal?: AbortSignal,
+): Promise<RegistrySectionOption[]> {
+  const { data } = await apiClient.get<{
+    sections: { id: string; name: string; gradeLevel: number }[];
+  }>(`/api/${desk}/academics/sections`, { signal });
+  return (data.sections ?? []).map((section) => ({
+    id: section.id,
+    name: section.name,
+    gradeLevel: `G${section.gradeLevel}`,
+  }));
+}
+
 /**
  * Learners sitting in a subject with their final grade / remarks. Served by
  * `GET /api/<desk>/academics/subjects/:id/students`; banded server-side.

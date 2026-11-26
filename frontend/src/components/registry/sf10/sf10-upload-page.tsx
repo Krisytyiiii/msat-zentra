@@ -17,6 +17,7 @@ import {
 import { Button } from "@/components/ui/button";
 import { KanbanBoard } from "@/components/ui/kanban-board";
 import { Skeleton } from "@/components/ui/skeleton";
+import { ShimmerGroup, ShimmerSkeleton } from "@/components/ui/shimmer-skeleton";
 import { Sf10UploadPanel } from "@/components/registry/sf10/Sf10UploadPanel";
 import { Sf10RecordOverlay } from "@/components/registry/sf10/Sf10RecordOverlay";
 import { Sf10RecordKanbanGrid } from "@/components/registry/sf10/sf10-folders";
@@ -98,7 +99,7 @@ export function Sf10UploadPage({ desk }: { desk: "registrar" | "record-keeper" }
   ];
 
   return (
-    <section className={styles.page}>
+    <section className={`${styles.page} ${styles.uploadPage}`}>
       <div className={styles.stack}>
         <header className={styles.hero}>
           <div className={styles.heroMain}>
@@ -208,7 +209,7 @@ export function Sf10UploadPage({ desk }: { desk: "registrar" | "record-keeper" }
                         {stat.label}
                       </span>
                       {latestQuery.isPending ? (
-                        <Skeleton className="h-5 w-8" />
+                        <ShimmerSkeleton className="h-5 w-8" />
                       ) : (
                         <span className={styles.railStatValue}>{stat.value}</span>
                       )}
@@ -240,11 +241,13 @@ export function Sf10UploadPage({ desk }: { desk: "registrar" | "record-keeper" }
             }
           >
             {latestQuery.isPending ? (
-              <div className={styles.folderKanbanGrid} aria-hidden="true">
-                {Array.from({ length: LATEST_TAKE }).map((_, i) => (
-                  <Skeleton key={i} className={styles.folderKanbanSkel} />
-                ))}
-              </div>
+              <ShimmerGroup>
+                <div className={styles.folderKanbanGrid} aria-hidden="true">
+                  {Array.from({ length: LATEST_TAKE }).map((_, i) => (
+                    <Skeleton key={i} className={styles.folderKanbanSkel} />
+                  ))}
+                </div>
+              </ShimmerGroup>
             ) : (
               <Sf10RecordKanbanGrid records={latest} onOpen={openRecord} />
             )}

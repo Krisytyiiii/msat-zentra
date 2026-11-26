@@ -421,6 +421,7 @@ export const ModelName = {
   FinalGrade: 'FinalGrade',
   GradeFlag: 'GradeFlag',
   AttendanceRecord: 'AttendanceRecord',
+  NoClassDay: 'NoClassDay',
   AttendanceRecordLegacy: 'AttendanceRecordLegacy',
   AnecdotalRecord: 'AnecdotalRecord',
   AnecdotalFolder: 'AnecdotalFolder',
@@ -464,7 +465,7 @@ export type TypeMap<ExtArgs extends runtime.Types.Extensions.InternalArgs = runt
     omit: GlobalOmitOptions
   }
   meta: {
-    modelProps: "user" | "loginEvent" | "studentProfile" | "parentProfile" | "parentStudentLink" | "staffProfile" | "schoolYear" | "term" | "section" | "studentRoster" | "termRosterConfirmation" | "subject" | "teacherSubjectAssignment" | "scheduleConfig" | "sectionTimetableEntry" | "teacherName" | "teacherTermGrant" | "adviserArchivedStudent" | "gradeComponent" | "assessment" | "studentGrade" | "finalGrade" | "gradeFlag" | "attendanceRecord" | "attendanceRecordLegacy" | "anecdotalRecord" | "anecdotalFolder" | "anecdotalRecordFollowup" | "referral" | "counselingSession" | "clinicSessionAttachment" | "intervention" | "healthRecord" | "homeVisitationRecord" | "admLearnerProfile" | "admParentMeeting" | "admMeetingInvitee" | "admMeetingAttachment" | "admModule" | "admDevice" | "admForm" | "advisoryModule" | "advisoryModuleSubmission" | "sf10Record" | "sf10RecordVersion" | "auditLog" | "riskSnapshot" | "reportSnapshot" | "adviserSf10AccessRequest" | "notification" | "deviceToken" | "refreshToken"
+    modelProps: "user" | "loginEvent" | "studentProfile" | "parentProfile" | "parentStudentLink" | "staffProfile" | "schoolYear" | "term" | "section" | "studentRoster" | "termRosterConfirmation" | "subject" | "teacherSubjectAssignment" | "scheduleConfig" | "sectionTimetableEntry" | "teacherName" | "teacherTermGrant" | "adviserArchivedStudent" | "gradeComponent" | "assessment" | "studentGrade" | "finalGrade" | "gradeFlag" | "attendanceRecord" | "noClassDay" | "attendanceRecordLegacy" | "anecdotalRecord" | "anecdotalFolder" | "anecdotalRecordFollowup" | "referral" | "counselingSession" | "clinicSessionAttachment" | "intervention" | "healthRecord" | "homeVisitationRecord" | "admLearnerProfile" | "admParentMeeting" | "admMeetingInvitee" | "admMeetingAttachment" | "admModule" | "admDevice" | "admForm" | "advisoryModule" | "advisoryModuleSubmission" | "sf10Record" | "sf10RecordVersion" | "auditLog" | "riskSnapshot" | "reportSnapshot" | "adviserSf10AccessRequest" | "notification" | "deviceToken" | "refreshToken"
     txIsolationLevel: TransactionIsolationLevel
   }
   model: {
@@ -2241,6 +2242,80 @@ export type TypeMap<ExtArgs extends runtime.Types.Extensions.InternalArgs = runt
         count: {
           args: Prisma.AttendanceRecordCountArgs<ExtArgs>
           result: runtime.Types.Utils.Optional<Prisma.AttendanceRecordCountAggregateOutputType> | number
+        }
+      }
+    }
+    NoClassDay: {
+      payload: Prisma.$NoClassDayPayload<ExtArgs>
+      fields: Prisma.NoClassDayFieldRefs
+      operations: {
+        findUnique: {
+          args: Prisma.NoClassDayFindUniqueArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$NoClassDayPayload> | null
+        }
+        findUniqueOrThrow: {
+          args: Prisma.NoClassDayFindUniqueOrThrowArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$NoClassDayPayload>
+        }
+        findFirst: {
+          args: Prisma.NoClassDayFindFirstArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$NoClassDayPayload> | null
+        }
+        findFirstOrThrow: {
+          args: Prisma.NoClassDayFindFirstOrThrowArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$NoClassDayPayload>
+        }
+        findMany: {
+          args: Prisma.NoClassDayFindManyArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$NoClassDayPayload>[]
+        }
+        create: {
+          args: Prisma.NoClassDayCreateArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$NoClassDayPayload>
+        }
+        createMany: {
+          args: Prisma.NoClassDayCreateManyArgs<ExtArgs>
+          result: BatchPayload
+        }
+        createManyAndReturn: {
+          args: Prisma.NoClassDayCreateManyAndReturnArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$NoClassDayPayload>[]
+        }
+        delete: {
+          args: Prisma.NoClassDayDeleteArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$NoClassDayPayload>
+        }
+        update: {
+          args: Prisma.NoClassDayUpdateArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$NoClassDayPayload>
+        }
+        deleteMany: {
+          args: Prisma.NoClassDayDeleteManyArgs<ExtArgs>
+          result: BatchPayload
+        }
+        updateMany: {
+          args: Prisma.NoClassDayUpdateManyArgs<ExtArgs>
+          result: BatchPayload
+        }
+        updateManyAndReturn: {
+          args: Prisma.NoClassDayUpdateManyAndReturnArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$NoClassDayPayload>[]
+        }
+        upsert: {
+          args: Prisma.NoClassDayUpsertArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$NoClassDayPayload>
+        }
+        aggregate: {
+          args: Prisma.NoClassDayAggregateArgs<ExtArgs>
+          result: runtime.Types.Utils.Optional<Prisma.AggregateNoClassDay>
+        }
+        groupBy: {
+          args: Prisma.NoClassDayGroupByArgs<ExtArgs>
+          result: runtime.Types.Utils.Optional<Prisma.NoClassDayGroupByOutputType>[]
+        }
+        count: {
+          args: Prisma.NoClassDayCountArgs<ExtArgs>
+          result: runtime.Types.Utils.Optional<Prisma.NoClassDayCountAggregateOutputType> | number
         }
       }
     }
@@ -4715,6 +4790,20 @@ export const AttendanceRecordScalarFieldEnum = {
 export type AttendanceRecordScalarFieldEnum = (typeof AttendanceRecordScalarFieldEnum)[keyof typeof AttendanceRecordScalarFieldEnum]
 
 
+export const NoClassDayScalarFieldEnum = {
+  id: 'id',
+  date: 'date',
+  scope: 'scope',
+  reason: 'reason',
+  schoolYearId: 'schoolYearId',
+  createdBy: 'createdBy',
+  createdAt: 'createdAt',
+  updatedAt: 'updatedAt'
+} as const
+
+export type NoClassDayScalarFieldEnum = (typeof NoClassDayScalarFieldEnum)[keyof typeof NoClassDayScalarFieldEnum]
+
+
 export const AttendanceRecordLegacyScalarFieldEnum = {
   id: 'id',
   studentId: 'studentId',
@@ -5532,6 +5621,20 @@ export type ListEnumAttendanceStatusFieldRefInput<$PrismaModel> = FieldRefInputT
 
 
 /**
+ * Reference to a field of type 'NoClassScope'
+ */
+export type EnumNoClassScopeFieldRefInput<$PrismaModel> = FieldRefInputType<$PrismaModel, 'NoClassScope'>
+    
+
+
+/**
+ * Reference to a field of type 'NoClassScope[]'
+ */
+export type ListEnumNoClassScopeFieldRefInput<$PrismaModel> = FieldRefInputType<$PrismaModel, 'NoClassScope[]'>
+    
+
+
+/**
  * Reference to a field of type 'AnecdotalCategory'
  */
 export type EnumAnecdotalCategoryFieldRefInput<$PrismaModel> = FieldRefInputType<$PrismaModel, 'AnecdotalCategory'>
@@ -5971,6 +6074,7 @@ export type GlobalOmitConfig = {
   finalGrade?: Prisma.FinalGradeOmit
   gradeFlag?: Prisma.GradeFlagOmit
   attendanceRecord?: Prisma.AttendanceRecordOmit
+  noClassDay?: Prisma.NoClassDayOmit
   attendanceRecordLegacy?: Prisma.AttendanceRecordLegacyOmit
   anecdotalRecord?: Prisma.AnecdotalRecordOmit
   anecdotalFolder?: Prisma.AnecdotalFolderOmit

@@ -22,6 +22,7 @@ import {
 import { sectionHeadcounts } from "../enrollment.js";
 import { GRADE_NUMERIC, schoolYearClause, type DisplayTerm } from "../../modules/attendance/attendance.repository.js";
 import type { HeatSession } from "./heatmaps.grade.service.js";
+import { activeDayKeys } from "../noClass.js";
 
 export interface SectionStatsQuery {
   session: HeatSession;
@@ -47,7 +48,10 @@ export async function getSectionStats(query: SectionStatsQuery) {
     orderBy: [{ gradeLevel: "asc" }, { name: "asc" }],
   });
 
-  const dayKeys = buildDayAxis(displayTerm.startDate, displayTerm.endDate);
+  const dayKeys = await activeDayKeys(
+    buildDayAxis(displayTerm.startDate, displayTerm.endDate),
+    session,
+  );
   const schoolDays = countSchoolDays(dayKeys);
 
   const sectionIds = sections.map((s) => s.id);

@@ -53,6 +53,7 @@
 
 .emptyBlock {
   display: flex;
+  flex: 1;
   flex-direction: column;
   align-items: center;
   justify-content: center;
@@ -127,6 +128,9 @@
   flex-direction: column;
   gap: 0.875rem;
   min-width: 0;
+  /* Fill the split row so an empty feed can center its message in the panel
+     (the rail sits beside a taller analytics column). */
+  height: 100%;
 }
 
 .kanbanHeader {

@@ -267,7 +267,11 @@ export async function getSchedule(ctx: ScheduleContext, opts?: ScheduleQueryOpts
   const sections = await prisma.section.findMany({
     where: {
       gradeLevel: { in: gradeLevels },
-      ...(yearId ? { schoolYearId: yearId } : {}),
+      // Always one school year — the desk's scoped year when it steers one,
+      // otherwise the active year. Without this fallback an unresolved scope
+      // (no active year yet) listed every year's sections at once, so a new
+      // school year appeared to still hold the previous year's sections.
+      schoolYear: yearId ? { id: yearId } : { isActive: true },
       ...(opts?.sectionId ? { id: opts.sectionId } : {}),
     },
     orderBy: [{ gradeLevel: "asc" }, { name: "asc" }],
@@ -943,6 +947,50 @@ export async function createSubject(ctx: ScheduleContext, input: CreateSubjectIn
     reason: `Administrator created subject ${subject.name}`,
   });
   return subject;
+}
+
+export interface UpdateSubjectInput {
+  name?: string;
+  category?: "CORE" | "ELECTIVE";
+}
+
+/**
+ * Rename / re-categorise a catalog subject. The minted code stays put — it is
+ * the subject's identity on published grids and gradebook rows, so renaming
+ * never rewrites linked records.
+ */
+export async function updateSubject(
+  ctx: ScheduleContext,
+  subjectId: string,
+  input: UpdateSubjectInput,
+) {
+  const subject = await prisma.subject.findUnique({
+    where: { id: subjectId },
+    select: { id: true, name: true, code: true },
+  });
+  if (!subject) {
+    throw new AppError(404, "SUBJECT_NOT_FOUND", "Subject not found");
+  }
+  const name = input.name?.trim();
+  if (input.name !== undefined && !name) {
+    throw new AppError(400, "MISSING_NAME", "Subject name is required");
+  }
+  const updated = await prisma.subject.update({
+    where: { id: subjectId },
+    data: {
+      ...(name ? { name } : {}),
+      ...(input.category ? { category: input.category } : {}),
+    },
+    select: { id: true, name: true, code: true, gradeLevel: true, category: true },
+  });
+  await writeAudit({
+    userId: ctx.userId,
+    actionType: "update",
+    sourceTable: "subjects",
+    sourceId: updated.id,
+    reason: `Administrator updated subject ${updated.name}`,
+  });
+  return updated;
 }
 
 export async function deleteSubject(ctx: ScheduleContext, subjectId: string) {

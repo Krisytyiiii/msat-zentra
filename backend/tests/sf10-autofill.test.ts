@@ -69,21 +69,20 @@ describe("SF10 auto-fill row builder", () => {
     expect(fail.rows[0].remarks).toBe("FAILED");
   });
 
-  it("skips a subject missing any required term and reports why", () => {
+  it("fills each locked term into its own quarter, term by term", () => {
     const { rows, skipped } = buildAutofillRows(
-      [fact("s1", "Mathematics", 1, 90), fact("s1", "Mathematics", 2, 90)],
+      [fact("s1", "Mathematics", 2, 90)],
       "G7",
       [1, 2, 3],
     );
-    expect(rows).toHaveLength(0);
-    expect(skipped).toHaveLength(1);
-    expect(skipped[0].subject).toBe("Mathematics");
-    expect(skipped[0].terms).toBe(2);
-    expect(skipped[0].reason).toContain("2/3");
+    expect(rows).toHaveLength(1);
+    expect(rows[0].quarters).toEqual([null, 90, null, null]);
+    expect(rows[0].rating).toBe(90);
+    expect(skipped).toHaveLength(0);
   });
 
-  it("keeps the fully-approved subject when a sibling subject is partial", () => {
-    const { rows, skipped } = buildAutofillRows(
+  it("keeps a partial subject's filled quarters when a sibling is also partial", () => {
+    const { rows } = buildAutofillRows(
       [
         fact("s1", "Mathematics", 1, 90),
         fact("s1", "Mathematics", 2, 90),
@@ -93,11 +92,11 @@ describe("SF10 auto-fill row builder", () => {
       "G7",
       [1, 2, 3],
     );
-    expect(rows.map((r) => r.subject)).toEqual(["Mathematics"]);
-    expect(skipped.map((s) => s.subject)).toEqual(["Science"]);
+    expect(rows.map((r) => r.subject)).toEqual(["Mathematics", "Science"]);
+    expect(rows.find((r) => r.subject === "Science")?.quarters).toEqual([80, null, null, null]);
   });
 
-  it("ignores non-finite ratings", () => {
+  it("ignores non-finite ratings and keeps the finite quarters", () => {
     const { rows } = buildAutofillRows(
       [
         fact("s1", "Mathematics", 1, 90),
@@ -107,7 +106,8 @@ describe("SF10 auto-fill row builder", () => {
       "G7",
       [1, 2, 3],
     );
-    expect(rows).toHaveLength(0);
+    expect(rows).toHaveLength(1);
+    expect(rows[0].quarters).toEqual([90, null, 90, null]);
   });
 
   it("derives a normalized subject key and sorts rows alphabetically", () => {

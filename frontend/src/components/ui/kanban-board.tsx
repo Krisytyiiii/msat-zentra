@@ -12,6 +12,7 @@ export function KanbanBoardHeader({
   toolbarAlign = "end",
   ariaLabel,
   divider = true,
+  flush = false,
 }: {
   icon?: React.ReactNode;
   /** Omit to render the filter/search row without a title segment. */
@@ -27,12 +28,18 @@ export function KanbanBoardHeader({
   ariaLabel?: string;
   /** Draw the hairline under the header row. Defaults to true. */
   divider?: boolean;
+  /** Flush header: no card padding to compensate for (used by `bare` boards). */
+  flush?: boolean;
 }) {
   return (
     <div
-      className={`-mx-2.5 relative flex items-center gap-2 px-3.5 pb-2 ${
-        divider ? "border-b border-border" : ""
-      }`}
+      className={
+        flush
+          ? `relative flex items-center gap-2 pb-2 ${divider ? "border-b border-border" : ""}`
+          : `-mx-2.5 relative flex items-center gap-2 px-3.5 pb-2 ${
+              divider ? "border-b border-border" : ""
+            }`
+      }
       aria-label={ariaLabel}
     >
       {title || icon ? (
@@ -107,6 +114,11 @@ interface KanbanBoardProps {
   style?: React.CSSProperties;
   /** Render the title/count header row. Defaults to true. */
   showHeader?: boolean;
+  /**
+   * Drop the wrapper card: header, description, toolbar, list and footer sit
+   * directly on the page canvas, so a data table/card grid is the only surface.
+   */
+  bare?: boolean;
 }
 
 export function KanbanBoard({
@@ -128,6 +140,7 @@ export function KanbanBoard({
   sectionClassName,
   style,
   showHeader = true,
+  bare = false,
 }: KanbanBoardProps) {
   const sectionLabel = ariaLabel ?? (typeof title === "string" ? title : undefined);
   return (
@@ -136,7 +149,11 @@ export function KanbanBoard({
       className={`flex min-w-0 flex-col gap-3 ${sectionClassName ?? ""}`}
     >
       <div
-        className={`board-surface flex min-w-0 flex-col gap-2 rounded-xl border border-border bg-card p-2.5 ${className ?? ""}`}
+        className={
+          bare
+            ? `flex min-w-0 flex-col gap-3 ${className ?? ""}`
+            : `board-surface flex min-w-0 flex-col gap-2 rounded-xl border border-border bg-card p-2.5 ${className ?? ""}`
+        }
         aria-label={boardLabel}
         style={style}
       >
@@ -150,6 +167,7 @@ export function KanbanBoard({
             toolbar={headerToolbar}
             toolbarAlign={headerToolbarAlign}
             divider={headerDivider}
+            flush={bare}
             ariaLabel={
               typeof title === "string" && count !== undefined
                 ? `${title}, ${String(count)}`

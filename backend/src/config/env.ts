@@ -19,6 +19,10 @@ const envSchema = z.object({
   REFERRAL_STORAGE_BUCKET: z.string().min(1).optional(),
   CLINIC_STORAGE_BUCKET: z.string().min(1).optional(),
   OCR_WORKER_URL: z.string().optional(),
+  // soffice binary used to turn the SF10 XLSX template into a PDF with Excel's
+  // own layout. Optional: when unset the usual install paths (and PATH) are
+  // probed, and a missing binary falls back to the built-in renderer.
+  SF10_SOFFICE_PATH: z.string().min(1).optional(),
   UPSTASH_REDIS_REST_URL: z.string().url().optional(),
   UPSTASH_REDIS_REST_TOKEN: z.string().min(1).optional(),
   CACHE_TTL_SECONDS: z.coerce.number().default(60),

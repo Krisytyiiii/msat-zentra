@@ -25,7 +25,7 @@ function percent(value: number, of: number | undefined): number {
 
 /**
  * Records ledger — the lifecycle figures behind the queues: how much of the
- * band's final-grade set is adviser-approved, how much of its SF10 archive is
+ * band's final-grade set is locked, how much of its SF10 archive is
  * released, and the academic footprint (sections / subjects). Each cell links
  * to the desk page that owns that number.
  */
@@ -36,7 +36,7 @@ export function RegistryRecordsLedger({ desk }: { desk: RegistryDesk }) {
   const cells: LedgerCell[] = [
     {
       key: "finals",
-      label: "Finals adviser-approved",
+      label: "Finals locked",
       value: data?.finals.awaiting ?? 0,
       of: data?.finals.total ?? 0,
       hint: "of all final grade rows in this band",

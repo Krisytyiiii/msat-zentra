@@ -113,27 +113,15 @@ export default function AdminSchedulePage() {
     (a, b) => gradeNumber(a.gradeLevel) - gradeNumber(b.gradeLevel) || a.name.localeCompare(b.name),
   );
 
-  // Empty desk: the same kanban "starter" board shape the teacher referral desk
-  // uses before its first record, centered in the viewport. No callout and no
-  // gutter icon rail here — the template link lives on the board itself.
+  // Empty desk: one centered starter card holding the real actions (open the
+  // template workspace, its school-day config, or its section creator) instead
+  // of a multi-column starter board.
   if (orderedSections.length === 0) {
     return (
       <section
         aria-labelledby="admin-schedule-empty"
-        className="mx-auto flex min-h-[calc(100dvh-8rem)] w-full max-w-4xl flex-col justify-center gap-3 py-10 lg:min-h-[calc(100dvh-5rem)]"
+        className="mx-auto flex min-h-[calc(100dvh-8rem)] w-full items-center justify-center py-10 lg:min-h-[calc(100dvh-5rem)]"
       >
-        <div>
-          <h2
-            id="admin-schedule-empty"
-            className="m-0 text-[0.9375rem] font-bold tracking-[-0.01em] text-foreground"
-          >
-            No sections yet
-          </h2>
-          <p className="m-0 text-[0.8125rem] leading-[1.45] text-muted-foreground">
-            Sections are created inside the schedule template workspace — create the first
-            one there, then build and publish its weekly grid.
-          </p>
-        </div>
         <ScheduleEmptyKanban />
       </section>
     );

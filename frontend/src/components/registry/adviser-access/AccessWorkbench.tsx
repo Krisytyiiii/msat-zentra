@@ -10,14 +10,12 @@ import {
   FileSearch,
   Loader2,
   Megaphone,
-  Search,
-  X,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { FilterTabs } from "@/components/ui/filter-tabs";
-import { Input } from "@/components/ui/input";
+import { FilterTabs, type FilterTabOption } from "@/components/ui/filter-tabs";
 import { InsightCallout } from "@/components/ui/insight-callout";
 import { Pill, type PillTone } from "@/components/ui/pill";
+import { SearchField } from "@/components/ui/search-field";
 import { StudentMascot } from "@/components/student-mascot/StudentMascot";
 import {
   Table,
@@ -75,12 +73,16 @@ const PRIMARY_BTN = `${BTN} border border-transparent bg-primary text-primary-fo
 const GREEN_BTN = `${BTN} border border-transparent bg-emerald-600 text-white hover:bg-emerald-700 focus-visible:ring-emerald-600/30 dark:bg-emerald-600 dark:text-white dark:hover:bg-emerald-700`;
 const RED_BTN = `${BTN} bg-red-600 text-white hover:bg-red-700 dark:bg-red-600 dark:hover:bg-red-700`;
 
-const STATUS_TABS: { key: StatusFilter; label: string }[] = [
-  { key: "all", label: "All" },
-  { key: "pendingChecking", label: "Unchecked" },
-  { key: "awaiting", label: "Awaiting" },
-  { key: "approved", label: "Approved" },
-  { key: "reported", label: "Reported" },
+const STATUS_TABS: {
+  key: StatusFilter;
+  label: string;
+  tone: FilterTabOption<StatusFilter>["tone"];
+}[] = [
+  { key: "all", label: "All learners", tone: "neutral" },
+  { key: "pendingChecking", label: "Unchecked", tone: "amber" },
+  { key: "awaiting", label: "Awaiting decision", tone: "blue" },
+  { key: "approved", label: "Approved", tone: "green" },
+  { key: "reported", label: "Reported", tone: "red" },
 ];
 
 /**
@@ -122,21 +124,6 @@ export function AccessWorkbench({
   const [query, setQuery] = React.useState("");
   const [page, setPage] = React.useState(1);
   const [expanded, setExpanded] = React.useState<Set<string>>(new Set());
-  const searchRef = React.useRef<HTMLInputElement>(null);
-
-  // "/" focuses search from anywhere on the page.
-  React.useEffect(() => {
-    const onKeyDown = (e: KeyboardEvent) => {
-      if (e.key !== "/" || e.metaKey || e.ctrlKey || e.altKey) return;
-      const target = e.target as HTMLElement | null;
-      const tag = target?.tagName?.toLowerCase();
-      if (tag === "input" || tag === "textarea" || target?.isContentEditable) return;
-      e.preventDefault();
-      searchRef.current?.focus();
-    };
-    document.addEventListener("keydown", onKeyDown);
-    return () => document.removeEventListener("keydown", onKeyDown);
-  }, []);
 
   const requestById = React.useMemo(
     () => new Map(requests.map((r) => [r.id, r])),
@@ -244,7 +231,6 @@ export function AccessWorkbench({
           <span className={styles.boardTitle}>
             <FileSearch size={14} className={styles.boardTitleIcon} aria-hidden />
             Requests workbench
-            <span className={styles.boardCount}>{counts.all}</span>
           </span>
           <div className={styles.bulkActions}>
             {pendingRequestIds.length > 0 ? (
@@ -295,41 +281,26 @@ export function AccessWorkbench({
 
         <div className={styles.toolbar}>
           <FilterTabs
-            label="Filter by decision status"
+            label="Filter learners by decision status"
+            variant="tags"
             options={STATUS_TABS.map((tab) => ({
               value: tab.key,
               label: tab.label,
               count: counts[tab.key],
+              tone: tab.tone,
             }))}
             value={statusFilter}
             onChange={onStatusFilterChange}
           />
 
           <div className={styles.toolbarRight}>
-            <div className={styles.searchWrap}>
-              <Search className={styles.searchIcon} aria-hidden />
-              <Input
-                ref={searchRef}
-                className={styles.search}
-                placeholder="Search name, LRN, section, or adviser…"
-                value={query}
-                onChange={(e) => setQuery(e.target.value)}
-                aria-label="Search adviser access requests"
-              />
-              {searching ? (
-                <button
-                  type="button"
-                  className={styles.clearSearch}
-                  onClick={() => {
-                    setQuery("");
-                    searchRef.current?.focus();
-                  }}
-                  aria-label="Clear search"
-                >
-                  <X size={12} aria-hidden />
-                </button>
-              ) : null}
-            </div>
+            <SearchField
+              value={query}
+              onChange={setQuery}
+              placeholder="Search name, LRN, section, or adviser…"
+              aria-label="Search adviser access requests"
+              loading={isFetching}
+            />
           </div>
         </div>
       </div>

@@ -234,14 +234,15 @@ export function RegistryRequestsPanel({ desk }: { desk: RegistryDesk }) {
           <FileStack size={14} />
         </span>
       }
-      count={isPending ? undefined : isError ? "—" : totals.pending}
       description="Requests submitted, students approved or reported missing, and denials per day — adviser SF10 access."
       headerToolbar={
         <FilterTabs
           label="Request window"
+          variant="tags"
           options={WINDOWS.map((option) => ({
             value: String(option),
             label: `${option}d`,
+            tone: "neutral" as const,
           }))}
           value={String(days)}
           onChange={(next) => setDays(Number(next) as WindowDays)}

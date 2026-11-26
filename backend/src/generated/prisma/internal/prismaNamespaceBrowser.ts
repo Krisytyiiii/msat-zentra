@@ -75,6 +75,7 @@ export const ModelName = {
   FinalGrade: 'FinalGrade',
   GradeFlag: 'GradeFlag',
   AttendanceRecord: 'AttendanceRecord',
+  NoClassDay: 'NoClassDay',
   AttendanceRecordLegacy: 'AttendanceRecordLegacy',
   AnecdotalRecord: 'AnecdotalRecord',
   AnecdotalFolder: 'AnecdotalFolder',
@@ -479,6 +480,20 @@ export const AttendanceRecordScalarFieldEnum = {
 } as const
 
 export type AttendanceRecordScalarFieldEnum = (typeof AttendanceRecordScalarFieldEnum)[keyof typeof AttendanceRecordScalarFieldEnum]
+
+
+export const NoClassDayScalarFieldEnum = {
+  id: 'id',
+  date: 'date',
+  scope: 'scope',
+  reason: 'reason',
+  schoolYearId: 'schoolYearId',
+  createdBy: 'createdBy',
+  createdAt: 'createdAt',
+  updatedAt: 'updatedAt'
+} as const
+
+export type NoClassDayScalarFieldEnum = (typeof NoClassDayScalarFieldEnum)[keyof typeof NoClassDayScalarFieldEnum]
 
 
 export const AttendanceRecordLegacyScalarFieldEnum = {

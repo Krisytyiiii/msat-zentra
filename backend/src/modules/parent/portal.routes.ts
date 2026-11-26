@@ -112,7 +112,7 @@ router.get("/children/:studentId/modules", validate("query", studentModulesQuery
     const { page, pageSize, status } = req.query as unknown as {
       page: number; pageSize: number; status?: ModuleStatus;
     };
-    res.json(await getLearnerModules(studentId, { page, pageSize, status }));
+    res.json(await getLearnerModules(studentId, (await termFor(req)).id, { page, pageSize, status }));
   } catch (e) {
     next(e);
   }

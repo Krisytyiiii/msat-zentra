@@ -1,20 +1,16 @@
 "use client";
 
 import { useCallback, useRef, useState } from "react";
-import { createPortal } from "react-dom";
 import { useQueryClient } from "@tanstack/react-query";
-import { CheckCircle2, Loader2, Trash2, Undo2, XCircle } from "lucide-react";
-import { Button } from "@/components/ui/button";
-import { KanbanBoard } from "@/components/ui/kanban-board";
-import { Pill } from "@/components/ui/pill";
+import { CheckCircle2, Loader2, Trash2, XCircle } from "lucide-react";
 import { ScrollList } from "@/components/ui/scroll-list";
+import { ConfirmDialog } from "@/components/ui/confirm-dialog";
 import { apiClient } from "@/lib/api/client";
 import { apiErrorMessage } from "@/lib/api/errors";
 import { useAdminScheduleInvalidate } from "./use-admin-schedule-invalidate";
 import { toast } from "@/components/ui/sonner";
 import { isOptimisticId, markOptimisticCancelled } from "./schedule-optimistic";
 import type { ScheduleSubject } from "../page";
-import styles from "@/components/schedule/subject-kanban.module.css";
 
 export type SubjectDeleteRowState = {
   id: string;
@@ -36,10 +32,6 @@ const DELETE_STEPS = ["Resolving subjects", "Removing timetable links", "Confirm
 
 function gradeLabel(gradeLevel: string): string {
   return `Grade ${gradeLevel.replace("G", "")}`;
-}
-
-function categoryLabel(category: string): string {
-  return category === "ELECTIVE" ? "Elective" : "Core";
 }
 
 /**
@@ -184,90 +176,22 @@ interface ConfirmProps {
 }
 
 export function SubjectDeleteConfirm({ subjects, pending, onCancel, onConfirm }: ConfirmProps) {
-  // Page-level overlay: portaled to <body> so transformed / overflow-hidden
-  // grid ancestors can never clip it or hijack its fixed positioning. This
-  // only renders after a user click, so `document` always exists here.
-  return createPortal(
-    <div
-      className="fixed inset-0 z-[60] flex items-center justify-center bg-black/60 p-4 dark:bg-black/70"
-      role="alertdialog"
-      aria-modal="true"
-      aria-label={
-        subjects.length === 1
-          ? `Confirm deletion of ${subjects[0].name}`
-          : `Confirm deletion of ${subjects.length} subjects`
-      }
-      onClick={() => {
-        if (!pending) onCancel();
-      }}
-    >
-      <div className="w-full max-w-lg min-w-0" onClick={(e) => e.stopPropagation()}>
-        <KanbanBoard
-          title={subjects.length === 1 ? "Delete this subject?" : `Delete ${subjects.length} subjects?`}
-          icon={
-            <span className="text-red-500" aria-hidden>
-              <Trash2 size={14} />
-            </span>
-          }
-          count={<span className="text-red-600 dark:text-red-400">{subjects.length}</span>}
-          description="This cannot be undone. Subjects already used by a timetable, assignment, or gradebook record are locked and were left out."
-          className="bg-card text-card-foreground shadow-2xl"
-          footer={
-            <div className="flex justify-end gap-1.5 px-1 pb-1">
-              <Button
-                onClick={onCancel}
-                disabled={pending}
-                variant="outline"
-                className="h-6 gap-1 px-2 text-[12px]"
-              >
-                <Undo2 size={12} aria-hidden />
-                Keep them
-              </Button>
-              <Button
-                onClick={onConfirm}
-                disabled={pending}
-                aria-busy={pending || undefined}
-                className="h-6 gap-1 border-transparent bg-red-600 px-2 text-[12px] text-white hover:bg-red-700 hover:text-white dark:border-transparent dark:bg-red-600 dark:text-white dark:hover:bg-red-700 dark:hover:text-white"
-              >
-                {pending ? (
-                  <>
-                    <Loader2 size={12} className="animate-spin" aria-hidden />
-                    <span aria-live="polite">Deleting…</span>
-                  </>
-                ) : (
-                  <>
-                    <Trash2 size={12} aria-hidden />
-                    Confirm delete{subjects.length === 1 ? "" : ` (${subjects.length})`}
-                  </>
-                )}
-              </Button>
-            </div>
-          }
-        >
-          <ScrollList className="max-h-[40dvh] gap-1.5 px-1">
-            {subjects.map((s) => (
-              <div key={s.id} className={`${styles.card} min-w-0`} aria-label={`${s.name} (${s.code})`}>
-                <span className={`${styles.name} min-w-0 flex-1`} title={`${s.name} (${s.code})`}>
-                  {s.name} <span className={styles.code}>({s.code})</span>
-                </span>
-                <span className={styles.meta}>
-                  <Pill tone="neutral" label="Grade level">
-                    {gradeLabel(s.gradeLevel)}
-                  </Pill>
-                  <Pill
-                    tone={s.category === "ELECTIVE" ? "sky" : "amber"}
-                    label="Category"
-                  >
-                    {categoryLabel(s.category)}
-                  </Pill>
-                </span>
-              </div>
-            ))}
-          </ScrollList>
-        </KanbanBoard>
-      </div>
-    </div>,
-    document.body,
+  const count = subjects.length;
+
+  return (
+    <ConfirmDialog
+      tone="danger"
+      title={count === 1 ? "Delete this subject?" : `Delete ${count} subjects?`}
+      description="This cannot be undone. Subjects already used by a timetable, assignment, or gradebook record are locked and were left out."
+      icon={<Trash2 size={16} />}
+      cancelLabel="Keep them"
+      confirmLabel="Confirm delete"
+      confirmIcon={<Trash2 size={13} />}
+      pendingLabel="Deleting…"
+      pending={pending}
+      onCancel={onCancel}
+      onConfirm={onConfirm}
+    />
   );
 }
 

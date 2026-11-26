@@ -5,6 +5,7 @@ import Link from "next/link";
 import { useSearchParams } from "next/navigation";
 import { ShieldQuestion } from "lucide-react";
 import { useLiveQueries } from "@/lib/api/live";
+import { useQueryClient } from "@tanstack/react-query";
 import { TeacherEmptyCard } from "../../components/TeacherEmptyCard";
 import { InsightCallout } from "@/components/ui/insight-callout";
 import { Button } from "@/components/ui/button";
@@ -17,6 +18,10 @@ import {
   useMyVerification,
   type HasRow,
 } from "@/services/teacher/sf10Access.service";
+import {
+  downloadSf10Template,
+  useAutofillCandidates,
+} from "@/services/teacher/sf10Autofill.service";
 import { Sf10RepoFolders } from "./components/Sf10RepoFolders";
 import { RejectedRequestsCard, Sf10MissingCard, Sf10Sidebar } from "./components/Sf10SideRail";
 import { Sf10PageSkeleton } from "./components/Sf10PageSkeleton";
@@ -86,10 +91,52 @@ export default function TeacherSf10AccessPage() {
   const foldersError = !!activeRequest && verification.isError;
   const [query, setQuery] = React.useState("");
 
+  // SF10 template: the adviser builds a fresh form from the school template
+  // (JHS book for Grades 7–10, Strengthened SHS book for 11–12) for any advisee
+  // whose adviser-approved finals are locked, even before the registry desk has
+  // filed a record.
+  const primarySectionId = sectionsQuery.data?.advisorySections[0]?.id ?? null;
+  const candidatesQuery = useAutofillCandidates(primarySectionId);
+  const templateRows = React.useMemo(
+    () =>
+      (candidatesQuery.data ?? []).filter((c) =>
+        ["G7", "G8", "G9", "G10", "G11", "G12"].includes(c.gradeLevel),
+      ),
+    [candidatesQuery.data],
+  );
+  const [downloadingKey, setDownloadingKey] = React.useState<string | null>(null);
+  const queryClient = useQueryClient();
+  const handleDownloadTemplate = React.useCallback(
+    async (lrn: string, format: "xlsx" | "pdf") => {
+      if (!primarySectionId) return;
+      const key = `${lrn}:${format}`;
+      setDownloadingKey(key);
+      try {
+        await downloadSf10Template(primarySectionId, lrn, format);
+        toast.success({
+          title: format === "pdf" ? "SF10 PDF ready" : "SF10 Excel ready",
+          description: "The generated file was also filed on the learner's SF10 record.",
+        });
+        // The render writes a new record version, so refresh the folders.
+        void queryClient.invalidateQueries({ queryKey: ["teacher-sf10-access"] });
+        void queryClient.invalidateQueries({ queryKey: ["teacher-sf10-autofill"] });
+      } catch (error) {
+        const message =
+          (error as { response?: { data?: { error?: { message?: string } } } })?.response
+            ?.data?.error?.message ?? "The SF10 template could not be generated.";
+        toast.error({ title: "Template not generated", description: message });
+      } finally {
+        setDownloadingKey(null);
+      }
+    },
+    [primarySectionId, queryClient],
+  );
+
   // Deep link from the topbar record search: `?lrn=…` prefilters the desk.
   const searchParams = useSearchParams();
   const lrnParam = searchParams.get("lrn");
   React.useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- deep-link landing sync
     if (lrnParam) setQuery(lrnParam);
   }, [lrnParam]);
 
@@ -171,6 +218,7 @@ export default function TeacherSf10AccessPage() {
     grantedRows.length === 0 &&
     deniedRequests.length === 0 &&
     missingRows.length === 0 &&
+    templateRows.length === 0 &&
     !grantsLoading
   ) {
     return (
@@ -179,7 +227,7 @@ export default function TeacherSf10AccessPage() {
           <InsightCallout role="status" className="w-full max-w-xl self-center text-left">
             <strong>No SF10 records yet.</strong> Approved students appear here as folders
             once the registrar or record keeper grants access — or run an auto-fill from
-            Chat with Bama using your adviser-approved finals.
+            Chat with Bama using your locked grades.
           </InsightCallout>
           <Button asChild size="sm" className="h-6 px-2 text-xs">
             <Link
@@ -212,6 +260,10 @@ export default function TeacherSf10AccessPage() {
             error={foldersError}
             denied={activeRequest?.status === "denied"}
             onOpen={handleViewInNewTab}
+            templateRows={templateRows}
+            templatePending={candidatesQuery.isPending}
+            onDownloadTemplate={handleDownloadTemplate}
+            downloadingKey={downloadingKey}
           />
         </div>
         <Sf10Sidebar

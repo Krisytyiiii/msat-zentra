@@ -105,12 +105,12 @@
   font-variant-numeric: tabular-nums;
 }
 
-/* ── Toolbar: filters + search ────────────────────────────────────────────── */
+/* ── Toolbar: search ─────────────────────────────────────────────────────── */
 .toolbar {
   display: flex;
   flex-wrap: nowrap;
   align-items: center;
-  justify-content: space-between;
+  justify-content: flex-end;
   gap: 0.5rem 0.75rem;
   min-width: 0;
 }

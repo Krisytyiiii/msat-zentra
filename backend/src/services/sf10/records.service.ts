@@ -35,6 +35,7 @@ function withTimeout<T>(p: Promise<T>, ms: number, label: string): Promise<T> {
 import {
   extractIdentityFromCells,
   extractIdentityFromText,
+  findMalformedLrn,
   type LearnerIdentity,
 } from "./learner-identity.service.js";
 import { matchLearnerCandidates } from "./learner-match.service.js";
@@ -935,7 +936,7 @@ async function storeSf10UploadTx(
       reason: input.auditReason,
     },
   });
-  return row;
+  return { ...row, currentVersion: nextVersion };
 }
 
 const PROVISION_GRADES = ["G7", "G8", "G9", "G10", "G11", "G12"];
@@ -1031,10 +1032,16 @@ export async function uploadAuto(
   // The LRN is the only key the store needs. Nothing is created from an
   // upload and no account has to exist for the learner.
   if (!learner.lrn) {
+    // Name the digit run that was probably meant to be the LRN — "no LRN" is
+    // otherwise confusing when the form visibly has one (a 11-digit entry, or a
+    // leading zero Excel stored as a number).
+    const malformed = findMalformedLrn(local.rawText);
     throw new AppError(
       409,
       "NEEDS_LRN",
-      "No LRN could be read from the file — an SF10 is stored under the LRN written on it.",
+      malformed
+        ? `The LRN "${malformed}" has ${malformed.length} digits — a DepEd LRN must be exactly 12 digits. Correct it in the file (keep any leading zero as text) and upload again.`
+        : "No LRN could be read from the file — an SF10 is stored under the LRN written on it.",
     );
   }
   const lrn = learner.lrn;
@@ -1259,6 +1266,41 @@ export interface AutoFillWriteResult {
 }
 
 /**
+ * Create an empty/auto-populated SF10 record for a learner the registry desk
+ * has not uploaded a form for (the JHS template flow). The generated file is
+ * the record's first upload, so the record keeper opens exactly what the
+ * adviser downloaded. Subjects are layered on afterwards by
+ * `applyAutoFilledSubjects`, which appends the next version.
+ */
+export async function createAutoPopulatedRecord(
+  ctx: Sf10Context,
+  input: {
+    lrn: string;
+    learnerName: string | null;
+    gradeLevel: string;
+    desk: "registrar" | "record_keeper";
+    fileUrl: string;
+  },
+): Promise<{ id: string; version: number }> {
+  const row = await prisma.$transaction(
+    (tx) =>
+      storeSf10UploadTx(tx, {
+        userId: ctx.userId,
+        lrn: input.lrn,
+        learnerName: input.learnerName,
+        gradeLevel: input.gradeLevel,
+        desk: input.desk,
+        fileUrl: input.fileUrl,
+        source: "auto_populated",
+        changeReason: "SF10 generated from the JHS template",
+        auditReason: `SF10 template generated for LRN ${input.lrn}`,
+      }),
+    SF10_TX_OPTS,
+  );
+  return { id: row.id, version: row.currentVersion };
+}
+
+/**
  * Merge grading-portal rows into an SF10 record for one grade level.
  *
  * Only the rows tagged with `gradeLevel` are replaced; prior years and untagged
@@ -1271,6 +1313,13 @@ export async function applyAutoFilledSubjects(
   recordId: string,
   gradeLevel: string,
   rows: OcrSubjectPayload[],
+  options?: {
+    /**
+     * Already-uploaded render (the JHS template flow builds its file before the
+     * record exists). When set the original-file patching below is skipped.
+     */
+    generatedFileUrl?: string;
+  },
 ): Promise<AutoFillWriteResult> {
   const record = await assertRecordAccess(recordId, ctx);
   if (ctx.role === "adviser") await assertAdviserSf10Access(ctx.userId, recordId);
@@ -1307,8 +1356,8 @@ export async function applyAutoFilledSubjects(
   // a PDF. Untouched grade blocks and every non-rating cell stay as uploaded.
   const generatedAt = new Date();
   const mergedSubjects = [...kept, ...rows];
-  let generatedFileUrl: string | undefined;
-  {
+  let generatedFileUrl: string | undefined = options?.generatedFileUrl;
+  if (!generatedFileUrl) {
     try {
       const original = await downloadOriginalSf10File(record.uploadedFileUrl);
       const rendered = await renderAutoFillFile({
@@ -1357,7 +1406,7 @@ export async function applyAutoFilledSubjects(
     recordId,
     ctx.userId,
     payload,
-    "SF10 auto-filled from adviser-approved finals",
+    "SF10 auto-filled from locked grades",
   );
   if (wasVerified) {
     await prisma.sf10Record.update({
@@ -1441,7 +1490,7 @@ export async function getSubjectMap(ctx: Sf10Context, recordId: string) {
         ocrSubjects,
         gradeLevel,
       )
-    : { perGrade: {}, deficiencies: [], addons: [], coverage: { gradesDetected: [] } };
+    : { perGrade: [], deficiencies: [], addons: [], coverage: { gradesDetected: [] } };
   return {
     id: record.id,
     lrn: record.lrn,

@@ -1,95 +1,43 @@
 "use client";
 
-import Link from "next/link";
-import { KeyRound } from "lucide-react";
-import { Button } from "@/components/ui/button";
-import { KanbanBoard } from "@/components/ui/kanban-board";
-import { Pill } from "@/components/ui/pill";
-import emptyStyles from "@/components/schedule/schedule-empty.module.css";
-import kanbanStyles from "@/components/schedule/subject-kanban.module.css";
-import styles from "./attendance-sheet.module.css";
-
-function GateShell({
-  title,
-  termLabel,
-  description,
-  actionLabel,
-}: {
-  title: string;
-  termLabel: string;
-  description: string;
-  actionLabel: string;
-}) {
-  return (
-    <div className={emptyStyles.emptyWrap}>
-      <div className={`${kanbanStyles.column} mx-auto w-full max-w-md`}>
-        <KanbanBoard
-          title={title}
-          icon={
-            <span className="text-amber-500" aria-hidden>
-              <KeyRound size={14} />
-            </span>
-          }
-          actions={
-            <span className="flex items-center gap-1.5">
-              {termLabel
-                .split("·")
-                .map((part) => part.trim())
-                .filter(Boolean)
-                .map((part, index) => (
-                  <Pill
-                    key={part}
-                    tone="amber"
-                    label={index === 0 ? "School year" : "Active term"}
-                  >
-                    {part}
-                  </Pill>
-                ))}
-            </span>
-          }
-          description={description}
-        >
-          <div className="flex justify-end px-1 pb-1">
-            <Button
-              asChild
-              size="sm"
-              className="h-6 rounded-lg bg-black px-3 text-xs text-white hover:bg-neutral-800 dark:bg-white dark:text-black dark:hover:bg-neutral-200"
-            >
-              <Link href="/teacher/classes">{actionLabel}</Link>
-            </Button>
-          </div>
-        </KanbanBoard>
-      </div>
-    </div>
-  );
-}
+import { TeacherGateCard } from "@/app/teacher/components/TeacherGateCard";
 
 export function AttendanceTermGate({ termLabel }: { termLabel: string }) {
   return (
-    <section className={styles.page}>
-      <div className={styles.gateBody}>
-        <GateShell
-          title="Enter term"
-          termLabel={termLabel}
-          description="Your subjects will appear here only after you enter this term's code on the classes page. Without entering the term, nothing is displayed here."
-          actionLabel="Go to classes to enter code"
-        />
-      </div>
+    <section className="flex flex-col">
+      <TeacherGateCard
+        title="Open this term"
+        subtitle="Attendance sheets need the term opened"
+        status="Term not entered"
+        description={`Attendance is closed for ${termLabel}. Enter your teacher code once on My Classes and this page fills with the term's sheets.`}
+        termLabel={termLabel}
+        facts={[
+          "Nothing needs relinking — only this term has to be opened.",
+          "One code covers every term of this school year.",
+          "Sheet dates and the advisory section still decide which learners you mark.",
+        ]}
+        actionLabel="Enter term"
+      />
     </section>
   );
 }
 
 export function AttendanceLinkGate({ termLabel }: { termLabel: string }) {
   return (
-    <section className={styles.page}>
-      <div className={styles.gateBody}>
-        <GateShell
-          title="Link code"
-          termLabel={termLabel}
-          description="Your subjects will appear here only after you link your teacher code on the classes page. Without a link code, nothing is displayed here."
-          actionLabel="Go to classes to link code"
-        />
-      </div>
+    <section className="flex flex-col">
+      <TeacherGateCard
+        title="Link your teacher code"
+        subtitle="Attendance needs your linked teacher row"
+        status="Not linked yet"
+        description="Your sheets appear only after you link the teacher code printed beside your name. The link button opens the form on My Classes."
+        termLabel={termLabel}
+        facts={[
+          "The code sits beside your name in the administrator's teacher list.",
+          "Linking attaches your subject × section load to this login.",
+          "Attendance opens for the selected term once the code is entered.",
+        ]}
+        actionLabel="Link now"
+      />
     </section>
   );
 }

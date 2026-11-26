@@ -4,7 +4,8 @@ import {
   meetsAcademicExcellenceAward,
 } from "../../services/grading.js";
 import { attendanceTotalFor, computeRiskFactors, levelFromFlags, sectionAttendanceTotals } from "../../services/risk.js";
-import { schoolDaysToDate, subjectAverageAttendance } from "../../services/attendance.js";
+import { buildSchoolDayAxis, subjectAverageAttendance } from "../../services/attendance.js";
+import { activeDayKeys } from "../../services/noClass.js";
 import { gradeLabel } from "../../lib/grades.js";
 import {
   archivedAdvisoryLearnerIds,
@@ -135,7 +136,14 @@ export async function getAcademicsSummary(
   const termLabel = activeTerm ? `Term ${activeTerm.termNumber}` : "No active term";
   const schoolYear = activeTerm?.schoolYear?.name ?? "No active school year";
 
-  const schoolDays = schoolDaysToDate(activeTerm?.startDate, activeTerm?.endDate);
+  const schoolDays = activeTerm
+    ? (
+        await activeDayKeys(
+          buildSchoolDayAxis(activeTerm.startDate, activeTerm.endDate),
+          "all",
+        )
+      ).length
+    : 0;
 
   const lockedOnly = mode === "final";
 

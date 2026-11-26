@@ -631,7 +631,7 @@ export function Sf10DetailContent({ desk, id }: { desk: "registrar" | "record-ke
   }, [fileUrl]);
 
   const deficiencyGroups = React.useMemo(() => {
-    const rows = map?.deficiencies ?? [];
+    const rows = Array.isArray(map?.deficiencies) ? map.deficiencies : [];
     const order = new Map<string, Sf10DeficiencyEntry[]>();
     for (const d of rows) {
       const list = order.get(d.gradeLevel) ?? [];
@@ -644,7 +644,7 @@ export function Sf10DetailContent({ desk, id }: { desk: "registrar" | "record-ke
   }, [map]);
 
   const perGrade = React.useMemo(() => {
-    const rows = map?.perGrade ?? [];
+    const rows = Array.isArray(map?.perGrade) ? map.perGrade : [];
     return [...rows].sort(
       (a, b) => GRADE_ORDER.indexOf(a.gradeLevel) - GRADE_ORDER.indexOf(b.gradeLevel),
     );

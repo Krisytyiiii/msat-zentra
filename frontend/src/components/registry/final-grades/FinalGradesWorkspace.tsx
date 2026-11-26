@@ -3,35 +3,42 @@
 import * as React from "react";
 import { keepPreviousData, useQuery } from "@tanstack/react-query";
 import {
-  ArrowUpRight,
   BookOpen,
   Check,
   ChevronLeft,
   ChevronRight,
-  FileSignature,
-  FileStack,
-  GraduationCap,
-  Search,
   UserRound,
-  type LucideIcon,
 } from "lucide-react";
 import { apiClient } from "@/lib/api/client";
 import { formatGrade, formatSection } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
+import { FilterTabs } from "@/components/ui/filter-tabs";
+import { SearchField } from "@/components/ui/search-field";
 import { Skeleton } from "@/components/ui/skeleton";
+import { ShimmerGroup } from "@/components/ui/shimmer-skeleton";
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "@/components/ui/table";
 import { Pill } from "@/components/ui/pill";
 import { PageEmptyCallout } from "@/components/shared/page-empty-callout";
 import { InsightCallout } from "@/components/ui/insight-callout";
 import { StudentMascot } from "@/components/student-mascot/StudentMascot";
+import cascade from "@/components/shared/desk-cascade.module.css";
 import {
-  FinalGradeSetDialog,
   type GradeSetStudent,
 } from "@/components/registry/final-grades/FinalGradeSetDialog";
 import { useDebouncedValue } from "@/lib/useDebouncedValue";
-import { useCountUp } from "@/lib/hooks/useCountUp";
 import { liveQueryOptions } from "@/lib/api/live";
 import type { RegistryDesk } from "@/services/registry/overview.service";
+import {
+  fetchRegistrySections,
+  type RegistrySectionOption,
+} from "@/services/registry/academics.service";
 import { PAGE_SIZE, Pagination } from "@/components/shared/pagination";
 import { useUrlPager } from "@/components/shared/pagination/useUrlPager";
 import { useSearchParams } from "next/navigation";
@@ -57,6 +64,20 @@ const ENDPOINT: Record<RegistryDesk, string> = {
 const QUERY_KEY: Record<RegistryDesk, string> = {
   registrar: "registrar-final-grades",
   "record-keeper": "record-keeper-final-grades",
+};
+
+/** Grade tabs follow the desk's band, same split as the API guard. */
+const BAND: Record<RegistryDesk, { value: string; label: string }[]> = {
+  registrar: [
+    { value: "G11", label: "Grade 11" },
+    { value: "G12", label: "Grade 12" },
+  ],
+  "record-keeper": [
+    { value: "G7", label: "Grade 7" },
+    { value: "G8", label: "Grade 8" },
+    { value: "G9", label: "Grade 9" },
+    { value: "G10", label: "Grade 10" },
+  ],
 };
 
 type ScoreTone = "green" | "amber" | "red";
@@ -119,51 +140,10 @@ function ScoreRing({
   );
 }
 
-interface StatTileProps {
-  icon: LucideIcon;
-  label: string;
-  unit: string;
-  hint: string;
-  value: number;
-  /** Slice of the largest stat, 0–100. */
-  share: number;
-}
-
-/** Coverage tile — same deck/tile anatomy as the overview attention deck. */
-function StatTile({ icon: Icon, label, unit, hint, value, share }: StatTileProps) {
-  const shown = useCountUp(value, 700);
-  const clear = value === 0;
-
-  return (
-    <div
-      className={`${styles.statTile} ${clear ? styles.statTileClear : ""}`}
-      aria-label={`${label}: ${value} ${unit}`}
-    >
-      <span className={styles.statTop}>
-        <span className={styles.statIcon} aria-hidden>
-          <Icon />
-        </span>
-        <span className={styles.statLabel}>{label}</span>
-      </span>
-
-      <span className={styles.statValue}>
-        <span className={styles.statNumber}>{shown}</span>
-        <span className={styles.statUnit}>{unit}</span>
-      </span>
-
-      <span className={styles.statMeter} aria-hidden>
-        <span className={styles.statMeterFill} style={{ width: `${share}%` }} />
-      </span>
-
-      <span className={styles.statHint}>{hint}</span>
-    </div>
-  );
-}
-
 /**
  * Final grade approvals workspace — the shared record-keeper / registrar
- * review surface. Only the banded endpoint, cache key and dialog desk change
- * between the G7–10 and G11–12 desks; the markup is identical.
+ * review surface. Only the banded endpoint and cache key change between the
+ * G7–10 and G11–12 desks; the markup is identical.
  */
 export function FinalGradesWorkspace({ desk }: { desk: RegistryDesk }) {
   return (
@@ -176,8 +156,6 @@ export function FinalGradesWorkspace({ desk }: { desk: RegistryDesk }) {
 function FinalGradesWorkspaceInner({ desk }: { desk: RegistryDesk }) {
   const searchParams = useSearchParams();
   const [queryInput, setQueryInput] = React.useState(searchParams.get("q") ?? "");
-  // Sheet (full grade record) opened from the detail panel.
-  const [sheetStudent, setSheetStudent] = React.useState<GradeSetStudent | null>(null);
   // Learner highlighted in the review workspace. Null = fall back to the first
   // row of the page, so the panel is never empty on arrival.
   const [pickedId, setPickedId] = React.useState<string | null>(null);
@@ -187,13 +165,36 @@ function FinalGradesWorkspaceInner({ desk }: { desk: RegistryDesk }) {
     return Number.isFinite(raw) && raw >= 1 ? Math.floor(raw) : 1;
   }, [searchParams]);
 
+  // Banded tabs above the index: grade first, then that grade's sections.
+  const rawGrade = searchParams.get("grade");
+  const rawSection = searchParams.get("section");
+  const gradeValue =
+    rawGrade && BAND[desk].some((entry) => entry.value === rawGrade) ? rawGrade : "all";
+
+  const { data: sectionCatalog = [] } = useQuery<RegistrySectionOption[]>({
+    queryKey: ["registry-sections", desk],
+    queryFn: ({ signal }) => fetchRegistrySections(desk, signal),
+    staleTime: 300_000,
+  });
+  const gradeSections = React.useMemo(
+    () =>
+      gradeValue === "all"
+        ? []
+        : sectionCatalog.filter((section) => section.gradeLevel === gradeValue),
+    [sectionCatalog, gradeValue],
+  );
+  const sectionValue =
+    rawSection && gradeSections.some((section) => section.id === rawSection)
+      ? rawSection
+      : "all";
+
   // Debounced server search; the loaded page is filtered instantly as well so
   // typing never waits on a round-trip.
   const query = useDebouncedValue(queryInput.trim(), 300);
   const debouncedQuery = query;
 
   const { data, isPending, isError } = useQuery<GradesResponse>({
-    queryKey: [QUERY_KEY[desk], rawPage, debouncedQuery],
+    queryKey: [QUERY_KEY[desk], rawPage, debouncedQuery, gradeValue, sectionValue],
     queryFn: ({ signal }) =>
       apiClient
         .get<GradesResponse>(ENDPOINT[desk], {
@@ -201,6 +202,8 @@ function FinalGradesWorkspaceInner({ desk }: { desk: RegistryDesk }) {
             page: rawPage,
             pageSize: PAGE_SIZE,
             ...(debouncedQuery ? { q: debouncedQuery } : {}),
+            ...(gradeValue !== "all" ? { gradeLevel: gradeValue } : {}),
+            ...(sectionValue !== "all" ? { sectionId: sectionValue } : {}),
           },
           signal,
         })
@@ -213,7 +216,21 @@ function FinalGradesWorkspaceInner({ desk }: { desk: RegistryDesk }) {
     staleTime: 10_000,
   });
 
-  const pageRows = React.useMemo(() => data?.students ?? [], [data]);
+  // Tabs filter the rows already on screen instantly, then the banded server
+  // query replaces them with the properly paged set. Without this the deck
+  // showed the previous grade's rows ("stale stack") until the fetch landed.
+  const pageRows = React.useMemo(() => {
+    const selectedSectionName =
+      sectionValue === "all"
+        ? null
+        : gradeSections.find((section) => section.id === sectionValue)?.name ?? null;
+    return (data?.students ?? []).filter((row) => {
+      if (gradeValue !== "all" && row.gradeLevel !== gradeValue) return false;
+      if (selectedSectionName && row.section !== selectedSectionName) return false;
+      return true;
+    });
+  }, [data, gradeValue, sectionValue, gradeSections]);
+
   const filteredTotal = data?.total ?? pageRows.length;
 
   const visibleRows = React.useMemo(() => {
@@ -236,15 +253,6 @@ function FinalGradesWorkspaceInner({ desk }: { desk: RegistryDesk }) {
 
   const active = activeIndex >= 0 ? visibleRows[activeIndex] : null;
 
-  // The sheet reads the freshest row so a late approval shows while it is open.
-  const sheetRow = React.useMemo(
-    () =>
-      sheetStudent
-        ? (data?.students.find((s) => s.id === sheetStudent.id) ?? sheetStudent)
-        : null,
-    [sheetStudent, data],
-  );
-
   const move = React.useCallback(
     (delta: number) => {
       if (visibleRows.length === 0) return;
@@ -255,9 +263,28 @@ function FinalGradesWorkspaceInner({ desk }: { desk: RegistryDesk }) {
     [activeIndex, visibleRows],
   );
 
-  const pager = useUrlPager(filteredTotal, {}, { searchParam: "q", extraParams: ["q"] });
+  const pager = useUrlPager(filteredTotal, {}, { searchParam: "q", extraParams: ["q", "grade", "section"] });
   const setPage = pager.setPage;
   const safePage = pager.page;
+
+  // Grade tab: resetting the section keeps the second row honest — it only
+  // ever lists sections of the grade on screen.
+  const onGradeChange = React.useCallback(
+    (next: string) => {
+      pager.setFilters({
+        grade: next === "all" ? undefined : next,
+        section: undefined,
+      });
+    },
+    [pager],
+  );
+
+  const onSectionChange = React.useCallback(
+    (next: string) => {
+      pager.setFilters({ section: next === "all" ? undefined : next });
+    },
+    [pager],
+  );
 
   // Sync debounced search to the URL and reset to page 1 when it changes.
   const firstSearchSync = React.useRef(true);
@@ -272,14 +299,17 @@ function FinalGradesWorkspaceInner({ desk }: { desk: RegistryDesk }) {
 
   const hasRecords = (data?.complete ?? 0) > 0;
   const searching = queryInput.trim().length > 0;
-  const isTrueEmpty = !isPending && !isError && !hasRecords && !searching;
+  // A grade/section tab is active — keep the deck and its tabs on screen even
+  // when the narrowed set is empty, so the filter can be changed back.
+  const narrowFilter = gradeValue !== "all" || sectionValue !== "all";
+  const isTrueEmpty =
+    !isPending && !isError && !hasRecords && !searching && !narrowFilter;
 
   if (isTrueEmpty) {
     return (
       <section className={`${styles.page} ${styles.pageEmpty}`}>
         <PageEmptyCallout fit>
-          No complete grade sets yet. Students appear once every subject is
-          locked or adviser-approved.
+          No complete grade sets yet. Students appear once every subject is locked.
         </PageEmptyCallout>
       </section>
     );
@@ -296,65 +326,43 @@ function FinalGradesWorkspaceInner({ desk }: { desk: RegistryDesk }) {
           </div>
         </header>
 
-        <section className={styles.stats} aria-label="Final grade coverage">
-          <div className={styles.statsHead}>
-            <span className={styles.statsTitle}>
-              <FileSignature aria-hidden />
-              Final grade coverage
-            </span>
+        <div className={styles.filterRow}>
+          <div className={styles.filterGroup}>
+            <FilterTabs
+              label="Filter by grade level"
+              variant="tags"
+              value={gradeValue}
+              onChange={onGradeChange}
+              options={[
+                { value: "all", label: "All grades", tone: "neutral" },
+                ...BAND[desk].map((grade, index) => ({
+                  value: grade.value,
+                  label: grade.label,
+                  tone: (index % 2 === 0 ? "blue" : "green") as "blue" | "green",
+                })),
+              ]}
+            />
           </div>
 
-          <div className={styles.statTiles}>
-            {isPending ? (
-              Array.from({ length: 3 }).map((_, i) => (
-                <div key={i} className={styles.statTile} aria-hidden>
-                  <span className={styles.statTop}>
-                    <Skeleton className="size-[1.375rem] shrink-0 rounded-md" />
-                    <Skeleton className="h-3 w-28" />
-                  </span>
-                  <Skeleton className="h-7 w-12" />
-                  <Skeleton className="h-[3px] w-full" />
-                  <Skeleton className="h-3 w-32" />
-                </div>
-              ))
-            ) : (
-              (() => {
-                const complete = data?.complete ?? 0;
-                const ready = data?.ready ?? 0;
-                const locked = data?.locked ?? 0;
-                const peak = Math.max(complete, ready, locked, 1);
-                return (
-                  <>
-                    <StatTile
-                      icon={GraduationCap}
-                      label="Complete sets"
-                      unit="learners"
-                      hint="Learners with a finished term"
-                      value={complete}
-                      share={Math.round((complete / peak) * 100)}
-                    />
-                    <StatTile
-                      icon={FileStack}
-                      label="Final grades"
-                      unit="grades"
-                      hint="Locked or adviser-approved"
-                      value={ready}
-                      share={Math.round((ready / peak) * 100)}
-                    />
-                    <StatTile
-                      icon={FileSignature}
-                      label="Awaiting sign-off"
-                      unit="pending"
-                      hint="Locked, adviser approval pending"
-                      value={locked}
-                      share={Math.round((locked / peak) * 100)}
-                    />
-                  </>
-                );
-              })()
-            )}
-          </div>
-        </section>
+          {gradeValue !== "all" && gradeSections.length > 0 ? (
+            <div className={styles.filterGroup}>
+              <FilterTabs
+                label={`Filter by section in ${formatGrade(gradeValue)}`}
+                variant="tags"
+                value={sectionValue}
+                onChange={onSectionChange}
+                options={[
+                  { value: "all", label: "All sections", tone: "neutral" },
+                  ...gradeSections.map((section) => ({
+                    value: section.id,
+                    label: section.name,
+                    tone: "amber" as const,
+                  })),
+                ]}
+              />
+            </div>
+          ) : null}
+        </div>
 
         <div className={styles.workspace}>
           <section className={styles.index} aria-label="Grade sets">
@@ -362,16 +370,13 @@ function FinalGradesWorkspaceInner({ desk }: { desk: RegistryDesk }) {
               <div className={styles.indexHeadTop}>
                 <span className={styles.indexTitle}>Grade sets</span>
               </div>
-              <div className={styles.searchWrap}>
-                <Search className={styles.searchIcon} aria-hidden />
-                <Input
-                  className={styles.search}
-                  placeholder="Search name, LRN, or section…"
-                  value={queryInput}
-                  onChange={(e) => setQueryInput(e.target.value)}
-                  aria-label="Search final grades"
-                />
-              </div>
+              <SearchField
+                className="w-full"
+                placeholder="Search name, LRN, or section…"
+                value={queryInput}
+                onChange={setQueryInput}
+                aria-label="Search final grades"
+              />
             </header>
 
             <div
@@ -394,25 +399,29 @@ function FinalGradesWorkspaceInner({ desk }: { desk: RegistryDesk }) {
                 // One placeholder per row a full page lists, built from the
                 // real row classes so the loading rows are pixel-identical to
                 // the loaded ones (mascot, name, LRN + term pills, ring).
-                Array.from({ length: PAGE_SIZE }).map((_, i) => (
-                  <div key={i} className={styles.indexItem} aria-hidden>
-                    <Skeleton className={styles.skelAvatar} />
-                    <div className={styles.indexText}>
-                      <Skeleton className={styles.skelName} />
-                      <div className={styles.indexMeta}>
-                        <Skeleton className={styles.skelPillLrn} />
-                        <Skeleton className={styles.skelPillTerm} />
+                <ShimmerGroup>
+                  {Array.from({ length: PAGE_SIZE }).map((_, i) => (
+                    <div key={i} className={styles.indexItem} aria-hidden>
+                      <Skeleton className={styles.skelAvatar} />
+                      <div className={styles.indexText}>
+                        <Skeleton className={styles.skelName} />
+                        <div className={styles.indexMeta}>
+                          <Skeleton className={styles.skelPillLrn} />
+                          <Skeleton className={styles.skelPillTerm} />
+                        </div>
                       </div>
+                      <Skeleton className={styles.skelRing} />
                     </div>
-                    <Skeleton className={styles.skelRing} />
-                  </div>
-                ))
+                  ))}
+                </ShimmerGroup>
               ) : isError ? (
                 <p className={styles.indexNote}>Could not load final grades.</p>
               ) : visibleRows.length === 0 ? (
                 <div className={styles.indexCallout}>
                   <InsightCallout role="status">
-                    No grade sets match &ldquo;{queryInput.trim()}&rdquo;.
+                    {searching
+                      ? `No grade sets match “${queryInput.trim()}”.`
+                      : "No grade sets in this grade or section yet."}
                   </InsightCallout>
                 </div>
               ) : (
@@ -472,63 +481,84 @@ function FinalGradesWorkspaceInner({ desk }: { desk: RegistryDesk }) {
             </footer>
           </section>
 
-          <section className={styles.detail} aria-label="Grade set detail">
+          <section className={`${styles.detail} ${cascade.boardIn}`} aria-label="Grade set detail">
             {isPending ? (
               // Mirrors the loaded sheet: identity head + pills + term ring,
               // the status strip, the subject grid and the footer.
-              <div aria-hidden>
-                <header className={styles.detailHead}>
-                  <Skeleton className="size-11 shrink-0 rounded-full" />
-                  <div className={styles.detailIdentity}>
-                    <Skeleton className="h-4 w-40 max-w-full" />
-                    <div className={styles.detailPills}>
-                      <Skeleton className="h-5 w-28 rounded-full" />
-                      <Skeleton className="h-5 w-16 rounded-full" />
-                      <Skeleton className="h-5 w-20 rounded-full" />
-                      <Skeleton className="h-5 w-14 rounded-full" />
-                    </div>
-                  </div>
-                  <div className={styles.detailScore}>
-                    <Skeleton className="size-14 rounded-full" />
-                    <Skeleton className="h-2.5 w-16" />
-                  </div>
-                  <div className={styles.detailNav}>
-                    <Skeleton className="size-6 rounded-md" />
-                    <Skeleton className="size-6 rounded-md" />
-                  </div>
-                </header>
-
-                <div className={styles.detailStatus}>
-                  <Skeleton className="h-3 w-24" />
-                  <Skeleton className="h-3 w-20" />
-                  <Skeleton className="h-3 w-20" />
-                </div>
-
-                <ul className={styles.subjectGrid}>
-                  {Array.from({ length: 6 }).map((_, i) => (
-                    <li key={i} className={styles.subjectCard}>
-                      <div className={styles.subjectTop}>
-                        <div className={styles.subjectHeading}>
-                          <Skeleton className="h-3.5 w-32 max-w-full" />
-                          <Skeleton className="h-2.5 w-16" />
-                        </div>
-                        <Skeleton className="h-6 w-10 rounded-md" />
-                      </div>
-                      <Skeleton className="h-3 w-28" />
-                      <Skeleton className="h-1 w-full rounded-full" />
-                      <div className={styles.subjectFoot}>
+              <ShimmerGroup aria-hidden>
+                <div>
+                  <header className={styles.detailHead}>
+                    <Skeleton className="size-11 shrink-0 rounded-full" />
+                    <div className={styles.detailIdentity}>
+                      <Skeleton className="h-4 w-40 max-w-full" />
+                      <div className={styles.detailPills}>
+                        <Skeleton className="h-5 w-28 rounded-full" />
+                        <Skeleton className="h-5 w-16 rounded-full" />
                         <Skeleton className="h-5 w-20 rounded-full" />
-                        <Skeleton className="h-2.5 w-24" />
+                        <Skeleton className="h-5 w-14 rounded-full" />
                       </div>
-                    </li>
-                  ))}
-                </ul>
+                    </div>
+                    <div className={styles.detailScore}>
+                      <Skeleton className="size-14 rounded-full" />
+                      <Skeleton className="h-2.5 w-16" />
+                    </div>
+                    <div className={styles.detailNav}>
+                      <Skeleton className="size-6 rounded-md" />
+                      <Skeleton className="size-6 rounded-md" />
+                    </div>
+                  </header>
 
-                <footer className={styles.detailFoot}>
-                  <Skeleton className="h-2.5 w-64 max-w-full" />
-                  <Skeleton className="h-7 w-40 rounded-md" />
-                </footer>
-              </div>
+                  <div className={styles.detailStatus}>
+                    <Skeleton className="h-3 w-24" />
+                    <Skeleton className="h-3 w-20" />
+                    <Skeleton className="h-3 w-20" />
+                  </div>
+
+                  <div className={styles.tableWrap} aria-hidden>
+                    <Table className={cascade.table}>
+                      <TableHeader>
+                        <TableRow>
+                          <TableHead>Subject</TableHead>
+                          <TableHead>Code</TableHead>
+                          <TableHead>Teacher</TableHead>
+                          <TableHead className="text-right">Computed</TableHead>
+                          <TableHead>Remarks</TableHead>
+                          <TableHead className="text-right">Final grade</TableHead>
+                        </TableRow>
+                      </TableHeader>
+                      <TableBody>
+                        {Array.from({ length: 6 }).map((_, i) => (
+                          <TableRow key={i}>
+                            <TableCell>
+                              <Skeleton className="h-3.5 w-40 max-w-full" />
+                            </TableCell>
+                            <TableCell>
+                              <Skeleton className="h-2.5 w-16" />
+                            </TableCell>
+                            <TableCell>
+                              <Skeleton className="h-2.5 w-28" />
+                            </TableCell>
+                            <TableCell className="text-right">
+                              <Skeleton className="ml-auto h-2.5 w-12" />
+                            </TableCell>
+                            <TableCell>
+                              <Skeleton className="h-5 w-20 rounded-full" />
+                            </TableCell>
+                            <TableCell className="text-right">
+                              <Skeleton className="ml-auto h-5 w-10 rounded-md" />
+                            </TableCell>
+                          </TableRow>
+                        ))}
+                      </TableBody>
+                    </Table>
+                  </div>
+
+                  <footer className={styles.detailFoot}>
+                    <Skeleton className="h-2.5 w-64 max-w-full" />
+                    <Skeleton className="h-7 w-40 rounded-md" />
+                  </footer>
+                </div>
+              </ShimmerGroup>
             ) : !active ? (
               <div className={styles.detailEmpty}>
                 <InsightCallout role="status">
@@ -615,87 +645,83 @@ function FinalGradesWorkspaceInner({ desk }: { desk: RegistryDesk }) {
                   )}
                 </div>
 
-                <ul className={styles.subjectGrid} aria-label="Subjects">
-                  {active.subjects.map((sub) => {
-                    const failedSubject = sub.remarks === "Failed";
-                    const tone = failedSubject ? "red" : "green";
-                    const hasTeacher = !!sub.teacher && sub.teacher !== "—";
-                    return (
-                      <li key={sub.id} className={styles.subjectCard}>
-                        <div className={styles.subjectTop}>
-                          <div className={styles.subjectHeading}>
-                            <span className={styles.subjectName} title={sub.subject}>
-                              {sub.subject}
-                            </span>
-                            <span className={styles.subjectCode}>{sub.code}</span>
-                          </div>
-                          <div className={styles.subjectGradeWrap}>
-                            <span className={styles.subjectGradeLabel}>Final</span>
-                            <span className={styles.subjectGrade} data-tone={tone}>
-                              {sub.transmutedGrade}
-                            </span>
-                          </div>
-                        </div>
-
-                        <p
-                          className={styles.subjectTeacher}
-                          data-empty={hasTeacher ? undefined : "true"}
-                          title={hasTeacher ? sub.teacher : "No teacher assigned"}
-                        >
-                          <UserRound size={13} strokeWidth={1.9} aria-hidden />
-                          <span className={styles.teacherLabel}>Teacher</span>
-                          <span className={styles.teacherName}>
-                            {hasTeacher ? sub.teacher : "Not assigned"}
-                          </span>
-                        </p>
-
-                        <div className={styles.subjectTrack} aria-hidden>
-                          <span
-                            className={styles.subjectFill}
-                            data-tone={tone}
-                            style={{ width: `${Math.min(sub.transmutedGrade, 100)}%` }}
-                          />
-                        </div>
-
-                        <div className={styles.subjectFoot}>
-                          <Pill tone={tone} label="Remarks">
-                            {sub.remarks}
-                          </Pill>
-                          <span className={styles.subjectComputed}>
-                            Computed {Math.round(sub.computedAverage * 100) / 100}
-                          </span>
-                        </div>
-                      </li>
-                    );
-                  })}
-                </ul>
+                <div className={styles.tableWrap} key={active.id}>
+                  <Table
+                    className={`${styles.subjectTable} ${cascade.table}`}
+                    aria-label="Subjects"
+                  >
+                    <TableHeader>
+                      <TableRow>
+                        <TableHead>Subject</TableHead>
+                        <TableHead>Code</TableHead>
+                        <TableHead>Teacher</TableHead>
+                        <TableHead className="text-right">Computed</TableHead>
+                        <TableHead>Remarks</TableHead>
+                        <TableHead className="text-right">Final grade</TableHead>
+                      </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                      {active.subjects.map((sub, index) => {
+                        const failedSubject = sub.remarks === "Failed";
+                        const tone = failedSubject ? "red" : "green";
+                        const hasTeacher = !!sub.teacher && sub.teacher !== "—";
+                        return (
+                          <TableRow
+                            key={sub.id}
+                            style={{
+                              animationDelay: `${450 + Math.min(index, 11) * 140}ms`,
+                            }}
+                          >
+                            <TableCell className={styles.subjectCell}>
+                              <span className={styles.subjectName} title={sub.subject}>
+                                {sub.subject}
+                              </span>
+                            </TableCell>
+                            <TableCell>
+                              <span className={styles.subjectCode}>{sub.code}</span>
+                            </TableCell>
+                            <TableCell>
+                              {hasTeacher ? (
+                                <span className={styles.teacherName} title={sub.teacher}>
+                                  <UserRound size={13} strokeWidth={1.9} aria-hidden />
+                                  {sub.teacher}
+                                </span>
+                              ) : (
+                                <span className={styles.tableMuted}>Not assigned</span>
+                              )}
+                            </TableCell>
+                            <TableCell className="text-right">
+                              <span className={styles.computed}>
+                                {Math.round(sub.computedAverage * 100) / 100}
+                              </span>
+                            </TableCell>
+                            <TableCell>
+                              <Pill tone={tone} label="Remarks">
+                                {sub.remarks}
+                              </Pill>
+                            </TableCell>
+                            <TableCell className="text-right">
+                              <span className={styles.subjectGrade} data-tone={tone}>
+                                {sub.transmutedGrade}
+                              </span>
+                            </TableCell>
+                          </TableRow>
+                        );
+                      })}
+                    </TableBody>
+                  </Table>
+                </div>
 
                 <footer className={styles.detailFoot}>
                   <span className={styles.detailFootNote}>
                     Computed average and DepEd transmutation applied per subject.
                   </span>
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    className="h-7 gap-1 rounded-md px-2 text-xs"
-                    onClick={() => setSheetStudent(active)}
-                  >
-                    Open full grade sheet
-                    <ArrowUpRight size={13} strokeWidth={2} aria-hidden />
-                  </Button>
                 </footer>
               </>
             )}
           </section>
         </div>
       </div>
-
-      <FinalGradeSetDialog
-        key={sheetRow?.id ?? "closed"}
-        desk={desk}
-        student={sheetRow}
-        onClose={() => setSheetStudent(null)}
-      />
     </section>
   );
 }

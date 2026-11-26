@@ -5,13 +5,14 @@ import { useMutation } from "@tanstack/react-query";
 import { useLiveQuery } from "@/lib/api/live";
 import { apiClient } from "@/lib/api/client";
 import { useTerm } from "@/lib/term/TermContext";
-import { Check, Download, Layers, Loader2, Upload } from "lucide-react";
+import { Check, Download, Layers, Loader2, Upload, Users } from "lucide-react";
 import { toast } from "@/components/ui/sonner";
 import { Button } from "@/components/ui/button";
 import { FilterTabs } from "@/components/ui/filter-tabs";
-import { Pill } from "@/components/ui/pill";
+import { SearchField } from "@/components/ui/search-field";
 import { PageEmptyCallout } from "@/components/shared/page-empty-callout";
 import { StudentMascot } from "@/components/student-mascot/StudentMascot";
+import { EmptyActionCard } from "./schedule-empty-kanban";
 import styles from "@/app/principal/academics/assign/components/sections-kanban.module.css";
 import { useAdminScheduleInvalidate } from "./use-admin-schedule-invalidate";
 import { ScheduleStatusConfirm, type PublishConfirmMode } from "./schedule-status-confirm";
@@ -38,6 +39,10 @@ function isPublished(section: ScheduleSectionSummary): boolean {
 
 function draftCount(section: ScheduleSectionSummary): number {
   return section.timetableEntries.filter((e) => e.status !== "APPROVED").length;
+}
+
+function gradeLabel(grade: string): string {
+  return `Grade ${grade.replace("G", "")}`;
 }
 
 /**
@@ -75,10 +80,15 @@ export function usePublishTimetable() {
   });
 }
 
-export function PublishTimetableKanban() {
+export function PublishTimetableKanban({
+  onOpenGrid,
+}: {
+  onOpenGrid?: (id: string) => void;
+} = {}) {
   const { activeTerm } = useTerm();
   const termKey = `${activeTerm?.schoolYearId ?? ""}:${activeTerm?.termId ?? ""}`;
   const [state, setState] = React.useState<"all" | "draft" | "published">("all");
+  const [query, setQuery] = React.useState("");
 
   const sectionsQuery = useLiveQuery<{ sections: ScheduleSectionSummary[] }>({
     queryKey: ["admin-schedule-summary", termKey],
@@ -94,12 +104,21 @@ export function PublishTimetableKanban() {
   const sections = sectionsQuery.data?.sections ?? [];
   const publishedCount = sections.filter(isPublished).length;
   const draftSections = sections.filter((s) => !isPublished(s) && draftCount(s) > 0);
+  const needle = query.trim().toLowerCase();
   const visibleSections = sections.filter((section) => {
-    if (state === "published") return isPublished(section);
-    if (state === "draft") return !isPublished(section);
-    return true;
+    if (state === "published" && !isPublished(section)) return false;
+    if (state === "draft" && isPublished(section)) return false;
+    if (!needle) return true;
+    const adviserName = section.adviser?.fullName ?? section.adviserLabel ?? "";
+    return (
+      section.name.toLowerCase().includes(needle) ||
+      adviserName.toLowerCase().includes(needle) ||
+      section.gradeLevel.toLowerCase().includes(needle) ||
+      gradeLabel(section.gradeLevel).toLowerCase().includes(needle)
+    );
   });
   const boardEmpty = sections.length === 0;
+  const filtersActive = state !== "all" || needle.length > 0;
 
   const [confirm, setConfirm] = React.useState<
     | { mode: PublishConfirmMode; scope: "all" }
@@ -175,20 +194,11 @@ export function PublishTimetableKanban() {
   const confirmDescription = confirm
     ? confirm.scope === "all"
       ? confirm.mode === "publish"
-        ? `${draftSections.length} draft section${draftSections.length === 1 ? "" : "s"} go live for teachers. Sections with no slots are skipped.`
-        : `${publishedCount} published section${publishedCount === 1 ? "" : "s"} become drafts only this workspace can see. Teacher desks lose those class lists until you publish again.`
+        ? "Every draft section goes live for teachers. Sections with no slots are skipped."
+        : "Every published section becomes a draft only this workspace can see. Teacher desks lose those class lists until you publish again."
       : confirm.mode === "publish"
-        ? `${confirm.section.timetableEntries.length} slot${confirm.section.timetableEntries.length === 1 ? "" : "s"} go live for teachers — grading, attendance and the principal view read the published grid.`
+        ? "This grid goes live for teachers — grading, attendance and the principal view read the published timetable."
         : "The grid becomes a draft only you can see. Teacher desks lose this class list until you publish it again."
-    : "";
-  const confirmCount = confirm
-    ? confirm.scope === "all"
-      ? `${confirm.mode === "publish" ? draftSections.length : publishedCount} section${
-          (confirm.mode === "publish" ? draftSections.length : publishedCount) === 1 ? "" : "s"
-        }`
-      : `${confirm.section.timetableEntries.length} slot${
-          confirm.section.timetableEntries.length === 1 ? "" : "s"
-        }`
     : "";
 
   return (
@@ -239,24 +249,76 @@ export function PublishTimetableKanban() {
         <div className={styles.toolbar}>
           <FilterTabs
             label="Filter by timetable status"
+            variant="tags"
             options={[
-              { value: "all", label: "All sections", count: sections.length },
-              { value: "draft", label: "Draft", count: sections.length - publishedCount },
-              { value: "published", label: "Published", count: publishedCount },
+              { value: "all", label: "All sections", count: sections.length, tone: "neutral" },
+              {
+                value: "draft",
+                label: "Draft",
+                count: sections.length - publishedCount,
+                tone: "amber",
+              },
+              { value: "published", label: "Published", count: publishedCount, tone: "green" },
             ]}
             value={state}
             onChange={setState}
+          />
+          <SearchField
+            className="w-60"
+            placeholder="Find a section, adviser, or grade…"
+            value={query}
+            onChange={setQuery}
+            aria-label="Find a section to publish"
           />
         </div>
       ) : null}
 
       {boardEmpty ? (
-        <PageEmptyCallout>
-          No sections yet — build a timetable first, then publish it here.
-        </PageEmptyCallout>
+        <div className="flex min-h-[calc(100dvh-18rem)] items-center justify-center py-8">
+          <EmptyActionCard
+            icon={Upload}
+            title="Nothing to publish yet"
+            description="Add the first section for this school year, build its weekly grid, then publish it here for teachers."
+            actions={[
+              {
+                href: "/admin/academics/schedule/sections",
+                title: "Create the first section",
+                description: "Add its name and grade, then timetable it",
+                icon: Layers,
+                accent: "text-muted-foreground",
+              },
+              {
+                href: "/admin/academics/schedule/timetable",
+                title: "Open timetable workspace",
+                description: "Build and publish each section's weekly grid",
+                icon: Upload,
+                accent: "text-amber-500",
+              },
+            ]}
+          />
+        </div>
       ) : visibleSections.length === 0 ? (
-        <PageEmptyCallout>
-          No {state === "published" ? "published" : "draft"} sections right now.
+        <PageEmptyCallout
+          action={
+            <Button
+              variant="outline"
+              className="h-6 gap-1 px-2.5 text-[12px]"
+              onClick={() => {
+                setState("all");
+                setQuery("");
+              }}
+            >
+              Show all sections
+            </Button>
+          }
+        >
+          {filtersActive ? (
+            <>
+              <strong>No sections match these filters.</strong> Try another status or search.
+            </>
+          ) : (
+            <>No sections to show.</>
+          )}
         </PageEmptyCallout>
       ) : (
         <div className={styles.grid} aria-label="Sections to publish">
@@ -264,11 +326,15 @@ export function PublishTimetableKanban() {
             const published = isPublished(section);
             const drafts = draftCount(section);
             const slots = section.timetableEntries.length;
+            const approved = slots - drafts;
+            const learners = section._count.students;
             const adviserName = section.adviser?.fullName ?? section.adviserLabel ?? "";
             return (
               <article
                 key={section.id}
-                className={`${styles.card} ${published ? styles.cardClaimed : ""}`}
+                className={`${styles.card} ${styles.cardAmber} ${
+                  published ? styles.cardClaimed : ""
+                }`}
                 aria-label={`${section.name} timetable`}
                 style={{ animationDelay: `${Math.min(index, 11) * 35}ms` }}
               >
@@ -286,40 +352,61 @@ export function PublishTimetableKanban() {
                       {adviserName || <span className={styles.teacherNone}>No adviser yet</span>}
                     </span>
                   </div>
-                  <Pill field="grade" className={styles.gradePill}>
-                    {`Grade ${section.gradeLevel.replace("G", "")}`}
-                  </Pill>
+                  <span className="shrink-0 text-[12px] font-semibold text-muted-foreground">
+                    {gradeLabel(section.gradeLevel)}
+                  </span>
                 </header>
 
                 <div className={styles.metaRow}>
                   {published ? (
-                    <Pill tone="green" label="Timetable status">
+                    <span className="inline-flex items-center gap-1 text-[12px] font-medium text-green-700 dark:text-green-400">
                       <Check size={11} aria-hidden />
                       Published
-                    </Pill>
+                    </span>
                   ) : drafts > 0 ? (
-                    <Pill tone="amber" label="Timetable status">
-                      {drafts} draft{drafts === 1 ? "" : "s"}
-                    </Pill>
+                    <span className="text-[12px] font-medium text-amber-700 dark:text-amber-400">
+                      {drafts} draft slot{drafts === 1 ? "" : "s"}
+                    </span>
                   ) : (
-                    <Pill tone="neutral" label="Timetable status">
-                      Empty
-                    </Pill>
+                    <span className="text-[12px] font-medium text-muted-foreground">
+                      No slots yet
+                    </span>
                   )}
                 </div>
 
                 <div className={styles.linksRow}>
                   <span className={styles.linkStat}>
+                    <Users size={11} aria-hidden />
+                    {learners} learner{learners === 1 ? "" : "s"}
+                  </span>
+                  <span className={styles.linkStat}>
                     <Layers size={11} aria-hidden />
-                    {slots} slot{slots === 1 ? "" : "s"}
+                    {slots} slot{slots === 1 ? "" : "s"} this term
                   </span>
                   <span className={styles.linkStat}>
                     <Download size={11} aria-hidden />
-                    {drafts} draft slot{drafts === 1 ? "" : "s"}
+                    {drafts} draft{drafts === 1 ? "" : "s"}
                   </span>
                 </div>
 
-                <p className={`${styles.notice} ${published ? styles.claimedNotice : styles.claimNotice}`}>
+                {slots > 0 ? (
+                  <div
+                    className={styles.gridProgress}
+                    title={`${approved} of ${slots} slots published`}
+                    aria-hidden
+                  >
+                    <span
+                      className={styles.gridProgressFill}
+                      style={{ width: `${Math.round((approved / slots) * 100)}%` }}
+                    />
+                  </div>
+                ) : null}
+
+                <p
+                  className={`${styles.notice} ${
+                    published ? styles.claimedNotice : styles.claimNotice
+                  }`}
+                >
                   {published ? <Check size={11} aria-hidden /> : <Download size={11} aria-hidden />}
                   <span>
                     {published
@@ -344,6 +431,17 @@ export function PublishTimetableKanban() {
                       </>
                     )}
                   </span>
+                  {onOpenGrid ? (
+                    <Button
+                      variant="outline"
+                      className="h-6 gap-1 bg-card px-2 text-[12px] text-foreground"
+                      aria-label={`Open the weekly grid for ${section.name}`}
+                      onClick={() => onOpenGrid(section.id)}
+                    >
+                      <Layers size={12} className="text-amber-500" aria-hidden />
+                      Open grid
+                    </Button>
+                  ) : null}
                   <Button
                     variant={published ? "outline" : "default"}
                     className={
@@ -391,7 +489,6 @@ export function PublishTimetableKanban() {
           mode={confirm.mode}
           title={confirmTitle}
           description={confirmDescription}
-          countLabel={confirmCount}
           published={confirm.mode === "unpublish"}
           pending={publish.isPending}
           onCancel={() => setConfirm(null)}

@@ -1,7 +1,8 @@
 import { prisma } from "../../lib/prisma.js";
 import { AppError } from "../../lib/errors.js";
 import { isArchivedAdvisoryLearner } from "../../lib/learnerVisibility.js";
-import { buildDayAxis, isWeekendKey, schoolDaysToDate, termHasStarted } from "../attendance.js";
+import { buildDayAxis, isWeekendKey, termHasStarted } from "../attendance.js";
+import { activeDayKeys } from "../noClass.js";
 import { loadSubjectMeetups } from "../attendance/sections.service.js";
 import { assertAdvisee } from "./students.auth.js";
 import { sharingMap, canBypassSharing } from "../teacher/dataShare.service.js";
@@ -197,7 +198,13 @@ export async function getStudentAttendance(ctx: AdvisoryContext, rawId: string) 
         })
       : [];
 
-  const schoolDays = schoolDaysToDate(axisStart, term?.endDate ?? null);
+  // No-class days (whole-day cancellations) never count as school days, so a
+  // suspended date cannot show up as an absence on the learner's axis.
+  const activeAxis = await activeDayKeys(
+    buildDayAxis(axisStart, term?.endDate ?? null).filter((k) => !isWeekendKey(k)),
+    "all",
+  );
+  const schoolDays = activeAxis.length;
   const possible = schoolDays * 2;
   const weekdayRecords = scoped.filter(
     (r) => !isWeekendKey(r.date.toISOString().slice(0, 10))
@@ -246,8 +253,7 @@ export async function getStudentAttendance(ctx: AdvisoryContext, rawId: string) 
       byDate.set(key, sessions);
     }
   }
-  const days = buildDayAxis(axisStart, term?.endDate ?? null)
-    .filter((key) => !isWeekendKey(key))
+  const days = [...activeAxis]
     .reverse()
     .map((key) => {
       const sessions = byDate.get(key) ?? {};

@@ -12,7 +12,7 @@ type MetricTone = "neutral" | "green" | "amber" | "red";
 
 function lockTone(status: FinalsLockStatus) {
   if (status === "adviser_approved") return "green" as const;
-  if (status === "locked") return "blue" as const;
+  if (status === "locked") return "green" as const;
   return "amber" as const;
 }
 

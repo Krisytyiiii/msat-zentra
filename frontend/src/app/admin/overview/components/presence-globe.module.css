@@ -40,10 +40,10 @@
 }
 
 .skeletonGlobe {
-  width: min(78vh, 78%);
+  width: min(60%, 18rem);
   aspect-ratio: 1;
   border-radius: 50%;
-  transform: translateX(18%);
+  transform: translateX(8%);
   opacity: 0.55;
   box-shadow:
     inset 0 0 0 1px color-mix(in oklch, var(--foreground) 8%, transparent),

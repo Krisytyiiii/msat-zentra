@@ -12,6 +12,11 @@ import {
   phWeekday,
 } from "../../modules/attendance/attendance.repository.js";
 import type { AttendanceContext } from "./attendance.types.js";
+import {
+  blocksPeriod,
+  blocksSession,
+  noClassContextForTerm,
+} from "../noClass.js";
 
 export type BulkStatus = "present" | "absent" | "late" | "excused";
 
@@ -57,6 +62,17 @@ export async function submitLegacyBulk(ctx: AttendanceContext, input: LegacyBulk
   }
   if (phWeekday(recordDay) === 0 || phWeekday(recordDay) === 6) {
     throw new AppError(422, "WEEKEND", "Cannot take attendance on a weekend");
+  }
+  {
+    const { map } = await noClassContextForTerm(termId);
+    const cancellation = map.get(recordDay);
+    if (blocksSession(cancellation, legacySession)) {
+      throw new AppError(
+        409,
+        "NO_CLASS_DAY",
+        `The administrator marked ${recordDay} as no class (${cancellation?.reason ?? "no classes"}) — no ${legacySession} attendance can be recorded.`,
+      );
+    }
   }
   if (recordDay < todayKey) {
 
@@ -388,6 +404,17 @@ export async function submitSubjectBulk(ctx: AttendanceContext, input: SubjectBu
   }
   if (phWeekday(recordDay) === 0 || phWeekday(recordDay) === 6) {
     throw new AppError(422, "WEEKEND", "Cannot take attendance on a weekend");
+  }
+  {
+    const { map, config } = await noClassContextForTerm(termId);
+    const cancellation = map.get(recordDay);
+    if (blocksPeriod(cancellation, config, Math.max(0, slot - 1))) {
+      throw new AppError(
+        409,
+        "NO_CLASS_DAY",
+        `The administrator marked ${recordDay} ${cancellation?.scope === "whole_day" ? "as a no-class day" : `as no class in the ${cancellation?.scope.toUpperCase()}`} (${cancellation?.reason ?? "no classes"}) — this meetup is cancelled.`,
+      );
+    }
   }
   if (recordDay < todayKey && mondayOf(recordDay) !== mondayOf(todayKey)) {
     throw new AppError(403, "PAST_LOCKED", "Days before this week are locked");

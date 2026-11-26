@@ -257,7 +257,7 @@ export function AddSchoolYearKanban({
   };
 
   return (
-    <div className="overflow-hidden rounded-xl border border-border bg-card shadow-2xl">
+    <div className="flex h-full min-h-0 flex-col overflow-hidden rounded-xl border border-border bg-card shadow-2xl">
       <header className="flex items-start gap-2.5 border-b border-border px-4 py-3">
         <span
           className="mt-0.5 flex h-7 w-7 shrink-0 items-center justify-center rounded-md bg-amber-500/10 text-amber-500"
@@ -288,8 +288,9 @@ export function AddSchoolYearKanban({
           e.preventDefault();
           handleSubmit();
         }}
+        className="flex min-h-0 flex-1 flex-col"
       >
-        <div className="flex flex-col gap-3.5 px-4 py-4">
+        <div className="flex min-h-0 flex-1 flex-col gap-3.5 overflow-y-auto px-4 py-4">
           <div className="flex flex-col gap-1.5">
             <label htmlFor="new-year-name" className="text-[12px] font-medium text-foreground">
               School year

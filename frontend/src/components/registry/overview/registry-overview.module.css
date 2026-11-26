@@ -6,6 +6,14 @@
 
 /* ------------------------------------------------------- attention deck -- */
 
+/* Dark mode: the desk's aurora canvas is the surface, so the attention strip
+   goes transparent instead of stacking another translucent pane. The doubled
+   class outranks the shared `.dark .deck` fill in stat-deck.module.css
+   (CSS-module hashing makes the deck's own class unreachable from here). */
+:global(.dark) .transparentDeck.transparentDeck {
+  background-color: transparent;
+}
+
 .deck {
   display: flex;
   flex-direction: column;

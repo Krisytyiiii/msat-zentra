@@ -19,7 +19,6 @@ import {
   type AdvisoryInterventionOutcome,
   type AdvisoryInterventionRow,
 } from "@/services/teacher/interventions.service";
-import { FilterTabs } from "./components/filter-tabs";
 import { InterventionRowCard } from "./components/intervention-row";
 import { InterventionsSkeleton } from "./components/InterventionsSkeleton";
 import { InterventionDetailOverlay } from "./components/intervention-detail-overlay";
@@ -43,12 +42,6 @@ const LEVEL_LABELS: Record<LevelFilter, string> = {
   Moderate: "Moderate risk",
   Low: "Low risk",
 };
-const FACTOR_LABELS: Record<FactorFilter, string> = {
-  all: "All factors",
-  academic: "Academic",
-  attendance: "Attendance",
-  behavioral: "Anecdotal",
-};
 // Same ordering the backend applies: risk level, then flag count, then name.
 const LEVEL_RANK: Record<string, number> = { High: 0, Moderate: 1, Low: 2 };
 
@@ -62,8 +55,8 @@ function AdviserInterventionsPageInner() {
   const { activeTerm, termReady } = useTerm();
   const termKey = `${activeTerm?.schoolYearId ?? ""}:${activeTerm?.termId ?? ""}`;
 
-  // Filters live in local state so search and tabs filter the loaded board
-  // instantly — same behaviour as the guidance interventions desk.
+  // Filters live in local state so search and lane clicks filter the loaded
+  // board instantly — same behaviour as the guidance interventions desk.
   const [queryInput, setQueryInput] = React.useState(() => searchParams.get("q") ?? "");
   const [level, setLevelState] = React.useState<LevelFilter>(() => {
     const value = searchParams.get("level");
@@ -81,56 +74,7 @@ function AdviserInterventionsPageInner() {
 
   const query = useAdvisoryInterventionsQueue(termKey, termReady);
   const allRows = React.useMemo(() => query.data?.data ?? [], [query.data]);
-  const sections = query.data?.sections ?? [];
 
-  // Per-tab totals for the glass tags — each filter group counts the whole
-  // loaded board, so the chips never lie about what the tab can show.
-  const tabCounts = React.useMemo(() => {
-    const base = {
-      academic: 0,
-      attendance: 0,
-      behavioral: 0,
-      ongoing: 0,
-      resolved: 0,
-      unresolved: 0,
-      none: 0,
-    };
-    const bySection: Record<string, number> = {};
-    for (const row of allRows) {
-      if (row.factors.academic) base.academic += 1;
-      if (row.factors.attendance) base.attendance += 1;
-      if (row.factors.behavioral) base.behavioral += 1;
-      const outcome = row.intervention?.outcomeStatus;
-      if (!row.intervention) base.none += 1;
-      else if (outcome === "ongoing") base.ongoing += 1;
-      else if (outcome === "resolved") base.resolved += 1;
-      else if (outcome === "unresolved") base.unresolved += 1;
-      bySection[row.sectionId] = (bySection[row.sectionId] ?? 0) + 1;
-    }
-    return { base, bySection };
-  }, [allRows]);
-
-  const factorOptions = [
-    { value: "all" as FactorFilter, label: FACTOR_LABELS.all, count: allRows.length, tone: "neutral" as const },
-    {
-      value: "academic" as FactorFilter,
-      label: FACTOR_LABELS.academic,
-      count: tabCounts.base.academic,
-      tone: "amber" as const,
-    },
-    {
-      value: "attendance" as FactorFilter,
-      label: FACTOR_LABELS.attendance,
-      count: tabCounts.base.attendance,
-      tone: "blue" as const,
-    },
-    {
-      value: "behavioral" as FactorFilter,
-      label: FACTOR_LABELS.behavioral,
-      count: tabCounts.base.behavioral,
-      tone: "red" as const,
-    },
-  ];
   const filtered = React.useMemo(() => {
     const needle = queryInput.trim().toLowerCase();
     return allRows
@@ -202,23 +146,6 @@ function AdviserInterventionsPageInner() {
     setOutcomeState(value);
     pager.setFilters({ outcome: value === "all" ? undefined : value });
   };
-  const setSection = (value: string) => {
-    setSectionIdState(value);
-    pager.setFilters({ section: value === "all" ? undefined : value });
-  };
-
-  const sectionOptions = React.useMemo(
-    () => [
-      { value: "all", label: "All sections", count: allRows.length, tone: "neutral" as const },
-      ...sections.map((section) => ({
-        value: section.id,
-        label: section.name,
-        count: tabCounts.bySection[section.id] ?? 0,
-        tone: "neutral" as const,
-      })),
-    ],
-    [sections, tabCounts, allRows.length],
-  );
 
   const [selected, setSelected] = React.useState<AdvisoryInterventionRow | null>(null);
   // Keep the open overlay fresh after a refetch.
@@ -227,7 +154,7 @@ function AdviserInterventionsPageInner() {
     : null;
 
   // The detection-flow panel mirrors the filters: a factor lane drives the
-  // factor tab, the two pipeline lanes drive the state tab.
+  // factor filter, the two pipeline lanes drive the outcome filter.
   const activeLane: DetectionLaneId | null =
     factor !== "all"
       ? factor
@@ -309,24 +236,6 @@ function AdviserInterventionsPageInner() {
         {allRows.length > 0 ? (
           <>
             <div className={styles.toolbar}>
-              <div className={styles.toolbarFilters}>
-                {sections.length > 1 ? (
-                  <FilterTabs
-                    label="Filter cases by advisory section"
-                    options={sectionOptions}
-                    value={sectionId}
-                    onChange={setSection}
-                    variant="tags"
-                  />
-                ) : null}
-                <FilterTabs
-                  label="Filter cases by risk factor"
-                  options={factorOptions}
-                  value={factor}
-                  onChange={setFactor}
-                  variant="tags"
-                />
-              </div>
               <TeacherSearchField
                 className="w-60 max-w-full"
                 placeholder="Search advisee, LRN, or section…"

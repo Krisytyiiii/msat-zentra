@@ -82,7 +82,9 @@ router.get(
       const page = Math.max(1, Number(q.page) || 1);
       const pageSize = Math.max(1, Math.min(Number(q.pageSize) || 15, 15));
       const search = typeof q.q === "string" ? q.q.trim().toLowerCase() : "";
-      res.json(await listFinalGrades(ctxOf(req), { page, pageSize, q: search }));
+      const gradeLevel = typeof q.gradeLevel === "string" ? q.gradeLevel : undefined;
+      const sectionId = typeof q.sectionId === "string" ? q.sectionId : undefined;
+      res.json(await listFinalGrades(ctxOf(req), { page, pageSize, q: search, gradeLevel, sectionId }));
     } catch (e) {
       next(e);
     }

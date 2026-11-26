@@ -9,10 +9,14 @@ import {
 } from "../../lib/learnerVisibility.js";
 import type { GradeLevel } from "../../generated/prisma/client.js";
 import { normalizeSubjectName } from "../sf10/subject-aliases.js";
+import { uploadFile, sf10ObjectPath, getSf10Bucket } from "../../lib/storage.js";
+import { parseFullName } from "../sf10/learner-identity.service.js";
 import {
   applyAutoFilledSubjects,
+  createAutoPopulatedRecord,
   type OcrSubjectPayload,
 } from "../sf10/records.service.js";
+import { fillSf10Template, fillShsSf10Template, renderSf10Pdf } from "../sf10/template-file.service.js";
 import type { Sf10Context } from "../sf10/sf10.types.js";
 
 export interface GradeFact {
@@ -46,9 +50,11 @@ function ratingsOf(facts: GradeFact[]): GradeFact[] {
 }
 
 /**
- * Pure helper: one SF10 row per subject, only when every required term has an
- * adviser-approved rating. Q1–Q3 come from terms 1–3, Q4 stays blank (Zentra
- * runs trimesters); the subject rating is the rounded mean.
+ * Pure helper: one SF10 row per subject, filled term by term. Each locked term
+ * lands in its own quarter (Q1–Q3 from terms 1–3; Q4 stays blank because
+ * Zentra runs trimesters), so an adviser can run the auto-fill as soon as a
+ * term is locked — an unlocked term just leaves its quarter blank. The subject
+ * rating is the rounded mean of the quarters that are filled.
  */
 export function buildAutofillRows(
   facts: GradeFact[],
@@ -64,24 +70,19 @@ export function buildAutofillRows(
   }
 
   const rows: AutofillRow[] = [];
-  const skipped: AutofillSkip[] = [];
   for (const [, entry] of bySubject) {
-    const missing = requiredTermNumbers.filter((t) => !entry.byTerm.has(t));
-    if (missing.length > 0) {
-      skipped.push({
-        subject: entry.name,
-        terms: requiredTermNumbers.length - missing.length,
-        reason: `${requiredTermNumbers.length - missing.length}/${requiredTermNumbers.length} terms approved`,
-      });
-      continue;
-    }
-    const quarters: Array<number | null> = requiredTermNumbers
-      .slice(0, 4)
-      .map((t) => Math.round(entry.byTerm.get(t) as number));
     // SF10 always has four quarter columns; Zentra runs trimesters, so Q4 stays blank.
-    while (quarters.length < 4) quarters.push(null);
-    const total = quarters.reduce<number>((sum, v) => sum + (v ?? 0), 0);
-    const rating = Math.round(total / requiredTermNumbers.length);
+    const quarters: Array<number | null> = [null, null, null, null];
+    const filled: number[] = [];
+    for (const term of requiredTermNumbers.slice(0, 4)) {
+      const rating = entry.byTerm.get(term);
+      if (rating == null || !Number.isFinite(rating)) continue;
+      const rounded = Math.round(rating);
+      quarters[term - 1] = rounded;
+      filled.push(rounded);
+    }
+    if (filled.length === 0) continue;
+    const rating = Math.round(filled.reduce((sum, v) => sum + v, 0) / filled.length);
     rows.push({
       subject: entry.name,
       norm: normalizeSubjectName(entry.name),
@@ -91,8 +92,7 @@ export function buildAutofillRows(
     });
   }
   rows.sort((a, b) => a.subject.localeCompare(b.subject));
-  skipped.sort((a, b) => a.subject.localeCompare(b.subject));
-  return { rows, skipped };
+  return { rows, skipped: [] };
 }
 
 interface SectionLearner {
@@ -103,6 +103,8 @@ interface SectionLearner {
   profileId: string | null;
   /** Grade + section on the learner's SF10 owner profile (null when no account). */
   profileGradeLevel: GradeLevel | null;
+  birthdate: Date | null;
+  gender: string | null;
   rosterIds: string[];
 }
 
@@ -136,6 +138,8 @@ export interface AutofillCandidate {
   subjectsReady: number;
   subjectsSkipped: number;
   ready: boolean;
+  /** SF10 access granted and approved grades exist — the JHS template can render. */
+  templateReady: boolean;
   reason: string | null;
 }
 
@@ -231,6 +235,8 @@ async function loadContext(
         lrn: true,
         mascot: true,
         gradeLevel: true,
+        birthdate: true,
+        gender: true,
         user: { select: { fullName: true } },
       },
       orderBy: { lrn: "asc" },
@@ -270,6 +276,8 @@ async function loadContext(
       gradeLevel: p.gradeLevel,
       profileId: p.userId,
       profileGradeLevel: p.gradeLevel,
+      birthdate: p.birthdate ?? null,
+      gender: p.gender ?? null,
       rosterIds: [],
     });
   }
@@ -286,6 +294,8 @@ async function loadContext(
       gradeLevel: r.gradeLevel,
       profileId: null,
       profileGradeLevel: null,
+      birthdate: null,
+      gender: null,
       rosterIds: [r.id],
     });
   }
@@ -304,6 +314,8 @@ async function loadContext(
         lrn: true,
         mascot: true,
         gradeLevel: true,
+        birthdate: true,
+        gender: true,
         user: { select: { fullName: true } },
       },
     });
@@ -314,6 +326,8 @@ async function loadContext(
       learner.profileGradeLevel = p.gradeLevel;
       learner.name = p.user.fullName;
       learner.mascot = p.mascot ?? learner.mascot;
+      learner.birthdate = p.birthdate ?? learner.birthdate;
+      learner.gender = p.gender ?? learner.gender;
     }
   }
 
@@ -338,7 +352,7 @@ async function loadContext(
       : Promise.resolve([] as Sf10RecordLite[]),
     prisma.finalGrade.findMany({
       where: {
-        lockStatus: "adviser_approved",
+        lockStatus: { in: ["locked", "adviser_approved"] },
         term: { schoolYearId: section.schoolYearId },
         OR: [
           ...(profileIds.length > 0 ? [{ studentId: { in: profileIds } }] : []),
@@ -405,7 +419,7 @@ function buildStudent(
   ctx: SectionContext,
 ): AutofillPreviewStudent {
   // The section is the current enrollment: it decides which grade block the
-  // adviser-approved finals are filed under. `profile.gradeLevel` can be stale
+  // locked finals are filed under. `profile.gradeLevel` can be stale
   // (e.g. registered as G8 but sitting in a G7 section), so never use it here.
   const grade: GradeLevel = ctx.section.gradeLevel;
   // The store is LRN-keyed: a roster-only advisee can still have a filed SF10.
@@ -421,14 +435,11 @@ function buildStudent(
   );
 
   let reason: string | null = null;
-  if (!record) reason = "No SF10 record yet";
+  if (!grant) reason = "SF10 access not approved";
+  else if (!record) reason = "No SF10 record yet";
   else if (record.status === "released") reason = "SF10 already released";
-  else if (!grant) reason = "SF10 access not approved";
   else if (rows.length === 0) {
-    reason =
-      skipped.length > 0
-        ? `No subject has all ${ctx.requiredTermNumbers.length} terms approved yet`
-        : "No adviser-approved grades yet";
+    reason = "No locked grades yet";
   }
 
   return {
@@ -443,6 +454,7 @@ function buildStudent(
     subjectsReady: rows.length,
     subjectsSkipped: skipped.length,
     ready: reason === null && rows.length > 0,
+    templateReady: grant && rows.length > 0,
     reason,
     rows,
     skipped,
@@ -556,5 +568,161 @@ export async function runAutofill(
     skipped: results.filter((r) => r.status === "skipped").length,
     failed: results.filter((r) => r.status === "failed").length,
     results,
+  };
+}
+
+/* --------------------------- template generation --------------------------- */
+
+const TEMPLATE_GRADES = new Set(["G7", "G8", "G9", "G10", "G11", "G12"]);
+
+export type Sf10TemplateFormat = "xlsx" | "pdf";
+
+export interface GeneratedTemplateFile {
+  buffer: Buffer;
+  ext: Sf10TemplateFormat;
+  mimeType: string;
+  filename: string;
+  recordId: string;
+  version: number;
+}
+
+function mmDdYyyy(date: Date): string {
+  const m = String(date.getMonth() + 1).padStart(2, "0");
+  const d = String(date.getDate()).padStart(2, "0");
+  return `${m}/${d}/${date.getFullYear()}`;
+}
+
+/**
+ * Build a downloadable SF10 from the school's own template for one advisee:
+ * locked finals of every subject are written into the grade's rows (the JHS
+ * book for Grades 7–10, the Strengthened SHS book for Grades 11–12), then the
+ * file is filed on the learner's SF10 record (creating one when the registry
+ * desk has not uploaded a form yet) and handed back for download.
+ */
+export async function generateTemplateFile(
+  ctx: { userId: string; role: string },
+  sectionId: string,
+  lrn: string,
+  format: Sf10TemplateFormat,
+): Promise<GeneratedTemplateFile> {
+  const wanted = lrn.trim();
+  if (!wanted) throw new AppError(400, "BAD_REQUEST", "A learner LRN is required");
+
+  const section = await loadContext(ctx.userId, sectionId, new Set([wanted]));
+  const learner = section.learners[0];
+  if (!learner) throw new AppError(404, "NOT_FOUND", "Learner is not on this advisory section");
+
+  // Grades 7–10 use the SF10-JHS form, Grades 11–12 the SF10-SHS (v2026) form.
+  const grade = String(section.section.gradeLevel);
+  if (!TEMPLATE_GRADES.has(grade)) {
+    throw new AppError(
+      409,
+      "NOT_SUPPORTED",
+      "The SF10 template can only be generated for Grades 7-12.",
+    );
+  }
+  if (!hasGrant(section.grants, wanted, sectionId)) {
+    throw new AppError(403, "FORBIDDEN", "SF10 access for this learner is not approved");
+  }
+
+  const student = buildStudent(learner, section);
+  if (student.rows.length === 0) {
+    throw new AppError(
+      409,
+      "NO_APPROVED_GRADES",
+      student.reason ?? "No locked grades to fill yet",
+    );
+  }
+
+  const adviser = await prisma.user.findUnique({
+    where: { id: ctx.userId },
+    select: { fullName: true },
+  });
+
+  const fill = (GRADE_BAND_7_10 as string[]).includes(grade) ? fillSf10Template : fillShsSf10Template;
+  const filledWorkbook = await fill({
+    learner: {
+      ...parseFullName(learner.name),
+      lrn: learner.lrn,
+      birthdate: learner.birthdate ? mmDdYyyy(learner.birthdate) : null,
+      sex: learner.gender,
+      gradeLevel: grade,
+      section: section.section.name,
+      schoolYear: section.schoolYear.name,
+      adviserName: adviser?.fullName ?? null,
+    },
+    rows: student.rows.map((r) => ({
+      subject: r.subject,
+      quarters: r.quarters,
+      rating: r.rating,
+      remarks: r.remarks,
+    })),
+  });
+
+  const buffer =
+    format === "pdf" ? await renderSf10Pdf(filledWorkbook) : filledWorkbook;
+  const mimeType =
+    format === "pdf"
+      ? "application/pdf"
+      : "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet";
+  const fileUrl = await uploadFile(
+    buffer,
+    sf10ObjectPath(learner.lrn, format),
+    mimeType,
+    getSf10Bucket(),
+  );
+
+  const writeCtx: Sf10Context = { userId: ctx.userId, role: ctx.role };
+  let recordId = student.recordId;
+  if (!recordId) {
+    // No form filed yet: the generated template becomes the record's file so
+    // the record keeper opens the same document the adviser downloaded.
+    const created = await createAutoPopulatedRecord(writeCtx, {
+      lrn: learner.lrn,
+      learnerName: learner.name,
+      gradeLevel: grade,
+      desk: (GRADE_BAND_7_10 as string[]).includes(grade) ? "record_keeper" : "registrar",
+      fileUrl,
+    });
+    recordId = created.id;
+  }
+
+  const write = await applyAutoFilledSubjects(
+    writeCtx,
+    recordId,
+    grade,
+    student.rows.map((r) => ({
+      rawName: r.subject,
+      norm: r.norm,
+      grade: r.rating,
+      rating: r.rating,
+      gradeLevel: grade,
+      quarters: r.quarters,
+      remarks: r.remarks,
+    })),
+    { generatedFileUrl: fileUrl },
+  );
+
+  if (write.wasVerified) {
+    const deskRole = (GRADE_BAND_7_10 as string[]).includes(grade)
+      ? "record_keeper"
+      : "registrar";
+    await fanoutToRole(deskRole, {
+      sourceTable: "sf10_records",
+      action: "autofill",
+      message: `SF10 auto-filled for ${learner.name} (${section.section.name}) — re-verification needed.`,
+      sourceId: recordId,
+      excludeUserId: ctx.userId,
+    });
+  }
+
+  const safeName = learner.name.replace(/[^A-Za-z0-9]+/g, "-").replace(/^-+|-+$/g, "");
+  return {
+    buffer,
+    ext: format,
+    mimeType,
+    filename: `SF10-${safeName || learner.lrn}.${format}`,
+    recordId,
+    version: write.version,
   };
 }

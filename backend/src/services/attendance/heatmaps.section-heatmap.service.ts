@@ -13,6 +13,7 @@ import {
 import { sectionHeadcounts } from "../enrollment.js";
 import { GRADE_NUMERIC, schoolYearClause, type DisplayTerm } from "../../modules/attendance/attendance.repository.js";
 import type { HeatSession } from "./heatmaps.grade.service.js";
+import { activeDayKeys } from "../noClass.js";
 
 export interface SectionHeatmapQuery {
   session: HeatSession;
@@ -38,7 +39,10 @@ export async function getSectionHeatmap(query: SectionHeatmapQuery) {
   const enrolledBySection: Record<string, number> = {};
   for (const s of sections) enrolledBySection[s.id] = headcounts.get(s.id) ?? 0;
 
-  const dayKeys = buildSchoolDayAxis(displayTerm.startDate, displayTerm.endDate);
+  const dayKeys = await activeDayKeys(
+    buildSchoolDayAxis(displayTerm.startDate, displayTerm.endDate),
+    "all",
+  );
   const schoolDays = countSchoolDays(dayKeys);
 
   const sectionIds = sections.map((s) => s.id);

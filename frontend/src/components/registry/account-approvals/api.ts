@@ -51,6 +51,8 @@ export interface PendingApprovalCounts {
   parent: number;
   staff: number;
   total: number;
+  /** True while any lane total is still on its first fetch. */
+  isLoading: boolean;
 }
 
 /**
@@ -58,8 +60,8 @@ export interface PendingApprovalCounts {
  * lane tabs. Asks for a single row and reads the unfiltered total, so the
  * queue itself is not paged just to render a number.
  */
-function usePendingCount(kind: ApprovalKind): number {
-  const { data } = useQuery({
+function usePendingCount(kind: ApprovalKind): { count: number; isPending: boolean } {
+  const { data, isPending } = useQuery({
     queryKey: [...ACCOUNT_APPROVALS_KEY, "count", kind],
     queryFn: async ({ signal }) => {
       const { data } = await apiClient.get<{
@@ -75,12 +77,18 @@ function usePendingCount(kind: ApprovalKind): number {
     staleTime: 15_000,
     refetchInterval: 20_000,
   });
-  return data ?? 0;
+  return { count: data ?? 0, isPending };
 }
 
 export function usePendingApprovalCounts(): PendingApprovalCounts {
   const student = usePendingCount("student");
   const parent = usePendingCount("parent");
   const staff = usePendingCount("staff");
-  return { student, parent, staff, total: student + parent + staff };
+  return {
+    student: student.count,
+    parent: parent.count,
+    staff: staff.count,
+    total: student.count + parent.count + staff.count,
+    isLoading: student.isPending || parent.isPending || staff.isPending,
+  };
 }

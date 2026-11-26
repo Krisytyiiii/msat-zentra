@@ -15,7 +15,6 @@ import { roleLabel } from "@/lib/auth/roles";
 import { FilterTabs } from "@/components/ui/filter-tabs";
 import { Pill } from "@/components/ui/pill";
 import { StudentMascot } from "@/components/student-mascot/StudentMascot";
-import { roleColor } from "./role-colors";
 import styles from "./login-activity-chart.module.css";
 
 /* Amber ramp — same shade steps as the teacher/guidance/nurse overview charts
@@ -46,14 +45,7 @@ function bucketLabel(date: Date): string {
   });
 }
 
-/** Same swatch colours as the role legend, tinted into the shared pill. */
-function rolePillStyle(role: string): React.CSSProperties {
-  const color = roleColor(role);
-  return {
-    color,
-    backgroundColor: `color-mix(in oklch, ${color} 18%, transparent)`,
-  };
-}
+/** Same swatch colours as the role legend, used as plain text, not a chip. */
 
 /** Same popover tooltip the teacher/guidance/nurse overview charts use. */
 function ActivityTooltip({
@@ -108,11 +100,15 @@ export default function LoginActivityChart({
   total,
   signOuts,
   windowHours,
+  withLatest = true,
 }: {
   events: AdminLoginActivityEvent[];
   total: number;
   signOuts: number;
   windowHours: number;
+  /** Render the "Latest logins / sign-outs" list under the chart. Off when the
+   *  desk lays that list out as its own panel (admin overview). */
+  withLatest?: boolean;
 }) {
   // Hourly buckets across the window, each carrying its own sign-in / sign-out
   // count — an area chart needs per-interval activity so it rises and falls
@@ -253,19 +249,19 @@ export default function LoginActivityChart({
         </ul>
       ) : null}
 
-      <LatestAccess events={events} />
+      {withLatest ? <LatestAccess events={events} /> : null}
     </div>
   );
 }
 
-/** Five most recent sign-ins or sign-outs, switched with the shared pill tabs. */
-function LatestAccess({ events }: { events: AdminLoginActivityEvent[] }) {
+/** Twelve most recent sign-ins or sign-outs, switched with the shared tag tabs. */
+export function LatestAccess({ events }: { events: AdminLoginActivityEvent[] }) {
   const [tab, setTab] = React.useState<"login" | "logout">("login");
   const rows = React.useMemo(
     () =>
       events
         .filter((event) => event.kind === tab)
-        .slice(-5)
+        .slice(-12)
         .reverse(),
     [events, tab],
   );
@@ -275,9 +271,10 @@ function LatestAccess({ events }: { events: AdminLoginActivityEvent[] }) {
       <div className={styles.filterTabs}>
         <FilterTabs
           label="Latest activity"
+          variant="tags"
           options={[
-            { value: "login", label: "Latest logins" },
-            { value: "logout", label: "Latest sign-outs" },
+            { value: "login", label: "Latest logins", tone: "amber" },
+            { value: "logout", label: "Latest sign-outs", tone: "neutral" },
           ]}
           value={tab}
           onChange={setTab}
@@ -289,9 +286,13 @@ function LatestAccess({ events }: { events: AdminLoginActivityEvent[] }) {
           {tab === "login" ? "No sign-ins in this window." : "No sign-outs in this window."}
         </p>
       ) : (
-        <ul className={styles.latestList}>
+        <ul key={tab} className={styles.latestList}>
           {rows.map((event, index) => (
-            <li key={`${event.id}-${event.at}-${index}`} className={styles.latestRow}>
+            <li
+              key={`${event.id}-${event.at}-${index}`}
+              className={styles.latestRow}
+              style={{ "--row-index": index } as React.CSSProperties}
+            >
               <span className={styles.latestAvatar} aria-hidden="true">
                 <StudentMascot
                   name={event.fullName}
@@ -301,14 +302,9 @@ function LatestAccess({ events }: { events: AdminLoginActivityEvent[] }) {
                 />
               </span>
               <span className={styles.latestName}>{event.fullName}</span>
-              <Pill
-                tone="neutral"
-                label="Role"
-                className={styles.latestRolePill}
-                style={rolePillStyle(event.role)}
-              >
+              <span className={styles.latestRole}>
                 {roleLabel(event.role)}
-              </Pill>
+              </span>
               <span className={styles.latestTime}>{timeLabel(event.at)}</span>
             </li>
           ))}

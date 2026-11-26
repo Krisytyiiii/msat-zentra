@@ -17,6 +17,7 @@ import {
 import { sectionHeadcounts } from "../enrollment.js";
 import { buildDayAxis } from "../attendance.js";
 import { GRADE_NUMERIC, schoolYearClause, type DisplayTerm } from "../../modules/attendance/attendance.repository.js";
+import { activeDayKeys } from "../noClass.js";
 
 export interface SessionPatternQuery {
   termId?: string;
@@ -31,7 +32,10 @@ export async function getSessionPattern(query: SessionPatternQuery) {
     return { amRate: 0, pmRate: 0, byDay: [] };
   }
 
-  const dayKeys = buildDayAxis(startDate ?? null, endDate ?? null);
+  const dayKeys = await activeDayKeys(
+    buildDayAxis(startDate ?? null, endDate ?? null),
+    "all",
+  );
 
   const sections = await prisma.section.findMany({
     where: schoolYearClause(schoolYearId),
@@ -158,7 +162,10 @@ export async function getSectionSubjectHeatmap(query: SectionSubjectHeatmapQuery
     orderBy: [{ gradeLevel: "asc" }, { name: "asc" }],
   });
   const sectionIds = sections.map((s) => s.id);
-  const dayKeys = buildSchoolDayAxis(displayTerm.startDate, displayTerm.endDate);
+  const dayKeys = await activeDayKeys(
+    buildSchoolDayAxis(displayTerm.startDate, displayTerm.endDate),
+    "all",
+  );
   const schoolDays = countSchoolDays(dayKeys);
 
   // Headcounts (3–4 serial round-trips) runs alongside the records/offerings

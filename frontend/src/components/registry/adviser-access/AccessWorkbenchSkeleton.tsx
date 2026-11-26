@@ -1,6 +1,8 @@
 "use client";
 
 import { Skeleton } from "@/components/ui/skeleton";
+import { ShimmerGroup } from "@/components/ui/shimmer-skeleton";
+import { StatDeck } from "@/components/ui/stat-deck";
 import {
   Table,
   TableBody,
@@ -12,10 +14,12 @@ import {
 import { PAGE_SIZE } from "@/components/shared/pagination";
 import styles from "./adviser-access.module.css";
 
-/* Loading mirrors for the registry adviser-access page (both desks). They render the real
-   page chrome (deck, request strip, workbench) out of the same CSS module as
-   the loaded page, so the skeleton can't drift from what actually swaps in:
-   same tile grid, same request-card grid, same 8-column table, same page size. */
+/* Loading mirrors for the registry adviser-access page (both desks). They
+   render the real page chrome (deck, request strip, workbench) out of the same
+   CSS module as the loaded page, so the skeleton can't drift from what
+   actually swaps in: same stat deck, same request-card grid, same 8-column
+   table, same page size. Each mirror sits in a `ShimmerGroup`, so the whole
+   board sweeps left-to-right on one sheen instead of pulsing shape by shape. */
 
 const COLUMNS = [
   "Learner",
@@ -28,115 +32,91 @@ const COLUMNS = [
   "Actions",
 ] as const;
 
-/** "Access requests at a glance" deck: header line + four stat tiles. */
+/** "Access requests at a glance" deck — the shared stat strip in loading mode. */
 export function AdviserAccessDeckSkeleton() {
   return (
-    <section className={styles.deck} aria-hidden="true">
-      <div className={styles.deckHead}>
-        <span className={styles.deckTitle}>
-          <Skeleton className="h-3.5 w-44" />
-        </span>
-      </div>
-      <div className={styles.tiles}>
-        {Array.from({ length: 4 }).map((_, i) => (
-          <div key={i} className={styles.tile}>
-            <span className={styles.tileTop}>
-              <Skeleton className="size-4 rounded-full" />
-              <Skeleton className="h-3 w-24" />
-            </span>
-            <span className={styles.tileValue}>
-              <Skeleton className="h-6 w-12" />
-            </span>
-            <span className={styles.tileMeter}>
-              <span className={styles.tileMeterFill} style={{ width: "45%" }} />
-            </span>
-            <Skeleton className="h-2.5 w-2/3" />
-          </div>
-        ))}
-      </div>
-    </section>
+    <ShimmerGroup>
+      <StatDeck ariaLabel="Access request stats" items={[]} loading />
+    </ShimmerGroup>
   );
 }
 
 /** "Pending requests" strip: header line + three request cards. */
 export function AdviserAccessStripSkeleton() {
   return (
-    <section className={styles.requestStrip} aria-hidden="true">
-      <div className={styles.stripHead}>
-        <span className={styles.stripTitle}>
-          Pending requests
-          <Skeleton className="size-[1.125rem] rounded-full" />
-        </span>
-        <Skeleton className="h-5 w-20 rounded-full" />
-      </div>
-      <div className={styles.requestCards}>
-        {Array.from({ length: 3 }).map((_, i) => (
-          <div key={i} className={styles.requestCard}>
-            <span className={styles.requestCardHead}>
-              <Skeleton className="size-7 rounded-full" />
-              <span className={styles.requestCardWho}>
-                <Skeleton className="h-3 w-32 max-w-full" />
-                <Skeleton className="h-2.5 w-20 max-w-full" />
+    <ShimmerGroup>
+      <section className={styles.requestStrip} aria-hidden="true">
+        <div className={styles.stripHead}>
+          <span className={styles.stripTitle}>Pending requests</span>
+        </div>
+        <div className={styles.requestCards}>
+          {Array.from({ length: 3 }).map((_, i) => (
+            <div key={i} className={styles.requestCard}>
+              <span className={styles.requestCardHead}>
+                <Skeleton className="size-7 rounded-full" />
+                <span className={styles.requestCardWho}>
+                  <Skeleton className="h-3 w-32 max-w-full" />
+                  <Skeleton className="h-2.5 w-20 max-w-full" />
+                </span>
+                <Skeleton className="h-5 w-16 shrink-0 rounded-full" />
               </span>
-              <Skeleton className="h-5 w-16 shrink-0 rounded-full" />
-            </span>
-            <Skeleton className="h-2.5 w-full" />
-            <span className={styles.progress}>
-              <span className={styles.progressFill} style={{ width: "50%" }} />
-            </span>
-            <span className={styles.requestCardFoot}>
-              <Skeleton className="h-2.5 w-24" />
-              <Skeleton className="h-2.5 w-20" />
-            </span>
-          </div>
-        ))}
-      </div>
-    </section>
+              <Skeleton className="h-2.5 w-full" />
+              <span className={styles.progress}>
+                <span className={styles.progressFill} style={{ width: "50%" }} />
+              </span>
+              <span className={styles.requestCardFoot}>
+                <Skeleton className="h-2.5 w-24" />
+                <Skeleton className="h-2.5 w-20" />
+              </span>
+            </div>
+          ))}
+        </div>
+      </section>
+    </ShimmerGroup>
   );
 }
 
-/** "Requests workbench": title row, tab bar, search, and the real table grid. */
+/** "Requests workbench": title row, tag filters, search, and the real table grid. */
 export function AdviserAccessWorkbenchSkeleton({ rows = PAGE_SIZE }: { rows?: number }) {
   return (
-    <section
-      className={styles.board}
-      aria-busy="true"
-      aria-label="Loading adviser access requests"
-      role="status"
-    >
-      <div className={styles.boardHead}>
-        <div className={styles.boardTitleRow}>
-          <span className={styles.boardTitle}>
-            <Skeleton className="h-3.5 w-40" />
-            <Skeleton className="size-5 rounded-full" />
-          </span>
-          <div className={styles.bulkActions}>
-            <Skeleton className="h-6 w-32 rounded-md" />
-            <Skeleton className="h-6 w-36 rounded-md" />
+    <ShimmerGroup>
+      <section
+        className={styles.board}
+        aria-busy="true"
+        aria-label="Loading adviser access requests"
+        role="status"
+      >
+        <div className={styles.boardHead}>
+          <div className={styles.boardTitleRow}>
+            <span className={styles.boardTitle}>
+              <Skeleton className="h-3.5 w-40" />
+            </span>
+            <div className={styles.bulkActions}>
+              <Skeleton className="h-6 w-32 rounded-md" />
+              <Skeleton className="h-6 w-36 rounded-md" />
+            </div>
           </div>
-        </div>
 
-        <div className={styles.toolbar}>
-          <div className={styles.tabs}>
-            {Array.from({ length: 5 }).map((_, i) => (
-              <Skeleton key={i} className="h-6 w-[4.5rem] rounded-full" />
-            ))}
-          </div>
-          <div className={styles.toolbarRight}>
-            <div className={styles.searchWrap}>
-              <Skeleton className="h-8 w-full rounded-[16px]" />
+          <div className={styles.toolbar}>
+            <div className="flex flex-wrap items-center gap-1.5">
+              {Array.from({ length: 5 }).map((_, i) => (
+                <Skeleton key={i} className="h-[1.875rem] w-24 rounded-full" />
+              ))}
+            </div>
+            <div className={styles.toolbarRight}>
+              <Skeleton className="h-8 w-60 rounded-lg" />
             </div>
           </div>
         </div>
-      </div>
 
-      <AdviserAccessTableSkeleton rows={rows} />
+        <AdviserAccessTableSkeleton rows={rows} />
 
-      <div className={styles.boardFoot}>
-        <Skeleton className="h-2.5 w-44" />
-        <Skeleton className="h-7 w-52 rounded-full" />
-      </div>
-    </section>
+        <div className={styles.boardFoot}>
+          <Skeleton className="h-2.5 w-44" />
+          <Skeleton className="h-7 w-52 rounded-full" />
+        </div>
+      </section>
+    </ShimmerGroup>
   );
 }
 
@@ -147,8 +127,9 @@ export function AdviserAccessWorkbenchSkeleton({ rows = PAGE_SIZE }: { rows?: nu
  */
 export function AdviserAccessTableSkeleton({ rows = PAGE_SIZE }: { rows?: number }) {
   return (
-    <div className={`${styles.tableWrap} ${styles.tableWrapSkeleton}`}>
-      <Table className={styles.table} aria-hidden="true">
+    <ShimmerGroup>
+      <div className={`${styles.tableWrap} ${styles.tableWrapSkeleton}`}>
+        <Table className={styles.table} aria-hidden="true">
         <TableHeader className={styles.thead}>
           <TableRow>
             {COLUMNS.map((label, i) => (
@@ -198,6 +179,7 @@ export function AdviserAccessTableSkeleton({ rows = PAGE_SIZE }: { rows?: number
           ))}
         </TableBody>
       </Table>
-    </div>
+      </div>
+    </ShimmerGroup>
   );
 }

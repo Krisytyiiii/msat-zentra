@@ -1,82 +1,15 @@
 "use client";
 
-import Link from "next/link";
 import { useLiveQuery } from "@/lib/api/live";
 import { Skeleton } from "@/components/ui/skeleton";
-import { Button } from "@/components/ui/button";
-import { KanbanBoard } from "@/components/ui/kanban-board";
-import { ClipboardList, KeyRound } from "lucide-react";
+import { ClipboardList } from "lucide-react";
 import { apiClient } from "@/lib/api/client";
 import { liveQueryOptions } from "@/lib/api/live";
 import { useTerm } from "@/lib/term/TermContext";
-import { TeacherEmptyCard } from "../components/TeacherEmptyCard";
-import { Pill } from "@/components/ui/pill";
+import { TeacherGateCard } from "../components/TeacherGateCard";
 import { useTeacherOverviewGradebook } from "@/services/teacher/overview.service";
 import { GradebookCards } from "./components/GradebookCards";
-import emptyStyles from "@/components/schedule/schedule-empty.module.css";
-import kanbanStyles from "@/components/schedule/subject-kanban.module.css";
 import styles from "./components/gradebook.module.css";
-
-function TermPills({ termLabel }: { termLabel: string }) {
-  const parts = termLabel
-    .split("·")
-    .map((part) => part.trim())
-    .filter(Boolean);
-  return (
-    <span className="flex items-center gap-1.5">
-      {parts.map((part, index) => (
-        <Pill
-          key={part}
-          tone="amber"
-          label={index === 0 ? "School year" : "Active term"}
-        >
-          {part}
-        </Pill>
-      ))}
-    </span>
-  );
-}
-
-function GradebookGateCard({
-  title,
-  termLabel,
-  description,
-  actionLabel,
-}: {
-  title: string;
-  termLabel: string;
-  description: string;
-  actionLabel: string;
-}) {
-  return (
-    <section className={styles.page} aria-label="Gradebook">
-      <div className={emptyStyles.emptyWrap}>
-        <div className={`${kanbanStyles.column} mx-auto w-full max-w-md`}>
-          <KanbanBoard
-            title={title}
-            icon={
-              <span className="text-amber-500" aria-hidden>
-                <KeyRound size={14} />
-              </span>
-            }
-            actions={<TermPills termLabel={termLabel} />}
-            description={description}
-          >
-            <div className="flex justify-end px-1 pb-1">
-              <Button
-                asChild
-                size="sm"
-                className="h-6 rounded-lg bg-black px-3 text-xs text-white hover:bg-neutral-800 dark:bg-white dark:text-black dark:hover:bg-neutral-200"
-              >
-                <Link href="/teacher/classes">{actionLabel}</Link>
-              </Button>
-            </div>
-          </KanbanBoard>
-        </div>
-      </div>
-    </section>
-  );
-}
 
 export default function TeacherGradebookPage() {
 
@@ -144,12 +77,21 @@ export default function TeacherGradebookPage() {
   // Every teacher — master included — must link a code first.
   if (!linked) {
     return (
-      <GradebookGateCard
-        title="Link code"
-        termLabel={termLabel}
-        description="Your subjects will appear here only after you link your teacher code on the classes page. Without a link code, nothing is displayed here."
-        actionLabel="Go to classes to link code"
-      />
+      <section className={styles.page} aria-label="Gradebook">
+        <TeacherGateCard
+          title="Link your teacher code"
+          subtitle="Grading needs your linked teacher row"
+          status="Not linked yet"
+          description="Your subjects appear here only after you link the teacher code printed beside your name. Without a code, nothing is displayed — the link button opens the form on My Classes."
+          termLabel={termLabel}
+          facts={[
+            "The code sits beside your name in the administrator's teacher list.",
+            "Linking attaches your subject × section load to this login.",
+            "Encoding scores and finals lock open once the term is entered.",
+          ]}
+          actionLabel="Link now"
+        />
+      </section>
     );
   }
 
@@ -157,24 +99,42 @@ export default function TeacherGradebookPage() {
   // Code entry lives only on /teacher/classes; this page just links there.
   if (!termGrant) {
     return (
-      <GradebookGateCard
-        title="Enter term"
-        termLabel={termLabel}
-        description="Your subjects will appear here only after you enter this term's code on the classes page. Without entering the term, nothing is displayed here."
-        actionLabel="Go to classes to enter code"
-      />
+      <section className={styles.page} aria-label="Gradebook">
+        <TeacherGateCard
+          title="Open this term"
+          subtitle={`${linked.name} · code on file`}
+          status="Term not entered"
+          description={`Grading is closed for ${termLabel}. Enter your teacher code once on My Classes and this page fills with the term's subjects.`}
+          termLabel={termLabel}
+          facts={[
+            "Nothing needs relinking — only this term has to be opened.",
+            "One code covers every term of this school year.",
+            "The term picker in the top bar decides which grid you see.",
+          ]}
+          actionLabel="Enter term"
+        />
+      </section>
     );
   }
 
   if (gradebook.data.classes.length === 0) {
     return (
       <section className={styles.page} aria-label="Gradebook">
-        <TeacherEmptyCard
-          centered
+        <TeacherGateCard
           icon={ClipboardList}
           title="No classes assigned yet"
-          hint="Link your teacher code on the classes page or ask your registrar to assign your subjects and sections first — only your linked subjects will appear here."
-          label="Gradebook"
+          subtitle="Your linked load is empty for this term"
+          status="No classes"
+          tone="neutral"
+          description="Nothing is gradeable yet — the administrator publishes section schedules, and your subjects appear here as soon as your teacher row carries them."
+          termLabel={termLabel}
+          facts={[
+            "Your load follows the linked teacher row, not a manual pick.",
+            "Ask the administrator if your subjects are missing from the grid.",
+            "Other terms keep their own records — switching term does not erase scores.",
+          ]}
+          actionLabel="Open classes"
+          href="/teacher/classes"
         />
       </section>
     );

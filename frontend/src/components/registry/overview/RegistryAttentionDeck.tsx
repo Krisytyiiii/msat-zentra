@@ -2,20 +2,21 @@
 
 import { useQuery } from "@tanstack/react-query";
 import {
-  Check,
   FileSignature,
   FileStack,
+  FileX2,
   ShieldQuestion,
 } from "lucide-react";
 import { StatDeck, type StatDeckItem } from "@/components/ui/stat-deck";
 import type { RegistryDesk } from "@/services/registry/overview.service";
 import { registryBase, registryOverviewQuery } from "./registryOverviewQuery";
+import styles from "./registry-overview.module.css";
 
 /**
- * Attention deck — the four desks this role owns, in one bordered strip
- * (shared `StatDeck`) instead of four floating cards. The thin meter shows each
- * queue's share of the open workload and the whole tile is the link, so queue
- * pages stay one click away.
+ * Attention deck — the queues this role owns, in one bordered strip (shared
+ * `StatDeck`) instead of floating cards. Headerless: the tiles carry the whole
+ * message. The thin meter shows each queue's share of the open workload and the
+ * whole tile is the link, so queue pages stay one click away.
  */
 export function RegistryAttentionDeck({ desk }: { desk: RegistryDesk }) {
   const { data, isPending } = useQuery(registryOverviewQuery(desk));
@@ -27,7 +28,7 @@ export function RegistryAttentionDeck({ desk }: { desk: RegistryDesk }) {
       icon: FileSignature,
       label: "Final grade approvals",
       unit: "ready",
-      hint: "Adviser-approved finals waiting for the desk",
+      hint: "Locked finals waiting for the desk",
       value: data?.lockedFinalsAwaiting ?? 0,
       href: `${base}/final-grades`,
     },
@@ -49,6 +50,15 @@ export function RegistryAttentionDeck({ desk }: { desk: RegistryDesk }) {
       value: data?.latestAttachments.length ?? 0,
       href: `${base}/sf10`,
     },
+    {
+      key: "missing",
+      icon: FileX2,
+      label: "Missing SF10",
+      unit: "learners",
+      hint: "Enrolled learners with no SF10 on file",
+      value: data?.missingSf10.length ?? 0,
+      href: `${base}/sf10`,
+    },
   ];
 
   const total = items.reduce((sum, item) => sum + Number(item.value), 0);
@@ -56,8 +66,7 @@ export function RegistryAttentionDeck({ desk }: { desk: RegistryDesk }) {
 
   return (
     <StatDeck
-      title="Needs your action"
-      icon={clear ? Check : FileSignature}
+      className={styles.transparentDeck}
       ariaLabel="Queues needing action"
       items={items.map((item) => ({
         ...item,

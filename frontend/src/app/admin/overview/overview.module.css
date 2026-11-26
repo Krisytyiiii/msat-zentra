@@ -1,38 +1,81 @@
 .stage {
-  position: relative;
-  isolation: isolate;
-  min-height: calc(100vh - 5rem);
+  display: grid;
+  grid-template-columns: minmax(0, 1.3fr) minmax(17rem, 0.7fr);
+  gap: 1rem;
   width: 100%;
-  overflow: hidden;
+  /* The shell's `.main` already pads 1rem (16px) under the fixed topbar, so the
+     board sits exactly 16px from the navbar and never adds a second gutter. */
+  min-height: calc(100vh - 5rem);
+  padding: 0;
+  /* The page still owns the panel surfaces; the globe lives inside its own
+     smaller card instead of bleeding across the whole canvas. */
   font-family: var(--font-inter), system-ui, sans-serif;
 }
 
-/* Login-activity chart pinned to the top-left. */
+/* Left column: activity chart on top, globe card underneath. */
+.left {
+  display: flex;
+  min-width: 0;
+  flex-direction: column;
+  gap: 1rem;
+}
+
 .activity {
-  position: absolute;
-  top: 1.25rem;
-  left: 1.25rem;
-  z-index: 3;
-  width: min(32rem, calc(100% - 2.5rem));
-  padding: 0.25rem 0.25rem 0;
+  width: 100%;
+  padding: 0.75rem 1rem 0.5rem;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg, 0.75rem);
+  background-color: color-mix(in oklch, var(--card) 72%, transparent);
+  backdrop-filter: blur(10px);
 }
 
-/* Compact role legend pinned to the top-right, styled like a desk card. */
-.legend {
-  position: absolute;
-  top: 0;
-  right: -1rem;
-  z-index: 3;
-  min-width: 12rem;
+/* Bare globe stage: no card chrome — the canvas sits directly on the page
+   canvas. Relative host so the globe keeps its absolute inset:0 fill. */
+.globeCard {
+  position: relative;
+  flex: 1;
+  min-height: 15rem;
+  overflow: hidden;
+}
+
+/* Right rail: role legend, latest logins list and notes. */
+.rail {
+  display: flex;
+  min-width: 0;
+  min-height: 0;
+  flex-direction: column;
+  gap: 0.75rem;
+}
+
+.railCard {
   padding: 0.75rem 0.875rem;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg, 0.75rem);
+  background-color: color-mix(in oklch, var(--card) 72%, transparent);
+  backdrop-filter: blur(10px);
 }
 
-.legendTitle {
+/* The latest-activity list sits directly on the page canvas (no card), takes
+   the remaining height and scrolls if needed. */
+.latestCard {
+  flex: 1;
+  min-height: 0;
+  padding: 0.75rem 0.875rem;
+  overflow: auto;
+}
+
+.railTitle {
   margin: 0 0 0.5rem;
   font-size: 0.75rem;
   font-weight: 600;
   letter-spacing: 0.04em;
   text-transform: uppercase;
+  color: var(--muted-foreground);
+}
+
+.railHint {
+  margin: 0;
+  font-size: 0.75rem;
   color: var(--muted-foreground);
 }
 
@@ -65,8 +108,8 @@
 
 .chip {
   position: absolute;
-  left: 1.25rem;
-  bottom: 1.25rem;
+  left: 0.75rem;
+  bottom: 0.75rem;
   z-index: 3;
   display: inline-flex;
   align-items: center;
@@ -107,11 +150,6 @@
 }
 
 .note {
-  position: absolute;
-  right: 1.25rem;
-  bottom: 1.25rem;
-  z-index: 3;
-  max-width: 18rem;
   margin: 0;
   padding: 0.375rem 0.625rem;
   border: 1px solid var(--border);
@@ -124,10 +162,6 @@
 }
 
 .error {
-  position: absolute;
-  top: 1.25rem;
-  left: 1.25rem;
-  z-index: 4;
   display: inline-flex;
   align-items: center;
   gap: 0.625rem;
@@ -166,34 +200,29 @@
   }
 }
 
-@media (max-width: 640px) {
+/* Below the two-column breakpoint everything stacks in reading order:
+   chart → globe → legend → latest list. */
+@media (max-width: 1024px) {
   .stage {
+    grid-template-columns: minmax(0, 1fr);
     min-height: calc(100vh - 9rem);
+    padding: 0;
   }
 
-  .activity {
-    display: none;
+  .globeCard {
+    flex: none;
+    height: 20rem;
   }
 
-  .legend {
-    top: 0.75rem;
-    right: 0.75rem;
-    padding: 0.5rem 0.625rem;
+  .latestCard {
+    flex: none;
+    overflow: visible;
   }
+}
 
+@media (max-width: 640px) {
   .legendList {
     grid-template-columns: 1fr;
-  }
-
-  .note {
-    right: 0.75rem;
-    bottom: 3.5rem;
-    max-width: 12rem;
-  }
-
-  .chip {
-    left: 0.75rem;
-    bottom: 0.75rem;
   }
 }
 

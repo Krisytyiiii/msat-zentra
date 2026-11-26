@@ -46,7 +46,7 @@ const GREETINGS: Record<BamaChatType, string> = {
   "sf10-access":
     "Hi, I'm Bama. I'll help you request SF10 read access for your advisory.\nPick your section below to begin.",
   "sf10-autofill":
-    "Hi, I'm Bama. I'll fill your advisees' SF10 subject rows from adviser-approved grades.\nPick your section below to begin.",
+    "Hi, I'm Bama. I'll fill your advisees' SF10 subject rows from each term's locked grades — run it term by term.\nPick your section below to begin.",
 };
 
 const FREE_FOLLOWUPS: Record<BamaChatType, string> = {

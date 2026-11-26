@@ -1,23 +1,43 @@
 import { prisma } from "../../lib/prisma.js";
+import type { GradeLevel, Prisma } from "../../generated/prisma/client.js";
 import type { RegistryContext } from "./registry.types.js";
 
 export interface FinalsQuery {
   page: number;
   pageSize: number;
   q: string;
+  /** Optional tabs above the index — banded server-side. */
+  gradeLevel?: string;
+  sectionId?: string;
 }
 
 export async function listFinalGrades(ctx: RegistryContext, query: FinalsQuery) {
   const band = ctx.band;
-  const { page, pageSize, q } = query;
+  const { page, pageSize, q, gradeLevel, sectionId } = query;
 
-  const rows = await prisma.finalGrade.findMany({
-    where: {
+  // The identity filter stays banded; the optional tabs only narrow inside it.
+  const filters: Prisma.FinalGradeWhereInput[] = [
+    {
       OR: [
         { student: { gradeLevel: { in: band } } },
         { roster: { gradeLevel: { in: band } } },
       ],
     },
+  ];
+  if (gradeLevel && (band as string[]).includes(gradeLevel)) {
+    const grade = gradeLevel as GradeLevel;
+    filters.push({
+      OR: [{ student: { gradeLevel: grade } }, { roster: { gradeLevel: grade } }],
+    });
+  }
+  if (sectionId) {
+    filters.push({
+      OR: [{ student: { sectionId } }, { roster: { sectionId } }],
+    });
+  }
+
+  const rows = await prisma.finalGrade.findMany({
+    where: { AND: filters },
     select: {
       id: true,
       lockStatus: true,

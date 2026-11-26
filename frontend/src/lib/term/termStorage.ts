@@ -15,6 +15,14 @@ export interface StoredTerm {
   schoolYearName: string;
   termId: string;
   termNumber: number;
+  /**
+   * The school year that was **active** when this pick was made. A pick made
+   * while an older year was active becomes stale the moment a new year is
+   * activated (new school year → new sections), so the schedule desks fall back
+   * to the active year instead of silently keeping the previous year's board.
+   * Absent on legacy picks.
+   */
+  activeYearId?: string;
 }
 
 export const TERM_PROMPT_KEY = "zentra.termPrompt";

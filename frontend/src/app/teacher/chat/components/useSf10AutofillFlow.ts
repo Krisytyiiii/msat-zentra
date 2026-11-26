@@ -246,7 +246,7 @@ export function useSf10AutofillFlow({
       {
         id: nextMessageId(),
         from: "assistant",
-        text: "Which advisees should I fill? I only write subjects with adviser-approved grades for all terms. Select students, then press Done.",
+        text: "Which advisees should I fill? I write each term's locked grades into its own quarter (Q1–Q3), so you can run this term by term. Select students, then press Done.",
         at: Date.now(),
       },
     ]);
@@ -395,12 +395,12 @@ export function useSf10AutofillFlow({
       if (data.updated > 0) {
         toast.success({
           title: "SF10 filled",
-          description: `${data.updated} record${data.updated === 1 ? "" : "s"} updated from adviser-approved grades.`,
+          description: `${data.updated} record${data.updated === 1 ? "" : "s"} updated from locked grades.`,
         });
       } else {
         toast.error({
           title: "Nothing filled",
-          description: "No advised subject had adviser-approved grades for every term yet.",
+          description: "No locked grades yet for this school year.",
         });
       }
     } catch (err) {

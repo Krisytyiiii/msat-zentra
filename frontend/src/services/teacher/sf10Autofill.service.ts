@@ -15,6 +15,7 @@ export interface AutofillCandidate {
   subjectsReady: number;
   subjectsSkipped: number;
   ready: boolean;
+  templateReady: boolean;
   reason: string | null;
 }
 
@@ -93,6 +94,35 @@ export async function runAutofill(payload: {
     payload,
   );
   return data;
+}
+
+/**
+ * Download the SF10 built from the school template for one advisee (JHS book
+ * for Grades 7–10, Strengthened SHS book for 11–12). The request writes the
+ * rendered file onto the learner's SF10 record, so the caller should refresh the
+ * records queries afterwards.
+ */
+export async function downloadSf10Template(
+  sectionId: string,
+  lrn: string,
+  format: "xlsx" | "pdf",
+): Promise<void> {
+  const response = await apiClient.get<Blob>(
+    `/api/teacher/advisory/sf10-template/${encodeURIComponent(lrn)}`,
+    { params: { sectionId, format }, responseType: "blob" },
+  );
+  const blob = response.data;
+  const disposition = String(response.headers?.["content-disposition"] ?? "");
+  const match = /filename="?([^";]+)"?/i.exec(disposition);
+  const filename = match?.[1]?.trim() || `SF10-${lrn}.${format}`;
+  const url = URL.createObjectURL(blob);
+  const anchor = document.createElement("a");
+  anchor.href = url;
+  anchor.download = filename;
+  document.body.appendChild(anchor);
+  anchor.click();
+  anchor.remove();
+  window.setTimeout(() => URL.revokeObjectURL(url), 1_000);
 }
 
 export function useAutofillCandidates(sectionId: string | null, enabled = true) {

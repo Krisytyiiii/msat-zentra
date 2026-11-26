@@ -225,6 +225,9 @@ enum ActionType {
   grade_flag_raise
   grade_flag_resolve
   attendance_submit
+  no_class_day_create
+  no_class_day_update
+  no_class_day_delete
   create
   update
   delete
@@ -434,6 +437,7 @@ model SchoolYear {
   sections   Section[]
   rosterEntries StudentRoster[]
   scheduleConfigs ScheduleConfig[]
+  noClassDays  NoClassDay[]
   @@index([isActive])
 }
 
@@ -893,6 +897,30 @@ model AttendanceRecord {
   @@index([subjectId, termId])
   @@index([sectionId, subjectId, termId])
   @@index([assignmentId])
+}
+
+// Administrator-declared suspension of classes for a calendar date. A
+// whole_day row cancels every meetup; am/pm cancels only the timetable periods
+// in that half of the school day (periods before lunch are AM). Attendance
+// denominators (subject averages, section totals, heatmaps) and the auto-absent
+// sweep skip these meetups; teachers cannot submit a sheet for them.
+enum NoClassScope {
+  whole_day
+  am
+  pm
+}
+
+model NoClassDay {
+  id           String       @id @default(uuid())
+  date         DateTime     @unique
+  scope        NoClassScope @default(whole_day)
+  reason       String
+  schoolYearId String
+  createdBy    String
+  createdAt    DateTime     @default(now())
+  updatedAt    DateTime     @updatedAt
+  schoolYear   SchoolYear   @relation(fields: [schoolYearId], references: [id], onDelete: Cascade)
+  @@index([schoolYearId, date])
 }
 
 // Frozen archive of pre-migration AM/PM rows, written once by migration

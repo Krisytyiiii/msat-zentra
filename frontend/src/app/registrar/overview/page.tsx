@@ -7,6 +7,7 @@ import { RegistryAttentionDeck } from "@/components/registry/overview/RegistryAt
 import { RegistryGradePanel } from "@/components/registry/overview/RegistryGradePanel";
 import { RegistryRequestsPanel } from "@/components/registry/overview/RegistryRequestsPanel";
 import { RegistryRecordsLedger } from "@/components/registry/overview/RegistryRecordsLedger";
+import { RegistryOverviewSkeleton } from "@/components/registry/overview/RegistryOverviewSkeleton";
 import { registryOverviewQuery } from "@/components/registry/overview/registryOverviewQuery";
 import { PageEmptyCallout } from "@/components/shared/page-empty-callout";
 import styles from "./components/overview.module.css";
@@ -16,7 +17,17 @@ import styles from "./components/overview.module.css";
 // the record keeper page reads G7–10.
 export default function RegistrarOverviewPage() {
   // Same key every widget reads, so this only observes the shared cache.
-  const { data } = useQuery(registryOverviewQuery("registrar"));
+  const { data, isPending } = useQuery(registryOverviewQuery("registrar"));
+
+  // First load: one shimmer skeleton of the whole board, never a stack of
+  // per-widget pulses.
+  if (isPending && !data) {
+    return (
+      <section className={styles.page}>
+        <RegistryOverviewSkeleton desk="registrar" />
+      </section>
+    );
+  }
 
   // The daily request series is pre-seeded with a zero row per day for the
   // chart axis, so emptiness must look at activity, not row count.
@@ -55,14 +66,15 @@ export default function RegistrarOverviewPage() {
         <RegistryAttentionDeck desk="registrar" />
 
         {/* Analytics first — where the band stands, then what needs filing. */}
-        <div className={styles.duo}>
-          <RegistryGradePanel desk="registrar" />
-          <RegistryRequestsPanel desk="registrar" />
-        </div>
-
-        <div className={styles.duo}>
+        {/* Left: the SF10 attach rail. Right: grade spread, request activity
+            and the finals queue. */}
+        <div className={styles.split}>
           <Sf10AttachFeed desk="registrar" variant="kanban" />
-          <FinalGradeApprovals desk="registrar" variant="kanban" />
+          <div className={styles.splitStack}>
+            <RegistryGradePanel desk="registrar" />
+            <RegistryRequestsPanel desk="registrar" />
+            <FinalGradeApprovals desk="registrar" variant="kanban" />
+          </div>
         </div>
 
         <RegistryRecordsLedger desk="registrar" />

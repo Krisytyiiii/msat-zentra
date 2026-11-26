@@ -21,7 +21,14 @@ export const registryPhotoSchema = z.object({
 });
 
 /** Registry list-query validation: page/pageSize capped at 15, trimmed filters. */
-export const registryFinalGradesQuerySchema = paginationQuerySchema();
+export const registryFinalGradesQuerySchema = paginationQuerySchema().extend({
+  // Optional band/section tabs above the grade-set list. Values are validated
+  // by the banded service — a record keeper cannot widen into G11–12.
+  gradeLevel: z
+    .enum(["G7", "G8", "G9", "G10", "G11", "G12"])
+    .optional(),
+  sectionId: z.string().trim().max(64).optional(),
+});
 
 export const registryAccountsAuditQuerySchema = paginationQuerySchema();
 

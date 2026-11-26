@@ -1,3 +1,23 @@
+/* The configuration wizard lives in the shared side drawer now, and the drawer
+   already supplies the card surface — drop the KanbanBoard chrome so the form
+   reads as one flat panel instead of a card inside a card. */
+.flatBoard :global(.board-surface) {
+  border: 0;
+  border-radius: 0;
+  background-color: transparent;
+  box-shadow: none;
+}
+
+/* Dropdown triggers line up with the 32px, rounded-lg inputs beside them (the
+   shared .dropdown trigger is 28px/13px). Doubled selector so it wins without
+   an !important over the shared trigger's single-class rule. */
+.fieldTrigger.fieldTrigger {
+  height: 2rem;
+  border-radius: 0.5rem;
+  font-family: var(--font-inter), ui-sans-serif, system-ui, sans-serif;
+  font-size: 0.75rem;
+}
+
 /* Live day-preview list. The scrollbar stays invisible until the list is
    hovered, then shows a thin amber thumb — enough to signal "this scrolls"
    without putting a heavy grey track beside the wizard fields. */

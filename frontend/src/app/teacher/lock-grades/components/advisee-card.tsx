@@ -15,12 +15,12 @@ import styles from "./lock-grades.module.css";
 const statusLabel: Record<string, string> = {
   unlocked: "Unlocked",
   locked: "Locked",
-  adviser_approved: "Adviser approved",
+  adviser_approved: "Final",
 };
 
 function statusTone(status: string | null | undefined): PillTone {
   if (status === "adviser_approved") return "green";
-  if (status === "locked") return "amber";
+  if (status === "locked") return "green";
   if (status === "unlocked") return "sky";
   return "neutral";
 }
@@ -82,12 +82,12 @@ export function LockGradesAdviseeCard({ row }: { row: LockGradesAdviseeRow }) {
           <Pill tone="sky" label="With a computed grade">
             {graded} graded
           </Pill>
-          <Pill tone="amber" label="Locked, awaiting approval">
+          <Pill tone="green" label="Locked (final)">
             {row.summary.locked} locked
           </Pill>
           {row.summary.approved > 0 ? (
-            <Pill tone="green" label="Approved by the adviser">
-              {row.summary.approved} approved
+            <Pill tone="green" label="Final">
+              {row.summary.approved} final
             </Pill>
           ) : null}
           {!row.hasAccount ? (
@@ -160,7 +160,7 @@ export function LockGradesAdviseeCard({ row }: { row: LockGradesAdviseeRow }) {
             <Pill tone="neutral" label="Subjects">
               {total} subject{total === 1 ? "" : "s"}
             </Pill>
-            <Pill tone="amber" label="Locked, awaiting approval">
+            <Pill tone="green" label="Locked (final)">
               {row.summary.locked} locked
             </Pill>
           </span>

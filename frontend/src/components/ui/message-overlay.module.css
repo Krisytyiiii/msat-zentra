@@ -1,0 +1,38 @@
+/* Shared message / confirmation overlay shell. One dialog shape for the whole
+   app: a small, quiet card on a blurred scrim. Motion stays in the 120–180ms
+   band and is dropped entirely for reduced-motion users. */
+
+.scrim {
+  animation: scrim-in 140ms ease-out;
+}
+
+.dialog {
+  animation: dialog-in 160ms cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+@keyframes scrim-in {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+@keyframes dialog-in {
+  from {
+    opacity: 0;
+    transform: translateY(6px) scale(0.985);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .scrim,
+  .dialog {
+    animation: none;
+  }
+}

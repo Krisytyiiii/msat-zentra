@@ -21,12 +21,12 @@ import styles from "./lock-grades.module.css";
 const statusLabel: Record<string, string> = {
   unlocked: "Unlocked",
   locked: "Locked",
-  adviser_approved: "Adviser approved",
+  adviser_approved: "Final",
 };
 
 function statusTone(status: string | null | undefined): PillTone {
   if (status === "adviser_approved") return "green";
-  if (status === "locked") return "amber";
+  if (status === "locked") return "green";
   if (status === "unlocked") return "sky";
   return "neutral";
 }
@@ -129,12 +129,12 @@ export function LockGradesClassCard({
         <Pill tone="sky" label="Ready to lock">
           {row.ready} ready
         </Pill>
-        <Pill tone="amber" label="Locked, awaiting approval">
+        <Pill tone="green" label="Locked (final)">
           {row.locked} locked
         </Pill>
         {row.approved > 0 ? (
-          <Pill tone="green" label="Approved by the adviser">
-            {row.approved} approved
+          <Pill tone="green" label="Final">
+            {row.approved} final
           </Pill>
         ) : null}
       </div>

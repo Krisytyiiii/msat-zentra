@@ -19,6 +19,7 @@ import {
   GRADE_NUMERIC,
 } from "../../modules/attendance/attendance.repository.js";
 import { admExemptStudentIds } from "../adm/attendancePolicy.js";
+import { activeDayKeys, blocksPeriod, noClassContextForTerm } from "../noClass.js";
 
 export interface SectionScope {
   termId?: string;
@@ -54,7 +55,9 @@ export async function getSectionStudents(query: SectionStudentsQuery) {
     return { sectionId, students: [] };
   }
 
-  const totalSchoolDays = countSchoolDays(buildDayAxis(startDate ?? null, endDate ?? null));
+  const totalSchoolDays = countSchoolDays(
+    await activeDayKeys(buildDayAxis(startDate ?? null, endDate ?? null), session),
+  );
   // Signed ADM cases: the sheet shows them as an exempt group, not absent.
   const admExempt = await admExemptStudentIds(termId);
 
@@ -235,8 +238,9 @@ export async function getSectionStudents(query: SectionStudentsQuery) {
     });
   }
 
-  const outcomeKeys = buildDayAxis(startDate ?? null, endDate ?? null).filter(
-    (k) => !isWeekendKey(k)
+  const outcomeKeys = await activeDayKeys(
+    buildDayAxis(startDate ?? null, endDate ?? null).filter((k) => !isWeekendKey(k)),
+    "all",
   );
   const outcomes = studentDayOutcomes(
     strict.get(sectionId),
@@ -468,7 +472,7 @@ export async function loadSubjectMeetups(
   sectionId: string,
   termId: string,
 ): Promise<SubjectMeetupPlan> {
-  const [timetabled, offered, sheets, term] = await Promise.all([
+  const [timetabled, offered, sheets, term, noClass] = await Promise.all([
     prisma.sectionTimetableEntry.findMany({
       where: { sectionId, termId, status: { in: ["APPROVED", "SUBMITTED"] } },
       select: {
@@ -491,6 +495,7 @@ export async function loadSubjectMeetups(
       where: { id: termId },
       select: { startDate: true, endDate: true },
     }),
+    noClassContextForTerm(termId),
   ]);
 
   const subjects = new Map<string, { id: string; name: string; code: string }>();
@@ -563,7 +568,22 @@ export async function loadSubjectMeetups(
         const day = dow === 0 ? 7 : dow;
         // No timetable for this subject → assume one weekday meetup, matching
         // the pre-slot behaviour (recorded sheets remain the better fallback).
-        const count = byDay ? (byDay.get(day)?.size ?? 0) : day <= 5 ? 1 : 0;
+        let count = byDay ? (byDay.get(day)?.size ?? 0) : day <= 5 ? 1 : 0;
+        if (count > 0) {
+          const dateKey = d.toISOString().slice(0, 10);
+          const cancellation = noClass.map.get(dateKey);
+          if (cancellation?.scope === "whole_day") {
+            count = 0;
+          } else if (cancellation && byDay) {
+            // Drop only the meetups that fall in the cancelled half.
+            const periods = byDay.get(day);
+            let blocked = 0;
+            for (const p of periods ?? []) {
+              if (blocksPeriod(cancellation, noClass.config, p)) blocked += 1;
+            }
+            count = Math.max(0, count - blocked);
+          }
+        }
         if (count > 0) byDate.set(d.toISOString().slice(0, 10), count);
       }
       scheduledCountBySubjectDate.set(sid, byDate);

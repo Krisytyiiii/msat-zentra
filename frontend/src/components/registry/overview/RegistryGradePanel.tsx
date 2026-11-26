@@ -13,10 +13,14 @@ import styles from "./registry-overview.module.css";
 
 type Metric = "roster" | "sections" | "subjects";
 
-const METRICS: { key: Metric; label: string }[] = [
-  { key: "roster", label: "Roster" },
-  { key: "sections", label: "Sections" },
-  { key: "subjects", label: "Subjects" },
+const METRICS: {
+  key: Metric;
+  label: string;
+  tone: "amber" | "blue" | "green";
+}[] = [
+  { key: "roster", label: "Roster", tone: "amber" },
+  { key: "sections", label: "Sections", tone: "blue" },
+  { key: "subjects", label: "Subjects", tone: "green" },
 ];
 
 function shortGrade(grade: string): string {
@@ -51,7 +55,6 @@ export function RegistryGradePanel({ desk }: { desk: RegistryDesk }) {
 
   const rows = sources[metric];
   const max = Math.max(1, ...rows.map((row) => row.count));
-  const total = rows.reduce((sum, row) => sum + row.count, 0);
   const metricLabel = METRICS.find((entry) => entry.key === metric)?.label ?? "Roster";
 
   const body = isPending ? (
@@ -123,18 +126,21 @@ export function RegistryGradePanel({ desk }: { desk: RegistryDesk }) {
           <BarChart3 size={14} />
         </span>
       }
-      count={isPending ? undefined : isError ? "—" : total}
       description="Enlisted learners, sections and subjects per grade — pick a metric, then open a grade to compare all three."
-      headerToolbar={
-        <FilterTabs
-          label="Grade metric"
-          options={METRICS.map((entry) => ({
-            value: entry.key,
-            label: entry.label,
-          }))}
-          value={metric}
-          onChange={setMetric}
-        />
+      toolbar={
+        <div className="flex w-full flex-wrap items-center px-0.5">
+          <FilterTabs
+            label="Grade metric"
+            variant="tags"
+            options={METRICS.map((entry) => ({
+              value: entry.key,
+              label: entry.label,
+              tone: entry.tone,
+            }))}
+            value={metric}
+            onChange={setMetric}
+          />
+        </div>
       }
     >
       <div className={styles.panelBody}>{body}</div>

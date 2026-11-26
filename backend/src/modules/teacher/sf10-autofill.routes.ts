@@ -7,6 +7,7 @@ import { etag } from "../../lib/etag.js";
 import { CACHE_TAGS, CACHE_TTLS } from "../../lib/cacheTags.js";
 import { TEACHER_ROLES } from "./advisory.repository.js";
 import {
+  generateTemplateFile,
   getPreview,
   listCandidates,
   runAutofill,
@@ -88,6 +89,53 @@ router.post(
         "principal",
       ]);
       res.json(result);
+    } catch (e) {
+      next(e);
+    }
+  },
+);
+
+router.get(
+  "/sf10-template/:lrn",
+  requireAuth,
+  requireRole(...TEACHER_ROLES),
+  async (req, res, next) => {
+    try {
+      const sectionId =
+        typeof req.query.sectionId === "string" ? req.query.sectionId.trim() : "";
+      if (!sectionId) {
+        res
+          .status(400)
+          .json({ error: { code: "BAD_REQUEST", message: "sectionId is required" } });
+        return;
+      }
+      const format = req.query.format === "pdf" ? "pdf" : "xlsx";
+      const lrn = String(req.params.lrn ?? "").trim();
+      const file = await generateTemplateFile(
+        { userId: req.user!.id, role: req.user!.role },
+        sectionId,
+        lrn,
+        format,
+      );
+      // Generating files the learner's SF10 record — same desk tags as the
+      // auto-fill run.
+      await invalidateTags([
+        "teacher",
+        "adviser-access",
+        "registrar",
+        "registrar-sf10",
+        "registrar-overview",
+        "record-keeper",
+        "overview",
+        "principal",
+      ]);
+      res.setHeader("Content-Type", file.mimeType);
+      res.setHeader(
+        "Content-Disposition",
+        `attachment; filename="${file.filename}"`,
+      );
+      res.setHeader("Cache-Control", "private, no-store");
+      res.send(file.buffer);
     } catch (e) {
       next(e);
     }

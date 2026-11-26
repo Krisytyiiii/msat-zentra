@@ -509,8 +509,8 @@ export function FinalGradeSetDialog({
 
         <div className="border-t border-border bg-background px-3.5 py-2.5 dark:bg-card/40">
           <InsightCallout role="status">
-            All <strong>{student.subjects.length}</strong> subject(s) are locked and
-            adviser-approved for {student.term}. {deskLabel} access is read-only — no further
+            All <strong>{student.subjects.length}</strong> subject(s) are locked (final)
+            for {student.term}. {deskLabel} access is read-only — no further
             approval is required.{" "}
             {failedCount === 0 ? (
               <>The student passed all subjects with a transmuted grade of 75 or above.</>

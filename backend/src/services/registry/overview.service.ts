@@ -1,4 +1,5 @@
 import { prisma } from "../../lib/prisma.js";
+import { isFinalLock } from "../../lib/grades.js";
 import { gradeLabel, schoolYearClause } from "../../modules/registry/registry.repository.js";
 import { normalizeApprovedLrnAt } from "./access.service.js";
 import {
@@ -127,7 +128,7 @@ export async function getOverview(ctx: RegistryContext, takes: OverviewTakes, sc
   let readyRows = 0;
   let readyStudents = 0;
   for (const group of byStudentTerm.values()) {
-    if (group.length > 0 && group.every((r) => r.lockStatus === "adviser_approved")) {
+    if (group.length > 0 && group.every((r) => isFinalLock(r.lockStatus))) {
       readyRows += group.length;
       readyStudents++;
     }
