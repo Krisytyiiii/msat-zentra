@@ -60,8 +60,11 @@ router.get(
   async (req, res, next) => {
     try {
       const q = req.query as Record<string, unknown>;
-      const page = Math.max(1, Number(q.page) || 1);
-      const limit = resolvePageSize(req);
+      const wantsFullCohort = q.all === "1";
+      const page = wantsFullCohort ? 1 : Math.max(1, Number(q.page) || 1);
+      const limit = wantsFullCohort
+        ? INTERNAL_AGGREGATE_ROW_CAP
+        : resolvePageSize(req);
       const search = typeof q.q === "string" && q.q.trim() ? q.q.trim() : "";
       const activeTerm = await scopedTermRow(req);
       const termId = activeTerm?.id ?? null;

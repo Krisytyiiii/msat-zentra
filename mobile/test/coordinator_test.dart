@@ -307,8 +307,7 @@ void main() {
       final request = api.requests.last;
       expect(request.path, '/api/adm/referrals/all');
       expect(request.queryParameters, {
-        'page': 2,
-        'pageSize': 15,
+        'all': '1',
         'q': 'Mira',
         'stage': 'meeting_parents',
       });
@@ -319,12 +318,14 @@ void main() {
         filter: 'enrollment_monitoring',
       ));
       expect(api.requests.last.path, '/api/adm/referrals/all');
+      expect(api.requests.last.queryParameters['all'], '1');
       expect(
         api.requests.last.queryParameters['stage'],
         'enrollment_monitoring',
       );
-      await repo.cases((desk: 'deviceCandidates', page: 1, q: '', filter: ''));
+      await repo.cases((desk: 'deviceCandidates', page: 2, q: '', filter: ''));
       expect(api.requests.last.path, '/api/adm/approvals');
+      expect(api.requests.last.queryParameters, {'page': 2, 'pageSize': 15});
       await repo.monitoring('name/with space');
       expect(api.requests.last.path, '/api/adm/cases/name%2Fwith%20space');
       await repo.caseFile('referral:ref-1');
@@ -639,7 +640,7 @@ void main() {
     api.dio.close();
   });
 
-  testWidgets('case list paginates 15 rows and resets on search/filter', (
+  testWidgets('case list loads the full cohort without pagination', (
     tester,
   ) async {
     final api = CoordinatorApi();
@@ -648,14 +649,16 @@ void main() {
       api,
       const Scaffold(body: CoordinatorListPage(desk: 'referrals')),
     );
-    await tester.tap(find.byTooltip('Next page'));
-    await settle(tester);
-    expect(api.requests.last.queryParameters['page'], 2);
-    expect(api.requests.last.queryParameters['pageSize'], 15);
+    expect(find.byTooltip('Next page'), findsNothing);
+    expect(find.byTooltip('Previous page'), findsNothing);
+    expect(api.requests.last.queryParameters['all'], '1');
+    expect(api.requests.last.queryParameters.containsKey('page'), isFalse);
+    expect(api.requests.last.queryParameters.containsKey('pageSize'), isFalse);
     await tester.enterText(find.byType(TextField).first, 'Mira');
     await settle(tester);
-    expect(api.requests.last.queryParameters['page'], 1);
     expect(api.requests.last.queryParameters['q'], 'Mira');
+    expect(api.requests.last.queryParameters['all'], '1');
+    expect(api.requests.last.queryParameters.containsKey('page'), isFalse);
     await tester.tap(find.text('All stages'));
     await settle(tester);
     await tester.tap(find.text('Parent meeting').last);

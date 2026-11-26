@@ -188,13 +188,17 @@ class CoordinatorRepository {
   }
 
   Future<AdmPage<AdmCaseRow>> cases(AdmListQuery query) async {
+    final candidates = query.desk == 'deviceCandidates';
     final approved =
-        query.desk == 'deviceCandidates' ||
+        candidates ||
         (query.desk == 'certifications' && query.filter == 'approved');
     return AdmPage.fromJson(
       await _get(approved ? '/api/adm/approvals' : '/api/adm/referrals/all', {
-        'page': query.page,
-        'pageSize': 15,
+        // The coordinator lists render the full cohort; only the device
+        // candidate picker still pages.
+        if (candidates) 'page': query.page,
+        if (candidates) 'pageSize': 15,
+        if (!candidates) 'all': '1',
         if (query.q.trim().isNotEmpty) 'q': query.q.trim(),
         if (!approved && query.filter.isNotEmpty) 'stage': query.filter,
       }),
@@ -205,8 +209,6 @@ class CoordinatorRepository {
   Future<AdmPage<AdmDevice>> devices(AdmListQuery query) async =>
       AdmPage.fromJson(
         await _get('/api/adm/devices', {
-          'page': query.page,
-          'pageSize': 15,
           if (query.q.trim().isNotEmpty) 'q': query.q.trim(),
           if (query.filter.isNotEmpty) 'status': query.filter,
         }),

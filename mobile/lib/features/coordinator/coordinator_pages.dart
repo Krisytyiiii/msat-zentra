@@ -552,8 +552,12 @@ class _SectionMix extends StatelessWidget {
     final rows = [
       for (final row in sections)
         if (admInt(row['count']) > 0)
-          (label: admText(row['section']), count: admInt(row['count'])),
-    ];
+          (
+            label: admText(row['section']),
+            gradeLevel: admText(row['gradeLevel']),
+            count: admInt(row['count']),
+          ),
+    ]..sort((a, b) => b.count.compareTo(a.count));
     if (rows.isEmpty) {
       return const ZEmpty(
         compact: true,
@@ -561,25 +565,25 @@ class _SectionMix extends StatelessWidget {
         title: 'No section cases yet',
       );
     }
-    final maximum = rows.fold(
+    final top = rows.take(3).toList();
+    final maximum = top.fold(
       1,
       (max, row) => row.count > max ? row.count : max,
     );
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
-        Text(
-          'ADM learners by school section.',
-          style: theme.textTheme.bodySmall,
-        ),
+        Text('Top 3 sections by ADM cases.', style: theme.textTheme.bodySmall),
         const SizedBox(height: 12),
-        for (var i = 0; i < rows.take(6).length; i++) ...[
+        for (var i = 0; i < top.length; i++) ...[
           if (i > 0) const SizedBox(height: 10),
           Row(
             children: [
               Expanded(
                 child: Text(
-                  rows[i].label,
+                  top[i].gradeLevel.isEmpty
+                      ? top[i].label
+                      : '${top[i].gradeLevel} · ${top[i].label}',
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
                   style: theme.textTheme.titleSmall?.copyWith(fontSize: 13),
@@ -587,7 +591,7 @@ class _SectionMix extends StatelessWidget {
               ),
               const SizedBox(width: 8),
               Text(
-                '${rows[i].count}',
+                '${top[i].count}',
                 style: theme.textTheme.labelSmall?.copyWith(
                   fontWeight: FontWeight.w700,
                   fontFeatures: const [FontFeature.tabularFigures()],
@@ -599,7 +603,7 @@ class _SectionMix extends StatelessWidget {
           ClipRRect(
             borderRadius: BorderRadius.circular(4),
             child: LinearProgressIndicator(
-              value: rows[i].count / maximum,
+              value: top[i].count / maximum,
               minHeight: 8,
               backgroundColor: theme.colorScheme.surfaceContainerLow,
               color: theme.colorScheme.primary,
@@ -620,16 +624,16 @@ class CoordinatorListPage extends ConsumerStatefulWidget {
 
 class _ListState extends ConsumerState<CoordinatorListPage>
     with WidgetsBindingObserver, CoordinatorRefresh<CoordinatorListPage> {
-  int _page = 1;
   late String _filter = widget.desk == 'certifications'
       ? 'certification'
       : widget.desk == 'enrolled'
       ? 'enrollment_monitoring'
       : '';
   String _query = '', _rawQuery = '';
+  bool _descending = false;
   Timer? _debounce;
   AdmListQuery get query =>
-      (desk: widget.desk, page: _page, q: _query, filter: _filter);
+      (desk: widget.desk, page: 1, q: _query, filter: _filter);
   @override
   void didChangeDependencies() {
     super.didChangeDependencies();
@@ -639,10 +643,7 @@ class _ListState extends ConsumerState<CoordinatorListPage>
       _debounce?.cancel();
       _debounce = Timer(const Duration(milliseconds: 300), () {
         if (mounted) {
-          setState(() {
-            _query = value;
-            _page = 1;
-          });
+          setState(() => _query = value);
         }
       });
     }
@@ -684,14 +685,6 @@ class _ListState extends ConsumerState<CoordinatorListPage>
     final path = widget.desk == 'enrolled' ? 'enrolled' : 'referrals';
     await context.push('/coordinator/$path/${Uri.encodeComponent(row.id)}');
     if (mounted) await refresh();
-  }
-
-  void _reconcilePage(int pages) {
-    if (_page <= pages) return;
-    final requested = query;
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      if (mounted && query == requested) setState(() => _page = pages);
-    });
   }
 
   String get _title => switch (widget.desk) {
@@ -766,6 +759,7 @@ class _ListState extends ConsumerState<CoordinatorListPage>
   Widget build(BuildContext context) {
     final isDevices = widget.desk == 'devices';
     final search = ScreenSearchScope.maybeOf(context);
+    final scope = ref.watch(coordinatorScopeProvider).asData?.value;
     final theme = overviewScreenTheme(zLightTheme())
         .copyWith(scaffoldBackgroundColor: Colors.white);
     return Theme(
@@ -794,18 +788,18 @@ class _ListState extends ConsumerState<CoordinatorListPage>
                         spacing: 6,
                         runSpacing: 6,
                         children: [
-                          ZPill(
-                            label: 'Scope',
-                            tone: StatusTone.neutral,
-                            badge: true,
-                            child: const Text('School-managed scope'),
-                          ),
-                          ZPill(
-                            label: 'Records',
-                            tone: StatusTone.blue,
-                            badge: true,
-                            child: const Text('Cross-term records'),
-                          ),
+                          if (scope != null && scope.schoolYearName.isNotEmpty)
+                            ZScopePill(
+                              text: scope.schoolYearName,
+                              kind: ScopePillKind.schoolYear,
+                              compact: true,
+                            ),
+                          if (scope?.termNumber != null)
+                            ZScopePill(
+                              text: 'Term ${scope!.termNumber}',
+                              kind: ScopePillKind.term,
+                              compact: true,
+                            ),
                         ],
                       ),
                       const SizedBox(height: 16),
@@ -821,10 +815,7 @@ class _ListState extends ConsumerState<CoordinatorListPage>
                       if (search == null) ...[
                         ZSearchField(
                           hint: 'Filter by name or LRN',
-                          onChanged: (v) => setState(() {
-                            _query = v;
-                            _page = 1;
-                          }),
+                          onChanged: (v) => setState(() => _query = v),
                         ),
                         const SizedBox(height: 12),
                       ],
@@ -839,17 +830,13 @@ class _ListState extends ConsumerState<CoordinatorListPage>
                       ),
                       Row(
                         children: [
-                          Expanded(
-                            child: AdmCaseFilterPill(
-                              label: _filterLabel,
-                              value: _filter,
-                              options: filters,
-                              update: (v) => setState(() {
-                                _filter = v;
-                                _page = 1;
-                              }),
-                              primary: widget.desk == 'referrals',
-                            ),
+                          AdmCaseFilterPill(
+                            label: _filterLabel,
+                            value: _filter,
+                            options: filters,
+                            update: (v) => setState(() => _filter = v),
+                            primary: widget.desk == 'referrals',
+                            fitContent: true,
                           ),
                         ],
                       ),
@@ -859,7 +846,6 @@ class _ListState extends ConsumerState<CoordinatorListPage>
                           value: ref.watch(coordinatorDevicesProvider(query)),
                           retry: refresh,
                           builder: (data) {
-                            _reconcilePage(data.totalPages);
                             return Column(
                               children: [
                                 _recordCount(data.total),
@@ -868,7 +854,7 @@ class _ListState extends ConsumerState<CoordinatorListPage>
                                     icon: Icons.devices_outlined,
                                     title: 'No matching devices.',
                                   ),
-                                for (final row in data.rows)
+                                for (final row in _sortedDevices(data.rows))
                                   Padding(
                                     padding: const EdgeInsets.only(bottom: 8),
                                     child: CoordinatorDeviceCard(
@@ -876,12 +862,6 @@ class _ListState extends ConsumerState<CoordinatorListPage>
                                       device: row,
                                     ),
                                   ),
-                                AdmPager(
-                                  page: _page,
-                                  pages: data.totalPages,
-                                  total: data.total,
-                                  onPage: (p) => setState(() => _page = p),
-                                ),
                               ],
                             );
                           },
@@ -891,7 +871,6 @@ class _ListState extends ConsumerState<CoordinatorListPage>
                           value: ref.watch(coordinatorListProvider(query)),
                           retry: refresh,
                           builder: (data) {
-                            _reconcilePage(data.totalPages);
                             return Column(
                               crossAxisAlignment: CrossAxisAlignment.stretch,
                               children: [
@@ -912,7 +891,7 @@ class _ListState extends ConsumerState<CoordinatorListPage>
                                       _ => 'ADM cases for this school year appear here.',
                                     },
                                   ),
-                                for (final row in data.rows)
+                                for (final row in _sortedCases(data.rows))
                                   Padding(
                                     padding: const EdgeInsets.only(bottom: 8),
                                     child: AdmCaseCard(
@@ -921,12 +900,6 @@ class _ListState extends ConsumerState<CoordinatorListPage>
                                       onTap: () => _open(row),
                                     ),
                                   ),
-                                AdmPager(
-                                  page: _page,
-                                  pages: data.totalPages,
-                                  total: data.total,
-                                  onPage: (p) => setState(() => _page = p),
-                                ),
                               ],
                             );
                           },
@@ -956,14 +929,50 @@ class _ListState extends ConsumerState<CoordinatorListPage>
     );
   }
 
+  List<AdmCaseRow> _sortedCases(List<AdmCaseRow> rows) {
+    final list = [...rows];
+    list.sort((a, b) {
+      final order = a.student.toLowerCase().compareTo(b.student.toLowerCase());
+      return _descending ? -order : order;
+    });
+    return list;
+  }
+
+  List<AdmDevice> _sortedDevices(List<AdmDevice> rows) {
+    final list = [...rows];
+    list.sort((a, b) {
+      final order = a.student.toLowerCase().compareTo(b.student.toLowerCase());
+      return _descending ? -order : order;
+    });
+    return list;
+  }
+
   Widget _recordCount(int total) => Padding(
     padding: const EdgeInsets.only(bottom: 8),
-    child: Align(
-      alignment: Alignment.centerLeft,
-      child: Text(
-        'Showing $total record${total == 1 ? '' : 's'}',
-        style: const TextStyle(fontSize: 12, color: Color(0xFF9999A6)),
-      ),
+    child: Row(
+      children: [
+        Expanded(
+          child: Text(
+            'Showing $total record${total == 1 ? '' : 's'}',
+            style: const TextStyle(fontSize: 12, color: Color(0xFF9999A6)),
+          ),
+        ),
+        TextButton.icon(
+          onPressed: () => setState(() => _descending = !_descending),
+          icon: const Icon(LucideIcons.listFilter, size: 14),
+          label: Text(
+            _descending ? 'Name (Z-A)' : 'Name (A-Z)',
+            style: const TextStyle(fontSize: 12),
+          ),
+          style: TextButton.styleFrom(
+            foregroundColor: const Color(0xFF334155),
+            padding: const EdgeInsets.symmetric(horizontal: 8),
+            minimumSize: Size.zero,
+            tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+            visualDensity: VisualDensity.compact,
+          ),
+        ),
+      ],
     ),
   );
 }

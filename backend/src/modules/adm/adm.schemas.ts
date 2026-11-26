@@ -108,7 +108,10 @@ export const admReferralsQuerySchema = paginationQuerySchema().extend({
   all: z.enum(["1"]).optional(),
 });
 
-export const admApprovalsQuerySchema = paginationQuerySchema();
+export const admApprovalsQuerySchema = paginationQuerySchema().extend({
+  // Full-cohort mode for desks that render the approved list without paging.
+  all: z.enum(["1"]).optional(),
+});
 
 export const admDevicesQuerySchema = paginationQuerySchema().extend({
   status: z.string().trim().max(40).optional(),

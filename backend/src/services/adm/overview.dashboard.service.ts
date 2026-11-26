@@ -123,7 +123,11 @@ export async function getDashboard(role?: string) {
       where: notArchivedProfile,
       select: {
         studentId: true,
-        student: { select: { section: { select: { name: true } } } },
+        student: {
+          select: {
+            section: { select: { name: true, gradeLevel: true } },
+          },
+        },
       },
     }),
   ]);
@@ -140,15 +144,25 @@ export async function getDashboard(role?: string) {
   }));
 
   const sectionCounts = new Map<string, number>();
+  const sectionGrades = new Map<string, string>();
   const countedStudents = new Set<string>();
   for (const p of sectionProfiles) {
-    const name = p.student.section?.name;
+    const section = p.student.section;
+    const name = section?.name;
     if (!name || countedStudents.has(p.studentId)) continue;
     countedStudents.add(p.studentId);
     sectionCounts.set(name, (sectionCounts.get(name) ?? 0) + 1);
+    const grade = section?.gradeLevel;
+    if (grade && !sectionGrades.has(name)) {
+      sectionGrades.set(name, GRADE_LABEL[grade] ?? grade);
+    }
   }
   const sectionBreakdown = [...sectionCounts.entries()]
-    .map(([section, count]) => ({ section, count }))
+    .map(([section, count]) => ({
+      section,
+      gradeLevel: sectionGrades.get(section) ?? null,
+      count,
+    }))
     .sort((a, b) => b.count - a.count || a.section.localeCompare(b.section));
 
   const latestReferred = latestProfiles.map((p) => ({

@@ -202,6 +202,7 @@ class AdmCaseFilterPill extends StatelessWidget {
     required this.options,
     required this.update,
     this.primary = false,
+    this.fitContent = false,
   });
 
   final String label;
@@ -209,6 +210,9 @@ class AdmCaseFilterPill extends StatelessWidget {
   final Map<String, String> options;
   final ValueChanged<String> update;
   final bool primary;
+
+  /// Size to the current label instead of filling the available width.
+  final bool fitContent;
 
   String _pretty(String value) => value
       .split('_')
@@ -223,6 +227,17 @@ class AdmCaseFilterPill extends StatelessWidget {
   Widget build(BuildContext context) {
     final blue = statusColors(StatusTone.blue, Theme.of(context));
     final active = primary || value.isNotEmpty;
+    final text = Text(
+      label == 'Stage'
+          ? options[value] ?? _pretty(value)
+          : '$label: ${options[value] ?? _pretty(value)}',
+      maxLines: 1,
+      overflow: TextOverflow.ellipsis,
+      style: TextStyle(
+        fontSize: 12,
+        color: active ? blue.foreground : const Color(0xFF7185A4),
+      ),
+    );
     return PopupMenuButton<String>(
       tooltip: label,
       initialValue: value,
@@ -246,20 +261,15 @@ class AdmCaseFilterPill extends StatelessWidget {
               ),
             ),
             child: Row(
+              mainAxisSize: fitContent ? MainAxisSize.min : MainAxisSize.max,
               children: [
-                Expanded(
-                  child: Text(
-                    label == 'Stage'
-                        ? options[value] ?? _pretty(value)
-                        : '$label: ${options[value] ?? _pretty(value)}',
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                    style: TextStyle(
-                      fontSize: 12,
-                      color: active ? blue.foreground : const Color(0xFF7185A4),
-                    ),
-                  ),
-                ),
+                if (fitContent)
+                  ConstrainedBox(
+                    constraints: const BoxConstraints(maxWidth: 220),
+                    child: text,
+                  )
+                else
+                  Expanded(child: text),
                 const SizedBox(width: 6),
                 Icon(
                   LucideIcons.chevronDown,
