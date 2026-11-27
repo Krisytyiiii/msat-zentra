@@ -53,10 +53,9 @@ class _ParentOverviewState extends ConsumerState<ParentOverviewPage> {
     if (childId == null) {
       return frame(
         children.when(
-          loading: () => ListView(
-            physics: const AlwaysScrollableScrollPhysics(),
-            padding: const EdgeInsets.all(16),
-            children: const [ZSkeletonList()],
+          loading: () => const ScreenSkeleton(
+            layout: SkeletonLayout.overview,
+            label: 'Loading overview',
           ),
           error: (error, _) => ListView(
             physics: const AlwaysScrollableScrollPhysics(),
@@ -90,10 +89,9 @@ class _ParentOverviewState extends ConsumerState<ParentOverviewPage> {
       RefreshIndicator(
         onRefresh: _refresh,
         child: ref.watch(parentHomeProvider(childId)).when(
-          loading: () => ListView(
-            physics: const AlwaysScrollableScrollPhysics(),
-            padding: const EdgeInsets.all(16),
-            children: const [ZSkeletonList()],
+          loading: () => const ScreenSkeleton(
+            layout: SkeletonLayout.overview,
+            label: 'Loading overview',
           ),
           error: (error, _) => ListView(
             physics: const AlwaysScrollableScrollPhysics(),

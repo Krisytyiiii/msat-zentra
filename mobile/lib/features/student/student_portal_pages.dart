@@ -42,10 +42,9 @@ class _StudentOverviewState extends ConsumerState<StudentOverviewPage> {
         child: RefreshIndicator(
           onRefresh: _refresh,
           child: ref.watch(studentHomeProvider).when(
-            loading: () => ListView(
-              physics: const AlwaysScrollableScrollPhysics(),
-              padding: const EdgeInsets.all(16),
-              children: const [ZSkeletonList()],
+            loading: () => const ScreenSkeleton(
+              layout: SkeletonLayout.overview,
+              label: 'Loading overview',
             ),
             error: (error, _) => ListView(
               physics: const AlwaysScrollableScrollPhysics(),
