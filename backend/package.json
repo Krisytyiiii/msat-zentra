@@ -5,7 +5,7 @@
   "type": "module",
   "scripts": {
     "dev": "tsx watch src/index.ts",
-    "build": "tsc -p tsconfig.json && node scripts/copy-anecdotal-assets.mjs && node scripts/copy-sf10-assets.mjs",
+    "build": "tsc -p tsconfig.json && node scripts/copy-anecdotal-assets.mjs && node scripts/copy-sf10-assets.mjs && node scripts/copy-referral-assets.mjs",
     "start": "node dist/index.js",
     "prisma:generate": "prisma generate",
     "prisma:migrate": "prisma migrate dev",

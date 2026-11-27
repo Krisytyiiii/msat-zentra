@@ -707,7 +707,6 @@ class CoordinatorIssueDevicePage extends ConsumerStatefulWidget {
 }
 
 class _IssueState extends ConsumerState<CoordinatorIssueDevicePage> {
-  int _page = 1;
   String _q = '';
   final _search = TextEditingController();
 
@@ -743,7 +742,8 @@ class _IssueState extends ConsumerState<CoordinatorIssueDevicePage> {
   @override
   Widget build(BuildContext context) {
     final theme = overviewScreenTheme(zLightTheme());
-    final query = (desk: 'deviceCandidates', page: _page, q: _q, filter: '');
+    final scope = ref.watch(coordinatorScopeProvider).asData?.value;
+    final query = (desk: 'deviceCandidates', page: 1, q: _q, filter: '');
     return Theme(
       data: theme,
       child: Scaffold(
@@ -780,18 +780,18 @@ class _IssueState extends ConsumerState<CoordinatorIssueDevicePage> {
                   spacing: 6,
                   runSpacing: 6,
                   children: [
-                    ZPill(
-                      label: 'Scope',
-                      tone: StatusTone.neutral,
-                      badge: true,
-                      child: const Text('School-managed scope'),
-                    ),
-                    ZPill(
-                      label: 'Records',
-                      tone: StatusTone.blue,
-                      badge: true,
-                      child: const Text('Cross-term records'),
-                    ),
+                    if (scope != null && scope.schoolYearName.isNotEmpty)
+                      ZScopePill(
+                        text: scope.schoolYearName,
+                        kind: ScopePillKind.schoolYear,
+                        compact: true,
+                      ),
+                    if (scope?.termNumber != null)
+                      ZScopePill(
+                        text: 'Term ${scope!.termNumber}',
+                        kind: ScopePillKind.term,
+                        compact: true,
+                      ),
                   ],
                 ),
                 const SizedBox(height: 12),
@@ -813,7 +813,6 @@ class _IssueState extends ConsumerState<CoordinatorIssueDevicePage> {
                               onPressed: () => setState(() {
                                 _search.clear();
                                 _q = '';
-                                _page = 1;
                               }),
                             ),
                       suffixIconConstraints: const BoxConstraints(
@@ -848,7 +847,6 @@ class _IssueState extends ConsumerState<CoordinatorIssueDevicePage> {
                     ),
                     onChanged: (text) => setState(() {
                       _q = text.trim();
-                      _page = 1;
                     }),
                   ),
                 ),
@@ -883,12 +881,6 @@ class _IssueState extends ConsumerState<CoordinatorIssueDevicePage> {
                               ? () => _pick(row)
                               : null,
                         ),
-                      AdmPager(
-                        page: _page,
-                        pages: data.totalPages,
-                        total: data.total,
-                        onPage: (p) => setState(() => _page = p),
-                      ),
                     ],
                   ),
                 ),

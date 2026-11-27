@@ -278,9 +278,9 @@ const _coordinatorDestinations = [
     icon: LucideIcons.graduationCap,
   ),
   (
-    path: '/coordinator/certifications',
-    label: 'Certifications',
-    icon: LucideIcons.badgeCheck,
+    path: '/coordinator/files',
+    label: 'Files',
+    icon: LucideIcons.award,
   ),
   (path: '/coordinator/devices', label: 'Devices', icon: LucideIcons.tablet),
 ];

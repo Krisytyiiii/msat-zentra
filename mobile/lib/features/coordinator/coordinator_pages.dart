@@ -273,7 +273,7 @@ class _OverviewState extends ConsumerState<CoordinatorOverviewPage>
             title:
                 '$pending case${pending == 1 ? '' : 's'} awaiting principal signature',
             subtitle: 'Review and endorse signed certifications.',
-            onTap: () => _open('/coordinator/certifications'),
+            onTap: () => _open('/coordinator/files'),
           ),
         if (pending > 0 && revisions > 0) const SizedBox(height: 8),
         if (revisions > 0)
@@ -282,7 +282,7 @@ class _OverviewState extends ConsumerState<CoordinatorOverviewPage>
             title:
                 '$revisions case${revisions == 1 ? '' : 's'} needing revision',
             subtitle: 'Returned by the principal for more detail.',
-            onTap: () => _open('/coordinator/certifications'),
+            onTap: () => _open('/coordinator/files'),
           ),
       ],
     );
@@ -422,7 +422,7 @@ class _OverviewState extends ConsumerState<CoordinatorOverviewPage>
         OverviewStatItem(
           label: 'Principal-signed',
           value: admInt(kpis['signed']),
-          path: '/coordinator/certifications',
+          path: '/coordinator/files',
         ),
         OverviewStatItem(
           label: 'Devices issued',
@@ -624,9 +624,7 @@ class CoordinatorListPage extends ConsumerStatefulWidget {
 
 class _ListState extends ConsumerState<CoordinatorListPage>
     with WidgetsBindingObserver, CoordinatorRefresh<CoordinatorListPage> {
-  late String _filter = widget.desk == 'certifications'
-      ? 'certification'
-      : widget.desk == 'enrolled'
+  late String _filter = widget.desk == 'enrolled'
       ? 'enrollment_monitoring'
       : '';
   String _query = '', _rawQuery = '';
@@ -675,6 +673,7 @@ class _ListState extends ConsumerState<CoordinatorListPage>
       'completion': 'Completed',
     },
     'certifications' => {
+      '': 'All files',
       'certification': 'Preparation / revision',
       'principal_approval': 'Awaiting principal',
       'approved': 'Approved',
@@ -689,7 +688,7 @@ class _ListState extends ConsumerState<CoordinatorListPage>
 
   String get _title => switch (widget.desk) {
     'enrolled' => 'Enrolled',
-    'certifications' => 'Certifications',
+    'certifications' => 'Files',
     'devices' => 'Devices',
     _ => 'ADM Cases',
   };
@@ -704,7 +703,7 @@ class _ListState extends ConsumerState<CoordinatorListPage>
 
   IconData get _icon => switch (widget.desk) {
     'enrolled' => Icons.school_outlined,
-    'certifications' => Icons.verified_outlined,
+    'certifications' => Icons.folder_open_outlined,
     'devices' => Icons.devices_outlined,
     _ => Icons.folder_shared_outlined,
   };
@@ -715,15 +714,10 @@ class _ListState extends ConsumerState<CoordinatorListPage>
     final kpis = admMap(dashboard['kpis']);
     final devices = admMap(dashboard['deviceSummary']);
     return switch (widget.desk) {
-      'enrolled' => [
-        ('ADM profiles', admInt(kpis['active'])),
-        ('Signed', admInt(kpis['signed'])),
-        ('Devices issued', admInt(devices['issued'])),
-      ],
       'certifications' => [
+        ('Approved', admInt(kpis['signed'])),
         ('Awaiting', admInt(kpis['pendingSignature'])),
-        ('Signed', admInt(kpis['signed'])),
-        ('Revision', admInt(dashboard['needsRevision'])),
+        ('Needs revision', admInt(dashboard['needsRevision'])),
       ],
       'devices' => [
         ('Issued', admInt(devices['issued'])),
@@ -738,6 +732,32 @@ class _ListState extends ConsumerState<CoordinatorListPage>
     };
   }
 
+  /// Enrolled monitoring lanes, derived from the loaded cohort exactly like
+  /// web: no released modules → Not released, all submitted (or completed) →
+  /// Complete, otherwise In progress.
+  List<(String, int)> _enrolledCounts(List<AdmCaseRow> rows) {
+    var inProgress = 0, complete = 0, notReleased = 0;
+    for (final row in rows) {
+      if (row.stage == 'completion') {
+        complete += 1;
+        continue;
+      }
+      final total = row.modulesTotal;
+      if (total <= 0) {
+        notReleased += 1;
+      } else if (row.modulesSubmitted >= total) {
+        complete += 1;
+      } else {
+        inProgress += 1;
+      }
+    }
+    return [
+      ('In progress', inProgress),
+      ('Complete', complete),
+      ('Not released', notReleased),
+    ];
+  }
+
   Map<String, dynamic> _caseJson(AdmCaseRow row) => {
     'id': row.id,
     'studentName': row.student,
@@ -750,7 +770,7 @@ class _ListState extends ConsumerState<CoordinatorListPage>
     'approved': row.approvedBy.isNotEmpty,
   };
 
-  Widget _enrolledFooter(AdmCaseRow row) {
+  Widget _progressFooter(AdmCaseRow row) {
     final completed = row.stage == 'completion';
     final pillColor = completed
         ? const Color(0xFF15803D)
@@ -800,6 +820,28 @@ class _ListState extends ConsumerState<CoordinatorListPage>
             ],
           ),
         ),
+      ],
+    );
+  }
+
+  Widget _certificationFooter(AdmCaseRow row) {
+    final approved = row.approvedBy.isNotEmpty;
+    final awaiting = row.stage == 'principal_approval';
+    final (label, tone) = approved
+        ? ('Approved', StatusTone.green)
+        : awaiting
+        ? ('Awaiting principal', StatusTone.blue)
+        : ('Prepared', StatusTone.amber);
+    return Row(
+      children: [
+        if (row.grade.isNotEmpty)
+          ZScopePill(
+            text: row.grade,
+            kind: ScopePillKind.grade,
+            compact: true,
+          ),
+        const Spacer(),
+        ZStatusPill(text: label, tone: tone),
       ],
     );
   }
@@ -857,14 +899,23 @@ class _ListState extends ConsumerState<CoordinatorListPage>
                         ],
                       ),
                       const SizedBox(height: 16),
-                      ref
-                          .watch(coordinatorDashboardProvider)
-                          .when(
-                            loading: () => const SkeletonBox(height: 44),
-                            error: (_, _) => const SizedBox.shrink(),
-                            data: (data) =>
-                                AdmCaseCounters(counts: _counterValues(data)),
+                      if (widget.desk == 'enrolled')
+                        switch (ref.watch(coordinatorListProvider(query))) {
+                          AsyncData(:final value) => AdmCaseCounters(
+                            counts: _enrolledCounts(value.rows),
                           ),
+                          AsyncError() => const SizedBox.shrink(),
+                          _ => const SkeletonBox(height: 44),
+                        }
+                      else
+                        ref
+                            .watch(coordinatorDashboardProvider)
+                            .when(
+                              loading: () => const SkeletonBox(height: 44),
+                              error: (_, _) => const SizedBox.shrink(),
+                              data: (data) =>
+                                  AdmCaseCounters(counts: _counterValues(data)),
+                            ),
                       const SizedBox(height: 14),
                       if (search == null) ...[
                         ZSearchField(
@@ -936,12 +987,12 @@ class _ListState extends ConsumerState<CoordinatorListPage>
                                       'enrolled' =>
                                         'No enrolled learners match',
                                       'certifications' =>
-                                        'No certifications match',
+                                        'No certification files match',
                                       _ => 'No matching ADM records',
                                     },
                                     subtitle: switch (widget.desk) {
                                       'enrolled' => 'ADM learners under enrollment monitoring and completion appear here.',
-                                      'certifications' => 'Certifications awaiting signature and returned cases appear here.',
+                                      'certifications' => 'Certification files awaiting signature and returned cases appear here.',
                                       _ => 'ADM cases for this school year appear here.',
                                     },
                                   ),
@@ -951,10 +1002,15 @@ class _ListState extends ConsumerState<CoordinatorListPage>
                                     child: AdmCaseCard(
                                       key: ValueKey(row.id),
                                       caseData: _caseJson(row),
-                                      showStatusPill: widget.desk != 'enrolled',
-                                      footer: widget.desk == 'enrolled'
-                                          ? _enrolledFooter(row)
-                                          : null,
+                                      showStatusPill:
+                                          widget.desk != 'enrolled' &&
+                                          widget.desk != 'certifications',
+                                      footer: switch (widget.desk) {
+                                        'enrolled' => _progressFooter(row),
+                                        'certifications' =>
+                                          _certificationFooter(row),
+                                        _ => null,
+                                      },
                                       onTap: () => _open(row),
                                     ),
                                   ),

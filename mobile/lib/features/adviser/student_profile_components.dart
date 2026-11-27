@@ -209,6 +209,7 @@ class StudentIdentityCard extends StatelessWidget {
     required this.onCopyLrn,
     this.badge,
     this.dotColor,
+    this.meta = const [],
   });
   final String name;
   final String lrn;
@@ -216,6 +217,9 @@ class StudentIdentityCard extends StatelessWidget {
   final VoidCallback onCopyLrn;
   final Widget? badge;
   final Color? dotColor;
+
+  /// Extra pills rendered under the name, e.g. grade + case status.
+  final List<Widget> meta;
 
   @override
   Widget build(BuildContext context) {
@@ -304,6 +308,15 @@ class StudentIdentityCard extends StatelessWidget {
                               fontSize: 11,
                               color: studentMuted,
                             ),
+                          ),
+                        ],
+                        if (meta.isNotEmpty) ...[
+                          const SizedBox(height: 8),
+                          Wrap(
+                            spacing: 6,
+                            runSpacing: 6,
+                            crossAxisAlignment: WrapCrossAlignment.center,
+                            children: meta,
                           ),
                         ],
                       ],

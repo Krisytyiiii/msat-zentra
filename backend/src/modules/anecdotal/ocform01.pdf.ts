@@ -353,14 +353,12 @@ export async function buildOcForm01Pdf(data: OcForm01Data): Promise<Uint8Array> 
     it += PARA_LABEL_H;
     const areaH = block.height - PARA_LABEL_H;
     const areaTop = topY(it);
-    // Left / right / bottom borders (top stays open, like the workbook).
+    // Only the ruled lines are drawn (web parity): the narrative blocks sit
+    // inside the form's outer box, so left/right/bottom borders would double
+    // the outer outline and close off the wrapped text.
     const x0 = X(IX);
     const x1 = X(IX + IW);
     const yTop = areaTop;
-    const yBot = areaTop - areaH * scale;
-    page.drawLine({ start: { x: x0, y: yTop }, end: { x: x0, y: yBot }, thickness: LW(1), color: INK });
-    page.drawLine({ start: { x: x1, y: yTop }, end: { x: x1, y: yBot }, thickness: LW(1), color: INK });
-    page.drawLine({ start: { x: x0, y: yBot }, end: { x: x1, y: yBot }, thickness: LW(1), color: INK });
     // Notebook rules: one underline per text line plus blank ruled rows
     // filling the block to its minimum height (web ruled-paper parity).
     const ruleDy = Math.max(1, PARA_RULE_BELOW * scale);

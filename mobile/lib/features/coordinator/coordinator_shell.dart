@@ -43,9 +43,9 @@ const coordinatorDestinations = [
     Icons.school_outlined,
   ),
   ScreenSearchDestination(
-    'Certifications',
-    '/coordinator/certifications',
-    Icons.verified_outlined,
+    'Files',
+    '/coordinator/files',
+    Icons.folder_open_outlined,
   ),
   ScreenSearchDestination(
     'Devices',

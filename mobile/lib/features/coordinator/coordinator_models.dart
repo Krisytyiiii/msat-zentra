@@ -123,6 +123,7 @@ class AdmCaseDetail {
       eligibility = admText(j['eligibilityStatus']),
       approvedBy = admText(j['approvedBy']),
       approvalDate = admText(j['approvalDate']),
+      preparedBy = admText(j['preparedBy']),
       referral = j['referral'] is Map ? admMap(j['referral']) : null,
       anecdotal = j['anecdotal'] is Map ? admMap(j['anecdotal']) : null,
       certification = admMap(j['certificationDetails']),
@@ -138,7 +139,8 @@ class AdmCaseDetail {
       stage,
       eligibility,
       approvedBy,
-      approvalDate;
+      approvalDate,
+      preparedBy;
   final AdmJson? referral, anecdotal;
   final AdmJson certification;
   final List<AdmJson> forms, sessions;

@@ -325,7 +325,7 @@ void main() {
       );
       await repo.cases((desk: 'deviceCandidates', page: 2, q: '', filter: ''));
       expect(api.requests.last.path, '/api/adm/approvals');
-      expect(api.requests.last.queryParameters, {'page': 2, 'pageSize': 15});
+      expect(api.requests.last.queryParameters, {'all': '1'});
       await repo.monitoring('name/with space');
       expect(api.requests.last.path, '/api/adm/cases/name%2Fwith%20space');
       await repo.caseFile('referral:ref-1');

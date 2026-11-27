@@ -50,7 +50,11 @@ export function resolveSoffice(): string | null {
   const override = process.env.SF10_SOFFICE_PATH?.trim();
   const candidates = override ? [override, ...KNOWN_PATHS] : KNOWN_PATHS;
   for (const candidate of candidates) {
-    if (path.isAbsolute(candidate)) {
+    // Windows install paths are not absolute on POSIX, so recognise their
+    // drive-letter form too; otherwise `path.isAbsolute` would treat them as a
+    // bare binary name and exec would fail with ENOENT on Linux/macOS.
+    const windowsAbsolute = /^[A-Za-z]:[\\/]/.test(candidate);
+    if (path.isAbsolute(candidate) || windowsAbsolute) {
       if (existsSync(candidate)) binary = candidate;
     } else {
       // Bare name: let the OS resolve it on PATH (checked on first run).

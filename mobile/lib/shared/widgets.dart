@@ -28,35 +28,68 @@ class ErrorView extends StatelessWidget {
   const ErrorView({super.key, required this.message, this.onRetry});
   @override
   Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-    return Center(
-      child: Padding(
-        padding: const EdgeInsets.all(24),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Container(
-              padding: const EdgeInsets.all(12),
-              decoration: BoxDecoration(
-                shape: BoxShape.circle,
-                color: theme.colorScheme.surfaceContainerLow,
-              ),
-              child: const Icon(Icons.error_outline, size: 20),
+    return Padding(
+      padding: const EdgeInsets.all(16),
+      child: Align(
+        alignment: Alignment.center,
+        child: ConstrainedBox(
+          constraints: const BoxConstraints(maxWidth: 460),
+          child: Container(
+            width: double.infinity,
+            padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 24),
+            decoration: BoxDecoration(
+              color: Colors.white,
+              borderRadius: BorderRadius.circular(16),
+              border: Border.all(color: const Color(0xFFDFE7F5)),
             ),
-            const SizedBox(height: 8),
-            Semantics(
-              liveRegion: true,
-              child: Text(
-                userMessage(message),
-                textAlign: TextAlign.center,
-                style: theme.textTheme.bodySmall,
-              ),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Container(
+                  padding: const EdgeInsets.all(10),
+                  decoration: const BoxDecoration(
+                    shape: BoxShape.circle,
+                    color: Color(0xFFFFF1F1),
+                  ),
+                  child: const Icon(
+                    Icons.error_outline,
+                    size: 20,
+                    color: Color(0xFFDC2626),
+                  ),
+                ),
+                const SizedBox(height: 12),
+                Semantics(
+                  liveRegion: true,
+                  child: Text(
+                    userMessage(message),
+                    textAlign: TextAlign.center,
+                    style: const TextStyle(
+                      fontSize: 13,
+                      height: 1.45,
+                      fontWeight: FontWeight.w600,
+                      color: Color(0xFF192034),
+                    ),
+                  ),
+                ),
+                if (onRetry != null) ...[
+                  const SizedBox(height: 14),
+                  FilledButton(
+                    style: FilledButton.styleFrom(
+                      backgroundColor: const Color(0xFF4263F0),
+                      foregroundColor: Colors.white,
+                      minimumSize: const Size(0, 48),
+                      padding: const EdgeInsets.symmetric(horizontal: 24),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                    ),
+                    onPressed: onRetry,
+                    child: const Text('Try again'),
+                  ),
+                ],
+              ],
             ),
-            if (onRetry != null) ...[
-              const SizedBox(height: 12),
-              FilledButton(onPressed: onRetry, child: const Text('Try again')),
-            ],
-          ],
+          ),
         ),
       ),
     );

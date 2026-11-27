@@ -87,12 +87,17 @@ List<RouteBase> _coordinatorDeskRoute() => [
           child: const CoordinatorOverviewPage(),
         ),
       ),
-      for (final desk in ['referrals', 'enrolled', 'certifications', 'devices'])
+      for (final desk in const [
+        (path: 'referrals', desk: 'referrals'),
+        (path: 'enrolled', desk: 'enrolled'),
+        (path: 'files', desk: 'certifications'),
+        (path: 'devices', desk: 'devices'),
+      ])
         GoRoute(
-          path: '/coordinator/$desk',
+          path: '/coordinator/${desk.path}',
           pageBuilder: (_, state) => NoTransitionPage<void>(
             key: state.pageKey,
-            child: CoordinatorListPage(desk: desk),
+            child: CoordinatorListPage(desk: desk.desk),
           ),
         ),
       GoRoute(

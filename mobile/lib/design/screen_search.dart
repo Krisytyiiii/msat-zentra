@@ -48,11 +48,8 @@ ScreenSearchSpec screenSearchSpecFor(String location, [Uri? uri]) {
       );
     case '/coordinator/enrolled':
       return const ScreenSearchSpec.filter('Enrolled', 'Search learner or LRN');
-    case '/coordinator/certifications':
-      return const ScreenSearchSpec.filter(
-        'Certifications',
-        'Search learner or LRN',
-      );
+    case '/coordinator/files':
+      return const ScreenSearchSpec.filter('Files', 'Search learner or LRN');
     case '/coordinator/devices':
       return const ScreenSearchSpec.filter(
         'Devices',

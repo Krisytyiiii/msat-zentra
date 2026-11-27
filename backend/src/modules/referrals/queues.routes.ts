@@ -7,9 +7,29 @@ import { CACHE_TTLS } from "../../lib/cacheTags.js";
 import { referralsMineQuerySchema, referralsQueueQuerySchema } from "./referrals.schemas.js";
 import { NURSE_CACHE_TAGS, resolveQueuePageSize } from "./referrals.repository.js";
 import { listMine, listQueue } from "../../services/referrals/queues.service.js";
+import { renderGcForm03Pdf } from "../../services/referrals/gcform03.service.js";
 import { listFormSigners } from "../../services/referrals/signers.service.js";
 
 const router = Router();
+
+router.get(
+  "/:id/gcform03.pdf",
+  requireAuth,
+  requireRole("adm_coordinator", "guidance_counselor", "nurse", "principal"),
+  async (req, res, next) => {
+    try {
+      const { buffer, filename } = await renderGcForm03Pdf(
+        String(req.params.id)
+      );
+      res.setHeader("Content-Type", "application/pdf");
+      res.setHeader("Content-Disposition", `inline; filename="${filename}"`);
+      res.setHeader("Cache-Control", "private, no-store");
+      res.send(buffer);
+    } catch (e) {
+      next(e);
+    }
+  }
+);
 
 router.get(
   "/form-signers",

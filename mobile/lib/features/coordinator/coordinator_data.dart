@@ -95,6 +95,10 @@ final coordinatorAnecdotalPdfProvider = FutureProvider.autoDispose
     .family<Uint8List, String>(
       (ref, id) => ref.watch(coordinatorRepositoryProvider).anecdotalPdf(id),
     );
+final coordinatorGcForm03Provider = FutureProvider.autoDispose
+    .family<Uint8List, String>(
+      (ref, id) => ref.watch(coordinatorRepositoryProvider).gcForm03Pdf(id),
+    );
 final coordinatorHistoryProvider = FutureProvider.autoDispose
     .family<List<AdmJson>, ({String profileId, String referralId})>(
       (ref, ids) => ref
@@ -193,20 +197,52 @@ class CoordinatorRepository {
 
   Future<AdmPage<AdmCaseRow>> cases(AdmListQuery query) async {
     final candidates = query.desk == 'deviceCandidates';
-    final approved =
-        candidates ||
-        (query.desk == 'certifications' && query.filter == 'approved');
+    final files = query.desk == 'certifications';
+    if (files && query.filter.isEmpty) return _certificationFiles(query.q);
+    final approved = candidates || (files && query.filter == 'approved');
     return AdmPage.fromJson(
       await _get(approved ? '/api/adm/approvals' : '/api/adm/referrals/all', {
-        // The coordinator lists render the full cohort; only the device
-        // candidate picker still pages.
-        if (candidates) 'page': query.page,
-        if (candidates) 'pageSize': 15,
-        if (!candidates) 'all': '1',
+        // The coordinator lists render the full cohort (approvals included);
+        // no desk pages any more.
+        'all': '1',
         if (query.q.trim().isNotEmpty) 'q': query.q.trim(),
         if (!approved && query.filter.isNotEmpty) 'stage': query.filter,
       }),
       AdmCaseRow.fromJson,
+    );
+  }
+
+  /// The Files desk mirrors web: its default view merges the two
+  /// certification stages with the approved-approvals rows, deduplicated by
+  /// case id. Each source still comes from the same endpoints the status
+  /// filters use.
+  Future<AdmPage<AdmCaseRow>> _certificationFiles(String search) async {
+    final q = search.trim();
+    final sources = await Future.wait([
+      _get('/api/adm/referrals/all', {
+        'all': '1',
+        'stage': 'certification',
+        if (q.isNotEmpty) 'q': q,
+      }),
+      _get('/api/adm/referrals/all', {
+        'all': '1',
+        'stage': 'principal_approval',
+        if (q.isNotEmpty) 'q': q,
+      }),
+      _get('/api/adm/approvals', {'all': '1', if (q.isNotEmpty) 'q': q}),
+    ]);
+    final seen = <String>{};
+    final rows = <AdmCaseRow>[];
+    for (final source in sources) {
+      for (final row in AdmPage.fromJson(source, AdmCaseRow.fromJson).rows) {
+        if (seen.add(row.id)) rows.add(row);
+      }
+    }
+    return AdmPage(
+      rows: rows,
+      total: rows.length,
+      page: 1,
+      totalPages: 1,
     );
   }
 
@@ -240,6 +276,20 @@ class CoordinatorRepository {
     try {
       final res = await api.dio.get<List<int>>(
         '/api/anecdotal/${Uri.encodeComponent(id)}/pdf',
+        cancelToken: _cancel,
+        options: Options(responseType: ResponseType.bytes),
+      );
+      return Uint8List.fromList(res.data ?? []);
+    } on DioException catch (e) {
+      throw api.toApiException(e);
+    }
+  }
+
+  Future<Uint8List> gcForm03Pdf(String referralId) async {
+    if (_disposed) throw ApiException('SESSION_EXPIRED', 'Sign in again.');
+    try {
+      final res = await api.dio.get<List<int>>(
+        '/api/referrals/${Uri.encodeComponent(referralId)}/gcform03.pdf',
         cancelToken: _cancel,
         options: Options(responseType: ResponseType.bytes),
       );
