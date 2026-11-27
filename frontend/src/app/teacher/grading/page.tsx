@@ -1,14 +1,13 @@
 "use client";
 
 import { useLiveQuery } from "@/lib/api/live";
-import { Skeleton } from "@/components/ui/skeleton";
 import { ClipboardList } from "lucide-react";
 import { apiClient } from "@/lib/api/client";
 import { liveQueryOptions } from "@/lib/api/live";
 import { useTerm } from "@/lib/term/TermContext";
 import { TeacherGateCard } from "../components/TeacherGateCard";
 import { useTeacherOverviewGradebook } from "@/services/teacher/overview.service";
-import { GradebookCards } from "./components/GradebookCards";
+import { GradebookCards, GradebookCardsSkeleton } from "./components/GradebookCards";
 import styles from "./components/gradebook.module.css";
 
 export default function TeacherGradebookPage() {
@@ -40,27 +39,7 @@ export default function TeacherGradebookPage() {
   if (gradebook.isPending || meQuery.isPending) {
     return (
       <section className={styles.page} aria-busy="true" aria-label="Loading gradebook">
-        <div className={styles.skelGrid} aria-hidden="true">
-          {Array.from({ length: 4 }).map((_, i) => (
-            <div key={i} className={styles.skelCard}>
-              <Skeleton className={styles.skelSubject} />
-              <Skeleton className={styles.skelMeta} />
-              <div className={styles.skelStats}>
-                {[0, 1].map((s) => (
-                  <div key={s} className={styles.skelStatCol}>
-                    <Skeleton className={styles.skelStatValue} />
-                    <Skeleton className={styles.skelStatLabel} />
-                  </div>
-                ))}
-              </div>
-              <Skeleton className={styles.skelBar} />
-              <Skeleton className={styles.skelProgressLabel} />
-              <div className={styles.skelFoot}>
-                <Skeleton className={styles.skelBtn} />
-              </div>
-            </div>
-          ))}
-        </div>
+        <GradebookCardsSkeleton />
       </section>
     );
   }
@@ -142,15 +121,6 @@ export default function TeacherGradebookPage() {
 
   return (
     <section className={styles.page}>
-      <div>
-        <h1 className="text-2xl font-semibold tracking-tight">Gradebook</h1>
-        <p className="mt-1 text-sm text-muted-foreground">
-          {gradebook.data.classes.length === 1
-            ? "1 subject"
-            : `${gradebook.data.classes.length} subjects`}{" "}
-          for this term — open a workspace to encode scores.
-        </p>
-      </div>
       <GradebookCards
         classes={gradebook.data.classes}
         assessments={gradebook.data.assessments}

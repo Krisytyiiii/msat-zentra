@@ -5,7 +5,7 @@ import { BookOpen, Loader2, Trash2, TriangleAlert } from "lucide-react";
 import { TeacherEmptyCard } from "../../components/TeacherEmptyCard";
 import { Button } from "@/components/ui/button";
 import { useDock } from "@/components/dock/dock-store";
-import { KanbanOverlay } from "@/components/ui/kanban-overlay";
+import { MessageOverlay } from "@/components/ui/message-overlay";
 import {
   Select,
   SelectContent,
@@ -34,8 +34,6 @@ import {
   type ModuleStatusCounts,
 } from "@/services/teacher/advisoryModules.service";
 
-type BoardFilter = keyof ModuleStatusCounts;
-
 function errorMessage(err: unknown, fallback: string): string {
   const data = (err as { response?: { data?: { error?: { message?: unknown }; message?: unknown } } })
     ?.response?.data;
@@ -50,7 +48,6 @@ const EMPTY_COUNTS: ModuleStatusCounts = { all: 0, submitted: 0, pending: 0, ove
 export default function TeacherAdvisoryModulesPage() {
   const [sectionId, setSectionId] = React.useState<string | undefined>(undefined);
   const [modulePage, setModulePage] = React.useState(1);
-  const [moduleFilter, setModuleFilter] = React.useState<BoardFilter>("all");
 
   const [selectedModuleId, setSelectedModuleId] = React.useState<string | null>(null);
   const [submissionPage, setSubmissionPage] = React.useState(1);
@@ -63,10 +60,13 @@ export default function TeacherAdvisoryModulesPage() {
   const modulesQuery = useAdvisoryModules({
     page: modulePage,
     sectionId,
-    status: moduleFilter === "all" ? undefined : moduleFilter,
   });
   const extras = modulesExtras(modulesQuery.data);
-  const rows = modulesQuery.data?.data ?? [];
+  // While a new section is fetching, TanStack keeps the previous page's rows as
+  // placeholder data. Drop them so the board never shows another section's
+  // cards — a cached section still renders instantly, otherwise card skeletons.
+  const switching = modulesQuery.isPlaceholderData;
+  const rows = switching ? [] : (modulesQuery.data?.data ?? []);
   const sections = extras?.sections ?? [];
   const counts = extras?.counts ?? EMPTY_COUNTS;
 
@@ -226,15 +226,11 @@ export default function TeacherAdvisoryModulesPage() {
           <ModulesPanel
             rows={rows}
             counts={counts}
-            total={modulesQuery.data?.total ?? 0}
+            total={switching ? 0 : (modulesQuery.data?.total ?? 0)}
             page={modulePage}
             selectedId={selectedModuleId ?? viewingModule?.id ?? null}
-            filter={moduleFilter}
+            loading={switching}
             headerActions={sectionPicker}
-            onFilterChange={(next) => {
-              setModuleFilter(next);
-              setModulePage(1);
-            }}
             onPageChange={setModulePage}
             onAdd={() => startModule("general")}
             onEdit={(module) => {
@@ -292,52 +288,57 @@ export default function TeacherAdvisoryModulesPage() {
         }}
       />
 
-      <KanbanOverlay
-        open={!!deleting}
-        onClose={() => {
-          if (!deleteModule.isPending) setDeleting(null);
-        }}
-        dismissable={!deleteModule.isPending}
-        title="Remove module"
-        ariaLabel="Remove module"
-        icon={
-          <span
-            className="flex size-6 items-center justify-center rounded-md bg-red-500/10 text-red-600 dark:text-red-400"
-            aria-hidden
-          >
-            <Trash2 size={14} />
-          </span>
-        }
-        width="sm"
-        footer={
-          <div className="flex w-full flex-wrap items-center justify-between gap-2 px-0.5 pb-0.5">
-            <p className="m-0 text-[12px] text-muted-foreground">This can&apos;t be undone.</p>
-            <Button
-              type="button"
-              className="ml-auto gap-1.5 bg-red-600 text-white hover:bg-red-700 dark:bg-red-600 dark:hover:bg-red-700"
-              onClick={handleDelete}
-              disabled={deleteModule.isPending}
-              aria-busy={deleteModule.isPending || undefined}
-            >
-              {deleteModule.isPending ? (
-                <Loader2 size={14} className="animate-spin" aria-hidden />
-              ) : (
-                <Trash2 size={14} aria-hidden />
-              )}
-              Remove module
-            </Button>
-          </div>
-        }
-      >
-        <div className="flex flex-col gap-3">
-          <p className="m-0 text-sm text-foreground">
-            Delete{" "}
-            <span className="font-semibold">
-              &ldquo;{deleting?.moduleName ?? "this module"}&rdquo;
-            </span>{" "}
-            and every recorded submission for it?
-          </p>
-          <div className="flex flex-col gap-1.5 rounded-md border border-red-500/30 bg-red-500/[0.06] p-3">
+      {deleting ? (
+        <MessageOverlay
+          title="Remove module"
+          description={
+            <>
+              Delete{" "}
+              <span className="font-semibold text-foreground">
+                &ldquo;{deleting.moduleName}&rdquo;
+              </span>{" "}
+              and every recorded submission for it?
+            </>
+          }
+          tone="danger"
+          icon={<Trash2 size={16} aria-hidden />}
+          role="alertdialog"
+          onDismiss={() => {
+            if (!deleteModule.isPending) setDeleting(null);
+          }}
+          dismissable={!deleteModule.isPending}
+          footerHint="This can't be undone."
+          actions={
+            <>
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                className="h-8 px-3 text-[12px]"
+                onClick={() => setDeleting(null)}
+                disabled={deleteModule.isPending}
+              >
+                Cancel
+              </Button>
+              <Button
+                type="button"
+                size="sm"
+                className="h-8 gap-1.5 bg-red-600 px-3 text-[12px] text-white hover:bg-red-700 dark:bg-red-600 dark:hover:bg-red-700"
+                onClick={handleDelete}
+                disabled={deleteModule.isPending}
+                aria-busy={deleteModule.isPending || undefined}
+              >
+                {deleteModule.isPending ? (
+                  <Loader2 size={14} className="animate-spin" aria-hidden />
+                ) : (
+                  <Trash2 size={14} aria-hidden />
+                )}
+                Remove module
+              </Button>
+            </>
+          }
+        >
+          <div className="flex flex-col gap-1.5 rounded-md border border-red-500/30 bg-red-500/[0.06] p-2.5">
             <span className="inline-flex items-center gap-1.5 text-[12px] font-semibold text-red-700 dark:text-red-400">
               <TriangleAlert size={13} aria-hidden />
               What happens next
@@ -348,8 +349,8 @@ export default function TeacherAdvisoryModulesPage() {
               <li>The audit trail still keeps a record of the removal.</li>
             </ul>
           </div>
-        </div>
-      </KanbanOverlay>
+        </MessageOverlay>
+      ) : null}
     </div>
   );
 }

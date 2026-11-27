@@ -4,6 +4,7 @@ import { Loader2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { PageEmptyCallout } from "@/components/shared/page-empty-callout";
 import { useTeacherReports } from "@/services/teacher/reports.service";
+import { ReportsLoadStrip } from "./components/reports-load-strip";
 import { ReportsKpiStrip } from "./components/reports-kpi-strip";
 import { ReportsClassTable } from "./components/reports-class-table";
 import { ReportsDistribution } from "./components/reports-distribution";
@@ -64,6 +65,7 @@ export default function TeacherReportsPage() {
         </PageEmptyCallout>
       ) : (
         <>
+          <ReportsLoadStrip teacher={data.teacher} classes={data.classes} />
           <ReportsKpiStrip summary={data.summary} />
 
           <div className={styles.panels}>

@@ -34,22 +34,30 @@
 }
 
 .layout {
-  display: grid;
-  /* Narrow tool rail — the links only need an icon + one short label. */
-  grid-template-columns: 12.5rem minmax(0, 1fr);
+  display: flex;
   gap: 1rem;
   align-items: stretch;
   min-width: 0;
   /* Keeps the panel divider running to the bottom of the page even when the
-     right panel is short (empty term, no assessments yet). */
+     left panel is short (empty term, no assessments yet). */
   min-height: calc(100dvh - 8rem);
 }
 
-/* Left panel — gradebook tool switcher, separated by a full-height rule. */
+/* Right rail — gradebook tool switcher. Collapses to an icon rail; its width
+   animates so the content column grows/shrinks with it instead of snapping. */
 .subjectsPanel {
+  flex: 0 0 auto;
+  width: 12.5rem;
   min-width: 0;
-  border-right: 1px solid var(--border);
-  padding-right: 1rem;
+  padding-left: 0.5rem;
+  transition:
+    width 260ms cubic-bezier(0.22, 1, 0.36, 1),
+    padding-left 260ms cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+.subjectsPanelCollapsed {
+  width: 3.5rem;
+  padding-left: 0;
 }
 
 .subjects {
@@ -69,6 +77,7 @@
 
 .main {
   display: flex;
+  flex: 1 1 0;
   flex-direction: column;
   gap: 1.25rem;
   min-width: 0;
@@ -117,12 +126,14 @@
 
 @media (max-width: 64rem) {
   .layout {
-    grid-template-columns: minmax(0, 1fr);
+    flex-direction: column;
     min-height: 0;
   }
+  /* Stacked: the tool switcher stays above the panels it drives. */
   .subjectsPanel {
-    border-right: 0;
-    padding-right: 0;
+    width: auto;
+    order: -1;
+    padding-left: 0;
     border-bottom: 1px solid var(--border);
     padding-bottom: 0.75rem;
   }
@@ -135,6 +146,12 @@
     position: static;
     max-height: none;
     overflow-y: visible;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .subjectsPanel {
+    transition: none;
   }
 }
 

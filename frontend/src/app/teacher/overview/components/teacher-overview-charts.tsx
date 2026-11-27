@@ -28,7 +28,6 @@ import {
 } from "lucide-react";
 import { KanbanBoard, KanbanBoardEmpty } from "@/components/ui/kanban-board";
 import { InsightCallout } from "@/components/ui/insight-callout";
-import { Pill } from "@/components/ui/pill";
 import { Skeleton } from "@/components/ui/skeleton";
 import { ShimmerGroup } from "@/components/ui/shimmer-skeleton";
 import { useTeacherOverviewGradebook, useTeacherOverviewInsights } from "@/services/teacher/overview.service";
@@ -66,11 +65,6 @@ function BoardIcon({ icon: Icon }: { icon: React.ComponentType<{ size?: number }
       <Icon size={14} />
     </span>
   );
-}
-
-/** Board header count — amber figures, readable in both themes. */
-function amberCount(value: number) {
-  return <span className={styles.amberNumber}>{value}</span>;
 }
 
 /** Uniform "What it means" footer — the shared insight callout, pinned low. */
@@ -186,7 +180,7 @@ function TeacherChartTooltip({
   );
 }
 
-/** Chromeless legend row with the rectangle count/share pill. */
+/** Chromeless legend row with the plain count/share figure. */
 function LegendRow({
   color,
   label,
@@ -199,12 +193,10 @@ function LegendRow({
   hint: string;
 }) {
   return (
-    <li className={styles.legendItem}>
+    <li className={styles.legendItem} title={hint}>
       <span className={styles.swatch} style={{ background: color }} aria-hidden="true" />
       <span className={styles.legendLabel}>{label}</span>
-      <span className={styles.legendValue}>
-        <Pill label={hint}>{value}</Pill>
-      </span>
+      <span className={styles.legendValue}>{value}</span>
     </li>
   );
 }
@@ -351,12 +343,11 @@ export function TeacherOverviewCharts({
 
   return (
     <div className={styles.stack}>
-      <div className={styles.grid}>
+      <div className={styles.gridWide}>
         {/* Risk mix donut ------------------------------------------------ */}
         <KanbanBoard
           title="Risk mix"
           icon={<BoardIcon icon={HeartPulse} />}
-          count={amberCount(mixTotal)}
           description={`Current risk level of your ${populationLabel}.`}
           className="flex-1"
         >
@@ -408,6 +399,9 @@ export function TeacherOverviewCharts({
                       value={
                         <>
                           <span className={styles.legendPillCount}>{r.value}</span>
+                          <span className={styles.legendPillSep} aria-hidden="true">
+                            |
+                          </span>
                           <span className={styles.legendPillPercent}>
                             {mixTotal > 0 ? Math.round((r.value / mixTotal) * 100) : 0}%
                           </span>
@@ -431,7 +425,6 @@ export function TeacherOverviewCharts({
         <KanbanBoard
           title="Students by risk factor"
           icon={<BoardIcon icon={Flag} />}
-          count={amberCount(factorTotal)}
           description="Which signals are flagging learners right now."
           className="flex-1"
         >
@@ -473,71 +466,14 @@ export function TeacherOverviewCharts({
           </Interpretation>
         </KanbanBoard>
 
-        {/* Subject averages ---------------------------------------------- */}
-        <KanbanBoard
-          title="Subject averages"
-          icon={<BoardIcon icon={GraduationCap} />}
-          count={amberCount(subjectRows.length)}
-          description="Each slice is one class, sized by its term average."
-          className="flex-1"
-        >
-          {gradebookPending ? (
-            <ChartSkeleton variant="donut" />
-          ) : subjectRows.length === 0 ? (
-            <KanbanBoardEmpty>No graded classes yet.</KanbanBoardEmpty>
-          ) : (
-            <div className={styles.chartBody}>
-              <div
-                className={styles.donut}
-                role="img"
-                aria-label={`Subject averages: ${subjectRows.map((r) => `${r.label} ${r.average}`).join(", ")}`}
-              >
-                <ResponsiveContainer width="100%" height={168}>
-                  <PieChart>
-                    <Pie
-                      data={subjectRows}
-                      dataKey="average"
-                      nameKey="label"
-                      innerRadius="64%"
-                      outerRadius="100%"
-                      paddingAngle={2}
-                      stroke="transparent"
-                      isAnimationActive
-                      animationDuration={700}
-                    >
-                      {subjectRows.map((r) => (
-                        <Cell key={r.key} fill={r.fill} />
-                      ))}
-                    </Pie>
-                    <Tooltip content={<TeacherChartTooltip />} wrapperStyle={TOOLTIP_Z_INDEX} />
-                  </PieChart>
-                </ResponsiveContainer>
-                <div className={styles.center} aria-hidden="true">
-                  <span className={styles.centerValue}>{classAverage}</span>
-                  <span className={styles.centerLabel}>class avg</span>
-                </div>
-              </div>
-            </div>
-          )}
-          <Interpretation>
-            {subjectRows.length === 0
-              ? "No graded classes yet this term."
-              : belowTarget === 0
-                ? "Every class is at or above the 75 target."
-                : `${belowTarget} of ${subjectRows.length} classes sit below the 75 target.`}
-          </Interpretation>
-        </KanbanBoard>
       </div>
 
-      <div className={styles.gridWide}>
+      <div className={styles.gridStack}>
         {/* Day-by-day detection ------------------------------------------ */}
         <KanbanBoard
           title="At-risk detection, day by day"
           icon={<BoardIcon icon={TrendingUp} />}
-          count={amberCount(insights?.learnerCount ?? 0)}
-          description={`${insights?.learnerCount ?? 0} ${
-            (insights?.learnerCount ?? 0) === 1 ? "learner" : "learners"
-          } · last ${insights?.series.length ?? 0} school days`}
+          description={`at risk | ${flagged} of ${mixTotal}`}
           className="flex-1"
         >
           {insightsPending ? (
@@ -624,7 +560,6 @@ export function TeacherOverviewCharts({
         <KanbanBoard
           title="Attendance, day by day"
           icon={<BoardIcon icon={Activity} />}
-          count={amberCount(avgRate)}
           description="Each school day's present marks in green, absent marks in red."
           className="flex-1"
         >
@@ -720,79 +655,134 @@ export function TeacherOverviewCharts({
         </KanbanBoard>
       </div>
 
-      {/* Assessment pipeline ---------------------------------------------- */}
-      <KanbanBoard
-        title="Assessment pipeline"
-        icon={<BoardIcon icon={ClipboardCheck} />}
-        count={amberCount(pipelineTotal)}
-        description="Draft, published and locked assessments per subject."
-        className="flex-1"
-      >
-        {gradebookPending ? (
-          <ChartSkeleton variant="pipeline" />
-        ) : pipelineRows.length === 0 ? (
-          <KanbanBoardEmpty>No assessments yet this term.</KanbanBoardEmpty>
-        ) : (
-          <div className={styles.chartBody}>
-            <div
-              className={styles.lineChart}
-              role="img"
-              aria-label={`Assessment pipeline: ${pipelineRows
-                .map((r) => `${r.label} draft ${r.draft}, published ${r.published}, locked ${r.locked}`)
-                .join("; ")}`}
-            >
-              <ResponsiveContainer width="100%" height={Math.max(140, pipelineRows.length * 26 + 12)}>
-                <BarChart
-                  data={pipelineRows}
-                  layout="vertical"
-                  margin={{ top: 2, right: 8, bottom: 2, left: 0 }}
-                >
-                  <XAxis type="number" hide />
-                  <YAxis type="category" dataKey="label" width={116} tickLine={false} axisLine={false} />
-                  <Tooltip
-                    cursor={false}
-                    content={<TeacherChartTooltip />}
-                    wrapperStyle={TOOLTIP_Z_INDEX}
-                  />
-                  <Bar dataKey="draft" name="Draft" stackId="status" barSize={12} fill={SHADES[5]} />
-                  <Bar dataKey="published" name="Published" stackId="status" barSize={12} fill={SHADES[2]} />
-                  <Bar
-                    dataKey="locked"
-                    name="Locked"
-                    stackId="status"
-                    barSize={12}
-                    fill={SHADES[0]}
-                    radius={[0, 4, 4, 0]}
-                  />
-                </BarChart>
-              </ResponsiveContainer>
+      <div className={styles.gridWide}>
+        {/* Subject averages ---------------------------------------------- */}
+        <KanbanBoard
+          title="Subject averages"
+          icon={<BoardIcon icon={GraduationCap} />}
+          description="Each slice is one class, sized by its term average."
+          className="flex-1"
+        >
+          {gradebookPending ? (
+            <ChartSkeleton variant="donut" />
+          ) : subjectRows.length === 0 ? (
+            <KanbanBoardEmpty>No graded classes yet.</KanbanBoardEmpty>
+          ) : (
+            <div className={styles.chartBody}>
+              <div
+                className={styles.donut}
+                role="img"
+                aria-label={`Subject averages: ${subjectRows.map((r) => `${r.label} ${r.average}`).join(", ")}`}
+              >
+                <ResponsiveContainer width="100%" height={168}>
+                  <PieChart>
+                    <Pie
+                      data={subjectRows}
+                      dataKey="average"
+                      nameKey="label"
+                      innerRadius="64%"
+                      outerRadius="100%"
+                      paddingAngle={2}
+                      stroke="transparent"
+                      isAnimationActive
+                      animationDuration={700}
+                    >
+                      {subjectRows.map((r) => (
+                        <Cell key={r.key} fill={r.fill} />
+                      ))}
+                    </Pie>
+                    <Tooltip content={<TeacherChartTooltip />} wrapperStyle={TOOLTIP_Z_INDEX} />
+                  </PieChart>
+                </ResponsiveContainer>
+                <div className={styles.center} aria-hidden="true">
+                  <span className={styles.centerValue}>{classAverage}</span>
+                  <span className={styles.centerLabel}>class avg</span>
+                </div>
+              </div>
             </div>
-            <ul className={styles.legend}>
-              <LegendRow
-                color={SHADES[5]}
-                label="Draft"
-                value={pipelineRows.reduce((n, r) => n + r.draft, 0)}
-                hint="Assessments still being set up"
-              />
-              <LegendRow
-                color={SHADES[2]}
-                label="Published"
-                value={pipelineRows.reduce((n, r) => n + r.published, 0)}
-                hint="Assessments open for scoring"
-              />
-              <LegendRow
-                color={SHADES[0]}
-                label="Locked"
-                value={pipelineRows.reduce((n, r) => n + r.locked, 0)}
-                hint="Assessments with locked final scores"
-              />
-            </ul>
-          </div>
-        )}
-        <Interpretation>
-          Draft assessments cannot be scored — publish them before the term closes.
-        </Interpretation>
-      </KanbanBoard>
+          )}
+          <Interpretation>
+            {subjectRows.length === 0
+              ? "No graded classes yet this term."
+              : belowTarget === 0
+                ? "Every class is at or above the 75 target."
+                : `${belowTarget} of ${subjectRows.length} classes sit below the 75 target.`}
+          </Interpretation>
+        </KanbanBoard>
+
+        {/* Assessment pipeline ---------------------------------------------- */}
+        <KanbanBoard
+          title="Assessment pipeline"
+          icon={<BoardIcon icon={ClipboardCheck} />}
+          description="Draft, published and locked assessments per subject."
+          className="flex-1"
+        >
+          {gradebookPending ? (
+            <ChartSkeleton variant="pipeline" />
+          ) : pipelineRows.length === 0 ? (
+            <KanbanBoardEmpty>No assessments yet this term.</KanbanBoardEmpty>
+          ) : (
+            <div className={styles.chartBody}>
+              <div
+                className={styles.lineChart}
+                role="img"
+                aria-label={`Assessment pipeline: ${pipelineRows
+                  .map((r) => `${r.label} draft ${r.draft}, published ${r.published}, locked ${r.locked}`)
+                  .join("; ")}`}
+              >
+                <ResponsiveContainer width="100%" height={Math.max(140, pipelineRows.length * 26 + 12)}>
+                  <BarChart
+                    data={pipelineRows}
+                    layout="vertical"
+                    margin={{ top: 2, right: 8, bottom: 2, left: 0 }}
+                  >
+                    <XAxis type="number" hide />
+                    <YAxis type="category" dataKey="label" width={116} tickLine={false} axisLine={false} />
+                    <Tooltip
+                      cursor={false}
+                      content={<TeacherChartTooltip />}
+                      wrapperStyle={TOOLTIP_Z_INDEX}
+                    />
+                    <Bar dataKey="draft" name="Draft" stackId="status" barSize={12} fill={SHADES[5]} />
+                    <Bar dataKey="published" name="Published" stackId="status" barSize={12} fill={SHADES[2]} />
+                    <Bar
+                      dataKey="locked"
+                      name="Locked"
+                      stackId="status"
+                      barSize={12}
+                      fill={SHADES[0]}
+                      radius={[0, 4, 4, 0]}
+                    />
+                  </BarChart>
+                </ResponsiveContainer>
+              </div>
+              <ul className={styles.legend}>
+                <LegendRow
+                  color={SHADES[5]}
+                  label="Draft"
+                  value={pipelineRows.reduce((n, r) => n + r.draft, 0)}
+                  hint="Assessments still being set up"
+                />
+                <LegendRow
+                  color={SHADES[2]}
+                  label="Published"
+                  value={pipelineRows.reduce((n, r) => n + r.published, 0)}
+                  hint="Assessments open for scoring"
+                />
+                <LegendRow
+                  color={SHADES[0]}
+                  label="Locked"
+                  value={pipelineRows.reduce((n, r) => n + r.locked, 0)}
+                  hint="Assessments with locked final scores"
+                />
+              </ul>
+            </div>
+          )}
+          <Interpretation>
+            Draft assessments cannot be scored — publish them before the term closes.
+          </Interpretation>
+        </KanbanBoard>
+      </div>
     </div>
   );
 }

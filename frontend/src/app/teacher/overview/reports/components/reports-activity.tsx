@@ -153,7 +153,7 @@ export function ReportsActivity({
                     <span key={item.status} className={styles.footnoteItem}>
                       {i > 0 ? (
                         <span className={styles.footnoteSep} aria-hidden>
-                          ·
+                          |
                         </span>
                       ) : null}
                       <span>{REFERRAL_STATUS_LABELS[item.status] ?? item.status}</span>
@@ -168,7 +168,7 @@ export function ReportsActivity({
       ) : null}
       <div className={styles.footerSlot}>
         <InsightCallout className={styles.interpretation}>
-          <span className={styles.interpretationLabel}>What it means · </span>
+          <span className={styles.interpretationLabel}>What it means | </span>
           {total === 0
             ? "No anecdotal records, referrals or final grades yet this term."
             : `${top.label} make up ${top.percent}% of your case activity.`}

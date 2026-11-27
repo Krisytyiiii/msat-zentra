@@ -1,178 +1,87 @@
 "use client";
 
 import * as React from "react";
-import { ArrowUpRight, CircleDashed, ClipboardCheck, Lock, Users } from "lucide-react";
-import { Button } from "@/components/ui/button";
-import { KanbanOverlay } from "@/components/ui/kanban-overlay";
-import { Pill, type PillTone } from "@/components/ui/pill";
-import { Skeleton } from "@/components/ui/skeleton";
-import { ChartTooltip } from "@/components/ui/chart-tooltip";
-import { StudentMascot } from "@/components/student-mascot/StudentMascot";
+import Link from "next/link";
 import {
-  Tooltip,
-  TooltipContent,
-  TooltipProvider,
-  TooltipTrigger,
-} from "@/components/ui/tooltip";
-import { useClassDetail } from "@/services/teacher/grading.service";
+  Check,
+  ChevronRight,
+  ClipboardCheck,
+  ListChecks,
+  Lock,
+  Users,
+} from "lucide-react";
+import { Button } from "@/components/ui/button";
+import { Skeleton } from "@/components/ui/skeleton";
+import { ShimmerGroup } from "@/components/ui/shimmer-skeleton";
+import { StudentMascot } from "@/components/student-mascot/StudentMascot";
+import { gradebookSlug } from "@/lib/gradebookSlug";
 import type { LockGradesClassRow } from "@/services/teacher/lockGrades.service";
-import styles from "./lock-grades.module.css";
+// The lock board reuses the gradebook card design token-for-token (material,
+// header, progress rail, facts and action row) so the two desks read the same.
+import styles from "@/app/teacher/grading/components/GradebookCards.module.css";
 
-const statusLabel: Record<string, string> = {
-  unlocked: "Unlocked",
-  locked: "Locked",
-  adviser_approved: "Final",
-};
-
-function statusTone(status: string | null | undefined): PillTone {
-  if (status === "adviser_approved") return "green";
-  if (status === "locked") return "green";
-  if (status === "unlocked") return "sky";
-  return "neutral";
+/** Grade rows arrive as "G7" or "Grade 7" — show the bare digit only. */
+function gradeDigit(gradeLevel: string): string {
+  return gradeLevel.replace(/\D/g, "") || gradeLevel;
 }
 
-function pct(value: number, total: number) {
-  if (total <= 0) return 0;
-  return Math.max(0, Math.min(100, (value / total) * 100));
-}
-
-function LearnerRows({ assignmentId }: { assignmentId: string }) {
-  const detail = useClassDetail(assignmentId);
-
-  if (detail.isPending) {
-    return (
-      <div className={styles.learners} aria-busy="true">
-        {[0, 1, 2].map((i) => (
-          <div key={i} className={styles.learnerRow}>
-            <Skeleton className="h-3.5 w-32" />
-            <Skeleton className="ml-auto h-3.5 w-8" />
-            <Skeleton className="ml-auto h-3.5 w-8" />
-            <Skeleton className="h-5 w-14" />
-          </div>
-        ))}
-      </div>
-    );
-  }
-
-  if (detail.isError || !detail.data) {
-    return <p className={styles.error}>Could not load this class&apos;s learners.</p>;
-  }
-
-  if (detail.data.students.length === 0) {
-    return <p className={`${styles.muted} ${styles.center}`}>No learners in this section yet.</p>;
-  }
-
-  return (
-    <div className={styles.learners} role="table" aria-label="Class learners">
-      <div className={styles.learnersHead} role="row">
-        <span role="columnheader">Learner</span>
-        <span className={styles.num} role="columnheader">Computed</span>
-        <span className={styles.num} role="columnheader">Grade</span>
-        <span role="columnheader">Status</span>
-      </div>
-      {detail.data.students.map((student) => {
-        const final = student.final;
-        const status = final?.lockStatus ?? null;
-        return (
-          <div key={student.id} className={styles.learnerRow} role="row">
-            <span className={styles.learnerName} title={student.name} role="cell">
-              {student.name}
-            </span>
-            <span className={`${styles.num} ${styles.muted}`} role="cell">
-              {final?.computedAverage != null ? final.computedAverage.toFixed(2) : "—"}
-            </span>
-            <span className={styles.num} role="cell">
-              {final?.transmutedGrade != null ? final.transmutedGrade : "—"}
-            </span>
-            <span className={styles.pills} role="cell">
-              <Pill tone={statusTone(status)} label="Lock status">
-                {status ? statusLabel[status] ?? status : "No grade"}
-              </Pill>
-            </span>
-          </div>
-        );
-      })}
-    </div>
-  );
-}
-
-export function LockGradesClassCard({
-  row,
-}: {
-  row: LockGradesClassRow;
-}) {
-  const [open, setOpen] = React.useState(false);
+function ClassCard({ row, index }: { row: LockGradesClassRow; index: number }) {
   const total = row.learners;
-  const nothingReady = row.ready === 0 && row.locked === 0 && row.approved === 0;
+  const locked = row.locked + row.approved;
+  const complete = total > 0 && locked >= total;
+  const pct = total > 0 ? Math.round((locked / total) * 100) : 0;
 
   return (
-    <article className={styles.card} aria-label={`${row.subject}, ${row.section}`}>
+    <article
+      className={`${styles.card} ${complete ? styles.cardComplete : ""}`}
+      aria-label={`${row.subject}, ${row.section}, Grade ${gradeDigit(row.gradeLevel)}`}
+      style={{ animationDelay: `${Math.min(index, 11) * 35}ms` }}
+    >
       <header className={styles.cardHead}>
-        <StudentMascot name={row.subject} seed={row.id} size={36} />
+        <StudentMascot name={row.subject} seed={row.id} size={44} />
         <div className={styles.cardId}>
-          <span className={styles.cardTitle} title={row.subject}>
+          <span className={styles.subjectName} title={row.subject}>
             {row.subject}
           </span>
-          <span className={styles.cardMeta} title={`${row.section} · ${row.subjectCode}`}>
-            {row.section} · {total} learner{total === 1 ? "" : "s"}
+          <span className={styles.section} title={row.section}>
+            Section {row.section}
           </span>
         </div>
-        <Pill field="grade" className={styles.gradePill}>
-          {row.gradeLevel}
-        </Pill>
+        <span className={styles.gradeText}>Grade {gradeDigit(row.gradeLevel)}</span>
       </header>
 
       <div className={styles.metaRow}>
-        <Pill tone="neutral" label="Subject code">
-          {row.subjectCode}
-        </Pill>
-        <Pill tone="sky" label="Ready to lock">
-          {row.ready} ready
-        </Pill>
-        <Pill tone="green" label="Locked (final)">
-          {row.locked} locked
-        </Pill>
-        {row.approved > 0 ? (
-          <Pill tone="green" label="Final">
-            {row.approved} final
-          </Pill>
-        ) : null}
+        {complete ? (
+          <span className={styles.statusText} data-tone="green">
+            <Check size={12} aria-hidden />
+            All finals locked
+          </span>
+        ) : locked > 0 ? (
+          <span className={styles.statusText} data-tone="amber">
+            Locking in progress
+          </span>
+        ) : (
+          <span className={styles.statusText} data-tone="neutral">
+            Not locked yet
+          </span>
+        )}
       </div>
 
-      <TooltipProvider delayDuration={100}>
-        <Tooltip>
-          <TooltipTrigger asChild>
-            <div
-              className={styles.progress}
-              tabIndex={0}
-              role="img"
-              aria-label={`${row.ready} ready, ${row.locked} locked, ${row.approved} approved`}
-            >
-              <span className={styles.segReady} style={{ width: `${pct(row.ready, total)}%` }} />
-              <span className={styles.segLocked} style={{ width: `${pct(row.locked, total)}%` }} />
-              <span className={styles.segApproved} style={{ width: `${pct(row.approved, total)}%` }} />
-            </div>
-          </TooltipTrigger>
-          <TooltipContent
-            side="top"
-            sideOffset={6}
-            className="border-0 bg-transparent p-0 text-inherit shadow-none [&>svg]:hidden"
-          >
-            <ChartTooltip
-              active
-              label="Grade lock progress"
-              payload={[
-                { name: "Ready", value: row.ready, payload: { fill: "#0ea5e9" } },
-                { name: "Locked", value: row.locked, payload: { fill: "#f59e0b" } },
-                { name: "Approved", value: row.approved, payload: { fill: "#22c55e" } },
-              ]}
-            />
-          </TooltipContent>
-        </Tooltip>
-      </TooltipProvider>
-
+      <div
+        className={styles.progress}
+        role="progressbar"
+        aria-valuemin={0}
+        aria-valuemax={100}
+        aria-valuenow={pct}
+        aria-label={`${locked} of ${total} finals locked`}
+      >
+        <span
+          className={`${styles.progressFill} ${complete ? styles.progressDone : ""}`}
+          style={{ width: `${pct}%` }}
+        />
+      </div>
       <p className={styles.progressLine}>
-        {row.computed} of {total} learner{total === 1 ? "" : "s"} with a computed grade
+        {locked} of {total} finals locked
       </p>
 
       <div className={styles.linksRow}>
@@ -185,60 +94,89 @@ export function LockGradesClassCard({
           {row.computed} computed
         </span>
         <span className={styles.linkStat}>
-          <Lock size={11} aria-hidden />
-          {row.locked + row.approved} locked
+          <ListChecks size={11} aria-hidden />
+          {row.ready} ready
         </span>
       </div>
-
-      {nothingReady ? (
-        <p className={`${styles.notice} ${styles.noticeNeutral}`}>
-          <CircleDashed size={12} aria-hidden />
-          Nothing ready to lock yet — no computed final grades in this class.
-        </p>
-      ) : null}
 
       <div className={styles.cardActions}>
-        <span className={styles.lockedHint}>
+        <span className={styles.hint}>
           <Lock size={11} aria-hidden />
-          Read-only desk
+          <span>
+            {complete
+              ? "Every final is locked"
+              : row.ready > 0
+                ? `${row.ready} ready to lock`
+                : "Waiting on computed finals"}
+          </span>
         </span>
         <Button
+          asChild
           variant="outline"
           className="h-6 gap-1 bg-card px-2 text-[12px] text-foreground"
-          onClick={() => setOpen(true)}
         >
-          View learners
-          <ArrowUpRight size={12} aria-hidden />
+          <Link
+            href={`/teacher/grading/${gradebookSlug(row)}`}
+            aria-label={`Open gradebook for ${row.subject}, ${row.section}`}
+          >
+            Open gradebook
+            <ChevronRight size={12} aria-hidden />
+          </Link>
         </Button>
       </div>
-
-      <KanbanOverlay
-        open={open}
-        onClose={() => setOpen(false)}
-        title={`${row.subject} — ${row.section}`}
-        ariaLabel={`${row.subject} learners`}
-        icon={
-          <span className="text-amber-600 dark:text-amber-400" aria-hidden>
-            <Users size={14} />
-          </span>
-        }
-        description={
-          <span className="flex flex-wrap items-center gap-1.5">
-            <Pill field="grade" label="Grade level">
-              {row.gradeLevel}
-            </Pill>
-            <Pill tone="neutral" label="Learners">
-              {row.learners} learner{row.learners === 1 ? "" : "s"}
-            </Pill>
-            <Pill tone="sky" label="Ready to lock">
-              {row.ready} ready to lock
-            </Pill>
-          </span>
-        }
-        width="xl"
-      >
-        {open ? <LearnerRows assignmentId={row.id} /> : null}
-      </KanbanOverlay>
     </article>
+  );
+}
+
+export function LockGradesClassCards({ rows }: { rows: LockGradesClassRow[] }) {
+  return (
+    <div className={styles.grid} role="group" aria-label="Lock grades subjects">
+      {rows.map((row, index) => (
+        <ClassCard key={row.id} row={row} index={index} />
+      ))}
+    </div>
+  );
+}
+
+/** Loading state: the same card anatomy as the live grid, swept by the shared
+ *  shimmer group so the swap to real rows causes no layout shift. */
+export function LockGradesCardsSkeleton({ cards = 6 }: { cards?: number }) {
+  return (
+    <ShimmerGroup>
+      <div className={styles.grid} role="status" aria-label="Loading lock grades" aria-busy="true">
+        {Array.from({ length: cards }).map((_, i) => (
+          <div key={i} className={styles.card} aria-hidden>
+            <header className={styles.cardHead}>
+              <Skeleton className={styles.skelAvatar} />
+              <div className={styles.cardId}>
+                <Skeleton className={styles.skelName} />
+                <Skeleton className={styles.skelSection} />
+              </div>
+              <Skeleton className={styles.skelGrade} />
+            </header>
+
+            <div className={styles.metaRow}>
+              <Skeleton className={styles.skelStatus} />
+            </div>
+
+            <div className={styles.progress}>
+              <Skeleton className={styles.skelBarFill} style={{ width: "45%" }} />
+            </div>
+            <Skeleton className={styles.skelLine} />
+
+            <div className={styles.linksRow}>
+              <Skeleton className={styles.skelStat} />
+              <Skeleton className={styles.skelStat} />
+              <Skeleton className={styles.skelStatShort} />
+            </div>
+
+            <div className={styles.cardActions}>
+              <Skeleton className={styles.skelHint} />
+              <Skeleton className={styles.skelBtn} />
+            </div>
+          </div>
+        ))}
+      </div>
+    </ShimmerGroup>
   );
 }

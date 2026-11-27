@@ -51,7 +51,7 @@ export function BamaComposer({
           aria-label={inputLabel}
           rows={3}
           maxLength={2000}
-          className={styles.ask}
+          className={`${styles.ask} border-amber-500/45 focus-visible:border-amber-500 focus-visible:ring-2 focus-visible:ring-amber-500/25`}
           onKeyDown={(e) => {
             if (e.key === "Enter" && !e.shiftKey) {
               e.preventDefault();

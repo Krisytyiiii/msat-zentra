@@ -2,17 +2,9 @@
 
 import * as React from "react";
 import { ClipboardList, X } from "lucide-react";
-import { Button } from "@/components/ui/button";
-import { Pill } from "@/components/ui/pill";
 import { ShimmerGroup } from "@/components/ui/shimmer-skeleton";
+import { SidePanel } from "@/components/ui/side-panel";
 import { Skeleton } from "@/components/ui/skeleton";
-import {
-  Sheet,
-  SheetClose,
-  SheetContent,
-  SheetDescription,
-  SheetTitle,
-} from "@/components/ui/sheet";
 import type {
   AdvisoryModuleKind,
   AdvisorySubmissionRow,
@@ -20,7 +12,6 @@ import type {
 } from "@/services/teacher/advisoryModules.service";
 import { SubmissionCards } from "./submission-cards";
 import glass from "./modules-glass.module.css";
-import styles from "./submissions-drawer.module.css";
 
 const SKELETON_ROWS = 4;
 
@@ -59,9 +50,9 @@ function DrawerSkeleton() {
 }
 
 /**
- * Student submissions as a glass drawer. The modules board owns the page; one
- * module's answer sheet slides in from the right, with its own shimmer while
- * the rows land.
+ * Student submissions in the shared right-edge drawer (the same shell the
+ * advisory list uses). One module's answer sheet slides in over the board,
+ * with its own shimmer while the rows land.
  */
 export function SubmissionsDrawer({
   open,
@@ -87,59 +78,69 @@ export function SubmissionsDrawer({
   onClose: () => void;
 }) {
   return (
-    <Sheet open={open} onOpenChange={(next) => (next ? undefined : onClose())}>
-      <SheetContent
-        side="right"
-        showCloseButton={false}
-        className="w-full gap-0 border-0 bg-transparent p-0 shadow-none data-[side=right]:sm:max-w-3xl"
-      >
-        <div className={styles.surface}>
-          <header className={styles.head}>
-            <span className={styles.headIcon} aria-hidden>
-              <ClipboardList size={15} />
-            </span>
-            <div className={styles.headText}>
-              <SheetTitle className="text-sm font-semibold text-foreground">
-                Student submissions
-              </SheetTitle>
-              <div className={styles.headMeta}>
-                <SheetDescription className="truncate text-[12px] text-muted-foreground">
+    <SidePanel open={open} onClose={onClose} label="Student submissions" width="3xl">
+      <div className="flex h-full min-h-0 flex-col overflow-hidden bg-card">
+        <header className="flex shrink-0 items-start gap-2.5 border-b border-border px-4 py-3">
+          <span
+            className="mt-0.5 flex h-7 w-7 shrink-0 items-center justify-center rounded-md bg-amber-500/10 text-amber-500"
+            aria-hidden
+          >
+            <ClipboardList size={15} />
+          </span>
+          <div className="min-w-0 flex-1">
+            <h2 className="text-sm font-semibold leading-tight text-foreground">
+              Student submissions
+            </h2>
+            <p className="mt-1 flex flex-wrap items-center gap-x-2 gap-y-0.5 text-[12px] text-muted-foreground">
+              <span>
+                Module:{" "}
+                <span className="font-medium text-foreground">
                   {moduleName || "Select a module"}
-                </SheetDescription>
-                <Pill tone={kind === "adm" ? "violet" : "neutral"} label="Module type">
+                </span>
+              </span>
+              <span aria-hidden className="text-border">
+                |
+              </span>
+              <span>
+                Type:{" "}
+                <span className="font-medium text-foreground">
                   {kind === "adm" ? "ADM" : "General"}
-                </Pill>
-                <Pill tone="green" label="Submitted submissions">
-                  {counts.submitted}/{counts.all} submitted
-                </Pill>
-              </div>
-            </div>
-            <SheetClose asChild>
-              <Button
-                type="button"
-                variant="ghost"
-                className="h-7 w-7 shrink-0 px-0 text-muted-foreground hover:text-foreground"
-                aria-label="Close submissions"
-              >
-                <X size={14} aria-hidden />
-              </Button>
-            </SheetClose>
-          </header>
-
-          <div className={styles.body}>
-            {loading ? (
-              <DrawerSkeleton />
-            ) : (
-              <SubmissionCards
-                rows={rows}
-                total={total}
-                page={page}
-                onPageChange={onPageChange}
-              />
-            )}
+                </span>
+              </span>
+              <span aria-hidden className="text-border">
+                |
+              </span>
+              <span>
+                Submitted:{" "}
+                <span className="font-medium tabular-nums text-foreground">
+                  {counts.submitted}/{counts.all}
+                </span>
+              </span>
+            </p>
           </div>
+          <button
+            type="button"
+            onClick={onClose}
+            aria-label="Close submissions"
+            className="-mr-1 flex h-7 w-7 shrink-0 items-center justify-center rounded-md text-muted-foreground transition-colors duration-150 hover:bg-muted hover:text-foreground"
+          >
+            <X size={15} aria-hidden />
+          </button>
+        </header>
+
+        <div className="flex min-h-0 flex-1 flex-col overflow-y-auto p-4">
+          {loading ? (
+            <DrawerSkeleton />
+          ) : (
+            <SubmissionCards
+              rows={rows}
+              total={total}
+              page={page}
+              onPageChange={onPageChange}
+            />
+          )}
         </div>
-      </SheetContent>
-    </Sheet>
+      </div>
+    </SidePanel>
   );
 }

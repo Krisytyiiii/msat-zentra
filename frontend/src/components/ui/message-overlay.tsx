@@ -44,7 +44,7 @@ const ICON_TONES: Record<MessageOverlayTone, string> = {
   success:
     "border-emerald-500/25 bg-emerald-500/10 text-emerald-600 dark:text-emerald-400",
   warning: "border-amber-500/25 bg-amber-500/10 text-amber-600 dark:text-amber-400",
-  danger: "border-destructive/25 bg-destructive/10 text-destructive",
+  danger: "border-red-500/25 bg-red-500/10 text-red-600 dark:text-red-400",
   neutral: "border-border bg-muted text-muted-foreground",
 };
 
@@ -52,7 +52,7 @@ const DETAIL_TONES: Record<MessageOverlayTone, string> = {
   primary: "border-border bg-muted/40 text-muted-foreground",
   success: "border-emerald-500/25 bg-emerald-500/5 text-emerald-700 dark:text-emerald-400",
   warning: "border-amber-500/25 bg-amber-500/5 text-amber-700 dark:text-amber-400",
-  danger: "border-destructive/25 bg-destructive/5 text-destructive",
+  danger: "border-red-500/25 bg-red-500/5 text-red-600 dark:text-red-400",
   neutral: "border-border bg-muted/40 text-muted-foreground",
 };
 
@@ -143,8 +143,9 @@ export function MessageOverlay({
 
   return createPortal(
     <div
+      data-message-overlay=""
       className={cn(
-        "fixed inset-0 z-[60] flex items-center justify-center bg-black/55 p-4 backdrop-blur-[2px] dark:bg-black/70",
+        "pointer-events-auto fixed inset-0 z-[60] flex items-center justify-center bg-black/55 p-4 backdrop-blur-[2px] dark:bg-black/70",
         styles.scrim,
       )}
       role={role}

@@ -1,15 +1,10 @@
 "use client";
 
 import * as React from "react";
-import Link from "next/link";
 import { useSearchParams } from "next/navigation";
 import { ShieldQuestion } from "lucide-react";
 import { useLiveQueries } from "@/lib/api/live";
-import { useQueryClient } from "@tanstack/react-query";
 import { TeacherEmptyCard } from "../../components/TeacherEmptyCard";
-import { InsightCallout } from "@/components/ui/insight-callout";
-import { Button } from "@/components/ui/button";
-import { StudentMascot } from "@/components/student-mascot/StudentMascot";
 import { toast } from "@/components/ui/sonner";
 import { useAdvisorySections } from "@/services/teacher/advisory.service";
 import {
@@ -18,12 +13,10 @@ import {
   useMyVerification,
   type HasRow,
 } from "@/services/teacher/sf10Access.service";
-import {
-  downloadSf10Template,
-  useAutofillCandidates,
-} from "@/services/teacher/sf10Autofill.service";
 import { Sf10RepoFolders } from "./components/Sf10RepoFolders";
-import { RejectedRequestsCard, Sf10MissingCard, Sf10Sidebar } from "./components/Sf10SideRail";
+import { Sf10EmptyActions } from "./components/Sf10EmptyActions";
+import { Sf10ChatDrawer } from "./components/Sf10ChatDrawer";
+import { RejectedRequestsCard, Sf10MissingCard } from "./components/Sf10SideRail";
 import { Sf10PageSkeleton } from "./components/Sf10PageSkeleton";
 import styles from "./components/sf10-repo.module.css";
 
@@ -90,47 +83,7 @@ export default function TeacherSf10AccessPage() {
   const foldersPending = verificationPending;
   const foldersError = !!activeRequest && verification.isError;
   const [query, setQuery] = React.useState("");
-
-  // SF10 template: the adviser builds a fresh form from the school template
-  // (JHS book for Grades 7–10, Strengthened SHS book for 11–12) for any advisee
-  // whose adviser-approved finals are locked, even before the registry desk has
-  // filed a record.
-  const primarySectionId = sectionsQuery.data?.advisorySections[0]?.id ?? null;
-  const candidatesQuery = useAutofillCandidates(primarySectionId);
-  const templateRows = React.useMemo(
-    () =>
-      (candidatesQuery.data ?? []).filter((c) =>
-        ["G7", "G8", "G9", "G10", "G11", "G12"].includes(c.gradeLevel),
-      ),
-    [candidatesQuery.data],
-  );
-  const [downloadingKey, setDownloadingKey] = React.useState<string | null>(null);
-  const queryClient = useQueryClient();
-  const handleDownloadTemplate = React.useCallback(
-    async (lrn: string, format: "xlsx" | "pdf") => {
-      if (!primarySectionId) return;
-      const key = `${lrn}:${format}`;
-      setDownloadingKey(key);
-      try {
-        await downloadSf10Template(primarySectionId, lrn, format);
-        toast.success({
-          title: format === "pdf" ? "SF10 PDF ready" : "SF10 Excel ready",
-          description: "The generated file was also filed on the learner's SF10 record.",
-        });
-        // The render writes a new record version, so refresh the folders.
-        void queryClient.invalidateQueries({ queryKey: ["teacher-sf10-access"] });
-        void queryClient.invalidateQueries({ queryKey: ["teacher-sf10-autofill"] });
-      } catch (error) {
-        const message =
-          (error as { response?: { data?: { error?: { message?: string } } } })?.response
-            ?.data?.error?.message ?? "The SF10 template could not be generated.";
-        toast.error({ title: "Template not generated", description: message });
-      } finally {
-        setDownloadingKey(null);
-      }
-    },
-    [primarySectionId, queryClient],
-  );
+  const [chatOpen, setChatOpen] = React.useState(false);
 
   // Deep link from the topbar record search: `?lrn=…` prefilters the desk.
   const searchParams = useSearchParams();
@@ -218,41 +171,24 @@ export default function TeacherSf10AccessPage() {
     grantedRows.length === 0 &&
     deniedRequests.length === 0 &&
     missingRows.length === 0 &&
-    templateRows.length === 0 &&
     !grantsLoading
   ) {
     return (
       <section className={styles.page} aria-label="SF10 access">
-        <div className="flex h-full min-h-[calc(100dvh-9rem)] w-full flex-col items-center justify-center gap-3">
-          <InsightCallout role="status" className="w-full max-w-xl self-center text-left">
-            <strong>No SF10 records yet.</strong> Approved students appear here as folders
-            once the registrar or record keeper grants access — or run an auto-fill from
-            Chat with Bama using your locked grades.
-          </InsightCallout>
-          <Button asChild size="sm" className="h-6 px-2 text-xs">
-            <Link
-              href="/teacher/chat?standalone=1"
-              target="_blank"
-              rel="noopener noreferrer"
-            >
-              <span className="inline-flex shrink-0 items-center" aria-hidden>
-                <StudentMascot name="Bama" character="crt" size={14} />
-              </span>
-              Chat with Bama
-            </Link>
-          </Button>
+        <div className="flex h-full min-h-[calc(100dvh-9rem)] w-full flex-col items-center justify-center">
+          <Sf10EmptyActions onRequest={() => setChatOpen(true)} />
         </div>
+        <Sf10ChatDrawer open={chatOpen} onClose={() => setChatOpen(false)} />
       </section>
     );
   }
 
   return (
     <section className={styles.page} aria-label="SF10 access">
-      <div className="grid flex-1 items-start gap-4 lg:grid-cols-[minmax(0,1fr)_2.75rem]">
+      <div className="flex min-w-0 flex-1 flex-col">
         <div className={`${styles.main} flex min-w-0 flex-col`}>
           <Sf10RepoFolders
             rows={approvedFolders}
-            totalCount={grantedRows.length}
             query={query}
             onQueryChange={setQuery}
             canAct={unionCanAct}
@@ -260,22 +196,15 @@ export default function TeacherSf10AccessPage() {
             error={foldersError}
             denied={activeRequest?.status === "denied"}
             onOpen={handleViewInNewTab}
-            templateRows={templateRows}
-            templatePending={candidatesQuery.isPending}
-            onDownloadTemplate={handleDownloadTemplate}
-            downloadingKey={downloadingKey}
+            onRequest={() => setChatOpen(true)}
           />
         </div>
-        <Sf10Sidebar
-          requests={deniedRequests}
-          rows={filteredMissing}
-          pending={verificationPending}
-        />
       </div>
       <div className="flex min-w-0 flex-col gap-4 lg:hidden">
         <RejectedRequestsCard requests={deniedRequests} />
         <Sf10MissingCard rows={filteredMissing} pending={verificationPending} />
       </div>
+      <Sf10ChatDrawer open={chatOpen} onClose={() => setChatOpen(false)} />
     </section>
   );
 }

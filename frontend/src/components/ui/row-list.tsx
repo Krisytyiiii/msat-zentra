@@ -32,6 +32,8 @@ export interface RowListMetaPill {
 export interface RowListItem {
   key: string;
   status: { label: string; tone: RowTone };
+  /** Render the status as plain text (no pill chrome). */
+  statusPlain?: boolean;
   /** Field name shown in the status pill's tooltip (defaults to "Risk status"). */
   statusTitle?: string;
   /** Primary text (e.g. student name). */
@@ -85,6 +87,14 @@ const META_DOT: Record<RowTone, string> = {
   green: "#22c55e",
   blue: "#3b82f6",
   muted: "#9ca3af",
+};
+
+const STATUS_TEXT: Record<RowTone, string> = {
+  red: "text-red-600 dark:text-red-400",
+  amber: "text-amber-600 dark:text-amber-400",
+  green: "text-emerald-600 dark:text-emerald-400",
+  blue: "text-blue-600 dark:text-blue-400",
+  muted: "text-muted-foreground",
 };
 
 function initialsOf(name: string): string {
@@ -173,11 +183,20 @@ function RowListRow({
           <span aria-hidden />
         )
       ) : null}
-      <StatusPill
-        label={item.status.label}
-        tone={item.status.tone}
-        title={item.statusTitle}
-      />
+      {item.statusPlain ? (
+        <span
+          className={`w-fit text-[12px] font-medium ${STATUS_TEXT[item.status.tone]}`}
+          title={item.statusTitle ?? undefined}
+        >
+          {item.status.label}
+        </span>
+      ) : (
+        <StatusPill
+          label={item.status.label}
+          tone={item.status.tone}
+          title={item.statusTitle}
+        />
+      )}
       <span className={styles.sep} aria-hidden>
         |
       </span>

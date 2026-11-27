@@ -6,8 +6,9 @@ import folderStyles from "./sf10-repo-folders.module.css";
 
 /**
  * One folder tile placeholder. Mirrors the loaded card markup exactly (outer
- * tinted frame, status pill strip, inner white slip with avatar/name/LRN and
- * the 120×100 folder illustration footprint) so nothing jumps when data lands.
+ * tinted frame, status + term pill strip, inner white slip with avatar/name/LRN
+ * and the 120×100 folder illustration footprint) so nothing jumps when data
+ * lands.
  */
 export function Sf10FolderCardSkeleton() {
   return (
@@ -16,7 +17,8 @@ export function Sf10FolderCardSkeleton() {
       aria-hidden
     >
       <span className="-mx-2.5 flex min-w-0 items-center gap-1.5 border-b border-border px-3.5 pb-2">
-        <Skeleton className="h-5 w-28 rounded-full" />
+        <Skeleton className="h-5 w-24 rounded-full" />
+        <Skeleton className="h-5 w-20 rounded-full" />
       </span>
       <span className="flex min-w-0 flex-col gap-2 rounded-lg border bg-white p-3 shadow-sm dark:bg-card">
         <span className="flex min-w-0 items-center gap-2">
@@ -35,10 +37,11 @@ export function Sf10FolderCardSkeleton() {
 }
 
 /**
- * Page-level loading state. Reuses the real page/sidebar CSS modules and the
- * same grid + header structure as the loaded desk (title/desc columns, centred
- * source tabs, right-aligned search, folder grid, right icon rail, mobile
- * cards) so the skeleton is a pixel match of the page it replaces.
+ * Page-level loading state. Mirrors the loaded desk exactly: the same
+ * `sf10-repo.module.css` page/main wrappers, the folder panel with its
+ * search + Request header row, a 6-up folder grid, and the mobile rejected /
+ * missing cards below the fold. There is no desktop icon rail on this desk, so
+ * the skeleton does not paint one.
  */
 export function Sf10PageSkeleton() {
   return (
@@ -47,25 +50,14 @@ export function Sf10PageSkeleton() {
       aria-busy="true"
       aria-label="Loading SF10 access"
     >
-      <div className="grid flex-1 items-start gap-4 lg:grid-cols-[minmax(0,1fr)_2.75rem]">
+      <div className="flex min-w-0 flex-1 flex-col">
         <div className={`${repoStyles.main} flex min-w-0 flex-col`}>
           <div className={`${folderStyles.panel} flex flex-1 flex-col`}>
             <div className={folderStyles.header}>
-              <div className={folderStyles.headerText}>
-                <Skeleton className="h-4 w-40" />
-                <Skeleton className="h-3.5 w-64 max-w-full" />
-              </div>
-              <div className="flex flex-wrap items-center justify-center gap-1.5 sm:justify-self-center">
-                <Skeleton className="h-6 w-24 rounded-md" />
-                <Skeleton className="h-6 w-28 rounded-md" />
-              </div>
-              <div
-                className={`${folderStyles.headerActions} sm:justify-self-end`}
-              >
-                <Skeleton
-                  className={`${folderStyles.search} h-8 rounded-[16px]`}
-                />
-              </div>
+              <Skeleton
+                className={`${folderStyles.search} h-8 rounded-lg`}
+              />
+              <Skeleton className="h-8 w-24 shrink-0 rounded-md" />
             </div>
             <div className={folderStyles.content}>
               <div className={folderStyles.scrollArea}>
@@ -78,15 +70,6 @@ export function Sf10PageSkeleton() {
             </div>
           </div>
         </div>
-        <aside
-          className="hidden self-start lg:sticky lg:top-16 lg:block"
-          aria-hidden
-        >
-          <div className="flex flex-row justify-end gap-2 lg:flex-col lg:items-end">
-            <Skeleton className="h-9 w-9 rounded-xl" />
-            <Skeleton className="h-9 w-9 rounded-xl" />
-          </div>
-        </aside>
       </div>
       <div className="flex min-w-0 flex-col gap-4 lg:hidden" aria-hidden>
         <Skeleton className="h-40 w-full rounded-xl" />

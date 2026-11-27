@@ -2,11 +2,13 @@
 
 import * as React from "react";
 import Link from "next/link";
-import { ArchiveRestore, FolderOpen, Info, Plus } from "lucide-react";
+import { ArchiveRestore, ChevronRight, FolderOpen, Plus, Sparkles } from "lucide-react";
 import { StudentMascot } from "@/components/student-mascot/StudentMascot";
 import { Button } from "@/components/ui/button";
 import { Pill } from "@/components/ui/pill";
-import { getLegendEntries } from "./AnecdotalSideRail";
+import { cn } from "@/lib/utils";
+import cardStyles from "@/app/principal/academics/assign/components/sections-kanban.module.css";
+import scheduleCardStyles from "@/app/admin/academics/schedule/components/schedule-overview-board.module.css";
 import styles from "./anecdotal-empty-kanban.module.css";
 
 function BamaMascot({ size = 14 }: { size?: number }) {
@@ -29,125 +31,163 @@ export interface EmptyKanbanAction {
   mascot?: boolean;
   /** Action that opens a dialog instead of navigating. */
   onClick?: () => void;
+  /** Status line shown under the title, same slot as "Scheduled". */
+  statusLabel: string;
+  statusTone: "green" | "amber" | "neutral";
+  /** Amber code badge, same slot as the class code. */
+  badgeLabel: string;
+  badgeValue: string;
+  /** Left-hand hint in the card footer. */
+  hintLabel: string;
+  /** Footer action. */
+  ctaLabel: string;
 }
-
-const COLUMN_ACCENTS = ["text-blue-500", "text-amber-500", "text-emerald-600 dark:text-emerald-400"];
 
 const ACTIONS: EmptyKanbanAction[] = [
   {
     key: "chat",
     title: "Chat with Bama",
-    description: "File through chat — Bama drafts the GCForm-01 for you",
+    description: "File through chat — Bama drafts the GCForm-01 for you.",
     href: "/teacher/chat?standalone=1",
     icon: Plus,
     newTab: true,
     mascot: true,
+    statusLabel: "Ready to file",
+    statusTone: "green",
+    badgeLabel: "Starts here",
+    badgeValue: "Chat",
+    hintLabel: "Drafts the form as you talk",
+    ctaLabel: "Chat now",
   },
   {
     key: "archive",
     title: "Archive records",
-    description: "Restore records you removed from this desk",
+    description: "Restore records you removed from this desk.",
     href: "/teacher/anecdotal",
     icon: ArchiveRestore,
+    statusLabel: "Nothing archived",
+    statusTone: "neutral",
+    badgeLabel: "Recover",
+    badgeValue: "Removed",
+    hintLabel: "Bring a record back to the board",
+    ctaLabel: "Open",
   },
   {
     key: "folders",
     title: "Record folders",
-    description: "Open per-student folders once records are stored",
+    description: "Open per-student folders once records are stored.",
     href: "/teacher/anecdotal/folders",
     icon: FolderOpen,
+    statusLabel: "Opens after filing",
+    statusTone: "amber",
+    badgeLabel: "View",
+    badgeValue: "Per student",
+    hintLabel: "Grouped by learner",
+    ctaLabel: "See all",
   },
 ];
 
-const LEGEND = getLegendEntries("category");
-
-function ColumnHead({
-  icon,
-  title,
-  count,
+function ActionCard({
   action,
+  onOpenArchive,
+  onOpenChat,
 }: {
-  icon: React.ReactNode;
-  title: string;
-  count?: number;
-  action?: React.ReactNode;
+  action: EmptyKanbanAction;
+  onOpenArchive?: () => void;
+  onOpenChat?: () => void;
 }) {
-  return (
-    <div
-      className="-mx-2.5 flex items-center justify-between gap-2 border-b border-border px-3.5 pb-2"
-      aria-label={action ? title : `${title}, ${count} action`}
-    >
-      <span className="inline-flex min-w-0 items-center gap-1.5 text-[13px] font-semibold">
-        {icon} <span className="truncate">{title}</span>
-      </span>
-      <span className="flex shrink-0 items-center gap-1.5">
-        {action ??
-          (count !== undefined ? (
-            <span className="text-xs font-semibold text-muted-foreground">{count}</span>
-          ) : null)}
-      </span>
-    </div>
-  );
-}
-
-function ActionCard({ action }: { action: EmptyKanbanAction }) {
   const Icon = action.icon;
-  const body = (
+  const isArchive = action.key === "archive";
+  const isChat = action.key === "chat";
+  const cta = (
     <>
-      <span className="flex items-center justify-between gap-2">
-        <span className="truncate font-mono text-[12px] font-medium text-muted-foreground" title={action.href}>
-          {action.href}
-        </span>
-        <span
-          className="flex h-6 w-6 shrink-0 items-center justify-center overflow-hidden rounded-full bg-muted text-muted-foreground"
-          aria-hidden
-        >
-          {action.mascot ? <BamaMascot size={20} /> : <Icon size={13} />}
-        </span>
-      </span>
-      <span className="truncate text-sm font-semibold leading-snug" title={action.title}>
-        {action.title}
-      </span>
-      <span className="text-xs leading-snug text-muted-foreground">{action.description}</span>
+      {action.ctaLabel}
+      <ChevronRight size={12} aria-hidden />
     </>
   );
-  const cardClass =
-    "flex w-full min-w-0 cursor-pointer flex-col gap-1.5 rounded-lg border bg-white p-3 text-left shadow-sm transition-colors hover:border-primary/60 hover:shadow dark:bg-card";
   return (
-    <li className="flex min-w-0 flex-col">
-      {action.onClick ? (
-        <button type="button" onClick={action.onClick} aria-label={action.title} className={cardClass}>
-          {body}
-        </button>
-      ) : (
-        <Link
-          href={action.href}
-          {...(action.newTab ? { target: "_blank", rel: "noopener noreferrer" } : {})}
-          aria-label={`Open ${action.title}${action.newTab ? " (opens in a new tab)" : ""}`}
-          className={cardClass}
-        >
-          {body}
-        </Link>
-      )}
-    </li>
+    <article className={cn(scheduleCardStyles.card, "w-full")} aria-label={action.title}>
+      <header className={cardStyles.cardHead}>
+        <span className="flex size-9 shrink-0 items-center justify-center rounded-lg border border-amber-500/25 bg-amber-500/10 text-amber-600 dark:text-amber-400">
+          {action.mascot ? <BamaMascot size={22} /> : <Icon size={16} aria-hidden />}
+        </span>
+        <div className={cardStyles.cardId}>
+          <span className={cardStyles.sectionName} title={action.title}>
+            {action.title}
+          </span>
+        </div>
+      </header>
+
+      <div className={cardStyles.metaRow}>
+        <span className={scheduleCardStyles.statusText} data-tone={action.statusTone}>
+          {action.statusLabel}
+        </span>
+        <span className={scheduleCardStyles.codeBadgeWrap}>
+          <Pill tone="amber" label={action.badgeLabel}>
+            {action.badgeValue}
+          </Pill>
+        </span>
+      </div>
+
+      <p className={scheduleCardStyles.progressLine}>{action.description}</p>
+
+      <div className={cardStyles.cardActions}>
+        <span className={cn(cardStyles.lockedHint, "min-w-0")}>
+          <Sparkles size={11} aria-hidden />
+          <span className="truncate">{action.hintLabel}</span>
+        </span>
+        {isArchive ? (
+          <Button
+            type="button"
+            variant="outline"
+            className="h-6 shrink-0 gap-1 bg-card px-2 text-[12px] text-foreground"
+            onClick={onOpenArchive}
+            disabled={!onOpenArchive}
+            aria-label={`Open ${action.title}`}
+          >
+            {cta}
+          </Button>
+        ) : isChat ? (
+          <Button
+            type="button"
+            variant="outline"
+            className="h-6 shrink-0 gap-1 bg-card px-2 text-[12px] text-foreground"
+            onClick={onOpenChat}
+            disabled={!onOpenChat}
+            aria-label="Open Chat with Bama"
+          >
+            {cta}
+          </Button>
+        ) : (
+          <Button
+            asChild
+            variant="outline"
+            className="h-6 shrink-0 gap-1 bg-card px-2 text-[12px] text-foreground"
+          >
+            <Link
+              href={action.href}
+              {...(action.newTab ? { target: "_blank", rel: "noopener noreferrer" } : {})}
+              aria-label={`Open ${action.title}${action.newTab ? " (opens in a new tab)" : ""}`}
+            >
+              {cta}
+            </Link>
+          </Button>
+        )}
+      </div>
+    </article>
   );
 }
 
 export function AnecdotalEmptyKanban({
   onOpenArchive,
+  onOpenChat,
 }: {
   onOpenArchive?: () => void;
+  onOpenChat?: () => void;
 } = {}) {
-  const actions = React.useMemo(
-    () =>
-      ACTIONS.map((action) =>
-        action.key === "archive" ? { ...action, onClick: onOpenArchive } : action,
-      ),
-    [onOpenArchive],
-  );
   return (
     <section aria-labelledby="anecdotal-empty-board" className={styles.section}>
-      <div className="mx-auto flex w-full max-w-4xl flex-col gap-3">
+      <div className="mx-auto flex w-full max-w-lg flex-col gap-3">
         <div className={styles.head}>
           <h2 id="anecdotal-empty-board" className={styles.title}>
             No files stored yet
@@ -156,71 +196,15 @@ export function AnecdotalEmptyKanban({
             Files you file through Chat with Bama will appear here once stored. Pick a starting point below.
           </p>
         </div>
-        <div className={styles.kanbanGrid} style={{ ["--cols" as string]: 2 }}>
-        {actions.map((actionItem, i) => (
-          <div
-            key={actionItem.title}
-            className="flex min-w-0 flex-col gap-2 rounded-xl border border-border bg-muted/60 p-2.5 dark:bg-muted/20"
-            aria-label={actionItem.title}
-          >
-            <ColumnHead
-              icon={
-                actionItem.mascot ? (
-                  <BamaMascot size={16} />
-                ) : (
-                  <actionItem.icon size={14} aria-hidden className={COLUMN_ACCENTS[i % COLUMN_ACCENTS.length]} />
-                )
-              }
-              title={actionItem.title}
-              action={
-                actionItem.key === "chat" ? (
-                  <Button asChild variant="outline" className="h-6 px-2 text-[12px]">
-                    <Link href="/teacher/chat?standalone=1" target="_blank" rel="noopener noreferrer">
-                      Chat now
-                    </Link>
-                  </Button>
-                ) : actionItem.key === "archive" ? (
-                  <Button
-                    type="button"
-                    variant="outline"
-                    className="h-6 gap-1 px-2 text-[12px]"
-                    onClick={onOpenArchive}
-                    disabled={!onOpenArchive}
-                  >
-                    <ArchiveRestore size={12} aria-hidden />
-                    Open
-                  </Button>
-                ) : (
-                  <Button asChild variant="outline" className="h-6 px-2 text-[12px]">
-                    <Link href="/teacher/anecdotal/folders">See all</Link>
-                  </Button>
-                )
-              }
+        <div className="flex w-full min-w-0 flex-col gap-2.5" aria-label="Anecdotal starting points">
+          {ACTIONS.map((action) => (
+            <ActionCard
+              key={action.title}
+              action={action}
+              onOpenArchive={onOpenArchive}
+              onOpenChat={onOpenChat}
             />
-            <ul className="flex min-w-0 flex-1 flex-col gap-2">
-              <ActionCard action={actionItem} />
-            </ul>
-          </div>
-        ))}
-        <div
-          className="flex min-w-0 flex-col gap-2 rounded-xl border border-border bg-muted/60 p-2.5 dark:bg-muted/20"
-          aria-label={`Legend, ${LEGEND.length}`}
-        >
-          <ColumnHead
-            icon={<Info size={14} aria-hidden className="text-amber-500" />}
-            title="Legend"
-            count={LEGEND.length}
-          />
-          <ul className="flex min-w-0 flex-1 flex-row flex-wrap content-center items-center justify-center gap-1.5" aria-label="Legend categories">
-            {LEGEND.map((e) => (
-              <li key={e.key} className="flex">
-                <Pill tone={e.tone} label={e.hint}>
-                  {e.label}
-                </Pill>
-              </li>
-            ))}
-          </ul>
-        </div>
+          ))}
         </div>
       </div>
     </section>

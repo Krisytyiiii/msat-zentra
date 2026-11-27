@@ -162,9 +162,13 @@ export function BamaThread({
   }, [active?.messages.length, active?.id, sending, threadRef]);
 
   const anecOpen = !!active && active.type === "anecdotal" && !active.filed;
-  const showStudentPicker = anecOpen && flow.studentId === "";
+  const showStudentPicker = anecOpen && flow.studentId === "" && !flow.editingRecordId;
   const showClassPicker =
-    anecOpen && flow.studentId !== "" && flow.selectedClass === null && flow.classes.length > 0;
+    anecOpen &&
+    !flow.editingRecordId &&
+    flow.studentId !== "" &&
+    flow.selectedClass === null &&
+    flow.classes.length > 0;
   const showCategoryPicker =
     anecOpen && flow.selectedClass !== null && flow.category === null;
   const showTierPicker =
@@ -178,6 +182,15 @@ export function BamaThread({
   const showAutofillSectionPicker = autofillOpen && autofillFlow.phase === "section";
   const showAutofillStudentPicker = autofillOpen && autofillFlow.phase === "students";
   const showAutofillPreview = autofillOpen && autofillFlow.phase === "preview";
+
+  const classNeedle = flow.classQ.trim().toLowerCase();
+  const classMatches = classNeedle
+    ? flow.classes.filter(
+        (c) =>
+          c.subjectName.toLowerCase().includes(classNeedle) ||
+          c.sectionName.toLowerCase().includes(classNeedle),
+      )
+    : [];
 
   if (!active) {
     return (
@@ -278,9 +291,6 @@ export function BamaThread({
                             : "Check the details before this is filed to the anecdotal log."}
                         </p>
                       </span>
-                      <Pill tone="green" label="Section" className="mt-0.5">
-                        {m.preview.section}
-                      </Pill>
                     </header>
 
                     <div className={styles.reviewStudent}>
@@ -294,7 +304,9 @@ export function BamaThread({
                       </span>
                       <span className={styles.reviewIdentity}>
                         <span className={styles.reviewStudentName}>{m.preview.studentName}</span>
-                        <Pill label="LRN">{m.preview.lrn}</Pill>
+                        <span className="text-[12px] tabular-nums text-muted-foreground">
+                          {m.preview.lrn}
+                        </span>
                       </span>
                     </div>
 
@@ -546,7 +558,8 @@ export function BamaThread({
               count={flow.optionsPending ? undefined : flow.studentMatches.length}
             />
             <p className="m-0 px-1 text-xs leading-snug text-muted-foreground">
-              Who is this anecdotal report for?
+              Who is this anecdotal report for? Type a name and matches appear as
+              you go.
             </p>
             <TeacherSearchField
               className="w-full"
@@ -554,31 +567,36 @@ export function BamaThread({
               onChange={flow.setStudentQ}
               placeholder="Search name, LRN, or section…"
               aria-label="Search students"
+              loading={flow.optionsPending}
             />
-            <div
-              className={dialogStyles.kanbanList}
-              role="listbox"
-              aria-label="Students"
-            >
-              {flow.optionsPending ? (
-                <div aria-busy="true" aria-label="Loading students" className="flex flex-col gap-2">
-                  {[0, 1, 2, 3].map((i) => (
-                    <div
-                      key={i}
-                      className="flex min-w-0 flex-col gap-1.5 rounded-lg border bg-white p-3 shadow-sm dark:bg-card"
-                      aria-hidden="true"
-                    >
-                      <Skeleton className="h-4 w-2/3" />
-                      <Skeleton className="h-3 w-1/3" />
-                    </div>
-                  ))}
-                </div>
-              ) : flow.studentRows.length === 0 ? (
-                <p className={dialogStyles.pickerEmpty}>
-                  {searchEmptyMessage(flow.studentQ, "students")}
-                </p>
-              ) : (
-                flow.studentRows.map((s) => (
+            {flow.optionsPending ? (
+              <div aria-busy="true" aria-label="Loading students" className="flex flex-col gap-2">
+                {[0, 1, 2, 3].map((i) => (
+                  <div
+                    key={i}
+                    className="flex min-w-0 flex-col gap-1.5 rounded-lg border bg-white p-3 shadow-sm dark:bg-card"
+                    aria-hidden="true"
+                  >
+                    <Skeleton className="h-4 w-2/3" />
+                    <Skeleton className="h-3 w-1/3" />
+                  </div>
+                ))}
+              </div>
+            ) : flow.studentQ.trim() === "" ? (
+              <p className={dialogStyles.pickerEmpty}>
+                Start typing a name, LRN, or section to see matching students.
+              </p>
+            ) : flow.studentRows.length === 0 ? (
+              <p className={dialogStyles.pickerEmpty}>
+                {searchEmptyMessage(flow.studentQ, "students")}
+              </p>
+            ) : (
+              <div
+                className={dialogStyles.kanbanList}
+                role="listbox"
+                aria-label="Students"
+              >
+                {flow.studentRows.map((s) => (
                   <button
                     key={s.id}
                     type="button"
@@ -590,9 +608,9 @@ export function BamaThread({
                     <span className={dialogStyles.pickerName}>{s.name}</span>
                     <span className={dialogStyles.pickerMeta}>{s.lrn}</span>
                   </button>
-                ))
-              )}
-            </div>
+                ))}
+              </div>
+            )}
             {flow.studentMatches.length > flow.studentRows.length ? (
               <p className={dialogStyles.pickerMore}>
                 {flow.studentMatches.length - flow.studentRows.length} more — refine your search.
@@ -608,30 +626,52 @@ export function BamaThread({
               count={flow.classes.length}
             />
             <p className="m-0 px-1 text-xs leading-snug text-muted-foreground">
-              Which class is this report for?
+              Which class is this report for? Type a subject or section and
+              matches appear as you go.
             </p>
-            <div
-              className={dialogStyles.kanbanOptions}
-              role="listbox"
-              aria-label="Classes"
-            >
-              {flow.classes.map((c) => {
-                const value = `${c.subjectId}|${c.sectionId}|${c.termId}`;
-                return (
-                  <button
-                    key={value}
-                    type="button"
-                    role="option"
-                    aria-selected={false}
-                    className={PICK_CARD}
-                    onClick={() => flow.handleClassPick(value)}
-                  >
-                    <span className={dialogStyles.pickerName}>{c.subjectName}</span>
-                    <span className={dialogStyles.pickerMeta}>{c.sectionName}</span>
-                  </button>
-                );
-              })}
-            </div>
+            <TeacherSearchField
+              className="w-full"
+              value={flow.classQ}
+              onChange={flow.setClassQ}
+              placeholder="Search subject or section…"
+              aria-label="Search classes"
+            />
+            {flow.classQ.trim() === "" ? (
+              <p className={dialogStyles.pickerEmpty}>
+                Start typing a subject or section to see matching classes.
+              </p>
+            ) : classMatches.length === 0 ? (
+              <p className={dialogStyles.pickerEmpty}>
+                {searchEmptyMessage(
+                  flow.classQ,
+                  "classes",
+                  "Try a different subject or section.",
+                )}
+              </p>
+            ) : (
+              <div
+                className={dialogStyles.kanbanOptions}
+                role="listbox"
+                aria-label="Classes"
+              >
+                {classMatches.map((c) => {
+                  const value = `${c.subjectId}|${c.sectionId}|${c.termId}`;
+                  return (
+                    <button
+                      key={value}
+                      type="button"
+                      role="option"
+                      aria-selected={false}
+                      className={PICK_CARD}
+                      onClick={() => flow.handleClassPick(value)}
+                    >
+                      <span className={dialogStyles.pickerName}>{c.subjectName}</span>
+                      <span className={dialogStyles.pickerMeta}>{c.sectionName}</span>
+                    </button>
+                  );
+                })}
+              </div>
+            )}
           </div>
         ) : null}
         {showCategoryPicker ? (
@@ -644,19 +684,35 @@ export function BamaThread({
             <p className="m-0 px-1 text-xs leading-snug text-muted-foreground">
               What is the category for this report?
             </p>
-            <div className={dialogStyles.kanbanOptions} role="listbox" aria-label="Categories">
-              {CATEGORIES.map(([value, label]) => (
-                <button
-                  key={value}
-                  type="button"
-                  role="option"
-                  aria-selected={false}
-                  className={PICK_CARD}
-                  onClick={() => flow.handleCategoryPick(value)}
-                >
-                  <span className={dialogStyles.pickerName}>{label}</span>
-                </button>
-              ))}
+            <div
+              className="grid w-full grid-cols-5 items-center gap-1 px-1 pb-0.5"
+              role="listbox"
+              aria-label="Categories"
+            >
+              {CATEGORIES.map(([value, label]) => {
+                const color = CATEGORY_COLORS[value] ?? "#f59e0b";
+                return (
+                  <button
+                    key={value}
+                    type="button"
+                    role="option"
+                    aria-selected={false}
+                    className="inline-flex h-7 w-full min-w-0 items-center justify-center gap-1 rounded-full border bg-white px-1 text-[12px] font-semibold shadow-sm transition-colors hover:bg-muted/60 dark:bg-card"
+                    style={{
+                      borderColor: `color-mix(in srgb, ${color} 55%, var(--border))`,
+                      color,
+                    }}
+                    onClick={() => flow.handleCategoryPick(value)}
+                  >
+                    <span
+                      className="size-1.5 shrink-0 rounded-full"
+                      style={{ backgroundColor: color }}
+                      aria-hidden
+                    />
+                    <span className="truncate">{label}</span>
+                  </button>
+                );
+              })}
             </div>
           </div>
         ) : null}
@@ -670,19 +726,31 @@ export function BamaThread({
             <p className="m-0 px-1 text-xs leading-snug text-muted-foreground">
               What is the confidentiality tier?
             </p>
-            <div className={dialogStyles.kanbanOptions} role="listbox" aria-label="Confidentiality tiers">
-              {TIERS.map(([value, label]) => (
-                <button
-                  key={value}
-                  type="button"
-                  role="option"
-                  aria-selected={false}
-                  className={PICK_CARD}
-                  onClick={() => flow.handleTierPick(value)}
-                >
-                  <span className={dialogStyles.pickerName}>{label}</span>
-                </button>
-              ))}
+            <div
+              className="grid w-full grid-cols-2 items-center gap-1.5 px-1 pb-0.5"
+              role="listbox"
+              aria-label="Confidentiality tiers"
+            >
+              {TIERS.map(([value, label]) => {
+                const color = value === "confidential" ? "#dc2626" : "#d97706";
+                return (
+                  <button
+                    key={value}
+                    type="button"
+                    role="option"
+                    aria-selected={false}
+                    className="inline-flex h-7 w-full min-w-0 items-center justify-center gap-1 rounded-full border bg-white px-1 text-[12px] font-semibold shadow-sm transition-colors hover:bg-muted/60 dark:bg-card"
+                    style={{
+                      borderColor: `color-mix(in srgb, ${color} 55%, var(--border))`,
+                      color,
+                    }}
+                    onClick={() => flow.handleTierPick(value)}
+                  >
+                    <ShieldCheck size={12} className="shrink-0" aria-hidden />
+                    <span className="truncate">{label}</span>
+                  </button>
+                );
+              })}
             </div>
           </div>
         ) : null}

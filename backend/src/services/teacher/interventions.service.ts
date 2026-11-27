@@ -37,6 +37,8 @@ export interface AdvisoryInterventionSession {
   createdAt: string;
   completedAt: string | null;
   attachmentsCount: number;
+  /** How many times guidance moved this session (0 = never rescheduled). */
+  rescheduleCount: number;
 }
 
 export interface AdvisoryIntervention {
@@ -229,6 +231,29 @@ async function sectionLearners(
   };
 }
 
+/**
+ * Moved sessions. `CounselingSession` only keeps its latest date, so a
+ * reschedule lives in the audit trail (`session_rescheduled`) — counting those
+ * rows is what lets the adviser drawer tag a booked session that guidance has
+ * already moved.
+ */
+async function sessionRescheduleCounts(
+  sessionIds: string[],
+): Promise<Map<string, number>> {
+  if (sessionIds.length === 0) return new Map();
+  const rows = await prisma.auditLog.findMany({
+    where: {
+      actionType: "session_rescheduled",
+      sourceTable: "counseling_sessions",
+      sourceId: { in: sessionIds },
+    },
+    select: { sourceId: true },
+  });
+  const counts = new Map<string, number>();
+  for (const row of rows) counts.set(row.sourceId, (counts.get(row.sourceId) ?? 0) + 1);
+  return counts;
+}
+
 /** Latest intervention per learner key for the term (full session detail). */
 async function interventionsByLearner(
   termId: string,
@@ -280,6 +305,10 @@ async function interventionsByLearner(
     },
   });
 
+  const rescheduleCounts = await sessionRescheduleCounts(
+    rows.flatMap((row) => row.counselingSessions.map((session) => session.id)),
+  );
+
   const byLearner = new Map<string, AdvisoryIntervention>();
   for (const row of rows) {
     const key = row.studentId ?? (row.rosterId ? `roster:${row.rosterId}` : null);
@@ -307,6 +336,7 @@ async function interventionsByLearner(
         createdAt: session.createdAt.toISOString(),
         completedAt: iso(session.completedAt),
         attachmentsCount: session.attachments.length,
+        rescheduleCount: rescheduleCounts.get(session.id) ?? 0,
       })),
     });
   }

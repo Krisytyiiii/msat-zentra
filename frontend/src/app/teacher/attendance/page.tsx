@@ -8,14 +8,18 @@ import { useTeacherInvalidate } from "../components/use-teacher-invalidate";
 import { apiClient } from "@/lib/api/client";
 import { apiErrorMessage } from "@/lib/api/errors";
 import { toast } from "@/components/ui/sonner";
-import { AttendanceRosterSkeleton, AttendanceRosterTable } from "./components/AttendanceRosterTable";
-import { Skeleton } from "@/components/ui/skeleton";
+import { Button } from "@/components/ui/button";
+import { ShimmerSkeleton } from "@/components/ui/shimmer-skeleton";
+import { AttendanceRosterTable } from "./components/AttendanceRosterTable";
 import { AttendanceTermGate, AttendanceLinkGate } from "./components/AttendanceTermGate";
 import { VerifyCodeCard } from "./components/verify-code-card";
-import { AttendanceRail } from "./components/attendance-rail";
-import { SectionTabs } from "./components/section-tabs";
+import { AttendanceSheetDrawer } from "./components/attendance-sheet-drawer";
+import {
+  AttendanceTimetable,
+  AttendanceTimetableSkeleton,
+  type AttendanceCell,
+} from "./components/attendance-timetable";
 import { useAttendancePairs, type LinkedName } from "./components/use-attendance-pairs";
-import { useSlotCards } from "./components/use-slot-cards";
 import {
   isEditableDay,
   phTodayKey,
@@ -29,6 +33,7 @@ import { TeacherGateCard } from "@/app/teacher/components/TeacherGateCard";
 import { useTerm } from "@/lib/term/TermContext";
 import {
   buildTimetable,
+  DEFAULT_DAY_CONFIG,
   formatClock,
 } from "@/components/schedule/schedule-time";
 import type { AttendanceLive } from "./components/AttendanceRosterTable";
@@ -37,6 +42,7 @@ interface TermGrant {
   via: string;
   attendanceVerified: boolean;
 }
+
 function SheetLiveNotice({ title, message }: { title: string; message: string }) {
   return (
     <span
@@ -52,6 +58,17 @@ function SheetLiveNotice({ title, message }: { title: string; message: string })
     </span>
   );
 }
+
+/** Most recent date (Manila) that falls on the picked weekday — today's slot
+ * opens today, an earlier weekday opens that day this week. */
+function defaultDateForDow(day: number): string {
+  const todayKey = phTodayKey();
+  const base = new Date(`${todayKey}T00:00:00Z`);
+  const todayDow = ((base.getUTCDay() + 6) % 7) + 1;
+  const back = (todayDow - day + 7) % 7;
+  return new Date(base.getTime() - back * 86_400_000).toISOString().slice(0, 10);
+}
+
 export default function TeacherAdvisoryAttendancePage() {
   const invalidateTeacher = useTeacherInvalidate();
   const [now, setNow] = useState(() => new Date());
@@ -112,31 +129,22 @@ export default function TeacherAdvisoryAttendancePage() {
       toast.error({ title: "Could not verify code", description: message });
     },
   });
-  const [pairKey, setPairKey] = useState<string | undefined>(undefined);
-  const [slotKey, setSlotKey] = useState<string | null>(null);
-  const selectedPair = pairs.find((p) => p.key === pairKey) ?? pairs[0];
+  // The slot picked on the week grid; the drawer only opens with one.
+  const [picked, setPicked] = useState<{
+    key: string;
+    pairKey: string;
+    day: number;
+    period: number;
+  } | null>(null);
+  const [drawerOpen, setDrawerOpen] = useState(false);
+  // Save state lifted out of the roster so the drawer can own the bottom action.
+  const [saveState, setSaveState] = useState<{
+    open: () => void;
+    count: number;
+    disabled: boolean;
+  } | null>(null);
+  const selectedPair = pairs.find((p) => p.key === picked?.pairKey) ?? pairs[0];
   const resolvedSectionId = selectedPair?.section.id;
-  // One tab per section the teacher handles; picking one keeps the current
-  // subject when that section also teaches it, else opens its first subject.
-  const sectionTabs = useMemo(() => {
-    const bySection = new Map<
-      string,
-      { id: string; name: string; gradeLevel: string | null }
-    >();
-    for (const p of pairs) {
-      if (!bySection.has(p.section.id)) bySection.set(p.section.id, p.section);
-    }
-    return [...bySection.values()];
-  }, [pairs]);
-  const handleSectionSelect = (sectionId: string) => {
-    const currentSubjectId = selectedPair?.subject?.id ?? null;
-    const inSection = pairs.filter((p) => p.section.id === sectionId);
-    const next =
-      inSection.find((p) => p.subject?.id === currentSubjectId) ?? inSection[0];
-    if (!next) return;
-    setPairKey(next.key);
-    setSlotKey(null);
-  };
   const rosterQuery = useSectionRoster(resolvedSectionId);
   // Memoize the wrapper: rebuilding { ctx } every render gave the roster
   // table a new effectiveCtx identity per render, which retriggered every
@@ -350,9 +358,13 @@ export default function TeacherAdvisoryAttendancePage() {
       slot: next.period + 1,
     };
   })();
-  const slot = gate.slot;
-  const { slotCards, slotQuery, setSlotQuery } = useSlotCards(pairs, configQuery.data?.config, now);
-  const activeSlotKey = slotKey ?? slotCards[0]?.key ?? null;
+  // A picked grid cell is explicit: its period is the sheet slot, even when the
+  // subject meets different periods on other days.
+  const slot = picked ? picked.period + 1 : gate.slot;
+  const rows = useMemo(
+    () => buildTimetable(configQuery.data?.config ?? DEFAULT_DAY_CONFIG),
+    [configQuery.data?.config],
+  );
   const hasGrant = termGrant !== null;
   const isAdvisoryPair =
     !!advisorySectionId && (selectedPair?.section.id ?? null) === advisorySectionId;
@@ -380,39 +392,28 @@ export default function TeacherAdvisoryAttendancePage() {
     [liveLocked, liveTone, liveMessage, liveNowMin, liveTodayKey, liveTodayEnd],
   );
   /* eslint-enable react-hooks/preserve-manual-memoization */
+  const handlePick = (cell: AttendanceCell) => {
+    setPicked({
+      key: cell.key,
+      pairKey: cell.pairKey,
+      day: cell.day,
+      period: cell.period,
+    });
+    setDate(defaultDateForDow(cell.day));
+    setDrawerOpen(true);
+  };
   if (meQuery.isPending || (linked && mySlotsQuery.isPending)) {
     return (
       <section className={styles.page} aria-busy="true" aria-label="Loading attendance">
-        <div className={styles.layout}>
-          <aside className={styles.railColumn} aria-hidden="true">
-            <div className={styles.railInner}>
-              <div className={styles.railTop}>
-                <Skeleton className="h-12 w-full rounded-md" />
-                <Skeleton className="h-14 w-full rounded-md" />
-              </div>
-              <div className={styles.railHead}>
-                <Skeleton className="h-4 w-24" />
-                <Skeleton className="h-5 w-8 rounded-md" />
-              </div>
-              <Skeleton className="h-3 w-44" />
-              <Skeleton className="h-8 w-full rounded-[16px]" />
-              <div className={styles.railGroup}>
-                <Skeleton className="mb-1 h-3 w-20" />
-                {[0, 1, 2, 3, 4].map((i) => (
-                  <Skeleton key={i} className="h-12 w-full rounded-md" />
-                ))}
-              </div>
+        <div className={styles.body}>
+          <div className="flex flex-wrap items-center justify-between gap-2">
+            <div className="flex flex-col gap-1.5">
+              <ShimmerSkeleton className="h-4 w-44" />
+              <ShimmerSkeleton className="h-3 w-64 max-w-full" />
             </div>
-          </aside>
-          <div className={styles.main}>
-            <div className="flex flex-wrap items-center justify-between gap-2">
-              <Skeleton className="h-8 w-56 rounded-[16px]" />
-              <Skeleton className="h-4 w-40" />
-            </div>
-            <div className={styles.body}>
-              <AttendanceRosterSkeleton />
-            </div>
+            <ShimmerSkeleton className="h-4 w-40" />
           </div>
+          <AttendanceTimetableSkeleton />
         </div>
       </section>
     );
@@ -454,83 +455,116 @@ export default function TeacherAdvisoryAttendancePage() {
           href="/teacher/classes"
         />
       ) : (
-        <div className={styles.layout}>
-          <AttendanceRail
-            date={date}
-            onDateChange={setDate}
-            meetupDates={meetupDateKeys}
-            slotCards={slotCards}
-            hasSubjects={pairs.some((p) => p.subject)}
-            activeSlotKey={activeSlotKey}
-            slotQuery={slotQuery}
-            onSlotQueryChange={setSlotQuery}
-            onSelect={(card) => {
-              setPairKey(card.pairKey);
-              setSlotKey(card.key);
-            }}
-            blocksMode={blocksMode}
-            onToggleBlocks={() => setBlocksMode((v) => !v)}
-          />
-          <div className={styles.main}>
-            <div className="flex flex-wrap items-center justify-between gap-2">
-              <div className="min-w-0 flex-1">
-                <SectionTabs
-                  sections={sectionTabs}
-                  activeSectionId={resolvedSectionId ?? null}
-                  onSelect={handleSectionSelect}
-                />
-              </div>
-              {gate.live.message && gate.live.tone !== "lock" ? (
-                <SheetLiveNotice
-                  title={gate.live.message.includes("live now") ? "Live now" : "Editable"}
-                  message={gate.live.message}
-                />
-              ) : null}
+        <div className={styles.body}>
+          <div className="flex flex-wrap items-center justify-between gap-2">
+            <div className="min-w-0">
+              <h1 className="text-base font-bold tracking-tight">Weekly attendance</h1>
+              <p className="text-xs text-muted-foreground">
+                Pick a time slot to open its attendance sheet.
+              </p>
             </div>
-            <div className={styles.body}>
-              {needsVerifyForPair ? (
-                <VerifyCodeCard
-                  sectionName={selectedPair?.section.name}
-                  termLabel={termLabel}
-                  attCode={attCode}
-                  attCodeError={attCodeError}
-                  verifyPending={verify.isPending}
-                  onAttCodeChange={(value) => {
-                    setAttCode(value);
-                    setAttCodeError(null);
-                  }}
-                  onVerify={handleVerify}
-                />
-              ) : null}
-              {takenByOther && resolvedOffered ? (
-                <div role="alert" className="rounded-lg border border-amber-500/40 bg-amber-500/10 px-4 py-3 text-sm">
-                  This subject ({resolvedOffered.name}) is linked to {resolvedOffered.ownerTeacherName ?? resolvedOffered.teacherName} — only their linked students can be marked here. Select your own linked subject.
-                </div>
-              ) : null}
-              {noClassForDate ? (
-                <div role="alert" className="rounded-lg border border-amber-500/40 bg-amber-500/10 px-4 py-3 text-sm">
-                  <span className="font-medium">No class on this date.</span>{" "}
-                  {noClassForDate.scope === "whole_day"
-                    ? "Classes are cancelled for the whole day."
-                    : `Classes are cancelled in the ${noClassForDate.scope.toUpperCase()} only for this subject's meetups.`}{" "}
-                  <span className="text-muted-foreground">Reason: {noClassForDate.reason}</span>
-                </div>
-              ) : null}
-              <AttendanceRosterTable
-                date={date}
-                subjectId={resolvedSubjectId}
-                assignmentId={resolvedAssignmentId}
-                slot={slot}
-                roster={resolvedSectionId ? rosterOverride : undefined}
-                meetupDays={resolvedMeetupDays}
-                live={live}
-                blocksMode={blocksMode}
-                onBlocksModeChange={setBlocksMode}
+            {picked && gate.live.message && gate.live.tone !== "lock" ? (
+              <SheetLiveNotice
+                title={gate.live.message.includes("live now") ? "Live now" : "Editable"}
+                message={gate.live.message}
               />
-            </div>
+            ) : null}
+          </div>
+          <AttendanceTimetable
+            rows={rows}
+            pairs={pairs}
+            todayDow={todayDow}
+            nowMin={nowMin}
+            activeKey={picked?.key ?? null}
+            onPick={handlePick}
+          />
+          <div className="flex flex-wrap items-center gap-3 text-xs text-muted-foreground">
+            <span className="inline-flex items-center gap-1">
+              <span className="size-1.5 rounded-full bg-amber-500" aria-hidden />
+              Draft
+            </span>
+            <span className="inline-flex items-center gap-1">
+              <span className="size-1.5 rounded-full bg-blue-500" aria-hidden />
+              Submitted
+            </span>
+            <span className="inline-flex items-center gap-1">
+              <span className="size-1.5 rounded-full bg-green-500" aria-hidden />
+              Approved
+            </span>
+            <span>Tap any slot to record that class&apos;s attendance.</span>
           </div>
         </div>
       )}
+      <AttendanceSheetDrawer
+        open={drawerOpen && !!picked}
+        onClose={() => setDrawerOpen(false)}
+        pair={selectedPair ?? null}
+        termNumber={activeTerm?.termNumber ?? null}
+        schoolYearName={activeTerm?.schoolYearName ?? null}
+        date={date}
+        onDateChange={setDate}
+        meetupDates={meetupDateKeys}
+        blocksMode={blocksMode}
+        onToggleBlocks={() => setBlocksMode((v) => !v)}
+        footer={
+          picked ? (
+            <Button
+              size="sm"
+              className="h-7 px-3 text-xs"
+              onClick={() => saveState?.open()}
+              disabled={!saveState || saveState.disabled}
+            >
+              Save{saveState && saveState.count > 0 ? ` (${saveState.count})` : ""}
+            </Button>
+          ) : undefined
+        }
+      >
+        {picked ? (
+          <>
+            {needsVerifyForPair ? (
+              <VerifyCodeCard
+                sectionName={selectedPair?.section.name}
+                termLabel={termLabel}
+                attCode={attCode}
+                attCodeError={attCodeError}
+                verifyPending={verify.isPending}
+                onAttCodeChange={(value) => {
+                  setAttCode(value);
+                  setAttCodeError(null);
+                }}
+                onVerify={handleVerify}
+              />
+            ) : null}
+            {takenByOther && resolvedOffered ? (
+              <div role="alert" className="rounded-lg border border-amber-500/40 bg-amber-500/10 px-4 py-3 text-sm">
+                This subject ({resolvedOffered.name}) is linked to {resolvedOffered.ownerTeacherName ?? resolvedOffered.teacherName} — only their linked students can be marked here. Select your own linked subject.
+              </div>
+            ) : null}
+            {noClassForDate ? (
+              <div role="alert" className="rounded-lg border border-amber-500/40 bg-amber-500/10 px-4 py-3 text-sm">
+                <span className="font-medium">No class on this date.</span>{" "}
+                {noClassForDate.scope === "whole_day"
+                  ? "Classes are cancelled for the whole day."
+                  : `Classes are cancelled in the ${noClassForDate.scope.toUpperCase()} only for this subject's meetups.`}{" "}
+                <span className="text-muted-foreground">Reason: {noClassForDate.reason}</span>
+              </div>
+            ) : null}
+            <AttendanceRosterTable
+              date={date}
+              subjectId={resolvedSubjectId}
+              assignmentId={resolvedAssignmentId}
+              slot={slot}
+              roster={resolvedSectionId ? rosterOverride : undefined}
+              meetupDays={resolvedMeetupDays}
+              live={live}
+              blocksMode={blocksMode}
+              onBlocksModeChange={setBlocksMode}
+              externalSave
+              onSaveStateChange={setSaveState}
+            />
+          </>
+        ) : null}
+      </AttendanceSheetDrawer>
     </section>
   );
 }

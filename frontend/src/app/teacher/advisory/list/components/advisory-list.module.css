@@ -1,25 +1,9 @@
-/* Page-locked view: the document never scrolls here. The panel fills the
-   viewport frame (3rem navbar + 2rem shell padding) and the roster table is
-   the only scrolling surface — its thin amber scrollbar appears on hover. */
-.pageLock {
-  height: calc(100dvh - 5rem);
-  min-height: 0;
-  overflow: hidden;
-}
-
-.pageLock > div {
-  height: 100%;
-  min-height: 0;
-  align-items: stretch;
-}
-
-/* Board card fills the frame; the page actions sit in its header. */
+/* Board card: header, then the full-width roster body. */
 .boardLayout {
   display: flex;
   flex-direction: column;
   width: 100%;
   min-width: 0;
-  min-height: 0;
 }
 
 .pageActions {
@@ -32,98 +16,15 @@
   margin-left: auto;
 }
 
-.pageLock .panel {
-  height: 100%;
-  max-height: 100%;
-  overflow: hidden;
+/* Full-width board body: toolbar, selection bar, roster table, pagination. */
+.body {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+  min-width: 0;
+  padding: 0.75rem;
 }
 
-.pageLock .split {
-  flex: 1;
-  min-height: 0;
-  grid-template-rows: minmax(0, 1fr);
-  align-items: stretch;
-}
-
-.pageLock .left,
-.pageLock .right {
-  min-height: 0;
-}
-
-.pageLock .lane {
-  flex: 1;
-  min-height: 0;
-}
-
-.pageLock .tableWrap {
-  flex: 1;
-  min-height: 0;
-  overflow-x: hidden;
-  overflow-y: auto;
-  /* Hidden until the pointer is over the list. */
-  scrollbar-width: none;
-  -ms-overflow-style: none;
-}
-
-.pageLock .tableWrap:hover {
-  scrollbar-width: thin;
-  scrollbar-color: color-mix(in oklch, #f59e0b 65%, transparent) transparent;
-}
-
-.pageLock .tableWrap::-webkit-scrollbar {
-  width: 4px;
-  height: 4px;
-}
-
-.pageLock .tableWrap::-webkit-scrollbar-thumb {
-  background: transparent;
-  border-radius: 999px;
-}
-
-.pageLock .tableWrap:hover::-webkit-scrollbar-thumb {
-  background: color-mix(in oklch, #f59e0b 65%, transparent);
-}
-
-@media (max-width: 767px) {
-  .pageLock {
-    height: calc(100dvh - 7.5rem);
-  }
-}
-
-/* Stacked layout (split collapses to one column): the page scrolls normally
-   again — only the desktop two-pane board is viewport-locked. */
-@media (max-width: 72rem) {
-  .pageLock {
-    height: auto;
-    overflow: visible;
-  }
-
-  .pageLock .boardLayout {
-    height: auto;
-    grid-template-rows: none;
-  }
-
-  .pageLock .panel {
-    height: auto;
-    max-height: none;
-    overflow: visible;
-  }
-
-  .pageLock .split {
-    grid-template-rows: none;
-  }
-
-  .pageLock .lane {
-    flex: none;
-  }
-
-  .pageLock .tableWrap {
-    overflow-y: visible;
-  }
-}
-
-/* Single card panel split in two: slim list (left, ~30%) + insight (right),
-   divided by a vertical line. */
 .panel {
   display: flex;
   flex-direction: column;
@@ -176,73 +77,6 @@
   letter-spacing: -0.01em;
   color: var(--foreground);
   line-height: 1.2;
-}
-
-.boardSub {
-  margin: 0;
-  font-size: 0.75rem;
-  color: var(--muted-foreground);
-  line-height: 1.3;
-}
-
-.lane {
-  display: flex;
-  flex-direction: column;
-  gap: 0.625rem;
-  min-width: 0;
-  padding: 0.75rem;
-  border: 1px solid var(--border);
-  border-radius: var(--radius-md);
-  background-color: color-mix(in oklch, var(--muted) 60%, transparent);
-}
-
-:global(.dark) .lane {
-  background-color: color-mix(in oklch, var(--muted) 20%, transparent);
-}
-
-.laneHead {
-  display: flex;
-  align-items: center;
-  gap: 0.5rem;
-  min-width: 0;
-  flex-wrap: wrap;
-}
-
-.laneDot {
-  width: 0.5625rem;
-  height: 0.5625rem;
-  border-radius: 999px;
-  flex-shrink: 0;
-}
-
-.laneTitle {
-  margin: 0;
-  font-size: 0.75rem;
-  font-weight: 700;
-  text-transform: uppercase;
-  letter-spacing: 0.06em;
-  color: var(--muted-foreground);
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-  flex: 1;
-  min-width: 0;
-}
-
-.laneCount {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  min-width: 1.375rem;
-  height: 1.375rem;
-  padding-inline: 0.375rem;
-  border-radius: 999px;
-  background-color: var(--muted);
-  color: var(--foreground);
-  font-size: 0.75rem;
-  font-weight: 700;
-  font-variant-numeric: tabular-nums;
-  flex-shrink: 0;
 }
 
 .toolbar {
@@ -384,81 +218,6 @@
 
 .selected:hover {
   background-color: color-mix(in oklch, var(--primary) 14%, transparent);
-}
-
-.side {
-  display: flex;
-  flex-direction: column;
-  gap: 0.75rem;
-  min-width: 0;
-  position: sticky;
-  top: calc(4rem + var(--term-banner-offset, 0rem));
-  max-height: calc(100dvh - 5rem - var(--term-banner-offset, 0rem));
-  overflow-y: auto;
-  scrollbar-width: none;
-  -ms-overflow-style: none;
-}
-
-.side::-webkit-scrollbar {
-  display: none;
-}
-
-/* One-panel split: slim left list (~24%) + insight takes the rest,
-   separated by a vertical line. */
-.split {
-  display: grid;
-  grid-template-columns: minmax(0, 24%) minmax(0, 1fr);
-  align-items: start;
-  min-width: 0;
-  width: 100%;
-}
-
-.left {
-  display: flex;
-  flex-direction: column;
-  gap: 0.625rem;
-  min-width: 0;
-  padding: 0.75rem;
-}
-
-.right {
-  display: flex;
-  flex-direction: column;
-  gap: 0.75rem;
-  min-width: 0;
-  padding: 0.75rem;
-  border-left: 1px solid var(--border);
-  position: sticky;
-  top: calc(4rem + var(--term-banner-offset, 0rem));
-  max-height: calc(100dvh - 5rem - var(--term-banner-offset, 0rem));
-  overflow-y: auto;
-  scrollbar-width: none;
-  -ms-overflow-style: none;
-}
-
-.right::-webkit-scrollbar {
-  display: none;
-}
-
-@media (max-width: 72rem) {
-  .split {
-    grid-template-columns: minmax(0, 1fr);
-  }
-  .left {
-    padding-bottom: 0.25rem;
-  }
-  .right {
-    border-left: none;
-    border-top: 1px solid var(--border);
-    position: static;
-    max-height: none;
-    overflow-y: visible;
-  }
-  .side {
-    position: static;
-    max-height: none;
-    overflow-y: visible;
-  }
 }
 
 /* ---- Archived students glass cards -------------------------------------- */

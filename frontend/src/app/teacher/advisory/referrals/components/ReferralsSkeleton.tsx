@@ -4,50 +4,40 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { ShimmerGroup } from "@/components/ui/shimmer-skeleton";
 import refStyles from "./referrals.module.css";
 
-const CARDS = 8;
+const ROWS = 8;
 
-/** One card shell mirroring the loaded referral card (mascot + name + LRN,
-    status pill, type/session tags, two case facts, three actions). */
-function ReferralCardSkeleton() {
+/** One placeholder row mirroring the loaded referral table row. */
+function ReferralRowSkeleton() {
   return (
-    <li>
-      <div className={refStyles.cardSkeleton}>
-        <div className="flex min-w-0 items-start gap-2">
-          <Skeleton className="size-9 shrink-0 rounded-full" />
+    <tr>
+      <td>
+        <div className="flex min-w-0 items-center gap-2">
+          <Skeleton className="size-8 shrink-0 rounded-full" />
           <div className="flex min-w-0 flex-1 flex-col gap-1.5">
             <Skeleton className="h-3.5 w-32" />
-            <Skeleton className="h-5 w-24 rounded-md" />
-          </div>
-          <Skeleton className="h-6 w-16 shrink-0 rounded-full" />
-        </div>
-        <div className="flex flex-wrap items-center gap-1.5">
-          <Skeleton className="h-5 w-20 rounded-full" />
-          <Skeleton className="h-5 w-24 rounded-full" />
-        </div>
-        <div className="grid grid-cols-2 gap-2">
-          <div className="flex flex-col gap-1">
-            <Skeleton className="h-3 w-16" />
-            <Skeleton className="h-3.5 w-24" />
-          </div>
-          <div className="flex flex-col gap-1">
-            <Skeleton className="h-3 w-14" />
-            <Skeleton className="h-3.5 w-28" />
+            <Skeleton className="h-3 w-24" />
           </div>
         </div>
-        <div className="mt-1 flex items-center gap-1.5 border-t border-border/70 pt-2.5">
-          <Skeleton className="h-8 w-20 rounded-[8px]" />
-          <Skeleton className="h-8 w-16 rounded-[8px]" />
-          <Skeleton className="ml-auto size-8 rounded-[8px]" />
+      </td>
+      <td><Skeleton className="h-6 w-20 rounded-full" /></td>
+      <td><Skeleton className="h-6 w-24 rounded-full" /></td>
+      <td><Skeleton className="h-3.5 w-28" /></td>
+      <td><Skeleton className="h-3.5 w-24" /></td>
+      <td><Skeleton className="h-5 w-28 rounded-full" /></td>
+      <td>
+        <div className="flex items-center justify-end gap-1">
+          <Skeleton className="size-7 rounded-md" />
+          <Skeleton className="size-7 rounded-md" />
         </div>
-      </div>
-    </li>
+      </td>
+    </tr>
   );
 }
 
 /**
- * Referrals loading state — mirrors the loaded casebook card wall: the panel
+ * Referrals loading state — mirrors the loaded casebook table: the panel
  * header strip and page action buttons, the status-tab/search toolbar, the
- * grid of case cards and its pager footer.
+ * table rows and its pager footer.
  */
 export function ReferralsSkeleton() {
   return (
@@ -72,12 +62,27 @@ export function ReferralsSkeleton() {
             <Skeleton className="h-8 w-60 max-w-full rounded-full" />
           </div>
 
-          <div className={refStyles.cardArea}>
-            <ul className={refStyles.cardGrid} aria-hidden>
-              {Array.from({ length: CARDS }).map((_, i) => (
-                <ReferralCardSkeleton key={i} />
-              ))}
-            </ul>
+          <div className={refStyles.tableArea}>
+            <div className={refStyles.tableWrap}>
+              <table className="w-full table-fixed" aria-hidden>
+                <thead>
+                  <tr className="bg-muted/50">
+                    <th className="h-10 w-[26%]" />
+                    <th className="h-10 w-[13%]" />
+                    <th className="h-10 w-[13%]" />
+                    <th className="h-10 w-[16%]" />
+                    <th className="h-10 w-[15%]" />
+                    <th className="h-10 w-[12%]" />
+                    <th className="h-10 w-[5%]" />
+                  </tr>
+                </thead>
+                <tbody>
+                  {Array.from({ length: ROWS }).map((_, index) => (
+                    <ReferralRowSkeleton key={index} />
+                  ))}
+                </tbody>
+              </table>
+            </div>
           </div>
 
           <div className={refStyles.panelFooter}>

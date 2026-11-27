@@ -5,9 +5,8 @@ import { ClipboardList, FileText, Loader2, PenLine } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { KanbanBoard, KanbanBoardEmpty } from "@/components/ui/kanban-board";
 import { TeacherSearchField } from "@/app/teacher/components/TeacherSearchField";
-import { Pill } from "@/components/ui/pill";
 import { formatSurnameFirst } from "@/lib/names";
-import { CardModal } from "@/components/ui/CardModal";
+import { MessageOverlay } from "@/components/ui/message-overlay";
 import { COMPONENT_NAMES } from "@/services/teacher/grading.compute";
 import { useQueryClient } from "@tanstack/react-query";
 import { submitScore, submitScores, updateAssessment, classDetailKey } from "@/services/teacher/grading.service";
@@ -22,6 +21,7 @@ import { useScoreDrafts } from "./use-score-drafts";
 import { clearStoredDrafts, typedCache } from "./score-storage";
 import { PlainEncodeTable } from "./encode-table";
 import { ScoreDataTable } from "./score-data-table";
+import { MAX_SCORE_LIMIT } from "./AddAssessmentForm";
 
 const CATEGORY_COLOR: Record<ComponentType, string> = {
   WRITTEN_WORK: "#3b82f6",
@@ -115,6 +115,10 @@ export function ScoreGrid({ queryKeyId, sectionName, students, components, categ
       const parsed = Number(maxRaw);
       if (!Number.isFinite(parsed) || parsed <= 0) {
         setError("Max score must be a number greater than 0.");
+        return;
+      }
+      if (parsed > MAX_SCORE_LIMIT) {
+        setError(`Max score must be ${MAX_SCORE_LIMIT} or less.`);
         return;
       }
       effectiveMax = parsed;
@@ -295,6 +299,27 @@ export function ScoreGrid({ queryKeyId, sectionName, students, components, categ
     <KanbanBoard
       className={styles.board}
       title={selected ? selected.title : COMPONENT_NAMES[category]}
+      titleMeta={
+        selected ? (
+          <span className="flex flex-wrap items-center gap-x-2 gap-y-0.5">
+            <span>
+              Category: <span className="font-medium text-foreground">{COMPONENT_NAMES[category]}</span>
+            </span>
+            <span aria-hidden className="text-border">|</span>
+            <span>
+              Type: <span className="font-medium text-foreground">{selected.audience === "adm" ? "ADM" : "Regular"}</span>
+            </span>
+            <span aria-hidden className="text-border">|</span>
+            <span>
+              Max score: <span className="font-medium text-foreground">{selected.maxScore}</span>
+            </span>
+            <span aria-hidden className="text-border">|</span>
+            <span>
+              Section: <span className="font-medium text-foreground">{sectionName}</span>
+            </span>
+          </span>
+        ) : undefined
+      }
       icon={(() => {
         const Icon = CATEGORY_ICON[category] ?? ClipboardList;
         return (
@@ -304,18 +329,6 @@ export function ScoreGrid({ queryKeyId, sectionName, students, components, categ
         );
       })()}
       count={undefined}
-      description={
-        selected ? (
-          <span className="flex flex-wrap items-center gap-1">
-            <Pill tone="amber" label="Assessment category">{COMPONENT_NAMES[category]}</Pill>
-            <Pill tone={selected.audience === "adm" ? "amber" : "neutral"} label="Assessment type">
-              {selected.audience === "adm" ? "ADM" : "Regular"}
-            </Pill>
-            <Pill tone="amber" label="Maximum score">Max {selected.maxScore}</Pill>
-            <Pill tone="amber" label="Section">{sectionName}</Pill>
-          </span>
-        ) : null
-      }
       toolbar={
         selected ? (
           <div className="flex flex-wrap items-center justify-between gap-2 px-1 pt-0.5">
@@ -355,7 +368,7 @@ export function ScoreGrid({ queryKeyId, sectionName, students, components, categ
             {editing ? (
               <label className="flex items-center gap-1.5 text-xs text-muted-foreground">
                 Max
-                <input ref={maxRef} key={selected.id} className={styles.maxInput} inputMode="numeric" aria-label="Max score" defaultValue={restoredMax ?? selected.maxScore} onChange={(e) => { const v = e.target.value.replace(/[^0-9]/g, ""); e.target.value = v; writeMax(v === "" ? null : v); }} />
+                <input ref={maxRef} key={selected.id} className={styles.maxInput} inputMode="numeric" aria-label="Max score" defaultValue={restoredMax ?? selected.maxScore} onChange={(e) => { const v = e.target.value.replace(/[^0-9]/g, ""); const capped = v !== "" && Number(v) > MAX_SCORE_LIMIT ? String(MAX_SCORE_LIMIT) : v; e.target.value = capped; writeMax(capped === "" ? null : capped); }} />
               </label>
             ) : null}
             {editing ? (
@@ -403,8 +416,44 @@ export function ScoreGrid({ queryKeyId, sectionName, students, components, categ
           : undefined
       }
     >
-      <CardModal open={emptyOpen} onClose={() => setEmptyOpen(false)} size="sm" title="No scores to save" description="Enter at least one score before saving."><div className="flex justify-end gap-2"><Button onClick={() => setEmptyOpen(false)}>Got it</Button></div></CardModal>
-      <CardModal open={rangeError !== null} onClose={() => setRangeError(null)} size="sm" title="Check scores" description={rangeError ?? undefined}><div className="flex justify-end gap-2"><Button onClick={() => setRangeError(null)}>Got it</Button></div></CardModal>
+      {emptyOpen ? (
+        <MessageOverlay
+          tone="warning"
+          title="No scores to save"
+          description="Enter at least one score before saving."
+          onDismiss={() => setEmptyOpen(false)}
+          footerHint="Esc to close"
+          actions={
+            <Button
+              size="sm"
+              className="h-8 px-3 text-[12px]"
+              onClick={() => setEmptyOpen(false)}
+              autoFocus
+            >
+              Got it
+            </Button>
+          }
+        />
+      ) : null}
+      {rangeError ? (
+        <MessageOverlay
+          tone="warning"
+          title="Check scores"
+          description={rangeError}
+          onDismiss={() => setRangeError(null)}
+          footerHint="Esc to close"
+          actions={
+            <Button
+              size="sm"
+              className="h-8 px-3 text-[12px]"
+              onClick={() => setRangeError(null)}
+              autoFocus
+            >
+              Got it
+            </Button>
+          }
+        />
+      ) : null}
       {error ? <p className={styles.errorText}>{error}</p> : null}
       {recovered && editing ? (<p className={styles.recovered} role="status">Recovered unsaved entries from your last visit — review and save.</p>) : null}
       {assessments.length === 0 || !selected ? (

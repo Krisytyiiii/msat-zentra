@@ -119,7 +119,7 @@ export function ReportsDistribution({
       )}
       <div className={styles.footerSlot}>
         <InsightCallout className={styles.interpretation}>
-          <span className={styles.interpretationLabel}>What it means · </span>
+          <span className={styles.interpretationLabel}>What it means | </span>
           {total === 0
             ? "No finalized grades yet — the bands fill as classes lock finals."
             : `${passing} of ${total} final grade${total === 1 ? "" : "s"} pass${

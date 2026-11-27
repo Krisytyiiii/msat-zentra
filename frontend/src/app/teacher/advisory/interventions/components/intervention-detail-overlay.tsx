@@ -10,15 +10,16 @@ import {
   ListChecks,
   MapPin,
   Paperclip,
+  RotateCcw,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { FilterTabs } from "@/components/ui/filter-tabs";
-import { KanbanOverlay } from "@/components/ui/kanban-overlay";
 import { Pill } from "@/components/ui/pill";
+import { SidePanel } from "@/components/ui/side-panel";
 import { StudentMascot } from "@/components/student-mascot/StudentMascot";
-import { outcomeLabel, outcomeTone, riskTone } from "@/lib/labels/status-tone";
 import { sessionTypeLabel } from "@/lib/labels/sessions";
 import { formatStatus } from "@/lib/labels/text";
+import { formatSurnameFirst } from "@/lib/names";
+import { useTerm } from "@/lib/term/TermContext";
 import type {
   AdvisoryInterventionRow,
   AdvisoryInterventionSession,
@@ -33,14 +34,18 @@ import styles from "./intervention-detail.module.css";
 const FACTORS: {
   key: keyof AdvisoryInterventionRow["factors"];
   label: string;
-  tone: "amber" | "sky" | "rose";
+  text: string;
 }[] = [
-  { key: "academic", label: "Academic", tone: "amber" },
-  { key: "attendance", label: "Attendance", tone: "sky" },
-  { key: "behavioral", label: "Anecdotal", tone: "rose" },
+  { key: "academic", label: "Academic", text: "text-amber-600 dark:text-amber-400" },
+  { key: "attendance", label: "Attendance", text: "text-sky-600 dark:text-sky-400" },
+  { key: "behavioral", label: "Anecdotal", text: "text-rose-600 dark:text-rose-400" },
 ];
 
-type SheetTab = "overview" | "sessions";
+const RISK_TEXT: Record<string, string> = {
+  High: "text-red-600 dark:text-red-400",
+  Moderate: "text-amber-600 dark:text-amber-400",
+  Low: "text-emerald-600 dark:text-emerald-400",
+};
 
 const STAT_TONES = {
   amber: styles.statAmber,
@@ -89,12 +94,12 @@ function StatTile({
   tone: keyof typeof STAT_TONES;
   label: string;
   value: React.ReactNode;
-  hint: string;
+  hint: React.ReactNode;
 }) {
   return (
     <div className={styles.stat}>
       <span className={`${styles.statIcon} ${STAT_TONES[tone]}`} aria-hidden>
-        <Icon size={13} />
+        <Icon size={15} />
       </span>
       <div className={styles.statBody}>
         <span className={styles.statLabel}>{label}</span>
@@ -155,6 +160,21 @@ function SessionItem({
           <Pill tone={sessionStatusTone(session.status)} label="Session status">
             {formatStatus(session.status)}
           </Pill>
+          {session.rescheduleCount > 0 ? (
+            <Pill
+              tone="amber"
+              label={
+                session.rescheduleCount > 1
+                  ? `Rescheduled session — moved ${session.rescheduleCount} times`
+                  : "Rescheduled session — moved once"
+              }
+            >
+              <RotateCcw size={10} aria-hidden />
+              {session.rescheduleCount > 1
+                ? `Rescheduled ×${session.rescheduleCount}`
+                : "Rescheduled"}
+            </Pill>
+          ) : null}
           {session.attachmentsCount > 0 ? (
             <Pill tone="neutral" label="Attachments">
               <Paperclip size={10} aria-hidden />
@@ -196,17 +216,7 @@ function SessionItem({
   );
 }
 
-/** LRN pill — the number advisers read out to the registrar. */
-function LrnPill({ lrn }: { lrn: string | null }) {
-  return (
-    <Pill field="lrn" className="tabular-nums">
-      {lrn || "—"}
-    </Pill>
-  );
-}
-
 function CaseSheet({ row }: { row: AdvisoryInterventionRow }) {
-  const [tab, setTab] = React.useState<SheetTab>("overview");
   const intervention = row.intervention;
   const activeFactors = FACTORS.filter((factor) => row.factors[factor.key]);
   const sessions = intervention?.sessions ?? [];
@@ -214,46 +224,8 @@ function CaseSheet({ row }: { row: AdvisoryInterventionRow }) {
   const scheduledCount = sessions.filter((session) => session.status === "scheduled").length;
   const nextSession = sessions.find((session) => session.status === "scheduled");
 
-  const showSessionsTab = Boolean(intervention);
-  const activeTab: SheetTab = showSessionsTab ? tab : "overview";
-
   return (
     <div className={styles.sheet}>
-      {/* Identity + state */}
-      <div className={styles.identity}>
-        <StudentMascot
-          name={row.name}
-          seed={row.lrn}
-          character={row.mascot ?? undefined}
-          size={46}
-        />
-        <div className={styles.identityBody}>
-          <div className={styles.identityTop}>
-            <p className={styles.identityName}>{row.name}</p>
-            <Pill tone={riskTone(row.riskLevel)} label="Risk level">
-              {row.riskLevel} risk
-            </Pill>
-          </div>
-          <div className={styles.identityMeta}>
-            <LrnPill lrn={row.lrn} />
-            <Pill field="grade">{row.gradeLevel || "—"}</Pill>
-            {row.section ? (
-              <Pill field="section" title={row.section}>
-                {row.section}
-              </Pill>
-            ) : null}
-          </div>
-        </div>
-        <div className={styles.identityState}>
-          <Pill
-            tone={intervention ? outcomeTone(intervention.outcomeStatus) : "neutral"}
-            label="Intervention state"
-          >
-            {intervention ? outcomeLabel(intervention.outcomeStatus) : "No plan yet"}
-          </Pill>
-        </div>
-      </div>
-
       {/* Case at a glance */}
       <div className={styles.stats}>
         <StatTile
@@ -266,12 +238,29 @@ function CaseSheet({ row }: { row: AdvisoryInterventionRow }) {
         <StatTile
           icon={HeartHandshake}
           tone="rose"
-          label="Risk factors"
-          value={`${activeFactors.length} active`}
+          label="Risk level"
+          value={
+            <span className={RISK_TEXT[row.riskLevel] ?? "text-foreground"}>
+              {row.riskLevel}
+            </span>
+          }
           hint={
-            activeFactors.length > 0
-              ? activeFactors.map((factor) => factor.label).join(" · ")
-              : "None active"
+            activeFactors.length > 0 ? (
+              <span className="inline-flex flex-wrap items-center gap-x-1">
+                {activeFactors.map((factor, index) => (
+                  <span key={factor.key} className="inline-flex items-center gap-x-1">
+                    {index > 0 ? (
+                      <span aria-hidden className="text-border">
+                        |
+                      </span>
+                    ) : null}
+                    <span className={factor.text}>{factor.label}</span>
+                  </span>
+                ))}
+              </span>
+            ) : (
+              "No active factor"
+            )
           }
         />
         <StatTile
@@ -286,54 +275,15 @@ function CaseSheet({ row }: { row: AdvisoryInterventionRow }) {
           tone="green"
           label="Next session"
           value={nextSession ? formatDate(nextSession.scheduledAt) : "—"}
-          hint={nextSession ? sessionTypeLabel(nextSession.sessionType) : "Not scheduled"}
+          hint={
+            nextSession
+              ? `${sessionTypeLabel(nextSession.sessionType)}${
+                  nextSession.rescheduleCount > 0 ? " · Rescheduled" : ""
+                }`
+              : "Not scheduled"
+          }
         />
       </div>
-
-      {/* In-sheet navigation */}
-      {showSessionsTab ? (
-        <FilterTabs
-          label="Case detail views"
-          options={[
-            { value: "overview" as const, label: "Overview", tone: "amber" as const },
-            { value: "sessions" as const, label: "Sessions", count: sessions.length, tone: "blue" as const },
-          ]}
-          value={activeTab}
-          onChange={setTab}
-          variant="tags"
-          className="self-start"
-        />
-      ) : null}
-
-      {activeTab === "overview" ? (
-        <>
-          <Panel
-            icon={HeartHandshake}
-            title="Risk factors"
-            aside={
-              <span className={styles.panelCount}>
-                {activeFactors.length} active
-              </span>
-            }
-          >
-            {activeFactors.length > 0 ? (
-              <div className={styles.factorRow}>
-                {activeFactors.map((factor) => (
-                  <Pill
-                    key={factor.key}
-                    tone={factor.tone}
-                    label={`${factor.label} risk factor`}
-                  >
-                    {factor.label}
-                  </Pill>
-                ))}
-              </div>
-            ) : (
-              <p className={styles.factorNone}>
-                No risk factor is currently active for this term.
-              </p>
-            )}
-          </Panel>
 
           <Panel
             icon={ClipboardList}
@@ -398,8 +348,7 @@ function CaseSheet({ row }: { row: AdvisoryInterventionRow }) {
               </div>
             )}
           </Panel>
-        </>
-      ) : (
+
         <Panel
           icon={CalendarDays}
           title="Counseling sessions"
@@ -437,7 +386,6 @@ function CaseSheet({ row }: { row: AdvisoryInterventionRow }) {
             </div>
           )}
         </Panel>
-      )}
     </div>
   );
 }
@@ -449,38 +397,90 @@ export function InterventionDetailOverlay({
   row: AdvisoryInterventionRow | null;
   onClose: () => void;
 }) {
+  const { activeTerm } = useTerm();
+
   return (
-    <KanbanOverlay
+    <SidePanel
       open={!!row}
       onClose={onClose}
-      title={row?.name ?? "Intervention"}
-      ariaLabel={row ? `Intervention details for ${row.name}` : "Intervention details"}
-      icon={
-        <span className="text-amber-600 dark:text-amber-400" aria-hidden>
-          <HeartHandshake size={14} />
-        </span>
-      }
-      description={
-        row
-          ? `Flagged ${formatDate(row.detectedAt)} · read-only mirror of the guidance follow-up`
-          : undefined
-      }
-      width="2xl"
-      showClose={false}
-      footer={
-        row ? (
-          <div className="flex w-full items-center justify-between gap-2">
-            <span className="text-xs text-muted-foreground">
-              Read-only — the guidance desk owns this follow-up.
-            </span>
-            <Button type="button" size="sm" variant="outline" onClick={onClose}>
-              Close
-            </Button>
-          </div>
-        ) : null
-      }
+      label={row ? `${row.name} — intervention case` : "Intervention case"}
+      width="3xl"
+      showCloseButton
     >
-      {row ? <CaseSheet key={row.key} row={row} /> : null}
-    </KanbanOverlay>
+      <div className="flex h-full min-h-0 flex-col">
+        <header className="flex shrink-0 items-start gap-2.5 border-b border-border py-3 pl-4 pr-14">
+          {row ? (
+            <StudentMascot
+              name={row.name}
+              seed={row.lrn}
+              character={row.mascot ?? undefined}
+              size={36}
+            />
+          ) : null}
+          <div className="min-w-0 flex-1">
+            <h2 className="truncate text-sm font-semibold leading-tight text-foreground">
+              {row ? formatSurnameFirst(row.name) : "Intervention case"}
+            </h2>
+            {row ? (
+              <p className="mt-1 flex flex-wrap items-center gap-x-2 gap-y-0.5 text-[12px] text-muted-foreground">
+                <span>
+                  LRN:{" "}
+                  <span className="font-medium tabular-nums text-foreground">
+                    {row.lrn || "—"}
+                  </span>
+                </span>
+                <span aria-hidden className="text-border">
+                  |
+                </span>
+                <span>
+                  Section:{" "}
+                  <span className="font-medium text-foreground">{row.section || "—"}</span>
+                </span>
+                <span aria-hidden className="text-border">
+                  |
+                </span>
+                <span>
+                  Grade level:{" "}
+                  <span className="font-medium text-foreground">
+                    {row.gradeLevel ? row.gradeLevel.replace(/^G/, "Grade ") : "—"}
+                  </span>
+                </span>
+                <span aria-hidden className="text-border">
+                  |
+                </span>
+                <span>
+                  Term:{" "}
+                  <span className="font-medium text-foreground">
+                    {activeTerm ? `Term ${activeTerm.termNumber}` : "—"}
+                  </span>
+                </span>
+                <span aria-hidden className="text-border">
+                  |
+                </span>
+                <span>
+                  School year:{" "}
+                  <span className="font-medium text-foreground">
+                    {activeTerm?.schoolYearName ?? "—"}
+                  </span>
+                </span>
+              </p>
+            ) : null}
+          </div>
+        </header>
+
+        <div className="min-h-0 flex-1 overflow-y-auto p-3">
+          {row ? <CaseSheet key={row.key} row={row} /> : null}
+        </div>
+
+        <footer className="flex shrink-0 items-center justify-between gap-2 border-t border-border px-4 py-3">
+          <span className="text-[12px] text-muted-foreground">
+            Read-only — the guidance desk owns this follow-up.
+          </span>
+          <Button type="button" size="sm" variant="outline" onClick={onClose}>
+            Close
+          </Button>
+        </footer>
+      </div>
+    </SidePanel>
   );
 }

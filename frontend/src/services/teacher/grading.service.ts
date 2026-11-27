@@ -51,7 +51,6 @@ export function useClassDetail(assignmentId: string) {
 
     retry: false,
 
-    placeholderData: (previous) => previous,
     staleTime: 15_000,
     ...liveQueryOptions,
   });

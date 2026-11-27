@@ -10,10 +10,10 @@ import {
   Megaphone,
   TriangleAlert,
   Users,
+  X,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { KanbanOverlay } from "@/components/ui/kanban-overlay";
-import { Pill, type PillTone } from "@/components/ui/pill";
+import { SidePanel } from "@/components/ui/side-panel";
 import {
   isUploadedModuleFile,
   moduleFileName,
@@ -23,17 +23,16 @@ import {
 
 const STATUS: Record<
   AdvisoryModuleStatus,
-  { label: string; tone: PillTone; Icon: typeof CheckCircle2 }
+  { label: string; text: string; Icon: typeof CheckCircle2 }
 > = {
-  submitted: { label: "Submitted", tone: "green", Icon: CheckCircle2 },
-  pending: { label: "Pending", tone: "amber", Icon: Clock3 },
-  overdue: { label: "Overdue", tone: "red", Icon: TriangleAlert },
-  posted: { label: "Posted", tone: "blue", Icon: Megaphone },
-};
-
-const KIND_COLOR: Record<AdvisoryModuleRow["kind"], string> = {
-  adm: "#8b5cf6",
-  general: "#3b82f6",
+  submitted: {
+    label: "Submitted",
+    text: "text-emerald-600 dark:text-emerald-400",
+    Icon: CheckCircle2,
+  },
+  pending: { label: "Pending", text: "text-amber-600 dark:text-amber-400", Icon: Clock3 },
+  overdue: { label: "Overdue", text: "text-red-600 dark:text-red-400", Icon: TriangleAlert },
+  posted: { label: "Posted", text: "text-blue-600 dark:text-blue-400", Icon: Megaphone },
 };
 
 const dateLabel = (iso: string | null) => {
@@ -51,7 +50,7 @@ const hostOf = (url: string) => {
   }
 };
 
-/** Bordered metric tile used across the details sheet. */
+/** Compact metric tile used across the details drawer. */
 function StatTile({
   icon,
   label,
@@ -111,30 +110,163 @@ export function ModuleDetailsOverlay({
   const total = module?.totalLearners ?? 0;
   const submitted = module?.submittedCount ?? 0;
   const pct = tracked && total > 0 ? Math.round((submitted / total) * 100) : 0;
-  const accent = module ? KIND_COLOR[module.kind] : undefined;
 
   return (
-    <KanbanOverlay
-      open={!!module}
+    <SidePanel
+      open={module !== null}
       onClose={onClose}
-      title="Module details"
-      ariaLabel={module ? `Module details for ${module.moduleName}` : "Module details"}
-      icon={<FileText size={16} aria-hidden />}
-      headerActions={
-        status ? (
-          <Pill tone={status.tone} label="Module status">
-            {StatusIcon ? <StatusIcon size={11} aria-hidden /> : null} {status.label}
-          </Pill>
-        ) : undefined
-      }
-      width="xl"
-      footer={
-        module ? (
-          <div className="flex w-full flex-wrap items-center justify-end gap-2 px-0.5 pb-0.5">
+      label={module ? `Module details for ${module.moduleName}` : "Module details"}
+      width="3xl"
+    >
+      <div className="flex h-full min-h-0 flex-col overflow-hidden bg-card">
+        <header className="flex shrink-0 items-start gap-2.5 border-b border-border px-4 py-3">
+          <span
+            className="mt-0.5 flex h-7 w-7 shrink-0 items-center justify-center rounded-md bg-amber-500/10 text-amber-500"
+            aria-hidden
+          >
+            <FileText size={15} />
+          </span>
+          <div className="min-w-0 flex-1">
+            <h2 className="text-sm font-semibold leading-tight text-foreground">
+              Module details
+            </h2>
+            <p className="mt-0.5 truncate text-[12px] text-muted-foreground">
+              {module?.moduleName ?? "Select a module"}
+            </p>
+          </div>
+          <div className="flex shrink-0 items-center gap-2">
+            {module && status ? (
+              <span
+                className={`inline-flex shrink-0 items-center gap-1 text-[12px] font-semibold ${status.text}`}
+              >
+                {StatusIcon ? <StatusIcon size={12} aria-hidden /> : null} {status.label}
+              </span>
+            ) : null}
+            <button
+              type="button"
+              onClick={onClose}
+              aria-label="Close module details"
+              className="-mr-1 flex h-7 w-7 shrink-0 items-center justify-center rounded-md text-muted-foreground transition-colors duration-150 hover:bg-muted hover:text-foreground"
+            >
+              <X size={15} aria-hidden />
+            </button>
+          </div>
+        </header>
+
+        <div className="flex min-h-0 flex-1 flex-col gap-3 overflow-y-auto px-4 py-4">
+          {module && status ? (
+            <>
+              {/* Metrics: submissions, progress, deadline. */}
+              <div className="grid gap-2 sm:grid-cols-3">
+                <StatTile
+                  icon={<Users size={11} aria-hidden />}
+                  label="Submissions"
+                  value={tracked ? `${submitted}/${total}` : "Not tracked"}
+                  caption={tracked ? "Learners who handed it in" : "General post only"}
+                />
+                <StatTile
+                  icon={<CheckCircle2 size={11} aria-hidden />}
+                  label="Progress"
+                  value={tracked ? `${pct}%` : "—"}
+                  caption={
+                    tracked
+                      ? `${Math.max(0, total - submitted)} still pending`
+                      : "No submission tracking"
+                  }
+                >
+                  {tracked ? (
+                    <div
+                      className="mt-0.5 h-1.5 w-full overflow-hidden rounded-full bg-muted"
+                      role="progressbar"
+                      aria-valuenow={pct}
+                      aria-valuemin={0}
+                      aria-valuemax={100}
+                      aria-label="Submission progress"
+                    >
+                      <div
+                        className={`h-full rounded-full transition-[width] duration-150 ${
+                          pct >= 100 ? "bg-emerald-500" : "bg-amber-500"
+                        }`}
+                        style={{ width: `${pct}%` }}
+                      />
+                    </div>
+                  ) : null}
+                </StatTile>
+                <StatTile
+                  icon={<CalendarClock size={11} aria-hidden />}
+                  label="Due date"
+                  value={dateLabel(module.dueDate)}
+                  caption={module.dueDate ? "Deadline for the section" : "No deadline set"}
+                />
+              </div>
+
+              {/* Recap + handout, in the same two-column rhythm as a desk card. */}
+              <div className="grid gap-2 sm:grid-cols-2">
+                <div className="flex min-w-0 flex-col rounded-md border bg-background/60 p-2.5">
+                  <h4 className="m-0 mb-1 text-[12px] font-semibold tracking-wide text-muted-foreground uppercase">
+                    Overview
+                  </h4>
+                  <DetailRow label="Type">
+                    {module.kind === "adm" ? "ADM module" : "General post"}
+                  </DetailRow>
+                  <DetailRow label="Status">{status.label}</DetailRow>
+                  <DetailRow label="Released">{dateLabel(module.releaseDate)}</DetailRow>
+                  <DetailRow label="Due">{dateLabel(module.dueDate)}</DetailRow>
+                </div>
+
+                <div className="flex min-w-0 flex-col rounded-md border bg-background/60 p-2.5">
+                  <h4 className="m-0 mb-1 text-[12px] font-semibold tracking-wide text-muted-foreground uppercase">
+                    Module handout
+                  </h4>
+                  {module.moduleUrl ? (
+                    <a
+                      href={module.moduleUrl}
+                      target="_blank"
+                      rel="noreferrer noopener"
+                      className="group flex min-w-0 items-center gap-2 rounded-md border border-border/60 bg-background/70 px-2 py-1.5 text-[12px] font-medium text-primary transition-colors hover:border-primary/40 hover:bg-primary/5"
+                      title={module.moduleUrl}
+                    >
+                      {isUploadedModuleFile(module.moduleUrl) ? (
+                        <FileText size={12} className="shrink-0" aria-hidden />
+                      ) : (
+                        <ExternalLink size={12} className="shrink-0" aria-hidden />
+                      )}
+                      <span className="min-w-0 flex-1 truncate">
+                        {isUploadedModuleFile(module.moduleUrl)
+                          ? (moduleFileName(module.moduleUrl) ?? "Attached file")
+                          : hostOf(module.moduleUrl)}
+                      </span>
+                      <span className="shrink-0 text-[12px] text-muted-foreground group-hover:text-primary">
+                        Open
+                      </span>
+                    </a>
+                  ) : (
+                    <p className="m-0 rounded-md border border-dashed px-2 py-3 text-center text-[12px] text-muted-foreground">
+                      No handout attached to this module yet.
+                    </p>
+                  )}
+                </div>
+              </div>
+
+              {/* Instructions — full width so long briefs read without a nested scroll. */}
+              <div className="flex min-w-0 flex-col rounded-md border bg-background/60 p-2.5">
+                <h4 className="m-0 mb-1 text-[12px] font-semibold tracking-wide text-muted-foreground uppercase">
+                  Instructions
+                </h4>
+                <p className="m-0 whitespace-pre-wrap break-words text-[12px] leading-relaxed text-foreground">
+                  {module.description?.trim() || "No instructions were added to this module."}
+                </p>
+              </div>
+            </>
+          ) : null}
+        </div>
+
+        {module ? (
+          <div className="flex shrink-0 flex-wrap items-center justify-end gap-2 border-t border-border px-4 py-3">
             <Button
               type="button"
               variant="outline"
-              className="h-7 px-2.5 text-xs"
+              className="h-8 px-3 text-[12px]"
               onClick={() => onEdit(module)}
             >
               Edit module
@@ -142,143 +274,15 @@ export function ModuleDetailsOverlay({
             {tracked ? (
               <Button
                 type="button"
-                className="h-7 px-2.5 text-xs"
+                className="h-8 px-3 text-[12px]"
                 onClick={() => onViewSubmissions(module)}
               >
                 View submissions
               </Button>
             ) : null}
           </div>
-        ) : null
-      }
-    >
-      {module && status ? (
-        <div className="flex min-w-0 flex-col gap-3">
-          {/* Hero: identity + the two things a teacher scans first. */}
-          <div className="flex min-w-0 items-start gap-3 rounded-md border bg-background/60 p-3">
-            <span
-              className="flex h-10 w-10 shrink-0 items-center justify-center rounded-md text-white shadow-sm"
-              style={{ backgroundColor: accent }}
-              aria-hidden
-            >
-              <FileText size={18} />
-            </span>
-            <div className="flex min-w-0 flex-1 flex-col gap-1.5">
-              <div className="flex min-w-0 flex-wrap items-center gap-1.5">
-                <h3 className="m-0 min-w-0 break-words text-sm font-semibold text-foreground">
-                  {module.moduleName}
-                </h3>
-                <Pill tone={module.kind === "adm" ? "violet" : "neutral"} label="Module type">
-                  {module.kind === "adm" ? "ADM" : "General"}
-                </Pill>
-              </div>
-              <p className="m-0 text-[12px] text-muted-foreground">
-                Released {dateLabel(module.releaseDate)} · Due {dateLabel(module.dueDate)}
-              </p>
-            </div>
-          </div>
-
-          {/* Metrics: submissions, progress, deadline. */}
-          <div className="grid gap-2 sm:grid-cols-3">
-            <StatTile
-              icon={<Users size={11} aria-hidden />}
-              label="Submissions"
-              value={tracked ? `${submitted}/${total}` : "Not tracked"}
-              caption={tracked ? "Learners who handed it in" : "General post only"}
-            />
-            <StatTile
-              icon={<CheckCircle2 size={11} aria-hidden />}
-              label="Progress"
-              value={tracked ? `${pct}%` : "—"}
-              caption={
-                tracked ? `${Math.max(0, total - submitted)} still pending` : "No submission tracking"
-              }
-            >
-              {tracked ? (
-                <div
-                  className="mt-0.5 h-1.5 w-full overflow-hidden rounded-full bg-muted"
-                  role="progressbar"
-                  aria-valuenow={pct}
-                  aria-valuemin={0}
-                  aria-valuemax={100}
-                  aria-label="Submission progress"
-                >
-                  <div
-                    className={`h-full rounded-full transition-[width] duration-150 ${
-                      pct >= 100 ? "bg-emerald-500" : "bg-amber-500"
-                    }`}
-                    style={{ width: `${pct}%` }}
-                  />
-                </div>
-              ) : null}
-            </StatTile>
-            <StatTile
-              icon={<CalendarClock size={11} aria-hidden />}
-              label="Due date"
-              value={dateLabel(module.dueDate)}
-              caption={module.dueDate ? "Deadline for the section" : "No deadline set"}
-            />
-          </div>
-
-          {/* Recap + handout, in the same two-column rhythm as a desk card. */}
-          <div className="grid gap-2 sm:grid-cols-2">
-            <div className="flex min-w-0 flex-col rounded-md border bg-background/60 p-2.5">
-              <h4 className="m-0 mb-1 text-[12px] font-semibold tracking-wide text-muted-foreground uppercase">
-                Overview
-              </h4>
-              <DetailRow label="Type">
-                {module.kind === "adm" ? "ADM module" : "General post"}
-              </DetailRow>
-              <DetailRow label="Status">{status.label}</DetailRow>
-              <DetailRow label="Released">{dateLabel(module.releaseDate)}</DetailRow>
-              <DetailRow label="Due">{dateLabel(module.dueDate)}</DetailRow>
-            </div>
-
-            <div className="flex min-w-0 flex-col rounded-md border bg-background/60 p-2.5">
-              <h4 className="m-0 mb-1 text-[12px] font-semibold tracking-wide text-muted-foreground uppercase">
-                Module handout
-              </h4>
-              {module.moduleUrl ? (
-                <a
-                  href={module.moduleUrl}
-                  target="_blank"
-                  rel="noreferrer noopener"
-                  className="group flex min-w-0 items-center gap-2 rounded-md border border-border/60 bg-background/70 px-2 py-1.5 text-[12px] font-medium text-primary transition-colors hover:border-primary/40 hover:bg-primary/5"
-                  title={module.moduleUrl}
-                >
-                  {isUploadedModuleFile(module.moduleUrl) ? (
-                    <FileText size={12} className="shrink-0" aria-hidden />
-                  ) : (
-                    <ExternalLink size={12} className="shrink-0" aria-hidden />
-                  )}
-                  <span className="min-w-0 flex-1 truncate">
-                    {isUploadedModuleFile(module.moduleUrl)
-                      ? (moduleFileName(module.moduleUrl) ?? "Attached file")
-                      : hostOf(module.moduleUrl)}
-                  </span>
-                  <span className="shrink-0 text-[12px] text-muted-foreground group-hover:text-primary">
-                    Open
-                  </span>
-                </a>
-              ) : (
-                <p className="m-0 rounded-md border border-dashed px-2 py-3 text-center text-[12px] text-muted-foreground">
-                  No handout attached to this module yet.
-                </p>
-              )}
-            </div>
-          </div>
-
-          {/* Instructions — full width so long briefs read without a nested scroll. */}
-          <div className="flex min-w-0 flex-col rounded-md border bg-background/60 p-2.5">
-            <h4 className="m-0 mb-1 text-[12px] font-semibold tracking-wide text-muted-foreground uppercase">
-              Instructions
-            </h4>
-            <p className="m-0 whitespace-pre-wrap break-words text-[12px] leading-relaxed text-foreground">
-              {module.description?.trim() || "No instructions were added to this module."}
-            </p>
-          </div>
-        </div>
-      ) : null}
-    </KanbanOverlay>
+        ) : null}
+      </div>
+    </SidePanel>
   );
 }

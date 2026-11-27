@@ -5,10 +5,16 @@ import { useSearchParams } from "next/navigation";
 import { HeartHandshake } from "lucide-react";
 import { TeacherEmptyCard } from "../../components/TeacherEmptyCard";
 import { TeacherSearchField, searchEmptyMessage } from "@/app/teacher/components/TeacherSearchField";
-import { Pill } from "@/components/ui/pill";
 import { PageEmptyCallout } from "@/components/shared/page-empty-callout";
 import { Pagination } from "@/components/shared/pagination";
 import { useUrlPager } from "@/components/shared/pagination/useUrlPager";
+import {
+  Table,
+  TableBody,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "@/components/ui/table";
 import { useNowTick } from "@/lib/clock";
 import { useTerm } from "@/lib/term/TermContext";
 import {
@@ -19,13 +25,11 @@ import {
   type AdvisoryInterventionOutcome,
   type AdvisoryInterventionRow,
 } from "@/services/teacher/interventions.service";
-import { InterventionRowCard } from "./components/intervention-row";
+import { InterventionTableRow } from "./components/intervention-row";
 import { InterventionsSkeleton } from "./components/InterventionsSkeleton";
 import { InterventionDetailOverlay } from "./components/intervention-detail-overlay";
-import {
-  DetectionFlowPanel,
-  type DetectionLaneId,
-} from "@/components/risk-dashboard/detection-flow-panel";
+import cascade from "@/components/shared/desk-cascade.module.css";
+import listStyles from "../list/components/advisory-list.module.css";
 import styles from "./components/interventions.module.css";
 
 type LevelFilter = "all" | AdvisoryInterventionLevel;
@@ -71,6 +75,13 @@ function AdviserInterventionsPageInner() {
     return isOneOf(value, OUTCOME_VALUES) ? value : "all";
   });
   const [sectionId, setSectionIdState] = React.useState<string>(() => searchParams.get("section") ?? "all");
+
+  // The server always renders the skeleton (no query cache / no storage), so
+  // hold the skeleton until the client has mounted. Without this, a TanStack
+  // cache that already holds this term (fast refresh, back navigation) made
+  // the first client tree differ from the server HTML and broke hydration.
+  const [mounted, setMounted] = React.useState(false);
+  React.useEffect(() => setMounted(true), []);
 
   const query = useAdvisoryInterventionsQueue(termKey, termReady);
   const allRows = React.useMemo(() => query.data?.data ?? [], [query.data]);
@@ -138,58 +149,18 @@ function AdviserInterventionsPageInner() {
     if (page !== 1) setPage(1);
   };
 
-  const setFactor = (value: FactorFilter) => {
-    setFactorState(value);
-    pager.setFilters({ factor: value === "all" ? undefined : value });
-  };
-  const setOutcome = (value: OutcomeFilter) => {
-    setOutcomeState(value);
-    pager.setFilters({ outcome: value === "all" ? undefined : value });
-  };
-
   const [selected, setSelected] = React.useState<AdvisoryInterventionRow | null>(null);
   // Keep the open overlay fresh after a refetch.
   const selectedRow = selected
     ? allRows.find((row) => row.key === selected.key) ?? selected
     : null;
 
-  // The detection-flow panel mirrors the filters: a factor lane drives the
-  // factor filter, the two pipeline lanes drive the outcome filter.
-  const activeLane: DetectionLaneId | null =
-    factor !== "all"
-      ? factor
-      : outcome === "none"
-        ? "noPlan"
-        : outcome === "ongoing"
-          ? "followUp"
-          : null;
-
-  const handleLaneSelect = (lane: DetectionLaneId) => {
-    if (lane === "noPlan" || lane === "followUp") {
-      if (factor !== "all") setFactor("all");
-      const next = lane === "noPlan" ? "none" : "ongoing";
-      setOutcome(outcome === next ? "all" : next);
-      return;
-    }
-    if (outcome !== "all") setOutcome("all");
-    setFactor(factor === lane ? "all" : lane);
-  };
-
   // The search field carries its own clear (X), so a no-match caused by typing
   // gets the inline message only; the button exists for chip filters.
   const hasFilterChips =
     level !== "all" || factor !== "all" || outcome !== "all" || sectionId !== "all";
 
-  const levelNoun =
-    level === "High"
-      ? "high-risk advisee"
-      : level === "Moderate"
-        ? "moderate-risk advisee"
-        : level === "Low"
-          ? "low-risk advisee"
-          : "at-risk advisee";
-
-  if (query.isPending && !query.data) {
+  if (!mounted || (query.isPending && !query.data)) {
     return <InterventionsSkeleton />;
   }
 
@@ -206,7 +177,7 @@ function AdviserInterventionsPageInner() {
   }
 
   return (
-    <section className={styles.page} aria-label="Advisory interventions">
+    <section className="flex min-w-0 flex-col gap-3" aria-label="Advisory interventions">
       <div className={styles.boardShell}>
         <header className={styles.header}>
           <div className={styles.headerText}>
@@ -216,36 +187,17 @@ function AdviserInterventionsPageInner() {
               </span>
               <h2 className={styles.title}>Intervention cases</h2>
             </div>
-            <p className={styles.subtitle}>
-              {allRows.length === 0
-                ? "Risk flags and guidance follow-ups for your advisees appear here once the risk engine detects them."
-                : filtered.length === 0
-                  ? `No ${levelNoun}s match this view right now.`
-                  : "Risk flags and guidance follow-ups for your advisees this term — live, read-only from the guidance desk."}
-            </p>
           </div>
           {allRows.length > 0 ? (
-            <div className={styles.headerActions}>
-              <Pill tone="amber" className={styles.countPill}>
-                {filtered.length} case{filtered.length === 1 ? "" : "s"}
-              </Pill>
-            </div>
+            <TeacherSearchField
+              className="w-60 max-w-full shrink-0"
+              placeholder="Search advisee, LRN, or section…"
+              value={queryInput}
+              onChange={handleQueryChange}
+              aria-label="Search advisee or LRN"
+            />
           ) : null}
         </header>
-
-        {allRows.length > 0 ? (
-          <>
-            <div className={styles.toolbar}>
-              <TeacherSearchField
-                className="w-60 max-w-full"
-                placeholder="Search advisee, LRN, or section…"
-                value={queryInput}
-                onChange={handleQueryChange}
-                aria-label="Search advisee or LRN"
-              />
-            </div>
-          </>
-        ) : null}
 
         {allRows.length === 0 || pageRows.length === 0 ? (
           <PageEmptyCallout
@@ -286,28 +238,43 @@ function AdviserInterventionsPageInner() {
             )}
           </PageEmptyCallout>
         ) : (
-          <div className={styles.listPanel}>
-            <div className={styles.listHead} aria-hidden="true">
-              <span>Advisee</span>
-              <span>Risk</span>
-              <span className={styles.headSection}>Section</span>
-              <span>Factors</span>
-              <span>Pipeline</span>
-              <span className={styles.headSessions}>Sessions</span>
-              <span>Flagged</span>
-              <span />
-            </div>
-            <ul className={styles.listBody} aria-label="Intervention cases on the advisory desk">
-              {pageRows.map((row, index) => (
-                <InterventionRowCard
-                  key={row.key}
-                  row={row}
-                  index={index}
-                  now={now}
-                  onOpen={setSelected}
-                />
-              ))}
-            </ul>
+          <div className={listStyles.tableWrap}>
+            <Table className={`${cascade.table} w-full table-fixed`}>
+              <TableHeader>
+                <TableRow className="bg-muted/50 [&>th]:border-t-0">
+                  <TableHead className="h-10" style={{ width: 260 }}>
+                    Advisee
+                  </TableHead>
+                  <TableHead className="h-10" style={{ width: 90 }}>
+                    Risk
+                  </TableHead>
+                  <TableHead className="h-10" style={{ width: 220 }}>
+                    Factors
+                  </TableHead>
+                  <TableHead className="h-10" style={{ width: 150 }}>
+                    Pipeline
+                  </TableHead>
+                  <TableHead className="h-10" style={{ width: 110 }}>
+                    Sessions
+                  </TableHead>
+                  <TableHead className="h-10" style={{ width: 100 }}>
+                    Flagged
+                  </TableHead>
+                  <TableHead className="h-10" style={{ width: 56 }} />
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {pageRows.map((row, index) => (
+                  <InterventionTableRow
+                    key={row.key}
+                    row={row}
+                    index={index}
+                    now={now}
+                    onOpen={setSelected}
+                  />
+                ))}
+              </TableBody>
+            </Table>
           </div>
         )}
 
@@ -320,18 +287,6 @@ function AdviserInterventionsPageInner() {
           />
         ) : null}
       </div>
-
-      {allRows.length > 0 && query.data ? (
-        <aside className={styles.flowAside} aria-label="Detection flow summary">
-          <DetectionFlowPanel
-            rows={allRows}
-            summary={query.data.summary}
-            now={now}
-            activeLane={activeLane}
-            onLaneSelect={handleLaneSelect}
-          />
-        </aside>
-      ) : null}
 
       <InterventionDetailOverlay row={selectedRow} onClose={() => setSelected(null)} />
     </section>

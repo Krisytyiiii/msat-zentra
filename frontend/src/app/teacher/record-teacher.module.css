@@ -29,6 +29,9 @@
      of this gutter to span the full width (see TermScopeBanner.module.css). */
   --shell-rail: var(--zentra-dock-clearance, 5rem);
   padding-left: var(--shell-rail);
+  /* Follow the dock's own 260ms expand/collapse so the page widens/narrows
+     with the rail instead of snapping. */
+  transition: padding-left 260ms cubic-bezier(0.22, 1, 0.36, 1);
 }
 
 /* Standalone mode (no left rail and no tab navbar, e.g. the Bama chat
@@ -391,5 +394,11 @@
 
   .main {
     padding: 1rem 0.5rem 0.5rem;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .shellWithDock {
+    transition: none;
   }
 }

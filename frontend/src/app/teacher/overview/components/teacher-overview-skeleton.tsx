@@ -18,130 +18,147 @@ function InterpretationSkeleton() {
 }
 
 /**
- * Mirrors the loaded overview exactly: three chart boards across, two wide
- * trend boards, the full-width pipeline board, and the "My day" right rail
- * (profile + needs attention).
+ * Mirrors the loaded overview exactly: Risk mix + Students by risk factor across,
+ * the two full-width day-by-day boards, Subject averages beside the Assessment
+ * pipeline, and the "My day" right rail (Profile + Needs attention).
  */
 export function TeacherOverviewSkeleton() {
   return (
-    <section
-      className={layout.page}
-      aria-busy="true"
-      aria-label="Loading overview"
-    >
+    <section className={layout.page} aria-busy="true" aria-label="Loading overview">
       <ShimmerGroup>
-      <div className={layout.body}>
-        <div className={layout.mainCol}>
-          <div className={charts.stack}>
-            {/* Risk mix · Students by risk factor · Subject averages */}
-            <div className={charts.grid}>
-              <KanbanBoardSkeleton
-                titleWidth="6rem"
-                showCount
-                showDescription
-                footer={<InterpretationSkeleton />}
-              >
-                <div className={skeleton.body}>
-                  <div className={skeleton.donutRow}>
-                    <Skeleton className={skeleton.donut} />
+        <div className={layout.body}>
+          <div className={layout.mainCol}>
+            <div className={charts.stack}>
+              {/* Risk mix · Students by risk factor */}
+              <div className={charts.gridWide}>
+                <KanbanBoardSkeleton
+                  titleWidth="6rem"
+                  showDescription
+                  footer={<InterpretationSkeleton />}
+                >
+                  <div className={skeleton.body}>
+                    <div className={skeleton.donutRow}>
+                      <Skeleton className={skeleton.donut} />
+                      <div className={skeleton.legendCol}>
+                        {Array.from({ length: 3 }).map((_, i) => (
+                          <Skeleton key={i} className={skeleton.legendRow} />
+                        ))}
+                      </div>
+                    </div>
+                  </div>
+                </KanbanBoardSkeleton>
+
+                <KanbanBoardSkeleton
+                  titleWidth="11.5rem"
+                  showDescription
+                  footer={<InterpretationSkeleton />}
+                >
+                  <div className={skeleton.body}>
+                    <div className={skeleton.bars}>
+                      {Array.from({ length: 3 }).map((_, i) => (
+                        <Skeleton key={i} className={skeleton.barRow} />
+                      ))}
+                    </div>
+                  </div>
+                </KanbanBoardSkeleton>
+              </div>
+
+              {/* At-risk detection · Attendance, day by day — one board per row */}
+              <div className={charts.gridStack}>
+                {["12.5rem", "11.5rem"].map((titleWidth) => (
+                  <KanbanBoardSkeleton
+                    key={titleWidth}
+                    titleWidth={titleWidth}
+                    showDescription
+                    footer={<InterpretationSkeleton />}
+                  >
+                    <div className={skeleton.body}>
+                      <Skeleton className={skeleton.chartPlate} />
+                      <div className={skeleton.legendCol}>
+                        {Array.from({ length: 2 }).map((_, i) => (
+                          <Skeleton key={i} className={skeleton.legendRow} />
+                        ))}
+                      </div>
+                    </div>
+                  </KanbanBoardSkeleton>
+                ))}
+              </div>
+
+              {/* Subject averages · Assessment pipeline */}
+              <div className={charts.gridWide}>
+                <KanbanBoardSkeleton
+                  titleWidth="8rem"
+                  showDescription
+                  footer={<InterpretationSkeleton />}
+                >
+                  <div className={skeleton.body}>
+                    <div className={skeleton.donutCenter}>
+                      <Skeleton className={skeleton.donutLarge} />
+                    </div>
+                  </div>
+                </KanbanBoardSkeleton>
+
+                <KanbanBoardSkeleton
+                  titleWidth="9.5rem"
+                  showDescription
+                  footer={<InterpretationSkeleton />}
+                >
+                  <div className={skeleton.body}>
+                    <Skeleton className={skeleton.chartPlate} style={{ height: "176px" }} />
                     <div className={skeleton.legendCol}>
                       {Array.from({ length: 3 }).map((_, i) => (
                         <Skeleton key={i} className={skeleton.legendRow} />
                       ))}
                     </div>
                   </div>
-                </div>
-              </KanbanBoardSkeleton>
+                </KanbanBoardSkeleton>
+              </div>
+            </div>
+          </div>
 
-              <KanbanBoardSkeleton
-                titleWidth="10rem"
-                showCount
-                showDescription
-                footer={<InterpretationSkeleton />}
-              >
-                <div className={skeleton.body}>
-                  <div className={skeleton.bars}>
-                    {Array.from({ length: 3 }).map((_, i) => (
-                      <Skeleton key={i} className={skeleton.barRow} />
+          <aside
+            className={layout.sideCol}
+            style={{ top: "calc(4rem + var(--term-banner-offset, 0rem))" }}
+          >
+            <div className={skeleton.railStack}>
+              {/* Profile */}
+              <KanbanBoardSkeleton titleWidth="4.5rem">
+                <div className={skeleton.profilePane}>
+                  <div className={skeleton.profileTop}>
+                    <Skeleton className={skeleton.avatar} />
+                    <div className={skeleton.profileText}>
+                      <Skeleton className={skeleton.nameLine} />
+                      <Skeleton className={skeleton.roleLine} />
+                    </div>
+                  </div>
+                  <Skeleton className={skeleton.advisoryLine} />
+                  <div className={skeleton.profileStats}>
+                    {Array.from({ length: 2 }).map((_, i) => (
+                      <div key={i} className={skeleton.statCell}>
+                        <Skeleton className={skeleton.statValue} />
+                        <Skeleton className={skeleton.statLabel} />
+                      </div>
                     ))}
                   </div>
                 </div>
               </KanbanBoardSkeleton>
 
+              {/* Needs attention */}
               <KanbanBoardSkeleton
-                titleWidth="8rem"
-                showCount
+                titleWidth="7.5rem"
                 showDescription
-                footer={<InterpretationSkeleton />}
+                actions={<Skeleton className={skeleton.dragHint} />}
               >
-                <div className={skeleton.body}>
-                  <div className={skeleton.donutCenter}>
-                    <Skeleton className={skeleton.donutLarge} />
-                  </div>
+                <Skeleton className={skeleton.riskSummary} />
+                <div className={skeleton.riskCards}>
+                  {Array.from({ length: 3 }).map((_, i) => (
+                    <Skeleton key={i} className={skeleton.riskCard} />
+                  ))}
                 </div>
               </KanbanBoardSkeleton>
             </div>
-
-            {/* At-risk detection · Attendance, day by day */}
-            <div className={charts.gridWide}>
-              {[2, 4].map((legendRows) => (
-                <KanbanBoardSkeleton
-                  key={legendRows}
-                  titleWidth={legendRows === 2 ? "12rem" : "11rem"}
-                  showCount
-                  showDescription
-                  footer={<InterpretationSkeleton />}
-                >
-                  <div className={skeleton.body}>
-                    <Skeleton className={skeleton.chartPlate} />
-                    <div className={skeleton.legendCol}>
-                      {Array.from({ length: legendRows }).map((_, i) => (
-                        <Skeleton key={i} className={skeleton.legendRow} />
-                      ))}
-                    </div>
-                  </div>
-                </KanbanBoardSkeleton>
-              ))}
-            </div>
-
-            {/* Assessment pipeline */}
-            <KanbanBoardSkeleton
-              titleWidth="9rem"
-              showCount
-              showDescription
-              footer={<InterpretationSkeleton />}
-            >
-              <div className={skeleton.body}>
-                <Skeleton className={skeleton.chartPlate} style={{ height: "176px" }} />
-                <div className={skeleton.legendInline}>
-                  {Array.from({ length: 3 }).map((_, i) => (
-                    <Skeleton key={i} className={skeleton.legendChip} />
-                  ))}
-                </div>
-              </div>
-            </KanbanBoardSkeleton>
-          </div>
+          </aside>
         </div>
-
-        <aside
-          className={layout.sideCol}
-          style={{ top: "calc(4rem + var(--term-banner-offset, 0rem))" }}
-        >
-          <div className={layout.railExpanded}>
-            <KanbanBoardSkeleton titleWidth="4.5rem">
-              <Skeleton className={skeleton.profileCard} />
-            </KanbanBoardSkeleton>
-            <KanbanBoardSkeleton titleWidth="7rem" showCount showDescription>
-              <div className={skeleton.body}>
-                <Skeleton className={skeleton.riskSummary} />
-                {Array.from({ length: 3 }).map((_, i) => (
-                  <Skeleton key={i} className={skeleton.riskCard} />
-                ))}
-              </div>
-            </KanbanBoardSkeleton>
-          </div>
-        </aside>
-      </div>
       </ShimmerGroup>
     </section>
   );

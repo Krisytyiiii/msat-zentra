@@ -193,159 +193,31 @@ function GutterTip({ title, hint }: { title: string; hint: string }) {
   );
 }
 
-type MenuKey = "chat" | "legend";
-
-// Inline toolbar actions — horizontal 24px buttons living in the record desk's
-// top row; each opens its KanbanBoard in a flyout below the button.
-export function AnecdotalToolbarActions({ variant = "category" }: { variant?: LegendVariant } = {}) {
-  const [openKey, setOpenKey] = React.useState<MenuKey | null>(null);
-  const railRef = React.useRef<HTMLDivElement>(null);
-  const entries = getLegendEntries(variant);
-
-  React.useEffect(() => {
-    if (!openKey) return;
-    const onPointerDown = (e: PointerEvent) => {
-      const target = e.target as Element | null;
-      if (
-        target?.closest?.(
-          '[data-slot="popover-content"], [data-slot="tooltip-content"]',
-        )
-      ) {
-        return;
-      }
-      if (railRef.current && !railRef.current.contains(e.target as Node)) {
-        setOpenKey(null);
-      }
-    };
-    const onKeyDown = (e: KeyboardEvent) => {
-      if (e.key === "Escape") setOpenKey(null);
-    };
-    document.addEventListener("pointerdown", onPointerDown);
-    document.addEventListener("keydown", onKeyDown);
-    return () => {
-      document.removeEventListener("pointerdown", onPointerDown);
-      document.removeEventListener("keydown", onKeyDown);
-    };
-  }, [openKey]);
-
-  const toggle = (key: MenuKey) => setOpenKey((prev) => (prev === key ? null : key));
-  const panel = (key: MenuKey) =>
-    `${MENU_PANEL} ${menuStyles.menu} ${openKey === key ? menuStyles.menuOpen : menuStyles.menuClosed}`;
-
+// Inline toolbar action — one 24px button in the record desk's top row that
+// opens the mini Bama chat drawer. The legend lives on the filter tabs now.
+export function AnecdotalToolbarActions({
+  onOpenChat,
+}: {
+  onOpenChat?: () => void;
+} = {}) {
   return (
     <div className="flex shrink-0 items-center gap-2" aria-label="Anecdotal tools">
       <TooltipProvider delayDuration={100}>
-        <div ref={railRef} className="flex flex-row items-center gap-2">
-          <div className="relative">
-            <Tooltip>
-              <TooltipTrigger asChild>
-                <GutterIconButton
-                  label="Legend"
-                  expanded={openKey === "legend"}
-                  onToggle={() => toggle("legend")}
-                  count={entries.length}
-                >
-                  <span className="text-amber-500" aria-hidden>
-                    <Info size={14} />
-                  </span>
-                </GutterIconButton>
-              </TooltipTrigger>
-              <TooltipContent side="bottom" sideOffset={8}>
-                <GutterTip title="Legend" hint="What each folder color means" />
-              </TooltipContent>
-            </Tooltip>
-            <div role="dialog" aria-label="Legend" aria-hidden={openKey === "legend" ? undefined : true} className={panel("legend")}>
-              <KanbanBoard
-                title="Legend"
-                icon={
-                  <span className="text-amber-500" aria-hidden>
-                    <Info size={14} />
-                  </span>
-                }
-                count={entries.length}
-                description="What each folder color means."
-                ariaLabel={`Legend, ${entries.length}`}
-                className="border-0"
-              >
-                <ul className="flex min-w-0 flex-row flex-wrap content-center items-center justify-center gap-1.5" aria-label="Legend categories">
-                  {entries.map((e) => (
-                    <li key={e.label} className="flex">
-                      <Pill tone={e.tone} label={e.hint}>
-                        {e.label}
-                      </Pill>
-                    </li>
-                  ))}
-                </ul>
-              </KanbanBoard>
-            </div>
-          </div>
-
-          <div className="relative">
-            <Tooltip>
-              <TooltipTrigger asChild>
-                <GutterIconButton
-                  label="Chat with Bama"
-                  expanded={openKey === "chat"}
-                  onToggle={() => toggle("chat")}
-                  primary
-                >
-                  <StudentMascot name="Bama" character="crt" size={14} />
-                </GutterIconButton>
-              </TooltipTrigger>
-              <TooltipContent side="bottom" sideOffset={8}>
-                <GutterTip title="Chat with Bama" hint="File through chat" />
-              </TooltipContent>
-            </Tooltip>
-            <div role="dialog" aria-label="Chat with Bama" aria-hidden={openKey === "chat" ? undefined : true} className={panel("chat")}>
-              <KanbanBoard
-                title="Chat with Bama"
-                icon={
-                  <span className="inline-flex shrink-0 items-center" aria-hidden>
-                    <StudentMascot name="Bama" character="crt" size={16} />
-                  </span>
-                }
-                ariaLabel="Chat with Bama"
-                className="border-0 [font-family:var(--font-inter)]"
-                actions={
-                  <Button asChild className="h-6 px-2 text-[12px]">
-                    <Link href="/teacher/chat?standalone=1" target="_blank" rel="noopener noreferrer">
-                      Chat now
-                    </Link>
-                  </Button>
-                }
-              >
-                <Link
-                  href="/teacher/chat?standalone=1"
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  aria-label="Open Chat with Bama (opens in a new tab)"
-                  className="flex min-w-0 cursor-pointer flex-col gap-1.5 rounded-lg border bg-white p-3 shadow-sm transition-colors hover:border-primary/60 hover:shadow dark:bg-card"
-                >
-                  <span className="flex items-center justify-between gap-2">
-                    <span
-                      className="truncate text-[12px] font-medium text-muted-foreground"
-                      title="/teacher/chat?standalone=1"
-                    >
-                      /teacher/chat?standalone=1
-                    </span>
-                    <span
-                      className="flex h-6 w-6 shrink-0 items-center justify-center overflow-hidden rounded-full bg-muted text-muted-foreground"
-                      aria-hidden
-                    >
-                      <StudentMascot name="Bama" character="crt" size={20} />
-                    </span>
-                  </span>
-                  <span className="truncate text-sm font-semibold leading-snug" title="Chat with Bama">
-                    Chat with Bama
-                  </span>
-                  <span className="text-xs leading-snug text-muted-foreground">
-                    File through chat — Bama drafts the GCForm-01 for you
-                  </span>
-                </Link>
-              </KanbanBoard>
-            </div>
-          </div>
-        </div>
+        <Tooltip>
+          <TooltipTrigger asChild>
+            <GutterIconButton
+              label="Chat with Bama"
+              expanded={false}
+              onToggle={() => onOpenChat?.()}
+              primary
+            >
+              <StudentMascot name="Bama" character="crt" size={14} />
+            </GutterIconButton>
+          </TooltipTrigger>
+          <TooltipContent side="bottom" sideOffset={8}>
+            <GutterTip title="Chat with Bama" hint="File through chat" />
+          </TooltipContent>
+        </Tooltip>
       </TooltipProvider>
     </div>
   );

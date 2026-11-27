@@ -42,7 +42,7 @@ export function ReportsKpiStrip({ summary }: { summary: TeacherReportsPayload["s
       label: "Class average",
       unit: "",
       value: formatGrade(summary.transmutedAverage, 1),
-      hint: `Computed ${formatGrade(summary.average, 1)} · pass ${formatPercent(
+      hint: `Computed ${formatGrade(summary.average, 1)} | pass ${formatPercent(
         summary.passRate,
       )}`,
       tone:
@@ -77,7 +77,7 @@ export function ReportsKpiStrip({ summary }: { summary: TeacherReportsPayload["s
       label: "High-risk learners",
       unit: "learners",
       value: summary.highRisk,
-      hint: `${summary.highRiskAdvisees} advisees · ${summary.highRiskSubjectStudents} subject students`,
+      hint: `${summary.highRiskAdvisees} advisees | ${summary.highRiskSubjectStudents} subject students`,
       tone: summary.highRisk > 0 ? "red" : undefined,
     },
   ];

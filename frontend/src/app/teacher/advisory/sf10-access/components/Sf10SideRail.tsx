@@ -4,16 +4,9 @@ import * as React from "react";
 import { Ban, FileX } from "lucide-react";
 import { KanbanBoard, KanbanBoardEmpty } from "@/components/ui/kanban-board";
 import { Pill } from "@/components/ui/pill";
-import {
-  Tooltip,
-  TooltipContent,
-  TooltipProvider,
-  TooltipTrigger,
-} from "@/components/ui/tooltip";
 import { Skeleton } from "@/components/ui/skeleton";
 import { StudentMascot } from "../../referrals/components/StudentMascot";
 import type { MissingRow, MyAccessRequest } from "@/services/teacher/sf10Access.service";
-import menuStyles from "@/app/teacher/classes/components/timetable-menu.module.css";
 
 export function RejectedRequestsCard({
   requests,

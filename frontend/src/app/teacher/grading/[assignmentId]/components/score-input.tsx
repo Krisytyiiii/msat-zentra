@@ -12,7 +12,7 @@ export function scoreOf(assessment: ClassAssessment, drafts: Record<string, stri
   const num = Number(text);
   return { text, num: text.trim() !== "" && Number.isFinite(num) ? num : null };
 }
-export function ScoreCellInput({ cacheKey, initial, studentName, assessmentTitle, onDraft }: { cacheKey: string; initial: string; studentName: string; assessmentTitle: string; onDraft: (value: string) => void }) {
+export function ScoreCellInput({ cacheKey, initial, studentName, assessmentTitle, maxScore, onDraft }: { cacheKey: string; initial: string; studentName: string; assessmentTitle: string; maxScore: number; onDraft: (value: string) => void }) {
   return (
     <input
       className={styles.scoreInput}
@@ -20,9 +20,16 @@ export function ScoreCellInput({ cacheKey, initial, studentName, assessmentTitle
       defaultValue={typedCache.get(cacheKey) ?? initial}
       aria-label={`${assessmentTitle} score for ${studentName}`}
       onChange={(e) => {
-        e.target.value = sanitizeScore(e.target.value);
-        typedCache.set(cacheKey, e.target.value);
-        onDraft(e.target.value);
+        let next = sanitizeScore(e.target.value);
+        // Keep the encoded score inside the assessment's range as it is typed,
+        // so an over-max entry can never show a >100% percentage.
+        const parsed = Number(next);
+        if (next !== "" && Number.isFinite(parsed) && parsed > maxScore) {
+          next = String(maxScore);
+        }
+        e.target.value = next;
+        typedCache.set(cacheKey, next);
+        onDraft(next);
       }}
     />
   );

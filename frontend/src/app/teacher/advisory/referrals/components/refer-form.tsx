@@ -160,8 +160,11 @@ export function ReferForm({
     }
   }
   return (
-    <>
-      <div className={refStyles.formGrid} aria-label="New referral details">
+    <div className="flex h-full min-h-0 flex-col gap-3">
+      <div
+        className={`${refStyles.formGrid} min-h-0 flex-1 content-start overflow-y-auto pr-0.5`}
+        aria-label="New referral details"
+      >
       {referablesQuery.isPending ? (
         <ShimmerGroup aria-busy="true" aria-label="Loading referable records">
           {[0, 1, 2, 3].map((i) => (
@@ -217,10 +220,17 @@ export function ReferForm({
                 student ? (
                   <span className="flex min-w-0 items-center gap-1.5">
                     <StudentMascot name={student.studentName} character={student.mascot ?? undefined} size={20} />
-                    <span className="min-w-0 truncate text-sm font-medium" title={studentLabel(student)}>
-                      {student.studentName}
+                    <span className="flex min-w-0 flex-col">
+                      <span
+                        className="truncate text-[12px] font-medium leading-[1.15]"
+                        title={studentLabel(student)}
+                      >
+                        {student.studentName}
+                      </span>
+                      <span className="truncate text-[12px] leading-[1.15] tabular-nums text-muted-foreground">
+                        {student.lrn}
+                      </span>
                     </span>
-                    <Pill label="LRN">{student.lrn}</Pill>
                   </span>
                 ) : undefined
               }
@@ -237,12 +247,16 @@ export function ReferForm({
                         close();
                       }}
                     >
-                      <span className="flex min-w-0 flex-1 flex-wrap items-center gap-1.5">
+                      <span className="flex min-w-0 flex-1 items-center gap-2">
                         <StudentMascot name={s.studentName} character={s.mascot ?? undefined} size={20} />
-                        <span className="truncate text-sm font-medium" title={studentLabel(s)}>
-                          {s.studentName}
+                        <span className="flex min-w-0 flex-col">
+                          <span className="truncate text-[12px] font-medium leading-[1.15]" title={studentLabel(s)}>
+                            {s.studentName}
+                          </span>
+                          <span className="truncate text-[12px] leading-[1.15] tabular-nums text-muted-foreground">
+                            {s.lrn}
+                          </span>
                         </span>
-                        <Pill label="LRN">{s.lrn}</Pill>
                       </span>
                       {s.key === studentKey ? (
                         <Check size={16} className="shrink-0" aria-hidden />
@@ -276,14 +290,16 @@ export function ReferForm({
               value={record ? recordLabel(record) : null}
               valueNode={
                 record ? (
-                  <span className="flex min-w-0 items-center gap-1.5">
+                  <span className="flex min-w-0 items-center justify-between gap-2">
                     <span
-                      className="min-w-0 truncate text-sm font-medium"
+                      className="min-w-0 truncate text-[12px] font-medium tabular-nums"
                       title={`${record.observationDate} · ${categoryLabel(record.category)}`}
                     >
                       {record.observationDate}
                     </span>
-                    <CategoryPill category={record.category} />
+                    <span className="ml-auto shrink-0">
+                      <CategoryPill category={record.category} />
+                    </span>
                   </span>
                 ) : undefined
               }
@@ -299,14 +315,16 @@ export function ReferForm({
                         close();
                       }}
                     >
-                      <span className="flex min-w-0 flex-1 flex-wrap items-center gap-1.5">
+                      <span className="flex min-w-0 flex-1 items-center justify-between gap-2">
                         <span
-                          className="truncate text-sm font-medium"
+                          className="truncate text-[12px] font-medium tabular-nums"
                           title={`${r.observationDate} · ${categoryLabel(r.category)}`}
                         >
                           {r.observationDate}
                         </span>
-                        <CategoryPill category={r.category} />
+                        <span className="ml-auto shrink-0">
+                          <CategoryPill category={r.category} />
+                        </span>
                       </span>
                       {r.id === recordId ? (
                         <Check size={16} className="shrink-0" aria-hidden />
@@ -428,6 +446,7 @@ export function ReferForm({
                 onChange={(event) => setReason(event.target.value)}
                 placeholder="Why is this student being referred?"
                 rows={3}
+                className="border-amber-500/70 focus-visible:border-amber-500 focus-visible:ring-amber-500/25"
               />
             </KanbanBoard>
           </div>
@@ -441,7 +460,7 @@ export function ReferForm({
               {error}
             </p>
           ) : null}
-          <div className={refStyles.formFooter}>
+          <div className={`${refStyles.formFooter} shrink-0`}>
             <p className="m-0 min-w-0 truncate text-xs text-muted-foreground">
               {staff ? (
                 <>
@@ -475,6 +494,6 @@ export function ReferForm({
           </div>
         </>
       ) : null}
-    </>
+    </div>
   );
 }

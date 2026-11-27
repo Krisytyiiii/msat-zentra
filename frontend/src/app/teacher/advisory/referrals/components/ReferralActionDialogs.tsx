@@ -4,8 +4,8 @@ import * as React from "react";
 import { Loader2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { CardModal } from "@/components/ui/CardModal";
-import { KanbanOverlay } from "@/components/ui/kanban-overlay";
 import { Label } from "@/components/ui/label";
+import { MessageOverlay } from "@/components/ui/message-overlay";
 import { Textarea } from "@/components/ui/textarea";
 import styles from "./ReferralActionDialogs.module.css";
 
@@ -50,28 +50,24 @@ export function ReferralCancelDialog({
     };
   }, [open]);
 
-  return (
-    <KanbanOverlay
-      open={open}
-      onClose={() => {
-        if (!pending) onClose();
-      }}
-      dismissable={!pending}
+  return open ? (
+    <MessageOverlay
+      role="alertdialog"
+      tone="danger"
       title="Cancel this referral?"
-      ariaLabel="Cancel this referral"
-      icon={
-        <span className="text-red-500" aria-hidden>
-          <span className="block h-2 w-2 rounded-full bg-red-500" />
-        </span>
-      }
       description={
         target
           ? `${target.studentName}'s case will be withdrawn before the receiving desk acts on it.`
           : undefined
       }
       width="md"
-      footer={
-        <div className="flex items-center justify-end gap-2 px-1 pb-1">
+      dismissable={!pending}
+      onDismiss={() => {
+        if (!pending) onClose();
+      }}
+      footerHint="Esc to close"
+      actions={
+        <>
           <Button
             type="button"
             variant="outline"
@@ -92,10 +88,10 @@ export function ReferralCancelDialog({
             {pending ? <Loader2 className={styles.spin} aria-hidden /> : null}
             {pending ? "Cancelling…" : "Cancel referral"}
           </Button>
-        </div>
+        </>
       }
     >
-      <div className="flex min-w-0 flex-col gap-1.5 px-1 pb-1">
+      <div className="flex min-w-0 flex-col gap-1.5">
         <Label htmlFor="referral-cancel-reason">Why is this being cancelled?</Label>
         <Textarea
           ref={reasonRef}
@@ -105,6 +101,7 @@ export function ReferralCancelDialog({
           placeholder="Explain why this referral is no longer needed…"
           rows={3}
           maxLength={500}
+          className="border-amber-500/60 focus-visible:border-amber-500 focus-visible:ring-2 focus-visible:ring-amber-500/30"
         />
         {error ? (
           <p role="alert" className="text-xs leading-snug text-red-600 dark:text-red-400">
@@ -112,8 +109,8 @@ export function ReferralCancelDialog({
           </p>
         ) : null}
       </div>
-    </KanbanOverlay>
-  );
+    </MessageOverlay>
+  ) : null;
 }
 
 interface DeleteDialogProps {

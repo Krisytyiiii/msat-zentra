@@ -247,6 +247,30 @@ export async function getTeacherReports(ctx: TeacherContext): Promise<TeacherRep
   const sectionIds = [...new Set(pairs.map((p) => p.sectionId))];
   const subjectIds = [...new Set(pairs.map((p) => p.subjectId))];
   const archivedLearners = await archivedAdvisoryLearnerIds();
+  // Activity board scope: an adviser's anecdotal/referral desks only list
+  // records and referrals about their own advisees, so this report must match.
+  // Counting every record the teacher filed (the previous behaviour) included
+  // learners outside the advisory section and read higher than the desk.
+  const advisoryIds = [...advisedSectionIds];
+  const adviseeScope =
+    advisoryIds.length > 0
+      ? {
+          OR: [
+            { student: { sectionId: { in: advisoryIds } } },
+            { roster: { sectionId: { in: advisoryIds } } },
+          ],
+        }
+      : {};
+  const anecdotalAdviseeScope =
+    advisoryIds.length > 0
+      ? {
+          OR: [
+            { student: { sectionId: { in: advisoryIds } } },
+            { roster: { sectionId: { in: advisoryIds } } },
+            { sectionId: { in: advisoryIds } },
+          ],
+        }
+      : {};
   const sectionMeta = new Map(
     pairs.map((p) => [
       p.sectionId,
@@ -288,7 +312,15 @@ export async function getTeacherReports(ctx: TeacherContext): Promise<TeacherRep
         studentGrades: { select: { studentId: true, rosterId: true } },
       },
     }),
-    prisma.anecdotalRecord.count({ where: { termId, observerId: teacherId, deletedAt: null } }),
+    prisma.anecdotalRecord.count({
+      where: {
+        termId,
+        observerId: teacherId,
+        deletedAt: null,
+        ...anecdotalAdviseeScope,
+        ...excludeArchivedLearnerRows(archivedLearners),
+      },
+    }),
     prisma.anecdotalRecord.findMany({
       where: {
         termId,
@@ -299,7 +331,12 @@ export async function getTeacherReports(ctx: TeacherContext): Promise<TeacherRep
       select: { studentId: true, rosterId: true },
     }),
     prisma.referral.findMany({
-      where: { termId, referredBy: teacherId },
+      where: {
+        termId,
+        referredBy: teacherId,
+        ...adviseeScope,
+        ...excludeArchivedLearnerRows(archivedLearners),
+      },
       select: { status: true },
     }),
     prisma.gradeFlag.count({
@@ -307,6 +344,9 @@ export async function getTeacherReports(ctx: TeacherContext): Promise<TeacherRep
         termId,
         status: { in: ["open", "escalated"] },
         OR: [{ raisedBy: teacherId }, { ownerId: teacherId }],
+        ...(archivedLearners.studentIds.length > 0
+          ? { studentId: { notIn: archivedLearners.studentIds } }
+          : {}),
       },
     }),
   ]);

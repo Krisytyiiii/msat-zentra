@@ -15,7 +15,7 @@ import { assignUniqueMascots } from "@/app/teacher/grading/[assignmentId]/compon
 import { compareSurnameFirst, formatSurnameFirst } from "@/lib/names";
 import { Button } from "@/components/ui/button";
 import { TeacherSearchField, searchEmptyMessage } from "@/app/teacher/components/TeacherSearchField";
-import { Skeleton } from "@/components/ui/skeleton";
+import { ShimmerSkeleton } from "@/components/ui/shimmer-skeleton";
 import { toast } from "@/components/ui/sonner";
 import { useDock } from "@/components/dock/dock-store";
 import { KanbanBoard } from "@/components/ui/kanban-board";
@@ -95,12 +95,12 @@ export function AttendanceRosterSkeleton({ rows = 8 }: { rows?: number }) {
           <Users size={14} />
         </span>
       }
-      actions={<Skeleton className="h-8 w-40 rounded-[16px] sm:w-48" />}
-      description={<Skeleton className="h-3 w-72 max-w-full" />}
+      actions={<ShimmerSkeleton className="h-8 w-40 rounded-[16px] sm:w-48" />}
+      description={<ShimmerSkeleton className="h-3 w-72 max-w-full" />}
       footer={
         <div className="flex items-center justify-between gap-2 px-1 pb-1">
-          <Skeleton className="h-4 w-20" />
-          <Skeleton className="h-6 w-20 rounded-md" />
+          <ShimmerSkeleton className="h-4 w-20" />
+          <ShimmerSkeleton className="h-6 w-20 rounded-md" />
         </div>
       }
       ariaLabel="Loading roster"
@@ -113,17 +113,17 @@ export function AttendanceRosterSkeleton({ rows = 8 }: { rows?: number }) {
       >
         {Array.from({ length: rows }).map((_, i) => (
           <li key={i} className={rowStyles.row} aria-hidden>
-            <Skeleton className="h-5 w-14 rounded-md" />
+            <ShimmerSkeleton className="h-5 w-14 rounded-md" />
             <span className={rowStyles.sep}>|</span>
             <span className={rowStyles.titleCell}>
-              <Skeleton className="h-7 w-7 shrink-0 rounded-full" />
-              <Skeleton className="h-4 w-40 max-w-[40%]" />
-              <Skeleton className="h-5 w-28 rounded-md" />
+              <ShimmerSkeleton className="h-7 w-7 shrink-0 rounded-full" />
+              <ShimmerSkeleton className="h-4 w-40 max-w-[40%]" />
+              <ShimmerSkeleton className="h-5 w-28 rounded-md" />
             </span>
             <span className={rowStyles.metaCell}>
-              <Skeleton className="h-5 w-10 rounded-md" />
+              <ShimmerSkeleton className="h-5 w-10 rounded-md" />
               {[0, 1, 2, 3].map((box) => (
-                <Skeleton key={box} className="h-7 w-7 rounded-md" />
+                <ShimmerSkeleton key={box} className="h-7 w-7 rounded-md" />
               ))}
             </span>
           </li>
@@ -143,8 +143,15 @@ interface AttendanceRosterTableProps {
   live: AttendanceLive;
   blocksMode: boolean;
   onBlocksModeChange: (value: boolean) => void;
+  /** Render the save action in the host drawer's footer instead of the board. */
+  externalSave?: boolean;
+  onSaveStateChange?: (state: {
+    open: () => void;
+    count: number;
+    disabled: boolean;
+  }) => void;
 }
-export function AttendanceRosterTable({ date, subjectId, assignmentId, slot, roster, meetupDays = DEFAULT_MEETUP_DAYS as unknown as number[], live, blocksMode, onBlocksModeChange }: AttendanceRosterTableProps) {
+export function AttendanceRosterTable({ date, subjectId, assignmentId, slot, roster, meetupDays = DEFAULT_MEETUP_DAYS as unknown as number[], live, blocksMode, onBlocksModeChange, externalSave = false, onSaveStateChange }: AttendanceRosterTableProps) {
   const invalidateTeacher = useTeacherInvalidate();
   const queryClient = useQueryClient();
   const session = useSession();
@@ -191,11 +198,11 @@ export function AttendanceRosterTable({ date, subjectId, assignmentId, slot, ros
   const [saveOpen, setSaveOpen] = React.useState(false);
   const [saving, setSaving] = React.useState(false);
   const [saveError, setSaveError] = React.useState<string | null>(null);
-  const openSave = () => {
+  const openSave = React.useCallback(() => {
     if (live.locked || ownedByOther) return;
     setSaveError(null);
     setSaveOpen(true);
-  };
+  }, [live.locked, ownedByOther]);
   const { days: subjectDays, dateKeys, isPending: meetupPending, hasTerm: hasMeetupTerm } = useMeetupDates(sectionId ?? undefined, subjectId, meetupDays);
   const meetupDates = dateKeys ?? EMPTY_MEETUP_DATES;
   // Prefetch prev/next meetup dates so picker hops render instantly from
@@ -252,7 +259,14 @@ export function AttendanceRosterTable({ date, subjectId, assignmentId, slot, ros
     const sheetPastDue =
       date < live.todayKey ||
       (date === live.todayKey && live.todayEnd !== null && live.nowMin >= live.todayEnd);
-    const ordered = [...students].sort((a, b) => compareSurnameFirst(a.name, b.name));
+    const ordered = [...students].sort((a, b) => {
+      // Signed ADM cases sit under the list — they are attendance-exempt and
+      // should never split the regular roster's surname order.
+      const admA = a.admExempt ? 1 : 0;
+      const admB = b.admExempt ? 1 : 0;
+      if (admA !== admB) return admA - admB;
+      return compareSurnameFirst(a.name, b.name);
+    });
     return ordered.map((s) => {
       const admExempt = s.admExempt ?? false;
       const days = dayStatusByStudent.get(s.studentId);
@@ -298,13 +312,16 @@ export function AttendanceRosterTable({ date, subjectId, assignmentId, slot, ros
     for (const d of delta) c[d.status] += 1;
     return (Object.keys(c) as SheetStatus[]).filter((s) => c[s] > 0).map((s) => `${c[s]} ${s}`).join(", ");
   }, [delta]);
-  const deltaPills = React.useMemo(() => {
-    const c: Record<SheetStatus, number> = { present: 0, absent: 0, late: 0, excused: 0 };
-    for (const d of delta) c[d.status] += 1;
-    return (Object.keys(c) as SheetStatus[])
-      .filter((s) => c[s] > 0)
-      .map((s) => ({ status: s, count: c[s] }));
-  }, [delta]);
+  // The drawer owns the save action when `externalSave` is set, so hand it the
+  // current count/disabled state instead of rendering a second footer button.
+  React.useEffect(() => {
+    if (!externalSave || !onSaveStateChange) return;
+    onSaveStateChange({
+      open: openSave,
+      count: delta.length,
+      disabled: live.locked || ownedByOther || delta.length === 0,
+    });
+  }, [externalSave, onSaveStateChange, openSave, delta.length, live.locked, ownedByOther]);
   async function handleSaveConfirm() {
     const ctx = roster?.ctx ?? null;
     if (!ctx || !subjectId || saving) return;
@@ -399,15 +416,13 @@ export function AttendanceRosterTable({ date, subjectId, assignmentId, slot, ros
       <KanbanBoard
         title="Class attendance"
         className={boardStyles.board}
+        bare
         icon={boardIcon}
         actions={data.length === 0 ? undefined : headerActions}
         description={sheetDesc}
         footer={
-          data.length === 0 ? undefined : (
-            <div className="flex items-center justify-between gap-2 px-1 pb-1">
-              <span className="text-sm text-muted-foreground">
-                {rows.length} student{rows.length === 1 ? "" : "s"}
-              </span>
+          data.length === 0 || externalSave ? undefined : (
+            <div className="flex items-center justify-end gap-2 px-1 pb-1">
               <Button size="sm" className="h-6 px-2.5 text-xs" onClick={openSave} disabled={live.locked || ownedByOther || delta.length === 0} title={ownedByOther ? `Submitted by ${ownerName} — one teacher per meetup` : delta.length === 0 ? "Update at least one status to enable saving" : undefined}>Save{delta.length > 0 ? ` (${delta.length})` : ""}</Button>
             </div>
           )
@@ -461,17 +476,17 @@ export function AttendanceRosterTable({ date, subjectId, assignmentId, slot, ros
                       character={mascotById.get(r.id)}
                       size={28}
                     />
-                    <span className={rowStyles.title} title={r.name}>
-                      {r.name}
+                    <span className={rowStyles.titleStack}>
+                      <span className={rowStyles.title} title={r.name}>
+                        {r.name}
+                      </span>
+                      <span
+                        className={`${rowStyles.subtitle} tabular-nums`}
+                        title={`LRN ${r.lrn}`}
+                      >
+                        {r.lrn}
+                      </span>
                     </span>
-                    <Pill
-                      tone="neutral"
-                      label="LRN"
-                      className="min-w-0 max-w-full truncate tabular-nums"
-                      title={r.lrn}
-                    >
-                      {r.lrn}
-                    </Pill>
                     {r.admExempt ? (
                       <Pill
                         tone="amber"
@@ -522,7 +537,7 @@ export function AttendanceRosterTable({ date, subjectId, assignmentId, slot, ros
           </ul>
         )}
       </KanbanBoard>
-      <SaveAttendanceKanban open={saveOpen} saving={saving} saveError={saveError} count={delta.length} breakdown={deltaPills} onClose={() => setSaveOpen(false)} onConfirm={() => void handleSaveConfirm()} />
+      <SaveAttendanceKanban open={saveOpen} saving={saving} saveError={saveError} count={delta.length} onClose={() => setSaveOpen(false)} onConfirm={() => void handleSaveConfirm()} />
     </section>
   );
 }
