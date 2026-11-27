@@ -31,10 +31,12 @@ write (referral, session, grade, ADM, …)
   Firebase console → Project settings → Service accounts → Generate new private
   key. Never commit it.
 - **Sending**: `sendPushToUser` batches 500 tokens, uses Android channel
-  `zentra_default` + `ic_stat_zentra`, mint accent `#7EF5D0`, and APNs
-  `thread-id` = notification type. Tokens FCM reports as unregistered/invalid
-  are deleted automatically. All failures are logged and swallowed — a push
-  problem can never fail the write that triggered it.
+  `zentra_default` + `ic_stat_zentra`, the in-app blue accent `#2563EB`, and
+  APNs `thread-id` = notification type. Notifications are deliberately
+  text-only (no `imageUrl`): a BigPicture image collapses the body, and the
+  message is the whole point. Tokens FCM reports as unregistered or invalid are
+  deleted automatically. All failures are logged and swallowed — a push problem
+  can never fail the write that triggered it.
 - **Titles**: `pushTitle(type, sourceTable)` in `lib/push.ts` is intentionally a
   small type map (no message sniffing). The in-app inbox keeps its richer
   client-side label maps.
@@ -43,6 +45,13 @@ write (referral, session, grade, ADM, …)
 
 - **Build config** (no `google-services.json` required — explicit
   `FirebaseOptions`):
+
+  ```bash
+  cp .env.example .env        # fill API_BASE_URL + FIREBASE_*
+  flutter run --dart-define-from-file=.env
+  ```
+
+  The equivalent one-off form:
 
   ```bash
   flutter run \
@@ -55,7 +64,14 @@ write (referral, session, grade, ADM, …)
 
   Optional: `FIREBASE_STORAGE_BUCKET`, `FIREBASE_IOS_BUNDLE_ID`. If the four
   required values are missing, `PushConfig.configured` is false and everything
-  is skipped — the app builds and runs exactly as before.
+  is skipped — the app builds and runs exactly as before. `mobile/.env` is
+  gitignored; `mobile/.env.example` is the tracked template.
+
+- **Readiness checks** (no credentials needed):
+  - mobile: the first boot logs `[push] FCM not configured — push notifications
+    are off.` while the defines are empty, and nothing at all once they land.
+  - backend: boot log `Push notifications enabled|disabled`, and
+    `GET /health` → `{ "status": "ok", "push": true|false }`.
 
 - **Lifecycle** (`lib/core/push_service.dart`): `main.dart` boots the service
   after the router exists and attaches `router.go`; the background handler is
@@ -64,16 +80,27 @@ write (referral, session, grade, ADM, …)
   Session restore re-registers via the auth listener in `main.dart`.
 
 - **Foreground**: FCM's OS banner is suppressed (`alert: false`) and
-  `flutter_local_notifications` draws the notice instead, so the Z icon, mint
+  `flutter_local_notifications` draws the notice instead, so the Z icon, blue
   accent and BigText body are identical on both paths.
 
+- **Background / killed**: the backend `notification` payload is drawn by the
+  OS: title, full body text (no image), white silhouette in the status bar and
+  the accent blue.
+
 - **Icons** (`android/app/src/main/res/`):
-  - `drawable-*/ic_stat_zentra.png` — white-only silhouette of the Z + cap +
-    orbit mark (status-bar icons are a single-colour mask; a colour logo would
-    render as a white blob). Generated from `assets/zentra_logo.png`.
-  - `drawable-nodpi/ic_zentra_large.png` — coloured logo for the expanded view.
-  - `values/colors.xml` → `zentra_mint`; manifest meta-data sets the default
-    icon, colour and channel so background pushes look the same.
+  - `drawable-*/ic_stat_zentra.png` — white-only silhouette of the Z + orbit +
+    star mark (status-bar icons are a single-colour mask; a colour logo would
+    render as a white blob). Generated from `assets/zentra.png` at
+    24/36/48/72/96 px.
+  - `drawable-nodpi/ic_zentra_large.png` — the same logo in full colour on a
+    white background (192 px) for the expanded view, so it matches the app's
+    light screens instead of inheriting the system notification background.
+  - `values/colors.xml` → `zentra_accent` (`#2563EB`, matching the in-app
+    unread blue); manifest meta-data sets the default icon, colour and channel
+    so background pushes look the same as the foreground local notices.
+  - Regenerate both from the source logo with
+    `python3 scripts/gen_push_icons.py`; the invariant is: small icon = pure
+    white mask, large icon = colour logo, both trimmed to the artwork.
 
 - **Permissions**: `POST_NOTIFICATIONS` in the manifest (requested after first
   sign-in via `FirebaseMessaging.requestPermission`). iOS uses the standard

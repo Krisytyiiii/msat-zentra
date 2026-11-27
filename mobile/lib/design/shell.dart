@@ -954,18 +954,11 @@ Future<void> showZNotifications(BuildContext context, WidgetRef ref) async {
                                     n,
                                     isAdviser: isAdviser,
                                   );
+                                  // No mobile destination: stay on this
+                                  // dedicated notifications screen.
+                                  if (target == null) return;
                                   if (ctx.mounted) Navigator.pop(ctx);
-                                  if (target != null) {
-                                    if (context.mounted) context.go(target);
-                                  } else if (context.mounted) {
-                                    ScaffoldMessenger.of(context).showSnackBar(
-                                      const SnackBar(
-                                        content: Text(
-                                          'This update is available on the Zentra website. Open Zentra in your browser to view it.',
-                                        ),
-                                      ),
-                                    );
-                                  }
+                                  if (context.mounted) context.go(target);
                                 },
                                 child: Padding(
                                   padding: const EdgeInsets.all(12),

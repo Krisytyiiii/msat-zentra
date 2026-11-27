@@ -82,9 +82,9 @@ flutter_launcher_icons:
 
 flutter_native_splash:
   color: "#FFFFFF"
-  color_dark: "#1C1C1C"
-  image: assets/zentra.png
-  image_dark: assets/zentra_fg.png
+  color_dark: "#050807"
+  image: assets/zentra_logo.png
+  image_dark: assets/zentra_logo.png
   android: true
   ios: true
   web: true

@@ -1,6 +1,7 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
     <color name="ic_launcher_background">#1C1C1C</color>
-    <!-- Push notification accent (Zentra mint), used by FCM's small icon. -->
-    <color name="zentra_mint">#7EF5D0</color>
+    <!-- Push notification accent: the in-app unread blue (#2563EB), so the OS
+         badge, app name and small-icon tint match the notification screens. -->
+    <color name="zentra_accent">#2563EB</color>
 </resources>

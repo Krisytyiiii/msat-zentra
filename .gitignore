@@ -6,3 +6,6 @@ SEEDED_ACCOUNTS.md
 
 # Generated learner exports dropped into public assets by mistake (never commit)
 frontend/public/sounds/*.xlsx
+
+# Mobile build config (API host + Firebase client values); template is tracked
+mobile/.env

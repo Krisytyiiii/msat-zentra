@@ -13,6 +13,7 @@ import 'core/push_service.dart';
 import 'core/session.dart' show authProvider;
 import 'core/sync_outbox.dart';
 import 'design/theme.dart';
+import 'design/splash_screen.dart';
 import 'design/theme_mode.dart'
     show openThemeSettingsBox, themeSettingsProvider;
 import 'dev_preview/device_preview_host.dart';
@@ -91,9 +92,12 @@ class _ZentraAppState extends ConsumerState<ZentraApp> {
           final app = child ?? const SizedBox.shrink();
           // App-wide save queue: writes keep running while the user moves on,
           // and the Drive-style notice survives every screen change.
-          return devicePreviewEnabled
+          final framed = devicePreviewEnabled
               ? DevicePreviewHost(child: app)
               : app;
+          // Facebook-style opening: the mark settles in while the first frame
+          // is built underneath, then dissolves into the app.
+          return SplashGate(child: framed);
         },
       ),
     );

@@ -189,7 +189,7 @@ export async function sendPushToUser(userId: string, payload: PushPayload): Prom
           notification: {
             channelId: CHANNEL_ID,
             icon: "ic_stat_zentra",
-            color: "#7EF5D0",
+            color: "#2563EB",
             tag: payload.sourceTable ? `${payload.sourceTable}:${payload.sourceId ?? ""}` : payload.notificationId,
           },
         },
@@ -206,10 +206,11 @@ export async function sendPushToUser(userId: string, payload: PushPayload): Prom
       res.responses.forEach((r, idx) => {
         if (r.success) return;
         const code = r.error?.code ?? "";
+        // `invalid-argument` also covers payload problems (bad image URL), so it
+        // must not delete a token that may still be perfectly valid.
         if (
           code === "messaging/registration-token-not-registered" ||
-          code === "messaging/invalid-registration-token" ||
-          code === "messaging/invalid-argument"
+          code === "messaging/invalid-registration-token"
         ) {
           dead.push(batch[idx]!);
         } else {

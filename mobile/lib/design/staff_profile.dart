@@ -446,13 +446,9 @@ class _StaffProfileNotificationTile extends ConsumerWidget {
             Navigator.of(context).pop();
             router.go(target);
           } else {
-            ScaffoldMessenger.of(context).showSnackBar(
-              const SnackBar(
-                content: Text(
-                  'This update is available on the Zentra website. Open Zentra in your browser to view it.',
-                ),
-              ),
-            );
+            // No mobile destination for this update: open the dedicated
+            // notifications screen so the full notice stays readable.
+            data.onSeeAll(context);
           }
         },
         child: Row(

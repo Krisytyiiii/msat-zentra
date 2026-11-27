@@ -13,6 +13,28 @@ flutter run --dart-define=API_BASE_URL=http://10.0.2.2:4000
 flutter run --dart-define=API_BASE_URL=http://192.168.1.10:4000
 ```
 
+`mobile/.env.example` is the preferred recipe once you also need Firebase:
+
+```bash
+cp .env.example .env   # fill API_BASE_URL + FIREBASE_*
+flutter run --dart-define-from-file=.env
+```
+
+A `--dart-define` flag still wins over the file, so
+`flutter run --dart-define-from-file=.env --dart-define=API_BASE_URL=http://10.0.2.2:4000`
+works on the emulator.
+
+### Push notifications
+
+FCM is wired end-to-end but stays inert until the `FIREBASE_*` values are
+present. Setup, delivery flow and the tap-routing table live in
+`docs/guides/push-notifications.md`. Backend readiness:
+
+- boot log line `Push notifications enabled|disabled`
+- `GET /health` → `{ "status": "ok", "push": true|false }`
+- `POST /api/notifications/device-token` requires a real
+  `FIREBASE_SERVICE_ACCOUNT_JSON` on the backend to deliver anything
+
 ## Structure
 
 - `lib/core/config.dart` — API base URL, Hive box names

@@ -45,8 +45,10 @@ class PushConfig {
   static const channelDescription =
       'Referral, session, assessment and learner updates from Zentra.';
 
-  /// Android status-bar icon (white-only silhouette of the Z + cap mark).
+  /// Android status-bar icon (white-only silhouette of the Z + orbit mark).
   static const smallIcon = 'ic_stat_zentra';
   /// Coloured logo shown in the expanded/large-icon view.
   static const largeIcon = 'ic_zentra_large';
+  /// Groups foreground notices into one stack per app.
+  static const groupKey = 'zentra.updates';
 }

@@ -6,6 +6,7 @@ import { getEnv } from "./config/env.js";
 import { errorHandler, notFound } from "./lib/errors.js";
 import { logger } from "./lib/pino.js";
 import { prisma } from "./lib/prisma.js";
+import { pushConfigured } from "./lib/push.js";
 import { authLimiter } from "./middleware/rateLimit.js";
 import { perfLog } from "./lib/perf.js";
 
@@ -78,7 +79,7 @@ export function createApp() {
   app.get("/health", async (_req, res) => {
     try {
       await prisma.$queryRaw`SELECT 1`;
-      res.json({ status: "ok" });
+      res.json({ status: "ok", push: pushConfigured() });
     } catch {
       res.status(503).json({ status: "degraded" });
     }

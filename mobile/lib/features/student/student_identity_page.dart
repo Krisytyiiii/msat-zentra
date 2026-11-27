@@ -302,7 +302,7 @@ class StudentQrCard extends StatelessWidget {
                           color: _blue,
                         ),
                         embeddedImage: const AssetImage(
-                          'assets/zentra_logo.png',
+                          'assets/zentra.png',
                         ),
                         embeddedImageStyle: const QrEmbeddedImageStyle(
                           size: Size(32, 32),

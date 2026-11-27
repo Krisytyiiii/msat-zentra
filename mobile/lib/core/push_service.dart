@@ -14,13 +14,19 @@ import 'dart:ui' show Color;
 import 'package:dio/dio.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'package:firebase_messaging/firebase_messaging.dart';
-import 'package:flutter/foundation.dart' show TargetPlatform, defaultTargetPlatform, kIsWeb;
+import 'package:flutter/foundation.dart'
+    show TargetPlatform, debugPrint, defaultTargetPlatform, kIsWeb;
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 import 'package:hive_flutter/hive_flutter.dart';
 
 import 'api_client.dart';
 import 'config.dart';
-import 'notifications.dart' show ZNotification, portalNotificationTarget, portalNotificationTitle, teacherNotificationTitle;
+import 'notifications.dart'
+    show
+        ZNotification,
+        portalNotificationTarget,
+        portalNotificationTitle,
+        teacherNotificationTitle;
 import 'push_config.dart';
 import '../features/coordinator/coordinator_notifications.dart'
     show coordinatorNotificationTarget, coordinatorNotificationTitle;
@@ -91,7 +97,9 @@ String pushDestination(ZNotification n) {
   if (portal == 'student' || portal == 'parent') {
     return portalNotificationTarget(n, portal);
   }
-  if (role == 'adm_coordinator') return coordinatorNotificationTarget(n);
+  if (role == 'adm_coordinator') {
+    return coordinatorNotificationTarget(n) ?? '/coordinator/notifications';
+  }
   return staffPushTarget(n, isAdviser: role == 'adviser') ??
       '/workspace/overview';
 }
@@ -102,20 +110,21 @@ String pushTitleFor(ZNotification n) {
       : null;
   final role = box?.get('role') as String?;
   final portal = box?.get('portal') as String? ?? 'staff';
-  if (portal == 'student' || portal == 'parent') return portalNotificationTitle(n);
+  if (portal == 'student' || portal == 'parent')
+    return portalNotificationTitle(n);
   if (role == 'adm_coordinator') return coordinatorNotificationTitle(n);
   return teacherNotificationTitle(n);
 }
 
 ZNotification _notificationFromMessage(RemoteMessage m) => ZNotification(
-      id: m.data['notificationId']?.toString() ?? m.messageId ?? '',
-      type: m.data['type']?.toString() ?? '',
-      sourceTable: _nonEmpty(m.data['sourceTable']),
-      sourceId: _nonEmpty(m.data['sourceId']),
-      message: m.notification?.body ?? m.data['message']?.toString() ?? '',
-      isRead: false,
-      createdAt: DateTime.now().toIso8601String(),
-    );
+  id: m.data['notificationId']?.toString() ?? m.messageId ?? '',
+  type: m.data['type']?.toString() ?? '',
+  sourceTable: _nonEmpty(m.data['sourceTable']),
+  sourceId: _nonEmpty(m.data['sourceId']),
+  message: m.notification?.body ?? m.data['message']?.toString() ?? '',
+  isRead: false,
+  createdAt: DateTime.now().toIso8601String(),
+);
 
 String? _nonEmpty(Object? v) {
   final s = v?.toString();
@@ -139,7 +148,10 @@ class PushService {
   StreamSubscription<RemoteMessage>? _openedSub;
 
   /// Wires the service to the app's HTTP client and router.
-  void attach({required ApiClient api, required void Function(String route) navigate}) {
+  void attach({
+    required ApiClient api,
+    required void Function(String route) navigate,
+  }) {
     _api = api;
     _navigate = navigate;
   }
@@ -147,7 +159,14 @@ class PushService {
   /// Boots Firebase, the local-notifications channel and message listeners.
   /// Safe to call more than once; silent when push is not configured.
   Future<void> start() async {
-    if (_started || _starting || !PushConfig.configured || kIsWeb) return;
+    if (_started || _starting || kIsWeb) return;
+    if (!PushConfig.configured) {
+      debugPrint(
+        '[push] FCM not configured — push notifications are off. '
+        'Fill FIREBASE_* in .env and run with --dart-define-from-file=.env.',
+      );
+      return;
+    }
     _starting = true;
     try {
       if (Firebase.apps.isEmpty) {
@@ -168,7 +187,9 @@ class PushService {
       _foregroundSub = FirebaseMessaging.onMessage.listen(_showForeground);
       _openedSub = FirebaseMessaging.onMessageOpenedApp.listen(_open);
       _initialMessage = await messaging.getInitialMessage();
-      _tokenSub = messaging.onTokenRefresh.listen((token) => _registerToken(token));
+      _tokenSub = messaging.onTokenRefresh.listen(
+        (token) => _registerToken(token),
+      );
 
       _started = true;
     } catch (_) {
@@ -237,14 +258,20 @@ class PushService {
 
   Future<void> _registerToken(String token) async {
     final api = _api;
-    if (api == null || !_started || token.isEmpty || token == _registeredToken) return;
+    if (api == null || !_started || token.isEmpty || token == _registeredToken)
+      return;
     try {
-      await api.dio.post('/api/notifications/device-token', data: {
-        'token': token,
-        'platform': defaultTargetPlatform == TargetPlatform.iOS
-            ? 'ios'
-            : (defaultTargetPlatform == TargetPlatform.android ? 'android' : 'web'),
-      });
+      await api.dio.post(
+        '/api/notifications/device-token',
+        data: {
+          'token': token,
+          'platform': defaultTargetPlatform == TargetPlatform.iOS
+              ? 'ios'
+              : (defaultTargetPlatform == TargetPlatform.android
+                    ? 'android'
+                    : 'web'),
+        },
+      );
       _registeredToken = token;
     } on DioException {
       // Retried on the next auth state change / token refresh.
@@ -256,9 +283,13 @@ class PushService {
     final api = _api;
     if (!_started || api == null) return;
     try {
-      final token = _registeredToken ?? await FirebaseMessaging.instance.getToken();
+      final token =
+          _registeredToken ?? await FirebaseMessaging.instance.getToken();
       if (token == null || token.isEmpty) return;
-      await api.dio.post('/api/notifications/device-token/unregister', data: {'token': token});
+      await api.dio.post(
+        '/api/notifications/device-token/unregister',
+        data: {'token': token},
+      );
     } catch (_) {
       // Server-side pruning also removes dead tokens.
     } finally {
@@ -279,47 +310,65 @@ class PushService {
         unawaited(_handlePayload(response.payload));
       },
     );
-    final androidPlugin = _local.resolvePlatformSpecificImplementation<
-        AndroidFlutterLocalNotificationsPlugin>();
-    await androidPlugin?.createNotificationChannel(const AndroidNotificationChannel(
-      PushConfig.channelId,
-      PushConfig.channelName,
-      description: PushConfig.channelDescription,
-      importance: Importance.high,
-      playSound: true,
-    ));
+    final androidPlugin = _local
+        .resolvePlatformSpecificImplementation<
+          AndroidFlutterLocalNotificationsPlugin
+        >();
+    await androidPlugin?.createNotificationChannel(
+      const AndroidNotificationChannel(
+        PushConfig.channelId,
+        PushConfig.channelName,
+        description: PushConfig.channelDescription,
+        importance: Importance.high,
+        playSound: true,
+      ),
+    );
   }
 
   void _showForeground(RemoteMessage message) {
     final n = _notificationFromMessage(message);
     final route = pushDestination(n);
-    final body = n.message.isEmpty ? 'You have a new Zentra update.' : n.message;
-    final id = n.id.isEmpty ? DateTime.now().millisecondsSinceEpoch : n.id.hashCode & 0x7fffffff;
-    unawaited(_local.show(
-      id,
-      pushTitleFor(n),
-      body,
-      NotificationDetails(
-        android: AndroidNotificationDetails(
-          PushConfig.channelId,
-          PushConfig.channelName,
-          channelDescription: PushConfig.channelDescription,
-          importance: Importance.high,
-          priority: Priority.high,
-          icon: PushConfig.smallIcon,
-          largeIcon: const DrawableResourceAndroidBitmap(PushConfig.largeIcon),
-          color: const Color(0xFF7EF5D0),
-          styleInformation: BigTextStyleInformation(body),
+    final body = n.message.isEmpty
+        ? 'You have a new Zentra update.'
+        : n.message;
+    final id = n.id.isEmpty
+        ? DateTime.now().millisecondsSinceEpoch
+        : n.id.hashCode & 0x7fffffff;
+    unawaited(
+      _local.show(
+        id,
+        pushTitleFor(n),
+        body,
+        NotificationDetails(
+          android: AndroidNotificationDetails(
+            PushConfig.channelId,
+            PushConfig.channelName,
+            channelDescription: PushConfig.channelDescription,
+            importance: Importance.high,
+            priority: Priority.high,
+            icon: PushConfig.smallIcon,
+            largeIcon: const DrawableResourceAndroidBitmap(
+              PushConfig.largeIcon,
+            ),
+            // Matches the in-app inbox accent (unread dot / blue scope pills).
+            color: const Color(0xFF2563EB),
+            category: AndroidNotificationCategory.message,
+            groupKey: PushConfig.groupKey,
+            ticker: body,
+            subText: 'Zentra',
+            autoCancel: true,
+            styleInformation: BigTextStyleInformation(body),
+          ),
+          iOS: DarwinNotificationDetails(
+            presentAlert: true,
+            presentBadge: true,
+            presentSound: true,
+            threadIdentifier: n.type,
+          ),
         ),
-        iOS: DarwinNotificationDetails(
-          presentAlert: true,
-          presentBadge: true,
-          presentSound: true,
-          threadIdentifier: n.type,
-        ),
+        payload: _encodePayload(n, route),
       ),
-      payload: _encodePayload(n, route),
-    ));
+    );
   }
 
   void _open(RemoteMessage message) {

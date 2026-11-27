@@ -3,6 +3,7 @@ import { createApp } from "./app.js";
 import { getEnv } from "./config/env.js";
 import { logger } from "./lib/pino.js";
 import { disconnectPrisma } from "./lib/prisma.js";
+import { pushConfigured } from "./lib/push.js";
 import { runEscalation } from "./services/gradeFlags.js";
 import { sweepAutoAbsent } from "./services/autoAbsent.js";
 import { refreshRiskSnapshots } from "./services/riskRefresh.js";
@@ -13,6 +14,13 @@ const port = env.PORT;
 
 const server = app.listen(port, () => {
   logger.info({ port, env: env.NODE_ENV }, "Zentra backend listening");
+  // One-line readiness signal: unconfigured push is a no-op, never an error.
+  logger.info(
+    { push: pushConfigured() },
+    pushConfigured()
+      ? "Push notifications enabled"
+      : "Push notifications disabled (FIREBASE_SERVICE_ACCOUNT_JSON unset)",
+  );
 });
 // Emergency application-level boundary (not a target): normal paged
 // requests should complete in <2s. Slow endpoints must be investigated,
