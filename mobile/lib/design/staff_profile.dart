@@ -57,11 +57,15 @@ class StaffProfileScreen extends ConsumerWidget {
   };
 
   void _openAppearance(BuildContext context) {
+    final dark = Theme.of(context).brightness == Brightness.dark;
+    final sheet = dark ? const Color(0xFF121110) : const Color(0xFFF2F0E7);
+    final ink = dark ? const Color(0xFFF3F7F5) : const Color(0xFF181B19);
+    final chip = dark ? const Color(0xFF22201D) : const Color(0xFFE3E4DF);
     showModalBottomSheet<void>(
       context: context,
       isScrollControlled: true,
       showDragHandle: true,
-      backgroundColor: const Color(0xFFF2F0E7),
+      backgroundColor: sheet,
       barrierColor: Colors.black.withValues(alpha: 0.68),
       shape: const RoundedRectangleBorder(
         borderRadius: BorderRadius.vertical(top: Radius.circular(30)),
@@ -76,34 +80,28 @@ class StaffProfileScreen extends ConsumerWidget {
             children: [
               Row(
                 children: [
-                  const Expanded(
+                  Expanded(
                     child: Text(
                       'Appearance',
                       style: TextStyle(
                         fontSize: 25,
                         fontWeight: FontWeight.w700,
-                        color: Color(0xFF181B19),
+                        color: ink,
                       ),
                     ),
                   ),
                   IconButton(
                     tooltip: 'Close appearance',
                     onPressed: () => Navigator.pop(ctx),
-                    style: IconButton.styleFrom(
-                      backgroundColor: const Color(0xFFE3E4DF),
-                    ),
-                    icon: const Icon(
-                      LucideIcons.x,
-                      color: Color(0xFF181B19),
-                      size: 20,
-                    ),
+                    style: IconButton.styleFrom(backgroundColor: chip),
+                    icon: Icon(LucideIcons.x, color: ink, size: 20),
                   ),
                 ],
               ),
               const SizedBox(height: 2),
               Text(
                 'Choose how the app appears on your device',
-                style: const TextStyle(fontSize: 14, color: Color(0xFF181B19)),
+                style: TextStyle(fontSize: 14, color: ink),
               ),
               const SizedBox(height: 22),
               WorkspaceThemePicker(onApplied: () => Navigator.pop(ctx)),
@@ -132,59 +130,82 @@ class StaffProfileScreen extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final theme = Theme.of(context);
+    final dark = theme.brightness == Brightness.dark;
     final inbox = data.inbox;
     final mode = ref.watch(themeSettingsProvider).mode;
 
-    final lightTheme = theme.copyWith(
-      brightness: Brightness.light,
-      scaffoldBackgroundColor: const Color(0xFFFAFAF9),
-      colorScheme: const ColorScheme.light(
-        primary: Color(0xFF2563EB),
-        surface: Colors.white,
-        onSurface: Color(0xFF181B19),
-        onSurfaceVariant: Color(0xFF707572),
-        surfaceContainerLow: Color(0xFFF0F1EF),
-        outline: Color(0xFFDDE0DD),
-        outlineVariant: Color(0xFFDDE0DD),
-        error: Color(0xFFBE3545),
-      ),
+    final panelInk = dark ? const Color(0xFFF3F7F5) : const Color(0xFF181B19);
+    final panelMuted = dark ? const Color(0xFF99AAA3) : const Color(0xFF707572);
+    final panelCanvas = dark
+        ? const Color(0xFF050807)
+        : const Color(0xFFFAFAF9);
+    final panelSurface = dark ? const Color(0xFF0B1411) : Colors.white;
+    final panelSoft = dark ? const Color(0xFF101D18) : const Color(0xFFF0F1EF);
+    final panelBorder = dark
+        ? const Color(0xFF2A3530)
+        : const Color(0xFFDDE0DD);
+    final panelTheme = theme.copyWith(
+      brightness: dark ? Brightness.dark : Brightness.light,
+      scaffoldBackgroundColor: panelCanvas,
+      colorScheme: dark
+          ? ColorScheme.dark(
+              primary: const Color(0xFF7EB2FF),
+              onPrimary: const Color(0xFF06101F),
+              surface: panelSurface,
+              onSurface: panelInk,
+              onSurfaceVariant: panelMuted,
+              surfaceContainerLow: panelSoft,
+              outline: panelBorder,
+              outlineVariant: panelBorder,
+              error: const Color(0xFFFF6467),
+            )
+          : ColorScheme.light(
+              primary: const Color(0xFF2563EB),
+              surface: panelSurface,
+              onSurface: panelInk,
+              onSurfaceVariant: panelMuted,
+              surfaceContainerLow: panelSoft,
+              outline: panelBorder,
+              outlineVariant: panelBorder,
+              error: const Color(0xFFBE3545),
+            ),
       textTheme: theme.textTheme.apply(
-        bodyColor: const Color(0xFF181B19),
-        displayColor: const Color(0xFF181B19),
+        bodyColor: panelInk,
+        displayColor: panelInk,
       ),
-      appBarTheme: const AppBarTheme(
-        backgroundColor: Color(0xFFFAFAF9),
-        foregroundColor: Color(0xFF181B19),
+      appBarTheme: AppBarTheme(
+        backgroundColor: panelCanvas,
+        foregroundColor: panelInk,
         surfaceTintColor: Colors.transparent,
         elevation: 0,
         scrolledUnderElevation: 0,
       ),
       cardTheme: CardThemeData(
-        color: Colors.white,
+        color: panelSurface,
         surfaceTintColor: Colors.transparent,
         elevation: 0,
         shape: RoundedRectangleBorder(
           borderRadius: BorderRadius.circular(16),
-          side: const BorderSide(color: Color(0xFFDDE0DD)),
+          side: BorderSide(color: panelBorder),
         ),
       ),
-      dividerTheme: const DividerThemeData(
-        color: Color(0xFFDDE0DD),
+      dividerTheme: DividerThemeData(
+        color: panelBorder,
         space: 1,
         thickness: 1,
       ),
-      listTileTheme: const ListTileThemeData(
+      listTileTheme: ListTileThemeData(
         minTileHeight: 48,
-        contentPadding: EdgeInsets.symmetric(horizontal: 12),
+        contentPadding: const EdgeInsets.symmetric(horizontal: 12),
         horizontalTitleGap: 12,
         minVerticalPadding: 8,
-        textColor: Color(0xFF181B19),
-        iconColor: Color(0xFF181B19),
-        shape: StadiumBorder(),
+        textColor: panelInk,
+        iconColor: panelInk,
+        shape: const StadiumBorder(),
       ),
     );
     return Theme(
-      data: lightTheme,
+      data: panelTheme,
       child: Scaffold(
         appBar: AppBar(
           automaticallyImplyLeading: false,
@@ -198,7 +219,9 @@ class StaffProfileScreen extends ConsumerWidget {
               key: const ValueKey('profile-close'),
               tooltip: 'Close',
               style: IconButton.styleFrom(
-                side: const BorderSide(color: Color(0xFFE5E8F0)),
+                side: BorderSide(
+                  color: dark ? panelBorder : const Color(0xFFE5E8F0),
+                ),
                 minimumSize: const Size(42, 42),
                 shape: const CircleBorder(),
               ),
@@ -245,14 +268,18 @@ class StaffProfileScreen extends ConsumerWidget {
                                   vertical: 2,
                                 ),
                                 decoration: BoxDecoration(
-                                  color: const Color(0xFFDBEAFE),
+                                  color: dark
+                                      ? const Color(0x292B7FFF)
+                                      : const Color(0xFFDBEAFE),
                                   borderRadius: BorderRadius.circular(8),
                                 ),
                                 child: Text(
                                   data.roleLabel,
-                                  style: const TextStyle(
+                                  style: TextStyle(
                                     fontSize: 12,
-                                    color: Color(0xFF2563EB),
+                                    color: dark
+                                        ? const Color(0xFF8FB6F5)
+                                        : const Color(0xFF2563EB),
                                   ),
                                 ),
                               ),
@@ -296,7 +323,7 @@ class StaffProfileScreen extends ConsumerWidget {
                       padding: const EdgeInsets.symmetric(vertical: 12),
                       child: Text(
                         userMessage(e),
-                        style: lightTheme.textTheme.bodySmall,
+                        style: panelTheme.textTheme.bodySmall,
                       ),
                     ),
                     data: (items) {
@@ -357,9 +384,9 @@ class StaffProfileScreen extends ConsumerWidget {
                             children: [
                               Text(
                                 _modeLabel(mode),
-                                style: const TextStyle(
+                                style: TextStyle(
                                   fontSize: 12,
-                                  color: Color(0xFF707572),
+                                  color: panelMuted,
                                 ),
                               ),
                               const SizedBox(width: 8),
@@ -424,7 +451,7 @@ class _StaffProfileNotificationTile extends ConsumerWidget {
     return Theme(
       data: theme.copyWith(
         cardTheme: theme.cardTheme.copyWith(
-          color: const Color(0xFFF0F1EF),
+          color: theme.colorScheme.surfaceContainerLow,
           elevation: 0,
           shape: RoundedRectangleBorder(
             borderRadius: BorderRadius.circular(12),

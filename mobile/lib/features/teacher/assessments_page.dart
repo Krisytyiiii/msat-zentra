@@ -155,13 +155,14 @@ class _AssessmentsState extends ConsumerState<AssessmentsPage>
         unawaited(_load());
       }
     });
+    final desk = overviewScreenTheme(Theme.of(context));
     return Theme(
-      data: overviewScreenTheme(Theme.of(context)),
+      data: desk,
       child: Scaffold(
-        backgroundColor: Colors.white,
+        backgroundColor: desk.scaffoldBackgroundColor,
         appBar: AppBar(
-          shape: const Border(bottom: BorderSide(color: Color(0xFFEDF0F6))),
-          backgroundColor: Colors.white,
+          shape: Border(bottom: BorderSide(color: desk.colorScheme.outline)),
+          backgroundColor: desk.scaffoldBackgroundColor,
           surfaceTintColor: Colors.transparent,
           scrolledUnderElevation: 0,
           centerTitle: true,
@@ -198,7 +199,8 @@ class _AssessmentsState extends ConsumerState<AssessmentsPage>
         padding: const EdgeInsets.fromLTRB(12, 16, 12, 32),
         children: [
           ZContentHeader(
-            title: record.assignment['subjectName']?.toString() ?? 'Assessments',
+            title:
+                record.assignment['subjectName']?.toString() ?? 'Assessments',
             icon: LucideIcons.clipboardList,
             description: 'Choose an assessment to enter scores.',
             titleTrailing: Tooltip(
@@ -206,16 +208,24 @@ class _AssessmentsState extends ConsumerState<AssessmentsPage>
               child: Container(
                 padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
                 decoration: BoxDecoration(
-                  color: const Color(0xFFEFF6FF),
-                  border: Border.all(color: const Color(0xFFBFDBFE)),
+                  color: Theme.of(context).brightness == Brightness.dark
+                      ? const Color(0x292B7FFF)
+                      : const Color(0xFFEFF6FF),
+                  border: Border.all(
+                    color: Theme.of(context).brightness == Brightness.dark
+                        ? const Color(0x662B7FFF)
+                        : const Color(0xFFBFDBFE),
+                  ),
                   borderRadius: BorderRadius.circular(999),
                 ),
                 child: Text(
                   widget.audience == 'adm' ? 'ADM' : 'Regular',
-                  style: const TextStyle(
+                  style: TextStyle(
                     fontSize: 12,
                     fontWeight: FontWeight.w600,
-                    color: Color(0xFF2563EB),
+                    color: Theme.of(context).brightness == Brightness.dark
+                        ? const Color(0xFF8FB6F5)
+                        : const Color(0xFF2563EB),
                   ),
                 ),
               ),
@@ -275,18 +285,22 @@ class _AssessmentsState extends ConsumerState<AssessmentsPage>
                         onPressed: () => setState(_search.clear),
                       ),
                 filled: true,
-                fillColor: const Color(0xFFF5F7FA),
+                fillColor: Theme.of(context).colorScheme.surfaceContainerLow,
                 contentPadding: const EdgeInsets.symmetric(
                   horizontal: 16,
                   vertical: 8,
                 ),
                 border: OutlineInputBorder(
                   borderRadius: BorderRadius.circular(999),
-                  borderSide: const BorderSide(color: Color(0xFFE6ECF4)),
+                  borderSide: BorderSide(
+                    color: Theme.of(context).colorScheme.outline,
+                  ),
                 ),
                 enabledBorder: OutlineInputBorder(
                   borderRadius: BorderRadius.circular(999),
-                  borderSide: const BorderSide(color: Color(0xFFE6ECF4)),
+                  borderSide: BorderSide(
+                    color: Theme.of(context).colorScheme.outline,
+                  ),
                 ),
               ),
             ),
@@ -294,7 +308,10 @@ class _AssessmentsState extends ConsumerState<AssessmentsPage>
           const SizedBox(height: 12),
           Text(
             'Showing ${assessments.length} records',
-            style: const TextStyle(fontSize: 12, color: Color(0xFF9999A6)),
+            style: TextStyle(
+              fontSize: 12,
+              color: Theme.of(context).colorScheme.onSurfaceVariant,
+            ),
           ),
           if (_error != null)
             TextButton(
@@ -305,18 +322,23 @@ class _AssessmentsState extends ConsumerState<AssessmentsPage>
             const SizedBox(height: 16),
             Text(
               category.value,
-              style: const TextStyle(
+              style: TextStyle(
                 fontSize: 14,
                 fontWeight: FontWeight.w600,
-                color: Color(0xFF172033),
+                color: Theme.of(context).colorScheme.onSurface,
               ),
             ),
             const SizedBox(height: 8),
             if (!assessments.any((a) => a.type == category.key))
               ZEmpty(
-                icon: query.isEmpty ? LucideIcons.clipboardList : LucideIcons.search,
-                title: query.isEmpty ? 'No assessments yet' : 'No matching assessments',
-                subtitle: query.isEmpty ? 'Create an assessment from the Grade Record.'
+                icon: query.isEmpty
+                    ? LucideIcons.clipboardList
+                    : LucideIcons.search,
+                title: query.isEmpty
+                    ? 'No assessments yet'
+                    : 'No matching assessments',
+                subtitle: query.isEmpty
+                    ? 'Create an assessment from the Grade Record.'
                     : 'Try a different assessment name.',
               ),
             for (final assessment in assessments.where(
@@ -325,16 +347,21 @@ class _AssessmentsState extends ConsumerState<AssessmentsPage>
               Card(
                 margin: const EdgeInsets.only(bottom: 12),
                 elevation: 0,
-                color: Colors.white,
+                color: Theme.of(context).colorScheme.surface,
                 shape: RoundedRectangleBorder(
                   borderRadius: BorderRadius.circular(16),
-                  side: const BorderSide(color: Color(0xFFE6ECF4)),
+                  side: BorderSide(
+                    color: Theme.of(context).colorScheme.outline,
+                  ),
                 ),
                 clipBehavior: Clip.antiAlias,
                 child: ListTile(
                   contentPadding: const EdgeInsets.all(14),
                   leading: CircleAvatar(
-                    backgroundColor: const Color(0xFFEFF6FF),
+                    backgroundColor:
+                        Theme.of(context).brightness == Brightness.dark
+                        ? const Color(0x292B7FFF)
+                        : const Color(0xFFEFF6FF),
                     child: Icon(
                       switch (category.key) {
                         'WRITTEN_WORK' => LucideIcons.notebookPen,
@@ -342,7 +369,7 @@ class _AssessmentsState extends ConsumerState<AssessmentsPage>
                         _ => LucideIcons.clipboardCheck,
                       },
                       size: 18,
-                      color: const Color(0xFF52627C),
+                      color: Theme.of(context).colorScheme.onSurfaceVariant,
                     ),
                   ),
                   title: Text(
@@ -354,9 +381,9 @@ class _AssessmentsState extends ConsumerState<AssessmentsPage>
                   ),
                   subtitle: Text(
                     'Max ${gradeNumber(assessment.maxScore)} pts${assessment.dateGiven.isEmpty ? '' : ' · ${assessment.dateGiven}'}',
-                    style: const TextStyle(
+                    style: TextStyle(
                       fontSize: 12,
-                      color: Color(0xFF71809B),
+                      color: Theme.of(context).colorScheme.onSurfaceVariant,
                     ),
                   ),
                   trailing: const Icon(Icons.chevron_right, size: 18),

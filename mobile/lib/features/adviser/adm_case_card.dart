@@ -8,6 +8,7 @@ import 'package:lucide_icons_flutter/lucide_icons.dart';
 
 import '../../shared/widgets.dart';
 import '../../design/status_palette.dart';
+import '../../design/desk_theme.dart';
 
 const admStageOrder = {
   'anecdotal': 1,
@@ -59,10 +60,10 @@ class AdmCaseCard extends StatelessWidget {
     final name = caseData['studentName']?.toString() ?? '';
     final lrn = caseData['lrn']?.toString() ?? '';
     return Material(
-      color: Colors.white,
+      color: zCard(context),
       shape: RoundedRectangleBorder(
         borderRadius: BorderRadius.circular(16),
-        side: const BorderSide(color: Color(0xFFE6ECF4)),
+        side: BorderSide(color: zLine(context)),
       ),
       clipBehavior: Clip.antiAlias,
       child: InkWell(
@@ -78,8 +79,8 @@ class AdmCaseCard extends StatelessWidget {
                 children: [
                   CircleAvatar(
                     radius: 19,
-                    backgroundColor: const Color(0xFFEFF6FF),
-                    foregroundColor: const Color(0xFF52627C),
+                    backgroundColor: zWash(context, const Color(0xFFEFF6FF)),
+                    foregroundColor: zMutedInk(context),
                     child: Text(
                       _initials(name),
                       style: const TextStyle(
@@ -95,18 +96,18 @@ class AdmCaseCard extends StatelessWidget {
                       children: [
                         Text(
                           name.isEmpty ? 'ADM case' : name,
-                          style: const TextStyle(
+                          style: TextStyle(
                             fontSize: 14,
                             fontWeight: FontWeight.w600,
-                            color: Color(0xFF0F172A),
+                            color: zInk(context),
                           ),
                         ),
                         const SizedBox(height: 4),
                         Text(
                           'LRN ${lrn.isEmpty ? '—' : lrn}',
-                          style: const TextStyle(
+                          style: TextStyle(
                             fontSize: 12,
-                            color: Color(0xFF71809B),
+                            color: zMutedInk(context),
                           ),
                         ),
                       ],
@@ -131,9 +132,9 @@ class AdmCaseCard extends StatelessWidget {
                   ],
                 ],
               ),
-              const Padding(
+              Padding(
                 padding: EdgeInsets.symmetric(vertical: 10),
-                child: Divider(height: 1, color: Color(0xFFE6ECF4)),
+                child: Divider(height: 1, color: zLine(context)),
               ),
               footer ??
                   Align(
@@ -154,9 +155,9 @@ class AdmCaseCard extends StatelessWidget {
                               ]
                               .map(
                                 (child) => DefaultTextStyle(
-                                  style: const TextStyle(
+                                  style: TextStyle(
                                     fontSize: 12,
-                                    color: Color(0xFF52627C),
+                                    color: zMutedInk(context),
                                   ),
                                   child: child,
                                 ),
@@ -192,8 +193,8 @@ class AdmCaseCounters extends StatelessWidget {
   Widget build(BuildContext context) => Container(
     padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
     decoration: BoxDecoration(
-      color: const Color(0xFFF9F9FA),
-      border: Border.all(color: const Color(0xFFE8E8ED)),
+      color: zSoft(context),
+      border: Border.all(color: zLine(context)),
       borderRadius: BorderRadius.circular(12),
     ),
     child: Row(
@@ -205,16 +206,16 @@ class AdmCaseCounters extends StatelessWidget {
             child: Text.rich(
               TextSpan(
                 text: '${counts[i].$2}',
-                style: const TextStyle(
+                style: TextStyle(
                   fontWeight: FontWeight.w700,
-                  color: Color(0xFF1E293B),
+                  color: zInk(context),
                 ),
                 children: [
                   TextSpan(
                     text: '\n${counts[i].$1}',
-                    style: const TextStyle(
+                    style: TextStyle(
                       fontWeight: FontWeight.w400,
-                      color: Color(0xFF71809B),
+                      color: zMutedInk(context),
                     ),
                   ),
                 ],
@@ -271,7 +272,7 @@ class AdmCaseFilterPill extends StatelessWidget {
       overflow: TextOverflow.ellipsis,
       style: TextStyle(
         fontSize: 12,
-        color: active ? blue.foreground : const Color(0xFF7185A4),
+        color: active ? blue.foreground : zMutedInk(context),
       ),
     );
     return PopupMenuButton<String>(
@@ -288,12 +289,12 @@ class AdmCaseFilterPill extends StatelessWidget {
           child: Container(
             padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 7),
             decoration: BoxDecoration(
-              color: active ? blue.background : Colors.white,
+              color: active ? blue.background : zCard(context),
               borderRadius: BorderRadius.circular(999),
               border: Border.all(
                 color: active
                     ? blue.foreground.withValues(alpha: 0.25)
-                    : const Color(0xFFE5E5EA),
+                    : zLine(context),
               ),
             ),
             child: Row(
@@ -310,7 +311,7 @@ class AdmCaseFilterPill extends StatelessWidget {
                 Icon(
                   LucideIcons.chevronDown,
                   size: 12,
-                  color: active ? blue.foreground : const Color(0xFF7185A4),
+                  color: active ? blue.foreground : zMutedInk(context),
                 ),
               ],
             ),
@@ -339,12 +340,14 @@ class AdmCaseDetails extends StatelessWidget {
       margin: const EdgeInsets.only(top: 12),
       padding: const EdgeInsets.all(12),
       decoration: BoxDecoration(
-        color: highlighted ? const Color(0xFFF3F9FF) : Colors.white,
+        color: highlighted
+            ? zWash(context, const Color(0xFFF3F9FF))
+            : zCard(context),
         borderRadius: BorderRadius.circular(14),
         border: Border.all(
           color: highlighted
-              ? const Color(0xFFBFDBFE)
-              : const Color(0xFFE2E8F0),
+              ? zWash(context, const Color(0xFFBFDBFE))
+              : zLine(context),
         ),
       ),
       child: Column(
@@ -352,10 +355,10 @@ class AdmCaseDetails extends StatelessWidget {
         children: [
           Text(
             title,
-            style: const TextStyle(
+            style: TextStyle(
               fontSize: 12,
               fontWeight: FontWeight.w700,
-              color: Color(0xFF1E3A8A),
+              color: zLift(context, Color(0xFF1E3A8A)),
             ),
           ),
           const SizedBox(height: 8),
@@ -364,13 +367,9 @@ class AdmCaseDetails extends StatelessWidget {
       ),
     );
     return ColoredBox(
-      color: Colors.white,
+      color: zCard(context),
       child: DefaultTextStyle(
-        style: const TextStyle(
-          fontSize: 12,
-          height: 1.45,
-          color: Color(0xFF475569),
-        ),
+        style: TextStyle(fontSize: 12, height: 1.45, color: zMutedInk(context)),
         child: ListView(
           padding: const EdgeInsets.fromLTRB(16, 12, 16, 24),
           children: [
@@ -382,15 +381,15 @@ class AdmCaseDetails extends StatelessWidget {
                   height: 46,
                   alignment: Alignment.center,
                   decoration: BoxDecoration(
-                    color: const Color(0xFF2563EB),
+                    color: zLift(context, const Color(0xFF2563EB)),
                     borderRadius: BorderRadius.circular(13),
                   ),
                   child: Text(
                     _initials(name),
-                    style: const TextStyle(
+                    style: TextStyle(
                       fontSize: 15,
                       fontWeight: FontWeight.w700,
-                      color: Colors.white,
+                      color: zCard(context),
                     ),
                   ),
                 ),
@@ -401,10 +400,10 @@ class AdmCaseDetails extends StatelessWidget {
                     children: [
                       Text(
                         name.isEmpty ? 'ADM case' : name,
-                        style: const TextStyle(
+                        style: TextStyle(
                           fontSize: 15,
                           fontWeight: FontWeight.w700,
-                          color: Color(0xFF0F172A),
+                          color: zInk(context),
                         ),
                       ),
                       const SizedBox(height: 4),
@@ -420,8 +419,8 @@ class AdmCaseDetails extends StatelessWidget {
                 IconButton(
                   tooltip: 'Close ADM details',
                   style: IconButton.styleFrom(
-                    foregroundColor: const Color(0xFF64748B),
-                    side: const BorderSide(color: Color(0xFFE5E8F0)),
+                    foregroundColor: zMutedInk(context),
+                    side: BorderSide(color: zLine(context)),
                     minimumSize: const Size(42, 42),
                     shape: const CircleBorder(),
                   ),
@@ -430,9 +429,9 @@ class AdmCaseDetails extends StatelessWidget {
                 ),
               ],
             ),
-            const Padding(
+            Padding(
               padding: EdgeInsets.symmetric(vertical: 12),
-              child: Divider(height: 1, color: Color(0xFFF1F5F9)),
+              child: Divider(height: 1, color: zSoft(context)),
             ),
             panel('ADM status', [
               Text(

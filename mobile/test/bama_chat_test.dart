@@ -678,6 +678,21 @@ void main() {
     await _mount(tester, api, initialLocation: '/adviser/bama/conversation/ready');
     await tester.tap(find.byTooltip('File record'));
     await tester.pumpAndSettle();
+    final review = tester.widget<Card>(
+      find
+          .ancestor(
+            of: find.text('Review the complete record before filing:'),
+            matching: find.byType(Card),
+          )
+          .first,
+    );
+    final theme = Theme.of(
+      tester.element(find.text('Review the complete record before filing:')),
+    );
+    // The review card must follow dark mode; a white card left the light
+    // review copy unreadable.
+    expect(review.color, theme.colorScheme.surface);
+    expect(review.color, isNot(Colors.white));
     final confirm = find.widgetWithText(FilledButton, 'File record').last;
     await tester.tap(confirm);
     await tester.tap(confirm); // same-frame double tap must not file twice

@@ -1,27 +1,44 @@
 import 'package:flutter/material.dart';
 
-/// Scoped light settings presentation; other workspaces retain their palette.
+/// Scoped settings presentation; other workspaces retain their palette.
+/// Follows the app Appearance setting like the rest of the adviser desk.
 ThemeData settingsScreenTheme(ThemeData base) {
-  const ink = Color(0xFF0F172A);
-  const border = Color(0xFFE2E8F0);
-  const surface = Colors.white;
+  final dark = base.brightness == Brightness.dark;
+  final ink = dark ? const Color(0xFFF3F7F5) : const Color(0xFF0F172A);
+  final muted = dark ? const Color(0xFF99AAA3) : const Color(0xFF64748B);
+  final border = dark ? const Color(0xFF2A3530) : const Color(0xFFE2E8F0);
+  final surface = dark ? const Color(0xFF0B1411) : Colors.white;
+  final soft = dark ? const Color(0xFF101D18) : const Color(0xFFF3F9FF);
+  final primary = dark ? const Color(0xFF7EB2FF) : const Color(0xFF2563EB);
   return base.copyWith(
-    brightness: Brightness.light,
-    scaffoldBackgroundColor: surface,
-    colorScheme: const ColorScheme.light(
-      primary: Color(0xFF2563EB),
-      onPrimary: Colors.white,
-      surface: surface,
-      onSurface: ink,
-      onSurfaceVariant: Color(0xFF64748B),
-      surfaceContainerLow: Color(0xFFF3F9FF),
-      outline: border,
-      outlineVariant: border,
-      error: Color(0xFFBB303A),
-    ),
+    brightness: dark ? Brightness.dark : Brightness.light,
+    scaffoldBackgroundColor: dark ? const Color(0xFF050807) : surface,
+    colorScheme: dark
+        ? ColorScheme.dark(
+            primary: primary,
+            onPrimary: const Color(0xFF06101F),
+            surface: surface,
+            onSurface: ink,
+            onSurfaceVariant: muted,
+            surfaceContainerLow: soft,
+            outline: border,
+            outlineVariant: border,
+            error: const Color(0xFFFF6467),
+          )
+        : ColorScheme.light(
+            primary: primary,
+            onPrimary: Colors.white,
+            surface: surface,
+            onSurface: ink,
+            onSurfaceVariant: muted,
+            surfaceContainerLow: soft,
+            outline: border,
+            outlineVariant: border,
+            error: const Color(0xFFBB303A),
+          ),
     textTheme: base.textTheme.apply(bodyColor: ink, displayColor: ink),
-    appBarTheme: const AppBarTheme(
-      backgroundColor: surface,
+    appBarTheme: AppBarTheme(
+      backgroundColor: dark ? const Color(0xFF050807) : surface,
       foregroundColor: ink,
       surfaceTintColor: Colors.transparent,
       elevation: 0,
@@ -32,27 +49,26 @@ ThemeData settingsScreenTheme(ThemeData base) {
       surfaceTintColor: Colors.transparent,
       shape: RoundedRectangleBorder(
         borderRadius: BorderRadius.circular(14),
-        side: const BorderSide(color: border),
+        side: BorderSide(color: border),
       ),
     ),
     inputDecorationTheme: InputDecorationTheme(
       filled: true,
       fillColor: surface,
-      labelStyle: const TextStyle(color: Color(0xFF64748B), fontSize: 12),
-      helperStyle: const TextStyle(color: Color(0xFF64748B), fontSize: 12),
+      labelStyle: TextStyle(color: muted, fontSize: 12),
+      helperStyle: TextStyle(color: muted, fontSize: 12),
       contentPadding: const EdgeInsets.all(14),
       enabledBorder: OutlineInputBorder(
         borderRadius: BorderRadius.circular(14),
-        borderSide: const BorderSide(color: border),
+        borderSide: BorderSide(color: border),
       ),
       focusedBorder: OutlineInputBorder(
         borderRadius: BorderRadius.circular(14),
-        borderSide: const BorderSide(color: Color(0xFF2563EB)),
+        borderSide: BorderSide(color: primary),
       ),
     ),
-    // The settings shell sits on white while the app-wide workspace theme is
-    // dark, so icon buttons inherit a near-white foreground and the Back
-    // chevron all but disappears. Pin header/icon tint to the settings ink.
+    // The settings shell sits on its own surface, so pin header/icon tint to
+    // the settings ink instead of inheriting the workspace foreground.
     iconButtonTheme: IconButtonThemeData(
       style: IconButton.styleFrom(
         foregroundColor: ink,
@@ -64,8 +80,8 @@ ThemeData settingsScreenTheme(ThemeData base) {
     ),
     filledButtonTheme: FilledButtonThemeData(
       style: FilledButton.styleFrom(
-        foregroundColor: Colors.white,
-        backgroundColor: const Color(0xFF2563EB),
+        foregroundColor: dark ? const Color(0xFF06101F) : Colors.white,
+        backgroundColor: primary,
         minimumSize: const Size(48, 48),
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
         textStyle: const TextStyle(fontSize: 13, fontWeight: FontWeight.w500),
@@ -74,17 +90,17 @@ ThemeData settingsScreenTheme(ThemeData base) {
     outlinedButtonTheme: OutlinedButtonThemeData(
       style: OutlinedButton.styleFrom(
         foregroundColor: ink,
-        side: const BorderSide(color: border),
+        side: BorderSide(color: border),
         minimumSize: const Size(48, 48),
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
         textStyle: const TextStyle(fontSize: 13),
       ),
     ),
     switchTheme: SwitchThemeData(
-      thumbColor: const WidgetStatePropertyAll(Colors.white),
+      thumbColor: WidgetStatePropertyAll(dark ? ink : Colors.white),
       trackColor: WidgetStateProperty.resolveWith(
         (states) => states.contains(WidgetState.selected)
-            ? const Color(0xFF2563EB)
+            ? primary
             : const Color(0xFFB9C0BC),
       ),
     ),

@@ -13,6 +13,7 @@ import '../../design/status_palette.dart';
 import '../../shared/widgets.dart';
 import '../home/overview_data.dart';
 import 'interventions_data.dart';
+import '../../design/desk_theme.dart';
 
 String interventionLabel(Object? value) => (value?.toString() ?? '')
     .split('_')
@@ -112,12 +113,12 @@ class _InterventionsPageState extends ConsumerState<InterventionsPage>
           child: Container(
             padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 7),
             decoration: BoxDecoration(
-              color: active ? blue.background : Colors.white,
+              color: active ? blue.background : zCard(context),
               borderRadius: BorderRadius.circular(999),
               border: Border.all(
                 color: active
                     ? blue.foreground.withValues(alpha: 0.25)
-                    : const Color(0xFFE5E5EA),
+                    : zLine(context),
               ),
             ),
             child: Row(
@@ -130,7 +131,7 @@ class _InterventionsPageState extends ConsumerState<InterventionsPage>
                     overflow: TextOverflow.ellipsis,
                     style: TextStyle(
                       fontSize: 12,
-                      color: active ? blue.foreground : const Color(0xFF7185A4),
+                      color: active ? blue.foreground : zMutedInk(context),
                     ),
                   ),
                 ),
@@ -138,7 +139,7 @@ class _InterventionsPageState extends ConsumerState<InterventionsPage>
                 Icon(
                   LucideIcons.chevronDown,
                   size: 12,
-                  color: active ? blue.foreground : const Color(0xFF7185A4),
+                  color: active ? blue.foreground : zMutedInk(context),
                 ),
               ],
             ),
@@ -150,12 +151,11 @@ class _InterventionsPageState extends ConsumerState<InterventionsPage>
 
   @override
   Widget build(BuildContext context) {
-    final theme = overviewScreenTheme(Theme.of(context))
-        .copyWith(scaffoldBackgroundColor: Colors.white);
+    final theme = overviewScreenTheme(Theme.of(context));
     return Theme(
       data: theme,
       child: ColoredBox(
-        color: Colors.white,
+        color: theme.scaffoldBackgroundColor,
         child: Align(
           alignment: Alignment.topCenter,
           child: ConstrainedBox(
@@ -225,7 +225,8 @@ class _InterventionsPageState extends ConsumerState<InterventionsPage>
             padding: const EdgeInsets.fromLTRB(12, 16, 12, 120),
             children: [
               const ZContentHeader(
-                title: 'Interventions', icon: LucideIcons.heartHandshake,
+                title: 'Interventions',
+                icon: LucideIcons.heartHandshake,
                 description: 'Read-only follow-up for your advisees, recorded by the guidance desk.',
               ),
               const SizedBox(height: 12),
@@ -247,19 +248,28 @@ class _InterventionsPageState extends ConsumerState<InterventionsPage>
                   ],
                   if (sectionName != null && sectionName.isNotEmpty)
                     ZScopePill(
-                      text: [
-                        if (board.sections.isNotEmpty)
-                          board.sections
-                              .where((s) => s['name']?.toString() == sectionName)
-                              .map((s) => s['gradeLevel']?.toString())
-                              .firstWhere(
-                                (g) => g != null && g.isNotEmpty,
-                                orElse: () => null,
+                      text:
+                          [
+                                if (board.sections.isNotEmpty)
+                                  board.sections
+                                      .where(
+                                        (s) =>
+                                            s['name']?.toString() ==
+                                            sectionName,
+                                      )
+                                      .map((s) => s['gradeLevel']?.toString())
+                                      .firstWhere(
+                                        (g) => g != null && g.isNotEmpty,
+                                        orElse: () => null,
+                                      )
+                                else
+                                  null,
+                                sectionName,
+                              ]
+                              .where(
+                                (value) => value != null && value.isNotEmpty,
                               )
-                        else
-                          null,
-                        sectionName,
-                      ].where((value) => value != null && value.isNotEmpty).join(' · '),
+                              .join(' · '),
                       kind: ScopePillKind.grade,
                       label: 'Grade and section',
                       compact: true,
@@ -273,8 +283,8 @@ class _InterventionsPageState extends ConsumerState<InterventionsPage>
                   vertical: 10,
                 ),
                 decoration: BoxDecoration(
-                  color: const Color(0xFFF9F9FA),
-                  border: Border.all(color: const Color(0xFFE8E8ED)),
+                  color: zSoft(context),
+                  border: Border.all(color: zLine(context)),
                   borderRadius: BorderRadius.circular(12),
                 ),
                 child: Row(
@@ -283,16 +293,16 @@ class _InterventionsPageState extends ConsumerState<InterventionsPage>
                       child: Text.rich(
                         TextSpan(
                           text: '$high',
-                          style: const TextStyle(
+                          style: TextStyle(
                             fontWeight: FontWeight.w700,
-                            color: Color(0xFF1E293B),
+                            color: zInk(context),
                           ),
-                          children: const [
+                          children: [
                             TextSpan(
                               text: '\nHigh',
                               style: TextStyle(
                                 fontWeight: FontWeight.w400,
-                                color: Color(0xFF71809B),
+                                color: zMutedInk(context),
                               ),
                             ),
                           ],
@@ -313,16 +323,16 @@ class _InterventionsPageState extends ConsumerState<InterventionsPage>
                       child: Text.rich(
                         TextSpan(
                           text: '$moderate',
-                          style: const TextStyle(
+                          style: TextStyle(
                             fontWeight: FontWeight.w700,
-                            color: Color(0xFF1E293B),
+                            color: zInk(context),
                           ),
-                          children: const [
+                          children: [
                             TextSpan(
                               text: '\nModerate',
                               style: TextStyle(
                                 fontWeight: FontWeight.w400,
-                                color: Color(0xFF71809B),
+                                color: zMutedInk(context),
                               ),
                             ),
                           ],
@@ -343,16 +353,16 @@ class _InterventionsPageState extends ConsumerState<InterventionsPage>
                       child: Text.rich(
                         TextSpan(
                           text: '$ongoing',
-                          style: const TextStyle(
+                          style: TextStyle(
                             fontWeight: FontWeight.w700,
-                            color: Color(0xFF1E293B),
+                            color: zInk(context),
                           ),
-                          children: const [
+                          children: [
                             TextSpan(
                               text: '\nOngoing',
                               style: TextStyle(
                                 fontWeight: FontWeight.w400,
-                                color: Color(0xFF71809B),
+                                color: zMutedInk(context),
                               ),
                             ),
                           ],
@@ -372,14 +382,14 @@ class _InterventionsPageState extends ConsumerState<InterventionsPage>
               Row(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  const Expanded(
+                  Expanded(
                     child: Text(
                       'FILTER ADVISEES',
                       style: TextStyle(
                         fontSize: 12,
                         fontWeight: FontWeight.w700,
                         letterSpacing: 0.4,
-                        color: Color(0xFF929FB5),
+                        color: zMutedInk(context),
                       ),
                     ),
                   ),
@@ -427,10 +437,7 @@ class _InterventionsPageState extends ConsumerState<InterventionsPage>
                   Expanded(
                     child: Text(
                       'Showing ${rows.length} records',
-                      style: const TextStyle(
-                        fontSize: 12,
-                        color: Color(0xFF9999A6),
-                      ),
+                      style: TextStyle(fontSize: 12, color: zMutedInk(context)),
                     ),
                   ),
                   TextButton.icon(
@@ -443,7 +450,7 @@ class _InterventionsPageState extends ConsumerState<InterventionsPage>
                       style: const TextStyle(fontSize: 12),
                     ),
                     style: TextButton.styleFrom(
-                      foregroundColor: const Color(0xFF334155),
+                      foregroundColor: zInk(context),
                       padding: const EdgeInsets.symmetric(
                         horizontal: 8,
                         vertical: 0,
@@ -458,8 +465,12 @@ class _InterventionsPageState extends ConsumerState<InterventionsPage>
               const SizedBox(height: 12),
               if (rows.isEmpty)
                 ZEmpty(
-                  icon: board.rows.isEmpty ? LucideIcons.badgeCheck : LucideIcons.search,
-                  title: board.rows.isEmpty ? 'No advisees needing intervention' : 'No matching advisees',
+                  icon: board.rows.isEmpty
+                      ? LucideIcons.badgeCheck
+                      : LucideIcons.search,
+                  title: board.rows.isEmpty
+                      ? 'No advisees needing intervention'
+                      : 'No matching advisees',
                   subtitle: board.rows.isEmpty
                       ? 'All advisees are currently on track for this term with no active guidance desk flags.'
                       : 'Adjust your search or filters to see more records.',
@@ -468,30 +479,32 @@ class _InterventionsPageState extends ConsumerState<InterventionsPage>
                 Card(
                   margin: const EdgeInsets.only(bottom: 12),
                   elevation: 0,
-                  color: Colors.white,
+                  color: zCard(context),
                   shape: RoundedRectangleBorder(
                     borderRadius: BorderRadius.circular(16),
-                    side: const BorderSide(color: Color(0xFFE6ECF4)),
+                    side: BorderSide(color: zLine(context)),
                   ),
                   clipBehavior: Clip.antiAlias,
                   child: InkWell(
                     onTap: () async {
-                      final navigation = ref.read(staffNavigationHiddenProvider.notifier);
+                      final navigation = ref.read(
+                        staffNavigationHiddenProvider.notifier,
+                      );
                       navigation.state = true;
                       try {
                         await showModalBottomSheet<void>(
-                      context: context,
-                       isScrollControlled: true,
-                       showDragHandle: true,
-                       constraints: BoxConstraints(
-                         maxHeight: MediaQuery.sizeOf(context).height * 0.5,
-                       ),
-                      builder: (_) => SafeArea(
-                        child: SizedBox(
-                          height: MediaQuery.sizeOf(context).height * 0.5,
-                          child: InterventionDetails(rowKey: row.key),
-                        ),
-                      ),
+                          context: context,
+                          isScrollControlled: true,
+                          showDragHandle: true,
+                          constraints: BoxConstraints(
+                            maxHeight: MediaQuery.sizeOf(context).height * 0.5,
+                          ),
+                          builder: (_) => SafeArea(
+                            child: SizedBox(
+                              height: MediaQuery.sizeOf(context).height * 0.5,
+                              child: InterventionDetails(rowKey: row.key),
+                            ),
+                          ),
                         );
                       } finally {
                         navigation.state = false;
@@ -518,18 +531,30 @@ class _InterventionsPageState extends ConsumerState<InterventionsPage>
                                   return CircleAvatar(
                                     radius: 19,
                                     backgroundColor:
-                                        const [
-                                          Color(0xFFF1F5F9),
-                                          Color(0xFFEFF6FF),
-                                          Color(0xFFFFFBEB),
-                                          Color(0xFFFAF5FF),
-                                          Color(0xFFFFF1F2),
+                                        [
+                                          zSoft(context),
+                                          zWash(
+                                            context,
+                                            const Color(0xFFEFF6FF),
+                                          ),
+                                          zWash(
+                                            context,
+                                            const Color(0xFFFFFBEB),
+                                          ),
+                                          zWash(
+                                            context,
+                                            const Color(0xFFFAF5FF),
+                                          ),
+                                          zWash(
+                                            context,
+                                            const Color(0xFFFFF1F2),
+                                          ),
                                         ][identity.codeUnits.fold(
                                               0,
                                               (a, b) => a + b,
                                             ) %
                                             5],
-                                    foregroundColor: const Color(0xFF52627C),
+                                    foregroundColor: zMutedInk(context),
                                     child: Text(
                                       words.isEmpty
                                           ? '?'
@@ -550,10 +575,10 @@ class _InterventionsPageState extends ConsumerState<InterventionsPage>
                                   children: [
                                     Text(
                                       row.name,
-                                      style: const TextStyle(
+                                      style: TextStyle(
                                         fontSize: 14,
                                         fontWeight: FontWeight.w600,
-                                        color: Color(0xFF172033),
+                                        color: zInk(context),
                                       ),
                                     ),
                                     const SizedBox(height: 3),
@@ -580,24 +605,24 @@ class _InterventionsPageState extends ConsumerState<InterventionsPage>
                           ),
                           const SizedBox(height: 8),
                           _identity(row, showRisk: false, showMetadata: false),
-                          const Padding(
+                          Padding(
                             padding: EdgeInsets.symmetric(vertical: 12),
-                            child: Divider(height: 1, color: Color(0xFFF0F3F8)),
+                            child: Divider(height: 1, color: zLine(context)),
                           ),
                           Row(
                             children: [
-                              const Icon(
+                              Icon(
                                 LucideIcons.calendar,
                                 size: 13,
-                                color: Color(0xFF8B9BBA),
+                                color: zMutedInk(context),
                               ),
                               const SizedBox(width: 5),
                               Expanded(
                                 child: Text(
                                   interventionDate(row.text('detectedAt')),
-                                  style: const TextStyle(
+                                  style: TextStyle(
                                     fontSize: 12,
-                                    color: Color(0xFF8B9BBA),
+                                    color: zMutedInk(context),
                                   ),
                                 ),
                               ),
@@ -686,12 +711,14 @@ class InterventionDetails extends ConsumerWidget {
           width: double.infinity,
           padding: const EdgeInsets.all(12),
           decoration: BoxDecoration(
-            color: highlighted ? const Color(0xFFF3F9FF) : Colors.white,
+            color: highlighted
+                ? zWash(context, const Color(0xFFF3F9FF))
+                : zCard(context),
             borderRadius: BorderRadius.circular(14),
             border: Border.all(
               color: highlighted
-                  ? const Color(0xFFBFDBFE)
-                  : const Color(0xFFE2E8F0),
+                  ? zWash(context, const Color(0xFFBFDBFE))
+                  : zLine(context),
             ),
           ),
           child: child,
@@ -700,15 +727,15 @@ class InterventionDetails extends ConsumerWidget {
           padding: const EdgeInsets.only(top: 6),
           child: Text(
             '$label\n${value == null || value.toString().isEmpty ? 'Not recorded' : value}',
-            style: const TextStyle(
+            style: TextStyle(
               fontSize: 12,
               height: 1.45,
-              color: Color(0xFF475569),
+              color: zMutedInk(context),
             ),
           ),
         );
         return ColoredBox(
-          color: Colors.white,
+          color: zCard(context),
           child: ListView(
             padding: const EdgeInsets.fromLTRB(16, 12, 16, 24),
             children: [
@@ -734,10 +761,10 @@ class InterventionDetails extends ConsumerWidget {
                                 .map((part) => part.characters.first)
                                 .join()
                                 .toUpperCase(),
-                      style: const TextStyle(
+                      style: TextStyle(
                         fontSize: 15,
                         fontWeight: FontWeight.w700,
-                        color: Colors.white,
+                        color: zCard(context),
                       ),
                     ),
                   ),
@@ -748,10 +775,10 @@ class InterventionDetails extends ConsumerWidget {
                       children: [
                         Text(
                           row.name,
-                          style: const TextStyle(
+                          style: TextStyle(
                             fontSize: 15,
                             fontWeight: FontWeight.w700,
-                            color: Color(0xFF0F172A),
+                            color: zInk(context),
                           ),
                         ),
                         const SizedBox(height: 4),
@@ -759,9 +786,9 @@ class InterventionDetails extends ConsumerWidget {
                         const SizedBox(height: 4),
                         Text(
                           'LRN ${row.text('lrn')} · Sec. ${row.text('section')} · ${row.text('gradeLevel')}',
-                          style: const TextStyle(
+                          style: TextStyle(
                             fontSize: 12,
-                            color: Color(0xFF64748B),
+                            color: zMutedInk(context),
                           ),
                         ),
                       ],
@@ -770,8 +797,8 @@ class InterventionDetails extends ConsumerWidget {
                   IconButton(
                     tooltip: 'Close',
                     style: IconButton.styleFrom(
-                      foregroundColor: const Color(0xFF64748B),
-                      side: const BorderSide(color: Color(0xFFE5E8F0)),
+                      foregroundColor: zMutedInk(context),
+                      side: BorderSide(color: zLine(context)),
                       minimumSize: const Size(42, 42),
                       shape: const CircleBorder(),
                     ),
@@ -780,9 +807,9 @@ class InterventionDetails extends ConsumerWidget {
                   ),
                 ],
               ),
-              const Padding(
+              Padding(
                 padding: EdgeInsets.symmetric(vertical: 12),
-                child: Divider(height: 1, color: Color(0xFFF1F5F9)),
+                child: Divider(height: 1, color: zSoft(context)),
               ),
               _identity(row),
               const SizedBox(height: 12),
@@ -793,12 +820,12 @@ class InterventionDetails extends ConsumerWidget {
                     Container(
                       padding: const EdgeInsets.all(8),
                       decoration: BoxDecoration(
-                        color: const Color(0xFF2563EB),
+                        color: zLift(context, const Color(0xFF2563EB)),
                         borderRadius: BorderRadius.circular(10),
                       ),
-                      child: const Icon(
+                      child: Icon(
                         LucideIcons.info,
-                        color: Colors.white,
+                        color: zCard(context),
                         size: 16,
                       ),
                     ),
@@ -807,12 +834,12 @@ class InterventionDetails extends ConsumerWidget {
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-                          const Text(
+                          Text(
                             'RECOMMENDED ACTION',
                             style: TextStyle(
                               fontSize: 12,
                               fontWeight: FontWeight.w700,
-                              color: Color(0xFF1E3A8A),
+                              color: zLift(context, Color(0xFF1E3A8A)),
                             ),
                           ),
                           const SizedBox(height: 8),
@@ -820,18 +847,18 @@ class InterventionDetails extends ConsumerWidget {
                             plan == null
                                 ? 'No plan yet. Guidance has not opened an intervention for this learner.'
                                 : interventionLabel(plan['recommendedAction']),
-                            style: const TextStyle(
+                            style: TextStyle(
                               fontSize: 12,
                               height: 1.45,
-                              color: Color(0xFF0F172A),
+                              color: zInk(context),
                             ),
                           ),
                           const SizedBox(height: 12),
                           Text(
                             'Detected ${interventionDate(row.text('detectedAt'))}',
-                            style: const TextStyle(
+                            style: TextStyle(
                               fontSize: 12,
-                              color: Color(0xFF2563EB),
+                              color: zLift(context, const Color(0xFF2563EB)),
                             ),
                           ),
                         ],
@@ -848,9 +875,9 @@ class InterventionDetails extends ConsumerWidget {
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       fact('Assigned to', plan['assignee']),
-                      const Padding(
+                      Padding(
                         padding: EdgeInsets.only(top: 12),
-                        child: Divider(height: 1, color: Color(0xFFF1F5F9)),
+                        child: Divider(height: 1, color: zSoft(context)),
                       ),
                       Wrap(
                         spacing: 20,
@@ -870,12 +897,12 @@ class InterventionDetails extends ConsumerWidget {
                   ),
                 ),
                 const SizedBox(height: 14),
-                const Text(
+                Text(
                   'CASE PARAMETERS & NOTES',
                   style: TextStyle(
                     fontSize: 12,
                     fontWeight: FontWeight.w700,
-                    color: Color(0xFF94A3B8),
+                    color: zMutedInk(context),
                     letterSpacing: 0.6,
                   ),
                 ),
@@ -903,8 +930,11 @@ class InterventionDetails extends ConsumerWidget {
                   ),
                 ),
                 if ((plan['sessions'] as List? ?? []).isEmpty)
-                  const ZEmpty(compact: true, icon: LucideIcons.calendarDays,
-                    title: 'No sessions recorded.'),
+                  const ZEmpty(
+                    compact: true,
+                    icon: LucideIcons.calendarDays,
+                    title: 'No sessions recorded.',
+                  ),
                 for (final raw in plan['sessions'] as List? ?? [])
                   Builder(
                     builder: (_) {

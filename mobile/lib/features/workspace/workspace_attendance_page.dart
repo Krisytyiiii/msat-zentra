@@ -15,6 +15,7 @@ import '../adviser/schedule_timing.dart';
 import '../auth/link_classes_card.dart';
 import 'attendance_data.dart';
 import 'attendance_record_page.dart';
+import '../../design/desk_theme.dart';
 
 /// Shared adviser/subject-teacher attendance entry, using web's teaching load.
 class WorkspaceAttendancePage extends ConsumerStatefulWidget {
@@ -175,10 +176,11 @@ class _AttendanceState extends ConsumerState<WorkspaceAttendancePage>
       );
       _load();
     });
+    final desk = overviewScreenTheme(Theme.of(context));
     return Theme(
-      data: overviewScreenTheme(Theme.of(context)),
+      data: desk,
       child: ColoredBox(
-        color: Colors.white,
+        color: desk.scaffoldBackgroundColor,
         child: Builder(builder: (context) => _content(context)),
       ),
     );
@@ -258,7 +260,8 @@ class _AttendanceState extends ConsumerState<WorkspaceAttendancePage>
                     crossAxisAlignment: CrossAxisAlignment.stretch,
                     children: [
                       const ZContentHeader(
-                        title: 'Attendance', icon: LucideIcons.calendarCheck,
+                        title: 'Attendance',
+                        icon: LucideIcons.calendarCheck,
                         description: 'Choose a class to review and record learner attendance.',
                       ),
                       const SizedBox(height: 12),
@@ -285,8 +288,8 @@ class _AttendanceState extends ConsumerState<WorkspaceAttendancePage>
                           vertical: 10,
                         ),
                         decoration: BoxDecoration(
-                          color: const Color(0xFFF9F9FA),
-                          border: Border.all(color: const Color(0xFFE8E8ED)),
+                          color: zSoft(context),
+                          border: Border.all(color: zLine(context)),
                           borderRadius: BorderRadius.circular(12),
                         ),
                         child: Row(
@@ -309,11 +312,11 @@ class _AttendanceState extends ConsumerState<WorkspaceAttendancePage>
                                   children: [
                                     Text(
                                       entry.$2.$1,
-                                      style: const TextStyle(
+                                      style: TextStyle(
                                         fontSize: 12,
                                         height: 1.6,
                                         fontWeight: FontWeight.w700,
-                                        color: Color(0xFF1E293B),
+                                        color: zInk(context),
                                       ),
                                     ),
                                     Text(
@@ -321,10 +324,10 @@ class _AttendanceState extends ConsumerState<WorkspaceAttendancePage>
                                       maxLines: 1,
                                       overflow: TextOverflow.ellipsis,
                                       textAlign: TextAlign.center,
-                                      style: const TextStyle(
+                                      style: TextStyle(
                                         fontSize: 12,
                                         height: 1.6,
-                                        color: Color(0xFF71809B),
+                                        color: zMutedInk(context),
                                       ),
                                     ),
                                   ],
@@ -371,9 +374,9 @@ class _AttendanceState extends ConsumerState<WorkspaceAttendancePage>
                           Expanded(
                             child: Text(
                               'Showing ${pairs.length} records',
-                              style: const TextStyle(
+                              style: TextStyle(
                                 fontSize: 12,
-                                color: Color(0xFF9999A6),
+                                color: zMutedInk(context),
                               ),
                             ),
                           ),
@@ -386,7 +389,7 @@ class _AttendanceState extends ConsumerState<WorkspaceAttendancePage>
                               style: const TextStyle(fontSize: 12),
                             ),
                             style: TextButton.styleFrom(
-                              foregroundColor: const Color(0xFF334155),
+                              foregroundColor: zInk(context),
                               padding: const EdgeInsets.symmetric(
                                 horizontal: 8,
                                 vertical: 0,
@@ -408,9 +411,13 @@ class _AttendanceState extends ConsumerState<WorkspaceAttendancePage>
                     padding: const EdgeInsets.fromLTRB(12, 0, 12, 120),
                     child: ZEmpty(
                       icon: LucideIcons.bookOpen,
-                      title: _sectionId != null ? 'No classes match these filters' : 'No teaching load',
+                      title: _sectionId != null
+                          ? 'No classes match these filters'
+                          : 'No teaching load',
                       subtitle: 'Published classes will appear here. Try adjusting your section filter.',
-                      actionLabel: _sectionId == null ? null : 'Show all classes',
+                      actionLabel: _sectionId == null
+                          ? null
+                          : 'Show all classes',
                       onAction: () => setState(() => _sectionId = null),
                     ),
                   ),
@@ -463,12 +470,24 @@ class _AttendanceState extends ConsumerState<WorkspaceAttendancePage>
                                       CircleAvatar(
                                         radius: 19,
                                         backgroundColor:
-                                            const [
-                                              Color(0xFFF1F5F9),
-                                              Color(0xFFEFF6FF),
-                                              Color(0xFFFFFBEB),
-                                              Color(0xFFFAF5FF),
-                                              Color(0xFFFFF1F2),
+                                            [
+                                              zSoft(context),
+                                              zWash(
+                                                context,
+                                                const Color(0xFFEFF6FF),
+                                              ),
+                                              zWash(
+                                                context,
+                                                const Color(0xFFFFFBEB),
+                                              ),
+                                              zWash(
+                                                context,
+                                                const Color(0xFFFAF5FF),
+                                              ),
+                                              zWash(
+                                                context,
+                                                const Color(0xFFFFF1F2),
+                                              ),
                                             ][identity.codeUnits.fold(
                                                   0,
                                                   (a, b) => a + b,
@@ -649,7 +668,7 @@ class _ScheduleFooterState extends State<_ScheduleFooter> {
           TextButton(
             onPressed: () => setState(() => _expanded = !_expanded),
             style: TextButton.styleFrom(
-              foregroundColor: const Color(0xFF4263F0),
+              foregroundColor: zLift(context, const Color(0xFF4263F0)),
               padding: EdgeInsets.zero,
               minimumSize: const Size(48, 28),
               tapTargetSize: MaterialTapTargetSize.shrinkWrap,
@@ -684,7 +703,7 @@ class _ScheduleLineRow extends StatelessWidget {
           Expanded(
             child: Text(
               text,
-              style: const TextStyle(fontSize: 12, color: Color(0xFF71809B)),
+              style: TextStyle(fontSize: 12, color: zMutedInk(context)),
             ),
           ),
         ],

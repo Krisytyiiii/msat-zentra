@@ -90,7 +90,7 @@ void main() {
       expect(find.text('Class List'), findsOneWidget);
       expect(
         tester.widget<AppBar>(find.byType(AppBar)).shape,
-        const Border(bottom: BorderSide(color: Color(0xFFEDF0F6))),
+        const Border(bottom: BorderSide(color: Color(0xFFE6ECF4))),
       );
       expect(find.text('Mathematics'), findsOneWidget);
       expect(find.text('Dela Cruz, Juan'), findsOneWidget);

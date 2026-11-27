@@ -4,35 +4,62 @@ import 'package:zentra_mobile/shared/widgets.dart';
 
 void main() {
   for (final width in [320.0, 700.0]) {
-    testWidgets('grade and matching section capsules sit with subject at $width', (tester) async {
-      tester.view.devicePixelRatio = 1;
-      tester.view.physicalSize = Size(width, 900);
-      addTearDown(tester.view.resetDevicePixelRatio);
-      addTearDown(tester.view.resetPhysicalSize);
-      await tester.pumpWidget(const MaterialApp(home: Scaffold(
-        body: Padding(padding: EdgeInsets.all(12), child: ZContentHeader(
-          title: 'Mathematics', icon: Icons.menu_book_outlined,
-          description: 'Record learner scores.',
-          titleMetadata: [
-            ZScopePill(text: 'G7', kind: ScopePillKind.grade),
-            ZScopePill(text: 'Arts', kind: ScopePillKind.grade, label: 'Section'),
-          ],
-        )),
-      )));
-      expect(find.byTooltip('Section'), findsOneWidget);
-      final grade = tester.widget<Container>(find.descendant(
-        of: find.byTooltip('Grade level'), matching: find.byType(Container)));
-      final section = tester.widget<Container>(find.descendant(
-        of: find.byTooltip('Section'), matching: find.byType(Container)));
-      expect(grade.decoration, section.decoration);
-      if (width == 700) {
-        expect(tester.getCenter(find.text('G7')).dy,
-          closeTo(tester.getCenter(find.text('Mathematics')).dy, 2));
-        expect(tester.getTopLeft(find.text('G7')).dx,
-          greaterThan(tester.getTopRight(find.text('Mathematics')).dx));
-      }
-      expect(tester.takeException(), isNull);
-    });
+    testWidgets(
+      'grade and matching section capsules sit with subject at $width',
+      (tester) async {
+        tester.view.devicePixelRatio = 1;
+        tester.view.physicalSize = Size(width, 900);
+        addTearDown(tester.view.resetDevicePixelRatio);
+        addTearDown(tester.view.resetPhysicalSize);
+        await tester.pumpWidget(
+          const MaterialApp(
+            home: Scaffold(
+              body: Padding(
+                padding: EdgeInsets.all(12),
+                child: ZContentHeader(
+                  title: 'Mathematics',
+                  icon: Icons.menu_book_outlined,
+                  description: 'Record learner scores.',
+                  titleMetadata: [
+                    ZScopePill(text: 'G7', kind: ScopePillKind.grade),
+                    ZScopePill(
+                      text: 'Arts',
+                      kind: ScopePillKind.grade,
+                      label: 'Section',
+                    ),
+                  ],
+                ),
+              ),
+            ),
+          ),
+        );
+        expect(find.byTooltip('Section'), findsOneWidget);
+        final grade = tester.widget<Container>(
+          find.descendant(
+            of: find.byTooltip('Grade level'),
+            matching: find.byType(Container),
+          ),
+        );
+        final section = tester.widget<Container>(
+          find.descendant(
+            of: find.byTooltip('Section'),
+            matching: find.byType(Container),
+          ),
+        );
+        expect(grade.decoration, section.decoration);
+        if (width == 700) {
+          expect(
+            tester.getCenter(find.text('G7')).dy,
+            closeTo(tester.getCenter(find.text('Mathematics')).dy, 2),
+          );
+          expect(
+            tester.getTopLeft(find.text('G7')).dx,
+            greaterThan(tester.getTopRight(find.text('Mathematics')).dx),
+          );
+        }
+        expect(tester.takeException(), isNull);
+      },
+    );
   }
   for (final width in [320.0, 700.0, 1200.0]) {
     for (final scale in [1.0, 2.0]) {
@@ -85,7 +112,12 @@ void main() {
         final title = tester.widget<Text>(find.text('Attendance'));
         expect(title.style!.fontSize, 22);
         expect(title.style!.fontWeight, FontWeight.w700);
-        expect(title.style!.color, const Color(0xFF171C36));
+        expect(
+          title.style!.color,
+          Theme.of(tester.element(find.text('Attendance')))
+              .colorScheme
+              .onSurface,
+        );
         final icon = tester.getRect(find.byIcon(Icons.calendar_month_outlined));
         final heading = tester.getRect(find.text('Attendance'));
         expect(icon.left, lessThan(heading.left));

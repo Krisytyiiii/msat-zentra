@@ -25,6 +25,7 @@ import '../../shared/widgets.dart';
 import '../../shared/floating_add.dart';
 import '../../design/shell.dart';
 import '../../design/status_palette.dart';
+import '../../design/desk_theme.dart';
 
 final referralsProvider = FutureProvider<List<Map<String, dynamic>>>((
   ref,
@@ -176,12 +177,11 @@ class _State extends ConsumerState<ReferralPage> with WidgetsBindingObserver {
 
   @override
   Widget build(BuildContext context) {
-    final theme = overviewScreenTheme(Theme.of(context))
-        .copyWith(scaffoldBackgroundColor: Colors.white);
+    final theme = overviewScreenTheme(Theme.of(context));
     return Theme(
       data: theme,
       child: ColoredBox(
-        color: Colors.white,
+        color: theme.scaffoldBackgroundColor,
         child: Align(
           alignment: Alignment.topCenter,
           child: ConstrainedBox(
@@ -297,13 +297,13 @@ class _State extends ConsumerState<ReferralPage> with WidgetsBindingObserver {
                       ),
                       const SizedBox(height: 12),
                     ],
-                    const Text(
+                    Text(
                       'FILTER REFERRALS',
                       style: TextStyle(
                         fontSize: 12,
                         fontWeight: FontWeight.w700,
                         letterSpacing: 0.4,
-                        color: Color(0xFF929FB5),
+                        color: zMutedInk(context),
                       ),
                     ),
                     Row(
@@ -355,9 +355,9 @@ class _State extends ConsumerState<ReferralPage> with WidgetsBindingObserver {
                         Expanded(
                           child: Text(
                             'Showing ${shown.length} records',
-                            style: const TextStyle(
+                            style: TextStyle(
                               fontSize: 12,
-                              color: Color(0xFF9999A6),
+                              color: zMutedInk(context),
                             ),
                           ),
                         ),
@@ -370,7 +370,7 @@ class _State extends ConsumerState<ReferralPage> with WidgetsBindingObserver {
                             style: const TextStyle(fontSize: 12),
                           ),
                           style: TextButton.styleFrom(
-                            foregroundColor: const Color(0xFF334155),
+                            foregroundColor: zInk(context),
                             padding: const EdgeInsets.symmetric(
                               horizontal: 8,
                               vertical: 0,
@@ -430,8 +430,8 @@ class _State extends ConsumerState<ReferralPage> with WidgetsBindingObserver {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
       decoration: BoxDecoration(
-        color: const Color(0xFFF9F9FA),
-        border: Border.all(color: const Color(0xFFE8E8ED)),
+        color: zSoft(context),
+        border: Border.all(color: zLine(context)),
         borderRadius: BorderRadius.circular(12),
       ),
       child: Row(
@@ -443,16 +443,16 @@ class _State extends ConsumerState<ReferralPage> with WidgetsBindingObserver {
               child: Text.rich(
                 TextSpan(
                   text: '${counts[i].$2}',
-                  style: const TextStyle(
+                  style: TextStyle(
                     fontWeight: FontWeight.w700,
-                    color: Color(0xFF1E293B),
+                    color: zInk(context),
                   ),
                   children: [
                     TextSpan(
                       text: '\n${counts[i].$1}',
-                      style: const TextStyle(
+                      style: TextStyle(
                         fontWeight: FontWeight.w400,
-                        color: Color(0xFF71809B),
+                        color: zMutedInk(context),
                       ),
                     ),
                   ],
@@ -491,12 +491,12 @@ class _State extends ConsumerState<ReferralPage> with WidgetsBindingObserver {
           child: Container(
             padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 7),
             decoration: BoxDecoration(
-              color: active ? blue.background : Colors.white,
+              color: active ? blue.background : zCard(context),
               borderRadius: BorderRadius.circular(999),
               border: Border.all(
                 color: active
                     ? blue.foreground.withValues(alpha: 0.25)
-                    : const Color(0xFFE5E5EA),
+                    : zLine(context),
               ),
             ),
             child: Row(
@@ -510,7 +510,7 @@ class _State extends ConsumerState<ReferralPage> with WidgetsBindingObserver {
                     overflow: TextOverflow.ellipsis,
                     style: TextStyle(
                       fontSize: 12,
-                      color: active ? blue.foreground : const Color(0xFF7185A4),
+                      color: active ? blue.foreground : zMutedInk(context),
                     ),
                   ),
                 ),
@@ -518,7 +518,7 @@ class _State extends ConsumerState<ReferralPage> with WidgetsBindingObserver {
                 Icon(
                   LucideIcons.chevronDown,
                   size: 12,
-                  color: active ? blue.foreground : const Color(0xFF7185A4),
+                  color: active ? blue.foreground : zMutedInk(context),
                 ),
               ],
             ),
@@ -586,10 +586,10 @@ class _ReferralCardState extends State<_ReferralCard> {
       key: ValueKey('referral-card-${r['id']}'),
       margin: const EdgeInsets.only(bottom: 4),
       elevation: 0,
-      color: Colors.white,
+      color: zCard(context),
       shape: RoundedRectangleBorder(
         borderRadius: BorderRadius.circular(16),
-        side: const BorderSide(color: Color(0xFFE6ECF4)),
+        side: BorderSide(color: zLine(context)),
       ),
       clipBehavior: Clip.antiAlias,
       child: InkWell(
@@ -604,8 +604,8 @@ class _ReferralCardState extends State<_ReferralCard> {
                 children: [
                   CircleAvatar(
                     radius: 19,
-                    backgroundColor: const Color(0xFFEFF6FF),
-                    foregroundColor: const Color(0xFF52627C),
+                    backgroundColor: zWash(context, const Color(0xFFEFF6FF)),
+                    foregroundColor: zMutedInk(context),
                     child: Text(
                       '${words.first.characters.first}${words.length > 1 ? words.last.characters.first : ''}'
                           .toUpperCase(),
@@ -622,10 +622,10 @@ class _ReferralCardState extends State<_ReferralCard> {
                       children: [
                         Text(
                           name,
-                          style: const TextStyle(
+                          style: TextStyle(
                             fontSize: 14,
                             fontWeight: FontWeight.w600,
-                            color: Color(0xFF172033),
+                            color: zInk(context),
                           ),
                         ),
                         Text(
@@ -667,25 +667,22 @@ class _ReferralCardState extends State<_ReferralCard> {
                     ),
                 ],
               ),
-              const Padding(
+              Padding(
                 padding: EdgeInsets.symmetric(vertical: 12),
-                child: Divider(height: 1, color: Color(0xFFF0F3F8)),
+                child: Divider(height: 1, color: zLine(context)),
               ),
               Row(
                 children: [
-                  const Icon(
+                  Icon(
                     LucideIcons.calendar,
                     size: 13,
-                    color: Color(0xFF8B9BBA),
+                    color: zMutedInk(context),
                   ),
                   const SizedBox(width: 5),
                   Expanded(
                     child: Text(
                       _referralDate(r['referredAt']),
-                      style: const TextStyle(
-                        fontSize: 12,
-                        color: Color(0xFF8B9BBA),
-                      ),
+                      style: TextStyle(fontSize: 12, color: zMutedInk(context)),
                     ),
                   ),
                 ],
@@ -1024,12 +1021,14 @@ class _TrackSheet extends StatelessWidget {
       margin: const EdgeInsets.only(top: 12),
       padding: const EdgeInsets.all(12),
       decoration: BoxDecoration(
-        color: highlighted ? const Color(0xFFF3F9FF) : Colors.white,
+        color: highlighted
+            ? zWash(context, const Color(0xFFF3F9FF))
+            : zCard(context),
         borderRadius: BorderRadius.circular(14),
         border: Border.all(
           color: highlighted
-              ? const Color(0xFFBFDBFE)
-              : const Color(0xFFE2E8F0),
+              ? zWash(context, const Color(0xFFBFDBFE))
+              : zLine(context),
         ),
       ),
       child: Column(
@@ -1041,20 +1040,19 @@ class _TrackSheet extends StatelessWidget {
               fontSize: 12,
               fontWeight: FontWeight.w700,
               color: highlighted
-                  ? const Color(0xFF1E3A8A)
-                  : const Color(0xFF0F172A),
+                  ? zLift(context, const Color(0xFF1E3A8A))
+                  : zInk(context),
             ),
           ),
           const SizedBox(height: 8),
-          ...children.map((child) => Material(
-            type: MaterialType.transparency,
-            child: child,
-          )),
+          ...children.map(
+            (child) => Material(type: MaterialType.transparency, child: child),
+          ),
         ],
       ),
     );
     return ColoredBox(
-      color: Colors.white,
+      color: zCard(context),
       child: ListView(
         padding: const EdgeInsets.fromLTRB(16, 12, 16, 24),
         controller: scroll,
@@ -1067,15 +1065,15 @@ class _TrackSheet extends StatelessWidget {
                 height: 46,
                 alignment: Alignment.center,
                 decoration: BoxDecoration(
-                  color: const Color(0xFF2563EB),
+                  color: zLift(context, const Color(0xFF2563EB)),
                   borderRadius: BorderRadius.circular(13),
                 ),
                 child: Text(
                   initials,
-                  style: const TextStyle(
+                  style: TextStyle(
                     fontSize: 15,
                     fontWeight: FontWeight.w700,
-                    color: Colors.white,
+                    color: zCard(context),
                   ),
                 ),
               ),
@@ -1086,10 +1084,10 @@ class _TrackSheet extends StatelessWidget {
                   children: [
                     Text(
                       name,
-                      style: const TextStyle(
+                      style: TextStyle(
                         fontSize: 15,
                         fontWeight: FontWeight.w700,
-                        color: Color(0xFF0F172A),
+                        color: zInk(context),
                       ),
                     ),
                     const SizedBox(height: 4),
@@ -1097,10 +1095,7 @@ class _TrackSheet extends StatelessWidget {
                     const SizedBox(height: 4),
                     Text(
                       'To ${_humanize(r['targetRole']?.toString())} · LRN ${r['lrn'] ?? '—'}',
-                      style: const TextStyle(
-                        fontSize: 12,
-                        color: Color(0xFF64748B),
-                      ),
+                      style: TextStyle(fontSize: 12, color: zMutedInk(context)),
                     ),
                   ],
                 ),
@@ -1108,8 +1103,8 @@ class _TrackSheet extends StatelessWidget {
               IconButton(
                 tooltip: 'Close referral details',
                 style: IconButton.styleFrom(
-                  foregroundColor: const Color(0xFF64748B),
-                  side: const BorderSide(color: Color(0xFFE5E8F0)),
+                  foregroundColor: zMutedInk(context),
+                  side: BorderSide(color: zLine(context)),
                   minimumSize: const Size(42, 42),
                   shape: const CircleBorder(),
                 ),
@@ -1118,16 +1113,16 @@ class _TrackSheet extends StatelessWidget {
               ),
             ],
           ),
-          const Padding(
+          Padding(
             padding: EdgeInsets.symmetric(vertical: 12),
-            child: Divider(height: 1, color: Color(0xFFF1F5F9)),
+            child: Divider(height: 1, color: zSoft(context)),
           ),
-          const Text(
+          Text(
             'Referral details',
             style: TextStyle(
               fontSize: 12,
               fontWeight: FontWeight.w700,
-              color: Color(0xFF0F172A),
+              color: zInk(context),
             ),
           ),
           const SizedBox(height: 8),
@@ -1147,10 +1142,10 @@ class _TrackSheet extends StatelessWidget {
             panel('Filing reason', [
               Text(
                 r['reason'].toString(),
-                style: const TextStyle(
+                style: TextStyle(
                   fontSize: 12,
                   height: 1.45,
-                  color: Color(0xFF0F172A),
+                  color: zInk(context),
                 ),
               ),
             ], highlighted: true),

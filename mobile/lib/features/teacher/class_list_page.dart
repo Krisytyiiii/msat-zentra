@@ -135,8 +135,9 @@ class _ClassListState extends ConsumerState<ClassListPage>
       });
     });
     final roster = ref.watch(classListProvider(widget.classId));
+    final desk = overviewScreenTheme(Theme.of(context));
     return Theme(
-      data: overviewScreenTheme(Theme.of(context)),
+      data: desk,
       child: PopScope(
         canPop: !_expanded,
         onPopInvokedWithResult: (didPop, _) {
@@ -144,8 +145,8 @@ class _ClassListState extends ConsumerState<ClassListPage>
         },
         child: Scaffold(
           appBar: AppBar(
-            backgroundColor: Colors.white,
-            shape: const Border(bottom: BorderSide(color: Color(0xFFEDF0F6))),
+            backgroundColor: desk.scaffoldBackgroundColor,
+            shape: Border(bottom: BorderSide(color: desk.colorScheme.outline)),
             centerTitle: true,
             title: const Text('Class List'),
             leadingWidth: 64,
@@ -157,20 +158,26 @@ class _ClassListState extends ConsumerState<ClassListPage>
           ),
           body: Stack(
             children: [
-              Positioned.fill(child: roster.when(
-                loading: () => const LoadingView(layout: SkeletonLayout.directory),
-                error: (error, _) => ErrorView(
-                  message: error,
-                  onRetry: () => ref.invalidate(classListProvider(widget.classId)),
+              Positioned.fill(
+                child: roster.when(
+                  loading: () =>
+                      const LoadingView(layout: SkeletonLayout.directory),
+                  error: (error, _) => ErrorView(
+                    message: error,
+                    onRetry: () =>
+                        ref.invalidate(classListProvider(widget.classId)),
+                  ),
+                  data: _body,
                 ),
-                data: _body,
-              )),
+              ),
               if (_expanded)
-                Positioned.fill(child: GestureDetector(
-                  behavior: HitTestBehavior.opaque,
-                  onTap: () => setState(() => _expanded = false),
-                  child: const ColoredBox(color: Colors.transparent),
-                )),
+                Positioned.fill(
+                  child: GestureDetector(
+                    behavior: HitTestBehavior.opaque,
+                    onTap: () => setState(() => _expanded = false),
+                    child: const ColoredBox(color: Colors.transparent),
+                  ),
+                ),
             ],
           ),
           floatingActionButton: roster.hasValue && !roster.hasError
@@ -190,7 +197,8 @@ class _ClassListState extends ConsumerState<ClassListPage>
                         tooltip: _expanded
                             ? 'Close class actions'
                             : 'Class actions',
-                        onPressed: _opening ? null
+                        onPressed: _opening
+                            ? null
                             : () => setState(() => _expanded = !_expanded),
                         child: AnimatedRotation(
                           turns: _expanded ? .125 : 0,
@@ -265,42 +273,53 @@ class _ClassListState extends ConsumerState<ClassListPage>
             title: assignment['subjectName']?.toString() ?? 'Class',
             icon: LucideIcons.users,
             titleMetadata: [
-              const Text(
+              Text(
                 'View learners in this class.',
                 style: TextStyle(
                   fontSize: 11,
                   height: 1.3,
-                  color: Color(0xFF626B82),
+                  color: Theme.of(context).colorScheme.onSurfaceVariant,
                 ),
               ),
             ],
             titleTrailing: OutlinedButton(
-                onPressed: () => setState(() {
-                  _adm = !_adm;
-                  _expanded = false;
-                }),
-                style: OutlinedButton.styleFrom(
-                  backgroundColor: const Color(0xFFEAF2FF),
-                  foregroundColor: const Color(0xFF2563EB),
-                  minimumSize: const Size(48, 28),
-                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                  tapTargetSize: MaterialTapTargetSize.padded,
-                  visualDensity: VisualDensity.standard,
-                  side: const BorderSide(color: Color(0xFFD4E4FF)),
-                  shape: const StadiumBorder(),
-                  textStyle: const TextStyle(fontSize: 11, fontWeight: FontWeight.w600),
+              onPressed: () => setState(() {
+                _adm = !_adm;
+                _expanded = false;
+              }),
+              style: OutlinedButton.styleFrom(
+                backgroundColor: Theme.of(context).brightness == Brightness.dark
+                    ? const Color(0x292B7FFF)
+                    : const Color(0xFFEAF2FF),
+                foregroundColor: Theme.of(context).brightness == Brightness.dark
+                    ? const Color(0xFF8FB6F5)
+                    : const Color(0xFF2563EB),
+                minimumSize: const Size(48, 28),
+                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                tapTargetSize: MaterialTapTargetSize.padded,
+                visualDensity: VisualDensity.standard,
+                side: BorderSide(
+                  color: Theme.of(context).brightness == Brightness.dark
+                      ? const Color(0x662B7FFF)
+                      : const Color(0xFFD4E4FF),
                 ),
-                child: Row(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    const Icon(LucideIcons.users, size: 12),
-                    const SizedBox(width: 4),
-                    Text(_adm ? 'ADM' : 'REG'),
-                    const SizedBox(width: 4),
-                    const Icon(Icons.swap_horiz, size: 12),
-                  ],
+                shape: const StadiumBorder(),
+                textStyle: const TextStyle(
+                  fontSize: 11,
+                  fontWeight: FontWeight.w600,
                 ),
               ),
+              child: Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  const Icon(LucideIcons.users, size: 12),
+                  const SizedBox(width: 4),
+                  Text(_adm ? 'ADM' : 'REG'),
+                  const SizedBox(width: 4),
+                  const Icon(Icons.swap_horiz, size: 12),
+                ],
+              ),
+            ),
           ),
           const SizedBox(height: 12),
           Wrap(
@@ -319,13 +338,15 @@ class _ClassListState extends ConsumerState<ClassListPage>
                   kind: ScopePillKind.term,
                   compact: true,
                 ),
-              if (assignment['gradeLevel'] != null || assignment['sectionName'] != null)
+              if (assignment['gradeLevel'] != null ||
+                  assignment['sectionName'] != null)
                 ZScopePill(
                   text: [
                     if (assignment['gradeLevel'] != null)
-                      assignment['gradeLevel']
-                          .toString()
-                          .replaceFirst(RegExp(r'^Grade\s*', caseSensitive: false), 'G'),
+                      assignment['gradeLevel'].toString().replaceFirst(
+                        RegExp(r'^Grade\s*', caseSensitive: false),
+                        'G',
+                      ),
                     if (assignment['sectionName'] != null)
                       assignment['sectionName'].toString(),
                   ].where((value) => value.isNotEmpty).join(' · '),
@@ -344,13 +365,16 @@ class _ClassListState extends ConsumerState<ClassListPage>
             decoration: InputDecoration(
               hintText: 'Search learner or LRN',
               prefixIcon: const Icon(LucideIcons.search, size: 18),
-              hintStyle: const TextStyle(
+              hintStyle: TextStyle(
                 fontSize: 14,
-                color: Color(0xFF81818F),
+                color: Theme.of(context).colorScheme.onSurfaceVariant,
                 letterSpacing: .3,
               ),
               isDense: true,
-              contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+              contentPadding: const EdgeInsets.symmetric(
+                horizontal: 16,
+                vertical: 10,
+              ),
               suffixIcon: query.isEmpty
                   ? null
                   : IconButton(
@@ -359,18 +383,24 @@ class _ClassListState extends ConsumerState<ClassListPage>
                       onPressed: () => setState(_search.clear),
                     ),
               filled: true,
-              fillColor: const Color(0xFFF2F5FA),
+              fillColor: Theme.of(context).colorScheme.surfaceContainerLow,
               border: OutlineInputBorder(
                 borderRadius: BorderRadius.circular(24),
-                borderSide: const BorderSide(color: Color(0xFFE0E8F5)),
+                borderSide: BorderSide(
+                  color: Theme.of(context).colorScheme.outline,
+                ),
               ),
               enabledBorder: OutlineInputBorder(
                 borderRadius: BorderRadius.circular(24),
-                borderSide: const BorderSide(color: Color(0xFFE0E8F5)),
+                borderSide: BorderSide(
+                  color: Theme.of(context).colorScheme.outline,
+                ),
               ),
               focusedBorder: OutlineInputBorder(
                 borderRadius: BorderRadius.circular(24),
-                borderSide: const BorderSide(color: Color(0xFF9AB8EB)),
+                borderSide: BorderSide(
+                  color: Theme.of(context).colorScheme.primary,
+                ),
               ),
             ),
           ),
@@ -379,13 +409,16 @@ class _ClassListState extends ConsumerState<ClassListPage>
               Expanded(
                 child: Text(
                   'Showing ${learners.length} ${learners.length == 1 ? 'record' : 'records'}',
-                  style: const TextStyle(fontSize: 12, color: Color(0xFF9295A7)),
+                  style: TextStyle(
+                    fontSize: 12,
+                    color: Theme.of(context).colorScheme.onSurfaceVariant,
+                  ),
                 ),
               ),
               TextButton.icon(
                 onPressed: () => setState(() => _descending = !_descending),
                 style: TextButton.styleFrom(
-                  foregroundColor: const Color(0xFF33415C),
+                  foregroundColor: Theme.of(context).colorScheme.onSurface,
                   padding: const EdgeInsets.symmetric(horizontal: 8),
                   textStyle: const TextStyle(fontSize: 12),
                 ),
@@ -400,21 +433,27 @@ class _ClassListState extends ConsumerState<ClassListPage>
               title: query.isEmpty
                   ? 'No students in this class yet.'
                   : 'No learners match your search.',
-              subtitle: query.isEmpty ? 'Learners in this group will appear here.' : 'Try another name or LRN.',
+              subtitle: query.isEmpty
+                  ? 'Learners in this group will appear here.'
+                  : 'Try another name or LRN.',
             ),
           for (final learner in learners)
             Container(
               margin: const EdgeInsets.only(bottom: 8),
               padding: const EdgeInsets.all(14),
               decoration: BoxDecoration(
-                color: Colors.white,
-                border: Border.all(color: const Color(0xFFE6ECF4)),
+                color: Theme.of(context).colorScheme.surface,
+                border: Border.all(
+                  color: Theme.of(context).colorScheme.outline,
+                ),
                 borderRadius: BorderRadius.circular(18),
               ),
               child: Row(
                 children: [
                   CircleAvatar(
-                    backgroundColor: const Color(0xFFF1F5F9),
+                    backgroundColor: Theme.of(context)
+                        .colorScheme
+                        .surfaceContainerLow,
                     child: Text(
                       learner.name.isEmpty
                           ? '?'
@@ -436,9 +475,11 @@ class _ClassListState extends ConsumerState<ClassListPage>
                         const SizedBox(height: 4),
                         Text(
                           'LRN ${learner.lrn}',
-                          style: const TextStyle(
+                          style: TextStyle(
                             fontSize: 12,
-                            color: Color(0xFF71809B),
+                            color: Theme.of(context)
+                                .colorScheme
+                                .onSurfaceVariant,
                           ),
                         ),
                       ],

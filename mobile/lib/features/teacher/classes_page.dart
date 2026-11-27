@@ -80,15 +80,16 @@ class _ClassesPageState extends ConsumerState<ClassesPage>
 
   @override
   Widget build(BuildContext context) {
+    final desk = overviewScreenTheme(Theme.of(context));
     final week = ref.watch(teachingWeekProvider);
     final term = ref.watch(termProvider);
     final link = ref.watch(teacherLinkProvider).valueOrNull;
     final now = philippineTime(DateTime.now());
     final today = DateTime.utc(now.year, now.month, now.day);
     return Theme(
-      data: overviewScreenTheme(Theme.of(context)),
+      data: desk,
       child: ColoredBox(
-        color: Colors.white,
+        color: desk.scaffoldBackgroundColor,
         child: Builder(
           builder: (context) {
             if (link?.linked == false) {
@@ -116,7 +117,8 @@ class _ClassesPageState extends ConsumerState<ClassesPage>
                 ),
                 children: [
                   const ZContentHeader(
-                    title: 'Class', icon: LucideIcons.bookOpen,
+                    title: 'Class',
+                    icon: LucideIcons.bookOpen,
                     description: 'Your teaching classes and weekly schedule.',
                   ),
                   const SizedBox(height: 12),
@@ -191,9 +193,11 @@ class _ClassesPageState extends ConsumerState<ClassesPage>
                               Expanded(
                                 child: Text(
                                   'Showing $count ${count == 1 ? 'class' : 'classes'}',
-                                  style: const TextStyle(
+                                  style: TextStyle(
                                     fontSize: 12,
-                                    color: Color(0xFF9999A6),
+                                    color: Theme.of(context)
+                                        .colorScheme
+                                        .onSurfaceVariant,
                                   ),
                                 ),
                               ),
@@ -218,7 +222,9 @@ class _ClassesPageState extends ConsumerState<ClassesPage>
                                   style: const TextStyle(fontSize: 12),
                                 ),
                                 style: TextButton.styleFrom(
-                                  foregroundColor: const Color(0xFF334155),
+                                  foregroundColor: Theme.of(context)
+                                      .colorScheme
+                                      .onSurface,
                                   padding: const EdgeInsets.symmetric(
                                     horizontal: 8,
                                     vertical: 0,
@@ -235,7 +241,8 @@ class _ClassesPageState extends ConsumerState<ClassesPage>
                           if (count == 0)
                             ZEmpty(
                               icon: LucideIcons.calendarDays,
-                              title: _classFilter == 'All' ? 'No classes'
+                              title: _classFilter == 'All'
+                                  ? 'No classes'
                                   : 'No ${_classFilter.toLowerCase()} classes',
                               subtitle: week.classes.isEmpty
                                   ? 'No published classes for this term. Ask the school office to check your teaching load.'
@@ -278,6 +285,21 @@ class _ClassesPageState extends ConsumerState<ClassesPage>
     );
   }
 
+  static const _avatarFills = [
+    Color(0xFFF1F5F9),
+    Color(0xFFEFF6FF),
+    Color(0xFFFFFBEB),
+    Color(0xFFFAF5FF),
+    Color(0xFFFFF1F2),
+  ];
+
+  Color _avatarFill(ThemeData theme, int index) {
+    final fill = _avatarFills[index];
+    if (theme.brightness != Brightness.dark) return fill;
+    final hsl = HSLColor.fromColor(fill);
+    return HSLColor.fromAHSL(0.16, hsl.hue, 0.45, 0.5).toColor();
+  }
+
   Widget _classCard(BuildContext context, TeachingClass entry, String timing) {
     final theme = Theme.of(context);
     final words = entry.subject
@@ -299,7 +321,9 @@ class _ClassesPageState extends ConsumerState<ClassesPage>
       ),
       clipBehavior: Clip.antiAlias,
       elevation: 1,
-      shadowColor: Colors.black.withValues(alpha: 0.06),
+      shadowColor: Colors.black.withValues(
+        alpha: Theme.of(context).brightness == Brightness.dark ? 0.4 : 0.06,
+      ),
       child: InkWell(
         onTap: () async {
           await context.push(
@@ -315,14 +339,13 @@ class _ClassesPageState extends ConsumerState<ClassesPage>
                 children: [
                   CircleAvatar(
                     radius: 19,
-                    backgroundColor: const [
-                      Color(0xFFF1F5F9),
-                      Color(0xFFEFF6FF),
-                      Color(0xFFFFFBEB),
-                      Color(0xFFFAF5FF),
-                      Color(0xFFFFF1F2),
-                    ][entry.id.codeUnits.fold(0, (a, b) => a + b) % 5],
-                    foregroundColor: const Color(0xFF52627C),
+                    backgroundColor: _avatarFill(
+                      Theme.of(context),
+                      entry.id.codeUnits.fold(0, (a, b) => a + b) % 5,
+                    ),
+                    foregroundColor: Theme.of(context)
+                        .colorScheme
+                        .onSurfaceVariant,
                     child: Text(
                       initials,
                       style: const TextStyle(
@@ -370,9 +393,9 @@ class _ClassesPageState extends ConsumerState<ClassesPage>
                 alignment: Alignment.centerLeft,
                 child: Text(
                   timing,
-                  style: const TextStyle(
+                  style: TextStyle(
                     fontSize: 12,
-                    color: Color(0xFF334155),
+                    color: Theme.of(context).colorScheme.onSurface,
                   ),
                 ),
               ),

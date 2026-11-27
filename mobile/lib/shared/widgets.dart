@@ -28,6 +28,15 @@ class ErrorView extends StatelessWidget {
   const ErrorView({super.key, required this.message, this.onRetry});
   @override
   Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final dark = theme.brightness == Brightness.dark;
+    final surface = dark ? theme.colorScheme.surface : Colors.white;
+    final border = dark ? theme.colorScheme.outline : const Color(0xFFDFE7F5);
+    final badge = dark
+        ? theme.colorScheme.error.withValues(alpha: 0.16)
+        : const Color(0xFFFFF1F1);
+    final accent = dark ? const Color(0xFFFF9F9F) : const Color(0xFFDC2626);
+    final ink = dark ? theme.colorScheme.onSurface : const Color(0xFF192034);
     return Padding(
       padding: const EdgeInsets.all(16),
       child: Align(
@@ -38,24 +47,20 @@ class ErrorView extends StatelessWidget {
             width: double.infinity,
             padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 24),
             decoration: BoxDecoration(
-              color: Colors.white,
+              color: surface,
               borderRadius: BorderRadius.circular(16),
-              border: Border.all(color: const Color(0xFFDFE7F5)),
+              border: Border.all(color: border),
             ),
             child: Column(
               mainAxisSize: MainAxisSize.min,
               children: [
                 Container(
                   padding: const EdgeInsets.all(10),
-                  decoration: const BoxDecoration(
+                  decoration: BoxDecoration(
                     shape: BoxShape.circle,
-                    color: Color(0xFFFFF1F1),
+                    color: badge,
                   ),
-                  child: const Icon(
-                    Icons.error_outline,
-                    size: 20,
-                    color: Color(0xFFDC2626),
-                  ),
+                  child: Icon(Icons.error_outline, size: 20, color: accent),
                 ),
                 const SizedBox(height: 12),
                 Semantics(
@@ -63,11 +68,11 @@ class ErrorView extends StatelessWidget {
                   child: Text(
                     userMessage(message),
                     textAlign: TextAlign.center,
-                    style: const TextStyle(
+                    style: TextStyle(
                       fontSize: 13,
                       height: 1.45,
                       fontWeight: FontWeight.w600,
-                      color: Color(0xFF192034),
+                      color: ink,
                     ),
                   ),
                 ),
@@ -75,8 +80,12 @@ class ErrorView extends StatelessWidget {
                   const SizedBox(height: 14),
                   FilledButton(
                     style: FilledButton.styleFrom(
-                      backgroundColor: const Color(0xFF4263F0),
-                      foregroundColor: Colors.white,
+                      backgroundColor: dark
+                          ? const Color(0xFF7EB2FF)
+                          : const Color(0xFF4263F0),
+                      foregroundColor: dark
+                          ? const Color(0xFF06101F)
+                          : Colors.white,
                       minimumSize: const Size(0, 48),
                       padding: const EdgeInsets.symmetric(horizontal: 24),
                       shape: RoundedRectangleBorder(
@@ -179,8 +188,13 @@ enum ScopePillKind { schoolYear, term, grade }
 /// Consistent content title, separate from the persistent navigation AppBar.
 class ZContentHeader extends StatelessWidget {
   const ZContentHeader({
-    super.key, required this.title, required this.icon,
-    this.description, this.trailing, this.titleMetadata = const [], this.titleTrailing,
+    super.key,
+    required this.title,
+    required this.icon,
+    this.description,
+    this.trailing,
+    this.titleMetadata = const [],
+    this.titleTrailing,
   });
   final String title;
   final IconData icon;
@@ -190,57 +204,120 @@ class ZContentHeader extends StatelessWidget {
   final Widget? titleTrailing;
 
   @override
-  Widget build(BuildContext context) => ColoredBox(
-    color: Colors.white,
-    child: LayoutBuilder(builder: (context, constraints) {
-      final heading = Row(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Container(
-            width: 46, height: 46,
-            decoration: BoxDecoration(color: const Color(0xFFE8EFFF),
-              borderRadius: BorderRadius.circular(16)),
-            child: Icon(icon, size: 24, color: const Color(0xFF2442A8)),
-          ),
-          const SizedBox(width: 10),
-          Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-            Row(crossAxisAlignment: CrossAxisAlignment.start, children: [
-              Expanded(child: Wrap(spacing: 6, runSpacing: 6, crossAxisAlignment: WrapCrossAlignment.center,
-                children: [
-                  Text(title, style: const TextStyle(fontSize: 22, height: 1.2,
-                    fontWeight: FontWeight.w700, color: Color(0xFF171C36), letterSpacing: -0.5)),
-                  ...titleMetadata,
-                ])),
-              if (titleTrailing != null) ...[
-                const SizedBox(width: 8),
-                titleTrailing!,
-              ],
-            ]),
-            if (description != null && description!.isNotEmpty) ...[
-              const SizedBox(height: 2),
-              Text(description!, style: const TextStyle(
-                fontSize: 11, height: 1.3, color: Color(0xFF626B82))),
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final dark = theme.brightness == Brightness.dark;
+    final iconTile = dark
+        ? theme.colorScheme.secondary.withValues(alpha: 0.16)
+        : const Color(0xFFE8EFFF);
+    final iconInk = dark ? const Color(0xFFA9C9FF) : const Color(0xFF2442A8);
+    final titleInk = dark
+        ? theme.colorScheme.onSurface
+        : const Color(0xFF171C36);
+    final bodyInk = dark
+        ? theme.colorScheme.onSurfaceVariant
+        : const Color(0xFF626B82);
+    return ColoredBox(
+      color: theme.colorScheme.surface,
+      child: LayoutBuilder(
+        builder: (context, constraints) {
+          final heading = Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Container(
+                width: 46,
+                height: 46,
+                decoration: BoxDecoration(
+                  color: iconTile,
+                  borderRadius: BorderRadius.circular(16),
+                ),
+                child: Icon(icon, size: 24, color: iconInk),
+              ),
+              const SizedBox(width: 10),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Row(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Expanded(
+                          child: Wrap(
+                            spacing: 6,
+                            runSpacing: 6,
+                            crossAxisAlignment: WrapCrossAlignment.center,
+                            children: [
+                              Text(
+                                title,
+                                style: TextStyle(
+                                  fontSize: 22,
+                                  height: 1.2,
+                                  fontWeight: FontWeight.w700,
+                                  color: titleInk,
+                                  letterSpacing: -0.5,
+                                ),
+                              ),
+                              ...titleMetadata,
+                            ],
+                          ),
+                        ),
+                        if (titleTrailing != null) ...[
+                          const SizedBox(width: 8),
+                          titleTrailing!,
+                        ],
+                      ],
+                    ),
+                    if (description != null && description!.isNotEmpty) ...[
+                      const SizedBox(height: 2),
+                      Text(
+                        description!,
+                        style: TextStyle(
+                          fontSize: 11,
+                          height: 1.3,
+                          color: bodyInk,
+                        ),
+                      ),
+                    ],
+                  ],
+                ),
+              ),
             ],
-          ])),
-        ],
-      );
-      if (trailing == null) return heading;
-      if (constraints.maxWidth < 360 || MediaQuery.textScalerOf(context).scale(22) > 28) {
-        return Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
-          heading, const SizedBox(height: 8),
-          Align(alignment: Alignment.centerRight, child: trailing),
-        ]);
-      }
-      return Row(crossAxisAlignment: CrossAxisAlignment.start, children: [
-        Expanded(child: heading), const SizedBox(width: 8), trailing!,
-      ]);
-    }),
-  );
+          );
+          if (trailing == null) return heading;
+          if (constraints.maxWidth < 360 ||
+              MediaQuery.textScalerOf(context).scale(22) > 28) {
+            return Column(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                heading,
+                const SizedBox(height: 8),
+                Align(alignment: Alignment.centerRight, child: trailing),
+              ],
+            );
+          }
+          return Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Expanded(child: heading),
+              const SizedBox(width: 8),
+              trailing!,
+            ],
+          );
+        },
+      ),
+    );
+  }
 }
 
 /// Fixed light capsule for screen scope, separate from semantic status chips.
 class ZScopePill extends StatelessWidget {
-  const ZScopePill({super.key, required this.text, required this.kind, this.label, this.compact = false});
+  const ZScopePill({
+    super.key,
+    required this.text,
+    required this.kind,
+    this.label,
+    this.compact = false,
+  });
   final String text;
   final ScopePillKind kind;
   final String? label;
@@ -248,34 +325,89 @@ class ZScopePill extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final dark = Theme.of(context).brightness == Brightness.dark;
     final amber = kind == ScopePillKind.term;
     final violet = kind == ScopePillKind.grade;
-    final foreground = amber ? const Color(0xFFB45309) : violet ? const Color(0xFF7C3AED) : const Color(0xFF2563EB);
-    final fieldLabel = label ?? switch (kind) {
-      ScopePillKind.schoolYear => 'School year',
-      ScopePillKind.term => 'Term',
-      ScopePillKind.grade => 'Grade level',
-    };
+    final foreground = dark
+        ? (amber
+              ? const Color(0xFFFFC65C)
+              : violet
+              ? const Color(0xFFC4B5FD)
+              : const Color(0xFF8FB6F5))
+        : (amber
+              ? const Color(0xFFB45309)
+              : violet
+              ? const Color(0xFF7C3AED)
+              : const Color(0xFF2563EB));
+    final fill = dark
+        ? (amber
+              ? const Color(0x29FFB900)
+              : violet
+              ? const Color(0x298E51FF)
+              : const Color(0x292B7FFF))
+        : (amber
+              ? const Color(0xFFFFF6E5)
+              : violet
+              ? const Color(0xFFF5F3FF)
+              : const Color(0xFFEAF2FF));
+    final edge = dark
+        ? (amber
+              ? const Color(0x66FFB900)
+              : violet
+              ? const Color(0x668E51FF)
+              : const Color(0x662B7FFF))
+        : (amber
+              ? const Color(0xFFFDE6B0)
+              : violet
+              ? const Color(0xFFDDD6FE)
+              : const Color(0xFFD4E4FF));
+    final fieldLabel =
+        label ??
+        switch (kind) {
+          ScopePillKind.schoolYear => 'School year',
+          ScopePillKind.term => 'Term',
+          ScopePillKind.grade => 'Grade level',
+        };
     return Tooltip(
       message: fieldLabel,
       triggerMode: TooltipTriggerMode.longPress,
       child: Container(
-        padding: EdgeInsets.symmetric(horizontal: compact ? 7 : 10, vertical: compact ? 3 : 5),
+        padding: EdgeInsets.symmetric(
+          horizontal: compact ? 7 : 10,
+          vertical: compact ? 3 : 5,
+        ),
         decoration: BoxDecoration(
-          color: amber ? const Color(0xFFFFF6E5) : violet ? const Color(0xFFF5F3FF) : const Color(0xFFEAF2FF),
-          border: Border.all(color: amber ? const Color(0xFFFDE6B0) : violet ? const Color(0xFFDDD6FE) : const Color(0xFFD4E4FF)),
+          color: fill,
+          border: Border.all(color: edge),
           borderRadius: BorderRadius.circular(999),
         ),
-        child: Row(mainAxisSize: MainAxisSize.min, children: [
-          ExcludeSemantics(child: Icon(switch (kind) {
-            ScopePillKind.schoolYear => LucideIcons.calendarDays,
-            ScopePillKind.term => LucideIcons.bookOpen,
-            ScopePillKind.grade => LucideIcons.graduationCap,
-          }, size: compact ? 11 : 13, color: foreground)),
-          SizedBox(width: compact ? 4 : 5),
-          Flexible(child: Text(text, style: TextStyle(
-            fontSize: compact ? 11 : 12, fontWeight: FontWeight.w600, color: foreground))),
-        ]),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            ExcludeSemantics(
+              child: Icon(
+                switch (kind) {
+                  ScopePillKind.schoolYear => LucideIcons.calendarDays,
+                  ScopePillKind.term => LucideIcons.bookOpen,
+                  ScopePillKind.grade => LucideIcons.graduationCap,
+                },
+                size: compact ? 11 : 13,
+                color: foreground,
+              ),
+            ),
+            SizedBox(width: compact ? 4 : 5),
+            Flexible(
+              child: Text(
+                text,
+                style: TextStyle(
+                  fontSize: compact ? 11 : 12,
+                  fontWeight: FontWeight.w600,
+                  color: foreground,
+                ),
+              ),
+            ),
+          ],
+        ),
       ),
     );
   }
@@ -459,6 +591,18 @@ class ZEmpty extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final dark = theme.brightness == Brightness.dark;
+    final surface = dark ? theme.colorScheme.surface : Colors.white;
+    final border = dark ? theme.colorScheme.outline : const Color(0xFFDFE7F5);
+    final badge = dark
+        ? theme.colorScheme.secondary.withValues(alpha: 0.16)
+        : const Color(0xFFEAF0FF);
+    final accent = dark ? const Color(0xFFA9C9FF) : const Color(0xFF4263F0);
+    final ink = dark ? theme.colorScheme.onSurface : const Color(0xFF192034);
+    final muted = dark
+        ? theme.colorScheme.onSurfaceVariant
+        : const Color(0xFF71809B);
     return Align(
       alignment: Alignment.center,
       child: ConstrainedBox(
@@ -470,33 +614,26 @@ class ZEmpty extends StatelessWidget {
             vertical: compact ? 14 : 24,
           ),
           decoration: BoxDecoration(
-            color: Colors.white,
+            color: surface,
             borderRadius: BorderRadius.circular(16),
-            border: Border.all(color: const Color(0xFFDFE7F5)),
+            border: Border.all(color: border),
           ),
           child: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
               Container(
                 padding: EdgeInsets.all(compact ? 8 : 10),
-                decoration: BoxDecoration(
-                  shape: BoxShape.circle,
-                  color: const Color(0xFFEAF0FF),
-                ),
-                child: Icon(
-                  icon,
-                  size: compact ? 18 : 20,
-                  color: const Color(0xFF4263F0),
-                ),
+                decoration: BoxDecoration(shape: BoxShape.circle, color: badge),
+                child: Icon(icon, size: compact ? 18 : 20, color: accent),
               ),
               SizedBox(height: compact ? 8 : 12),
               Text(
                 title,
                 textAlign: TextAlign.center,
-                style: const TextStyle(
+                style: TextStyle(
                   fontSize: 14,
                   fontWeight: FontWeight.w600,
-                  color: Color(0xFF192034),
+                  color: ink,
                 ),
               ),
               if (subtitle != null) ...[
@@ -504,21 +641,21 @@ class ZEmpty extends StatelessWidget {
                 Text(
                   subtitle!,
                   textAlign: TextAlign.center,
-                  style: const TextStyle(
-                    fontSize: 12,
-                    height: 1.5,
-                    color: Color(0xFF71809B),
-                  ),
+                  style: TextStyle(fontSize: 12, height: 1.5, color: muted),
                 ),
               ],
               if (actionLabel != null) ...[
                 const SizedBox(height: 12),
                 FilledButton(
                   style: FilledButton.styleFrom(
-                    backgroundColor: const Color(0xFF4263F0),
-                    foregroundColor: Colors.white,
+                    backgroundColor: accent,
+                    foregroundColor: dark
+                        ? const Color(0xFF06101F)
+                        : Colors.white,
                   ),
-                  onPressed: onAction, child: Text(actionLabel!)),
+                  onPressed: onAction,
+                  child: Text(actionLabel!),
+                ),
               ],
             ],
           ),
@@ -608,9 +745,8 @@ class ZSkeletonList extends StatelessWidget {
   final int count;
   const ZSkeletonList({super.key, this.count = 5});
   @override
-  Widget build(BuildContext context) => SingleChildScrollView(
-    child: ScreenSkeleton(section: true, count: count),
-  );
+  Widget build(BuildContext context) =>
+      SingleChildScrollView(child: ScreenSkeleton(section: true, count: count));
 }
 
 class SegTabs<T> extends StatelessWidget {

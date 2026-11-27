@@ -19,6 +19,7 @@ import '../../design/tokens.dart';
 import '../../shared/widgets.dart';
 import 'anecdotal_data.dart';
 import 'record_preview_page.dart';
+import '../../design/desk_theme.dart';
 
 class AnecdotalRepoPage extends ConsumerStatefulWidget {
   const AnecdotalRepoPage({super.key});
@@ -119,10 +120,7 @@ class _State extends ConsumerState<AnecdotalRepoPage> {
                       repo.asData == null
                           ? 'Showing — records'
                           : 'Showing ${_visible(repo.asData!.value).length} records',
-                      style: const TextStyle(
-                        fontSize: 12,
-                        color: Color(0xFF929FB5),
-                      ),
+                      style: TextStyle(fontSize: 12, color: zMutedInk(context)),
                     ),
                   ),
                   TextButton.icon(
@@ -135,7 +133,7 @@ class _State extends ConsumerState<AnecdotalRepoPage> {
                       style: const TextStyle(fontSize: 12),
                     ),
                     style: TextButton.styleFrom(
-                      foregroundColor: const Color(0xFF334155),
+                      foregroundColor: zInk(context),
                       padding: const EdgeInsets.symmetric(
                         horizontal: 8,
                         vertical: 0,
@@ -212,7 +210,7 @@ class _State extends ConsumerState<AnecdotalRepoPage> {
       data: overviewScreenTheme(Theme.of(context)),
       child: Container(
         width: double.infinity,
-        color: Colors.white,
+        color: zCard(context),
         padding: const EdgeInsets.fromLTRB(16, 16, 16, 0),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
@@ -246,8 +244,8 @@ class _State extends ConsumerState<AnecdotalRepoPage> {
             Container(
               padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
               decoration: BoxDecoration(
-                color: const Color(0xFFF9F9FA),
-                border: Border.all(color: const Color(0xFFE8E8ED)),
+                color: zSoft(context),
+                border: Border.all(color: zLine(context)),
                 borderRadius: BorderRadius.circular(12),
               ),
               child: Row(
@@ -258,11 +256,11 @@ class _State extends ConsumerState<AnecdotalRepoPage> {
                     (categories, 'Categories'),
                   ].indexed) ...[
                     if (entry.$1 > 0)
-                      const SizedBox(
+                      SizedBox(
                         height: 30,
                         child: VerticalDivider(
                           width: 16,
-                          color: Color(0xFFE8E8ED),
+                          color: zLine(context),
                         ),
                       ),
                     Expanded(
@@ -271,19 +269,19 @@ class _State extends ConsumerState<AnecdotalRepoPage> {
                         children: [
                           Text(
                             entry.$2.$1?.toString() ?? '—',
-                            style: const TextStyle(
+                            style: TextStyle(
                               fontSize: 12,
                               height: 1.6,
                               fontWeight: FontWeight.w700,
-                              color: Color(0xFF1E293B),
+                              color: zInk(context),
                             ),
                           ),
                           Text(
                             entry.$2.$2,
-                            style: const TextStyle(
+                            style: TextStyle(
                               fontSize: 12,
                               height: 1.6,
-                              color: Color(0xFF71809B),
+                              color: zMutedInk(context),
                             ),
                           ),
                         ],
@@ -338,16 +336,16 @@ class _State extends ConsumerState<AnecdotalRepoPage> {
                         padding: const EdgeInsets.symmetric(horizontal: 10),
                         tapTargetSize: MaterialTapTargetSize.padded,
                         foregroundColor: _view == view.$1
-                            ? const Color(0xFF2563EB)
+                            ? zLift(context, const Color(0xFF2563EB))
                             : theme.colorScheme.onSurfaceVariant,
                         backgroundColor: _view == view.$1
-                            ? const Color(0xFFEFF6FF)
+                            ? zWash(context, const Color(0xFFEFF6FF))
                             : Colors.transparent,
                         shape: RoundedRectangleBorder(
                           borderRadius: BorderRadius.circular(16),
                           side: BorderSide(
                             color: _view == view.$1
-                                ? const Color(0xFFBFDBFE)
+                                ? zWash(context, const Color(0xFFBFDBFE))
                                 : Colors.transparent,
                           ),
                         ),
@@ -551,9 +549,9 @@ class _State extends ConsumerState<AnecdotalRepoPage> {
                         ),
                       ],
                     ),
-                    const Padding(
+                    Padding(
                       padding: EdgeInsets.symmetric(vertical: 12),
-                      child: Divider(height: 1, color: Color(0xFFE6ECF4)),
+                      child: Divider(height: 1, color: zLine(context)),
                     ),
                     Row(
                       children: [
@@ -784,10 +782,10 @@ class _RecordRow extends StatelessWidget {
         : DateFormat('MMM d, y')
               .format(observedAt.toUtc().add(const Duration(hours: 8)));
     return Material(
-      color: Colors.white,
+      color: zCard(context),
       shape: RoundedRectangleBorder(
         borderRadius: BorderRadius.circular(16),
-        side: const BorderSide(color: Color(0xFFE6ECF4)),
+        side: BorderSide(color: zLine(context)),
       ),
       clipBehavior: Clip.antiAlias,
       child: InkWell(
@@ -831,10 +829,10 @@ class _RecordRow extends StatelessWidget {
                                 record.studentName,
                                 maxLines: 1,
                                 overflow: TextOverflow.ellipsis,
-                                style: const TextStyle(
+                                style: TextStyle(
                                   fontSize: 13,
                                   fontWeight: FontWeight.w600,
-                                  color: Color(0xFF172033),
+                                  color: zInk(context),
                                 ),
                               ),
                             ),
@@ -848,9 +846,9 @@ class _RecordRow extends StatelessWidget {
                         const SizedBox(height: 3),
                         Text(
                           'LRN ${record.lrn}',
-                          style: const TextStyle(
+                          style: TextStyle(
                             fontSize: 12,
-                            color: Color(0xFF71809B),
+                            color: zMutedInk(context),
                             fontFeatures: [FontFeature.tabularFigures()],
                           ),
                         ),
@@ -859,9 +857,9 @@ class _RecordRow extends StatelessWidget {
                   ),
                 ],
               ),
-              const Padding(
+              Padding(
                 padding: EdgeInsets.symmetric(vertical: 12),
-                child: Divider(height: 1, color: Color(0xFFF0F3F8)),
+                child: Divider(height: 1, color: zLine(context)),
               ),
               Row(
                 mainAxisAlignment: MainAxisAlignment.start,
@@ -869,17 +867,17 @@ class _RecordRow extends StatelessWidget {
                   Row(
                     mainAxisSize: MainAxisSize.min,
                     children: [
-                      const Icon(
+                      Icon(
                         LucideIcons.calendar,
                         size: 13,
-                        color: Color(0xFF8B9BBA),
+                        color: zMutedInk(context),
                       ),
                       const SizedBox(width: 5),
                       Text(
                         dateLabel,
-                        style: const TextStyle(
+                        style: TextStyle(
                           fontSize: 12,
-                          color: Color(0xFF8B9BBA),
+                          color: zMutedInk(context),
                         ),
                       ),
                     ],

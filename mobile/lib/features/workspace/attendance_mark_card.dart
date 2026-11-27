@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 
 import '../../design/status_palette.dart';
 import 'attendance_data.dart';
+import '../../design/desk_theme.dart';
 
 /// Marking-only card; saved, queued and implied marks remain distinct.
 class AttendanceMarkCard extends StatelessWidget {
@@ -39,17 +40,17 @@ class AttendanceMarkCard extends StatelessWidget {
       Theme.of(context),
       badge: true,
     );
-    final avatarColors = const [
+    final avatarColors = [
       (Color(0xFFF0EDFF), Color(0xFF5440D8)),
-      (Color(0xFFECFDF3), Color(0xFF438466)),
-      (Color(0xFFEFF6FF), Color(0xFF3563AC)),
+      (Color(0xFFECFDF3), zLift(context, Color(0xFF438466))),
+      (zWash(context, const Color(0xFFEFF6FF)), Color(0xFF3563AC)),
     ][index % 3];
     return Container(
       padding: const EdgeInsets.all(14),
       decoration: BoxDecoration(
-        color: Colors.white,
+        color: zCard(context),
         borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: const Color(0xFFE6ECF4)),
+        border: Border.all(color: zLine(context)),
         boxShadow: const [
           BoxShadow(
             color: Color(0x09000000),
@@ -84,19 +85,16 @@ class AttendanceMarkCard extends StatelessWidget {
                   children: [
                     Text(
                       learner.name,
-                      style: const TextStyle(
+                      style: TextStyle(
                         fontSize: 14,
                         fontWeight: FontWeight.w600,
-                        color: Color(0xFF172033),
+                        color: zInk(context),
                       ),
                     ),
                     const SizedBox(height: 2),
                     Text(
                       learner.lrn,
-                      style: const TextStyle(
-                        fontSize: 12,
-                        color: Color(0xFF71809B),
-                      ),
+                      style: TextStyle(fontSize: 12, color: zMutedInk(context)),
                     ),
                   ],
                 ),
@@ -107,7 +105,7 @@ class AttendanceMarkCard extends StatelessWidget {
                 padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 5),
                 decoration: BoxDecoration(
                   color: badge.background,
-                  border: Border.all(color: const Color(0xFFE6ECF4)),
+                  border: Border.all(color: zLine(context)),
                   borderRadius: BorderRadius.circular(6),
                 ),
                 child: Text(
@@ -126,9 +124,9 @@ class AttendanceMarkCard extends StatelessWidget {
             ],
           ),
           if (!learner.exempt) ...[
-            const Padding(
+            Padding(
               padding: EdgeInsets.symmetric(vertical: 12),
-              child: Divider(height: 1, color: Color(0xFFF0F3F8)),
+              child: Divider(height: 1, color: zLine(context)),
             ),
             LayoutBuilder(
               builder: (context, constraints) {
@@ -151,11 +149,11 @@ class AttendanceMarkCard extends StatelessWidget {
             ),
           ],
           if (learner.exempt)
-            const Padding(
+            Padding(
               padding: EdgeInsets.only(top: 8),
               child: Text(
                 'Signed ADM · seat-time attendance is not recorded.',
-                style: TextStyle(fontSize: 12, color: Color(0xFF71809B)),
+                style: TextStyle(fontSize: 12, color: zMutedInk(context)),
               ),
             ),
         ],
@@ -191,15 +189,15 @@ class AttendanceMarkCard extends StatelessWidget {
             tapTargetSize: MaterialTapTargetSize.padded,
             elevation: selected ? 1 : 0,
             shadowColor: colors.foreground.withValues(alpha: 0.16),
-            backgroundColor: selected ? selectedColor : Colors.white,
-            disabledBackgroundColor: selected ? selectedColor : Colors.white,
-            foregroundColor: selected ? Colors.white : const Color(0xFF334155),
+            backgroundColor: selected ? selectedColor : zCard(context),
+            disabledBackgroundColor: selected ? selectedColor : zCard(context),
+            foregroundColor: selected ? Colors.white : zInk(context),
             disabledForegroundColor: selected
                 ? Colors.white
-                : const Color(0xFF71809B),
+                : zMutedInk(context),
             side: BorderSide(
               width: selected ? 1.5 : 1,
-              color: selected ? selectedColor : const Color(0xFFE6ECF4),
+              color: selected ? selectedColor : zLine(context),
             ),
             shape: RoundedRectangleBorder(
               borderRadius: BorderRadius.circular(6),

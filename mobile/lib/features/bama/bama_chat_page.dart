@@ -25,19 +25,23 @@ import '../../design/bama_mascot.dart';
 import '../../design/tokens.dart';
 import '../../shared/widgets.dart';
 import '../../shared/floating_add.dart';
-import '../adviser/advisory_list_page.dart' show advisoryProvider, archivedAdvisoryProvider;
-import '../referral/referral_page.dart' show referralsProvider, referableProvider;
+import '../adviser/advisory_list_page.dart'
+    show advisoryProvider, archivedAdvisoryProvider;
+import '../referral/referral_page.dart'
+    show referralsProvider, referableProvider;
 import '../anecdotal/anecdotal_data.dart' show anecdotalMineProvider;
 import 'bama_conversations.dart';
 import 'bama_flow.dart';
 import 'bama_service.dart';
 import 'bama_writing_indicator.dart';
+import '../../design/desk_theme.dart';
 
 class BamaChatPage extends ConsumerStatefulWidget {
   /// When true (e.g. opened via `/adviser/bama?new=1`), land on the welcome
   /// cards with no active thread — mirrors web `?new` deep-links. Threads
   /// are preserved in Chats.
   final bool freshEntry;
+
   /// Non-null only on the full-screen route, outside the staff shell.
   final String? conversationId;
   final bool newConversation;
@@ -95,13 +99,17 @@ class _State extends ConsumerState<BamaChatPage> {
     _hydrate();
     if (_dedicated) {
       _activeId = widget.conversationId;
-      if (_active == null && widget.newConversation &&
+      if (_active == null &&
+          widget.newConversation &&
           !_legacyConvos.any((c) => c.id == _activeId)) {
         _startDraft('anecdotal', id: widget.conversationId);
       }
       final flow = _flows[_activeId];
-      _dateInput = flow?.observationDate ??
-          (flow?.tier == null ? '' : DateTime.now().toIso8601String().split('T').first);
+      _dateInput =
+          flow?.observationDate ??
+          (flow?.tier == null
+              ? ''
+              : DateTime.now().toIso8601String().split('T').first);
       _timeInput = flow?.observationTime ?? '';
       _loadOptions();
     } else {
@@ -144,7 +152,9 @@ class _State extends ConsumerState<BamaChatPage> {
         // Skip corrupt entries instead of killing the screen (Hive reads
         // maps as Map<dynamic, dynamic>; stale shapes must never crash).
         try {
-          if (c is Map) convos.add(BamaConversation.fromJson(Map<String, dynamic>.from(c)));
+          if (c is Map) {
+            convos.add(BamaConversation.fromJson(Map<String, dynamic>.from(c)));
+          }
         } catch (_) {}
       }
       convos.sort((a, b) => b.updatedAt.compareTo(a.updatedAt));
@@ -153,7 +163,11 @@ class _State extends ConsumerState<BamaChatPage> {
     if (flows is Map) {
       for (final e in flows.entries) {
         try {
-          if (e.value is Map) parsedFlows[e.key.toString()] = FlowSnapshot.fromJson(Map<String, dynamic>.from(e.value as Map));
+          if (e.value is Map) {
+            parsedFlows[e.key.toString()] = FlowSnapshot.fromJson(
+              Map<String, dynamic>.from(e.value as Map),
+            );
+          }
         } catch (_) {}
       }
     }
@@ -162,7 +176,9 @@ class _State extends ConsumerState<BamaChatPage> {
       // Keep old unsupported chats on disk, but never expose/resume them.
       _legacyConvos = convos.where((c) => c.type != 'anecdotal').toList();
       _activeId = box.get('activeId') as String?;
-      if (_activeId != null && _convos.every((c) => c.id != _activeId)) _activeId = null;
+      if (_activeId != null && _convos.every((c) => c.id != _activeId)) {
+        _activeId = null;
+      }
       _nextMsgId = (box.get('nextId') as int?) ?? 1;
       _flows = parsedFlows;
       _hydrated = true;
@@ -172,7 +188,9 @@ class _State extends ConsumerState<BamaChatPage> {
   void _save() {
     if (!_hydrated) return;
     Hive.box(AppConfig.bamaBox).putAll({
-      'conversations': [for (final c in [..._convos.take(50), ..._legacyConvos]) c.toJson()],
+      'conversations': [
+        for (final c in [..._convos.take(50), ..._legacyConvos]) c.toJson(),
+      ],
       'activeId': _activeId,
       'nextId': _nextMsgId,
       'flows': {for (final e in _flows.entries) e.key: e.value.toJson()},
@@ -212,7 +230,8 @@ class _State extends ConsumerState<BamaChatPage> {
 
   bool get _anecMode => _active?.type == 'anecdotal';
 
-  FlowSnapshot _flow() => _flows.putIfAbsent(_activeId ?? '', () => FlowSnapshot());
+  FlowSnapshot _flow() =>
+      _flows.putIfAbsent(_activeId ?? '', () => FlowSnapshot());
 
   Map<String, String> get _sectionNames {
     final map = <String, String>{};
@@ -237,19 +256,25 @@ class _State extends ConsumerState<BamaChatPage> {
       if (needle.isEmpty) return true;
       return (s['name']?.toString() ?? '').toLowerCase().contains(needle) ||
           (s['lrn']?.toString() ?? '').contains(needle) ||
-          (names[s['sectionId']?.toString()] ?? '').toLowerCase().contains(needle);
+          (names[s['sectionId']?.toString()] ?? '').toLowerCase().contains(
+            needle,
+          );
     }).toList();
     return matches.take(60).toList();
   }
 
   List<Map<String, dynamic>> _classesFor(String? sectionId) {
     if (sectionId == null) return _classes;
-    return _classes.where((c) => c['sectionId']?.toString() == sectionId).toList();
+    return _classes
+        .where((c) => c['sectionId']?.toString() == sectionId)
+        .toList();
   }
 
   Map<String, dynamic>? _selectedClass(FlowSnapshot f) {
     for (final c in _classes) {
-      if ('${c['subjectId']}|${c['sectionId']}|${c['termId']}' == f.classKey) return c;
+      if ('${c['subjectId']}|${c['sectionId']}|${c['termId']}' == f.classKey) {
+        return c;
+      }
     }
     return null;
   }
@@ -271,7 +296,9 @@ class _State extends ConsumerState<BamaChatPage> {
   }
 
   void _touch(BamaConversation c) {
-    if (c.messages.length > 200) c.messages.removeRange(0, c.messages.length - 200);
+    if (c.messages.length > 200) {
+      c.messages.removeRange(0, c.messages.length - 200);
+    }
     if (_isPending(c)) return;
     _bump(c);
   }
@@ -296,14 +323,23 @@ class _State extends ConsumerState<BamaChatPage> {
       final data = await ref.read(bamaServiceProvider).fetchOptions();
       if (!mounted || generation != _optionsGeneration) return;
       setState(() {
-        _students = [for (final s in (data['students'] as List? ?? [])) Map<String, dynamic>.from(s as Map)];
-        _classes = [for (final c in (data['sectionClasses'] as List? ?? [])) Map<String, dynamic>.from(c as Map)];
+        _students = [
+          for (final s in (data['students'] as List? ?? []))
+            Map<String, dynamic>.from(s as Map),
+        ];
+        _classes = [
+          for (final c in (data['sectionClasses'] as List? ?? []))
+            Map<String, dynamic>.from(c as Map),
+        ];
         _optionsPending = false;
         _optionsError = null;
       });
     } on DioException catch (e) {
       if (!mounted || generation != _optionsGeneration) return;
-      final msg = userMessage(e, fallback: 'We couldn’t load your learners. Please try again.');
+      final msg = userMessage(
+        e,
+        fallback: 'We couldn’t load your learners. Please try again.',
+      );
       setState(() {
         _optionsPending = false;
         _optionsError = msg;
@@ -350,7 +386,8 @@ class _State extends ConsumerState<BamaChatPage> {
 
   Future<void> _openConversation(String id, {bool create = false}) async {
     if (_openingConversation) return;
-    final location = '/adviser/bama/conversation/${Uri.encodeComponent(id)}'
+    final location =
+        '/adviser/bama/conversation/${Uri.encodeComponent(id)}'
         '${create ? '?new=1' : ''}';
     if (_dedicated) {
       if (_filing) return;
@@ -422,7 +459,8 @@ class _State extends ConsumerState<BamaChatPage> {
       _confirmFiling = false;
     });
     const prompts = {
-      'student': 'No problem — who is this report for? Pick a student to start over.',
+      'student':
+          'No problem — who is this report for? Pick a student to start over.',
       'class': 'No problem — which class is this report for?',
       'category': 'What is the category for this report?',
       'tier': 'What is the confidentiality tier?',
@@ -437,7 +475,13 @@ class _State extends ConsumerState<BamaChatPage> {
     final active = _active;
     if (active == null) return;
     _cancelReply();
-    final message = BamaMessage(id: _mid(), fromUser: false, text: text, at: DateTime.now().millisecondsSinceEpoch, preview: preview);
+    final message = BamaMessage(
+      id: _mid(),
+      fromUser: false,
+      text: text,
+      at: DateTime.now().millisecondsSinceEpoch,
+      preview: preview,
+    );
     active.messages.add(message);
     _touch(active);
     setState(() {
@@ -476,7 +520,14 @@ class _State extends ConsumerState<BamaChatPage> {
     if (active.title == 'New chat') {
       active.title = bamaTitleOf(text);
     }
-    active.messages.add(BamaMessage(id: _mid(), fromUser: true, text: text, at: DateTime.now().millisecondsSinceEpoch));
+    active.messages.add(
+      BamaMessage(
+        id: _mid(),
+        fromUser: true,
+        text: text,
+        at: DateTime.now().millisecondsSinceEpoch,
+      ),
+    );
     _touch(active);
     setState(() {});
     _save();
@@ -493,7 +544,10 @@ class _State extends ConsumerState<BamaChatPage> {
     if (picked == null) return;
     final sectionClasses = _classesFor(picked['sectionId']?.toString());
     if (sectionClasses.isEmpty) {
-      setState(() => _flowError = 'No classes found for that student — pick another student.');
+      setState(
+        () => _flowError =
+            'No classes found for that student — pick another student.',
+      );
       return;
     }
     _commitPending(active);
@@ -502,7 +556,9 @@ class _State extends ConsumerState<BamaChatPage> {
       _studentQ.clear();
     });
     f.studentId = id;
-    if (active.title == 'New chat') active.title = (picked['name']?.toString() ?? 'New chat');
+    if (active.title == 'New chat') {
+      active.title = (picked['name']?.toString() ?? 'New chat');
+    }
     _pushUser(picked['name']?.toString() ?? id);
     _pushAssistant('Which class is this report for?');
     _save();
@@ -546,7 +602,9 @@ class _State extends ConsumerState<BamaChatPage> {
     _dateInput = DateTime.now().toIso8601String().split('T').first;
     _timeInput = '';
     _pushUser(anecdotalTierLabels[value] ?? value);
-    _pushAssistant('When did this happen? Pick the date of the incident below.');
+    _pushAssistant(
+      'When did this happen? Pick the date of the incident below.',
+    );
     _save();
   }
 
@@ -576,7 +634,9 @@ class _State extends ConsumerState<BamaChatPage> {
     if (_dateInput.isEmpty || f.observationDate != null) return;
     f.observationDate = _dateInput;
     f.observationTime = _timeInput;
-    final when = _timeInput.length >= 5 ? '$_dateInput at $_timeInput' : _dateInput;
+    final when = _timeInput.length >= 5
+        ? '$_dateInput at $_timeInput'
+        : _dateInput;
     _pushUser(when);
     f.textQuestion = TextQuestion.incident;
     _pushAssistant(textQuestionLabels[TextQuestion.incident]!);
@@ -613,9 +673,16 @@ class _State extends ConsumerState<BamaChatPage> {
       f.textQuestion = nextQuestion[f.textQuestion];
       if (f.textQuestion != null) {
         _pushAssistant(textQuestionLabels[f.textQuestion]!);
-      } else if (!f.previewShown && _selectedClass(f) != null && f.category != null && f.tier != null && f.observationDate != null) {
+      } else if (!f.previewShown &&
+          _selectedClass(f) != null &&
+          f.category != null &&
+          f.tier != null &&
+          f.observationDate != null) {
         f.previewShown = true;
-        _pushAssistant('Review the complete record before filing:', preview: _previewOf(f));
+        _pushAssistant(
+          'Review the complete record before filing:',
+          preview: _previewOf(f),
+        );
       }
       _save();
       return;
@@ -626,7 +693,9 @@ class _State extends ConsumerState<BamaChatPage> {
   Map<String, dynamic> _previewOf(FlowSnapshot f) {
     final student = _studentById(f.studentId);
     final cls = _selectedClass(f);
-    final obs = f.observationTime.length >= 5 ? '${f.observationDate} ${f.observationTime}' : '${f.observationDate}';
+    final obs = f.observationTime.length >= 5
+        ? '${f.observationDate} ${f.observationTime}'
+        : '${f.observationDate}';
     return {
       'studentName': student?['name']?.toString() ?? '',
       'lrn': student?['lrn']?.toString() ?? '',
@@ -654,7 +723,10 @@ class _State extends ConsumerState<BamaChatPage> {
       return;
     }
     if (f.category == null || f.tier == null) {
-      setState(() => _flowError = 'Answer the category and confidentiality questions above.');
+      setState(
+        () => _flowError =
+            'Answer the category and confidentiality questions above.',
+      );
       return;
     }
     final cls = _selectedClass(f);
@@ -706,7 +778,9 @@ class _State extends ConsumerState<BamaChatPage> {
       final conn = await Connectivity().checkConnectivity();
       if (!mounted) return;
       if (conn.contains(ConnectivityResult.none)) {
-        await ref.read(outboxProvider).enqueue(method: 'POST', path: '/api/anecdotal', body: body);
+        await ref
+            .read(outboxProvider)
+            .enqueue(method: 'POST', path: '/api/anecdotal', body: body);
         if (mounted && _activeId == active.id) {
           _pushAssistant('Saved offline — will file when you reconnect.');
         }
@@ -725,14 +799,35 @@ class _State extends ConsumerState<BamaChatPage> {
         ..['recordFiled'] = true
         ..['recordId'] = recordId;
       final name = student['name']?.toString() ?? '';
-      active.messages.add(BamaMessage(id: _mid(), fromUser: true, text: '$categoryLabel — $note', at: DateTime.now().millisecondsSinceEpoch, detail: detail));
-      active.messages.add(BamaMessage(id: _mid(), fromUser: false, text: 'Anecdotal record filed.', at: DateTime.now().millisecondsSinceEpoch, detail: detail));
+      active.messages.add(
+        BamaMessage(
+          id: _mid(),
+          fromUser: true,
+          text: '$categoryLabel — $note',
+          at: DateTime.now().millisecondsSinceEpoch,
+          detail: detail,
+        ),
+      );
+      active.messages.add(
+        BamaMessage(
+          id: _mid(),
+          fromUser: false,
+          text: 'Anecdotal record filed.',
+          at: DateTime.now().millisecondsSinceEpoch,
+          detail: detail,
+        ),
+      );
       active.title = '$name · $categoryLabel · Filed';
-      _touch(BamaConversation(
-        id: active.id, type: 'anecdotal', title: active.title,
-        messages: active.messages, updatedAt: DateTime.now().millisecondsSinceEpoch,
-        filed: true,
-      ));
+      _touch(
+        BamaConversation(
+          id: active.id,
+          type: 'anecdotal',
+          title: active.title,
+          messages: active.messages,
+          updatedAt: DateTime.now().millisecondsSinceEpoch,
+          filed: true,
+        ),
+      );
       _flows.remove(active.id);
       setState(() {});
       _save();
@@ -742,20 +837,35 @@ class _State extends ConsumerState<BamaChatPage> {
       ref.invalidate(referralsProvider);
       ref.invalidate(referableProvider);
       ref.invalidate(anecdotalMineProvider);
-      if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Anecdotal record filed · $name · $categoryLabel.')));
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Anecdotal record filed · $name · $categoryLabel.'),
+          ),
+        );
+      }
     } on DioException catch (e) {
-      final msg = userMessage(e, fallback: 'We couldn’t file this record. Please try again.');
+      final msg = userMessage(
+        e,
+        fallback: 'We couldn’t file this record. Please try again.',
+      );
       if (!mounted) return;
       setState(() {
         _flowError = msg;
         _fileProgress = 0;
         _fileStage = '';
       });
-      if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(msg)));
+      if (mounted) {
+        ScaffoldMessenger.of(context)
+            .showSnackBar(SnackBar(content: Text(msg)));
+      }
     } catch (error) {
       if (!mounted) return;
       setState(() {
-        _flowError = userMessage(error, fallback: 'We couldn’t file this record. Please try again.');
+        _flowError = userMessage(
+          error,
+          fallback: 'We couldn’t file this record. Please try again.',
+        );
       });
     } finally {
       _progressTimer?.cancel();
@@ -771,33 +881,48 @@ class _State extends ConsumerState<BamaChatPage> {
   Widget build(BuildContext context) {
     if (_dedicated) {
       ref.listen(termProvider, (previous, next) {
-      if (previous?.id == next?.id && previous?.schoolYearId == next?.schoolYearId) return;
-      _backToWelcome();
-      setState(() {
-        _students = [];
-        _classes = [];
-        _optionsPending = true;
-        _optionsError = null;
-      });
-      _loadOptions();
+        if (previous?.id == next?.id &&
+            previous?.schoolYearId == next?.schoolYearId) {
+          return;
+        }
+        _backToWelcome();
+        setState(() {
+          _students = [];
+          _classes = [];
+          _optionsPending = true;
+          _optionsError = null;
+        });
+        _loadOptions();
       });
     }
     // Adviser gate (mirrors web TeacherChatPage): subject teachers see notice.
     final overview = ref.watch(overviewProvider);
-    final notAdviser = overview.maybeWhen(data: (d) => d['isAdviser'] == false, orElse: () => false);
+    final notAdviser = overview.maybeWhen(
+      data: (d) => d['isAdviser'] == false,
+      orElse: () => false,
+    );
     if (notAdviser) {
-      return _frame(const Center(
-        child: Padding(
-          padding: EdgeInsets.all(24),
-          child: Text('Chat with Bama is available to class advisers.', textAlign: TextAlign.center),
+      return _frame(
+        const Center(
+          child: Padding(
+            padding: EdgeInsets.all(24),
+            child: Text(
+              'Chat with Bama is available to class advisers.',
+              textAlign: TextAlign.center,
+            ),
+          ),
         ),
-      ));
+      );
     }
     if (!_hydrated) {
-      return _frame(ScreenSkeleton(
-        layout: _dedicated ? SkeletonLayout.conversation : SkeletonLayout.list,
-        label: 'Loading Bama',
-      ));
+      return _frame(
+        ScreenSkeleton(
+          layout: _dedicated
+              ? SkeletonLayout.conversation
+              : SkeletonLayout.list,
+          label: 'Loading Bama',
+        ),
+      );
     }
     final active = _dedicated ? _active : null;
     if (_dedicated && active == null) {
@@ -811,83 +936,97 @@ class _State extends ConsumerState<BamaChatPage> {
         ),
       );
     }
-    return _frame(Stack(
-      children: [
-        Column(children: [
-          Expanded(
-            child: active == null
-                ? _Welcome(
-                    conversations: _convos,
-                    onStartAnecdotal: _startAnecdotalChat,
-                     onResume: _resume,
-                    onDelete: _askDelete,
-                    onSeeAll: _openHistory,
-                  )
-                : _ThreadView(
-                    key: ValueKey(active.id),
-                    active: active,
-                     sending: _sending,
-                     writingMessageId: _writingMessageId,
-                    filing: _filing,
-                    flow: _anecMode ? _flow() : null,
-                    flowError: _flowError,
-                    students: _students,
-                    matches: _studentMatches,
-                    studentQ: _studentQ,
-                    onQueryChanged: () => setState(() {}),
-                    sectionNames: _sectionNames,
-                    classesFor: _classesFor,
-                    optionsPending: _optionsPending,
-                    optionsError: _optionsError,
-                    onOptionsRetry: () {
-                      setState(() {
-                        _optionsPending = true;
-                        _optionsError = null;
-                      });
-                      _loadOptions();
-                    },
-                    dateInput: _dateInput,
-                    timeInput: _timeInput,
-                    onStudentPick: _handleStudentPick,
-                    onClassPick: _handleClassPick,
-                    onCategoryPick: _handleCategoryPick,
-                    onTierPick: _handleTierPick,
-                    onDateChanged: (v) => setState(() => _dateInput = v),
-                    onTimeParts: _setTimeParts,
-                    onDatetimeConfirm: _handleDatetimeConfirm,
-                    onFileRequest: () => setState(() => _confirmFiling = true),
-                    onEditStep: _resetToStep,
-                    scroll: _scroll,
-                  ),
+    return _frame(
+      Stack(
+        children: [
+          Column(
+            children: [
+              Expanded(
+                child: active == null
+                    ? _Welcome(
+                        conversations: _convos,
+                        onStartAnecdotal: _startAnecdotalChat,
+                        onResume: _resume,
+                        onDelete: _askDelete,
+                        onSeeAll: _openHistory,
+                      )
+                    : _ThreadView(
+                        key: ValueKey(active.id),
+                        active: active,
+                        sending: _sending,
+                        writingMessageId: _writingMessageId,
+                        filing: _filing,
+                        flow: _anecMode ? _flow() : null,
+                        flowError: _flowError,
+                        students: _students,
+                        matches: _studentMatches,
+                        studentQ: _studentQ,
+                        onQueryChanged: () => setState(() {}),
+                        sectionNames: _sectionNames,
+                        classesFor: _classesFor,
+                        optionsPending: _optionsPending,
+                        optionsError: _optionsError,
+                        onOptionsRetry: () {
+                          setState(() {
+                            _optionsPending = true;
+                            _optionsError = null;
+                          });
+                          _loadOptions();
+                        },
+                        dateInput: _dateInput,
+                        timeInput: _timeInput,
+                        onStudentPick: _handleStudentPick,
+                        onClassPick: _handleClassPick,
+                        onCategoryPick: _handleCategoryPick,
+                        onTierPick: _handleTierPick,
+                        onDateChanged: (v) => setState(() => _dateInput = v),
+                        onTimeParts: _setTimeParts,
+                        onDatetimeConfirm: _handleDatetimeConfirm,
+                        onFileRequest: () =>
+                            setState(() => _confirmFiling = true),
+                        onEditStep: _resetToStep,
+                        scroll: _scroll,
+                      ),
+              ),
+              if (active != null && active.filed)
+                _EndedBar(onNew: _startAnecdotalChat)
+              else if (active != null)
+                _Composer(
+                  draft: _draft,
+                  active: active,
+                  anecMode: _anecMode,
+                  sending: _sending,
+                  filing: _filing,
+                  flow: _anecMode ? _flow() : null,
+                  canFile: _anecMode ? _canFile(_flow()) : false,
+                  onSend: _handleSend,
+                  onChanged: (_) => setState(() {}),
+                ),
+            ],
           ),
-          if (active != null && active.filed)
-            _EndedBar(onNew: _startAnecdotalChat)
-          else if (active != null)
-            _Composer(
-              draft: _draft,
-              active: active,
-              anecMode: _anecMode,
-              sending: _sending,
-              filing: _filing,
-              flow: _anecMode ? _flow() : null,
-              canFile: _anecMode ? _canFile(_flow()) : false,
-              onSend: _handleSend,
-              onChanged: (_) => setState(() {}),
+          if (active == null)
+            Positioned(
+              right: 16,
+              bottom: 0,
+              child: FloatingAdd(
+                child: FloatingActionButton(
+                  tooltip: 'New anecdotal chat',
+                  onPressed: _startAnecdotalChat,
+                  child: const Icon(Icons.add),
+                ),
+              ),
             ),
-        ]),
-        if (active == null)
-           Positioned(
-              right: 16, bottom: 0,
-             child: FloatingAdd(child: FloatingActionButton(
-               tooltip: 'New anecdotal chat',
-               onPressed: _startAnecdotalChat,
-               child: const Icon(Icons.add),
-             )),
-           ),
-        if (_filing) _FilingOverlay(progress: _fileProgress, stage: _fileStage),
-        if (_confirmFiling && active != null && _anecMode) _ConfirmSheet(flow: _flow(), onKeep: () => setState(() => _confirmFiling = false), onFile: _fileRecord),
-      ],
-    ));
+          if (_filing)
+            _FilingOverlay(progress: _fileProgress, stage: _fileStage),
+          if (_confirmFiling && active != null && _anecMode)
+            _ConfirmSheet(
+              flow: _flow(),
+              onKeep: () => setState(() => _confirmFiling = false),
+              onFile: _fileRecord,
+            ),
+        ],
+      ),
+    );
   }
 
   Widget _frame(Widget body) {
@@ -907,8 +1046,12 @@ class _State extends ConsumerState<BamaChatPage> {
           onBack: _backToWelcome,
           onDelete: active == null ? null : () => _askDelete(active),
           onEdit: _openEditSheet,
-          canEdit: active != null && !_sending && !_filing &&
-              !active.filed && _flow().studentId.isNotEmpty,
+          canEdit:
+              active != null &&
+              !_sending &&
+              !_filing &&
+              !active.filed &&
+              _flow().studentId.isNotEmpty,
           busy: _filing,
         ),
         body: SafeArea(top: false, child: body),
@@ -923,9 +1066,9 @@ class _State extends ConsumerState<BamaChatPage> {
       extra: {
         'type': type,
         'conversations': _convos,
-         'onResume': (String id) async {
-           if (mounted) await _openConversation(id);
-         },
+        'onResume': (String id) async {
+          if (mounted) await _openConversation(id);
+        },
         'onDelete': (BamaConversation c) => _askDelete(c),
       },
     );
@@ -943,45 +1086,96 @@ class _State extends ConsumerState<BamaChatPage> {
     final student = _studentById(f.studentId);
     final cls = _selectedClass(f);
     final steps = <Map<String, String>>[];
-    if (f.studentId.isNotEmpty) steps.add({'step': 'student', 'label': 'Student', 'value': student?['name']?.toString() ?? f.studentId});
-    if (f.classKey.isNotEmpty) {
-      steps.add({'step': 'class', 'label': 'Class', 'value': cls == null ? f.classKey : '${cls['subjectName']} · ${cls['sectionName']}'});
+    if (f.studentId.isNotEmpty) {
+      steps.add({
+        'step': 'student',
+        'label': 'Student',
+        'value': student?['name']?.toString() ?? f.studentId,
+      });
     }
-    if (f.category != null) steps.add({'step': 'category', 'label': 'Category', 'value': anecdotalCategoryLabels[f.category] ?? f.category!});
-    if (f.tier != null) steps.add({'step': 'tier', 'label': 'Confidentiality', 'value': anecdotalTierLabels[f.tier] ?? f.tier!});
+    if (f.classKey.isNotEmpty) {
+      steps.add({
+        'step': 'class',
+        'label': 'Class',
+        'value': cls == null
+            ? f.classKey
+            : '${cls['subjectName']} · ${cls['sectionName']}',
+      });
+    }
+    if (f.category != null) {
+      steps.add({
+        'step': 'category',
+        'label': 'Category',
+        'value': anecdotalCategoryLabels[f.category] ?? f.category!,
+      });
+    }
+    if (f.tier != null) {
+      steps.add({
+        'step': 'tier',
+        'label': 'Confidentiality',
+        'value': anecdotalTierLabels[f.tier] ?? f.tier!,
+      });
+    }
     if (f.observationDate != null) {
       steps.add({
         'step': 'datetime',
         'label': 'When',
-        'value': f.observationTime.length >= 5 ? '${f.observationDate} at ${f.observationTime}' : '${f.observationDate}',
+        'value': f.observationTime.length >= 5
+            ? '${f.observationDate} at ${f.observationTime}'
+            : '${f.observationDate}',
       });
     }
     showModalBottomSheet(
       context: context,
       showDragHandle: true,
-      shape: const RoundedRectangleBorder(borderRadius: BorderRadius.vertical(top: Radius.circular(6))),
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(6)),
+      ),
       builder: (ctx) => Padding(
         padding: const EdgeInsets.all(16),
-        child: Column(mainAxisSize: MainAxisSize.min, crossAxisAlignment: CrossAxisAlignment.start, children: [
-          const Text('Change an answer', style: TextStyle(fontSize: 15, fontWeight: FontWeight.w600)),
-          const SizedBox(height: 4),
-          Text('Jump back to a step — everything after it is asked again.', style: Theme.of(ctx).textTheme.bodySmall),
-          const SizedBox(height: 8),
-          if (steps.isEmpty) const ZEmpty(compact: true, icon: Icons.edit_outlined,
-            title: 'Nothing to change yet.'),
-          for (final s in steps)
-            ListTile(
-              dense: true,
-              contentPadding: EdgeInsets.zero,
-              title: Text(s['label']!, style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w600)),
-              subtitle: Text(s['value']!, style: Theme.of(ctx).textTheme.bodySmall),
-              trailing: const Icon(Icons.edit_outlined, size: 18),
-              onTap: () {
-                Navigator.pop(ctx);
-                _resetToStep(s['step']!);
-              },
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            const Text(
+              'Change an answer',
+              style: TextStyle(fontSize: 15, fontWeight: FontWeight.w600),
             ),
-        ]),
+            const SizedBox(height: 4),
+            Text(
+              'Jump back to a step — everything after it is asked again.',
+              style: Theme.of(ctx).textTheme.bodySmall,
+            ),
+            const SizedBox(height: 8),
+            if (steps.isEmpty)
+              const ZEmpty(
+                compact: true,
+                icon: Icons.edit_outlined,
+                title: 'Nothing to change yet.',
+              ),
+            for (final s in steps)
+              ListTile(
+                dense: true,
+                contentPadding: EdgeInsets.zero,
+                title: Text(
+                  s['label']!,
+                  style: const TextStyle(
+                    fontSize: 13,
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+                subtitle: Text(
+                  s['value']!,
+                  style: Theme.of(ctx).textTheme.bodySmall,
+                ),
+                trailing: const Icon(Icons.edit_outlined, size: 18),
+                onTap: () {
+                  Navigator.pop(ctx);
+                  _resetToStep(s['step']!);
+                },
+              ),
+          ],
+        ),
       ),
     );
   }
@@ -990,29 +1184,51 @@ class _State extends ConsumerState<BamaChatPage> {
     showModalBottomSheet(
       context: context,
       showDragHandle: true,
-      shape: const RoundedRectangleBorder(borderRadius: BorderRadius.vertical(top: Radius.circular(6))),
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(6)),
+      ),
       builder: (ctx) => Padding(
         padding: const EdgeInsets.all(16),
-        child: Column(mainAxisSize: MainAxisSize.min, crossAxisAlignment: CrossAxisAlignment.stretch, children: [
-          const Text('Delete this chat?', style: TextStyle(fontSize: 15, fontWeight: FontWeight.w600)),
-          const SizedBox(height: 4),
-          Text('“${target.title}” will be permanently removed. This cannot be undone.', style: Theme.of(ctx).textTheme.bodySmall),
-          const SizedBox(height: 12),
-          Row(children: [
-            Expanded(child: OutlinedButton(onPressed: () => Navigator.pop(ctx), child: const Text('Cancel'))),
-            const SizedBox(width: 8),
-            Expanded(
-              child: FilledButton(
-                style: FilledButton.styleFrom(backgroundColor: ZTokens.destructiveRed, foregroundColor: Colors.white),
-                onPressed: () {
-                  Navigator.pop(ctx);
-                  _confirmDelete(target);
-                },
-                child: const Text('Delete'),
-              ),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            const Text(
+              'Delete this chat?',
+              style: TextStyle(fontSize: 15, fontWeight: FontWeight.w600),
             ),
-          ]),
-        ]),
+            const SizedBox(height: 4),
+            Text(
+              '“${target.title}” will be permanently removed. This cannot be undone.',
+              style: Theme.of(ctx).textTheme.bodySmall,
+            ),
+            const SizedBox(height: 12),
+            Row(
+              children: [
+                Expanded(
+                  child: OutlinedButton(
+                    onPressed: () => Navigator.pop(ctx),
+                    child: const Text('Cancel'),
+                  ),
+                ),
+                const SizedBox(width: 8),
+                Expanded(
+                  child: FilledButton(
+                    style: FilledButton.styleFrom(
+                      backgroundColor: ZTokens.destructiveRed,
+                      foregroundColor: Colors.white,
+                    ),
+                    onPressed: () {
+                      Navigator.pop(ctx);
+                      _confirmDelete(target);
+                    },
+                    child: const Text('Delete'),
+                  ),
+                ),
+              ],
+            ),
+          ],
+        ),
       ),
     );
   }
@@ -1027,7 +1243,14 @@ class _ChatHeader extends StatelessWidget implements PreferredSizeWidget {
   final VoidCallback onEdit;
   final bool canEdit;
   final bool busy;
-  const _ChatHeader({required this.subtitle, required this.onBack, required this.onDelete, required this.onEdit, required this.canEdit, required this.busy});
+  const _ChatHeader({
+    required this.subtitle,
+    required this.onBack,
+    required this.onDelete,
+    required this.onEdit,
+    required this.canEdit,
+    required this.busy,
+  });
 
   @override
   Size get preferredSize => const Size.fromHeight(72);
@@ -1043,30 +1266,54 @@ class _ChatHeader extends StatelessWidget implements PreferredSizeWidget {
         tooltip: canPop ? 'Back' : 'Close',
         onPressed: busy ? null : onBack,
       ),
-      title: Row(children: [
-        const BamaMascot(size: 36),
-        const SizedBox(width: 10),
-        Expanded(
-          child: Column(mainAxisSize: MainAxisSize.min, crossAxisAlignment: CrossAxisAlignment.start, children: [
-            const Text('Bama', maxLines: 1, overflow: TextOverflow.ellipsis, style: TextStyle(fontSize: 14, fontWeight: FontWeight.w700)),
-            Text(subtitle, maxLines: 2, overflow: TextOverflow.ellipsis, style: theme.textTheme.bodySmall),
-          ]),
-        ),
-      ]),
+      title: Row(
+        children: [
+          const BamaMascot(size: 36),
+          const SizedBox(width: 10),
+          Expanded(
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                const Text(
+                  'Bama',
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: TextStyle(fontSize: 14, fontWeight: FontWeight.w700),
+                ),
+                Text(
+                  subtitle,
+                  maxLines: 2,
+                  overflow: TextOverflow.ellipsis,
+                  style: theme.textTheme.bodySmall,
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
       actions: [
-        if (onDelete != null) PopupMenuButton<String>(
-          enabled: !busy,
-          tooltip: 'Conversation actions',
-          icon: const Icon(Icons.more_vert, size: 20),
-          onSelected: (v) {
-            if (v == 'edit') onEdit();
-            if (v == 'delete') onDelete?.call();
-          },
-           itemBuilder: (_) => [
-             if (canEdit) const PopupMenuItem(value: 'edit', child: Text('Change answer', style: TextStyle(fontSize: 13))),
-             const PopupMenuItem(value: 'delete', child: Text('Delete chat', style: TextStyle(fontSize: 13))),
-          ],
-        ),
+        if (onDelete != null)
+          PopupMenuButton<String>(
+            enabled: !busy,
+            tooltip: 'Conversation actions',
+            icon: const Icon(Icons.more_vert, size: 20),
+            onSelected: (v) {
+              if (v == 'edit') onEdit();
+              if (v == 'delete') onDelete?.call();
+            },
+            itemBuilder: (_) => [
+              if (canEdit)
+                const PopupMenuItem(
+                  value: 'edit',
+                  child: Text('Change answer', style: TextStyle(fontSize: 13)),
+                ),
+              const PopupMenuItem(
+                value: 'delete',
+                child: Text('Delete chat', style: TextStyle(fontSize: 13)),
+              ),
+            ],
+          ),
       ],
     );
   }
@@ -1088,39 +1335,50 @@ class _Welcome extends StatelessWidget {
     required this.onSeeAll,
   });
 
-  List<BamaConversation> _ofType(String type) => [for (final c in conversations) if (c.type == type) c];
+  List<BamaConversation> _ofType(String type) => [
+    for (final c in conversations)
+      if (c.type == type) c,
+  ];
 
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
-    return ListView(padding: const EdgeInsets.fromLTRB(24, 24, 24, 170), children: [
-      const Center(child: BamaMascot(size: 96)),
-      const SizedBox(height: 12),
-      const Center(child: Text('Chat with Bama', style: TextStyle(fontSize: 20, fontWeight: FontWeight.w700))),
-      const SizedBox(height: 4),
-      Center(
-        child: Text(
-          'File anecdotal records by chatting — Bama walks you through the student, class, details, and review, then files the record.',
-          textAlign: TextAlign.center,
-          style: theme.textTheme.bodySmall,
+    return ListView(
+      padding: const EdgeInsets.fromLTRB(24, 24, 24, 170),
+      children: [
+        const Center(child: BamaMascot(size: 96)),
+        const SizedBox(height: 12),
+        const Center(
+          child: Text(
+            'Chat with Bama',
+            style: TextStyle(fontSize: 20, fontWeight: FontWeight.w700),
+          ),
         ),
-      ),
-      const SizedBox(height: 16),
-      _EntryCard(
-        title: 'Anecdotal record',
-        subtitle: 'Write an incident report',
-        onTap: onStartAnecdotal,
-      ),
-      const SizedBox(height: 16),
-      _LogSection(
-        title: 'Anecdotal logs',
-        emptyText: 'No anecdotal chats yet.',
-        items: _ofType('anecdotal'),
-        onResume: onResume,
-        onDelete: onDelete,
-        onSeeAll: () => onSeeAll('anecdotal'),
-      ),
-    ]);
+        const SizedBox(height: 4),
+        Center(
+          child: Text(
+            'File anecdotal records by chatting — Bama walks you through the student, class, details, and review, then files the record.',
+            textAlign: TextAlign.center,
+            style: theme.textTheme.bodySmall,
+          ),
+        ),
+        const SizedBox(height: 16),
+        _EntryCard(
+          title: 'Anecdotal record',
+          subtitle: 'Write an incident report',
+          onTap: onStartAnecdotal,
+        ),
+        const SizedBox(height: 16),
+        _LogSection(
+          title: 'Anecdotal logs',
+          emptyText: 'No anecdotal chats yet.',
+          items: _ofType('anecdotal'),
+          onResume: onResume,
+          onDelete: onDelete,
+          onSeeAll: () => onSeeAll('anecdotal'),
+        ),
+      ],
+    );
   }
 }
 
@@ -1128,28 +1386,43 @@ class _EntryCard extends StatelessWidget {
   final String title;
   final String subtitle;
   final VoidCallback onTap;
-  const _EntryCard({required this.title, required this.subtitle, required this.onTap});
+  const _EntryCard({
+    required this.title,
+    required this.subtitle,
+    required this.onTap,
+  });
 
   @override
   Widget build(BuildContext context) => Card(
-        margin: EdgeInsets.zero,
-        child: InkWell(
-          borderRadius: BorderRadius.circular(6),
-          onTap: onTap,
-          child: Padding(
-            padding: const EdgeInsets.all(16),
-            child: Row(children: [
-              Expanded(
-                child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                  Text(title, style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w600)),
+    margin: EdgeInsets.zero,
+    child: InkWell(
+      borderRadius: BorderRadius.circular(6),
+      onTap: onTap,
+      child: Padding(
+        padding: const EdgeInsets.all(16),
+        child: Row(
+          children: [
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    title,
+                    style: const TextStyle(
+                      fontSize: 14,
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
                   Text(subtitle, style: const TextStyle(fontSize: 13)),
-                ]),
+                ],
               ),
-              const Icon(Icons.chevron_right, size: 18),
-            ]),
-          ),
+            ),
+            const Icon(Icons.chevron_right, size: 18),
+          ],
         ),
-      );
+      ),
+    ),
+  );
 }
 
 class _LogSection extends StatelessWidget {
@@ -1172,41 +1445,67 @@ class _LogSection extends StatelessWidget {
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final recent = items.take(3).toList();
-    return Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-      Row(children: [
-        Expanded(child: Text(title, style: theme.textTheme.labelSmall)),
-        if (items.isNotEmpty)
-          TextButton(
-            style: TextButton.styleFrom(visualDensity: VisualDensity.compact, padding: const EdgeInsets.symmetric(horizontal: 8)),
-            onPressed: onSeeAll,
-            child: Text('See all (${items.length})', style: const TextStyle(fontSize: 12)),
-          ),
-      ]),
-      const SizedBox(height: 4),
-      if (recent.isEmpty)
-        ZEmpty(compact: true, icon: Icons.chat_bubble_outline, title: emptyText)
-      else
-        for (final c in recent)
-          Padding(
-            padding: const EdgeInsets.only(bottom: 8),
-            child: Card(
-              margin: EdgeInsets.zero,
-              child: ListTile(
-                dense: true,
-                title: Text(c.title, maxLines: 1, overflow: TextOverflow.ellipsis, style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w600)),
-                subtitle: Text(
-                  '${c.messages.length} messages${c.filed ? ' · Filed' : ''}',
-                  style: const TextStyle(fontSize: 12, fontFeatures: [FontFeature.tabularFigures()]),
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Row(
+          children: [
+            Expanded(child: Text(title, style: theme.textTheme.labelSmall)),
+            if (items.isNotEmpty)
+              TextButton(
+                style: TextButton.styleFrom(
+                  visualDensity: VisualDensity.compact,
+                  padding: const EdgeInsets.symmetric(horizontal: 8),
                 ),
-                trailing: IconButton(
-                  icon: const Icon(Icons.delete_outline, size: 18),
-                  onPressed: () => onDelete(c),
+                onPressed: onSeeAll,
+                child: Text(
+                  'See all (${items.length})',
+                  style: const TextStyle(fontSize: 12),
                 ),
-                onTap: () => onResume(c.id),
+              ),
+          ],
+        ),
+        const SizedBox(height: 4),
+        if (recent.isEmpty)
+          ZEmpty(
+            compact: true,
+            icon: Icons.chat_bubble_outline,
+            title: emptyText,
+          )
+        else
+          for (final c in recent)
+            Padding(
+              padding: const EdgeInsets.only(bottom: 8),
+              child: Card(
+                margin: EdgeInsets.zero,
+                child: ListTile(
+                  dense: true,
+                  title: Text(
+                    c.title,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: const TextStyle(
+                      fontSize: 13,
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
+                  subtitle: Text(
+                    '${c.messages.length} messages${c.filed ? ' · Filed' : ''}',
+                    style: const TextStyle(
+                      fontSize: 12,
+                      fontFeatures: [FontFeature.tabularFigures()],
+                    ),
+                  ),
+                  trailing: IconButton(
+                    icon: const Icon(Icons.delete_outline, size: 18),
+                    onPressed: () => onDelete(c),
+                  ),
+                  onTap: () => onResume(c.id),
+                ),
               ),
             ),
-          ),
-    ]);
+      ],
+    );
   }
 }
 
@@ -1278,76 +1577,105 @@ class _ThreadView extends StatelessWidget {
     final anecOpen = active.type == 'anecdotal' && !active.filed && f != null;
     return LayoutBuilder(
       builder: (context, constraints) => ListView(
-      controller: scroll,
-      reverse: true,
-      padding: const EdgeInsets.fromLTRB(16, 12, 16, 8),
-      children: [
-        ConstrainedBox(
-          constraints: BoxConstraints(
-            minHeight: (constraints.maxHeight - 20).clamp(0.0, double.infinity),
-          ),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.stretch,
-            children: [
-         for (final m in active.messages)
-           if (m.id != writingMessageId) _Bubble(message: m),
-         if (sending || filing) const BamaWritingIndicator(),
-         if (anecOpen && !sending && !filing) ...[
-          const SizedBox(height: 4),
-          if (f.studentId.isEmpty)
-            _StudentPicker(
-              pending: optionsPending,
-              onQueryChanged: onQueryChanged,
-              loadError: optionsError,
-              onRetry: onOptionsRetry,
-              matches: matches,
-              total: students.length,
-              query: studentQ,
-              sectionNames: sectionNames,
-              onPick: onStudentPick,
-            )
-          else if (f.classKey.isEmpty)
-            _PickCard(
-              title: 'Which class is this report for?',
-              children: [
-                for (final c in classesFor(_studentSection(f))) _OptionButton(label: '${c['subjectName']} · ${c['sectionName']}', onTap: () => onClassPick('${c['subjectId']}|${c['sectionId']}|${c['termId']}')),
-              ],
-            )
-          else if (f.category == null)
-            _PickCard(title: 'What is the category for this report?', children: [
-              for (final v in anecdotalCategories) _OptionButton(label: anecdotalCategoryLabels[v]!, onTap: () => onCategoryPick(v)),
-            ])
-          else if (f.tier == null)
-            _PickCard(title: 'What is the confidentiality tier?', children: [
-              for (final v in anecdotalTiers) _OptionButton(label: anecdotalTierLabels[v]!, onTap: () => onTierPick(v)),
-            ])
-          else if (f.observationDate == null)
-            _DatetimeCard(
-              dateInput: dateInput,
-              timeInput: timeInput,
-              onDateChanged: onDateChanged,
-              onTimeParts: onTimeParts,
-              onConfirm: onDatetimeConfirm,
-            )
-          else if (f.previewShown && f.textQuestion == null)
-            _PreviewCard(
-              flow: f,
-              sectionNames: sectionNames,
-              students: students,
-              onFile: onFileRequest,
-              filing: filing,
-              onEditStep: onEditStep,
+        controller: scroll,
+        reverse: true,
+        padding: const EdgeInsets.fromLTRB(16, 12, 16, 8),
+        children: [
+          ConstrainedBox(
+            constraints: BoxConstraints(
+              minHeight: (constraints.maxHeight - 20).clamp(
+                0.0,
+                double.infinity,
+              ),
             ),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                for (final m in active.messages)
+                  if (m.id != writingMessageId) _Bubble(message: m),
+                if (sending || filing) const BamaWritingIndicator(),
+                if (anecOpen && !sending && !filing) ...[
+                  const SizedBox(height: 4),
+                  if (f.studentId.isEmpty)
+                    _StudentPicker(
+                      pending: optionsPending,
+                      onQueryChanged: onQueryChanged,
+                      loadError: optionsError,
+                      onRetry: onOptionsRetry,
+                      matches: matches,
+                      total: students.length,
+                      query: studentQ,
+                      sectionNames: sectionNames,
+                      onPick: onStudentPick,
+                    )
+                  else if (f.classKey.isEmpty)
+                    _PickCard(
+                      title: 'Which class is this report for?',
+                      children: [
+                        for (final c in classesFor(_studentSection(f)))
+                          _OptionButton(
+                            label: '${c['subjectName']} · ${c['sectionName']}',
+                            onTap: () => onClassPick(
+                              '${c['subjectId']}|${c['sectionId']}|${c['termId']}',
+                            ),
+                          ),
+                      ],
+                    )
+                  else if (f.category == null)
+                    _PickCard(
+                      title: 'What is the category for this report?',
+                      children: [
+                        for (final v in anecdotalCategories)
+                          _OptionButton(
+                            label: anecdotalCategoryLabels[v]!,
+                            onTap: () => onCategoryPick(v),
+                          ),
+                      ],
+                    )
+                  else if (f.tier == null)
+                    _PickCard(
+                      title: 'What is the confidentiality tier?',
+                      children: [
+                        for (final v in anecdotalTiers)
+                          _OptionButton(
+                            label: anecdotalTierLabels[v]!,
+                            onTap: () => onTierPick(v),
+                          ),
+                      ],
+                    )
+                  else if (f.observationDate == null)
+                    _DatetimeCard(
+                      dateInput: dateInput,
+                      timeInput: timeInput,
+                      onDateChanged: onDateChanged,
+                      onTimeParts: onTimeParts,
+                      onConfirm: onDatetimeConfirm,
+                    )
+                  else if (f.previewShown && f.textQuestion == null)
+                    _PreviewCard(
+                      flow: f,
+                      sectionNames: sectionNames,
+                      students: students,
+                      onFile: onFileRequest,
+                      filing: filing,
+                      onEditStep: onEditStep,
+                    ),
+                ],
+                if (flowError != null)
+                  Padding(
+                    padding: const EdgeInsets.only(top: 4),
+                    child: Text(
+                      flowError!,
+                      style: TextStyle(
+                        color: theme.colorScheme.error,
+                        fontSize: 13,
+                      ),
+                    ),
+                  ),
+              ],
+            ),
+          ),
         ],
-        if (flowError != null)
-          Padding(
-            padding: const EdgeInsets.only(top: 4),
-            child: Text(flowError!, style: TextStyle(color: theme.colorScheme.error, fontSize: 13)),
-          ),
-            ],
-          ),
-        ),
-      ],
       ),
     );
   }
@@ -1358,7 +1686,6 @@ class _ThreadView extends StatelessWidget {
     }
     return null;
   }
-
 }
 
 class _Bubble extends StatelessWidget {
@@ -1371,28 +1698,37 @@ class _Bubble extends StatelessWidget {
     final bubble = Container(
       margin: const EdgeInsets.only(bottom: 8),
       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
-      constraints: BoxConstraints(maxWidth: MediaQuery.of(context).size.width * 0.82),
+      constraints: BoxConstraints(
+        maxWidth: MediaQuery.of(context).size.width * 0.82,
+      ),
       decoration: BoxDecoration(
         color: theme.colorScheme.surfaceContainerLow,
         borderRadius: BorderRadius.circular(24),
         border: Border.all(color: theme.colorScheme.outline),
       ),
-      child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-        Text(message.text, style: const TextStyle(fontSize: 13, height: 1.6)),
-        if (message.preview != null) _InlinePreview(preview: message.preview!),
-        if (message.detail != null) const _FiledTag(),
-      ]),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(message.text, style: const TextStyle(fontSize: 13, height: 1.6)),
+          if (message.preview != null)
+            _InlinePreview(preview: message.preview!),
+          if (message.detail != null) const _FiledTag(),
+        ],
+      ),
     );
     if (message.fromUser) {
       return Align(alignment: Alignment.centerRight, child: bubble);
     }
-    return Row(crossAxisAlignment: CrossAxisAlignment.start, children: [
-      const Padding(
-        padding: EdgeInsets.only(right: 8, top: 2),
-        child: BamaMascot(size: 28),
-      ),
-      Flexible(child: bubble),
-    ]);
+    return Row(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        const Padding(
+          padding: EdgeInsets.only(right: 8, top: 2),
+          child: BamaMascot(size: 28),
+        ),
+        Flexible(child: bubble),
+      ],
+    );
   }
 }
 
@@ -1404,21 +1740,31 @@ class _InlinePreview extends StatelessWidget {
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     Text row(String label, String value) => Text.rich(
-          TextSpan(children: [
-            TextSpan(text: '$label: ', style: theme.textTheme.bodySmall?.copyWith(fontWeight: FontWeight.w600)),
-            TextSpan(text: value, style: theme.textTheme.bodySmall),
-          ]),
-        );
+      TextSpan(
+        children: [
+          TextSpan(
+            text: '$label: ',
+            style: theme.textTheme.bodySmall?.copyWith(
+              fontWeight: FontWeight.w600,
+            ),
+          ),
+          TextSpan(text: value, style: theme.textTheme.bodySmall),
+        ],
+      ),
+    );
     return Padding(
       padding: const EdgeInsets.only(top: 8),
-      child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-        const Divider(height: 1),
-        const SizedBox(height: 6),
-        row('Student', '${preview['studentName']} · ${preview['lrn']}'),
-        row('Section', '${preview['section']}'),
-        row('Category', '${preview['category']}'),
-        row('Observed', '${preview['observationDateTime']}'),
-      ]),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          const Divider(height: 1),
+          const SizedBox(height: 6),
+          row('Student', '${preview['studentName']} · ${preview['lrn']}'),
+          row('Section', '${preview['section']}'),
+          row('Category', '${preview['category']}'),
+          row('Observed', '${preview['observationDateTime']}'),
+        ],
+      ),
     );
   }
 }
@@ -1427,9 +1773,13 @@ class _FiledTag extends StatelessWidget {
   const _FiledTag();
   @override
   Widget build(BuildContext context) => Padding(
-        padding: const EdgeInsets.only(top: 6),
-        child: Text('Check Filed', style: Theme.of(context).textTheme.bodySmall?.copyWith(fontWeight: FontWeight.w700)),
-      );
+    padding: const EdgeInsets.only(top: 6),
+    child: Text(
+      'Check Filed',
+      style: Theme.of(context).textTheme.bodySmall
+          ?.copyWith(fontWeight: FontWeight.w700),
+    ),
+  );
 }
 
 class _PickCard extends StatelessWidget {
@@ -1440,17 +1790,27 @@ class _PickCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) => Card(
-        margin: const EdgeInsets.only(bottom: 8),
-        child: Padding(
-          padding: const EdgeInsets.all(12),
-          child: Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
-            Text(title, style: const TextStyle(fontSize: 15, fontWeight: FontWeight.w600)),
-            if (subtitle != null) ...[const SizedBox(height: 2), Text(subtitle!, style: Theme.of(context).textTheme.bodySmall)],
-            const SizedBox(height: 8),
-            for (final w in children) Padding(padding: const EdgeInsets.only(bottom: 6), child: w),
-          ]),
-        ),
-      );
+    margin: const EdgeInsets.only(bottom: 8),
+    child: Padding(
+      padding: const EdgeInsets.all(12),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          Text(
+            title,
+            style: const TextStyle(fontSize: 15, fontWeight: FontWeight.w600),
+          ),
+          if (subtitle != null) ...[
+            const SizedBox(height: 2),
+            Text(subtitle!, style: Theme.of(context).textTheme.bodySmall),
+          ],
+          const SizedBox(height: 8),
+          for (final w in children)
+            Padding(padding: const EdgeInsets.only(bottom: 6), child: w),
+        ],
+      ),
+    ),
+  );
 }
 
 class _OptionButton extends StatelessWidget {
@@ -1460,10 +1820,13 @@ class _OptionButton extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) => OutlinedButton(
-        style: OutlinedButton.styleFrom(alignment: Alignment.centerLeft, padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10)),
-        onPressed: onTap,
-        child: Text(label, style: const TextStyle(fontSize: 13)),
-      );
+    style: OutlinedButton.styleFrom(
+      alignment: Alignment.centerLeft,
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+    ),
+    onPressed: onTap,
+    child: Text(label, style: const TextStyle(fontSize: 13)),
+  );
 }
 
 class _StudentPicker extends StatelessWidget {
@@ -1497,7 +1860,10 @@ class _StudentPicker extends StatelessWidget {
       children: [
         TextField(
           controller: query,
-          decoration: const InputDecoration(prefixIcon: Icon(Icons.search, size: 18), hintText: 'Search name, LRN, or section…'),
+          decoration: const InputDecoration(
+            prefixIcon: Icon(Icons.search, size: 18),
+            hintText: 'Search name, LRN, or section…',
+          ),
           onChanged: (_) => onQueryChanged(),
         ),
         if (pending)
@@ -1505,21 +1871,38 @@ class _StudentPicker extends StatelessWidget {
             padding: EdgeInsets.symmetric(vertical: 8),
             child: ScreenSkeleton(
               layout: SkeletonLayout.notifications,
-              label: 'Loading students', section: true, count: 2,
+              label: 'Loading students',
+              section: true,
+              count: 2,
             ),
           )
         else if (loadError != null)
           Padding(
             padding: const EdgeInsets.symmetric(vertical: 8),
-            child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-              Text(loadError!, style: TextStyle(color: theme.colorScheme.error, fontSize: 13)),
-              const SizedBox(height: 6),
-              OutlinedButton(onPressed: onRetry, child: const Text('Retry')),
-            ]),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  loadError!,
+                  style: TextStyle(
+                    color: theme.colorScheme.error,
+                    fontSize: 13,
+                  ),
+                ),
+                const SizedBox(height: 6),
+                OutlinedButton(onPressed: onRetry, child: const Text('Retry')),
+              ],
+            ),
           )
         else if (matches.isEmpty)
-          const Padding(padding: EdgeInsets.symmetric(vertical: 8), child: ZEmpty(
-            compact: true, icon: Icons.search, title: 'No students match.'))
+          const Padding(
+            padding: EdgeInsets.symmetric(vertical: 8),
+            child: ZEmpty(
+              compact: true,
+              icon: Icons.search,
+              title: 'No students match.',
+            ),
+          )
         else
           Container(
             constraints: const BoxConstraints(maxHeight: 224),
@@ -1530,16 +1913,29 @@ class _StudentPicker extends StatelessWidget {
                 final s = matches[i];
                 return ListTile(
                   dense: true,
-                  title: Text((s['name'] ?? '').toString(), style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w600)),
-                  subtitle: Text('${s['lrn']} · ${sectionNames[s['sectionId']?.toString()] ?? ''}',
-                      style: theme.textTheme.bodySmall?.copyWith(fontFeatures: const [FontFeature.tabularFigures()])),
+                  title: Text(
+                    (s['name'] ?? '').toString(),
+                    style: const TextStyle(
+                      fontSize: 13,
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
+                  subtitle: Text(
+                    '${s['lrn']} · ${sectionNames[s['sectionId']?.toString()] ?? ''}',
+                    style: theme.textTheme.bodySmall?.copyWith(
+                      fontFeatures: const [FontFeature.tabularFigures()],
+                    ),
+                  ),
                   onTap: () => onPick(s['id'].toString()),
                 );
               },
             ),
           ),
         if (!pending && total > matches.length)
-          Text('${total - matches.length} more — refine your search.', style: theme.textTheme.bodySmall),
+          Text(
+            '${total - matches.length} more — refine your search.',
+            style: theme.textTheme.bodySmall,
+          ),
       ],
     );
   }
@@ -1571,7 +1967,20 @@ class _DatetimeCard extends StatelessWidget {
       minute = match.group(2)!;
       ampm = h24 < 12 ? 'AM' : 'PM';
     }
-    const hours = ['01', '02', '03', '04', '05', '06', '07', '08', '09', '10', '11', '12'];
+    const hours = [
+      '01',
+      '02',
+      '03',
+      '04',
+      '05',
+      '06',
+      '07',
+      '08',
+      '09',
+      '10',
+      '11',
+      '12',
+    ];
     final minutes = [for (var i = 0; i < 60; i++) i.toString().padLeft(2, '0')];
     return _PickCard(
       title: 'When did this happen?',
@@ -1579,42 +1988,68 @@ class _DatetimeCard extends StatelessWidget {
       children: [
         OutlinedButton.icon(
           icon: const Icon(Icons.calendar_month_outlined, size: 16),
-          label: Text(dateInput.isEmpty ? 'Pick a date' : dateInput, style: const TextStyle(fontFeatures: [FontFeature.tabularFigures()])),
+          label: Text(
+            dateInput.isEmpty ? 'Pick a date' : dateInput,
+            style: const TextStyle(
+              fontFeatures: [FontFeature.tabularFigures()],
+            ),
+          ),
           onPressed: () async {
             final today = DateTime.now();
-            final picked = await showDatePicker(context: context, firstDate: DateTime(today.year - 1), lastDate: today, initialDate: today);
-            if (picked != null) onDateChanged(picked.toIso8601String().split('T').first);
+            final picked = await showDatePicker(
+              context: context,
+              firstDate: DateTime(today.year - 1),
+              lastDate: today,
+              initialDate: today,
+            );
+            if (picked != null) {
+              onDateChanged(picked.toIso8601String().split('T').first);
+            }
           },
         ),
-        Row(children: [
-          Expanded(
-            child: DropdownButtonFormField<String>(
-              initialValue: null,
-              decoration: InputDecoration(labelText: 'Hour ($hour)'),
-              items: [for (final h in hours) DropdownMenuItem(value: h, child: Text(h))],
-              onChanged: (v) => onTimeParts(v, null, null),
+        Row(
+          children: [
+            Expanded(
+              child: DropdownButtonFormField<String>(
+                initialValue: null,
+                decoration: InputDecoration(labelText: 'Hour ($hour)'),
+                items: [
+                  for (final h in hours)
+                    DropdownMenuItem(value: h, child: Text(h)),
+                ],
+                onChanged: (v) => onTimeParts(v, null, null),
+              ),
             ),
-          ),
-          const SizedBox(width: 8),
-          Expanded(
-            child: DropdownButtonFormField<String>(
-              initialValue: null,
-              decoration: InputDecoration(labelText: 'Min ($minute)'),
-              items: [for (final m in minutes) DropdownMenuItem(value: m, child: Text(m))],
-              onChanged: (v) => onTimeParts(null, v, null),
+            const SizedBox(width: 8),
+            Expanded(
+              child: DropdownButtonFormField<String>(
+                initialValue: null,
+                decoration: InputDecoration(labelText: 'Min ($minute)'),
+                items: [
+                  for (final m in minutes)
+                    DropdownMenuItem(value: m, child: Text(m)),
+                ],
+                onChanged: (v) => onTimeParts(null, v, null),
+              ),
             ),
-          ),
-          const SizedBox(width: 8),
-          Expanded(
-            child: DropdownButtonFormField<String>(
-              initialValue: null,
-              decoration: InputDecoration(labelText: ampm),
-              items: const [DropdownMenuItem(value: 'AM', child: Text('AM')), DropdownMenuItem(value: 'PM', child: Text('PM'))],
-              onChanged: (v) => onTimeParts(null, null, v),
+            const SizedBox(width: 8),
+            Expanded(
+              child: DropdownButtonFormField<String>(
+                initialValue: null,
+                decoration: InputDecoration(labelText: ampm),
+                items: const [
+                  DropdownMenuItem(value: 'AM', child: Text('AM')),
+                  DropdownMenuItem(value: 'PM', child: Text('PM')),
+                ],
+                onChanged: (v) => onTimeParts(null, null, v),
+              ),
             ),
-          ),
-        ]),
-        FilledButton(onPressed: dateInput.isEmpty ? null : onConfirm, child: const Text('Confirm date')),
+          ],
+        ),
+        FilledButton(
+          onPressed: dateInput.isEmpty ? null : onConfirm,
+          child: const Text('Confirm date'),
+        ),
       ],
     );
   }
@@ -1627,7 +2062,14 @@ class _PreviewCard extends StatelessWidget {
   final VoidCallback onFile;
   final bool filing;
   final ValueChanged<String> onEditStep;
-  const _PreviewCard({required this.flow, required this.sectionNames, required this.students, required this.onFile, required this.filing, required this.onEditStep});
+  const _PreviewCard({
+    required this.flow,
+    required this.sectionNames,
+    required this.students,
+    required this.onFile,
+    required this.filing,
+    required this.onEditStep,
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -1636,66 +2078,112 @@ class _PreviewCard extends StatelessWidget {
     for (final s in students) {
       if (s['id']?.toString() == flow.studentId) student = s;
     }
-    final obs = flow.observationTime.length >= 5 ? '${flow.observationDate} ${flow.observationTime}' : '${flow.observationDate}';
+    final obs = flow.observationTime.length >= 5
+        ? '${flow.observationDate} ${flow.observationTime}'
+        : '${flow.observationDate}';
     Widget row(String label, String value, {String? editStep}) => Padding(
-          padding: const EdgeInsets.symmetric(vertical: 2),
-          child: Row(crossAxisAlignment: CrossAxisAlignment.start, children: [
-            SizedBox(
-              width: 100,
-              child: Text(label, style: theme.textTheme.bodySmall?.copyWith(color: const Color(0xFF71809B))),
+      padding: const EdgeInsets.symmetric(vertical: 2),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          SizedBox(
+            width: 100,
+            child: Text(
+              label,
+              style: theme.textTheme.bodySmall?.copyWith(
+                color: zMutedInk(context),
+              ),
             ),
-            Expanded(child: Text(value.isEmpty ? '—' : value, style: const TextStyle(fontSize: 13, color: Color(0xFF172033)))),
-            if (editStep != null)
-              InkWell(
-                borderRadius: BorderRadius.circular(6),
-                onTap: () => onEditStep(editStep),
-                child: const Padding(
-                  padding: EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-                  child: Text('Edit', style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: Color(0xFF2563EB))),
+          ),
+          Expanded(
+            child: Text(
+              value.isEmpty ? '—' : value,
+              style: TextStyle(fontSize: 13, color: zInk(context)),
+            ),
+          ),
+          if (editStep != null)
+            InkWell(
+              borderRadius: BorderRadius.circular(6),
+              onTap: () => onEditStep(editStep),
+              child: Padding(
+                padding: EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                child: Text(
+                  'Edit',
+                  style: TextStyle(
+                    fontSize: 12,
+                    fontWeight: FontWeight.w600,
+                    color: zLift(context, Color(0xFF2563EB)),
+                  ),
                 ),
               ),
-          ]),
-        );
+            ),
+        ],
+      ),
+    );
     return Card(
       margin: const EdgeInsets.only(bottom: 8),
       elevation: 0,
-      color: Colors.white,
+      color: zCard(context),
       clipBehavior: Clip.antiAlias,
       shape: RoundedRectangleBorder(
         borderRadius: BorderRadius.circular(16),
-        side: const BorderSide(color: Color(0xFFE6ECF4)),
+        side: BorderSide(color: zLine(context)),
       ),
       child: Padding(
         padding: const EdgeInsets.all(14),
-        child: Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
-          const Text('Review the complete record before filing:', style: TextStyle(fontSize: 14, fontWeight: FontWeight.w600, color: Color(0xFF172033))),
-          const Padding(
-            padding: EdgeInsets.symmetric(vertical: 12),
-            child: Divider(height: 1, color: Color(0xFFF0F3F8)),
-          ),
-          row('Student', '${student?['name'] ?? ''} · ${student?['lrn'] ?? ''}', editStep: 'student'),
-          row('Section', sectionNames[student?['sectionId']?.toString()] ?? '—'),
-          row('Category', anecdotalCategoryLabels[flow.category] ?? '', editStep: 'category'),
-          row('Tier', anecdotalTierLabels[flow.tier] ?? '', editStep: 'tier'),
-          row('Observed', obs, editStep: 'datetime'),
-          row('Location', flow.location.isEmpty ? 'Classroom' : flow.location),
-          row('Incident', flow.incident),
-          if (flow.notes.isNotEmpty) row('Notes', flow.notes),
-          if (flow.classPerf.isNotEmpty) row('Class', flow.classPerf),
-          if (flow.attendance.isNotEmpty) row('Attendance', flow.attendance),
-          const Padding(
-            padding: EdgeInsets.symmetric(vertical: 12),
-            child: Divider(height: 1, color: Color(0xFFF0F3F8)),
-          ),
-          FilledButton(
-            style: FilledButton.styleFrom(
-              backgroundColor: const Color(0xFF2563EB),
-              foregroundColor: Colors.white,
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            Text(
+              'Review the complete record before filing:',
+              style: TextStyle(
+                fontSize: 14,
+                fontWeight: FontWeight.w600,
+                color: zInk(context),
+              ),
             ),
-            onPressed: filing ? null : onFile,
-            child: Text(filing ? 'Filing…' : 'File record'),
-          ),
-        ]),
+            Padding(
+              padding: EdgeInsets.symmetric(vertical: 12),
+              child: Divider(height: 1, color: zLine(context)),
+            ),
+            row(
+              'Student',
+              '${student?['name'] ?? ''} · ${student?['lrn'] ?? ''}',
+              editStep: 'student',
+            ),
+            row(
+              'Section',
+              sectionNames[student?['sectionId']?.toString()] ?? '—',
+            ),
+            row(
+              'Category',
+              anecdotalCategoryLabels[flow.category] ?? '',
+              editStep: 'category',
+            ),
+            row('Tier', anecdotalTierLabels[flow.tier] ?? '', editStep: 'tier'),
+            row('Observed', obs, editStep: 'datetime'),
+            row(
+              'Location',
+              flow.location.isEmpty ? 'Classroom' : flow.location,
+            ),
+            row('Incident', flow.incident),
+            if (flow.notes.isNotEmpty) row('Notes', flow.notes),
+            if (flow.classPerf.isNotEmpty) row('Class', flow.classPerf),
+            if (flow.attendance.isNotEmpty) row('Attendance', flow.attendance),
+            Padding(
+              padding: EdgeInsets.symmetric(vertical: 12),
+              child: Divider(height: 1, color: zLine(context)),
+            ),
+            FilledButton(
+              style: FilledButton.styleFrom(
+                backgroundColor: zLift(context, const Color(0xFF2563EB)),
+                foregroundColor: Colors.white,
+              ),
+              onPressed: filing ? null : onFile,
+              child: Text(filing ? 'Filing…' : 'File record'),
+            ),
+          ],
+        ),
       ),
     );
   }
@@ -1729,7 +2217,8 @@ class _Composer extends StatelessWidget {
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final f = flow;
-    final bool disabled = sending || filing || (anecMode && f?.textQuestion == null);
+    final bool disabled =
+        sending || filing || (anecMode && f?.textQuestion == null);
     final String placeholder;
     if (anecMode) {
       final q = f?.textQuestion;
@@ -1744,76 +2233,110 @@ class _Composer extends StatelessWidget {
       placeholder = 'Type your answer…';
     }
     final q0 = f?.textQuestion;
-    final String label = (anecMode && q0 != null) ? textQuestionLabels[q0]! : 'Ask Bama';
+    final String label = (anecMode && q0 != null)
+        ? textQuestionLabels[q0]!
+        : 'Ask Bama';
     final bool sendDisabled;
     if (sending || filing) {
       sendDisabled = true;
     } else if (anecMode) {
-      sendDisabled = f?.textQuestion != null ? draft.text.trim().isEmpty || (f?.studentId.isEmpty ?? true) : !canFile;
+      sendDisabled = f?.textQuestion != null
+          ? draft.text.trim().isEmpty || (f?.studentId.isEmpty ?? true)
+          : !canFile;
     } else {
       sendDisabled = draft.text.trim().isEmpty;
     }
-    final String sendLabel = (anecMode && f?.textQuestion == null) ? 'File record' : 'Send message';
-    final String hint = sending || filing ? 'Working on it…' : 'Type your answer, then send';
+    final String sendLabel = (anecMode && f?.textQuestion == null)
+        ? 'File record'
+        : 'Send message';
+    final String hint = sending || filing
+        ? 'Working on it…'
+        : 'Type your answer, then send';
     return Container(
       padding: const EdgeInsets.fromLTRB(12, 8, 12, 12),
-      decoration: BoxDecoration(border: Border(top: BorderSide(color: theme.colorScheme.outline))),
-      child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-        Text(sending ? 'Please wait' : label, style: theme.textTheme.labelSmall),
-        const SizedBox(height: 4),
-        Row(crossAxisAlignment: CrossAxisAlignment.end, children: [
-          Expanded(
-            child: TextField(
-              controller: draft,
-              enabled: !disabled,
-              decoration: InputDecoration(
-                hintText: sending ? 'Working on it…' : placeholder,
-                filled: true,
-                fillColor: theme.colorScheme.surfaceContainerLow,
-                contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-                border: OutlineInputBorder(
-                  borderRadius: BorderRadius.circular(24),
-                  borderSide: BorderSide.none,
-                ),
-                enabledBorder: OutlineInputBorder(
-                  borderRadius: BorderRadius.circular(24),
-                  borderSide: BorderSide.none,
-                ),
-                focusedBorder: OutlineInputBorder(
-                  borderRadius: BorderRadius.circular(24),
-                  borderSide: BorderSide(color: theme.colorScheme.primary),
+      decoration: BoxDecoration(
+        border: Border(top: BorderSide(color: theme.colorScheme.outline)),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            sending ? 'Please wait' : label,
+            style: theme.textTheme.labelSmall,
+          ),
+          const SizedBox(height: 4),
+          Row(
+            crossAxisAlignment: CrossAxisAlignment.end,
+            children: [
+              Expanded(
+                child: TextField(
+                  controller: draft,
+                  enabled: !disabled,
+                  decoration: InputDecoration(
+                    hintText: sending ? 'Working on it…' : placeholder,
+                    filled: true,
+                    fillColor: theme.colorScheme.surfaceContainerLow,
+                    contentPadding: const EdgeInsets.symmetric(
+                      horizontal: 16,
+                      vertical: 12,
+                    ),
+                    border: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(24),
+                      borderSide: BorderSide.none,
+                    ),
+                    enabledBorder: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(24),
+                      borderSide: BorderSide.none,
+                    ),
+                    focusedBorder: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(24),
+                      borderSide: BorderSide(color: theme.colorScheme.primary),
+                    ),
+                  ),
+                  minLines: 1,
+                  maxLines: 6,
+                  maxLength: 2000,
+                  buildCounter: (
+                    _, {
+                    required currentLength,
+                    required isFocused,
+                    maxLength,
+                  }) => null,
+                  keyboardType: TextInputType.multiline,
+                  textInputAction: TextInputAction.newline,
+                  onChanged: onChanged,
                 ),
               ),
-              minLines: 1,
-              maxLines: 6,
-              maxLength: 2000,
-              buildCounter: (_, {required currentLength, required isFocused, maxLength}) => null,
-              keyboardType: TextInputType.multiline,
-              textInputAction: TextInputAction.newline,
-              onChanged: onChanged,
-            ),
-          ),
-          const SizedBox(width: 8),
-          Container(
-            width: 48,
-            height: 48,
-            decoration: const BoxDecoration(shape: BoxShape.circle),
-            child: IconButton(
-              icon: Icon(
-                (anecMode && f?.textQuestion == null)
-                    ? LucideIcons.check
-                    : LucideIcons.sendHorizontal,
-                size: 26,
-                color: sendDisabled ? theme.colorScheme.onSurfaceVariant : const Color(0xFF0084FF),
+              const SizedBox(width: 8),
+              Container(
+                width: 48,
+                height: 48,
+                decoration: const BoxDecoration(shape: BoxShape.circle),
+                child: IconButton(
+                  icon: Icon(
+                    (anecMode && f?.textQuestion == null)
+                        ? LucideIcons.check
+                        : LucideIcons.sendHorizontal,
+                    size: 26,
+                    color: sendDisabled
+                        ? theme.colorScheme.onSurfaceVariant
+                        : const Color(0xFF0084FF),
+                  ),
+                  tooltip: sendLabel,
+                  onPressed: sendDisabled ? null : onSend,
+                ),
               ),
-              tooltip: sendLabel,
-              onPressed: sendDisabled ? null : onSend,
+            ],
+          ),
+          const SizedBox(height: 2),
+          Text(
+            hint,
+            style: theme.textTheme.bodySmall?.copyWith(
+              color: theme.colorScheme.onSurfaceVariant,
             ),
           ),
-        ]),
-        const SizedBox(height: 2),
-        Text(hint, style: theme.textTheme.bodySmall?.copyWith(color: theme.colorScheme.onSurfaceVariant)),
-      ]),
+        ],
+      ),
     );
   }
 }
@@ -1826,13 +2349,21 @@ class _EndedBar extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) => Container(
-        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
-        decoration: BoxDecoration(border: Border(top: BorderSide(color: Theme.of(context).colorScheme.outline))),
-        child: Row(children: [
-          const Expanded(child: Text('This chat has ended.', style: TextStyle(fontSize: 13))),
-          OutlinedButton(onPressed: onNew, child: const Text('Start new chat')),
-        ]),
-      );
+    padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+    decoration: BoxDecoration(
+      border: Border(
+        top: BorderSide(color: Theme.of(context).colorScheme.outline),
+      ),
+    ),
+    child: Row(
+      children: [
+        const Expanded(
+          child: Text('This chat has ended.', style: TextStyle(fontSize: 13)),
+        ),
+        OutlinedButton(onPressed: onNew, child: const Text('Start new chat')),
+      ],
+    ),
+  );
 }
 
 // --- confirm + progress ---
@@ -1841,43 +2372,69 @@ class _ConfirmSheet extends StatelessWidget {
   final FlowSnapshot flow;
   final VoidCallback onKeep;
   final VoidCallback onFile;
-  const _ConfirmSheet({required this.flow, required this.onKeep, required this.onFile});
+  const _ConfirmSheet({
+    required this.flow,
+    required this.onKeep,
+    required this.onFile,
+  });
 
   @override
   Widget build(BuildContext context) => Positioned.fill(
-        child: GestureDetector(
-          onTap: onKeep,
-          child: Container(
-            color: Theme.of(context).colorScheme.scrim.withValues(alpha: 0.45),
-            child: Center(
-              child: Card(
-                margin: const EdgeInsets.all(24),
-                child: Padding(
-                  padding: const EdgeInsets.all(16),
-                  child: Column(mainAxisSize: MainAxisSize.min, crossAxisAlignment: CrossAxisAlignment.stretch, children: [
-                    const Text('File this record?', style: TextStyle(fontSize: 15, fontWeight: FontWeight.w600)),
-                    const SizedBox(height: 4),
-                    Text('This creates the anecdotal record and autofills GCForm-01.', style: Theme.of(context).textTheme.bodySmall),
-                    const SizedBox(height: 12),
-                    Row(children: [
-                      Expanded(child: OutlinedButton(onPressed: onKeep, child: const Text('Keep editing'))),
-                      const SizedBox(width: 8),
-                      Expanded(child: FilledButton(
-                        style: FilledButton.styleFrom(
-                          backgroundColor: const Color(0xFF2563EB),
-                          foregroundColor: Colors.white,
+    child: GestureDetector(
+      onTap: onKeep,
+      child: Container(
+        color: Theme.of(context).colorScheme.scrim.withValues(alpha: 0.45),
+        child: Center(
+          child: Card(
+            margin: const EdgeInsets.all(24),
+            child: Padding(
+              padding: const EdgeInsets.all(16),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
+                  const Text(
+                    'File this record?',
+                    style: TextStyle(fontSize: 15, fontWeight: FontWeight.w600),
+                  ),
+                  const SizedBox(height: 4),
+                  Text(
+                    'This creates the anecdotal record and autofills GCForm-01.',
+                    style: Theme.of(context).textTheme.bodySmall,
+                  ),
+                  const SizedBox(height: 12),
+                  Row(
+                    children: [
+                      Expanded(
+                        child: OutlinedButton(
+                          onPressed: onKeep,
+                          child: const Text('Keep editing'),
                         ),
-                        onPressed: onFile,
-                        child: const Text('File record'),
-                      )),
-                    ]),
-                  ]),
-                ),
+                      ),
+                      const SizedBox(width: 8),
+                      Expanded(
+                        child: FilledButton(
+                          style: FilledButton.styleFrom(
+                            backgroundColor: zLift(
+                              context,
+                              const Color(0xFF2563EB),
+                            ),
+                            foregroundColor: Colors.white,
+                          ),
+                          onPressed: onFile,
+                          child: const Text('File record'),
+                        ),
+                      ),
+                    ],
+                  ),
+                ],
               ),
             ),
           ),
         ),
-      );
+      ),
+    ),
+  );
 }
 
 class _FilingOverlay extends StatelessWidget {
@@ -1887,24 +2444,42 @@ class _FilingOverlay extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) => Positioned.fill(
-        child: Container(
-          color: Theme.of(context).colorScheme.scrim.withValues(alpha: 0.45),
-          child: Center(
-            child: Card(
-              child: Padding(
-                padding: const EdgeInsets.all(20),
-                child: Column(mainAxisSize: MainAxisSize.min, children: [
-                  const Text('Filing your record…', style: TextStyle(fontSize: 15, fontWeight: FontWeight.w600)),
-                  const SizedBox(height: 12),
-                  SizedBox(width: 220, child: LinearProgressIndicator(value: progress / 100, minHeight: 6)),
-                  const SizedBox(height: 8),
-                  Text('$stage $progress%', style: Theme.of(context).textTheme.bodySmall),
-                  const SizedBox(height: 4),
-                  Text('Please wait — don\'t close.', style: Theme.of(context).textTheme.bodySmall),
-                ]),
-              ),
+    child: Container(
+      color: Theme.of(context).colorScheme.scrim.withValues(alpha: 0.45),
+      child: Center(
+        child: Card(
+          child: Padding(
+            padding: const EdgeInsets.all(20),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                const Text(
+                  'Filing your record…',
+                  style: TextStyle(fontSize: 15, fontWeight: FontWeight.w600),
+                ),
+                const SizedBox(height: 12),
+                SizedBox(
+                  width: 220,
+                  child: LinearProgressIndicator(
+                    value: progress / 100,
+                    minHeight: 6,
+                  ),
+                ),
+                const SizedBox(height: 8),
+                Text(
+                  '$stage $progress%',
+                  style: Theme.of(context).textTheme.bodySmall,
+                ),
+                const SizedBox(height: 4),
+                Text(
+                  'Please wait — don\'t close.',
+                  style: Theme.of(context).textTheme.bodySmall,
+                ),
+              ],
             ),
           ),
         ),
-      );
+      ),
+    ),
+  );
 }

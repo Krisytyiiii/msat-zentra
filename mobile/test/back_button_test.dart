@@ -17,7 +17,10 @@ void main() {
     );
     final button = tester.widget<IconButton>(find.byType(IconButton));
     expect(button.style!.shape!.resolve({}), isA<CircleBorder>());
-    expect(button.style!.side!.resolve({})!.color, const Color(0xFFE5E8F0));
+    expect(
+      button.style!.side!.resolve({})!.color,
+      Theme.of(tester.element(find.byType(ZBackButton))).colorScheme.outline,
+    );
     final rect = tester.getRect(find.byType(IconButton));
     expect(rect.width, rect.height);
     await tester.tap(find.byTooltip('Back'));

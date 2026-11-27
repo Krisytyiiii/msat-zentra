@@ -70,27 +70,65 @@ void main() {
   tearDownAll(() => Hive.close());
   group('ZEmpty', () {
     for (final brightness in [Brightness.light, Brightness.dark]) {
-      testWidgets('reference palette stays readable in $brightness', (tester) async {
-        await tester.pumpWidget(MaterialApp(
-          theme: ThemeData(brightness: brightness),
-          home: const Scaffold(body: Center(child: ZEmpty(
-            icon: Icons.calendar_month_outlined,
-            title: 'No classes', subtitle: 'No scheduled classes on Saturday.',
-          ))),
-        ));
-        final card = tester.widgetList<Container>(find.descendant(
-          of: find.byType(ZEmpty), matching: find.byType(Container)))
-            .firstWhere((c) => c.decoration is BoxDecoration &&
-              (c.decoration! as BoxDecoration).border != null);
+      testWidgets('reference palette stays readable in $brightness', (
+        tester,
+      ) async {
+        await tester.pumpWidget(
+          MaterialApp(
+            theme: ThemeData(brightness: brightness),
+            home: const Scaffold(
+              body: Center(
+                child: ZEmpty(
+                  icon: Icons.calendar_month_outlined,
+                  title: 'No classes',
+                  subtitle: 'No scheduled classes on Saturday.',
+                ),
+              ),
+            ),
+          ),
+        );
+        final card = tester
+            .widgetList<Container>(
+              find.descendant(
+                of: find.byType(ZEmpty),
+                matching: find.byType(Container),
+              ),
+            )
+            .firstWhere(
+              (c) =>
+                  c.decoration is BoxDecoration &&
+                  (c.decoration! as BoxDecoration).border != null,
+            );
+        final theme = Theme.of(tester.element(find.byType(ZEmpty)));
+        final dark = brightness == Brightness.dark;
         final decoration = card.decoration! as BoxDecoration;
-        expect(decoration.color, Colors.white);
+        expect(
+          decoration.color,
+          dark ? theme.colorScheme.surface : Colors.white,
+        );
         expect(decoration.borderRadius, BorderRadius.circular(16));
-        expect((decoration.border! as Border).top.color, const Color(0xFFDFE7F5));
-        final icon = tester.widget<Icon>(find.byIcon(Icons.calendar_month_outlined));
-        expect(icon.color, const Color(0xFF4263F0));
-        expect(tester.widget<Text>(find.text('No classes')).style!.color, const Color(0xFF192034));
-        expect(tester.widget<Text>(find.text('No scheduled classes on Saturday.')).style!.color,
-          const Color(0xFF71809B));
+        expect(
+          (decoration.border! as Border).top.color,
+          dark ? theme.colorScheme.outline : const Color(0xFFDFE7F5),
+        );
+        final icon = tester.widget<Icon>(
+          find.byIcon(Icons.calendar_month_outlined),
+        );
+        expect(
+          icon.color,
+          dark ? const Color(0xFFA9C9FF) : const Color(0xFF4263F0),
+        );
+        expect(
+          tester.widget<Text>(find.text('No classes')).style!.color,
+          dark ? theme.colorScheme.onSurface : const Color(0xFF192034),
+        );
+        expect(
+          tester
+              .widget<Text>(find.text('No scheduled classes on Saturday.'))
+              .style!
+              .color,
+          dark ? theme.colorScheme.onSurfaceVariant : const Color(0xFF71809B),
+        );
         expect(tester.takeException(), isNull);
       });
     }

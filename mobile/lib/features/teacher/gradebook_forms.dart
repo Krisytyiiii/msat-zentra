@@ -5,6 +5,7 @@ import 'package:lucide_icons_flutter/lucide_icons.dart';
 import '../../shared/user_messages.dart';
 import '../adviser/schedule_timing.dart';
 import 'gradebook_data.dart';
+import '../../design/desk_theme.dart';
 
 class GradebookEditor extends StatefulWidget {
   const GradebookEditor.score({
@@ -121,9 +122,9 @@ class _EditorState extends State<GradebookEditor> {
     }
   }
 
-  static const _sheetInk = Color(0xFF0F172A);
-  static const _sheetMuted = Color(0xFF64748B);
-  static const _sheetAccent = Color(0xFF1D4ED8);
+  Color get _sheetInk => zInk(context);
+  Color get _sheetMuted => zMutedInk(context);
+  Color get _sheetAccent => zLift(context, const Color(0xFF1D4ED8));
 
   Widget _assessmentSheet(BuildContext context) {
     return PopScope(
@@ -137,7 +138,7 @@ class _EditorState extends State<GradebookEditor> {
           child: ClipRRect(
             borderRadius: const BorderRadius.vertical(top: Radius.circular(28)),
             child: Container(
-              color: Colors.white,
+              color: zCard(context),
               height: MediaQuery.sizeOf(context).height * 0.5,
               child: Column(
                 children: [
@@ -148,7 +149,7 @@ class _EditorState extends State<GradebookEditor> {
                         width: 32,
                         height: 4,
                         decoration: BoxDecoration(
-                          color: const Color(0xFF737373),
+                          color: zMutedInk(context),
                           borderRadius: BorderRadius.circular(2),
                         ),
                       ),
@@ -161,9 +162,9 @@ class _EditorState extends State<GradebookEditor> {
                         data: Theme.of(context).copyWith(
                           colorScheme: ColorScheme.fromSeed(
                             seedColor: _sheetAccent,
-                            brightness: Brightness.light,
+                            brightness: Theme.of(context).brightness,
                             primary: _sheetAccent,
-                            surface: Colors.white,
+                            surface: zCard(context),
                           ),
                           textTheme: Theme.of(context).textTheme.apply(
                             bodyColor: _sheetInk,
@@ -171,31 +172,27 @@ class _EditorState extends State<GradebookEditor> {
                           ),
                           inputDecorationTheme: InputDecorationTheme(
                             filled: true,
-                            fillColor: Colors.white,
-                            labelStyle: const TextStyle(
+                            fillColor: zCard(context),
+                            labelStyle: TextStyle(
                               fontSize: 12,
                               color: _sheetMuted,
                             ),
-                            helperStyle: const TextStyle(
+                            helperStyle: TextStyle(
                               fontSize: 12,
                               color: _sheetMuted,
                             ),
                             contentPadding: const EdgeInsets.all(14),
                             border: OutlineInputBorder(
                               borderRadius: BorderRadius.circular(14),
-                              borderSide: const BorderSide(
-                                color: Color(0xFFE2E8F0),
-                              ),
+                              borderSide: BorderSide(color: zLine(context)),
                             ),
                             enabledBorder: OutlineInputBorder(
                               borderRadius: BorderRadius.circular(14),
-                              borderSide: const BorderSide(
-                                color: Color(0xFFE2E8F0),
-                              ),
+                              borderSide: BorderSide(color: zLine(context)),
                             ),
                             focusedBorder: OutlineInputBorder(
                               borderRadius: BorderRadius.circular(14),
-                              borderSide: const BorderSide(color: _sheetAccent),
+                              borderSide: BorderSide(color: _sheetAccent),
                             ),
                           ),
                           outlinedButtonTheme: OutlinedButtonThemeData(
@@ -203,7 +200,7 @@ class _EditorState extends State<GradebookEditor> {
                               foregroundColor: _sheetInk,
                               minimumSize: const Size.fromHeight(48),
                               alignment: Alignment.centerLeft,
-                              side: const BorderSide(color: Color(0xFFE2E8F0)),
+                              side: BorderSide(color: zLine(context)),
                               shape: RoundedRectangleBorder(
                                 borderRadius: BorderRadius.circular(14),
                               ),
@@ -216,7 +213,7 @@ class _EditorState extends State<GradebookEditor> {
                             crossAxisAlignment: CrossAxisAlignment.stretch,
                             children: [
                               ColoredBox(
-                                color: Colors.white,
+                                color: zCard(context),
                                 child: Padding(
                                   padding: EdgeInsets.zero,
                                   child: Column(
@@ -228,7 +225,10 @@ class _EditorState extends State<GradebookEditor> {
                                             height: 46,
                                             alignment: Alignment.center,
                                             decoration: BoxDecoration(
-                                              color: const Color(0xFF2563EB),
+                                              color: zLift(
+                                                context,
+                                                const Color(0xFF2563EB),
+                                              ),
                                               borderRadius:
                                                   BorderRadius.circular(13),
                                             ),
@@ -246,7 +246,7 @@ class _EditorState extends State<GradebookEditor> {
                                               children: [
                                                 Text(
                                                   'Add ${assessmentTypes[widget.type]}',
-                                                  style: const TextStyle(
+                                                  style: TextStyle(
                                                     fontSize: 15,
                                                     fontWeight: FontWeight.w700,
                                                     color: _sheetInk,
@@ -255,7 +255,7 @@ class _EditorState extends State<GradebookEditor> {
                                                 const SizedBox(height: 4),
                                                 Text(
                                                   '${_audience == 'adm' ? 'ADM' : 'Regular'} assessment',
-                                                  style: const TextStyle(
+                                                  style: TextStyle(
                                                     fontSize: 12,
                                                     color: _sheetMuted,
                                                   ),
@@ -276,8 +276,8 @@ class _EditorState extends State<GradebookEditor> {
                                             ),
                                             style: IconButton.styleFrom(
                                               foregroundColor: _sheetMuted,
-                                              side: const BorderSide(
-                                                color: Color(0xFFE5E8F0),
+                                              side: BorderSide(
+                                                color: zLine(context),
                                               ),
                                               minimumSize: const Size(42, 42),
                                               shape: const CircleBorder(),
@@ -289,11 +289,11 @@ class _EditorState extends State<GradebookEditor> {
                                   ),
                                 ),
                               ),
-                              const Padding(
+                              Padding(
                                 padding: EdgeInsets.symmetric(vertical: 12),
                                 child: Divider(
                                   height: 1,
-                                  color: Color(0xFFF1F5F9),
+                                  color: zSoft(context),
                                 ),
                               ),
                               DropdownButtonFormField<String>(

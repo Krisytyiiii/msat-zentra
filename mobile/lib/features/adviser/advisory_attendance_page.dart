@@ -25,6 +25,7 @@ import 'advisory_attendance_board.dart';
 import 'advisory_attendance_data.dart';
 import 'advisory_attendance_detail_page.dart';
 import 'advisory_list_data.dart';
+import '../../design/desk_theme.dart';
 
 const _pageSize = 15;
 
@@ -203,17 +204,17 @@ class _AdvisoryAttendanceState extends ConsumerState<AdvisoryAttendancePage>
     return Theme(
       data: overviewScreenTheme(Theme.of(context)).copyWith(
         cardTheme: CardThemeData(
-          color: Colors.white,
+          color: zCard(context),
           elevation: 1,
           shadowColor: const Color(0x140F172A),
           shape: RoundedRectangleBorder(
             borderRadius: BorderRadius.circular(20),
-            side: const BorderSide(color: Color(0xFFE6ECF4)),
+            side: BorderSide(color: zLine(context)),
           ),
         ),
       ),
       child: ColoredBox(
-        color: const Color(0xFFF7F9FC),
+        color: zSoft(context),
         child: Builder(builder: _content),
       ),
     );
@@ -258,7 +259,10 @@ class _AdvisoryAttendanceState extends ConsumerState<AdvisoryAttendancePage>
               final sectionGradeLevel = sections
                   .where((s) => s.id == sectionId)
                   .map((s) => s.gradeLevel)
-                  .firstWhere((g) => g != null && g.isNotEmpty, orElse: () => null);
+                  .firstWhere(
+                    (g) => g != null && g.isNotEmpty,
+                    orElse: () => null,
+                  );
               return Column(
                 children: [
                   Padding(
@@ -387,9 +391,9 @@ class _AdvisoryAttendanceState extends ConsumerState<AdvisoryAttendancePage>
                         const SizedBox(height: 4),
                         Text(
                           metric.$2,
-                          style: const TextStyle(
+                          style: TextStyle(
                             fontSize: 12,
-                            color: Color(0xFF7185A4),
+                            color: zMutedInk(context),
                           ),
                         ),
                       ],
@@ -406,10 +410,7 @@ class _AdvisoryAttendanceState extends ConsumerState<AdvisoryAttendancePage>
               Expanded(
                 child: Text(
                   'Showing ${slice.length} of ${rows.length} advisees',
-                  style: const TextStyle(
-                    fontSize: 12,
-                    color: Color(0xFF7185A4),
-                  ),
+                  style: TextStyle(fontSize: 12, color: zMutedInk(context)),
                 ),
               ),
               const Text('Name (A-Z)', style: TextStyle(fontSize: 12)),
@@ -490,8 +491,8 @@ class _AdvisoryAttendanceState extends ConsumerState<AdvisoryAttendancePage>
             children: [
               CircleAvatar(
                 radius: 23,
-                backgroundColor: const Color(0xFFDBEAFE),
-                foregroundColor: const Color(0xFF2563EB),
+                backgroundColor: zWash(context, const Color(0xFFDBEAFE)),
+                foregroundColor: zLift(context, const Color(0xFF2563EB)),
                 child: Text(
                   student.name.trim().isEmpty
                       ? '?'
@@ -530,16 +531,16 @@ class _AdvisoryAttendanceState extends ConsumerState<AdvisoryAttendancePage>
                   ],
                 ),
               ),
-              const Icon(
+              Icon(
                 LucideIcons.chevronRight,
                 size: 18,
-                color: Color(0xFF94A3B8),
+                color: zMutedInk(context),
               ),
             ],
           ),
-          const Padding(
+          Padding(
             padding: EdgeInsets.symmetric(vertical: 14),
-            child: Divider(height: 1, color: Color(0xFFE6ECF4)),
+            child: Divider(height: 1, color: zLine(context)),
           ),
           Column(
             crossAxisAlignment: CrossAxisAlignment.end,
@@ -586,10 +587,13 @@ class _Header extends StatelessWidget {
   final Term? term;
 
   String get _combinedSection => [
-        if (sectionGradeLevel != null)
-          sectionGradeLevel!.replaceFirst(RegExp(r'^Grade\s*', caseSensitive: false), 'G'),
-        sectionName,
-      ].where((value) => value.isNotEmpty).join(' · ');
+    if (sectionGradeLevel != null)
+      sectionGradeLevel!.replaceFirst(
+        RegExp(r'^Grade\s*', caseSensitive: false),
+        'G',
+      ),
+    sectionName,
+  ].where((value) => value.isNotEmpty).join(' · ');
 
   @override
   Widget build(BuildContext context) {
@@ -601,8 +605,11 @@ class _Header extends StatelessWidget {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        ZContentHeader(title: 'Advisory Attendance',
-          icon: Icons.calendar_month_outlined, description: subtitle),
+        ZContentHeader(
+          title: 'Advisory Attendance',
+          icon: Icons.calendar_month_outlined,
+          description: subtitle,
+        ),
         const SizedBox(height: 14),
         Wrap(
           spacing: 6,

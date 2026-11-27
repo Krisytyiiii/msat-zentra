@@ -50,10 +50,11 @@ class _GradebookDashboardState extends ConsumerState<GradebookDashboardPage> {
     final secondary = ref.watch(overviewSecondaryProvider);
     final term = ref.watch(termProvider);
     final link = ref.watch(teacherLinkProvider).valueOrNull;
+    final desk = overviewScreenTheme(Theme.of(context));
     return Theme(
-      data: overviewScreenTheme(Theme.of(context)),
+      data: desk,
       child: ColoredBox(
-        color: Colors.white,
+        color: desk.scaffoldBackgroundColor,
         child: Builder(
           builder: (context) => link?.linked == false
               ? TeacherLinkPlaceholder(
@@ -68,235 +69,258 @@ class _GradebookDashboardState extends ConsumerState<GradebookDashboardPage> {
                   },
                 )
               : critical.when(
-            loading: () => const Padding(
-              padding: EdgeInsets.all(16),
-              child: ZSkeletonList(count: 4),
-            ),
-            error: (e, _) => ErrorView(
-              message: e,
-              onRetry: () => ref.invalidate(overviewProvider),
-            ),
-            data: (data) {
-              final classes =
-                  [
-                    for (final c in (data['classes'] as List? ?? []))
-                      ClassSlot.fromJson(c as Map<String, dynamic>),
-                  ]..sort((a, b) {
-                    if (_sortMode >= 2) {
-                      int grade(String value) =>
-                          int.tryParse(
-                            RegExp(r'\d+').firstMatch(value)?.group(0) ?? '',
-                          ) ??
-                          0;
-                      final order = grade(a.gradeLevel)
-                          .compareTo(grade(b.gradeLevel));
-                      if (order != 0) return _sortMode == 3 ? -order : order;
-                    }
-                    var order = a.subject.toLowerCase().compareTo(
-                      b.subject.toLowerCase(),
+                  loading: () => const Padding(
+                    padding: EdgeInsets.all(16),
+                    child: ZSkeletonList(count: 4),
+                  ),
+                  error: (e, _) => ErrorView(
+                    message: e,
+                    onRetry: () => ref.invalidate(overviewProvider),
+                  ),
+                  data: (data) {
+                    final classes =
+                        [
+                          for (final c in (data['classes'] as List? ?? []))
+                            ClassSlot.fromJson(c as Map<String, dynamic>),
+                        ]..sort((a, b) {
+                          if (_sortMode >= 2) {
+                            int grade(String value) =>
+                                int.tryParse(
+                                  RegExp(r'\d+').firstMatch(value)?.group(0) ??
+                                      '',
+                                ) ??
+                                0;
+                            final order = grade(a.gradeLevel)
+                                .compareTo(grade(b.gradeLevel));
+                            if (order != 0) {
+                              return _sortMode == 3 ? -order : order;
+                            }
+                          }
+                          var order = a.subject.toLowerCase().compareTo(
+                            b.subject.toLowerCase(),
+                          );
+                          if (order == 0) {
+                            order = a.section.toLowerCase().compareTo(
+                              b.section.toLowerCase(),
+                            );
+                          }
+                          return _sortMode == 1 ? -order : order;
+                        });
+                    final assessments = secondary.maybeWhen(
+                      data: (s) => [
+                        for (final a in (s['assessments'] as List? ?? []))
+                          Map<String, dynamic>.from(a as Map),
+                      ],
+                      orElse: () => const <Map<String, dynamic>>[],
                     );
-                    if (order == 0) {
-                      order = a.section.toLowerCase().compareTo(
-                        b.section.toLowerCase(),
+                    final standings = secondary.maybeWhen(
+                      data: (s) => [
+                        for (final st in (s['standings'] as List? ?? []))
+                          Map<String, dynamic>.from(st as Map),
+                      ],
+                      orElse: () => const <Map<String, dynamic>>[],
+                    );
+                    final secondaryReady =
+                        secondary.hasValue && !secondary.hasError;
+                    if (classes.isEmpty) {
+                      return ZEmptyPage(
+                        icon: Icons.grade_outlined,
+                        title: 'No classes assigned yet',
+                        subtitle: 'Ask your registrar to assign your subjects and sections first.',
+                        onRefresh: () async {
+                          ref.invalidate(overviewProvider);
+                          ref.invalidate(overviewSecondaryProvider);
+                        },
                       );
                     }
-                    return _sortMode == 1 ? -order : order;
-                  });
-              final assessments = secondary.maybeWhen(
-                data: (s) => [
-                  for (final a in (s['assessments'] as List? ?? []))
-                    Map<String, dynamic>.from(a as Map),
-                ],
-                orElse: () => const <Map<String, dynamic>>[],
-              );
-              final standings = secondary.maybeWhen(
-                data: (s) => [
-                  for (final st in (s['standings'] as List? ?? []))
-                    Map<String, dynamic>.from(st as Map),
-                ],
-                orElse: () => const <Map<String, dynamic>>[],
-              );
-              final secondaryReady = secondary.hasValue && !secondary.hasError;
-              if (classes.isEmpty) {
-                return ZEmptyPage(
-                  icon: Icons.grade_outlined,
-                  title: 'No classes assigned yet',
-                  subtitle: 'Ask your registrar to assign your subjects and sections first.',
-                  onRefresh: () async {
-                    ref.invalidate(overviewProvider);
-                    ref.invalidate(overviewSecondaryProvider);
-                  },
-                );
-              }
-              return RefreshIndicator(
-                onRefresh: () async {
-                  ref.invalidate(overviewProvider);
-                  ref.invalidate(overviewSecondaryProvider);
-                },
-                child: ListView(
-                  padding: const EdgeInsets.fromLTRB(12, 16, 12, 120),
-                  children: [
-                    const ZContentHeader(
-                      title: 'Gradebook', icon: Icons.menu_book_outlined,
-                      description: 'Manage assessments and scores.',
-                    ),
-                    const SizedBox(height: 12),
-                    if (term != null)
-                      Wrap(
-                        spacing: 6,
-                        runSpacing: 6,
+                    return RefreshIndicator(
+                      onRefresh: () async {
+                        ref.invalidate(overviewProvider);
+                        ref.invalidate(overviewSecondaryProvider);
+                      },
+                      child: ListView(
+                        padding: const EdgeInsets.fromLTRB(12, 16, 12, 120),
                         children: [
-                          ZScopePill(
-                            text: term.schoolYearName,
-                            kind: ScopePillKind.schoolYear,
-                            compact: true,
+                          const ZContentHeader(
+                            title: 'Gradebook',
+                            icon: Icons.menu_book_outlined,
+                            description: 'Manage assessments and scores.',
                           ),
-                          ZScopePill(
-                            text: 'Term ${term.termNumber}',
-                            kind: ScopePillKind.term,
-                            compact: true,
-                          ),
-                        ],
-                      ),
-                    const SizedBox(height: 16),
-                    Container(
-                      padding: const EdgeInsets.symmetric(
-                        horizontal: 12,
-                        vertical: 10,
-                      ),
-                      decoration: BoxDecoration(
-                        color: const Color(0xFFF9F9FA),
-                        border: Border.all(color: const Color(0xFFE8E8ED)),
-                        borderRadius: BorderRadius.circular(12),
-                      ),
-                      child: Row(
-                        children: [
-                          for (final entry in [
-                            ('${classes.length}', 'Classes'),
-                            (
-                              '${classes.map((c) => c.section).toSet().length}',
-                              'Sections',
+                          const SizedBox(height: 12),
+                          if (term != null)
+                            Wrap(
+                              spacing: 6,
+                              runSpacing: 6,
+                              children: [
+                                ZScopePill(
+                                  text: term.schoolYearName,
+                                  kind: ScopePillKind.schoolYear,
+                                  compact: true,
+                                ),
+                                ZScopePill(
+                                  text: 'Term ${term.termNumber}',
+                                  kind: ScopePillKind.term,
+                                  compact: true,
+                                ),
+                              ],
                             ),
-                            (
-                              secondaryReady ? '${assessments.length}' : '—',
-                              'Assessments',
+                          const SizedBox(height: 16),
+                          Container(
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: 12,
+                              vertical: 10,
                             ),
-                          ].indexed) ...[
-                            if (entry.$1 > 0)
-                              const SizedBox(
-                                height: 30,
-                                child: VerticalDivider(width: 16),
+                            decoration: BoxDecoration(
+                              color: Theme.of(context)
+                                  .colorScheme
+                                  .surfaceContainerLow,
+                              border: Border.all(
+                                color: Theme.of(context).colorScheme.outline,
                               ),
-                            Expanded(
-                              child: Column(
-                                children: [
-                                  Text(
-                                    entry.$2.$1,
-                                    style: const TextStyle(
-                                      fontSize: 12,
-                                      height: 1.6,
-                                      fontWeight: FontWeight.w700,
-                                      color: Color(0xFF1E293B),
-                                    ),
+                              borderRadius: BorderRadius.circular(12),
+                            ),
+                            child: Row(
+                              children: [
+                                for (final entry in [
+                                  ('${classes.length}', 'Classes'),
+                                  (
+                                    '${classes.map((c) => c.section).toSet().length}',
+                                    'Sections',
                                   ),
-                                  Text(
-                                    entry.$2.$2,
-                                    textAlign: TextAlign.center,
-                                    style: const TextStyle(
-                                      fontSize: 12,
-                                      height: 1.6,
-                                      color: Color(0xFF71809B),
+                                  (
+                                    secondaryReady
+                                        ? '${assessments.length}'
+                                        : '—',
+                                    'Assessments',
+                                  ),
+                                ].indexed) ...[
+                                  if (entry.$1 > 0)
+                                    const SizedBox(
+                                      height: 30,
+                                      child: VerticalDivider(width: 16),
+                                    ),
+                                  Expanded(
+                                    child: Column(
+                                      children: [
+                                        Text(
+                                          entry.$2.$1,
+                                          style: TextStyle(
+                                            fontSize: 12,
+                                            height: 1.6,
+                                            fontWeight: FontWeight.w700,
+                                            color: Theme.of(context)
+                                                .colorScheme
+                                                .onSurface,
+                                          ),
+                                        ),
+                                        Text(
+                                          entry.$2.$2,
+                                          textAlign: TextAlign.center,
+                                          style: TextStyle(
+                                            fontSize: 12,
+                                            height: 1.6,
+                                            color: Theme.of(context)
+                                                .colorScheme
+                                                .onSurfaceVariant,
+                                          ),
+                                        ),
+                                      ],
                                     ),
                                   ),
                                 ],
+                              ],
+                            ),
+                          ),
+                          const SizedBox(height: 12),
+                          Row(
+                            children: [
+                              Expanded(
+                                child: Text(
+                                  'Showing ${classes.length} records',
+                                  style: TextStyle(
+                                    fontSize: 12,
+                                    color: Theme.of(context)
+                                        .colorScheme
+                                        .onSurfaceVariant,
+                                  ),
+                                ),
                               ),
+                              TextButton.icon(
+                                onPressed: () => setState(
+                                  () => _sortMode =
+                                      (_sortMode + 1) % _sortLabels.length,
+                                ),
+                                icon: const Icon(
+                                  LucideIcons.listFilter,
+                                  size: 14,
+                                ),
+                                label: Text(
+                                  _sortLabels[_sortMode],
+                                  style: const TextStyle(fontSize: 12),
+                                ),
+                                style: TextButton.styleFrom(
+                                  foregroundColor: Theme.of(context)
+                                      .colorScheme
+                                      .onSurface,
+                                  padding: const EdgeInsets.symmetric(
+                                    horizontal: 8,
+                                    vertical: 0,
+                                  ),
+                                  minimumSize: Size.zero,
+                                  tapTargetSize:
+                                      MaterialTapTargetSize.shrinkWrap,
+                                  visualDensity: VisualDensity.compact,
+                                ),
+                              ),
+                            ],
+                          ),
+                          if (secondary.isLoading) ...[
+                            const SizedBox(height: 8),
+                            Text(
+                              'Loading assessments…',
+                              style: Theme.of(context).textTheme.bodySmall,
                             ),
                           ],
+                          if (secondary.hasError)
+                            TextButton.icon(
+                              onPressed: () =>
+                                  ref.invalidate(overviewSecondaryProvider),
+                              icon: const Icon(Icons.refresh, size: 16),
+                              label: const Text(
+                                'Assessment counts unavailable. Retry',
+                              ),
+                            ),
+                          const SizedBox(height: 12),
+                          for (final c in classes)
+                            Padding(
+                              padding: const EdgeInsets.only(bottom: 12),
+                              child: _GradebookCard(
+                                slot: c,
+                                assessmentCount: secondaryReady
+                                    ? assessments
+                                          .where(
+                                            (a) =>
+                                                a['subject'] == c.subject &&
+                                                a['section'] == c.section,
+                                          )
+                                          .length
+                                    : null,
+                                standing: standings
+                                    .where(
+                                      (s) =>
+                                          s['subject'] == c.subject &&
+                                          s['section'] == c.section,
+                                    )
+                                    .toList()
+                                    .firstOrNull,
+                                secondaryLoading: secondary.isLoading,
+                              ),
+                            ),
                         ],
                       ),
-                    ),
-                    const SizedBox(height: 12),
-                    Row(
-                      children: [
-                        Expanded(
-                          child: Text(
-                            'Showing ${classes.length} records',
-                            style: const TextStyle(
-                              fontSize: 12,
-                              color: Color(0xFF9999A6),
-                            ),
-                          ),
-                        ),
-                        TextButton.icon(
-                          onPressed: () => setState(
-                            () => _sortMode =
-                                (_sortMode + 1) % _sortLabels.length,
-                          ),
-                          icon: const Icon(LucideIcons.listFilter, size: 14),
-                          label: Text(
-                            _sortLabels[_sortMode],
-                            style: const TextStyle(fontSize: 12),
-                          ),
-                          style: TextButton.styleFrom(
-                            foregroundColor: const Color(0xFF334155),
-                            padding: const EdgeInsets.symmetric(
-                              horizontal: 8,
-                              vertical: 0,
-                            ),
-                            minimumSize: Size.zero,
-                            tapTargetSize: MaterialTapTargetSize.shrinkWrap,
-                            visualDensity: VisualDensity.compact,
-                          ),
-                        ),
-                      ],
-                    ),
-                    if (secondary.isLoading) ...[
-                      const SizedBox(height: 8),
-                      Text(
-                        'Loading assessments…',
-                        style: Theme.of(context).textTheme.bodySmall,
-                      ),
-                    ],
-                    if (secondary.hasError)
-                      TextButton.icon(
-                        onPressed: () =>
-                            ref.invalidate(overviewSecondaryProvider),
-                        icon: const Icon(Icons.refresh, size: 16),
-                        label: const Text(
-                          'Assessment counts unavailable. Retry',
-                        ),
-                      ),
-                    const SizedBox(height: 12),
-                    for (final c in classes)
-                      Padding(
-                        padding: const EdgeInsets.only(bottom: 12),
-                        child: _GradebookCard(
-                          slot: c,
-                          assessmentCount: secondaryReady
-                              ? assessments
-                                    .where(
-                                      (a) =>
-                                          a['subject'] == c.subject &&
-                                          a['section'] == c.section,
-                                    )
-                                    .length
-                              : null,
-                          standing: standings
-                              .where(
-                                (s) =>
-                                    s['subject'] == c.subject &&
-                                    s['section'] == c.section,
-                              )
-                              .toList()
-                              .firstOrNull,
-                          secondaryLoading: secondary.isLoading,
-                        ),
-                      ),
-                  ],
+                    );
+                  },
                 ),
-              );
-            },
-          ),
         ),
       ),
     );
@@ -329,10 +353,10 @@ class _GradebookCard extends StatelessWidget {
     return Card(
       margin: EdgeInsets.zero,
       elevation: 0,
-      color: Colors.white,
+      color: theme.cardTheme.color ?? theme.colorScheme.surface,
       shape: RoundedRectangleBorder(
         borderRadius: BorderRadius.circular(16),
-        side: const BorderSide(color: Color(0xFFE6ECF4)),
+        side: BorderSide(color: theme.colorScheme.outline),
       ),
       clipBehavior: Clip.antiAlias,
       child: InkWell(
@@ -347,14 +371,11 @@ class _GradebookCard extends StatelessWidget {
                 children: [
                   CircleAvatar(
                     radius: 19,
-                    backgroundColor: const [
-                      Color(0xFFF1F5F9),
-                      Color(0xFFEFF6FF),
-                      Color(0xFFFFFBEB),
-                      Color(0xFFFAF5FF),
-                      Color(0xFFFFF1F2),
-                    ][slot.id.codeUnits.fold(0, (a, b) => a + b) % 5],
-                    foregroundColor: const Color(0xFF52627C),
+                    backgroundColor: _avatarFill(
+                      theme,
+                      slot.id.codeUnits.fold(0, (a, b) => a + b) % 5,
+                    ),
+                    foregroundColor: theme.colorScheme.onSurfaceVariant,
                     child: Text(
                       _initials(slot.subject),
                       style: const TextStyle(
@@ -372,10 +393,10 @@ class _GradebookCard extends StatelessWidget {
                           slot.subject,
                           maxLines: 2,
                           overflow: TextOverflow.ellipsis,
-                          style: const TextStyle(
+                          style: TextStyle(
                             fontSize: 14,
                             fontWeight: FontWeight.w600,
-                            color: Color(0xFF172033),
+                            color: theme.colorScheme.onSurface,
                           ),
                         ),
                         const SizedBox(height: 3),
@@ -448,6 +469,21 @@ class _GradebookCard extends StatelessWidget {
       ),
     );
   }
+}
+
+const _avatarFills = [
+  Color(0xFFF1F5F9),
+  Color(0xFFEFF6FF),
+  Color(0xFFFFFBEB),
+  Color(0xFFFAF5FF),
+  Color(0xFFFFF1F2),
+];
+
+Color _avatarFill(ThemeData theme, int index) {
+  final fill = _avatarFills[index];
+  if (theme.brightness != Brightness.dark) return fill;
+  final hsl = HSLColor.fromColor(fill);
+  return HSLColor.fromAHSL(0.16, hsl.hue, 0.45, 0.5).toColor();
 }
 
 extension _FirstOrNull<T> on List<T> {

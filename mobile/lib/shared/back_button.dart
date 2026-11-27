@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 
+import '../design/desk_theme.dart';
+
 /// Screen navigation only; date and pagination arrows keep their own styles.
 class ZBackButton extends StatelessWidget {
   const ZBackButton({
@@ -22,7 +24,7 @@ class ZBackButton extends StatelessWidget {
       onPressed: onPressed,
       padding: padding,
       style: IconButton.styleFrom(
-        side: const BorderSide(color: Color(0xFFE5E8F0)),
+        side: BorderSide(color: zLine(context)),
         minimumSize: const Size(42, 42),
         shape: const CircleBorder(),
       ),
@@ -38,7 +40,7 @@ Widget zAutomaticBackIcon(BuildContext context) => Container(
   alignment: Alignment.center,
   decoration: BoxDecoration(
     shape: BoxShape.circle,
-    border: Border.all(color: const Color(0xFFE5E8F0)),
+    border: Border.all(color: zLine(context)),
   ),
   child: Icon(
     Theme.of(context).platform == TargetPlatform.iOS

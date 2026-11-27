@@ -12,6 +12,7 @@ import 'coordinator_data.dart';
 import 'coordinator_forms.dart';
 import 'coordinator_models.dart';
 import 'coordinator_widgets.dart';
+import '../../design/desk_theme.dart';
 
 class CoordinatorMonitoringPage extends ConsumerStatefulWidget {
   const CoordinatorMonitoringPage({super.key, required this.caseId});
@@ -140,16 +141,18 @@ class _MonitoringState extends ConsumerState<CoordinatorMonitoringPage>
           name: name.isEmpty ? 'Enrolled learner' : name,
           lrn: lrn,
           subtitle: subtitle,
-          dotColor: completed ? studentGreen : studentBlue,
+          dotColor: completed
+              ? zLift(context, const Color(0xFF1F8A48))
+              : zLift(context, const Color(0xFF2563EB)),
           badge: StudentTonePill(
             text: completed ? 'Completed' : 'In progress',
             tone: completed ? StudentTone.green : StudentTone.blue,
           ),
           onCopyLrn: () => _copyLrn(lrn),
         ),
-        const StudentSectionHeader(
+        StudentSectionHeader(
           icon: LucideIcons.activity,
-          color: studentBlue,
+          color: zLift(context, const Color(0xFF2563EB)),
           title: 'MODULE PROGRESS',
         ),
         StudentSectionCard(
@@ -191,8 +194,11 @@ class _MonitoringState extends ConsumerState<CoordinatorMonitoringPage>
                 child: LinearProgressIndicator(
                   value: total == 0 ? 0 : (submitted / total).clamp(0, 1),
                   minHeight: 6,
-                  color: studentBlue,
-                  backgroundColor: studentBlue.withValues(alpha: 0.14),
+                  color: zLift(context, const Color(0xFF2563EB)),
+                  backgroundColor: zLift(
+                    context,
+                    const Color(0xFF2563EB),
+                  ).withValues(alpha: 0.14),
                 ),
               ),
               const SizedBox(height: 8),
@@ -205,21 +211,23 @@ class _MonitoringState extends ConsumerState<CoordinatorMonitoringPage>
                 style: TextStyle(
                   fontSize: 11,
                   height: 1.4,
-                  color: remaining == 0 ? studentGreen : studentMuted,
+                  color: remaining == 0
+                      ? zLift(context, const Color(0xFF1F8A48))
+                      : zMutedInk(context),
                 ),
               ),
               if (approvedAt.isNotEmpty) ...[
                 const SizedBox(height: 6),
                 Text(
                   'Principal approval ${admDate(approvedAt)}',
-                  style: const TextStyle(fontSize: 11, color: studentMuted),
+                  style: TextStyle(fontSize: 11, color: zMutedInk(context)),
                 ),
               ],
               if (canComplete) ...[
                 const SizedBox(height: 12),
                 FilledButton(
                   style: FilledButton.styleFrom(
-                    backgroundColor: studentBlue,
+                    backgroundColor: zLift(context, const Color(0xFF2563EB)),
                     foregroundColor: Colors.white,
                     minimumSize: const Size.fromHeight(48),
                   ),
@@ -232,7 +240,7 @@ class _MonitoringState extends ConsumerState<CoordinatorMonitoringPage>
         ),
         StudentSectionHeader(
           icon: LucideIcons.bookOpen,
-          color: studentAmber,
+          color: zLift(context, const Color(0xFFB45309)),
           title: 'MODULES (${m.modules.length})',
         ),
         if (m.modules.isEmpty)
@@ -257,7 +265,7 @@ class _MonitoringState extends ConsumerState<CoordinatorMonitoringPage>
           ),
         StudentSectionHeader(
           icon: LucideIcons.tablet,
-          color: studentGreen,
+          color: zLift(context, const Color(0xFF1F8A48)),
           title: 'DEVICES (${m.devices.length})',
         ),
         if (m.devices.isEmpty)
@@ -282,7 +290,7 @@ class _MonitoringState extends ConsumerState<CoordinatorMonitoringPage>
           ),
         StudentSectionHeader(
           icon: LucideIcons.history,
-          color: studentBlue,
+          color: zLift(context, const Color(0xFF2563EB)),
           title: 'CASE TIMELINE (${m.timeline.length})',
         ),
         if (m.timeline.isEmpty)
@@ -332,9 +340,9 @@ class _ModuleRow extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 10),
       decoration: BoxDecoration(
-        color: studentSoft,
+        color: zSoft(context),
         borderRadius: BorderRadius.circular(10),
-        border: Border.all(color: studentLine),
+        border: Border.all(color: zLine(context)),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -349,10 +357,16 @@ class _ModuleRow extends StatelessWidget {
                 decoration: BoxDecoration(
                   shape: BoxShape.circle,
                   color: switch (_tone) {
-                    StudentTone.green => studentGreen,
-                    StudentTone.red => studentRed,
-                    StudentTone.amber => studentAmber,
-                    _ => studentBlue,
+                    StudentTone.green => zLift(
+                      context,
+                      const Color(0xFF1F8A48),
+                    ),
+                    StudentTone.red => zLift(context, const Color(0xFFDC2626)),
+                    StudentTone.amber => zLift(
+                      context,
+                      const Color(0xFFB45309),
+                    ),
+                    _ => zLift(context, const Color(0xFF2563EB)),
                   },
                 ),
               ),
@@ -360,10 +374,10 @@ class _ModuleRow extends StatelessWidget {
               Expanded(
                 child: Text(
                   admText(module['moduleName']),
-                  style: const TextStyle(
+                  style: TextStyle(
                     fontSize: 12,
                     fontWeight: FontWeight.w600,
-                    color: studentInk,
+                    color: zInk(context),
                   ),
                 ),
               ),
@@ -379,7 +393,7 @@ class _ModuleRow extends StatelessWidget {
             padding: const EdgeInsets.only(left: 15),
             child: Text(
               '${module['source'] == 'section' ? 'Section module' : 'Case module'}${due.isEmpty ? '' : ' · Due ${admDate(due)}'}',
-              style: const TextStyle(fontSize: 11, color: studentMuted),
+              style: TextStyle(fontSize: 11, color: zMutedInk(context)),
             ),
           ),
           if (admText(module['remarks']).isNotEmpty)
@@ -387,19 +401,19 @@ class _ModuleRow extends StatelessWidget {
               padding: const EdgeInsets.only(left: 15, top: 4),
               child: Text(
                 admText(module['remarks']),
-                style: const TextStyle(
+                style: TextStyle(
                   fontSize: 11,
                   height: 1.35,
-                  color: studentBody,
+                  color: zInk(context),
                 ),
               ),
             ),
           if (module['submissionKind'] == 'physical')
-            const Padding(
+            Padding(
               padding: EdgeInsets.only(left: 15, top: 4),
               child: Text(
                 'Submitted in person',
-                style: TextStyle(fontSize: 11, color: studentMuted),
+                style: TextStyle(fontSize: 11, color: zMutedInk(context)),
               ),
             ),
           for (final entry in {
@@ -413,7 +427,7 @@ class _ModuleRow extends StatelessWidget {
                 child: TextButton(
                   onPressed: () => admOpenUrl(context, admText(entry.value)),
                   style: TextButton.styleFrom(
-                    foregroundColor: studentBlue,
+                    foregroundColor: zLift(context, const Color(0xFF2563EB)),
                     minimumSize: Size.zero,
                     tapTargetSize: MaterialTapTargetSize.shrinkWrap,
                     padding: const EdgeInsets.only(left: 15, top: 4),
@@ -438,13 +452,13 @@ class _DeviceRow extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 10),
       decoration: BoxDecoration(
-        color: studentSoft,
+        color: zSoft(context),
         borderRadius: BorderRadius.circular(10),
-        border: Border.all(color: studentLine),
+        border: Border.all(color: zLine(context)),
       ),
       child: Row(
         children: [
-          const Icon(LucideIcons.tablet, size: 16, color: studentMuted),
+          Icon(LucideIcons.tablet, size: 16, color: zMutedInk(context)),
           const SizedBox(width: 8),
           Expanded(
             child: Column(
@@ -452,16 +466,16 @@ class _DeviceRow extends StatelessWidget {
               children: [
                 Text(
                   '${admText(device['deviceType'])} · ${admText(device['deviceSerial'])}',
-                  style: const TextStyle(
+                  style: TextStyle(
                     fontSize: 12,
                     fontWeight: FontWeight.w600,
-                    color: studentInk,
+                    color: zInk(context),
                   ),
                 ),
                 if (returned)
                   Text(
                     'Returned ${admDate(admText(device['returnedDate']))}',
-                    style: const TextStyle(fontSize: 11, color: studentMuted),
+                    style: TextStyle(fontSize: 11, color: zMutedInk(context)),
                   ),
               ],
             ),
@@ -488,29 +502,29 @@ class _TimelineRow extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 10),
       decoration: BoxDecoration(
-        color: studentSoft,
+        color: zSoft(context),
         borderRadius: BorderRadius.circular(10),
-        border: Border.all(color: studentLine),
+        border: Border.all(color: zLine(context)),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Text(
             admText(event['label']),
-            style: const TextStyle(
+            style: TextStyle(
               fontSize: 12,
               fontWeight: FontWeight.w600,
-              color: studentInk,
+              color: zInk(context),
             ),
           ),
           if (detail.isNotEmpty) ...[
             const SizedBox(height: 2),
             Text(
               detail,
-              style: const TextStyle(
+              style: TextStyle(
                 fontSize: 11,
                 height: 1.35,
-                color: studentBody,
+                color: zInk(context),
               ),
             ),
           ],
@@ -518,7 +532,7 @@ class _TimelineRow extends StatelessWidget {
             const SizedBox(height: 2),
             Text(
               admDate(at),
-              style: const TextStyle(fontSize: 11, color: studentMuted),
+              style: TextStyle(fontSize: 11, color: zMutedInk(context)),
             ),
           ],
         ],

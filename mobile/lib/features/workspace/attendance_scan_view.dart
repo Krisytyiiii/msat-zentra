@@ -4,6 +4,7 @@ import 'package:lucide_icons_flutter/lucide_icons.dart';
 
 import 'attendance_data.dart';
 import '../../shared/widgets.dart';
+import '../../design/desk_theme.dart';
 
 /// One learner as presented on the scanner. Marks stay server/draft owned.
 class AttendanceScanEntry {
@@ -124,9 +125,9 @@ class _AttendanceScanViewState extends State<AttendanceScanView> {
     }).toList()..sort(_compare);
 
     return Scaffold(
-      backgroundColor: Colors.white,
+      backgroundColor: Theme.of(context).scaffoldBackgroundColor,
       appBar: AppBar(
-        shape: const Border(bottom: BorderSide(color: Color(0xFFEDF0F6))),
+        shape: Border(bottom: BorderSide(color: zLine(context))),
         centerTitle: true,
         leading: ZBackButton(
           tooltip: 'Back',
@@ -136,17 +137,19 @@ class _AttendanceScanViewState extends State<AttendanceScanView> {
         title: const Text('Scan Attendance'),
       ),
       bottomNavigationBar: Container(
-        decoration: const BoxDecoration(
-          color: Colors.white,
-          border: Border(top: BorderSide(color: Color(0xFFEDF0F6))),
+        decoration: BoxDecoration(
+          color: zCard(context),
+          border: Border(top: BorderSide(color: zLine(context))),
         ),
         child: SafeArea(
           child: Padding(
             padding: const EdgeInsets.fromLTRB(16, 10, 16, 12),
             child: FilledButton(
               style: FilledButton.styleFrom(
-                backgroundColor: const Color(0xFF2563EB),
-                foregroundColor: Colors.white,
+                backgroundColor: zLift(context, const Color(0xFF2563EB)),
+                foregroundColor: Theme.of(context).brightness == Brightness.dark
+                    ? const Color(0xFF06101F)
+                    : Colors.white,
                 minimumSize: const Size.fromHeight(52),
                 shape: const StadiumBorder(),
                 textStyle: const TextStyle(
@@ -178,25 +181,25 @@ class _AttendanceScanViewState extends State<AttendanceScanView> {
                             vertical: 4,
                           ),
                           decoration: BoxDecoration(
-                            color: const Color(0xFFF3F4F6),
-                            border: Border.all(color: const Color(0xFFE5E7EB)),
+                            color: zSoft(context),
+                            border: Border.all(color: zLine(context)),
                             borderRadius: BorderRadius.circular(999),
                           ),
                           child: Row(
                             mainAxisSize: MainAxisSize.min,
                             children: [
-                              const Icon(
+                              Icon(
                                 LucideIcons.calendarDays,
                                 size: 14,
-                                color: Color(0xFF6B7280),
+                                color: zMutedInk(context),
                               ),
                               const SizedBox(width: 4),
                               Text(
                                 snapshot!.date!,
-                                style: const TextStyle(
+                                style: TextStyle(
                                   fontSize: 12,
                                   fontWeight: FontWeight.w600,
-                                  color: Color(0xFF6B7280),
+                                  color: zMutedInk(context),
                                 ),
                               ),
                             ],
@@ -288,13 +291,13 @@ class _AttendanceScanViewState extends State<AttendanceScanView> {
     children: [
       Row(
         children: [
-          const Expanded(
+          Expanded(
             child: Text(
               'TIMING OVERVIEW',
               style: TextStyle(
                 fontSize: 12,
                 fontWeight: FontWeight.w600,
-                color: Color(0xFF667085),
+                color: zMutedInk(context),
               ),
             ),
           ),
@@ -333,7 +336,7 @@ class _AttendanceScanViewState extends State<AttendanceScanView> {
             child: _summaryTile(
               icon: LucideIcons.clock,
               tint: const Color(0xFFEEF2FF),
-              ink: const Color(0xFF4263F0),
+              ink: zLift(context, const Color(0xFF4263F0)),
               label: 'Late After',
               value: snapshot?.late ?? '—',
             ),
@@ -342,8 +345,8 @@ class _AttendanceScanViewState extends State<AttendanceScanView> {
           Expanded(
             child: _summaryTile(
               icon: LucideIcons.calendarCheck,
-              tint: const Color(0xFFFFF6E5),
-              ink: const Color(0xFFB77908),
+              tint: zWash(context, const Color(0xFFFFF6E5)),
+              ink: zLift(context, const Color(0xFFB77908)),
               label: 'Auto Absent',
               value: snapshot?.absent == null
                   ? '—'
@@ -364,8 +367,8 @@ class _AttendanceScanViewState extends State<AttendanceScanView> {
   }) => Container(
     padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 8),
     decoration: BoxDecoration(
-      color: Colors.white,
-      border: Border.all(color: const Color(0xFFE6ECF4)),
+      color: zCard(context),
+      border: Border.all(color: zLine(context)),
       borderRadius: BorderRadius.circular(12),
     ),
     child: Row(
@@ -389,7 +392,7 @@ class _AttendanceScanViewState extends State<AttendanceScanView> {
                 label,
                 maxLines: 1,
                 overflow: TextOverflow.ellipsis,
-                style: const TextStyle(fontSize: 12, color: Color(0xFF667085)),
+                style: TextStyle(fontSize: 12, color: zMutedInk(context)),
               ),
               const SizedBox(height: 2),
               FittedBox(
@@ -398,10 +401,10 @@ class _AttendanceScanViewState extends State<AttendanceScanView> {
                 child: Text(
                   value,
                   maxLines: 1,
-                  style: const TextStyle(
+                  style: TextStyle(
                     fontSize: 13,
                     fontWeight: FontWeight.w700,
-                    color: Color(0xFF172033),
+                    color: zInk(context),
                   ),
                 ),
               ),
@@ -419,12 +422,14 @@ class _AttendanceScanViewState extends State<AttendanceScanView> {
       child: Stack(
         fit: StackFit.expand,
         children: [
-          const DecoratedBox(
+          DecoratedBox(
             decoration: BoxDecoration(
               gradient: LinearGradient(
                 begin: Alignment.topLeft,
                 end: Alignment.bottomRight,
-                colors: [Color(0xFFEDF2FF), Color(0xFFF6F2FF)],
+                colors: Theme.of(context).brightness == Brightness.dark
+                    ? [const Color(0xFF101A2B), const Color(0xFF171326)]
+                    : [const Color(0xFFEDF2FF), const Color(0xFFF6F2FF)],
               ),
             ),
           ),
@@ -440,7 +445,7 @@ class _AttendanceScanViewState extends State<AttendanceScanView> {
               ),
             ),
           ),
-          const IgnorePointer(
+          IgnorePointer(
             child: Center(
               child: DecoratedBox(
                 decoration: BoxDecoration(
@@ -452,7 +457,7 @@ class _AttendanceScanViewState extends State<AttendanceScanView> {
                   child: Icon(
                     LucideIcons.qrCode,
                     size: 30,
-                    color: Color(0xFF1F2937),
+                    color: zInk(context),
                   ),
                 ),
               ),
@@ -493,12 +498,12 @@ class _AttendanceScanViewState extends State<AttendanceScanView> {
                   color: Colors.white.withValues(alpha: .92),
                   borderRadius: BorderRadius.circular(999),
                 ),
-                child: const Text(
+                child: Text(
                   'Tap to Scan',
                   style: TextStyle(
                     fontSize: 11,
                     fontWeight: FontWeight.w600,
-                    color: Color(0xFF172033),
+                    color: zInk(context),
                   ),
                 ),
               ),
@@ -514,11 +519,13 @@ class _AttendanceScanViewState extends State<AttendanceScanView> {
     child: Container(
       padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
       decoration: BoxDecoration(
-        color: widget.error ? const Color(0xFFFFF4F4) : const Color(0xFFEFF6FF),
+        color: widget.error
+            ? zWash(context, const Color(0xFFFFF4F4))
+            : zWash(context, const Color(0xFFEFF6FF)),
         border: Border.all(
           color: widget.error
               ? const Color(0xFFFECACA)
-              : const Color(0xFFD4E4FF),
+              : zWash(context, const Color(0xFFD4E4FF)),
         ),
         borderRadius: BorderRadius.circular(12),
       ),
@@ -529,8 +536,8 @@ class _AttendanceScanViewState extends State<AttendanceScanView> {
             widget.error ? LucideIcons.circleAlert : LucideIcons.scanLine,
             size: 17,
             color: widget.error
-                ? const Color(0xFFDC2626)
-                : const Color(0xFF2563EB),
+                ? zLift(context, const Color(0xFFDC2626))
+                : zLift(context, const Color(0xFF2563EB)),
           ),
           const SizedBox(width: 8),
           Expanded(
@@ -540,8 +547,8 @@ class _AttendanceScanViewState extends State<AttendanceScanView> {
                 fontSize: 12,
                 height: 1.3,
                 color: widget.error
-                    ? const Color(0xFFDC2626)
-                    : const Color(0xFF334155),
+                    ? zLift(context, const Color(0xFFDC2626))
+                    : zInk(context),
               ),
             ),
           ),
@@ -553,13 +560,13 @@ class _AttendanceScanViewState extends State<AttendanceScanView> {
   Widget _summary() => Column(
     crossAxisAlignment: CrossAxisAlignment.start,
     children: [
-      const Text(
+      Text(
         'ATTENDANCE SUMMARY',
         style: TextStyle(
           fontSize: 12,
           fontWeight: FontWeight.w600,
           letterSpacing: .3,
-          color: Color(0xFF71809B),
+          color: zMutedInk(context),
         ),
       ),
       const SizedBox(height: 8),
@@ -569,7 +576,7 @@ class _AttendanceScanViewState extends State<AttendanceScanView> {
             child: _counter(
               'present',
               'Present',
-              const Color(0xFF4263F0),
+              zLift(context, const Color(0xFF4263F0)),
               const Color(0xFFEEF1FF),
             ),
           ),
@@ -578,8 +585,8 @@ class _AttendanceScanViewState extends State<AttendanceScanView> {
             child: _counter(
               'late',
               'Late',
-              const Color(0xFFB45309),
-              const Color(0xFFFFF6E5),
+              zLift(context, const Color(0xFFB45309)),
+              zWash(context, const Color(0xFFFFF6E5)),
             ),
           ),
           const SizedBox(width: 8),
@@ -587,8 +594,8 @@ class _AttendanceScanViewState extends State<AttendanceScanView> {
             child: _counter(
               'absent',
               'Absent',
-              const Color(0xFFE11D48),
-              const Color(0xFFFFEDEF),
+              zLift(context, const Color(0xFFE11D48)),
+              zWash(context, const Color(0xFFFFEDEF)),
             ),
           ),
         ],
@@ -645,7 +652,7 @@ class _AttendanceScanViewState extends State<AttendanceScanView> {
     style: const TextStyle(fontSize: 12),
     decoration: InputDecoration(
       hintText: 'Search student or LRN',
-      hintStyle: const TextStyle(fontSize: 12, color: Color(0xFF98A2B3)),
+      hintStyle: TextStyle(fontSize: 12, color: zMutedInk(context)),
       prefixIcon: const Icon(Icons.search, size: 20),
       suffixIcon: _query.trim().isEmpty
           ? null
@@ -658,14 +665,14 @@ class _AttendanceScanViewState extends State<AttendanceScanView> {
               },
             ),
       filled: true,
-      fillColor: const Color(0xFFF5F7FA),
+      fillColor: zSoft(context),
       border: OutlineInputBorder(
         borderRadius: BorderRadius.circular(999),
-        borderSide: const BorderSide(color: Color(0xFFE6ECF4)),
+        borderSide: BorderSide(color: zLine(context)),
       ),
       enabledBorder: OutlineInputBorder(
         borderRadius: BorderRadius.circular(999),
-        borderSide: const BorderSide(color: Color(0xFFE6ECF4)),
+        borderSide: BorderSide(color: zLine(context)),
       ),
       focusedBorder: OutlineInputBorder(
         borderRadius: BorderRadius.circular(999),
@@ -682,7 +689,7 @@ class _AttendanceScanViewState extends State<AttendanceScanView> {
           semanticsLabel: '$_filterLabel: $count records',
           maxLines: 1,
           overflow: TextOverflow.ellipsis,
-          style: const TextStyle(fontSize: 12, color: Color(0xFF9999A6)),
+          style: TextStyle(fontSize: 12, color: zMutedInk(context)),
         ),
       ),
       TextButton.icon(
@@ -693,7 +700,7 @@ class _AttendanceScanViewState extends State<AttendanceScanView> {
         icon: const Icon(LucideIcons.listFilter, size: 14),
         label: Text(_sortLabel, style: const TextStyle(fontSize: 12)),
         style: TextButton.styleFrom(
-          foregroundColor: const Color(0xFF334155),
+          foregroundColor: zInk(context),
           padding: const EdgeInsets.symmetric(horizontal: 8),
           minimumSize: const Size(48, 48),
         ),
@@ -717,8 +724,8 @@ class _AttendanceScanViewState extends State<AttendanceScanView> {
 
   Widget _rulesCard() => Container(
     decoration: BoxDecoration(
-      color: Colors.white,
-      border: Border.all(color: const Color(0xFFE6ECF4)),
+      color: zCard(context),
+      border: Border.all(color: zLine(context)),
       borderRadius: BorderRadius.circular(16),
     ),
     child: Column(
@@ -730,26 +737,22 @@ class _AttendanceScanViewState extends State<AttendanceScanView> {
             padding: const EdgeInsets.fromLTRB(14, 12, 14, 12),
             child: Row(
               children: [
-                const Icon(
-                  LucideIcons.settings,
-                  size: 17,
-                  color: Color(0xFF52627C),
-                ),
+                Icon(LucideIcons.settings, size: 17, color: zMutedInk(context)),
                 const SizedBox(width: 8),
-                const Expanded(
+                Expanded(
                   child: Text(
                     'Attendance Rules',
                     style: TextStyle(
                       fontSize: 14,
                       fontWeight: FontWeight.w600,
-                      color: Color(0xFF172033),
+                      color: zInk(context),
                     ),
                   ),
                 ),
                 Icon(
                   _rulesOpen ? LucideIcons.chevronUp : LucideIcons.chevronDown,
                   size: 18,
-                  color: const Color(0xFF71809B),
+                  color: zMutedInk(context),
                 ),
               ],
             ),
@@ -776,21 +779,21 @@ class _AttendanceScanViewState extends State<AttendanceScanView> {
                 const SizedBox(height: 12),
                 Row(
                   children: [
-                    const Expanded(
+                    Expanded(
                       child: Text(
                         'Late threshold',
                         style: TextStyle(
                           fontSize: 12,
-                          color: Color(0xFF667085),
+                          color: zMutedInk(context),
                         ),
                       ),
                     ),
                     if (widget.snapshot?.late != null)
                       Text(
                         'Late from ${widget.snapshot!.late}',
-                        style: const TextStyle(
+                        style: TextStyle(
                           fontSize: 12,
-                          color: Color(0xFF98A2B3),
+                          color: zMutedInk(context),
                         ),
                       ),
                   ],
@@ -807,9 +810,9 @@ class _AttendanceScanViewState extends State<AttendanceScanView> {
                 ),
                 if (!widget.automatic) ...[
                   const SizedBox(height: 12),
-                  const Text(
+                  Text(
                     'Mark scanned student as',
-                    style: TextStyle(fontSize: 12, color: Color(0xFF667085)),
+                    style: TextStyle(fontSize: 12, color: zMutedInk(context)),
                   ),
                   const SizedBox(height: 6),
                   Wrap(
@@ -877,21 +880,29 @@ class _AttendanceScanViewState extends State<AttendanceScanView> {
         Text(label),
         if (edit) ...[
           const SizedBox(width: 4),
-          const Icon(LucideIcons.pencil, size: 14, color: Color(0xFF2442A8)),
+          Icon(
+            LucideIcons.pencil,
+            size: 14,
+            color: zLift(context, Color(0xFF2442A8)),
+          ),
         ],
       ],
     ),
     labelStyle: TextStyle(
       fontSize: 12,
       fontWeight: selected ? FontWeight.w600 : FontWeight.w500,
-      color: selected ? const Color(0xFF2442A8) : const Color(0xFF52627C),
+      color: selected
+          ? zLift(context, const Color(0xFF2442A8))
+          : zMutedInk(context),
     ),
     selected: selected,
     showCheckmark: false,
-    selectedColor: const Color(0xFFEEF2FF),
-    backgroundColor: Colors.white,
+    selectedColor: zWash(context, const Color(0xFFEEF2FF)),
+    backgroundColor: zCard(context),
     side: BorderSide(
-      color: selected ? const Color(0xFFBFD4FA) : const Color(0xFFE4E9F2),
+      color: selected
+          ? zWash(context, const Color(0xFFBFD4FA))
+          : zLine(context),
     ),
     materialTapTargetSize: MaterialTapTargetSize.padded,
     onSelected: onTap == null ? null : (_) => onTap(),
@@ -910,14 +921,14 @@ class _AttendanceScanViewState extends State<AttendanceScanView> {
     children: [
       Row(
         children: [
-          const Icon(LucideIcons.clock, size: 12, color: Color(0xFF98A2B3)),
+          Icon(LucideIcons.clock, size: 12, color: zMutedInk(context)),
           const SizedBox(width: 4),
           Expanded(
             child: Text(
               label,
               maxLines: 1,
               overflow: TextOverflow.ellipsis,
-              style: const TextStyle(fontSize: 11, color: Color(0xFF667085)),
+              style: TextStyle(fontSize: 11, color: zMutedInk(context)),
             ),
           ),
         ],
@@ -927,7 +938,7 @@ class _AttendanceScanViewState extends State<AttendanceScanView> {
         width: double.infinity,
         padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 7),
         decoration: BoxDecoration(
-          color: const Color(0xFFF5F7FA),
+          color: zSoft(context),
           border: Border.all(color: const Color(0xFFE4E9F2)),
           borderRadius: BorderRadius.circular(10),
         ),
@@ -956,8 +967,8 @@ class _AttendanceScanViewState extends State<AttendanceScanView> {
     return Container(
       key: ValueKey('scan-learner-${learner.id}'),
       padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 10),
-      decoration: const BoxDecoration(
-        border: Border(bottom: BorderSide(color: Color(0xFFF0F3F8))),
+      decoration: BoxDecoration(
+        border: Border(bottom: BorderSide(color: zLine(context))),
       ),
       child: Row(
         children: [
@@ -979,10 +990,10 @@ class _AttendanceScanViewState extends State<AttendanceScanView> {
                   learner.name,
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
-                  style: const TextStyle(
+                  style: TextStyle(
                     fontSize: 14,
                     fontWeight: FontWeight.w600,
-                    color: Color(0xFF172033),
+                    color: zInk(context),
                   ),
                 ),
                 const SizedBox(height: 3),
@@ -990,10 +1001,7 @@ class _AttendanceScanViewState extends State<AttendanceScanView> {
                   'LRN ${learner.lrn}',
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
-                  style: const TextStyle(
-                    fontSize: 12,
-                    color: Color(0xFF71809B),
-                  ),
+                  style: TextStyle(fontSize: 12, color: zMutedInk(context)),
                 ),
               ],
             ),
@@ -1005,10 +1013,7 @@ class _AttendanceScanViewState extends State<AttendanceScanView> {
               if (time != null) ...[
                 Text(
                   _timeLabel(time),
-                  style: const TextStyle(
-                    fontSize: 11,
-                    color: Color(0xFF71809B),
-                  ),
+                  style: TextStyle(fontSize: 11, color: zMutedInk(context)),
                 ),
                 const SizedBox(height: 4),
               ],
@@ -1037,29 +1042,25 @@ class _AttendanceScanViewState extends State<AttendanceScanView> {
   (Color, Color, Color) _statusColors(String status) => switch (status) {
     'present' => (
       const Color(0xFF15803D),
-      const Color(0xFFDCFCE7),
+      zWash(context, const Color(0xFFDCFCE7)),
       const Color(0xFFBBF7D0),
     ),
     'late' => (
-      const Color(0xFFB45309),
-      const Color(0xFFFEF3C7),
+      zLift(context, const Color(0xFFB45309)),
+      zWash(context, const Color(0xFFFEF3C7)),
       const Color(0xFFFDE68A),
     ),
     'absent' => (
-      const Color(0xFFB91C1C),
-      const Color(0xFFFEE2E2),
+      zLift(context, const Color(0xFFB91C1C)),
+      zWash(context, const Color(0xFFFEE2E2)),
       const Color(0xFFFECACA),
     ),
     'excused' => (
-      const Color(0xFF1D4ED8),
-      const Color(0xFFDBEAFE),
-      const Color(0xFFBFDBFE),
+      zLift(context, const Color(0xFF1D4ED8)),
+      zWash(context, const Color(0xFFDBEAFE)),
+      zWash(context, const Color(0xFFBFDBFE)),
     ),
-    _ => (
-      const Color(0xFF667085),
-      const Color(0xFFF2F4F7),
-      const Color(0xFFE4E7EC),
-    ),
+    _ => (zMutedInk(context), const Color(0xFFF2F4F7), const Color(0xFFE4E7EC)),
   };
 
   Widget _empty() {

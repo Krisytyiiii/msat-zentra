@@ -116,10 +116,17 @@ class _ZentraShellState extends ConsumerState<ZentraShell> {
     final base = Theme.of(context);
     // Every staff shell destination shares the main desks' header. Keep its
     // palette scoped here so secondary bodies/navigation retain their themes.
-    final headerTheme = overviewScreenTheme(base).copyWith(
-      appBarTheme: const AppBarTheme(
-        backgroundColor: Colors.white,
-        foregroundColor: Color(0xFF242B42),
+    // The header follows the app Appearance mode like the desk content.
+    final headerBase = overviewScreenTheme(base);
+    final headerDark = headerBase.brightness == Brightness.dark;
+    final headerTheme = headerBase.copyWith(
+      appBarTheme: AppBarTheme(
+        backgroundColor: headerDark
+            ? headerBase.colorScheme.surface
+            : Colors.white,
+        foregroundColor: headerDark
+            ? headerBase.colorScheme.onSurface
+            : const Color(0xFF242B42),
         surfaceTintColor: Colors.transparent,
         elevation: 0,
         scrolledUnderElevation: 0,
@@ -193,7 +200,11 @@ class _ZentraShellState extends ConsumerState<ZentraShell> {
                         builder: (ctx) => Center(
                           child: IconButton(
                             style: IconButton.styleFrom(
-                              side: const BorderSide(color: Color(0xFFE5E8F0)),
+                              side: BorderSide(
+                                color: headerDark
+                                    ? headerTheme.colorScheme.outline
+                                    : const Color(0xFFE5E8F0),
+                              ),
                               minimumSize: const Size(42, 42),
                               shape: const CircleBorder(),
                             ),
@@ -210,7 +221,7 @@ class _ZentraShellState extends ConsumerState<ZentraShell> {
                         preferredSize: const Size.fromHeight(1),
                         child: Divider(
                           height: 1,
-                          color: const Color(0xFFEDF0F6),
+                          color: headerTheme.colorScheme.outline,
                         ),
                       ),
                     ),
@@ -274,11 +285,12 @@ class _ZentraShellState extends ConsumerState<ZentraShell> {
         : widget.selectedPath == '/teacher/more'
         ? settingsScreenTheme(Theme.of(context))
         : Theme.of(context);
+    final dark = theme.brightness == Brightness.dark;
     final border = OutlineInputBorder(
       borderRadius: BorderRadius.circular(999),
       borderSide: BorderSide(
         color: referenceHeader
-            ? const Color(0xFFDDE2EE)
+            ? (dark ? theme.colorScheme.outline : const Color(0xFFDDE2EE))
             : theme.colorScheme.outlineVariant,
       ),
     );
@@ -299,13 +311,24 @@ class _ZentraShellState extends ConsumerState<ZentraShell> {
             prefixIcon: const Icon(Icons.search, size: 20),
             hintText: spec.hint,
             hintStyle: referenceHeader
-                ? const TextStyle(color: Color(0xFF626B82), fontSize: 14)
+                ? TextStyle(
+                    color: dark
+                        ? theme.colorScheme.onSurfaceVariant
+                        : const Color(0xFF626B82),
+                    fontSize: 14,
+                  )
                 : null,
-            prefixIconColor: referenceHeader ? const Color(0xFF242B42) : null,
+            prefixIconColor: referenceHeader
+                ? (dark
+                      ? theme.colorScheme.onSurfaceVariant
+                      : const Color(0xFF242B42))
+                : null,
             isDense: true,
             filled: true,
             fillColor: referenceHeader
-                ? const Color(0xFFF3F5FA)
+                ? (dark
+                      ? theme.colorScheme.surfaceContainerLow
+                      : const Color(0xFFF3F5FA))
                 : theme.colorScheme.surfaceContainerLow,
             constraints: const BoxConstraints(minHeight: 40),
             contentPadding: const EdgeInsets.symmetric(
@@ -411,26 +434,45 @@ class ZentraDrawer extends ConsumerWidget {
     );
     final profile = ref.watch(teacherProfileProvider);
     final base = Theme.of(context);
+    final dark = base.brightness == Brightness.dark;
+    final drawerSurface = dark
+        ? const Color(0xFF0B1411)
+        : const Color(0xFFFAFAF9);
+    final drawerInk = dark ? const Color(0xFFF3F7F5) : const Color(0xFF181B19);
+    final drawerMuted = dark
+        ? const Color(0xFF99AAA3)
+        : const Color(0xFF707572);
+    final drawerBorder = dark
+        ? const Color(0xFF2A3530)
+        : const Color(0xFFDDE0DD);
+    final drawerSoft = dark ? const Color(0xFF101D18) : const Color(0xFFF0F1EF);
+    final drawerBlue = dark ? const Color(0xFF7EB2FF) : const Color(0xFF2563EB);
     final drawerTheme = base.copyWith(
-      brightness: Brightness.light,
-      colorScheme: const ColorScheme.light(
-        primary: Color(0xFFB45309),
-        surface: Color(0xFFFAFAF9),
-        onSurface: Color(0xFF181B19),
-        onSurfaceVariant: Color(0xFF707572),
-        outline: Color(0xFFDDE0DD),
-        outlineVariant: Color(0xFFDDE0DD),
-        surfaceContainerLow: Color(0xFFF0F1EF),
+      brightness: dark ? Brightness.dark : Brightness.light,
+      colorScheme: ColorScheme(
+        brightness: dark ? Brightness.dark : Brightness.light,
+        primary: dark ? drawerBlue : const Color(0xFFB45309),
+        onPrimary: dark ? const Color(0xFF06101F) : Colors.white,
+        secondary: drawerBlue,
+        onSecondary: dark ? const Color(0xFF06101F) : Colors.white,
+        error: const Color(0xFFFF6467),
+        onError: const Color(0xFF2A0507),
+        surface: drawerSurface,
+        onSurface: drawerInk,
+        onSurfaceVariant: drawerMuted,
+        outline: drawerBorder,
+        outlineVariant: drawerBorder,
+        surfaceContainerLow: drawerSoft,
       ),
       textTheme: base.textTheme.apply(
-        bodyColor: const Color(0xFF181B19),
-        displayColor: const Color(0xFF181B19),
+        bodyColor: drawerInk,
+        displayColor: drawerInk,
       ),
     );
     return Theme(
       data: drawerTheme,
       child: Drawer(
-        backgroundColor: const Color(0xFFFAFAF9),
+        backgroundColor: drawerSurface,
         surfaceTintColor: Colors.transparent,
         shape: const RoundedRectangleBorder(
           borderRadius: BorderRadius.horizontal(right: Radius.circular(20)),
@@ -510,7 +552,7 @@ class ZentraDrawer extends ConsumerWidget {
                 padding: const EdgeInsets.fromLTRB(16, 8, 16, 16),
                 child: Column(
                   children: [
-                    const Divider(color: Color(0xFFDDE0DD)),
+                    Divider(color: drawerBorder),
                     ListTile(
                       contentPadding: const EdgeInsets.symmetric(
                         horizontal: 8,
@@ -530,40 +572,44 @@ class ZentraDrawer extends ConsumerWidget {
                         ),
                         maxLines: 1,
                         overflow: TextOverflow.ellipsis,
-                        style: const TextStyle(
-                          color: Color(0xFF181B19),
+                        style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                          color: drawerInk,
                           fontSize: 14,
                           fontWeight: FontWeight.w600,
                         ),
                       ),
                       subtitle: Text(
                         isAdviser ? 'Adviser' : 'Subject teacher',
-                        style: const TextStyle(
-                          color: Color(0xFF707572),
-                          fontSize: 12,
-                        ),
+                        style: Theme.of(context).textTheme.bodySmall
+                            ?.copyWith(color: drawerMuted, fontSize: 12),
                       ),
                     ),
                     Container(
                       width: double.infinity,
                       padding: const EdgeInsets.symmetric(vertical: 14),
                       decoration: BoxDecoration(
-                        color: const Color(0xFFD9E6FC),
+                        color: dark
+                            ? drawerBlue.withValues(alpha: 0.16)
+                            : const Color(0xFFD9E6FC),
                         borderRadius: BorderRadius.circular(12),
                       ),
-                      child: const Row(
+                      child: Row(
                         mainAxisAlignment: MainAxisAlignment.center,
                         children: [
                           Icon(
                             LucideIcons.briefcaseBusiness,
                             size: 18,
-                            color: Color(0xFF1855B5),
+                            color: dark
+                                ? const Color(0xFFA9C9FF)
+                                : const Color(0xFF1855B5),
                           ),
-                          SizedBox(width: 8),
+                          const SizedBox(width: 8),
                           Text(
                             'Staff workspace',
                             style: TextStyle(
-                              color: Color(0xFF1855B5),
+                              color: dark
+                                  ? const Color(0xFFA9C9FF)
+                                  : const Color(0xFF1855B5),
                               fontSize: 13,
                               fontWeight: FontWeight.w600,
                             ),
@@ -588,13 +634,19 @@ class ZentraDrawer extends ConsumerWidget {
     String path,
     bool selected,
   ) {
-    const blue = Color(0xFF2563EB);
+    // This helper receives the drawer's parent context, not the scoped
+    // drawer theme, so resolve the drawer palette from the brightness the same
+    // way [ZentraDrawer] does. Reading the outer scheme turned the selected
+    // label dark grey on the dark selected tile.
+    final dark = Theme.of(context).brightness == Brightness.dark;
+    final blue = dark ? const Color(0xFF7EB2FF) : const Color(0xFF2563EB);
+    final ink = dark ? const Color(0xFFF3F7F5) : const Color(0xFF181B19);
     return ListTile(
       minTileHeight: 48,
       contentPadding: const EdgeInsets.symmetric(horizontal: 12),
       horizontalTitleGap: 12,
-      iconColor: const Color(0xFF181B19),
-      textColor: const Color(0xFF181B19),
+      iconColor: ink,
+      textColor: ink,
       leading: Icon(icon, size: 20),
       title: Text(
         label,
@@ -605,7 +657,9 @@ class ZentraDrawer extends ConsumerWidget {
       ),
       selected: selected,
       selectedColor: blue,
-      selectedTileColor: const Color(0xFFDBEAFE),
+      selectedTileColor: dark
+          ? blue.withValues(alpha: 0.18)
+          : const Color(0xFFDBEAFE),
       shape: const StadiumBorder(),
       onTap: () {
         Navigator.pop(context);
@@ -629,7 +683,7 @@ class ZTermSwitcher extends ConsumerWidget {
         : '${term.schoolYearName} · Term ${term.termNumber}${pending > 0 ? ' · $pending queued' : ''}';
     return Card(
       margin: EdgeInsets.zero,
-      color: const Color(0xFFF0F1EF),
+      color: theme.colorScheme.surfaceContainerLow,
       elevation: 0,
       shape: const StadiumBorder(),
       child: InkWell(
@@ -830,7 +884,7 @@ class _DrawerHeader extends StatelessWidget {
           ),
         ),
         const SizedBox(width: 12),
-        const Expanded(child: Divider(color: Color(0xFFDDE0DD))),
+        const Expanded(child: Divider()),
       ],
     ),
   );
@@ -844,10 +898,16 @@ Future<void> showZNotifications(BuildContext context, WidgetRef ref) async {
       MaterialPageRoute<void>(
         settings: const RouteSettings(name: '/workspace/notifications'),
         builder: (ctx) => Theme(
-          data: overviewScreenTheme(Theme.of(ctx))
-              .copyWith(scaffoldBackgroundColor: Colors.white),
+          data: overviewScreenTheme(Theme.of(ctx)),
           child: Consumer(
             builder: (sheetContext, ref, _) {
+              final theme = Theme.of(sheetContext);
+              final dark = theme.brightness == Brightness.dark;
+              final ink = theme.colorScheme.onSurface;
+              final muted = theme.colorScheme.onSurfaceVariant;
+              final surface = theme.colorScheme.surface;
+              final border = theme.colorScheme.outline;
+              final accent = theme.colorScheme.secondary;
               final inbox = ref.watch(notificationsProvider);
               final overview = ref.watch(overviewProvider);
               final isAdviser = overview.maybeWhen(
@@ -856,12 +916,10 @@ Future<void> showZNotifications(BuildContext context, WidgetRef ref) async {
               );
               return Scaffold(
                 appBar: AppBar(
-                  backgroundColor: Colors.white,
+                  backgroundColor: theme.scaffoldBackgroundColor,
                   surfaceTintColor: Colors.transparent,
                   scrolledUnderElevation: 0,
-                  shape: const Border(
-                    bottom: BorderSide(color: Color(0xFFEDF0F6)),
-                  ),
+                  shape: Border(bottom: BorderSide(color: border)),
                   leadingWidth: 64,
                   leading: ZBackButton(onPressed: () => Navigator.pop(ctx)),
                   title: const Text('Notifications'),
@@ -871,7 +929,7 @@ Future<void> showZNotifications(BuildContext context, WidgetRef ref) async {
                     PopupMenuButton<String>(
                       tooltip: 'Actions',
                       style: IconButton.styleFrom(
-                        side: const BorderSide(color: Color(0xFFE5E8F0)),
+                        side: BorderSide(color: border),
                         minimumSize: const Size(42, 42),
                         shape: const CircleBorder(),
                       ),
@@ -932,14 +990,18 @@ Future<void> showZNotifications(BuildContext context, WidgetRef ref) async {
                             final n = items[i];
                             return Material(
                               color: n.isRead
-                                  ? Colors.white
-                                  : const Color(0xFFF3F9FF),
+                                  ? surface
+                                  : (dark
+                                        ? accent.withValues(alpha: 0.10)
+                                        : const Color(0xFFF3F9FF)),
                               shape: RoundedRectangleBorder(
                                 borderRadius: BorderRadius.circular(14),
                                 side: BorderSide(
                                   color: n.isRead
-                                      ? const Color(0xFFE2E8F0)
-                                      : const Color(0xFFBFDBFE),
+                                      ? border
+                                      : (dark
+                                            ? accent.withValues(alpha: 0.45)
+                                            : const Color(0xFFBFDBFE)),
                                 ),
                               ),
                               clipBehavior: Clip.antiAlias,
@@ -973,7 +1035,9 @@ Future<void> showZNotifications(BuildContext context, WidgetRef ref) async {
                                           ),
                                           decoration: BoxDecoration(
                                             shape: BoxShape.circle,
-                                            color: const Color(0xFF2563EB),
+                                            color: dark
+                                                ? const Color(0xFF7EB2FF)
+                                                : const Color(0xFF2563EB),
                                           ),
                                         ),
                                       Expanded(
@@ -983,28 +1047,28 @@ Future<void> showZNotifications(BuildContext context, WidgetRef ref) async {
                                           children: [
                                             Text(
                                               teacherNotificationTitle(n),
-                                              style: const TextStyle(
+                                              style: TextStyle(
                                                 fontSize: 13,
                                                 fontWeight: FontWeight.w600,
-                                                color: Color(0xFF0F172A),
+                                                color: ink,
                                               ),
                                             ),
                                             const SizedBox(height: 2),
                                             Text(
                                               n.message,
-                                              style: const TextStyle(
+                                              style: TextStyle(
                                                 fontSize: 12,
                                                 height: 1.45,
-                                                color: Color(0xFF475569),
+                                                color: muted,
                                               ),
                                             ),
                                             const SizedBox(height: 2),
                                             Text(
                                               formatBellDate(n.createdAt),
-                                              style: const TextStyle(
+                                              style: TextStyle(
                                                 fontSize: 12,
-                                                color: Color(0xFF64748B),
-                                                fontFeatures: [
+                                                color: muted,
+                                                fontFeatures: const [
                                                   FontFeature.tabularFigures(),
                                                 ],
                                               ),
@@ -1043,6 +1107,8 @@ class _ProfileButton extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
+    final headerTheme = Theme.of(context);
+    final headerDark = headerTheme.brightness == Brightness.dark;
     final unread = ref
         .watch(notificationsProvider)
         .maybeWhen(
@@ -1058,8 +1124,14 @@ class _ProfileButton extends ConsumerWidget {
           borderRadius: BorderRadius.circular(999),
           onTap: () => showZProfile(context, ref),
           child: Badge(
-            backgroundColor: referenceHeader ? const Color(0xFF2442A8) : null,
-            textColor: referenceHeader ? Colors.white : null,
+            backgroundColor: referenceHeader
+                ? (headerDark
+                      ? const Color(0xFF7EB2FF)
+                      : const Color(0xFF2442A8))
+                : null,
+            textColor: referenceHeader
+                ? (headerDark ? const Color(0xFF06101F) : Colors.white)
+                : null,
             isLabelVisible: unread > 0,
             label: Text(unread > 99 ? '99+' : '$unread'),
             child: Container(
@@ -1069,7 +1141,11 @@ class _ProfileButton extends ConsumerWidget {
               decoration: referenceHeader
                   ? BoxDecoration(
                       shape: BoxShape.circle,
-                      border: Border.all(color: const Color(0xFFE5E8F0)),
+                      border: Border.all(
+                        color: headerDark
+                            ? headerTheme.colorScheme.outline
+                            : const Color(0xFFE5E8F0),
+                      ),
                     )
                   : null,
               child: TeacherAvatar(

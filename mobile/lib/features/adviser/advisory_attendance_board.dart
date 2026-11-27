@@ -8,15 +8,22 @@ import '../../design/status_palette.dart';
 import '../../design/tokens.dart';
 import '../../shared/widgets.dart';
 import 'advisory_attendance_data.dart';
+import '../../design/desk_theme.dart';
 
 /// Web `attendanceRateClass`: >=90% green, >=75% amber, else red.
 Color attendanceTextColor(BuildContext context, double? rate) {
   final theme = Theme.of(context);
   if (rate == null) return theme.colorScheme.onSurfaceVariant;
   final dark = theme.brightness == Brightness.dark;
-  if (rate >= 0.9) return dark ? const Color(0xFF22C55E) : const Color(0xFF16A34A);
-  if (rate >= 0.75) return dark ? const Color(0xFFF59E0B) : const Color(0xFFD97706);
-  return dark ? const Color(0xFFEF4444) : const Color(0xFFDC2626);
+  if (rate >= 0.9) {
+    return dark ? const Color(0xFF22C55E) : const Color(0xFF16A34A);
+  }
+  if (rate >= 0.75) {
+    return dark ? const Color(0xFFF59E0B) : const Color(0xFFD97706);
+  }
+  return dark
+      ? const Color(0xFFEF4444)
+      : zLift(context, const Color(0xFFDC2626));
 }
 
 /// Web `attendanceBarClass` / `attendanceDot`: the same 500-scale colours.
@@ -152,8 +159,7 @@ class AdvisoryAttendanceBoard extends StatelessWidget {
               height: 8,
               decoration: BoxDecoration(
                 shape: BoxShape.circle,
-                color:
-                    attendanceBarColor(overall) ?? ZTokens.factorAcademic,
+                color: attendanceBarColor(overall) ?? ZTokens.factorAcademic,
               ),
             ),
             const SizedBox(width: 8),
@@ -220,11 +226,7 @@ class _SubjectCard extends StatelessWidget {
             children: [
               Padding(
                 padding: const EdgeInsets.only(top: 2),
-                child: Icon(
-                  Icons.menu_book_outlined,
-                  size: 18,
-                  color: muted,
-                ),
+                child: Icon(Icons.menu_book_outlined, size: 18, color: muted),
               ),
               const SizedBox(width: 8),
               Expanded(

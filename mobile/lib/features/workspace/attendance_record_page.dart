@@ -22,6 +22,7 @@ import 'attendance_sheet_page.dart';
 import '../../shared/user_messages.dart';
 import '../adviser/schedule_timing.dart';
 import '../home/role_home.dart' show StaffShellScope;
+import '../../design/desk_theme.dart';
 
 /// A reopened/deep-linked record resolves its real class through the current
 /// account's teaching load instead of trusting labels from a previous screen.
@@ -86,7 +87,7 @@ void _closeRecord(BuildContext context) {
 }
 
 AppBar _recordHeader(BuildContext context) => AppBar(
-  shape: const Border(bottom: BorderSide(color: Color(0xFFEDF0F6))),
+  shape: Border(bottom: BorderSide(color: zLine(context))),
   centerTitle: true,
   title: const Text('Attendance Record'),
   leading: ZBackButton(
@@ -400,11 +401,9 @@ class _AttendanceRecordPageState extends ConsumerState<AttendanceRecordPage>
                     )
                   : null,
               appBar: AppBar(
-                shape: const Border(
-                  bottom: BorderSide(color: Color(0xFFEDF0F6)),
-                ),
+                shape: Border(bottom: BorderSide(color: zLine(context))),
                 centerTitle: true,
-                backgroundColor: Colors.white,
+                backgroundColor: zCard(context),
                 leadingWidth: 64,
                 leading: ZBackButton(
                   icon: const Icon(Icons.chevron_left),
@@ -473,13 +472,13 @@ class _AttendanceRecordPageState extends ConsumerState<AttendanceRecordPage>
                               const SizedBox(height: 4),
                               Row(
                                 children: [
-                                  const Expanded(
+                                  Expanded(
                                     child: Text(
                                       'ATTENDANCE SUMMARY',
                                       style: TextStyle(
                                         fontSize: 12,
                                         fontWeight: FontWeight.w600,
-                                        color: Color(0xFF71809B),
+                                        color: zMutedInk(context),
                                       ),
                                     ),
                                   ),
@@ -515,7 +514,7 @@ class _AttendanceRecordPageState extends ConsumerState<AttendanceRecordPage>
                                     _counter(
                                       'MEETINGS',
                                       _meetings?.toString() ?? '—',
-                                      const Color(0xFF4263F0),
+                                      zLift(context, const Color(0xFF4263F0)),
                                       const Color(0xFFF3F5FF),
                                     ),
                                     _counter(
@@ -523,14 +522,14 @@ class _AttendanceRecordPageState extends ConsumerState<AttendanceRecordPage>
                                       _average == null
                                           ? '—'
                                           : '${(_average! * 100).toStringAsFixed(1)}%',
-                                      const Color(0xFFB77908),
+                                      zLift(context, const Color(0xFFB77908)),
                                       const Color(0xFFFFF9EB),
                                     ),
                                     _counter(
                                       'AT RISK',
                                       _atRisk?.toString() ?? '—',
-                                      const Color(0xFFE11D48),
-                                      const Color(0xFFFFF2F5),
+                                      zLift(context, const Color(0xFFE11D48)),
+                                      zWash(context, const Color(0xFFFFF2F5)),
                                     ),
                                   ];
                                   if (constraints.maxWidth < 330 ||
@@ -588,11 +587,11 @@ class _AttendanceRecordPageState extends ConsumerState<AttendanceRecordPage>
                                               setState(_search.clear),
                                         ),
                                   filled: true,
-                                  fillColor: const Color(0xFFF5F7FA),
+                                  fillColor: zSoft(context),
                                   border: OutlineInputBorder(
                                     borderRadius: BorderRadius.circular(999),
-                                    borderSide: const BorderSide(
-                                      color: Color(0xFFE6ECF4),
+                                    borderSide: BorderSide(
+                                      color: zLine(context),
                                     ),
                                   ),
                                 ),
@@ -602,9 +601,9 @@ class _AttendanceRecordPageState extends ConsumerState<AttendanceRecordPage>
                                   Expanded(
                                     child: Text(
                                       'Showing ${learners.length} records',
-                                      style: const TextStyle(
+                                      style: TextStyle(
                                         fontSize: 12,
-                                        color: Color(0xFF9999A6),
+                                        color: zMutedInk(context),
                                       ),
                                     ),
                                   ),

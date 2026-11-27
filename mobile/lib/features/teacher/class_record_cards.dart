@@ -48,17 +48,19 @@ class ClassRecordCards extends StatelessWidget {
             a.audience == audience &&
             queued.containsKey('${a.id}|${learner.id}'),
       );
+      final theme = Theme.of(context);
+      final dark = theme.brightness == Brightness.dark;
       return Container(
         padding: const EdgeInsets.all(14),
         decoration: BoxDecoration(
-          color: Colors.white,
+          color: theme.colorScheme.surface,
           borderRadius: BorderRadius.circular(16),
-          border: Border.all(color: const Color(0xFFE6ECF4)),
-          boxShadow: const [
+          border: Border.all(color: theme.colorScheme.outline),
+          boxShadow: [
             BoxShadow(
-              color: Color(0x09000000),
+              color: Colors.black.withValues(alpha: dark ? 0.35 : 0.035),
               blurRadius: 10,
-              offset: Offset(0, 3),
+              offset: const Offset(0, 3),
             ),
           ],
         ),
@@ -71,11 +73,19 @@ class ClassRecordCards extends StatelessWidget {
                 CircleAvatar(
                   radius: 19,
                   backgroundColor: index.isEven
-                      ? const Color(0xFFEDE9FF)
-                      : const Color(0xFFDCFCE7),
+                      ? (dark
+                            ? const Color(0x298E51FF)
+                            : const Color(0xFFEDE9FF))
+                      : (dark
+                            ? const Color(0x2900C950)
+                            : const Color(0xFFDCFCE7)),
                   foregroundColor: index.isEven
-                      ? const Color(0xFF6435E9)
-                      : const Color(0xFF438466),
+                      ? (dark
+                            ? const Color(0xFFC4B5FD)
+                            : const Color(0xFF6435E9))
+                      : (dark
+                            ? const Color(0xFF7BE3A2)
+                            : const Color(0xFF438466)),
                   child: Text(
                     initials,
                     style: const TextStyle(
@@ -91,10 +101,10 @@ class ClassRecordCards extends StatelessWidget {
                     children: [
                       Text(
                         learner.displayName,
-                        style: const TextStyle(
+                        style: TextStyle(
                           fontSize: 14,
                           fontWeight: FontWeight.w600,
-                          color: Color(0xFF172033),
+                          color: theme.colorScheme.onSurface,
                         ),
                       ),
                       const SizedBox(height: 3),
@@ -105,17 +115,19 @@ class ClassRecordCards extends StatelessWidget {
                         children: [
                           Text(
                             'LRN ${learner.lrn}',
-                            style: const TextStyle(
+                            style: TextStyle(
                               fontSize: 12,
-                              color: Color(0xFF71809B),
+                              color: theme.colorScheme.onSurfaceVariant,
                             ),
                           ),
                           if (learner.isAdm) ...[
-                            const Text(
+                            Text(
                               '•',
-                              style: TextStyle(color: Color(0xFFCBD5E1)),
+                              style: TextStyle(
+                                color: theme.colorScheme.outline,
+                              ),
                             ),
-                            _badge('ADM'),
+                            _badge(context, 'ADM'),
                           ],
                         ],
                       ),
@@ -124,6 +136,7 @@ class ClassRecordCards extends StatelessWidget {
                 ),
                 const SizedBox(width: 6),
                 _badge(
+                  context,
                   hasQueued
                       ? 'Queued'
                       : hasGrade
@@ -132,9 +145,9 @@ class ClassRecordCards extends StatelessWidget {
                 ),
               ],
             ),
-            const Padding(
-              padding: EdgeInsets.symmetric(vertical: 8),
-              child: Divider(height: 1, color: Color(0xFFF0F3F8)),
+            Padding(
+              padding: const EdgeInsets.symmetric(vertical: 8),
+              child: Divider(height: 1, color: theme.colorScheme.outline),
             ),
             for (final entry in const [
               ('WRITTEN_WORK', 'Written'),
@@ -142,8 +155,9 @@ class ClassRecordCards extends StatelessWidget {
               ('EXAM', 'Exam'),
             ])
               _component(context, learner, entry.$1, entry.$2),
-            const Divider(height: 8, color: Color(0xFFE6ECF4)),
+            Divider(height: 8, color: theme.colorScheme.outline),
             _tile(
+              context,
               title: 'Term Grade',
               value: hasGrade ? _twoDecimals(grade) : '—',
               footer: hasQueued
@@ -185,32 +199,34 @@ class ClassRecordCards extends StatelessWidget {
     return Container(
       key: ValueKey('category-$type-${learner.id}'),
       child: _tile(
-          title: '$label (${_twoDecimals(earned)}/${_twoDecimals(possible)} pts)',
-          value: scored && possible > 0
-              ? '${_twoDecimals(earned / possible * 100)}%'
-              : '—',
-          footer: pending ? 'Queued' : '',
+        context,
+        title: '$label (${_twoDecimals(earned)}/${_twoDecimals(possible)} pts)',
+        value: scored && possible > 0
+            ? '${_twoDecimals(earned / possible * 100)}%'
+            : '—',
+        footer: pending ? 'Queued' : '',
       ),
     );
   }
 
-  static Widget _badge(String text) => Container(
+  static Widget _badge(BuildContext context, String text) => Container(
     padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
     decoration: BoxDecoration(
-      color: const Color(0xFFF1F5F9),
+      color: Theme.of(context).colorScheme.surfaceContainerLow,
       borderRadius: BorderRadius.circular(8),
     ),
     child: Text(
       text,
-      style: const TextStyle(
+      style: TextStyle(
         fontSize: 12,
-        color: Color(0xFF697791),
+        color: Theme.of(context).colorScheme.onSurfaceVariant,
         fontWeight: FontWeight.w500,
       ),
     ),
   );
 
-  static Widget _tile({
+  static Widget _tile(
+    BuildContext context, {
     required String title,
     required String value,
     required String footer,
@@ -226,7 +242,9 @@ class ClassRecordCards extends StatelessWidget {
               fontSize: 12,
               height: 1.5,
               fontWeight: total ? FontWeight.w600 : FontWeight.w400,
-              color: total ? const Color(0xFF172033) : const Color(0xFF71809B),
+              color: total
+                  ? Theme.of(context).colorScheme.onSurface
+                  : Theme.of(context).colorScheme.onSurfaceVariant,
             ),
           ),
         ),
@@ -236,10 +254,10 @@ class ClassRecordCards extends StatelessWidget {
           children: [
             Text(
               value,
-              style: const TextStyle(
+              style: TextStyle(
                 fontSize: 12,
                 fontWeight: FontWeight.w600,
-                color: Color(0xFF52627C),
+                color: Theme.of(context).colorScheme.onSurfaceVariant,
               ),
             ),
             if (footer.isNotEmpty) ...[
@@ -249,7 +267,7 @@ class ClassRecordCards extends StatelessWidget {
                 textAlign: TextAlign.center,
                 style: TextStyle(
                   fontSize: 12,
-                  color: const Color(0xFF8B9BBA),
+                  color: Theme.of(context).colorScheme.onSurfaceVariant,
                 ),
               ),
             ],

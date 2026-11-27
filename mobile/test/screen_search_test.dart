@@ -1,6 +1,10 @@
+import 'dart:io';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:hive_flutter/hive_flutter.dart';
+import 'package:zentra_mobile/core/config.dart';
 import 'package:zentra_mobile/core/api_client.dart';
 import 'package:zentra_mobile/core/notifications.dart';
 import 'package:zentra_mobile/core/session.dart';
@@ -77,6 +81,13 @@ Future<void> mountShell(
 }
 
 void main() {
+  setUpAll(() async {
+    Hive.init((await Directory.systemTemp.createTemp('screen-search')).path);
+    await Hive.openBox(AppConfig.termScopeBox);
+    await Hive.openBox(AppConfig.outboxBox);
+  });
+  tearDownAll(() => Hive.close());
+
   for (final path in [
     '/adviser/advisory',
     '/adviser/advisory/attendance',
@@ -107,7 +118,7 @@ void main() {
           .decoration!;
       expect(tester.getSize(find.byType(AppBar)), expectedSize);
       expect(theme.appBarTheme.toolbarHeight, 72);
-      expect(theme.appBarTheme.backgroundColor, Colors.white);
+      expect(theme.appBarTheme.backgroundColor, theme.colorScheme.surface);
       expect(appBar.leadingWidth, 64);
       expect(search.fillColor, expectedSearch.fillColor);
       expect(search.enabledBorder, expectedSearch.enabledBorder);
@@ -129,7 +140,7 @@ void main() {
       );
       expect(
         Theme.of(tester.element(find.byType(AppBar))).brightness,
-        Brightness.light,
+        Brightness.dark,
       );
       expect(
         Theme.of(tester.element(find.text('probe:'))).brightness,
@@ -171,7 +182,7 @@ void main() {
     );
     expect(
       Theme.of(tester.element(find.text('probe:'))).brightness,
-      Brightness.light,
+      Brightness.dark,
     );
     expect(tester.takeException(), isNull);
   });
@@ -189,7 +200,7 @@ void main() {
     expect(find.byKey(const ValueKey('adviser-nav-Bama')), findsNothing);
     expect(find.byKey(const ValueKey('screen-search-field')), findsOneWidget);
     final theme = Theme.of(tester.element(find.byType(Scaffold).first));
-    expect(theme.brightness, Brightness.light);
+    expect(theme.brightness, Brightness.dark);
     expect(tester.takeException(), isNull);
   });
 
@@ -267,7 +278,10 @@ void main() {
       final teacher = screenSearchCatalog(isAdviser: false)
           .map((d) => d.label)
           .toList();
-      expect(teacher, containsAll(['Overview', 'Class', 'Gradebook', 'Attendance']));
+      expect(
+        teacher,
+        containsAll(['Overview', 'Class', 'Gradebook', 'Attendance']),
+      );
       expect(teacher, isNot(contains('My schedule')));
       expect(teacher, isNot(contains('Advisory list')));
       expect(teacher, isNot(contains('Advisory attendance')));
@@ -446,23 +460,65 @@ void main() {
     expect(tester.takeException(), isNull);
   });
 
-  for (final size in [const Size(320, 568), const Size(390, 900), const Size(700, 1200)]) {
-    testWidgets('Profile keeps Logout at the bottom at $size with large text', (tester) async {
-      await mountShell(tester, child: const _Probe(), width: size.width, scale: 2);
+  for (final size in [
+    const Size(320, 568),
+    const Size(390, 900),
+    const Size(700, 1200),
+  ]) {
+    testWidgets('Profile keeps Logout at the bottom at $size with large text', (
+      tester,
+    ) async {
+      await mountShell(
+        tester,
+        child: const _Probe(),
+        width: size.width,
+        scale: 2,
+      );
       tester.view.physicalSize = size;
       await tester.pumpAndSettle();
       await tester.tap(find.byKey(const ValueKey('profile-avatar')));
       await tester.pumpAndSettle();
-      final logout = tester.getRect(find.byKey(const ValueKey('profile-logout')));
+      final logout = tester.getRect(
+        find.byKey(const ValueKey('profile-logout')),
+      );
       expect(logout.bottom, closeTo(size.height - 12, 1));
       expect(logout.top, greaterThan(0));
       expect(tester.takeException(), isNull);
-      await tester.drag(find.byType(SingleChildScrollView).first, const Offset(0, -300));
+      await tester.drag(
+        find.byType(SingleChildScrollView).first,
+        const Offset(0, -300),
+      );
       await tester.pumpAndSettle();
-      expect(tester.getRect(find.byKey(const ValueKey('profile-logout'))), logout);
+      expect(
+        tester.getRect(find.byKey(const ValueKey('profile-logout'))),
+        logout,
+      );
       expect(tester.takeException(), isNull);
     });
   }
+
+  testWidgets('selected drawer destination stays readable in dark mode', (
+    tester,
+  ) async {
+    await mountShell(
+      tester,
+      child: const _Probe(),
+      selectedPath: '/adviser/interventions',
+    );
+    await tester.tap(find.byTooltip('Menu'));
+    await tester.pumpAndSettle();
+    final tile = tester.widget<ListTile>(
+      find.widgetWithText(ListTile, 'Interventions'),
+    );
+    expect(tile.selected, isTrue);
+    final label = DefaultTextStyle.of(
+      tester.element(find.text('Interventions')),
+    );
+    // Light-on-dark label, not the outer dark scheme's grey secondary.
+    expect(label.style.color, const Color(0xFF7EB2FF));
+    expect(tile.selectedTileColor, isNot(tile.selectedColor));
+    expect(tester.takeException(), isNull);
+  });
 
   testWidgets('profile avatar opens the full-screen account panel', (
     tester,
@@ -480,12 +536,10 @@ void main() {
       find.widgetWithText(ListTile, 'Appearance'),
     );
     expect(appearance.subtitle, isNull);
-    final profileTheme = Theme.of(
-      tester.element(find.text('Profile')),
-    );
-    expect(profileTheme.scaffoldBackgroundColor, const Color(0xFFFAFAF9));
-    expect(profileTheme.colorScheme.primary, const Color(0xFF2563EB));
-    expect(profileTheme.listTileTheme.iconColor, const Color(0xFF181B19));
+    final profileTheme = Theme.of(tester.element(find.text('Profile')));
+    expect(profileTheme.scaffoldBackgroundColor, const Color(0xFF050807));
+    expect(profileTheme.colorScheme.primary, const Color(0xFF7EB2FF));
+    expect(profileTheme.listTileTheme.iconColor, const Color(0xFFF3F7F5));
     expect(find.text('Settings'), findsOneWidget);
     expect(find.text('Logout'), findsOneWidget);
     // The panel replaces the shell instead of floating over it.

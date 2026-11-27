@@ -284,7 +284,8 @@ class _OverviewPageState extends ConsumerState<OverviewPage>
             );
     }
     final theme = Theme.of(context);
-    const accent = Color(0xffb45309);
+    final dark = theme.brightness == Brightness.dark;
+    final accent = dark ? const Color(0xFFFFC65C) : const Color(0xffb45309);
     final start = philippineTime(next.startsAt);
     final end = philippineTime(next.endsAt);
     final now = philippineTime(_now);
@@ -299,9 +300,15 @@ class _OverviewPageState extends ConsumerState<OverviewPage>
           constraints: const BoxConstraints(minWidth: 60, minHeight: 64),
           padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 10),
           decoration: BoxDecoration(
-            color: const Color(0xfffff8eb),
+            color: dark
+                ? accent.withValues(alpha: 0.12)
+                : const Color(0xfffff8eb),
             borderRadius: BorderRadius.circular(12),
-            border: Border.all(color: const Color(0xfffde0b4)),
+            border: Border.all(
+              color: dark
+                  ? accent.withValues(alpha: 0.38)
+                  : const Color(0xfffde0b4),
+            ),
           ),
           child: Column(
             mainAxisSize: MainAxisSize.min,
@@ -335,7 +342,7 @@ class _OverviewPageState extends ConsumerState<OverviewPage>
               Text(
                 next.slot.subjectName,
                 style: theme.textTheme.titleSmall?.copyWith(
-                  color: const Color(0xff080d23),
+                  color: theme.colorScheme.onSurface,
                   fontSize: 17,
                   fontWeight: FontWeight.w700,
                 ),
@@ -455,19 +462,19 @@ class _ScheduleMeta extends StatelessWidget {
   final String text;
 
   @override
-  Widget build(BuildContext context) => Row(
-    mainAxisSize: MainAxisSize.min,
-    children: [
-      Icon(icon, size: 16, color: const Color(0xff52647b)),
-      const SizedBox(width: 5),
-      Flexible(
-        child: Text(
-          text,
-          style: const TextStyle(fontSize: 12, color: Color(0xff52647b)),
+  Widget build(BuildContext context) {
+    final muted = Theme.of(context).colorScheme.onSurfaceVariant;
+    return Row(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        Icon(icon, size: 16, color: muted),
+        const SizedBox(width: 5),
+        Flexible(
+          child: Text(text, style: TextStyle(fontSize: 12, color: muted)),
         ),
-      ),
-    ],
-  );
+      ],
+    );
+  }
 }
 
 class OverviewQuickActions extends StatelessWidget {

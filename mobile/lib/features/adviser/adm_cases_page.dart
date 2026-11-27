@@ -16,6 +16,7 @@ import '../../design/shell.dart';
 import '../../shared/widgets.dart';
 import '../home/overview_data.dart';
 import 'adm_case_card.dart';
+import '../../design/desk_theme.dart';
 
 final admCasesProvider = FutureProvider<List<Map<String, dynamic>>>((
   ref,
@@ -104,20 +105,22 @@ class _AdmCasesState extends ConsumerState<AdmCasesPage> {
   }
 
   @override
-  Widget build(BuildContext context) => Theme(
-    data: overviewScreenTheme(Theme.of(context))
-        .copyWith(scaffoldBackgroundColor: Colors.white),
-    child: ColoredBox(
-      color: Colors.white,
-      child: Align(
-        alignment: Alignment.topCenter,
-        child: ConstrainedBox(
-          constraints: const BoxConstraints(maxWidth: 760),
-          child: Builder(builder: _content),
+  Widget build(BuildContext context) {
+    final theme = overviewScreenTheme(Theme.of(context));
+    return Theme(
+      data: theme,
+      child: ColoredBox(
+        color: theme.scaffoldBackgroundColor,
+        child: Align(
+          alignment: Alignment.topCenter,
+          child: ConstrainedBox(
+            constraints: const BoxConstraints(maxWidth: 760),
+            child: Builder(builder: _content),
+          ),
         ),
       ),
-    ),
-  );
+    );
+  }
 
   Widget _content(BuildContext context) {
     final cases = ref.watch(admCasesProvider);
@@ -210,13 +213,13 @@ class _AdmCasesState extends ConsumerState<AdmCasesPage> {
                 ),
                 const SizedBox(height: 12),
               ],
-              const Text(
+              Text(
                 'FILTER ADM CASES',
                 style: TextStyle(
                   fontSize: 12,
                   fontWeight: FontWeight.w700,
                   letterSpacing: 0.4,
-                  color: Color(0xFF929FB5),
+                  color: zMutedInk(context),
                 ),
               ),
               Row(
@@ -272,10 +275,7 @@ class _AdmCasesState extends ConsumerState<AdmCasesPage> {
                   Expanded(
                     child: Text(
                       'Showing ${shown.length} records',
-                      style: const TextStyle(
-                        fontSize: 12,
-                        color: Color(0xFF9999A6),
-                      ),
+                      style: TextStyle(fontSize: 12, color: zMutedInk(context)),
                     ),
                   ),
                   TextButton.icon(
@@ -286,7 +286,7 @@ class _AdmCasesState extends ConsumerState<AdmCasesPage> {
                       style: const TextStyle(fontSize: 12),
                     ),
                     style: TextButton.styleFrom(
-                      foregroundColor: const Color(0xFF334155),
+                      foregroundColor: zInk(context),
                       padding: const EdgeInsets.symmetric(horizontal: 8),
                     ),
                   ),

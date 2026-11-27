@@ -3,6 +3,8 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 
+import '../design/desk_theme.dart';
+
 /// Controlled date navigation shared by Class and attendance sheets.
 class DateStripSelector extends StatefulWidget {
   const DateStripSelector({
@@ -145,15 +147,15 @@ class _DateStripState extends State<DateStripSelector> {
       maximumSize: Size(32, height),
       padding: EdgeInsets.zero,
       tapTargetSize: MaterialTapTargetSize.padded,
-      foregroundColor: const Color(0xFF52627C),
-      side: const BorderSide(color: Color(0xFFE6ECF4)),
+      foregroundColor: zMutedInk(context),
+      side: BorderSide(color: zLine(context)),
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
     );
     return Container(
       padding: const EdgeInsets.all(8),
       decoration: BoxDecoration(
-        color: Colors.white,
-        border: Border.all(color: const Color(0xFFE6ECF4)),
+        color: zCard(context),
+        border: Border.all(color: zLine(context)),
         borderRadius: BorderRadius.circular(16),
         boxShadow: const [
           BoxShadow(
@@ -179,10 +181,10 @@ class _DateStripState extends State<DateStripSelector> {
               const SizedBox(width: 4),
               Expanded(
                 child: Material(
-                  color: const Color(0xFFF8F9FB),
+                  color: zSoft(context),
                   shape: RoundedRectangleBorder(
                     borderRadius: BorderRadius.circular(12),
-                    side: const BorderSide(color: Color(0xFFE6ECF4)),
+                    side: BorderSide(color: zLine(context)),
                   ),
                   child: InkWell(
                     onTap: _enabled ? _pick : null,
@@ -192,10 +194,10 @@ class _DateStripState extends State<DateStripSelector> {
                       child: Row(
                         mainAxisAlignment: MainAxisAlignment.center,
                         children: [
-                          const Icon(
+                          Icon(
                             Icons.calendar_today_outlined,
                             size: 14,
-                            color: Color(0xFF52627C),
+                            color: zMutedInk(context),
                           ),
                           const SizedBox(width: 6),
                           Flexible(
@@ -205,10 +207,10 @@ class _DateStripState extends State<DateStripSelector> {
                               textAlign: TextAlign.center,
                               maxLines: 1,
                               overflow: TextOverflow.ellipsis,
-                              style: const TextStyle(
+                              style: TextStyle(
                                 fontSize: 12,
                                 fontWeight: FontWeight.w600,
-                                color: Color(0xFF192034),
+                                color: zInk(context),
                               ),
                             ),
                           ),
@@ -233,14 +235,14 @@ class _DateStripState extends State<DateStripSelector> {
                     : null,
                 style: TextButton.styleFrom(
                   minimumSize: const Size(48, 48),
-                  foregroundColor: const Color(0xFF2563EB),
+                  foregroundColor: zLift(context, const Color(0xFF2563EB)),
                   padding: const EdgeInsets.symmetric(horizontal: 6),
                 ),
                 child: const Text('Today', style: TextStyle(fontSize: 12)),
               ),
             ],
           ),
-          const Divider(height: 12, color: Color(0xFFF0F3F8)),
+          Divider(height: 12, color: zLine(context)),
           SizedBox(
             height: 24 + MediaQuery.textScalerOf(context).scale(12) * 3,
             child: PageView.builder(
@@ -284,10 +286,10 @@ class _DateStripState extends State<DateStripSelector> {
                       padding: const EdgeInsets.symmetric(horizontal: 2),
                       backgroundColor: selected
                           ? const Color(0xFF4060EF)
-                          : const Color(0xFFF8F9FB),
+                          : zSoft(context),
                       foregroundColor: selected
                           ? Colors.white
-                          : const Color(0xFF71809B),
+                          : zMutedInk(context),
                       shape: RoundedRectangleBorder(
                         borderRadius: BorderRadius.circular(12),
                       ),
@@ -309,9 +311,7 @@ class _DateStripState extends State<DateStripSelector> {
                           style: TextStyle(
                             fontSize: 12,
                             fontWeight: FontWeight.w700,
-                            color: selected
-                                ? Colors.white
-                                : const Color(0xFF263045),
+                            color: selected ? Colors.white : zInk(context),
                           ),
                         ),
                         const SizedBox(height: 4),
@@ -323,8 +323,8 @@ class _DateStripState extends State<DateStripSelector> {
                             color: selected
                                 ? const Color(0xFFF59E0B)
                                 : widget.hasEvent?.call(date) == true
-                                ? const Color(0xFFCBD5E1)
-                                : const Color(0xFFE6ECF4),
+                                ? zLine(context)
+                                : zLine(context),
                           ),
                         ),
                       ],

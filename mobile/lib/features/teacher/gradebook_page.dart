@@ -203,7 +203,7 @@ class _State extends ConsumerState<GradebookPage> {
         isScrollControlled: true,
         isDismissible: false,
         enableDrag: false,
-        backgroundColor: Colors.white,
+        backgroundColor: Theme.of(context).scaffoldBackgroundColor,
         barrierColor: const Color(0x660B1220),
         shape: const RoundedRectangleBorder(
           borderRadius: BorderRadius.vertical(top: Radius.circular(28)),
@@ -278,10 +278,12 @@ class _State extends ConsumerState<GradebookPage> {
           // the rest of the shell; the learner list already reserves its lane.
           extendBody: ownNavigation,
           appBar: AppBar(
-            backgroundColor: Colors.white,
+            backgroundColor: Theme.of(context).scaffoldBackgroundColor,
             surfaceTintColor: Colors.transparent,
             scrolledUnderElevation: 0,
-            shape: const Border(bottom: BorderSide(color: Color(0xFFEDF0F6))),
+            shape: Border(
+              bottom: BorderSide(color: Theme.of(context).colorScheme.outline),
+            ),
             centerTitle: true,
             leadingWidth: 64,
             leading: ZBackButton(
@@ -368,10 +370,10 @@ class _State extends ConsumerState<GradebookPage> {
                   titleMetadata: [
                     Text(
                       'Manage assessments and scores.',
-                      style: const TextStyle(
+                      style: TextStyle(
                         fontSize: 11,
                         height: 1.3,
-                        color: Color(0xFF626B82),
+                        color: Theme.of(context).colorScheme.onSurfaceVariant,
                       ),
                     ),
                   ],
@@ -485,9 +487,9 @@ class _State extends ConsumerState<GradebookPage> {
                     Expanded(
                       child: Text(
                         'Showing ${learners.length} ${learners.length == 1 ? 'record' : 'records'}',
-                        style: const TextStyle(
+                        style: TextStyle(
                           fontSize: 12,
-                          color: Color(0xFF9999A6),
+                          color: theme.colorScheme.onSurfaceVariant,
                         ),
                       ),
                     ),
@@ -500,7 +502,7 @@ class _State extends ConsumerState<GradebookPage> {
                         style: const TextStyle(fontSize: 12),
                       ),
                       style: TextButton.styleFrom(
-                        foregroundColor: const Color(0xFF334155),
+                        foregroundColor: theme.colorScheme.onSurface,
                         padding: const EdgeInsets.symmetric(
                           horizontal: 8,
                           vertical: 0,
@@ -568,13 +570,21 @@ class _State extends ConsumerState<GradebookPage> {
       _expanded = false;
     }),
     style: OutlinedButton.styleFrom(
-      backgroundColor: const Color(0xFFEAF2FF),
-      foregroundColor: const Color(0xFF2563EB),
+      backgroundColor: Theme.of(context).brightness == Brightness.dark
+          ? const Color(0x292B7FFF)
+          : const Color(0xFFEAF2FF),
+      foregroundColor: Theme.of(context).brightness == Brightness.dark
+          ? const Color(0xFF8FB6F5)
+          : const Color(0xFF2563EB),
       minimumSize: const Size(48, 28),
       padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
       tapTargetSize: MaterialTapTargetSize.padded,
       visualDensity: VisualDensity.standard,
-      side: const BorderSide(color: Color(0xFFD4E4FF)),
+      side: BorderSide(
+        color: Theme.of(context).brightness == Brightness.dark
+            ? const Color(0x662B7FFF)
+            : const Color(0xFFD4E4FF),
+      ),
       shape: const StadiumBorder(),
       textStyle: const TextStyle(fontSize: 11, fontWeight: FontWeight.w600),
     ),
@@ -590,6 +600,21 @@ class _State extends ConsumerState<GradebookPage> {
     ),
   );
 
+  static Color _wash(Color light) {
+    final hsl = HSLColor.fromColor(light);
+    return HSLColor.fromAHSL(0.16, hsl.hue, 0.45, 0.5).toColor();
+  }
+
+  static Color _lift(Color light) {
+    final hsl = HSLColor.fromColor(light);
+    return HSLColor.fromAHSL(
+      hsl.alpha,
+      hsl.hue,
+      hsl.saturation.clamp(0.35, 0.9),
+      0.68,
+    ).toColor();
+  }
+
   Widget _gradingWeights(ClassRecord data) {
     const categories = [
       ('WRITTEN_WORK', 'WRITTEN', Color(0xFF355CEC), Color(0xFFF3F6FF)),
@@ -601,13 +626,13 @@ class _State extends ConsumerState<GradebookPage> {
       children: [
         Row(
           children: [
-            const Expanded(
+            Expanded(
               child: Text(
                 'GRADING WEIGHTS',
                 style: TextStyle(
                   fontSize: 12,
                   fontWeight: FontWeight.w600,
-                  color: Color(0xFF697791),
+                  color: Theme.of(context).colorScheme.onSurfaceVariant,
                 ),
               ),
             ),
@@ -640,63 +665,73 @@ class _State extends ConsumerState<GradebookPage> {
                     key: ValueKey('grading-weight-${category.$1}'),
                     onTap: _openAssessments,
                     borderRadius: BorderRadius.circular(18),
-                    child: Container(
-                      padding: const EdgeInsets.all(8),
-                      decoration: BoxDecoration(
-                        color: category.$4,
-                        borderRadius: BorderRadius.circular(18),
-                        border: Border.all(
-                          color: category.$3.withValues(alpha: 0.15),
-                        ),
-                      ),
-                      child: Column(
-                        mainAxisSize: MainAxisSize.min,
-                        children: [
-                          Row(
+                    child: Builder(
+                      builder: (context) {
+                        final dark =
+                            Theme.of(context).brightness == Brightness.dark;
+                        final accent = dark ? _lift(category.$3) : category.$3;
+                        final fill = dark ? _wash(category.$4) : category.$4;
+                        return Container(
+                          padding: const EdgeInsets.all(8),
+                          decoration: BoxDecoration(
+                            color: fill,
+                            borderRadius: BorderRadius.circular(18),
+                            border: Border.all(
+                              color: accent.withValues(
+                                alpha: dark ? 0.4 : 0.15,
+                              ),
+                            ),
+                          ),
+                          child: Column(
+                            mainAxisSize: MainAxisSize.min,
                             children: [
-                              Expanded(
-                                child: Align(
-                                  alignment: Alignment.centerLeft,
-                                  child: FittedBox(
-                                    fit: BoxFit.scaleDown,
-                                    child: Text(
-                                      category.$2,
-                                      maxLines: 1,
-                                      style: TextStyle(
-                                        fontSize: 11,
-                                        fontWeight: FontWeight.w600,
-                                        color: category.$3,
+                              Row(
+                                children: [
+                                  Expanded(
+                                    child: Align(
+                                      alignment: Alignment.centerLeft,
+                                      child: FittedBox(
+                                        fit: BoxFit.scaleDown,
+                                        child: Text(
+                                          category.$2,
+                                          maxLines: 1,
+                                          style: TextStyle(
+                                            fontSize: 11,
+                                            fontWeight: FontWeight.w600,
+                                            color: accent,
+                                          ),
+                                        ),
                                       ),
                                     ),
                                   ),
-                                ),
-                              ),
-                              const SizedBox(width: 4),
-                              Text(
-                                '${gradeNumber(data.weights[category.$1] ?? 0)}%',
-                                style: TextStyle(
-                                  fontSize: 12,
-                                  fontWeight: FontWeight.w700,
-                                  color: category.$3,
-                                ),
-                              ),
-                            ],
-                          ),
-                          Row(
-                            children: [
-                              Expanded(
-                                child: Text(
-                                  '${data.assessments.where((a) => a.type == category.$1 && a.audience == _audience).length} ${category.$1 == 'EXAM' ? 'exams' : 'tasks'}',
-                                  style: TextStyle(
-                                    fontSize: 12,
-                                    color: category.$3,
+                                  const SizedBox(width: 4),
+                                  Text(
+                                    '${gradeNumber(data.weights[category.$1] ?? 0)}%',
+                                    style: TextStyle(
+                                      fontSize: 12,
+                                      fontWeight: FontWeight.w700,
+                                      color: accent,
+                                    ),
                                   ),
-                                ),
+                                ],
+                              ),
+                              Row(
+                                children: [
+                                  Expanded(
+                                    child: Text(
+                                      '${data.assessments.where((a) => a.type == category.$1 && a.audience == _audience).length} ${category.$1 == 'EXAM' ? 'exams' : 'tasks'}',
+                                      style: TextStyle(
+                                        fontSize: 12,
+                                        color: accent,
+                                      ),
+                                    ),
+                                  ),
+                                ],
                               ),
                             ],
                           ),
-                        ],
-                      ),
+                        );
+                      },
                     ),
                   ),
                 ),

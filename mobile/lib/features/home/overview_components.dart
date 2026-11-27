@@ -32,24 +32,26 @@ class OverviewBoard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
+    final dark = theme.brightness == Brightness.dark;
     final isSchedule = title == 'Up next';
-    final accent = isSchedule
-        ? const Color(0xff0755dc)
-        : theme.colorScheme.primary;
+    final scheduleAccent = dark
+        ? const Color(0xFF8FB6F5)
+        : const Color(0xff0755dc);
+    final accent = isSchedule ? scheduleAccent : theme.colorScheme.primary;
     final hairline = isSchedule
-        ? const Color(0xffe7ecf2)
+        ? (dark ? theme.colorScheme.outline : const Color(0xffe7ecf2))
         : theme.colorScheme.outline.withValues(alpha: 0.7);
     return Material(
       color: isSchedule
-          ? Colors.white
+          ? theme.colorScheme.surface
           : theme.cardTheme.color ?? theme.colorScheme.surface,
       elevation: 1,
-      shadowColor: Colors.black.withValues(alpha: 0.08),
+      shadowColor: Colors.black.withValues(alpha: dark ? 0.4 : 0.08),
       shape: RoundedRectangleBorder(
         borderRadius: BorderRadius.circular(isSchedule ? 18 : 16),
         side: BorderSide(
           color: isSchedule
-              ? const Color(0xffdce5ef)
+              ? (dark ? theme.colorScheme.outline : const Color(0xffdce5ef))
               : theme.colorScheme.outline,
         ),
       ),
@@ -66,14 +68,23 @@ class OverviewBoard extends StatelessWidget {
                 Container(
                   padding: EdgeInsets.all(isSchedule ? 7 : 5),
                   decoration: BoxDecoration(
-                    color: (isSchedule ? const Color(0xffb45309) : accent)
-                        .withValues(alpha: 0.08),
+                    color:
+                        (isSchedule
+                                ? (dark
+                                      ? const Color(0xFFFFC65C)
+                                      : const Color(0xffb45309))
+                                : accent)
+                            .withValues(alpha: 0.08),
                     borderRadius: BorderRadius.circular(11),
                   ),
                   child: Icon(
                     icon,
                     size: isSchedule ? 20 : 18,
-                    color: isSchedule ? const Color(0xffb45309) : accent,
+                    color: isSchedule
+                        ? (dark
+                              ? const Color(0xFFFFC65C)
+                              : const Color(0xffb45309))
+                        : accent,
                   ),
                 ),
                 const SizedBox(width: 8),
@@ -85,7 +96,7 @@ class OverviewBoard extends StatelessWidget {
                     overflow: TextOverflow.ellipsis,
                     style: theme.textTheme.titleSmall?.copyWith(
                       fontSize: isSchedule ? 16 : 14,
-                      color: isSchedule ? const Color(0xff080d23) : null,
+                      color: isSchedule ? theme.colorScheme.onSurface : null,
                       fontWeight: FontWeight.w700,
                     ),
                   ),
@@ -114,7 +125,9 @@ class OverviewBoard extends StatelessWidget {
                         onPressed: onAction,
                         style: TextButton.styleFrom(
                           backgroundColor: isSchedule
-                              ? const Color(0xffeaf2fd)
+                              ? (dark
+                                    ? scheduleAccent.withValues(alpha: 0.14)
+                                    : const Color(0xffeaf2fd))
                               : null,
                           shape: isSchedule ? const StadiumBorder() : null,
                           minimumSize: Size(0, isSchedule ? 32 : 40),

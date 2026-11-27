@@ -14,6 +14,7 @@ import '../../shared/user_messages.dart';
 import '../adviser/schedule_timing.dart';
 import 'attendance_data.dart';
 import 'attendance_sheet_page.dart';
+import '../../design/desk_theme.dart';
 
 /// Recorded dates, not a fabricated history of scheduled or unmarked meetings.
 class AttendanceHistoryPage extends ConsumerStatefulWidget {
@@ -58,7 +59,7 @@ class _HistoryState extends ConsumerState<AttendanceHistoryPage>
       builder: (context, child) => Theme(
         data: overviewScreenTheme(Theme.of(context)).copyWith(
           colorScheme: overviewScreenTheme(Theme.of(context)).colorScheme
-              .copyWith(primary: const Color(0xFF2563EB)),
+              .copyWith(primary: zLift(context, const Color(0xFF2563EB))),
         ),
         child: child!,
       ),
@@ -230,9 +231,9 @@ class _HistoryState extends ConsumerState<AttendanceHistoryPage>
       data: overviewScreenTheme(Theme.of(context)),
       child: Scaffold(
         appBar: AppBar(
-          shape: const Border(bottom: BorderSide(color: Color(0xFFEDF0F6))),
+          shape: Border(bottom: BorderSide(color: zLine(context))),
           centerTitle: true,
-          backgroundColor: Colors.white,
+          backgroundColor: Theme.of(context).scaffoldBackgroundColor,
           leading: ZBackButton(
             tooltip: 'Back',
             icon: const Icon(Icons.chevron_left),
@@ -250,7 +251,8 @@ class _HistoryState extends ConsumerState<AttendanceHistoryPage>
                   padding: const EdgeInsets.all(16),
                   physics: const AlwaysScrollableScrollPhysics(),
                   children: [
-                    ZContentHeader(title: widget.pair.subjectName,
+                    ZContentHeader(
+                      title: widget.pair.subjectName,
                       icon: Icons.history,
                       description: 'Tap a date to view attendance. Only this week can be edited. Totals count marks across all periods, not unique students.',
                     ),
@@ -289,9 +291,12 @@ class _HistoryState extends ConsumerState<AttendanceHistoryPage>
                           ? null
                           : _pickDate,
                       style: OutlinedButton.styleFrom(
-                        foregroundColor: const Color(0xFF2563EB),
-                        backgroundColor: Colors.white,
-                        side: const BorderSide(color: Color(0xFFE6ECF4)),
+                        foregroundColor: zLift(
+                          context,
+                          const Color(0xFF2563EB),
+                        ),
+                        backgroundColor: zCard(context),
+                        side: BorderSide(color: zLine(context)),
                         minimumSize: const Size.fromHeight(48),
                         shape: RoundedRectangleBorder(
                           borderRadius: BorderRadius.circular(16),
@@ -312,10 +317,10 @@ class _HistoryState extends ConsumerState<AttendanceHistoryPage>
                         key: ValueKey('attendance-history-$date'),
                         margin: const EdgeInsets.only(bottom: 12),
                         elevation: 0,
-                        color: Colors.white,
+                        color: zCard(context),
                         shape: RoundedRectangleBorder(
                           borderRadius: BorderRadius.circular(16),
-                          side: const BorderSide(color: Color(0xFFE6ECF4)),
+                          side: BorderSide(color: zLine(context)),
                         ),
                         clipBehavior: Clip.antiAlias,
                         child: Material(
@@ -331,10 +336,13 @@ class _HistoryState extends ConsumerState<AttendanceHistoryPage>
                                 children: [
                                   Row(
                                     children: [
-                                      const CircleAvatar(
+                                      CircleAvatar(
                                         radius: 19,
-                                        backgroundColor: Color(0xFFEFF6FF),
-                                        foregroundColor: Color(0xFF52627C),
+                                        backgroundColor: zWash(
+                                          context,
+                                          Color(0xFFEFF6FF),
+                                        ),
+                                        foregroundColor: zMutedInk(context),
                                         child: Icon(
                                           Icons.calendar_month_outlined,
                                           size: 20,
@@ -343,23 +351,24 @@ class _HistoryState extends ConsumerState<AttendanceHistoryPage>
                                       const SizedBox(width: 12),
                                       Expanded(
                                         child: Column(
-                                          crossAxisAlignment: CrossAxisAlignment.start,
+                                          crossAxisAlignment:
+                                              CrossAxisAlignment.start,
                                           children: [
                                             Text(
                                               DateFormat('EEE, MMM d, yyyy')
                                                   .format(DateTime.parse(date)),
-                                              style: const TextStyle(
+                                              style: TextStyle(
                                                 fontSize: 14,
                                                 fontWeight: FontWeight.w600,
-                                                color: Color(0xFF172033),
+                                                color: zInk(context),
                                               ),
                                             ),
                                             const SizedBox(height: 3),
-                                            const Text(
+                                            Text(
                                               'Attendance record',
                                               style: TextStyle(
                                                 fontSize: 12,
-                                                color: Color(0xFF71809B),
+                                                color: zMutedInk(context),
                                               ),
                                             ),
                                           ],
@@ -375,16 +384,16 @@ class _HistoryState extends ConsumerState<AttendanceHistoryPage>
                                               ? Icons.visibility_outlined
                                               : Icons.edit_outlined,
                                           size: 20,
-                                          color: const Color(0xFF71809B),
+                                          color: zMutedInk(context),
                                         ),
                                       ),
                                     ],
                                   ),
-                                  const Padding(
+                                  Padding(
                                     padding: EdgeInsets.symmetric(vertical: 12),
                                     child: Divider(
                                       height: 1,
-                                      color: Color(0xFFF0F3F8),
+                                      color: zLine(context),
                                     ),
                                   ),
                                   Center(

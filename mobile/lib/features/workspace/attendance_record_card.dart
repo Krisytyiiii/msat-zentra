@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 
 import '../../design/status_palette.dart';
 import 'attendance_data.dart';
+import '../../design/desk_theme.dart';
 
 class AttendanceRecordCard extends StatelessWidget {
   const AttendanceRecordCard({
@@ -36,13 +37,13 @@ class AttendanceRecordCard extends StatelessWidget {
       badge: true,
     );
     return Container(
-      margin: const EdgeInsets.only(bottom: 12),
-      padding: const EdgeInsets.all(14),
+      margin: EdgeInsets.only(bottom: 12),
+      padding: EdgeInsets.all(14),
       decoration: BoxDecoration(
-        color: Colors.white,
+        color: zCard(context),
         borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: const Color(0xFFE6ECF4)),
-        boxShadow: const [
+        border: Border.all(color: zLine(context)),
+        boxShadow: [
           BoxShadow(
             color: Color(0x09000000),
             blurRadius: 10,
@@ -59,46 +60,40 @@ class AttendanceRecordCard extends StatelessWidget {
               CircleAvatar(
                 radius: 19,
                 backgroundColor: index.isEven
-                    ? const Color(0xFFEDE9FF)
-                    : const Color(0xFFDCFCE7),
+                    ? zWash(context, Color(0xFFEDE9FF))
+                    : zWash(context, Color(0xFFDCFCE7)),
                 foregroundColor: index.isEven
-                    ? const Color(0xFF6435E9)
-                    : const Color(0xFF438466),
+                    ? zLift(context, Color(0xFF6435E9))
+                    : zLift(context, Color(0xFF438466)),
                 child: Text(
                   initials,
-                  style: const TextStyle(
-                    fontSize: 12,
-                    fontWeight: FontWeight.w600,
-                  ),
+                  style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600),
                 ),
               ),
-              const SizedBox(width: 12),
+              SizedBox(width: 12),
               Expanded(
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Text(
                       learner.name,
-                      style: const TextStyle(
+                      style: TextStyle(
                         fontSize: 14,
                         fontWeight: FontWeight.w600,
-                        color: Color(0xFF172033),
+                        color: zInk(context),
                       ),
                     ),
-                    const SizedBox(height: 3),
+                    SizedBox(height: 3),
                     Text(
                       'LRN ${learner.lrn}',
-                      style: const TextStyle(
-                        fontSize: 12,
-                        color: Color(0xFF71809B),
-                      ),
+                      style: TextStyle(fontSize: 12, color: zMutedInk(context)),
                     ),
                   ],
                 ),
               ),
-              const SizedBox(width: 6),
+              SizedBox(width: 6),
               Container(
-                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                padding: EdgeInsets.symmetric(horizontal: 8, vertical: 4),
                 decoration: BoxDecoration(
                   color: colors.background,
                   borderRadius: BorderRadius.circular(8),
@@ -120,15 +115,16 @@ class AttendanceRecordCard extends StatelessWidget {
               ),
             ],
           ),
-          const Padding(
+          Padding(
             padding: EdgeInsets.symmetric(vertical: 8),
-            child: Divider(height: 1, color: Color(0xFFF0F3F8)),
+            child: Divider(height: 1, color: zLine(context)),
           ),
-          _row('Present', data?.present.toString() ?? '—'),
-          _row('Late', data?.late.toString() ?? '—'),
-          _row('Absent', data?.absent.toString() ?? '—'),
-          const Divider(height: 8, color: Color(0xFFE6ECF4)),
+          _row(context, 'Present', data?.present.toString() ?? '—'),
+          _row(context, 'Late', data?.late.toString() ?? '—'),
+          _row(context, 'Absent', data?.absent.toString() ?? '—'),
+          Divider(height: 8, color: zLine(context)),
           _row(
+            context,
             'Attendance Rate',
             data == null ? '—' : '${(data.rate * 100).toStringAsFixed(1)}%',
             total: true,
@@ -138,8 +134,13 @@ class AttendanceRecordCard extends StatelessWidget {
     );
   }
 
-  Widget _row(String label, String value, {bool total = false}) => Padding(
-    padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 2),
+  Widget _row(
+    BuildContext context,
+    String label,
+    String value, {
+    bool total = false,
+  }) => Padding(
+    padding: EdgeInsets.symmetric(horizontal: 4, vertical: 2),
     child: Row(
       children: [
         Expanded(
@@ -149,17 +150,17 @@ class AttendanceRecordCard extends StatelessWidget {
               fontSize: 12,
               height: 1.5,
               fontWeight: total ? FontWeight.w600 : FontWeight.w400,
-              color: total ? const Color(0xFF172033) : const Color(0xFF71809B),
+              color: total ? zInk(context) : zMutedInk(context),
             ),
           ),
         ),
-        const SizedBox(width: 12),
+        SizedBox(width: 12),
         Text(
           value,
-          style: const TextStyle(
+          style: TextStyle(
             fontSize: 12,
             fontWeight: FontWeight.w600,
-            color: Color(0xFF52627C),
+            color: zMutedInk(context),
           ),
         ),
       ],

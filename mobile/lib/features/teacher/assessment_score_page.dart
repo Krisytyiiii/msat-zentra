@@ -49,7 +49,7 @@ class _ReviewScoresDialog extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) => Dialog(
-    backgroundColor: Colors.white,
+    backgroundColor: Theme.of(context).colorScheme.surface,
     insetPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 24),
     shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(24)),
     child: ConstrainedBox(
@@ -62,13 +62,13 @@ class _ReviewScoresDialog extends StatelessWidget {
           children: [
             Row(
               children: [
-                const Expanded(
+                Expanded(
                   child: Text(
                     'Review scores',
                     style: TextStyle(
                       fontSize: 20,
                       fontWeight: FontWeight.w700,
-                      color: Color(0xFF101828),
+                      color: Theme.of(context).colorScheme.onSurface,
                     ),
                   ),
                 ),
@@ -102,16 +102,19 @@ class _ReviewScoresDialog extends StatelessWidget {
             const SizedBox(height: 12),
             Text(
               assessment.title,
-              style: const TextStyle(
+              style: TextStyle(
                 fontSize: 14,
                 fontWeight: FontWeight.w600,
-                color: Color(0xFF101828),
+                color: Theme.of(context).colorScheme.onSurface,
               ),
             ),
             const SizedBox(height: 8),
             Text(
               '${changes.length} changed ${changes.length == 1 ? 'learner' : 'learners'}',
-              style: const TextStyle(fontSize: 12, color: Color(0xFF667085)),
+              style: TextStyle(
+                fontSize: 12,
+                color: Theme.of(context).colorScheme.onSurfaceVariant,
+              ),
             ),
             const SizedBox(height: 12),
             for (final change in changes)
@@ -119,40 +122,44 @@ class _ReviewScoresDialog extends StatelessWidget {
                 margin: const EdgeInsets.only(bottom: 8),
                 padding: const EdgeInsets.all(12),
                 decoration: BoxDecoration(
-                  color: const Color(0xFFF8FAFC),
+                  color: Theme.of(context).colorScheme.surfaceContainerLow,
                   borderRadius: BorderRadius.circular(12),
-                  border: Border.all(color: const Color(0xFFE2E8F0)),
+                  border: Border.all(
+                    color: Theme.of(context).colorScheme.outline,
+                  ),
                 ),
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Text(
                       change.name,
-                      style: const TextStyle(
+                      style: TextStyle(
                         fontSize: 12,
                         fontWeight: FontWeight.w600,
-                        color: Color(0xFF101828),
+                        color: Theme.of(context).colorScheme.onSurface,
                       ),
                     ),
                     const SizedBox(height: 4),
                     Text(
                       '${change.before == null ? 'Missing' : gradeNumber(change.before!)}'
                       '${change.queued ? ' (Queued)' : ''} → ${gradeNumber(change.after)}',
-                      style: const TextStyle(
+                      style: TextStyle(
                         fontSize: 12,
-                        color: Color(0xFF2563EB),
+                        color: Theme.of(context).brightness == Brightness.dark
+                            ? const Color(0xFF8FB6F5)
+                            : const Color(0xFF2563EB),
                       ),
                     ),
                   ],
                 ),
               ),
             const SizedBox(height: 8),
-            const Text(
+            Text(
               'Only changed scores will be submitted. Offline scores stay queued until confirmed.',
               style: TextStyle(
                 fontSize: 12,
                 height: 1.45,
-                color: Color(0xFF667085),
+                color: Theme.of(context).colorScheme.onSurfaceVariant,
               ),
             ),
             const SizedBox(height: 16),
@@ -168,8 +175,8 @@ class _ReviewScoresDialog extends StatelessWidget {
                 Expanded(
                   child: FilledButton(
                     style: FilledButton.styleFrom(
-                      backgroundColor: const Color(0xFF2563EB),
-                      foregroundColor: Colors.white,
+                      backgroundColor: Theme.of(context).colorScheme.primary,
+                      foregroundColor: Theme.of(context).colorScheme.onPrimary,
                       minimumSize: const Size(48, 48),
                     ),
                     onPressed: () => Navigator.pop(context, true),
@@ -573,18 +580,19 @@ class _ScoreState extends ConsumerState<AssessmentScorePage> {
     final canPop =
         GoRouter.maybeOf(context)?.canPop() ??
         (ModalRoute.of(context)?.canPop ?? false);
+    final desk = overviewScreenTheme(Theme.of(context));
     return Theme(
-      data: overviewScreenTheme(Theme.of(context)),
+      data: desk,
       child: PopScope(
         canPop: !_saving && (_dirty.isEmpty || _allowPop),
         onPopInvokedWithResult: (didPop, _) {
           if (!didPop) _leave();
         },
         child: Scaffold(
-          backgroundColor: Colors.white,
+          backgroundColor: desk.scaffoldBackgroundColor,
           appBar: AppBar(
-            shape: const Border(bottom: BorderSide(color: Color(0xFFEDF0F6))),
-            backgroundColor: Colors.white,
+            shape: Border(bottom: BorderSide(color: desk.colorScheme.outline)),
+            backgroundColor: desk.scaffoldBackgroundColor,
             surfaceTintColor: Colors.transparent,
             scrolledUnderElevation: 0,
             centerTitle: true,
@@ -624,8 +632,8 @@ class _ScoreState extends ConsumerState<AssessmentScorePage> {
                         width: double.infinity,
                         child: FilledButton(
                           style: FilledButton.styleFrom(
-                            backgroundColor: const Color(0xFF2563EB),
-                            foregroundColor: Colors.white,
+                            backgroundColor: desk.colorScheme.primary,
+                            foregroundColor: desk.colorScheme.onPrimary,
                             minimumSize: const Size(160, 48),
                             shape: RoundedRectangleBorder(
                               borderRadius: BorderRadius.circular(16),
@@ -694,13 +702,19 @@ class _ScoreState extends ConsumerState<AssessmentScorePage> {
                           width: 46,
                           height: 46,
                           decoration: BoxDecoration(
-                            color: const Color(0xFFE8EFFF),
+                            color:
+                                Theme.of(context).brightness == Brightness.dark
+                                ? const Color(0x292B7FFF)
+                                : const Color(0xFFE8EFFF),
                             borderRadius: BorderRadius.circular(16),
                           ),
-                          child: const Icon(
+                          child: Icon(
                             Icons.edit_note_outlined,
                             size: 24,
-                            color: Color(0xFF2442A8),
+                            color:
+                                Theme.of(context).brightness == Brightness.dark
+                                ? const Color(0xFFA9C9FF)
+                                : const Color(0xFF2442A8),
                           ),
                         ),
                         const SizedBox(width: 10),
@@ -714,11 +728,13 @@ class _ScoreState extends ConsumerState<AssessmentScorePage> {
                                   Expanded(
                                     child: Text(
                                       assessment.title,
-                                      style: const TextStyle(
+                                      style: TextStyle(
                                         fontSize: 22,
                                         height: 1.2,
                                         fontWeight: FontWeight.w700,
-                                        color: Color(0xFF171C36),
+                                        color: Theme.of(context)
+                                            .colorScheme
+                                            .onSurface,
                                         letterSpacing: -0.5,
                                       ),
                                     ),
@@ -769,7 +785,7 @@ class _ScoreState extends ConsumerState<AssessmentScorePage> {
                           ),
                         if (_record!.assignment['termNumber'] != null)
                           ZScopePill(
-                             text: 'Term ${_record!.assignment['termNumber']}',
+                            text: 'Term ${_record!.assignment['termNumber']}',
                             kind: ScopePillKind.term,
                             compact: true,
                           ),
@@ -778,8 +794,15 @@ class _ScoreState extends ConsumerState<AssessmentScorePage> {
                           _metadataPill(
                             [
                               if (_record!.assignment['gradeLevel'] != null)
-                                _record!.assignment['gradeLevel'].toString()
-                                  .replaceFirst(RegExp(r'^Grade\s*', caseSensitive: false), 'G'),
+                                _record!.assignment['gradeLevel']
+                                    .toString()
+                                    .replaceFirst(
+                                      RegExp(
+                                        r'^Grade\s*',
+                                        caseSensitive: false,
+                                      ),
+                                      'G',
+                                    ),
                               if (_record!.assignment['sectionName'] != null)
                                 _record!.assignment['sectionName'].toString(),
                             ].where((value) => value.isNotEmpty).join(' · '),
@@ -809,21 +832,23 @@ class _ScoreState extends ConsumerState<AssessmentScorePage> {
                                   }),
                                 ),
                           filled: true,
-                          fillColor: const Color(0xFFF5F7FA),
+                          fillColor: Theme.of(context)
+                              .colorScheme
+                              .surfaceContainerLow,
                           contentPadding: const EdgeInsets.symmetric(
                             horizontal: 16,
                             vertical: 8,
                           ),
                           border: OutlineInputBorder(
                             borderRadius: BorderRadius.circular(999),
-                            borderSide: const BorderSide(
-                              color: Color(0xFFE6ECF4),
+                            borderSide: BorderSide(
+                              color: Theme.of(context).colorScheme.outline,
                             ),
                           ),
                           enabledBorder: OutlineInputBorder(
                             borderRadius: BorderRadius.circular(999),
-                            borderSide: const BorderSide(
-                              color: Color(0xFFE6ECF4),
+                            borderSide: BorderSide(
+                              color: Theme.of(context).colorScheme.outline,
                             ),
                           ),
                         ),
@@ -861,9 +886,11 @@ class _ScoreState extends ConsumerState<AssessmentScorePage> {
                         Expanded(
                           child: Text(
                             'Showing ${shown.length} records',
-                            style: const TextStyle(
+                            style: TextStyle(
                               fontSize: 12,
-                              color: Color(0xFF71809B),
+                              color: Theme.of(context)
+                                  .colorScheme
+                                  .onSurfaceVariant,
                             ),
                           ),
                         ),
@@ -927,27 +954,44 @@ class _ScoreState extends ConsumerState<AssessmentScorePage> {
     );
   }
 
+  Color _wash(Color light) {
+    if (Theme.of(context).brightness != Brightness.dark) return light;
+    final hsl = HSLColor.fromColor(light);
+    return HSLColor.fromAHSL(0.16, hsl.hue, 0.45, 0.5).toColor();
+  }
+
+  Color _lift(Color light) {
+    if (Theme.of(context).brightness != Brightness.dark) return light;
+    final hsl = HSLColor.fromColor(light);
+    return HSLColor.fromAHSL(
+      hsl.alpha,
+      hsl.hue,
+      hsl.saturation.clamp(0.35, 0.9),
+      0.68,
+    ).toColor();
+  }
+
   Widget _metadataPill(String text, IconData icon, String label) {
     final (background, border, foreground) = switch (label) {
       'Assessment date' => (
-        const Color(0xFFF3F4F6),
-        const Color(0xFFE5E7EB),
-        const Color(0xFF6B7280),
+        _wash(const Color(0xFFF3F4F6)),
+        _wash(const Color(0xFFE5E7EB)),
+        _lift(const Color(0xFF6B7280)),
       ),
       'Subject' => (
-        const Color(0xFFF0FDFA),
-        const Color(0xFF99F6E4),
-        const Color(0xFF0F766E),
+        _wash(const Color(0xFFF0FDFA)),
+        _wash(const Color(0xFF99F6E4)),
+        _lift(const Color(0xFF0F766E)),
       ),
       'Grade and section' => (
-        const Color(0xFFF5F3FF),
-        const Color(0xFFDDD6FE),
-        const Color(0xFF7C3AED),
+        _wash(const Color(0xFFF5F3FF)),
+        _wash(const Color(0xFFDDD6FE)),
+        _lift(const Color(0xFF7C3AED)),
       ),
       _ => (
-        const Color(0xFFEAF2FF),
-        const Color(0xFFD4E4FF),
-        const Color(0xFF2563EB),
+        _wash(const Color(0xFFEAF2FF)),
+        _wash(const Color(0xFFD4E4FF)),
+        _lift(const Color(0xFF2563EB)),
       ),
     };
     return Tooltip(
@@ -988,9 +1032,9 @@ class _ScoreState extends ConsumerState<AssessmentScorePage> {
   ) => Container(
     padding: const EdgeInsets.symmetric(horizontal: 12),
     decoration: BoxDecoration(
-      color: const Color(0xFFEFF6FF),
+      color: _wash(const Color(0xFFEFF6FF)),
       borderRadius: BorderRadius.circular(24),
-      border: Border.all(color: const Color(0xFFBFDBFE)),
+      border: Border.all(color: _wash(const Color(0xFFBFDBFE))),
     ),
     child: Tooltip(
       message: label,
@@ -999,7 +1043,7 @@ class _ScoreState extends ConsumerState<AssessmentScorePage> {
           value: value,
           isExpanded: true,
           itemHeight: null,
-          style: const TextStyle(fontSize: 12, color: Color(0xFF2563EB)),
+          style: TextStyle(fontSize: 12, color: _lift(const Color(0xFF2563EB))),
           selectedItemBuilder: (_) => [
             for (final text in options.values)
               Align(
@@ -1051,10 +1095,12 @@ class _ScoreState extends ConsumerState<AssessmentScorePage> {
     return Container(
       padding: const EdgeInsets.all(14),
       decoration: BoxDecoration(
-        color: Colors.white,
+        color: Theme.of(context).colorScheme.surface,
         borderRadius: BorderRadius.circular(16),
         border: Border.all(
-          color: changed ? const Color(0xFFBFDBFE) : const Color(0xFFE6ECF4),
+          color: changed
+              ? _wash(const Color(0xFFBFDBFE))
+              : Theme.of(context).colorScheme.outline,
         ),
       ),
       child: Column(
@@ -1064,14 +1110,16 @@ class _ScoreState extends ConsumerState<AssessmentScorePage> {
             children: [
               CircleAvatar(
                 radius: 19,
-                backgroundColor: const [
-                  Color(0xFFF1F5F9),
-                  Color(0xFFEFF6FF),
-                  Color(0xFFFFFBEB),
-                  Color(0xFFFAF5FF),
-                  Color(0xFFFFF1F2),
-                ][learner.id.codeUnits.fold(0, (a, b) => a + b) % 5],
-                foregroundColor: const Color(0xFF52627C),
+                backgroundColor: _wash(
+                  const [
+                    Color(0xFFF1F5F9),
+                    Color(0xFFEFF6FF),
+                    Color(0xFFFFFBEB),
+                    Color(0xFFFAF5FF),
+                    Color(0xFFFFF1F2),
+                  ][learner.id.codeUnits.fold(0, (a, b) => a + b) % 5],
+                ),
+                foregroundColor: Theme.of(context).colorScheme.onSurfaceVariant,
                 child: Text(
                   initials,
                   style: const TextStyle(
@@ -1087,18 +1135,18 @@ class _ScoreState extends ConsumerState<AssessmentScorePage> {
                   children: [
                     Text(
                       learner.displayName,
-                      style: const TextStyle(
+                      style: TextStyle(
                         fontSize: 14,
                         fontWeight: FontWeight.w600,
-                        color: Color(0xFF172033),
+                        color: Theme.of(context).colorScheme.onSurface,
                       ),
                     ),
                     const SizedBox(height: 3),
                     Text(
                       'LRN ${learner.lrn}',
-                      style: const TextStyle(
+                      style: TextStyle(
                         fontSize: 12,
-                        color: Color(0xFF71809B),
+                        color: Theme.of(context).colorScheme.onSurfaceVariant,
                       ),
                     ),
                   ],
@@ -1119,9 +1167,12 @@ class _ScoreState extends ConsumerState<AssessmentScorePage> {
               ),
             ],
           ),
-          const Padding(
-            padding: EdgeInsets.symmetric(vertical: 12),
-            child: Divider(height: 1, color: Color(0xFFF0F3F8)),
+          Padding(
+            padding: const EdgeInsets.symmetric(vertical: 12),
+            child: Divider(
+              height: 1,
+              color: Theme.of(context).colorScheme.outline,
+            ),
           ),
           Row(
             children: [
@@ -1136,19 +1187,25 @@ class _ScoreState extends ConsumerState<AssessmentScorePage> {
                     suffixText: '/ ${gradeNumber(assessment.maxScore)}',
                     errorText: error,
                     filled: true,
-                    fillColor: const Color(0xFFF8FAFC),
+                    fillColor: Theme.of(context)
+                        .colorScheme
+                        .surfaceContainerLow,
                     border: OutlineInputBorder(
                       borderRadius: BorderRadius.circular(12),
-                      borderSide: const BorderSide(color: Color(0xFFE2E8F0)),
+                      borderSide: BorderSide(
+                        color: Theme.of(context).colorScheme.outline,
+                      ),
                     ),
                     enabledBorder: OutlineInputBorder(
                       borderRadius: BorderRadius.circular(12),
-                      borderSide: const BorderSide(color: Color(0xFFE2E8F0)),
+                      borderSide: BorderSide(
+                        color: Theme.of(context).colorScheme.outline,
+                      ),
                     ),
                     focusedBorder: OutlineInputBorder(
                       borderRadius: BorderRadius.circular(12),
-                      borderSide: const BorderSide(
-                        color: Color(0xFF2563EB),
+                      borderSide: BorderSide(
+                        color: Theme.of(context).colorScheme.primary,
                         width: 1.5,
                       ),
                     ),

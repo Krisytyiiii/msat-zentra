@@ -64,27 +64,45 @@ void main() {
         expect(decoration.borderRadius, BorderRadius.circular(999));
         expect(
           decoration.color,
-          capsule.kind == ScopePillKind.term
-              ? const Color(0xFFFFF6E5)
-              : capsule.kind == ScopePillKind.grade
-              ? const Color(0xFFF5F3FF)
-              : const Color(0xFFEAF2FF),
+          dark
+              ? (capsule.kind == ScopePillKind.term
+                    ? const Color(0x29FFB900)
+                    : capsule.kind == ScopePillKind.grade
+                    ? const Color(0x298E51FF)
+                    : const Color(0x292B7FFF))
+              : (capsule.kind == ScopePillKind.term
+                    ? const Color(0xFFFFF6E5)
+                    : capsule.kind == ScopePillKind.grade
+                    ? const Color(0xFFF5F3FF)
+                    : const Color(0xFFEAF2FF)),
         );
         expect(
           (decoration.border! as Border).top.color,
-          capsule.kind == ScopePillKind.term
-              ? const Color(0xFFFDE6B0)
-              : capsule.kind == ScopePillKind.grade
-              ? const Color(0xFFDDD6FE)
-              : const Color(0xFFD4E4FF),
+          dark
+              ? (capsule.kind == ScopePillKind.term
+                    ? const Color(0x66FFB900)
+                    : capsule.kind == ScopePillKind.grade
+                    ? const Color(0x668E51FF)
+                    : const Color(0x662B7FFF))
+              : (capsule.kind == ScopePillKind.term
+                    ? const Color(0xFFFDE6B0)
+                    : capsule.kind == ScopePillKind.grade
+                    ? const Color(0xFFDDD6FE)
+                    : const Color(0xFFD4E4FF)),
         );
         final icon = tester.widget<Icon>(
-          find.descendant(of: find.byWidget(capsule), matching: find.byType(Icon)),
+          find.descendant(
+            of: find.byWidget(capsule),
+            matching: find.byType(Icon),
+          ),
         );
         expect(icon.color, switch (capsule.kind) {
-          ScopePillKind.schoolYear => const Color(0xFF2563EB),
-          ScopePillKind.term => const Color(0xFFB45309),
-          ScopePillKind.grade => const Color(0xFF7C3AED),
+          ScopePillKind.schoolYear =>
+            dark ? const Color(0xFF8FB6F5) : const Color(0xFF2563EB),
+          ScopePillKind.term =>
+            dark ? const Color(0xFFFFC65C) : const Color(0xFFB45309),
+          ScopePillKind.grade =>
+            dark ? const Color(0xFFC4B5FD) : const Color(0xFF7C3AED),
         });
       }
       final status = tester.widget<Container>(

@@ -19,6 +19,7 @@ import 'coordinator_forms.dart';
 import 'coordinator_meeting_form.dart';
 import 'coordinator_models.dart';
 import 'coordinator_widgets.dart';
+import '../../design/desk_theme.dart';
 
 class CoordinatorCasePage extends ConsumerStatefulWidget {
   const CoordinatorCasePage({super.key, required this.caseId});
@@ -275,13 +276,11 @@ class _CaseState extends ConsumerState<CoordinatorCasePage>
   }
 
   Widget _identity(AdmCaseDetail d) {
-    final subtitle = d.preparedBy.isEmpty
-        ? ''
-        : 'Referred by ${d.preparedBy}';
+    final subtitle = d.preparedBy.isEmpty ? '' : 'Referred by ${d.preparedBy}';
     final dot = switch (d.eligibility) {
-      'eligible' => studentGreen,
-      'ineligible' => studentRed,
-      _ => studentAmber,
+      'eligible' => zLift(context, const Color(0xFF1F8A48)),
+      'ineligible' => zLift(context, const Color(0xFFDC2626)),
+      _ => zLift(context, const Color(0xFFB45309)),
     };
     return StudentIdentityCard(
       name: d.student.isEmpty ? 'ADM case' : d.student,
@@ -290,11 +289,7 @@ class _CaseState extends ConsumerState<CoordinatorCasePage>
       dotColor: dot,
       meta: [
         if (d.grade.isNotEmpty)
-          ZScopePill(
-            text: d.grade,
-            kind: ScopePillKind.grade,
-            compact: true,
-          ),
+          ZScopePill(text: d.grade, kind: ScopePillKind.grade, compact: true),
         StudentTonePill(
           text: admLabel(d.stage),
           tone: d.closed
@@ -325,10 +320,10 @@ class _CaseState extends ConsumerState<CoordinatorCasePage>
           children: [
             Text(
               description,
-              style: const TextStyle(
+              style: TextStyle(
                 fontSize: 11,
                 height: 1.45,
-                color: studentMuted,
+                color: zMutedInk(context),
               ),
             ),
             const SizedBox(height: 10),
@@ -348,19 +343,18 @@ class _CaseState extends ConsumerState<CoordinatorCasePage>
         : admText(referral['id']);
     return _stepCard(
       icon: LucideIcons.send,
-      color: studentBlue,
+      color: zLift(context, const Color(0xFF2563EB)),
       title: 'REFERRAL',
-      description:
-          'Check who referred the learner and read the GC Form 03 referral form.',
+      description: 'Check who referred the learner and read the GC Form 03 referral form.',
       child: referral == null
           ? const _EmptyLine(text: 'No referral form on file.')
           : _FileTile(
               title: 'GCForm-03',
               meta: '${d.student} · ${d.lrn}',
               icon: LucideIcons.fileText,
-              foreground: studentAmber,
-              background: studentAmberSoft,
-              border: studentAmberLine,
+              foreground: zLift(context, const Color(0xFFB45309)),
+              background: zWash(context, const Color(0xFFFFFAEF)),
+              border: zWash(context, const Color(0xFFF7E5B8)),
               onTap: referralId.isEmpty
                   ? null
                   : () => admPush<void>(
@@ -381,19 +375,18 @@ class _CaseState extends ConsumerState<CoordinatorCasePage>
     final anecdotalId = anecdotal == null ? '' : admText(anecdotal['id']);
     return _stepCard(
       icon: LucideIcons.fileText,
-      color: studentAmber,
+      color: zLift(context, const Color(0xFFB45309)),
       title: 'ANECDOTAL',
-      description:
-          "Review the adviser's anecdotal report (GCForm-01) and its recommendations.",
+      description: "Review the adviser's anecdotal report (GCForm-01) and its recommendations.",
       child: anecdotal == null
           ? const _EmptyLine(text: 'No anecdotal write-up on file.')
           : _FileTile(
               title: 'GCForm-01',
               meta: '${d.student} · ${d.lrn}',
               icon: LucideIcons.fileText,
-              foreground: studentGreen,
-              background: studentGreenSoft,
-              border: studentGreenLine,
+              foreground: zLift(context, const Color(0xFF1F8A48)),
+              background: zWash(context, const Color(0xFFF1FBF4)),
+              border: zWash(context, const Color(0xFFCFF0DA)),
               onTap: anecdotalId.isEmpty
                   ? null
                   : () => admPush<void>(
@@ -406,10 +399,9 @@ class _CaseState extends ConsumerState<CoordinatorCasePage>
 
   Widget _meetings(AdmCaseDetail d) => _stepCard(
     icon: LucideIcons.calendarCheck,
-    color: studentGreen,
+    color: zLift(context, const Color(0xFF1F8A48)),
     title: 'MEETINGS',
-    description:
-        'Log the parent meeting outcome — attended (minutes + logbook) or no-show (rebook as home visit).',
+    description: 'Log the parent meeting outcome — attended (minutes + logbook) or no-show (rebook as home visit).',
     child: d.meetings.isEmpty
         ? const _EmptyLine(text: 'No parent meetings recorded.')
         : Column(
@@ -441,10 +433,9 @@ class _CaseState extends ConsumerState<CoordinatorCasePage>
 
   Widget _evidence(AdmCaseDetail d) => _stepCard(
     icon: LucideIcons.shieldCheck,
-    color: studentGreen,
+    color: zLift(context, const Color(0xFF1F8A48)),
     title: 'EVIDENCE',
-    description:
-        'Confirm every collected form in the evidence chain and open details per form.',
+    description: 'Confirm every collected form in the evidence chain and open details per form.',
     child: d.forms.isEmpty
         ? const _EmptyLine(text: 'No forms recorded yet.')
         : LayoutBuilder(
@@ -485,41 +476,41 @@ class _CaseState extends ConsumerState<CoordinatorCasePage>
         : 'Endorsing locks the recommendation and sends it to the Principal for signature.';
     return _stepCard(
       icon: LucideIcons.badgeCheck,
-      color: studentBlue,
+      color: zLift(context, const Color(0xFF2563EB)),
       title: 'CERTIFY',
       description: 'Write the ADM recommendation and create the certification.',
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
-          const Text(
+          Text(
             'RECOMMENDATION & CERTIFICATION',
             style: TextStyle(
               fontSize: 10,
               fontWeight: FontWeight.w600,
               letterSpacing: 0.3,
-              color: studentMuted,
+              color: zMutedInk(context),
             ),
           ),
           const SizedBox(height: 6),
           if (recommendation.isEmpty)
-            const Text(
+            Text(
               'No recommendation recorded yet.',
-              style: TextStyle(fontSize: 12, color: studentMuted),
+              style: TextStyle(fontSize: 12, color: zMutedInk(context)),
             )
           else
             Container(
               padding: const EdgeInsets.all(10),
               decoration: BoxDecoration(
-                color: studentSoft,
+                color: zSoft(context),
                 borderRadius: BorderRadius.circular(10),
-                border: Border.all(color: studentLine),
+                border: Border.all(color: zLine(context)),
               ),
               child: Text(
                 recommendation,
-                style: const TextStyle(
+                style: TextStyle(
                   fontSize: 12,
                   height: 1.5,
-                  color: studentInk,
+                  color: zInk(context),
                 ),
               ),
             ),
@@ -527,10 +518,14 @@ class _CaseState extends ConsumerState<CoordinatorCasePage>
           Container(
             padding: const EdgeInsets.all(10),
             decoration: BoxDecoration(
-              color: verified ? studentGreenSoft : studentAmberSoft,
+              color: verified
+                  ? zWash(context, const Color(0xFFF1FBF4))
+                  : zWash(context, const Color(0xFFFFFAEF)),
               borderRadius: BorderRadius.circular(10),
               border: Border.all(
-                color: verified ? studentGreenLine : studentAmberLine,
+                color: verified
+                    ? zWash(context, const Color(0xFFCFF0DA))
+                    : zWash(context, const Color(0xFFF7E5B8)),
               ),
             ),
             child: Row(
@@ -539,7 +534,9 @@ class _CaseState extends ConsumerState<CoordinatorCasePage>
                 Icon(
                   verified ? LucideIcons.checkCircle : LucideIcons.info,
                   size: 14,
-                  color: verified ? studentGreen : studentAmber,
+                  color: verified
+                      ? zLift(context, const Color(0xFF1F8A48))
+                      : zLift(context, const Color(0xFFB45309)),
                 ),
                 const SizedBox(width: 8),
                 Expanded(
@@ -548,7 +545,9 @@ class _CaseState extends ConsumerState<CoordinatorCasePage>
                     style: TextStyle(
                       fontSize: 11,
                       height: 1.45,
-                      color: verified ? studentGreen : studentAmber,
+                      color: verified
+                          ? zLift(context, Color(0xFF1F8A48))
+                          : zLift(context, Color(0xFFB45309)),
                     ),
                   ),
                 ),
@@ -556,14 +555,14 @@ class _CaseState extends ConsumerState<CoordinatorCasePage>
             ),
           ),
           if (d.canCertify) ...[
-            const SizedBox(height: 12),
+            SizedBox(height: 12),
             FilledButton(
               onPressed: _busy ? null : () => _certify(d),
-              child: const Text('Certify and endorse to Principal'),
+              child: Text('Certify and endorse to Principal'),
             ),
           ],
           if (d.canEndorse) ...[
-            const SizedBox(height: 8),
+            SizedBox(height: 8),
             OutlinedButton(
               onPressed: _busy
                   ? null
@@ -581,7 +580,7 @@ class _CaseState extends ConsumerState<CoordinatorCasePage>
                         await repo.endorse(latest.profileId);
                       },
                     ),
-              child: const Text('Endorse existing recommendation'),
+              child: Text('Endorse existing recommendation'),
             ),
           ],
         ],
@@ -629,7 +628,7 @@ class _CaseState extends ConsumerState<CoordinatorCasePage>
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
-        const StudentSectionHeader(
+        StudentSectionHeader(
           icon: LucideIcons.clipboardCheck,
           title: 'ELIGIBILITY CHECKLIST',
         ),
@@ -643,10 +642,10 @@ class _CaseState extends ConsumerState<CoordinatorCasePage>
                   Expanded(
                     child: Text(
                       '$done of ${items.length} complete',
-                      style: const TextStyle(
+                      style: TextStyle(
                         fontSize: 11.5,
                         fontWeight: FontWeight.w600,
-                        color: studentMuted,
+                        color: zMutedInk(context),
                       ),
                     ),
                   ),
@@ -654,9 +653,9 @@ class _CaseState extends ConsumerState<CoordinatorCasePage>
                 ],
               ),
               for (final item in items) ...[
-                const Padding(
+                Padding(
                   padding: EdgeInsets.symmetric(vertical: 10),
-                  child: Divider(height: 1, color: studentLine),
+                  child: Divider(height: 1, color: zLine(context)),
                 ),
                 Row(
                   crossAxisAlignment: CrossAxisAlignment.start,
@@ -665,43 +664,49 @@ class _CaseState extends ConsumerState<CoordinatorCasePage>
                       width: 20,
                       height: 20,
                       decoration: BoxDecoration(
-                        color: item.ok ? studentGreenSoft : studentSoft,
+                        color: item.ok
+                            ? zWash(context, Color(0xFFF1FBF4))
+                            : zSoft(context),
                         shape: BoxShape.circle,
                         border: Border.all(
-                          color: item.ok ? studentGreenLine : studentLine,
+                          color: item.ok
+                              ? zWash(context, Color(0xFFCFF0DA))
+                              : zLine(context),
                         ),
                       ),
                       child: Icon(
                         item.ok ? LucideIcons.check : LucideIcons.circleDashed,
                         size: 12,
-                        color: item.ok ? studentGreen : studentMuted,
+                        color: item.ok
+                            ? zLift(context, Color(0xFF1F8A48))
+                            : zMutedInk(context),
                       ),
                     ),
-                    const SizedBox(width: 10),
+                    SizedBox(width: 10),
                     Expanded(
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
                           Text(
                             item.label,
-                            style: const TextStyle(
+                            style: TextStyle(
                               fontSize: 12.5,
                               fontWeight: FontWeight.w600,
-                              color: studentInk,
+                              color: zInk(context),
                             ),
                           ),
-                          const SizedBox(height: 2),
+                          SizedBox(height: 2),
                           Text(
                             item.hint,
-                            style: const TextStyle(
+                            style: TextStyle(
                               fontSize: 11,
-                              color: studentMuted,
+                              color: zMutedInk(context),
                             ),
                           ),
                         ],
                       ),
                     ),
-                    const SizedBox(width: 8),
+                    SizedBox(width: 8),
                     StudentTonePill(
                       text: item.ok ? 'On file' : 'Missing',
                       tone: item.ok ? StudentTone.green : StudentTone.red,
@@ -709,20 +714,20 @@ class _CaseState extends ConsumerState<CoordinatorCasePage>
                   ],
                 ),
               ],
-              const SizedBox(height: 12),
+              SizedBox(height: 12),
               Container(
-                padding: const EdgeInsets.all(10),
+                padding: EdgeInsets.all(10),
                 decoration: BoxDecoration(
-                  color: studentSoft,
+                  color: zSoft(context),
                   borderRadius: BorderRadius.circular(10),
-                  border: Border.all(color: studentLine),
+                  border: Border.all(color: zLine(context)),
                 ),
-                child: const Text(
+                child: Text(
                   'Eligibility is derived from the checklist — it cannot be typed manually.',
                   style: TextStyle(
                     fontSize: 11,
                     height: 1.4,
-                    color: studentMuted,
+                    color: zMutedInk(context),
                   ),
                 ),
               ),
@@ -734,17 +739,17 @@ class _CaseState extends ConsumerState<CoordinatorCasePage>
   }
 
   Widget _sessions(AdmCaseDetail d) {
-    if (d.sessions.isEmpty) return const SizedBox.shrink();
+    if (d.sessions.isEmpty) return SizedBox.shrink();
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
-        const StudentSectionHeader(
+        StudentSectionHeader(
           icon: LucideIcons.calendarClock,
-          color: studentGreen,
+          color: zLift(context, Color(0xFF1F8A48)),
           title: 'CONSULTATION SESSIONS',
         ),
         for (var i = 0; i < d.sessions.length; i++) ...[
-          if (i > 0) const SizedBox(height: 8),
+          if (i > 0) SizedBox(height: 8),
           _SessionCard(session: d.sessions[i]),
         ],
       ],
@@ -774,7 +779,7 @@ class _CaseState extends ConsumerState<CoordinatorCasePage>
         final verified = admText(form['status']) == 'verified';
         return SafeArea(
           child: Padding(
-            padding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
+            padding: EdgeInsets.fromLTRB(16, 0, 16, 16),
             child: SingleChildScrollView(
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -784,23 +789,21 @@ class _CaseState extends ConsumerState<CoordinatorCasePage>
                       Expanded(
                         child: Text(
                           _formLabel(form),
-                          style: const TextStyle(
+                          style: TextStyle(
                             fontSize: 13,
                             fontWeight: FontWeight.w700,
-                            color: studentInk,
+                            color: zInk(context),
                           ),
                         ),
                       ),
-                      const SizedBox(width: 8),
+                      SizedBox(width: 8),
                       StudentTonePill(
                         text: admLabel(admText(form['status'])),
-                        tone: verified
-                            ? StudentTone.green
-                            : StudentTone.amber,
+                        tone: verified ? StudentTone.green : StudentTone.amber,
                       ),
                     ],
                   ),
-                  const SizedBox(height: 12),
+                  SizedBox(height: 12),
                   _RecordGroup(
                     items: [
                       _RecordItem(
@@ -829,15 +832,12 @@ class _CaseState extends ConsumerState<CoordinatorCasePage>
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
-        const StudentSectionHeader(
-          icon: LucideIcons.history,
-          title: 'CASE HISTORY',
-        ),
+        StudentSectionHeader(icon: LucideIcons.history, title: 'CASE HISTORY'),
         AdmAsync(
           value: ref.watch(coordinatorHistoryProvider(key)),
           retry: () => ref.invalidate(coordinatorHistoryProvider(key)),
           builder: (events) => events.isEmpty
-              ? const StudentSectionCard(
+              ? StudentSectionCard(
                   child: ZEmpty(
                     compact: true,
                     icon: Icons.history,
@@ -851,9 +851,9 @@ class _CaseState extends ConsumerState<CoordinatorCasePage>
                     children: [
                       for (var i = 0; i < events.length; i++) ...[
                         if (i > 0)
-                          const Padding(
+                          Padding(
                             padding: EdgeInsets.symmetric(vertical: 10),
-                            child: Divider(height: 1, color: studentLine),
+                            child: Divider(height: 1, color: zLine(context)),
                           ),
                         _HistoryRow(event: events[i]),
                       ],
@@ -867,11 +867,7 @@ class _CaseState extends ConsumerState<CoordinatorCasePage>
 }
 
 class _RecordItem {
-  const _RecordItem({
-    required this.icon,
-    required this.label,
-    required this.value,
-  });
+  _RecordItem({required this.icon, required this.label, required this.value});
   final IconData icon;
   final String label;
   final String value;
@@ -889,9 +885,9 @@ class _RecordGroup extends StatelessWidget {
         .where((item) => item.value.trim().isNotEmpty)
         .toList(growable: false);
     if (visible.isEmpty) {
-      return const Text(
+      return Text(
         'No record details available.',
-        style: TextStyle(fontSize: 12, color: studentMuted),
+        style: TextStyle(fontSize: 12, color: zMutedInk(context)),
       );
     }
     return Column(
@@ -899,9 +895,9 @@ class _RecordGroup extends StatelessWidget {
       children: [
         for (var i = 0; i < visible.length; i++) ...[
           if (i > 0)
-            const Padding(
+            Padding(
               padding: EdgeInsets.symmetric(vertical: 10),
-              child: Divider(height: 1, color: studentLine),
+              child: Divider(height: 1, color: zLine(context)),
             ),
           _RecordRow(item: visible[i]),
         ],
@@ -916,8 +912,8 @@ class _RecordRow extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    const fg = studentBlue;
-    const bg = studentSoft;
+    final fg = zLift(context, const Color(0xFF2563EB));
+    final bg = zSoft(context);
     return Row(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -927,7 +923,7 @@ class _RecordRow extends StatelessWidget {
           decoration: BoxDecoration(
             color: bg,
             borderRadius: BorderRadius.circular(9),
-            border: Border.all(color: studentLine),
+            border: Border.all(color: zLine(context)),
           ),
           child: Icon(item.icon, size: 14, color: fg),
         ),
@@ -938,20 +934,20 @@ class _RecordRow extends StatelessWidget {
             children: [
               Text(
                 item.label,
-                style: const TextStyle(
+                style: TextStyle(
                   fontSize: 10.5,
                   fontWeight: FontWeight.w600,
                   letterSpacing: 0.3,
-                  color: studentMuted,
+                  color: zMutedInk(context),
                 ),
               ),
               const SizedBox(height: 2),
               Text(
                 item.value,
-                style: const TextStyle(
+                style: TextStyle(
                   fontSize: 12.5,
                   height: 1.45,
-                  color: studentInk,
+                  color: zInk(context),
                 ),
               ),
             ],
@@ -994,10 +990,10 @@ class _SessionCard extends StatelessWidget {
               Expanded(
                 child: Text(
                   admLabel(admText(session['sessionType'])),
-                  style: const TextStyle(
+                  style: TextStyle(
                     fontSize: 12.5,
                     fontWeight: FontWeight.w700,
-                    color: studentInk,
+                    color: zInk(context),
                   ),
                 ),
               ),
@@ -1011,12 +1007,16 @@ class _SessionCard extends StatelessWidget {
           const SizedBox(height: 5),
           Row(
             children: [
-              const Icon(LucideIcons.calendarDays, size: 12, color: studentMuted),
+              Icon(
+                LucideIcons.calendarDays,
+                size: 12,
+                color: zMutedInk(context),
+              ),
               const SizedBox(width: 5),
               Expanded(
                 child: Text(
                   admDate(admText(session['scheduledAt'])),
-                  style: const TextStyle(fontSize: 11, color: studentMuted),
+                  style: TextStyle(fontSize: 11, color: zMutedInk(context)),
                 ),
               ),
             ],
@@ -1046,17 +1046,17 @@ class _SessionText extends StatelessWidget {
     children: [
       Text(
         label,
-        style: const TextStyle(
+        style: TextStyle(
           fontSize: 10,
           fontWeight: FontWeight.w600,
           letterSpacing: 0.3,
-          color: studentMuted,
+          color: zMutedInk(context),
         ),
       ),
       const SizedBox(height: 2),
       Text(
         value,
-        style: const TextStyle(fontSize: 12, height: 1.45, color: studentBody),
+        style: TextStyle(fontSize: 12, height: 1.45, color: zInk(context)),
       ),
     ],
   );
@@ -1085,157 +1085,153 @@ class _MeetingCard extends StatelessWidget {
   Widget build(BuildContext context) {
     final past = meeting.datetime?.isAfter(DateTime.now()) == false;
     final canEdit = !approved && !closed && (meeting.attended || past);
-    final invitees = [
-      for (final p in meeting.invitees) admText(p['fullName']),
-    ].where((name) => name.isNotEmpty).join(', ');
-    final attendees = [
-      for (final p in meeting.attendees) admText(p['name']),
-    ].where((name) => name.isNotEmpty).join(', ');
+    final invitees = [for (final p in meeting.invitees) admText(p['fullName'])]
+        .where((name) => name.isNotEmpty)
+        .join(', ');
+    final attendees = [for (final p in meeting.attendees) admText(p['name'])]
+        .where((name) => name.isNotEmpty)
+        .join(', ');
     final body = Column(
-        crossAxisAlignment: CrossAxisAlignment.stretch,
-        children: [
-          Row(
-            children: [
-              Expanded(
-                child: Text(
-                  admDate(meeting.datetime?.toIso8601String() ?? ''),
-                  style: const TextStyle(
-                    fontSize: 12.5,
-                    fontWeight: FontWeight.w700,
-                    color: studentInk,
-                  ),
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        Row(
+          children: [
+            Expanded(
+              child: Text(
+                admDate(meeting.datetime?.toIso8601String() ?? ''),
+                style: TextStyle(
+                  fontSize: 12.5,
+                  fontWeight: FontWeight.w700,
+                  color: zInk(context),
                 ),
               ),
-              const SizedBox(width: 8),
-              StudentTonePill(
-                text: meeting.attended ? 'Attended' : 'Not confirmed',
-                tone: meeting.attended
-                    ? StudentTone.green
-                    : StudentTone.amber,
-              ),
-            ],
-          ),
-          const SizedBox(height: 6),
-          Row(
-            children: [
-              Icon(
-                meeting.venue == 'home'
-                    ? LucideIcons.house
-                    : LucideIcons.mapPin,
-                size: 12,
-                color: studentMuted,
-              ),
-              const SizedBox(width: 4),
-              Text(
-                meeting.venue == 'home' ? 'Home visitation' : 'In school',
-                style: const TextStyle(fontSize: 11, color: studentMuted),
-              ),
-            ],
-          ),
-          const SizedBox(height: 10),
-          _RecordGroup(
-            items: [
-              _RecordItem(
-                icon: LucideIcons.clock,
-                label: 'Minutes',
-                value: meeting.minutes,
-              ),
-              _RecordItem(
-                icon: LucideIcons.hash,
-                label: 'Logbook reference',
-                value: meeting.logbook,
-              ),
-              _RecordItem(
-                icon: LucideIcons.users,
-                label: 'Invitees',
-                value: invitees,
-              ),
-              _RecordItem(
-                icon: LucideIcons.userCheck,
-                label: 'Attendees',
-                value: attendees,
-              ),
-            ],
-          ),
-          if (meeting.attachments.isNotEmpty) ...[
-            const SizedBox(height: 12),
-            for (final file in meeting.attachments)
-              Padding(
-                padding: const EdgeInsets.only(bottom: 6),
-                child: Row(
-                  children: [
-                    Container(
-                      width: 26,
-                      height: 26,
-                      decoration: BoxDecoration(
-                        color: studentSoft,
-                        borderRadius: BorderRadius.circular(8),
-                        border: Border.all(color: studentLine),
-                      ),
-                      child: const Icon(
-                        LucideIcons.paperclip,
-                        size: 13,
-                        color: studentBlue,
-                      ),
+            ),
+            const SizedBox(width: 8),
+            StudentTonePill(
+              text: meeting.attended ? 'Attended' : 'Not confirmed',
+              tone: meeting.attended ? StudentTone.green : StudentTone.amber,
+            ),
+          ],
+        ),
+        const SizedBox(height: 6),
+        Row(
+          children: [
+            Icon(
+              meeting.venue == 'home' ? LucideIcons.house : LucideIcons.mapPin,
+              size: 12,
+              color: zMutedInk(context),
+            ),
+            const SizedBox(width: 4),
+            Text(
+              meeting.venue == 'home' ? 'Home visitation' : 'In school',
+              style: TextStyle(fontSize: 11, color: zMutedInk(context)),
+            ),
+          ],
+        ),
+        const SizedBox(height: 10),
+        _RecordGroup(
+          items: [
+            _RecordItem(
+              icon: LucideIcons.clock,
+              label: 'Minutes',
+              value: meeting.minutes,
+            ),
+            _RecordItem(
+              icon: LucideIcons.hash,
+              label: 'Logbook reference',
+              value: meeting.logbook,
+            ),
+            _RecordItem(
+              icon: LucideIcons.users,
+              label: 'Invitees',
+              value: invitees,
+            ),
+            _RecordItem(
+              icon: LucideIcons.userCheck,
+              label: 'Attendees',
+              value: attendees,
+            ),
+          ],
+        ),
+        if (meeting.attachments.isNotEmpty) ...[
+          const SizedBox(height: 12),
+          for (final file in meeting.attachments)
+            Padding(
+              padding: const EdgeInsets.only(bottom: 6),
+              child: Row(
+                children: [
+                  Container(
+                    width: 26,
+                    height: 26,
+                    decoration: BoxDecoration(
+                      color: zSoft(context),
+                      borderRadius: BorderRadius.circular(8),
+                      border: Border.all(color: zLine(context)),
                     ),
-                    const SizedBox(width: 8),
-                    Expanded(
-                      child: InkWell(
-                        onTap: () =>
-                            admOpenUrl(context, admText(file['fileUrl'])),
-                        child: Text(
-                          admText(file['fileName']),
-                          maxLines: 1,
-                          overflow: TextOverflow.ellipsis,
-                          style: const TextStyle(
-                            fontSize: 12,
-                            color: studentBlue,
-                          ),
+                    child: Icon(
+                      LucideIcons.paperclip,
+                      size: 13,
+                      color: zLift(context, Color(0xFF2563EB)),
+                    ),
+                  ),
+                  const SizedBox(width: 8),
+                  Expanded(
+                    child: InkWell(
+                      onTap: () =>
+                          admOpenUrl(context, admText(file['fileUrl'])),
+                      child: Text(
+                        admText(file['fileName']),
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: TextStyle(
+                          fontSize: 12,
+                          color: zLift(context, Color(0xFF2563EB)),
                         ),
                       ),
                     ),
-                    if (canEdit)
-                      IconButton(
-                        tooltip: 'Remove attachment',
-                        visualDensity: VisualDensity.compact,
-                        iconSize: 16,
-                        color: studentRed,
-                        icon: const Icon(LucideIcons.trash2),
-                        onPressed: busy
-                            ? null
-                            : () => onRemoveAttachment(
-                                admText(file['id']),
-                                admText(file['fileName']),
-                              ),
-                      ),
-                  ],
-                ),
-              ),
-          ],
-          if (canEdit && meeting.attachments.length < 10)
-            Align(
-              alignment: Alignment.centerLeft,
-              child: TextButton.icon(
-                onPressed: busy ? null : onUpload,
-                icon: const Icon(LucideIcons.camera, size: 16),
-                label: const Text('Add documentation photos (5 MB each)'),
+                  ),
+                  if (canEdit)
+                    IconButton(
+                      tooltip: 'Remove attachment',
+                      visualDensity: VisualDensity.compact,
+                      iconSize: 16,
+                      color: zLift(context, const Color(0xFFDC2626)),
+                      icon: const Icon(LucideIcons.trash2),
+                      onPressed: busy
+                          ? null
+                          : () => onRemoveAttachment(
+                              admText(file['id']),
+                              admText(file['fileName']),
+                            ),
+                    ),
+                ],
               ),
             ),
-          if (preCertification && !meeting.attended) ...[
-            const SizedBox(height: 4),
-            OutlinedButton(
-              onPressed: busy ? null : onReschedule,
-              child: const Text('Reschedule / arrange home visit'),
-            ),
-          ],
-          if (preCertification && meeting.outcomeOpen(DateTime.now())) ...[
-            const SizedBox(height: 8),
-            FilledButton(
-              onPressed: busy ? null : onOutcome,
-              child: const Text('Record attendance / outcome'),
-            ),
-          ],
         ],
+        if (canEdit && meeting.attachments.length < 10)
+          Align(
+            alignment: Alignment.centerLeft,
+            child: TextButton.icon(
+              onPressed: busy ? null : onUpload,
+              icon: const Icon(LucideIcons.camera, size: 16),
+              label: const Text('Add documentation photos (5 MB each)'),
+            ),
+          ),
+        if (preCertification && !meeting.attended) ...[
+          const SizedBox(height: 4),
+          OutlinedButton(
+            onPressed: busy ? null : onReschedule,
+            child: const Text('Reschedule / arrange home visit'),
+          ),
+        ],
+        if (preCertification && meeting.outcomeOpen(DateTime.now())) ...[
+          const SizedBox(height: 8),
+          FilledButton(
+            onPressed: busy ? null : onOutcome,
+            child: const Text('Record attendance / outcome'),
+          ),
+        ],
+      ],
     );
     if (!nested) {
       return StudentSectionCard(padded: true, child: body);
@@ -1243,9 +1239,9 @@ class _MeetingCard extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.all(10),
       decoration: BoxDecoration(
-        color: studentSoft,
+        color: zSoft(context),
         borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: studentLine),
+        border: Border.all(color: zLine(context)),
       ),
       child: body,
     );
@@ -1262,9 +1258,10 @@ class _HistoryRow extends StatelessWidget {
     final title = reason.isEmpty
         ? admLabel(admText(event['actionType']))
         : reason;
-    final meta = [admText(event['actor']), admDate(admText(event['at']))]
-        .where((part) => part.isNotEmpty && part != '—')
-        .join(' · ');
+    final meta = [
+      admText(event['actor']),
+      admDate(admText(event['at'])),
+    ].where((part) => part.isNotEmpty && part != '—').join(' · ');
     return Row(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -1272,14 +1269,14 @@ class _HistoryRow extends StatelessWidget {
           width: 28,
           height: 28,
           decoration: BoxDecoration(
-            color: studentSoft,
+            color: zSoft(context),
             borderRadius: BorderRadius.circular(9),
-            border: Border.all(color: studentLine),
+            border: Border.all(color: zLine(context)),
           ),
-          child: const Icon(
+          child: Icon(
             LucideIcons.clock,
             size: 14,
-            color: studentBlue,
+            color: zLift(context, Color(0xFF2563EB)),
           ),
         ),
         const SizedBox(width: 10),
@@ -1289,18 +1286,18 @@ class _HistoryRow extends StatelessWidget {
             children: [
               Text(
                 title,
-                style: const TextStyle(
+                style: TextStyle(
                   fontSize: 12.5,
                   height: 1.35,
                   fontWeight: FontWeight.w600,
-                  color: studentInk,
+                  color: zInk(context),
                 ),
               ),
               if (meta.isNotEmpty) ...[
                 const SizedBox(height: 3),
                 Text(
                   meta,
-                  style: const TextStyle(fontSize: 11, color: studentMuted),
+                  style: TextStyle(fontSize: 11, color: zMutedInk(context)),
                 ),
               ],
             ],
@@ -1347,9 +1344,8 @@ class _AnecdotalDocumentState
       setState(() => _viewerReady = true);
       _syncZoom();
     },
-    errorBannerBuilder: (_, error, stack, document) => const ErrorView(
-      message: 'The document could not be displayed.',
-    ),
+    errorBannerBuilder: (_, error, stack, document) =>
+        const ErrorView(message: 'The document could not be displayed.'),
   );
 
   @override
@@ -1452,12 +1448,12 @@ class _AnecdotalDocumentState
                 if (value == 'share') _share(context, bytes);
                 if (value == 'download') _download(context, bytes);
               },
-              itemBuilder: (_) => const [
+              itemBuilder: (_) => [
                 PopupMenuItem(
                   value: 'share',
                   child: Row(
                     children: [
-                      Icon(LucideIcons.share2, size: 16, color: studentBody),
+                      Icon(LucideIcons.share2, size: 16, color: zInk(context)),
                       SizedBox(width: 10),
                       Text('Share'),
                     ],
@@ -1467,7 +1463,11 @@ class _AnecdotalDocumentState
                   value: 'download',
                   child: Row(
                     children: [
-                      Icon(LucideIcons.download, size: 16, color: studentBody),
+                      Icon(
+                        LucideIcons.download,
+                        size: 16,
+                        color: zInk(context),
+                      ),
                       SizedBox(width: 10),
                       Text('Download'),
                     ],
@@ -1480,9 +1480,8 @@ class _AnecdotalDocumentState
         ),
         body: AdmAsync(
           value: document,
-          retry: () => ref.invalidate(
-            widget.referralForm ? gcForm03 : anecdotal,
-          ),
+          retry: () =>
+              ref.invalidate(widget.referralForm ? gcForm03 : anecdotal),
           builder: (bytes) => Stack(
             children: [
               Positioned.fill(
@@ -1513,7 +1512,7 @@ class _AnecdotalDocumentState
                             children: [
                               IconButton(
                                 tooltip: 'Zoom out',
-                                color: studentInk,
+                                color: zInk(context),
                                 onPressed: () => _pdfController.zoomDown(),
                                 icon: const Icon(Icons.remove),
                               ),
@@ -1521,16 +1520,16 @@ class _AnecdotalDocumentState
                                 valueListenable: _zoom,
                                 builder: (_, zoom, _) => Text(
                                   '${(zoom * 100).round()}%',
-                                  style: const TextStyle(
+                                  style: TextStyle(
                                     fontSize: 12,
                                     fontWeight: FontWeight.w600,
-                                    color: studentInk,
+                                    color: zInk(context),
                                   ),
                                 ),
                               ),
                               IconButton(
                                 tooltip: 'Zoom in',
-                                color: studentInk,
+                                color: zInk(context),
                                 onPressed: () => _pdfController.zoomUp(),
                                 icon: const Icon(Icons.add),
                               ),
@@ -1556,7 +1555,7 @@ class _EmptyLine extends StatelessWidget {
   @override
   Widget build(BuildContext context) => Text(
     text,
-    style: const TextStyle(fontSize: 12, height: 1.4, color: studentMuted),
+    style: TextStyle(fontSize: 12, height: 1.4, color: zMutedInk(context)),
   );
 }
 
@@ -1579,10 +1578,10 @@ class _FileTile extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) => Material(
-    color: studentSoft,
+    color: zSoft(context),
     shape: RoundedRectangleBorder(
       borderRadius: BorderRadius.circular(12),
-      side: const BorderSide(color: studentLine),
+      side: BorderSide(color: zLine(context)),
     ),
     clipBehavior: Clip.antiAlias,
     child: InkWell(
@@ -1608,10 +1607,10 @@ class _FileTile extends StatelessWidget {
                 children: [
                   Text(
                     title,
-                    style: const TextStyle(
+                    style: TextStyle(
                       fontSize: 12.5,
                       fontWeight: FontWeight.w700,
-                      color: studentInk,
+                      color: zInk(context),
                     ),
                   ),
                   const SizedBox(height: 2),
@@ -1619,9 +1618,9 @@ class _FileTile extends StatelessWidget {
                     meta,
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,
-                    style: const TextStyle(
+                    style: TextStyle(
                       fontSize: 11,
-                      color: studentMuted,
+                      color: zMutedInk(context),
                       fontFeatures: [FontFeature.tabularFigures()],
                     ),
                   ),
@@ -1629,11 +1628,7 @@ class _FileTile extends StatelessWidget {
               ),
             ),
             const SizedBox(width: 8),
-            const Icon(
-              LucideIcons.chevronRight,
-              size: 16,
-              color: studentMuted,
-            ),
+            Icon(LucideIcons.chevronRight, size: 16, color: zMutedInk(context)),
           ],
         ),
       ),
@@ -1657,10 +1652,10 @@ class _EvidenceTile extends StatelessWidget {
   Widget build(BuildContext context) {
     final verified = admText(form['status']) == 'verified';
     return Material(
-      color: studentSoft,
+      color: zSoft(context),
       shape: RoundedRectangleBorder(
         borderRadius: BorderRadius.circular(12),
-        side: const BorderSide(color: studentLine),
+        side: BorderSide(color: zLine(context)),
       ),
       clipBehavior: Clip.antiAlias,
       child: InkWell(
@@ -1673,18 +1668,20 @@ class _EvidenceTile extends StatelessWidget {
               Icon(
                 verified ? LucideIcons.checkCircle : LucideIcons.circleDashed,
                 size: 16,
-                color: verified ? studentGreen : studentAmber,
+                color: verified
+                    ? zLift(context, const Color(0xFF1F8A48))
+                    : zLift(context, const Color(0xFFB45309)),
               ),
               const SizedBox(height: 8),
               Text(
                 label,
                 maxLines: 2,
                 overflow: TextOverflow.ellipsis,
-                style: const TextStyle(
+                style: TextStyle(
                   fontSize: 11.5,
                   height: 1.3,
                   fontWeight: FontWeight.w600,
-                  color: studentInk,
+                  color: zInk(context),
                 ),
               ),
               const SizedBox(height: 8),

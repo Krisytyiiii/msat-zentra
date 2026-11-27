@@ -1,28 +1,8 @@
-// Presentation blocks shared by the advisory learner profile and the ADM
-// enrolled-learner detail, so both read as the same light "student profile"
-// desk: identity card, section headers, white section cards and metric tiles.
-
 import 'package:flutter/material.dart';
 import 'package:lucide_icons_flutter/lucide_icons.dart';
 
 import '../../design/tokens.dart';
-
-const studentInk = Color(0xFF0F172A);
-const studentBody = Color(0xFF334155);
-const studentMuted = Color(0xFF71809B);
-const studentFaint = Color(0xFF94A3B8);
-const studentLine = Color(0xFFE6ECF4);
-const studentSoft = Color(0xFFF6F8FB);
-const studentBlue = Color(0xFF2563EB);
-const studentRed = Color(0xFFDC2626);
-const studentRedSoft = Color(0xFFFFF5F5);
-const studentRedLine = Color(0xFFFBD5D5);
-const studentGreen = Color(0xFF1F8A48);
-const studentGreenSoft = Color(0xFFF1FBF4);
-const studentGreenLine = Color(0xFFCFF0DA);
-const studentAmber = Color(0xFFB45309);
-const studentAmberSoft = Color(0xFFFFFAEF);
-const studentAmberLine = Color(0xFFF7E5B8);
+import '../../design/desk_theme.dart';
 
 enum StudentTone { neutral, red, green, amber, blue }
 
@@ -34,18 +14,34 @@ class StudentTonePill extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final (bg, fg, border) = switch (tone) {
-      StudentTone.red => (studentRedSoft, studentRed, studentRedLine),
-      StudentTone.green => (studentGreenSoft, studentGreen, studentGreenLine),
-      StudentTone.amber => (studentAmberSoft, studentAmber, studentAmberLine),
-      StudentTone.blue => (
-        const Color(0xFFEFF5FF),
-        studentBlue,
-        const Color(0xFFD6E4FF),
+      StudentTone.red => (
+        zWash(context, const Color(0xFFFFF5F5)),
+        zLift(context, const Color(0xFFDC2626)),
+        zWash(context, const Color(0xFFFBD5D5)),
       ),
-      StudentTone.neutral => (studentSoft, studentMuted, studentLine),
+      StudentTone.green => (
+        zWash(context, const Color(0xFFF1FBF4)),
+        zLift(context, const Color(0xFF1F8A48)),
+        zWash(context, const Color(0xFFCFF0DA)),
+      ),
+      StudentTone.amber => (
+        zWash(context, const Color(0xFFFFFAEF)),
+        zLift(context, const Color(0xFFB45309)),
+        zWash(context, const Color(0xFFF7E5B8)),
+      ),
+      StudentTone.blue => (
+        zWash(context, const Color(0xFFEFF5FF)),
+        zLift(context, const Color(0xFF2563EB)),
+        zWash(context, const Color(0xFFD6E4FF)),
+      ),
+      StudentTone.neutral => (
+        zSoft(context),
+        zMutedInk(context),
+        zLine(context),
+      ),
     };
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 4),
+      padding: EdgeInsets.symmetric(horizontal: 9, vertical: 4),
       decoration: BoxDecoration(
         color: bg,
         borderRadius: BorderRadius.circular(ZTokens.radiusPill),
@@ -66,29 +62,33 @@ class StudentSectionHeader extends StatelessWidget {
     super.key,
     required this.icon,
     required this.title,
-    this.color = studentBlue,
+    this.color,
   });
   final IconData icon;
   final String title;
-  final Color color;
+  final Color? color;
 
   @override
   Widget build(BuildContext context) => Padding(
     padding: const EdgeInsets.only(top: 22, bottom: 10),
     child: Row(
       children: [
-        Icon(icon, size: 16, color: color),
+        Icon(
+          icon,
+          size: 16,
+          color: color ?? zLift(context, const Color(0xFF2563EB)),
+        ),
         const SizedBox(width: 8),
         Expanded(
           child: Text(
             title,
             maxLines: 1,
             overflow: TextOverflow.ellipsis,
-            style: const TextStyle(
+            style: TextStyle(
               fontSize: 12,
               fontWeight: FontWeight.w700,
               letterSpacing: 0.4,
-              color: studentBody,
+              color: zInk(context),
             ),
           ),
         ),
@@ -111,10 +111,19 @@ class StudentSectionCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final (bg, border) = switch (tone) {
-      StudentTone.red => (studentRedSoft, studentRedLine),
-      StudentTone.amber => (studentAmberSoft, studentAmberLine),
-      StudentTone.green => (studentGreenSoft, studentGreenLine),
-      _ => (Colors.white, studentLine),
+      StudentTone.red => (
+        zWash(context, const Color(0xFFFFF5F5)),
+        zWash(context, const Color(0xFFFBD5D5)),
+      ),
+      StudentTone.amber => (
+        zWash(context, const Color(0xFFFFFAEF)),
+        zWash(context, const Color(0xFFF7E5B8)),
+      ),
+      StudentTone.green => (
+        zWash(context, const Color(0xFFF1FBF4)),
+        zWash(context, const Color(0xFFCFF0DA)),
+      ),
+      _ => (zCard(context), zLine(context)),
     };
     return Container(
       padding: EdgeInsets.all(padded ? 12 : 0),
@@ -142,9 +151,17 @@ class StudentMetricTile extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final (bg, border, color) = switch (tone) {
-      StudentTone.red => (studentRedSoft, studentRedLine, studentRed),
-      StudentTone.green => (studentGreenSoft, studentGreenLine, studentGreen),
-      _ => (studentSoft, studentLine, studentInk),
+      StudentTone.red => (
+        zWash(context, const Color(0xFFFFF5F5)),
+        zWash(context, const Color(0xFFFBD5D5)),
+        zLift(context, const Color(0xFFDC2626)),
+      ),
+      StudentTone.green => (
+        zWash(context, const Color(0xFFF1FBF4)),
+        zWash(context, const Color(0xFFCFF0DA)),
+        zLift(context, const Color(0xFF1F8A48)),
+      ),
+      _ => (zSoft(context), zLine(context), zInk(context)),
     };
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 9),
@@ -160,11 +177,11 @@ class StudentMetricTile extends StatelessWidget {
             label,
             maxLines: 1,
             overflow: TextOverflow.ellipsis,
-            style: const TextStyle(
+            style: TextStyle(
               fontSize: 9,
               fontWeight: FontWeight.w600,
               letterSpacing: 0.3,
-              color: studentMuted,
+              color: zMutedInk(context),
             ),
           ),
           const SizedBox(height: 4),
@@ -229,9 +246,9 @@ class StudentIdentityCard extends StatelessWidget {
         Container(
           padding: const EdgeInsets.all(14),
           decoration: BoxDecoration(
-            color: Colors.white,
+            color: zCard(context),
             borderRadius: BorderRadius.circular(16),
-            border: Border.all(color: studentLine),
+            border: Border.all(color: zLine(context)),
           ),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
@@ -247,15 +264,15 @@ class StudentIdentityCard extends StatelessWidget {
                         height: 46,
                         alignment: Alignment.center,
                         decoration: BoxDecoration(
-                          color: studentInk,
+                          color: zInk(context),
                           borderRadius: BorderRadius.circular(13),
                         ),
                         child: Text(
                           studentInitials(name),
-                          style: const TextStyle(
+                          style: TextStyle(
                             fontSize: 15,
                             fontWeight: FontWeight.w700,
-                            color: Colors.white,
+                            color: zCard(context),
                           ),
                         ),
                       ),
@@ -269,7 +286,10 @@ class StudentIdentityCard extends StatelessWidget {
                             decoration: BoxDecoration(
                               shape: BoxShape.circle,
                               color: dotColor,
-                              border: Border.all(color: Colors.white, width: 2),
+                              border: Border.all(
+                                color: zCard(context),
+                                width: 2,
+                              ),
                             ),
                           ),
                         ),
@@ -291,10 +311,10 @@ class StudentIdentityCard extends StatelessWidget {
                             name,
                             maxLines: 2,
                             overflow: TextOverflow.ellipsis,
-                            style: const TextStyle(
+                            style: TextStyle(
                               fontSize: 15,
                               fontWeight: FontWeight.w700,
-                              color: studentInk,
+                              color: zInk(context),
                             ),
                           ),
                         ),
@@ -304,9 +324,9 @@ class StudentIdentityCard extends StatelessWidget {
                             subtitle,
                             maxLines: 1,
                             overflow: TextOverflow.ellipsis,
-                            style: const TextStyle(
+                            style: TextStyle(
                               fontSize: 11,
-                              color: studentMuted,
+                              color: zMutedInk(context),
                             ),
                           ),
                         ],
@@ -324,9 +344,9 @@ class StudentIdentityCard extends StatelessWidget {
                   ),
                 ],
               ),
-              const Padding(
+              Padding(
                 padding: EdgeInsets.symmetric(vertical: 12),
-                child: Divider(height: 1, color: studentLine),
+                child: Divider(height: 1, color: zLine(context)),
               ),
               Center(
                 child: Semantics(
@@ -341,9 +361,9 @@ class StudentIdentityCard extends StatelessWidget {
                         vertical: 5,
                       ),
                       decoration: BoxDecoration(
-                        color: studentSoft,
+                        color: zSoft(context),
                         borderRadius: BorderRadius.circular(8),
-                        border: Border.all(color: studentLine),
+                        border: Border.all(color: zLine(context)),
                       ),
                       child: Row(
                         mainAxisSize: MainAxisSize.min,
@@ -353,18 +373,18 @@ class StudentIdentityCard extends StatelessWidget {
                               'LRN ${lrn.isEmpty ? '—' : lrn}',
                               maxLines: 1,
                               overflow: TextOverflow.ellipsis,
-                              style: const TextStyle(
+                              style: TextStyle(
                                 fontSize: 11,
-                                color: studentMuted,
+                                color: zMutedInk(context),
                                 fontFeatures: [FontFeature.tabularFigures()],
                               ),
                             ),
                           ),
                           const SizedBox(width: 6),
-                          const Icon(
+                          Icon(
                             LucideIcons.copy,
                             size: 12,
-                            color: studentFaint,
+                            color: zMutedInk(context),
                           ),
                         ],
                       ),

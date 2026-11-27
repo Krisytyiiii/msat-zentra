@@ -19,6 +19,7 @@ import '../shared/widgets.dart';
 import 'brand.dart';
 import 'settings_theme.dart';
 import 'theme_picker.dart';
+import 'desk_theme.dart';
 
 /// A staff member's display identity, whatever desk supplied it.
 class StaffIdentity {
@@ -50,7 +51,7 @@ class StaffSettingsScaffold extends StatelessWidget {
         backgroundColor: Colors.white,
         appBar: AppBar(
           centerTitle: true,
-          shape: const Border(bottom: BorderSide(color: Color(0xFFEDF0F6))),
+          shape: Border(bottom: BorderSide(color: zLine(context))),
           leading: ZBackButton(
             onPressed: () {
               final router = GoRouter.maybeOf(context);
@@ -75,9 +76,9 @@ class StaffSettingsScaffold extends StatelessWidget {
               icon: LucideIcons.settings,
               description: 'Your profile, appearance, and account security.',
             ),
-            const Padding(
+            Padding(
               padding: EdgeInsets.symmetric(vertical: 12),
-              child: Divider(height: 1, color: Color(0xFFF1F5F9)),
+              child: Divider(height: 1, color: zSoft(context)),
             ),
             ...children,
           ],
@@ -121,7 +122,7 @@ class StaffSettingsSection extends StatelessWidget {
             Container(
               padding: const EdgeInsets.all(8),
               decoration: BoxDecoration(
-                color: const Color(0xFF2563EB),
+                color: zLift(context, const Color(0xFF2563EB)),
                 borderRadius: BorderRadius.circular(10),
               ),
               child: Icon(_icon(title), color: Colors.white, size: 16),
@@ -133,19 +134,19 @@ class StaffSettingsSection extends StatelessWidget {
                 children: [
                   Text(
                     title,
-                    style: const TextStyle(
+                    style: TextStyle(
                       fontSize: 15,
                       fontWeight: FontWeight.w700,
-                      color: Color(0xFF0F172A),
+                      color: zInk(context),
                     ),
                   ),
                   const SizedBox(height: 4),
                   Text(
                     subtitle,
-                    style: const TextStyle(
+                    style: TextStyle(
                       fontSize: 12,
                       height: 1.45,
-                      color: Color(0xFF64748B),
+                      color: zMutedInk(context),
                     ),
                   ),
                 ],
@@ -153,9 +154,9 @@ class StaffSettingsSection extends StatelessWidget {
             ),
           ],
         ),
-        const Padding(
+        Padding(
           padding: EdgeInsets.symmetric(vertical: 12),
-          child: Divider(height: 1, color: Color(0xFFF1F5F9)),
+          child: Divider(height: 1, color: zSoft(context)),
         ),
         child,
       ],

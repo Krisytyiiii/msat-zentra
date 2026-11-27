@@ -22,6 +22,7 @@ import 'attendance_qr_logic.dart';
 import 'attendance_saves.dart';
 import 'attendance_scanner_page.dart';
 import 'attendance_mark_card.dart';
+import '../../design/desk_theme.dart';
 
 /// Full-screen meetup sheet. Roster identity is never inferred from marks.
 class AttendanceSheetPage extends ConsumerStatefulWidget {
@@ -720,9 +721,9 @@ class _SheetState extends ConsumerState<AttendanceSheetPage>
       },
       child: Scaffold(
         appBar: AppBar(
-          shape: const Border(bottom: BorderSide(color: Color(0xFFEDF0F6))),
+          shape: Border(bottom: BorderSide(color: zLine(context))),
           centerTitle: true,
-          backgroundColor: Colors.white,
+          backgroundColor: Theme.of(context).scaffoldBackgroundColor,
           leading: ZBackButton(
             tooltip: 'Back',
             onPressed: _leave,
@@ -776,7 +777,10 @@ class _SheetState extends ConsumerState<AttendanceSheetPage>
                             ? null
                             : _review,
                         style: FilledButton.styleFrom(
-                          backgroundColor: const Color(0xFF2563EB),
+                          backgroundColor: zLift(
+                            context,
+                            zLift(context, const Color(0xFF2563EB)),
+                          ),
                           foregroundColor: Colors.white,
                           minimumSize: const Size(0, 48),
                           shape: RoundedRectangleBorder(
@@ -850,25 +854,21 @@ class _SheetState extends ConsumerState<AttendanceSheetPage>
       key: const ValueKey('attendance-date-chip'),
       padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
       decoration: BoxDecoration(
-        color: const Color(0xFFF3F4F6),
-        border: Border.all(color: const Color(0xFFE5E7EB)),
+        color: zSoft(context),
+        border: Border.all(color: zLine(context)),
         borderRadius: BorderRadius.circular(999),
       ),
       child: Row(
         mainAxisSize: MainAxisSize.min,
         children: [
-          const Icon(
-            LucideIcons.calendarDays,
-            size: 14,
-            color: Color(0xFF6B7280),
-          ),
+          Icon(LucideIcons.calendarDays, size: 14, color: zMutedInk(context)),
           const SizedBox(width: 4),
           Text(
             DateFormat('MMM d, yyyy').format(selectedDate),
-            style: const TextStyle(
+            style: TextStyle(
               fontSize: 12,
               fontWeight: FontWeight.w600,
-              color: Color(0xFF6B7280),
+              color: zMutedInk(context),
             ),
           ),
         ],
@@ -921,13 +921,13 @@ class _SheetState extends ConsumerState<AttendanceSheetPage>
                       title: widget.pair.subjectName,
                       icon: Icons.edit_note_outlined,
                       titleTrailing: dateChip,
-                      titleMetadata: const [
+                      titleMetadata: [
                         Text(
                           'View the learners in this class.',
                           style: TextStyle(
                             fontSize: 12,
                             height: 1.3,
-                            color: Color(0xFF626B82),
+                            color: zMutedInk(context),
                           ),
                         ),
                       ],
@@ -1005,12 +1005,12 @@ class _SheetState extends ConsumerState<AttendanceSheetPage>
                                 setState(() => _filter = value),
                           ),
                         ),
-                        const SizedBox(width: 8),
+                        SizedBox(width: 8),
                         Flexible(
                           child: _recordFilter(
                             tooltip: 'Save status',
                             value: _saveFilter,
-                            options: const {
+                            options: {
                               'all': 'All',
                               'saved': 'Saved',
                               'unsaved': 'Unsaved',
@@ -1027,23 +1027,23 @@ class _SheetState extends ConsumerState<AttendanceSheetPage>
                         Expanded(
                           child: Text(
                             'Showing ${shown.length} records',
-                            style: const TextStyle(
+                            style: TextStyle(
                               fontSize: 12,
-                              color: Color(0xFF9999A6),
+                              color: zMutedInk(context),
                             ),
                           ),
                         ),
                         TextButton.icon(
                           onPressed: () =>
                               setState(() => _descending = !_descending),
-                          icon: const Icon(LucideIcons.listFilter, size: 14),
+                          icon: Icon(LucideIcons.listFilter, size: 14),
                           label: Text(
                             _descending ? 'Name (Z-A)' : 'Name (A-Z)',
-                            style: const TextStyle(fontSize: 12),
+                            style: TextStyle(fontSize: 12),
                           ),
                           style: TextButton.styleFrom(
-                            foregroundColor: const Color(0xFF334155),
-                            padding: const EdgeInsets.symmetric(
+                            foregroundColor: zInk(context),
+                            padding: EdgeInsets.symmetric(
                               horizontal: 8,
                               vertical: 0,
                             ),
@@ -1061,16 +1061,16 @@ class _SheetState extends ConsumerState<AttendanceSheetPage>
           ),
           Expanded(
             child: shown.isEmpty
-                ? const ZEmptyPage(
+                ? ZEmptyPage(
                     icon: Icons.fact_check_outlined,
                     title: 'No learners to show',
                     subtitle:
                         'Try another filter, or refresh this class roster.',
                   )
                 : ListView.separated(
-                    padding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
+                    padding: EdgeInsets.fromLTRB(16, 0, 16, 16),
                     itemCount: shown.length,
-                    separatorBuilder: (_, _) => const SizedBox(height: 12),
+                    separatorBuilder: (_, _) => SizedBox(height: 12),
                     itemBuilder: (_, i) {
                       final s = shown[i];
                       final value = status(s);
@@ -1130,18 +1130,18 @@ class _SheetState extends ConsumerState<AttendanceSheetPage>
           PopupMenuItem(value: option.key, child: Text(option.value)),
       ],
       child: ConstrainedBox(
-        constraints: const BoxConstraints(minHeight: 48),
+        constraints: BoxConstraints(minHeight: 48),
         child: Center(
           widthFactor: 1,
           child: Container(
-            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 7),
+            padding: EdgeInsets.symmetric(horizontal: 10, vertical: 7),
             decoration: BoxDecoration(
-              color: active ? blue.background : Colors.white,
+              color: active ? blue.background : zCard(context),
               borderRadius: BorderRadius.circular(999),
               border: Border.all(
                 color: active
                     ? blue.foreground.withValues(alpha: 0.25)
-                    : const Color(0xFFE5E5EA),
+                    : zLine(context),
               ),
             ),
             child: Row(
@@ -1154,15 +1154,15 @@ class _SheetState extends ConsumerState<AttendanceSheetPage>
                     overflow: TextOverflow.ellipsis,
                     style: TextStyle(
                       fontSize: 12,
-                      color: active ? blue.foreground : const Color(0xFF7185A4),
+                      color: active ? blue.foreground : zMutedInk(context),
                     ),
                   ),
                 ),
-                const SizedBox(width: 6),
+                SizedBox(width: 6),
                 Icon(
                   LucideIcons.chevronDown,
                   size: 12,
-                  color: active ? blue.foreground : const Color(0xFF7185A4),
+                  color: active ? blue.foreground : zMutedInk(context),
                 ),
               ],
             ),
@@ -1195,26 +1195,26 @@ class _ReviewAttendanceDialog extends StatelessWidget {
         entry.key: records.values.where((value) => value == entry.key).length,
     }..removeWhere((_, count) => count == 0);
     return Dialog(
-      backgroundColor: Colors.white,
-      insetPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 24),
+      backgroundColor: zCard(context),
+      insetPadding: EdgeInsets.symmetric(horizontal: 16, vertical: 24),
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(24)),
       child: ConstrainedBox(
-        constraints: const BoxConstraints(maxWidth: 380),
+        constraints: BoxConstraints(maxWidth: 380),
         child: SingleChildScrollView(
-          padding: const EdgeInsets.fromLTRB(16, 18, 16, 20),
+          padding: EdgeInsets.fromLTRB(16, 18, 16, 20),
           child: Column(
             mainAxisSize: MainAxisSize.min,
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               Row(
                 children: [
-                  const Expanded(
+                  Expanded(
                     child: Text(
                       'Review attendance',
                       style: TextStyle(
                         fontSize: 20,
                         fontWeight: FontWeight.w700,
-                        color: Color(0xFF101828),
+                        color: zInk(context),
                       ),
                     ),
                   ),
@@ -1222,22 +1222,22 @@ class _ReviewAttendanceDialog extends StatelessWidget {
                     width: 32,
                     height: 32,
                     child: Material(
-                      color: const Color(0xFFF2F4F7),
-                      shape: const CircleBorder(),
+                      color: Color(0xFFF2F4F7),
+                      shape: CircleBorder(),
                       child: InkWell(
-                        customBorder: const CircleBorder(),
+                        customBorder: CircleBorder(),
                         onTap: () => Navigator.pop(context, false),
-                        child: const Icon(
+                        child: Icon(
                           Icons.close,
                           size: 16,
-                          color: Color(0xFF475467),
+                          color: zMutedInk(context),
                         ),
                       ),
                     ),
                   ),
                 ],
               ),
-              const SizedBox(height: 12),
+              SizedBox(height: 12),
               Row(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
@@ -1256,42 +1256,44 @@ class _ReviewAttendanceDialog extends StatelessWidget {
                       ],
                     ),
                   ),
-                  const SizedBox(width: 8),
+                  SizedBox(width: 8),
                   Padding(
-                    padding: const EdgeInsets.only(top: 2),
+                    padding: EdgeInsets.only(top: 2),
                     child: Text(
                       date,
-                      style: const TextStyle(
+                      style: TextStyle(
                         fontSize: 12,
                         fontWeight: FontWeight.w600,
-                        color: Color(0xFF667085),
+                        color: zMutedInk(context),
                       ),
                     ),
                   ),
                 ],
               ),
-              const SizedBox(height: 16),
+              SizedBox(height: 16),
               Container(
                 decoration: BoxDecoration(
-                  color: const Color(0xFFF9FAFB),
+                  color: Color(0xFFF9FAFB),
                   borderRadius: BorderRadius.circular(16),
-                  border: Border.all(color: const Color(0xFFEAECF0)),
+                  border: Border.all(color: Color(0xFFEAECF0)),
                 ),
                 child: Column(
                   children: [
                     _panelRow(
+                      context,
                       'Changed learners',
                       Text(
                         '${records.length} changed learners',
-                        style: const TextStyle(
+                        style: TextStyle(
                           fontSize: 13,
                           fontWeight: FontWeight.w700,
-                          color: Color(0xFF101828),
+                          color: zInk(context),
                         ),
                       ),
                     ),
-                    const Divider(height: 1, color: Color(0xFFEAECF0)),
+                    Divider(height: 1, color: Color(0xFFEAECF0)),
                     _panelRow(
+                      context,
                       'Status breakdown',
                       Wrap(
                         spacing: 6,
@@ -1305,37 +1307,37 @@ class _ReviewAttendanceDialog extends StatelessWidget {
                   ],
                 ),
               ),
-              const SizedBox(height: 12),
+              SizedBox(height: 12),
               Container(
-                padding: const EdgeInsets.all(12),
+                padding: EdgeInsets.all(12),
                 decoration: BoxDecoration(
-                  color: const Color(0xFFF9FAFB),
+                  color: Color(0xFFF9FAFB),
                   borderRadius: BorderRadius.circular(12),
-                  border: Border.all(color: const Color(0xFFEAECF0)),
+                  border: Border.all(color: Color(0xFFEAECF0)),
                 ),
                 child: Row(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    const Icon(
+                    Icon(
                       Icons.info_outline,
                       size: 16,
-                      color: Color(0xFF98A2B3),
+                      color: zMutedInk(context),
                     ),
-                    const SizedBox(width: 8),
-                    const Expanded(
+                    SizedBox(width: 8),
+                    Expanded(
                       child: Text(
                         'Unmarked and ADM-exempt learners will not be submitted.',
                         style: TextStyle(
                           fontSize: 12,
                           height: 1.4,
-                          color: Color(0xFF475467),
+                          color: zMutedInk(context),
                         ),
                       ),
                     ),
                   ],
                 ),
               ),
-              const SizedBox(height: 18),
+              SizedBox(height: 18),
               Row(
                 children: [
                   Expanded(
@@ -1344,33 +1346,36 @@ class _ReviewAttendanceDialog extends StatelessWidget {
                       child: FilledButton(
                         onPressed: () => Navigator.pop(context, false),
                         style: FilledButton.styleFrom(
-                          backgroundColor: const Color(0xFFF2F4F7),
-                          foregroundColor: const Color(0xFF101828),
+                          backgroundColor: Color(0xFFF2F4F7),
+                          foregroundColor: zInk(context),
                           shape: RoundedRectangleBorder(
                             borderRadius: BorderRadius.circular(12),
                           ),
                         ),
-                        child: const Text(
+                        child: Text(
                           'Keep editing',
                           style: TextStyle(fontWeight: FontWeight.w600),
                         ),
                       ),
                     ),
                   ),
-                  const SizedBox(width: 12),
+                  SizedBox(width: 12),
                   Expanded(
                     child: SizedBox(
                       height: 48,
                       child: FilledButton(
                         onPressed: () => Navigator.pop(context, true),
                         style: FilledButton.styleFrom(
-                          backgroundColor: const Color(0xFF2563EB),
+                          backgroundColor: zLift(
+                            context,
+                            zLift(context, Color(0xFF2563EB)),
+                          ),
                           foregroundColor: Colors.white,
                           shape: RoundedRectangleBorder(
                             borderRadius: BorderRadius.circular(12),
                           ),
                         ),
-                        child: const Text(
+                        child: Text(
                           'Save',
                           style: TextStyle(fontWeight: FontWeight.w600),
                         ),
@@ -1386,8 +1391,8 @@ class _ReviewAttendanceDialog extends StatelessWidget {
     );
   }
 
-  Widget _panelRow(String label, Widget value) => Padding(
-    padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+  Widget _panelRow(BuildContext context, String label, Widget value) => Padding(
+    padding: EdgeInsets.symmetric(horizontal: 14, vertical: 12),
     child: Row(
       crossAxisAlignment: CrossAxisAlignment.center,
       children: [
@@ -1395,10 +1400,10 @@ class _ReviewAttendanceDialog extends StatelessWidget {
           flex: 2,
           child: Text(
             label,
-            style: const TextStyle(
+            style: TextStyle(
               fontSize: 13,
               fontWeight: FontWeight.w600,
-              color: Color(0xFF344054),
+              color: zInk(context),
             ),
           ),
         ),

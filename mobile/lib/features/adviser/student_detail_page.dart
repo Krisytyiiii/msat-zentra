@@ -18,25 +18,7 @@ import '../../design/tokens.dart';
 import '../../shared/models.dart';
 import '../../design/status_palette.dart';
 import '../../shared/widgets.dart';
-
-// Advisory learner detail palette — scoped light content under the app's own
-// header, matching the advisory list's white cards.
-const _ink = Color(0xFF0F172A);
-const _body = Color(0xFF334155);
-const _muted = Color(0xFF71809B);
-const _faint = Color(0xFF94A3B8);
-const _line = Color(0xFFE6ECF4);
-const _soft = Color(0xFFF6F8FB);
-const _blue = Color(0xFF2563EB);
-const _red = Color(0xFFDC2626);
-const _redSoft = Color(0xFFFFF5F5);
-const _redLine = Color(0xFFFBD5D5);
-const _green = Color(0xFF1F8A48);
-const _greenSoft = Color(0xFFF1FBF4);
-const _greenLine = Color(0xFFCFF0DA);
-const _amber = Color(0xFFB45309);
-const _amberSoft = Color(0xFFFFFAEF);
-const _amberLine = Color(0xFFF7E5B8);
+import '../../design/desk_theme.dart';
 
 // --- attendance models (unchanged) ---
 
@@ -201,7 +183,7 @@ class AnecdotalRecord {
   final String? attendanceSummary;
   final List<AnecdotalFollowup> followups;
   final int followupCount;
-  const AnecdotalRecord({
+  AnecdotalRecord({
     required this.id,
     required this.observationDatetime,
     required this.category,
@@ -243,7 +225,7 @@ class _DetailData {
   final Map<String, dynamic>? academic;
   final List<AnecdotalRecord> anecdotal;
   final List<Map<String, dynamic>> admCases;
-  const _DetailData({
+  _DetailData({
     required this.detail,
     required this.attendance,
     required this.academic,
@@ -381,24 +363,24 @@ class _StudentDetailState extends ConsumerState<StudentDetailPage> {
             leadingWidth: 64,
             leading: canPop
                 ? ZBackButton(
-                    icon: const Icon(LucideIcons.chevronLeft),
+                    icon: Icon(LucideIcons.chevronLeft),
                     tooltip: 'Back',
                     onPressed: _close,
                   )
                 : ZBackButton(
-                    icon: const Icon(Icons.close),
+                    icon: Icon(Icons.close),
                     tooltip: 'Close',
                     onPressed: _close,
                   ),
-            title: const Text('Student Profile'),
+            title: Text('Student Profile'),
           ),
           body: AdviserBamaAccess(
             child: Theme(
               data: overviewScreenTheme(Theme.of(context)),
               child: ColoredBox(
-                color: Colors.white,
+                color: zCard(context),
                 child: data == null
-                    ? const Padding(
+                    ? Padding(
                         padding: EdgeInsets.all(16),
                         child: ZSkeletonList(count: 4),
                       )
@@ -437,7 +419,7 @@ class _StudentDetailState extends ConsumerState<StudentDetailPage> {
     // Subject codes come from the attendance payload (the academic rows only
     // carry names), so a subject keeps one short code across both sections.
     final codes = <String, String>{
-      for (final s in attendance?.bySubject ?? const <SubjectRate>[])
+      for (final s in attendance?.bySubject ?? <SubjectRate>[])
         if (s.code.isNotEmpty) s.name.toLowerCase(): s.code,
     };
     final gradeLevel = (d['gradeLevel'] ?? '').toString();
@@ -451,9 +433,9 @@ class _StudentDetailState extends ConsumerState<StudentDetailPage> {
     ].join(' · ');
     return Center(
       child: ConstrainedBox(
-        constraints: const BoxConstraints(maxWidth: 900),
+        constraints: BoxConstraints(maxWidth: 900),
         child: ListView(
-          padding: const EdgeInsets.fromLTRB(16, 12, 16, 32),
+          padding: EdgeInsets.fromLTRB(16, 12, 16, 32),
           children: [
             _IdentityCard(
               name: name,
@@ -464,12 +446,12 @@ class _StudentDetailState extends ConsumerState<StudentDetailPage> {
                 await Clipboard.setData(ClipboardData(text: lrn));
                 if (!context.mounted) return;
                 ScaffoldMessenger.of(context)
-                    .showSnackBar(const SnackBar(content: Text('LRN copied.')));
+                    .showSnackBar(SnackBar(content: Text('LRN copied.')));
               },
             ),
             _SectionHeader(
               icon: LucideIcons.bookOpen,
-              color: _blue,
+              color: zLift(context, Color(0xFF2563EB)),
               title: 'ACADEMIC OVERVIEW',
             ),
             if (academicGrades == null)
@@ -489,7 +471,7 @@ class _StudentDetailState extends ConsumerState<StudentDetailPage> {
               ),
             _SectionHeader(
               icon: LucideIcons.activity,
-              color: _red,
+              color: zLift(context, Color(0xFFDC2626)),
               title: 'ATTENDANCE MONITORING',
             ),
             if (attendance == null)
@@ -505,7 +487,7 @@ class _StudentDetailState extends ConsumerState<StudentDetailPage> {
               _AttendanceCard(summary: attendance),
             _SectionHeader(
               icon: LucideIcons.folder,
-              color: _amber,
+              color: zLift(context, Color(0xFFB45309)),
               title: 'ANECDOTAL RECORDS (${data.anecdotal.length})',
             ),
             if (data.anecdotal.isEmpty)
@@ -521,24 +503,24 @@ class _StudentDetailState extends ConsumerState<StudentDetailPage> {
             else
               for (final rec in data.anecdotal)
                 Padding(
-                  padding: const EdgeInsets.only(bottom: 8),
+                  padding: EdgeInsets.only(bottom: 8),
                   child: _AnecdotalCard(record: rec),
                 ),
             if (data.admCases.isNotEmpty) ...[
               _SectionHeader(
                 icon: LucideIcons.clipboardList,
-                color: _blue,
+                color: zLift(context, Color(0xFF2563EB)),
                 title: 'ADM (${data.admCases.length})',
               ),
               for (final c in data.admCases)
                 Padding(
-                  padding: const EdgeInsets.only(bottom: 8),
+                  padding: EdgeInsets.only(bottom: 8),
                   child: _AdmCard(caseData: c),
                 ),
             ],
             _SectionHeader(
               icon: LucideIcons.send,
-              color: _blue,
+              color: zLift(context, Color(0xFF2563EB)),
               title: 'REFERRALS (${referrals.length})',
             ),
             if (referrals.isEmpty)
@@ -552,26 +534,30 @@ class _StudentDetailState extends ConsumerState<StudentDetailPage> {
             else
               for (final r in referrals)
                 Padding(
-                  padding: const EdgeInsets.only(bottom: 8),
+                  padding: EdgeInsets.only(bottom: 8),
                   child: _SectionCard(
                     padded: true,
                     child: Row(
                       children: [
-                        const Icon(LucideIcons.send, size: 16, color: _blue),
-                        const SizedBox(width: 10),
+                        Icon(
+                          LucideIcons.send,
+                          size: 16,
+                          color: zLift(context, Color(0xFF2563EB)),
+                        ),
+                        SizedBox(width: 10),
                         Expanded(
                           child: Text(
                             _humanize((r as Map)['referredToRole']?.toString()),
                             maxLines: 2,
                             overflow: TextOverflow.ellipsis,
-                            style: const TextStyle(
+                            style: TextStyle(
                               fontSize: 13,
                               fontWeight: FontWeight.w600,
-                              color: _ink,
+                              color: zInk(context),
                             ),
                           ),
                         ),
-                        const SizedBox(width: 8),
+                        SizedBox(width: 8),
                         FlagChip(flag: (r['status']?.toString() ?? 'pending')),
                       ],
                     ),
@@ -608,14 +594,30 @@ class _TonePill extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final (bg, fg, border) = switch (tone) {
-      _Tone.red => (_redSoft, _red, _redLine),
-      _Tone.green => (_greenSoft, _green, _greenLine),
-      _Tone.amber => (_amberSoft, _amber, _amberLine),
-      _Tone.blue => (const Color(0xFFEFF5FF), _blue, const Color(0xFFD6E4FF)),
-      _Tone.neutral => (_soft, _muted, _line),
+      _Tone.red => (
+        zWash(context, Color(0xFFFFF5F5)),
+        zLift(context, Color(0xFFDC2626)),
+        zWash(context, Color(0xFFFBD5D5)),
+      ),
+      _Tone.green => (
+        zWash(context, Color(0xFFF1FBF4)),
+        zLift(context, Color(0xFF1F8A48)),
+        zWash(context, Color(0xFFCFF0DA)),
+      ),
+      _Tone.amber => (
+        zWash(context, Color(0xFFFFFAEF)),
+        zLift(context, Color(0xFFB45309)),
+        zWash(context, Color(0xFFF7E5B8)),
+      ),
+      _Tone.blue => (
+        Color(0xFFEFF5FF),
+        zLift(context, Color(0xFF2563EB)),
+        Color(0xFFD6E4FF),
+      ),
+      _Tone.neutral => (zSoft(context), zMutedInk(context), zLine(context)),
     };
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 4),
+      padding: EdgeInsets.symmetric(horizontal: 9, vertical: 4),
       decoration: BoxDecoration(
         color: bg,
         borderRadius: BorderRadius.circular(ZTokens.radiusPill),
@@ -632,32 +634,32 @@ class _TonePill extends StatelessWidget {
 }
 
 class _SectionHeader extends StatelessWidget {
-  const _SectionHeader({
-    required this.icon,
-    required this.title,
-    this.color = _blue,
-  });
+  const _SectionHeader({required this.icon, required this.title, this.color});
   final IconData icon;
   final String title;
-  final Color color;
+  final Color? color;
 
   @override
   Widget build(BuildContext context) => Padding(
     padding: const EdgeInsets.only(top: 22, bottom: 10),
     child: Row(
       children: [
-        Icon(icon, size: 16, color: color),
+        Icon(
+          icon,
+          size: 16,
+          color: color ?? zLift(context, const Color(0xFF2563EB)),
+        ),
         const SizedBox(width: 8),
         Expanded(
           child: Text(
             title,
             maxLines: 1,
             overflow: TextOverflow.ellipsis,
-            style: const TextStyle(
+            style: TextStyle(
               fontSize: 12,
               fontWeight: FontWeight.w700,
               letterSpacing: 0.4,
-              color: _body,
+              color: zInk(context),
             ),
           ),
         ),
@@ -679,10 +681,19 @@ class _SectionCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final (bg, border) = switch (tone) {
-      _Tone.red => (_redSoft, _redLine),
-      _Tone.amber => (_amberSoft, _amberLine),
-      _Tone.green => (_greenSoft, _greenLine),
-      _ => (Colors.white, _line),
+      _Tone.red => (
+        zWash(context, const Color(0xFFFFF5F5)),
+        zWash(context, const Color(0xFFFBD5D5)),
+      ),
+      _Tone.amber => (
+        zWash(context, const Color(0xFFFFFAEF)),
+        zWash(context, const Color(0xFFF7E5B8)),
+      ),
+      _Tone.green => (
+        zWash(context, const Color(0xFFF1FBF4)),
+        zWash(context, const Color(0xFFCFF0DA)),
+      ),
+      _ => (zCard(context), zLine(context)),
     };
     return Container(
       padding: EdgeInsets.all(padded ? 12 : 0),
@@ -709,9 +720,17 @@ class _MetricTile extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final (bg, border, color) = switch (tone) {
-      _Tone.red => (_redSoft, _redLine, _red),
-      _Tone.green => (_greenSoft, _greenLine, _green),
-      _ => (_soft, _line, _ink),
+      _Tone.red => (
+        zWash(context, const Color(0xFFFFF5F5)),
+        zWash(context, const Color(0xFFFBD5D5)),
+        zLift(context, const Color(0xFFDC2626)),
+      ),
+      _Tone.green => (
+        zWash(context, const Color(0xFFF1FBF4)),
+        zWash(context, const Color(0xFFCFF0DA)),
+        zLift(context, const Color(0xFF1F8A48)),
+      ),
+      _ => (zSoft(context), zLine(context), zInk(context)),
     };
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 9),
@@ -727,11 +746,11 @@ class _MetricTile extends StatelessWidget {
             label,
             maxLines: 1,
             overflow: TextOverflow.ellipsis,
-            style: const TextStyle(
+            style: TextStyle(
               fontSize: 9,
               fontWeight: FontWeight.w600,
               letterSpacing: 0.3,
-              color: _muted,
+              color: zMutedInk(context),
             ),
           ),
           const SizedBox(height: 4),
@@ -793,9 +812,9 @@ class _IdentityCard extends StatelessWidget {
         Container(
           padding: const EdgeInsets.all(14),
           decoration: BoxDecoration(
-            color: Colors.white,
+            color: zCard(context),
             borderRadius: BorderRadius.circular(16),
-            border: Border.all(color: _line),
+            border: Border.all(color: zLine(context)),
           ),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
@@ -811,15 +830,15 @@ class _IdentityCard extends StatelessWidget {
                         height: 46,
                         alignment: Alignment.center,
                         decoration: BoxDecoration(
-                          color: _ink,
+                          color: zInk(context),
                           borderRadius: BorderRadius.circular(13),
                         ),
                         child: Text(
                           _initials(name),
-                          style: const TextStyle(
+                          style: TextStyle(
                             fontSize: 15,
                             fontWeight: FontWeight.w700,
-                            color: Colors.white,
+                            color: zCard(context),
                           ),
                         ),
                       ),
@@ -831,8 +850,8 @@ class _IdentityCard extends StatelessWidget {
                           height: 12,
                           decoration: BoxDecoration(
                             shape: BoxShape.circle,
-                            color: _red,
-                            border: Border.all(color: Colors.white, width: 2),
+                            color: zLift(context, const Color(0xFFDC2626)),
+                            border: Border.all(color: zCard(context), width: 2),
                           ),
                         ),
                       ),
@@ -854,10 +873,10 @@ class _IdentityCard extends StatelessWidget {
                             name,
                             maxLines: 2,
                             overflow: TextOverflow.ellipsis,
-                            style: const TextStyle(
+                            style: TextStyle(
                               fontSize: 15,
                               fontWeight: FontWeight.w700,
-                              color: _ink,
+                              color: zInk(context),
                             ),
                           ),
                         ),
@@ -867,7 +886,10 @@ class _IdentityCard extends StatelessWidget {
                             subtitle,
                             maxLines: 1,
                             overflow: TextOverflow.ellipsis,
-                            style: const TextStyle(fontSize: 11, color: _muted),
+                            style: TextStyle(
+                              fontSize: 11,
+                              color: zMutedInk(context),
+                            ),
                           ),
                         ],
                       ],
@@ -875,9 +897,9 @@ class _IdentityCard extends StatelessWidget {
                   ),
                 ],
               ),
-              const Padding(
+              Padding(
                 padding: EdgeInsets.symmetric(vertical: 12),
-                child: Divider(height: 1, color: _line),
+                child: Divider(height: 1, color: zLine(context)),
               ),
               Center(
                 child: Semantics(
@@ -892,9 +914,9 @@ class _IdentityCard extends StatelessWidget {
                         vertical: 5,
                       ),
                       decoration: BoxDecoration(
-                        color: _soft,
+                        color: zSoft(context),
                         borderRadius: BorderRadius.circular(8),
-                        border: Border.all(color: _line),
+                        border: Border.all(color: zLine(context)),
                       ),
                       child: Row(
                         mainAxisSize: MainAxisSize.min,
@@ -904,15 +926,19 @@ class _IdentityCard extends StatelessWidget {
                               'LRN $lrn',
                               maxLines: 1,
                               overflow: TextOverflow.ellipsis,
-                              style: const TextStyle(
+                              style: TextStyle(
                                 fontSize: 11,
-                                color: _muted,
+                                color: zMutedInk(context),
                                 fontFeatures: [FontFeature.tabularFigures()],
                               ),
                             ),
                           ),
                           const SizedBox(width: 6),
-                          const Icon(LucideIcons.copy, size: 12, color: _faint),
+                          Icon(
+                            LucideIcons.copy,
+                            size: 12,
+                            color: zMutedInk(context),
+                          ),
                         ],
                       ),
                     ),
@@ -967,9 +993,9 @@ class _Segmented extends StatelessWidget {
   Widget build(BuildContext context) => Container(
     padding: const EdgeInsets.all(3),
     decoration: BoxDecoration(
-      color: _soft,
+      color: zSoft(context),
       borderRadius: BorderRadius.circular(10),
-      border: Border.all(color: _line),
+      border: Border.all(color: zLine(context)),
     ),
     child: Row(
       children: [
@@ -990,7 +1016,9 @@ class _Segmented extends StatelessWidget {
                     decoration: BoxDecoration(
                       borderRadius: BorderRadius.circular(8),
                       border: Border.all(
-                        color: i == selected ? _line : Colors.transparent,
+                        color: i == selected
+                            ? zLine(context)
+                            : Colors.transparent,
                       ),
                     ),
                     child: Text(
@@ -1000,7 +1028,9 @@ class _Segmented extends StatelessWidget {
                       style: TextStyle(
                         fontSize: 12,
                         fontWeight: FontWeight.w600,
-                        color: i == selected ? _ink : _muted,
+                        color: i == selected
+                            ? zInk(context)
+                            : zMutedInk(context),
                       ),
                     ),
                   ),
@@ -1096,7 +1126,9 @@ class _AcademicCardState extends State<_AcademicCard> {
                 style: TextStyle(
                   fontSize: 11,
                   height: 1.4,
-                  color: failing.isNotEmpty ? _red : _green,
+                  color: failing.isNotEmpty
+                      ? zLift(context, const Color(0xFFDC2626))
+                      : zLift(context, const Color(0xFF1F8A48)),
                 ),
               ),
             ],
@@ -1116,18 +1148,18 @@ class _AcademicCardState extends State<_AcademicCard> {
                         : 'COMPUTED AVERAGE PER SUBJECT',
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,
-                    style: const TextStyle(
+                    style: TextStyle(
                       fontSize: 10,
                       fontWeight: FontWeight.w700,
                       letterSpacing: 0.4,
-                      color: _muted,
+                      color: zMutedInk(context),
                     ),
                   ),
                 ),
                 const SizedBox(width: 8),
                 Text(
                   '$subjects Enrolled',
-                  style: const TextStyle(fontSize: 10, color: _faint),
+                  style: TextStyle(fontSize: 10, color: zMutedInk(context)),
                 ),
               ],
             ),
@@ -1156,7 +1188,7 @@ class _AcademicCardState extends State<_AcademicCard> {
                         : 'Show all ${grades.length} subjects',
                   ),
                   style: TextButton.styleFrom(
-                    foregroundColor: _muted,
+                    foregroundColor: zMutedInk(context),
                     minimumSize: Size.zero,
                     tapTargetSize: MaterialTapTargetSize.shrinkWrap,
                     padding: const EdgeInsets.symmetric(
@@ -1194,9 +1226,9 @@ class _SubjectRow extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 10),
       decoration: BoxDecoration(
-        color: _soft,
+        color: zSoft(context),
         borderRadius: BorderRadius.circular(10),
-        border: Border.all(color: _line),
+        border: Border.all(color: zLine(context)),
       ),
       child: Row(
         children: [
@@ -1205,7 +1237,11 @@ class _SubjectRow extends StatelessWidget {
             height: 7,
             decoration: BoxDecoration(
               shape: BoxShape.circle,
-              color: pending ? _faint : (failed ? _red : _blue),
+              color: pending
+                  ? zMutedInk(context)
+                  : (failed
+                        ? zLift(context, const Color(0xFFDC2626))
+                        : zLift(context, const Color(0xFF2563EB))),
             ),
           ),
           const SizedBox(width: 8),
@@ -1214,10 +1250,10 @@ class _SubjectRow extends StatelessWidget {
               grade.subject,
               maxLines: 1,
               overflow: TextOverflow.ellipsis,
-              style: const TextStyle(
+              style: TextStyle(
                 fontSize: 12,
                 fontWeight: FontWeight.w600,
-                color: _ink,
+                color: zInk(context),
               ),
             ),
           ),
@@ -1227,19 +1263,21 @@ class _SubjectRow extends StatelessWidget {
               code,
               maxLines: 1,
               overflow: TextOverflow.ellipsis,
-              style: const TextStyle(fontSize: 9, color: _faint),
+              style: TextStyle(fontSize: 9, color: zMutedInk(context)),
             ),
           ],
           const SizedBox(width: 8),
           if (pending)
-            const _TonePill(text: 'Pending', tone: _Tone.neutral)
+            _TonePill(text: 'Pending', tone: _Tone.neutral)
           else
             Text(
               value,
               style: TextStyle(
                 fontSize: 13,
                 fontWeight: FontWeight.w700,
-                color: failed ? _red : _ink,
+                color: failed
+                    ? zLift(context, const Color(0xFFDC2626))
+                    : zInk(context),
                 fontFeatures: const [FontFeature.tabularFigures()],
               ),
             ),
@@ -1264,9 +1302,13 @@ class _AttendanceCard extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.fromLTRB(14, 14, 14, 16),
       decoration: BoxDecoration(
-        color: Colors.white,
+        color: zCard(context),
         borderRadius: BorderRadius.circular(14),
-        border: Border.all(color: warning ? _redLine : _line),
+        border: Border.all(
+          color: warning
+              ? zWash(context, const Color(0xFFFBD5D5))
+              : zLine(context),
+        ),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -1281,16 +1323,16 @@ class _AttendanceCard extends StatelessWidget {
                   children: [
                     Text(
                       '$pct%',
-                      style: const TextStyle(
+                      style: TextStyle(
                         fontSize: 26,
                         fontWeight: FontWeight.w800,
-                        color: _ink,
+                        color: zInk(context),
                         letterSpacing: -0.8,
                         fontFeatures: [FontFeature.tabularFigures()],
                       ),
                     ),
                     if (summary.isRisk)
-                      const _TonePill(text: 'HIGH', tone: _Tone.red),
+                      _TonePill(text: 'HIGH', tone: _Tone.red),
                   ],
                 ),
               ),
@@ -1303,9 +1345,9 @@ class _AttendanceCard extends StatelessWidget {
             summary.subjectEra
                 ? '${summary.present} present across ${summary.total} subject sessions'
                 : '${summary.present} present across ${summary.total} sessions (AM/PM record — no per-subject takes yet)',
-            style: const TextStyle(
+            style: TextStyle(
               fontSize: 11.5,
-              color: _muted,
+              color: zMutedInk(context),
               fontFeatures: [FontFeature.tabularFigures()],
             ),
           ),
@@ -1345,37 +1387,43 @@ class _AttendanceCard extends StatelessWidget {
               width: double.infinity,
               padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 9),
               decoration: BoxDecoration(
-                color: _redSoft,
+                color: zWash(context, const Color(0xFFFFF5F5)),
                 borderRadius: BorderRadius.circular(9),
-                border: Border.all(color: _redLine),
+                border: Border.all(
+                  color: zWash(context, const Color(0xFFFBD5D5)),
+                ),
               ),
               child: Row(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  const Padding(
+                  Padding(
                     padding: EdgeInsets.only(top: 1),
-                    child: Icon(LucideIcons.circleAlert, size: 13, color: _red),
+                    child: Icon(
+                      LucideIcons.circleAlert,
+                      size: 13,
+                      color: zLift(context, Color(0xFFDC2626)),
+                    ),
                   ),
                   const SizedBox(width: 7),
                   Expanded(
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        const Text(
+                        Text(
                           'Weakest Subject Record',
                           style: TextStyle(
                             fontSize: 11.5,
                             fontWeight: FontWeight.w700,
-                            color: _red,
+                            color: zLift(context, Color(0xFFDC2626)),
                           ),
                         ),
                         const SizedBox(height: 2),
                         Text(
                           '${weakest.name} at ${(weakest.rate * 100).toStringAsFixed(1)}% (${weakest.present}/${weakest.total} sessions attended)',
-                          style: const TextStyle(
+                          style: TextStyle(
                             fontSize: 11,
                             height: 1.35,
-                            color: _red,
+                            color: zLift(context, Color(0xFFDC2626)),
                             fontFeatures: [FontFeature.tabularFigures()],
                           ),
                         ),
@@ -1409,7 +1457,9 @@ class _RateDonut extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final color = warning ? _red : _green;
+    final color = warning
+        ? zLift(context, const Color(0xFFDC2626))
+        : zLift(context, const Color(0xFF1F8A48));
     return SizedBox(
       width: 46,
       height: 46,
@@ -1448,7 +1498,9 @@ class _SubjectAttendanceRow extends StatelessWidget {
   Widget build(BuildContext context) {
     final rate = s.rate.clamp(0.0, 1.0);
     final low = rate < 0.8;
-    final color = low ? _red : _green;
+    final color = low
+        ? zLift(context, const Color(0xFFDC2626))
+        : zLift(context, const Color(0xFF1F8A48));
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -1459,10 +1511,10 @@ class _SubjectAttendanceRow extends StatelessWidget {
                 s.name,
                 maxLines: 1,
                 overflow: TextOverflow.ellipsis,
-                style: const TextStyle(
+                style: TextStyle(
                   fontSize: 12,
                   fontWeight: FontWeight.w600,
-                  color: _ink,
+                  color: zInk(context),
                 ),
               ),
             ),
@@ -1477,7 +1529,10 @@ class _SubjectAttendanceRow extends StatelessWidget {
                       if (s.code.isNotEmpty)
                         TextSpan(
                           text: '${s.code}   ',
-                          style: const TextStyle(fontSize: 9, color: _faint),
+                          style: TextStyle(
+                            fontSize: 9,
+                            color: zMutedInk(context),
+                          ),
                         ),
                       TextSpan(
                         text:
@@ -1485,7 +1540,9 @@ class _SubjectAttendanceRow extends StatelessWidget {
                         style: TextStyle(
                           fontSize: 11,
                           fontWeight: FontWeight.w700,
-                          color: low ? _red : _body,
+                          color: low
+                              ? zLift(context, const Color(0xFFDC2626))
+                              : zInk(context),
                           fontFeatures: const [FontFeature.tabularFigures()],
                         ),
                       ),
@@ -1643,8 +1700,11 @@ class _AdmCard extends StatelessWidget {
           if (timeline.isEmpty)
             const Padding(
               padding: EdgeInsets.fromLTRB(16, 0, 16, 12),
-              child: ZEmpty(compact: true, icon: Icons.history,
-                title: 'No timeline entries yet.'),
+              child: ZEmpty(
+                compact: true,
+                icon: Icons.history,
+                title: 'No timeline entries yet.',
+              ),
             )
           else
             for (final t in timeline)

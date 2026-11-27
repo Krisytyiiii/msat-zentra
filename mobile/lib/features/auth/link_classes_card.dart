@@ -13,6 +13,7 @@ import 'package:lucide_icons_flutter/lucide_icons.dart';
 import '../../core/api_client.dart';
 import '../../core/session.dart';
 import '../../shared/user_messages.dart';
+import '../../design/desk_theme.dart';
 
 class TeacherLink {
   const TeacherLink({required this.linked, this.name});
@@ -113,7 +114,7 @@ class _LinkClassesCardState extends ConsumerState<LinkClassesCard> {
       decoration: BoxDecoration(
         color: Colors.white,
         borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: const Color(0xFFE6ECF4)),
+        border: Border.all(color: zLine(context)),
         boxShadow: const [
           BoxShadow(
             color: Color(0x0A0B1220),
@@ -135,14 +136,14 @@ class _LinkClassesCardState extends ConsumerState<LinkClassesCard> {
                   color: const Color(0xFFE8EFFF),
                   borderRadius: BorderRadius.circular(12),
                 ),
-                child: const Icon(
+                child: Icon(
                   LucideIcons.keyRound,
                   size: 19,
-                  color: Color(0xFF2442A8),
+                  color: zLift(context, Color(0xFF2442A8)),
                 ),
               ),
               const SizedBox(width: 10),
-              const Expanded(
+              Expanded(
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
@@ -152,7 +153,7 @@ class _LinkClassesCardState extends ConsumerState<LinkClassesCard> {
                         fontSize: 15,
                         height: 1.3,
                         fontWeight: FontWeight.w700,
-                        color: Color(0xFF171C36),
+                        color: zInk(context),
                       ),
                     ),
                     SizedBox(height: 2),
@@ -161,7 +162,7 @@ class _LinkClassesCardState extends ConsumerState<LinkClassesCard> {
                       style: TextStyle(
                         fontSize: 12,
                         height: 1.4,
-                        color: Color(0xFF71809B),
+                        color: zMutedInk(context),
                       ),
                     ),
                   ],
@@ -176,10 +177,10 @@ class _LinkClassesCardState extends ConsumerState<LinkClassesCard> {
             textInputAction: TextInputAction.done,
             textCapitalization: TextCapitalization.characters,
             onSubmitted: (_) => _claim(),
-            style: const TextStyle(
+            style: TextStyle(
               fontSize: 14,
               fontWeight: FontWeight.w600,
-              color: Color(0xFF171C36),
+              color: zInk(context),
               fontFeatures: [FontFeature.tabularFigures()],
             ),
             decoration: InputDecoration(
@@ -189,24 +190,24 @@ class _LinkClassesCardState extends ConsumerState<LinkClassesCard> {
                 fontWeight: FontWeight.w400,
                 color: Color(0xFF9AA5BB),
               ),
-              prefixIcon: const Icon(
+              prefixIcon: Icon(
                 LucideIcons.link2,
                 size: 18,
-                color: Color(0xFF71809B),
+                color: zMutedInk(context),
               ),
               filled: true,
-              fillColor: const Color(0xFFF7F9FC),
+              fillColor: zSoft(context),
               contentPadding: const EdgeInsets.symmetric(
                 horizontal: 12,
                 vertical: 14,
               ),
               enabledBorder: OutlineInputBorder(
                 borderRadius: BorderRadius.circular(12),
-                borderSide: const BorderSide(color: Color(0xFFE6ECF4)),
+                borderSide: BorderSide(color: zLine(context)),
               ),
               disabledBorder: OutlineInputBorder(
                 borderRadius: BorderRadius.circular(12),
-                borderSide: const BorderSide(color: Color(0xFFE6ECF4)),
+                borderSide: BorderSide(color: zLine(context)),
               ),
               focusedBorder: OutlineInputBorder(
                 borderRadius: BorderRadius.circular(12),
@@ -217,10 +218,12 @@ class _LinkClassesCardState extends ConsumerState<LinkClassesCard> {
           const SizedBox(height: 12),
           FilledButton(
             style: FilledButton.styleFrom(
-              backgroundColor: const Color(0xFF2563EB),
+              backgroundColor: zLift(context, const Color(0xFF2563EB)),
               foregroundColor: Colors.white,
-              disabledBackgroundColor: const Color(0xFF2563EB)
-                  .withValues(alpha: 0.45),
+              disabledBackgroundColor: zLift(
+                context,
+                const Color(0xFF2563EB),
+              ).withValues(alpha: 0.45),
               disabledForegroundColor: Colors.white70,
             ),
             onPressed: _busy ? null : _claim,
@@ -251,10 +254,10 @@ class _LinkClassesCardState extends ConsumerState<LinkClassesCard> {
                   ),
           ),
           const SizedBox(height: 10),
-          const Row(
+          Row(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Icon(LucideIcons.info, size: 14, color: Color(0xFF71809B)),
+              Icon(LucideIcons.info, size: 14, color: zMutedInk(context)),
               SizedBox(width: 6),
               Expanded(
                 child: Text(
@@ -262,7 +265,7 @@ class _LinkClassesCardState extends ConsumerState<LinkClassesCard> {
                   style: TextStyle(
                     fontSize: 11,
                     height: 1.4,
-                    color: Color(0xFF71809B),
+                    color: zMutedInk(context),
                   ),
                 ),
               ),

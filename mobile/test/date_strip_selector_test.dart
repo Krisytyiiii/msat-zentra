@@ -6,6 +6,7 @@ import 'package:zentra_mobile/shared/date_strip_selector.dart';
 
 void main() {
   final today = DateTime.utc(2026, 11, 17);
+  _darkStripRegression(today);
 
   testWidgets(
     'arrows, swipe, Today and calendar honor bounds and allowed days',
@@ -133,4 +134,47 @@ void main() {
       expect(tester.takeException(), isNull);
     });
   }
+}
+
+void _darkStripRegression(DateTime today) {
+  testWidgets('date card follows dark mode and keeps dates readable', (
+    tester,
+  ) async {
+    await tester.pumpWidget(
+      MaterialApp(
+        theme: ThemeData.dark(),
+        home: Scaffold(
+          body: DateStripSelector(
+            selectedDate: today,
+            today: today,
+            firstDate: DateTime.utc(2026, 11, 16),
+            lastDate: DateTime.utc(2026, 11, 20),
+            onChanged: (_) {},
+          ),
+        ),
+      ),
+    );
+    final theme = Theme.of(tester.element(find.byType(DateStripSelector)));
+    final card = tester
+        .widgetList<Container>(
+          find.descendant(
+            of: find.byType(DateStripSelector),
+            matching: find.byType(Container),
+          ),
+        )
+        .firstWhere(
+          (c) =>
+              c.decoration is BoxDecoration &&
+              (c.decoration! as BoxDecoration).border != null,
+        );
+    expect(
+      (card.decoration! as BoxDecoration).color,
+      theme.colorScheme.surface,
+    );
+    expect(
+      tester.widget<Text>(find.text('Tue, Nov 17, 2026')).style!.color,
+      theme.colorScheme.onSurface,
+    );
+    expect(tester.takeException(), isNull);
+  });
 }

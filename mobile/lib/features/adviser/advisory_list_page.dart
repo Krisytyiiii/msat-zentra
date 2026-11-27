@@ -11,6 +11,7 @@ import '../../design/status_palette.dart';
 import '../../design/theme.dart';
 import '../../shared/widgets.dart';
 import 'advisory_list_data.dart';
+import '../../design/desk_theme.dart';
 
 // Keep existing imports in the academic/settings/Bama screens compatible.
 export 'advisory_list_data.dart';
@@ -48,17 +49,19 @@ class _AdvisoryListState extends ConsumerState<AdvisoryListPage> {
   }
 
   @override
-  Widget build(BuildContext context) => Theme(
-    data: overviewScreenTheme(Theme.of(context))
-        .copyWith(scaffoldBackgroundColor: Colors.white),
-    child: ColoredBox(
-      color: Colors.white,
-      child: LayoutBuilder(
-        builder: (context, constraints) =>
-            _content(context, compact: constraints.maxHeight < 650),
+  Widget build(BuildContext context) {
+    final theme = overviewScreenTheme(Theme.of(context));
+    return Theme(
+      data: theme,
+      child: ColoredBox(
+        color: theme.scaffoldBackgroundColor,
+        child: LayoutBuilder(
+          builder: (context, constraints) =>
+              _content(context, compact: constraints.maxHeight < 650),
+        ),
       ),
-    ),
-  );
+    );
+  }
 
   Widget _content(BuildContext context, {required bool compact}) {
     final term = ref.watch(termProvider);
@@ -179,8 +182,8 @@ class _AdvisoryListState extends ConsumerState<AdvisoryListPage> {
         Container(
           padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
           decoration: BoxDecoration(
-            color: const Color(0xFFF9F9FA),
-            border: Border.all(color: const Color(0xFFE8E8ED)),
+            color: zSoft(context),
+            border: Border.all(color: zLine(context)),
             borderRadius: BorderRadius.circular(12),
           ),
           child: IntrinsicHeight(
@@ -218,7 +221,7 @@ class _AdvisoryListState extends ConsumerState<AdvisoryListPage> {
                               fontSize: 12,
                               height: 1.6,
                               fontWeight: FontWeight.w700,
-                              color: const Color(0xFF1E293B),
+                              color: zInk(context),
                             ),
                           ),
                         ),
@@ -228,10 +231,10 @@ class _AdvisoryListState extends ConsumerState<AdvisoryListPage> {
                             entry.$1 == 2 ? 'Avg Att.' : entry.$2.label,
                             maxLines: 1,
                             overflow: TextOverflow.ellipsis,
-                            style: const TextStyle(
+                            style: TextStyle(
                               fontSize: 12,
                               height: 1.6,
-                              color: Color(0xFF71809B),
+                              color: zMutedInk(context),
                             ),
                           ),
                         ),
@@ -244,13 +247,13 @@ class _AdvisoryListState extends ConsumerState<AdvisoryListPage> {
           ),
         ),
         const SizedBox(height: 14),
-        const Text(
+        Text(
           'FILTER ADVISEES',
           style: TextStyle(
             fontSize: 12,
             fontWeight: FontWeight.w700,
             letterSpacing: 0.4,
-            color: Color(0xFF929FB5),
+            color: zMutedInk(context),
           ),
         ),
         Row(
@@ -313,12 +316,12 @@ class _AdvisoryListState extends ConsumerState<AdvisoryListPage> {
             width: double.infinity,
             padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 7),
             decoration: BoxDecoration(
-              color: active ? blue.background : Colors.white,
+              color: active ? blue.background : zCard(context),
               borderRadius: BorderRadius.circular(999),
               border: Border.all(
                 color: active
                     ? blue.foreground.withValues(alpha: 0.25)
-                    : const Color(0xFFE5E5EA),
+                    : zLine(context),
               ),
             ),
             child: Row(
@@ -332,7 +335,7 @@ class _AdvisoryListState extends ConsumerState<AdvisoryListPage> {
                     overflow: TextOverflow.ellipsis,
                     style: TextStyle(
                       fontSize: 12,
-                      color: active ? blue.foreground : const Color(0xFF7185A4),
+                      color: active ? blue.foreground : zMutedInk(context),
                     ),
                   ),
                 ),
@@ -340,7 +343,7 @@ class _AdvisoryListState extends ConsumerState<AdvisoryListPage> {
                 Icon(
                   LucideIcons.chevronDown,
                   size: 12,
-                  color: active ? blue.foreground : const Color(0xFF7185A4),
+                  color: active ? blue.foreground : zMutedInk(context),
                 ),
               ],
             ),
@@ -399,10 +402,7 @@ class _AdvisoryListState extends ConsumerState<AdvisoryListPage> {
                     'Showing ${shown.length} students',
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,
-                    style: const TextStyle(
-                      fontSize: 12,
-                      color: Color(0xFF71809B),
-                    ),
+                    style: TextStyle(fontSize: 12, color: zMutedInk(context)),
                   ),
                 ),
                 TextButton.icon(
@@ -417,7 +417,7 @@ class _AdvisoryListState extends ConsumerState<AdvisoryListPage> {
                     style: const TextStyle(fontSize: 12),
                   ),
                   style: TextButton.styleFrom(
-                    foregroundColor: const Color(0xFF334155),
+                    foregroundColor: zInk(context),
                     padding: const EdgeInsets.symmetric(
                       horizontal: 8,
                       vertical: 0,
@@ -461,17 +461,17 @@ class _AdvisoryListState extends ConsumerState<AdvisoryListPage> {
                           radius: 19,
                           backgroundColor:
                               [
-                                const Color(0xFFF1F5F9),
-                                const Color(0xFFEFF6FF),
-                                const Color(0xFFFFFBEB),
-                                const Color(0xFFFAF5FF),
-                                const Color(0xFFFFF1F2),
+                                zSoft(context),
+                                zWash(context, const Color(0xFFEFF6FF)),
+                                zWash(context, const Color(0xFFFFFBEB)),
+                                zWash(context, const Color(0xFFFAF5FF)),
+                                zWash(context, const Color(0xFFFFF1F2)),
                               ][student.studentId.codeUnits.fold(
                                     0,
                                     (a, b) => a + b,
                                   ) %
                                   5],
-                          foregroundColor: const Color(0xFF52627C),
+                          foregroundColor: zMutedInk(context),
                           child: Text(
                             initials,
                             style: const TextStyle(
@@ -506,16 +506,16 @@ class _AdvisoryListState extends ConsumerState<AdvisoryListPage> {
                         children: [
                           Text(
                             'Att ${student.attendancePercentage == null ? '—' : '${student.attendancePercentage!.toStringAsFixed(1)}%'}',
-                            style: const TextStyle(
+                            style: TextStyle(
                               fontSize: 12,
-                              color: Color(0xFF334155),
+                              color: zInk(context),
                             ),
                           ),
                           Text(
                             'Avg ${student.academicGrade?.toStringAsFixed(1) ?? '—'}',
-                            style: const TextStyle(
+                            style: TextStyle(
                               fontSize: 12,
-                              color: Color(0xFF52627C),
+                              color: zMutedInk(context),
                             ),
                           ),
                         ],
