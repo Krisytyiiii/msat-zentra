@@ -8,7 +8,6 @@ import 'package:url_launcher/url_launcher.dart';
 
 import '../../core/notifications.dart';
 import '../../core/session.dart';
-import '../../design/portal_shell.dart';
 import '../../shared/models.dart';
 import '../../shared/widgets.dart';
 import '../../services/portal_service.dart';

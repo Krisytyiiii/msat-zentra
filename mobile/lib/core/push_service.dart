@@ -16,6 +16,7 @@ import 'package:firebase_core/firebase_core.dart';
 import 'package:firebase_messaging/firebase_messaging.dart';
 import 'package:flutter/foundation.dart'
     show TargetPlatform, debugPrint, defaultTargetPlatform, kIsWeb;
+import 'package:flutter/widgets.dart' show AppLifecycleState, WidgetsBinding, WidgetsBindingObserver;
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 import 'package:hive_flutter/hive_flutter.dart';
 
@@ -110,8 +111,9 @@ String pushTitleFor(ZNotification n) {
       : null;
   final role = box?.get('role') as String?;
   final portal = box?.get('portal') as String? ?? 'staff';
-  if (portal == 'student' || portal == 'parent')
+  if (portal == 'student' || portal == 'parent') {
     return portalNotificationTitle(n);
+  }
   if (role == 'adm_coordinator') return coordinatorNotificationTitle(n);
   return teacherNotificationTitle(n);
 }
@@ -131,7 +133,7 @@ String? _nonEmpty(Object? v) {
   return (s == null || s.isEmpty) ? null : s;
 }
 
-class PushService {
+class PushService with WidgetsBindingObserver {
   PushService._();
   static final PushService instance = PushService._();
 
@@ -139,6 +141,7 @@ class PushService {
   void Function(String route)? _navigate;
   bool _started = false;
   bool _starting = false;
+  bool _observing = false;
   String? _registeredToken;
   RemoteMessage? _initialMessage;
 
@@ -192,6 +195,10 @@ class PushService {
       );
 
       _started = true;
+      if (!_observing) {
+        WidgetsBinding.instance.addObserver(this);
+        _observing = true;
+      }
     } catch (_) {
       // A missing Play Services / APNs setup must never break sign-in.
     } finally {
@@ -245,21 +252,40 @@ class PushService {
   }
 
   /// Registers this device's FCM token with the backend. Idempotent.
-  Future<void> register() async {
+  ///
+  /// [force] re-sends even when this process already registered the same
+  /// token — used on sign-in so an account switch on the same device re-points
+  /// the token instead of leaving it on the previous account. Every device
+  /// holds its own token, so this never removes another device's row.
+  Future<void> register({bool force = false}) async {
     if (!_started || _api == null) return;
     try {
       final token = await FirebaseMessaging.instance.getToken();
       if (token == null || token.isEmpty) return;
-      await _registerToken(token);
+      await _registerToken(token, force: force);
     } catch (_) {
       // Token registration is best-effort; the inbox still works.
     }
   }
 
-  Future<void> _registerToken(String token) async {
+  /// Retry on resume: FCM may mint a token while we were backgrounded, and a
+  /// registration that failed at sign-in (offline, backend down, no token yet)
+  /// would otherwise sit until the next login.
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    if (state == AppLifecycleState.resumed) unawaited(_retryOnResume());
+  }
+
+  Future<void> _retryOnResume() async {
+    if (!PushConfig.configured || kIsWeb) return;
+    if (!_started) await start();
+    if (_started) await register();
+  }
+
+  Future<void> _registerToken(String token, {bool force = false}) async {
     final api = _api;
-    if (api == null || !_started || token.isEmpty || token == _registeredToken)
-      return;
+    if (api == null || !_started || token.isEmpty) return;
+    if (!force && token == _registeredToken) return;
     try {
       await api.dio.post(
         '/api/notifications/device-token',
@@ -272,9 +298,16 @@ class PushService {
                     : 'web'),
         },
       );
+      final previous = _registeredToken;
       _registeredToken = token;
+      // A rotated token leaves a dead row: drop it now instead of waiting for
+      // FCM to report it unregistered on the next send. The endpoint is scoped
+      // to this account, so another account's row is never touched.
+      if (previous != null && previous != token) {
+        unawaited(_unregisterToken(previous));
+      }
     } on DioException {
-      // Retried on the next auth state change / token refresh.
+      // Retried on the next resume / auth state change / token refresh.
     }
   }
 
@@ -286,14 +319,26 @@ class PushService {
       final token =
           _registeredToken ?? await FirebaseMessaging.instance.getToken();
       if (token == null || token.isEmpty) return;
-      await api.dio.post(
-        '/api/notifications/device-token/unregister',
-        data: {'token': token},
-      );
+      await _unregisterToken(token);
     } catch (_) {
       // Server-side pruning also removes dead tokens.
     } finally {
       _registeredToken = null;
+    }
+  }
+
+  /// Removes only this account's row for [token] — the account's other devices
+  /// and another account signed in on this device keep their rows.
+  Future<void> _unregisterToken(String token) async {
+    final api = _api;
+    if (api == null || token.isEmpty) return;
+    try {
+      await api.dio.post(
+        '/api/notifications/device-token/unregister',
+        data: {'token': token},
+      );
+    } on DioException {
+      // Best effort; FCM pruning covers the rest.
     }
   }
 

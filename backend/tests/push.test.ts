@@ -99,4 +99,42 @@ describe("device token registration", () => {
       where: { token: "fcm-token-12345", userId: "user-1" },
     });
   });
+
+  it("keeps one row per device for a multi-device account", async () => {
+    mocks.upsert.mockResolvedValue({ id: "d", platform: "android" });
+
+    await request(app)
+      .post("/api/notifications/device-token")
+      .set(auth)
+      .send({ token: "token-phone", platform: "android" });
+    await request(app)
+      .post("/api/notifications/device-token")
+      .set(auth)
+      .send({ token: "token-tablet", platform: "android" });
+
+    const bodies = mocks.upsert.mock.calls.map(([arg]) => arg);
+    expect(bodies).toHaveLength(2);
+    // Same owner, distinct tokens: signing in elsewhere never replaces the
+    // other device's row.
+    expect(bodies.map((b) => b.create.userId)).toEqual(["user-1", "user-1"]);
+    expect(bodies.map((b) => b.where.token)).toEqual(["token-phone", "token-tablet"]);
+  });
+
+  it("re-points a token when another account signs in on the same device", async () => {
+    mocks.upsert.mockResolvedValue({ id: "d", platform: "android" });
+
+    const res = await request(app)
+      .post("/api/notifications/device-token")
+      .set({ Authorization: "Bearer user-2:adviser" })
+      .send({ token: "shared-device-token", platform: "android" });
+
+    expect(res.status).toBe(201);
+    expect(mocks.upsert).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: { token: "shared-device-token" },
+        create: expect.objectContaining({ userId: "user-2" }),
+        update: expect.objectContaining({ userId: "user-2" }),
+      }),
+    );
+  });
 });

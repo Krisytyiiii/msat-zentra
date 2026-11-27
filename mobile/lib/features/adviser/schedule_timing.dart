@@ -3,6 +3,16 @@ class SchoolDayConfig {
   SchoolDayConfig._(this.periods);
   final List<({int start, int end})> periods;
 
+  /// Null-safe parse for payloads that may omit the day shape.
+  static SchoolDayConfig? tryFromJson(Map<String, dynamic>? json) {
+    if (json == null) return null;
+    try {
+      return SchoolDayConfig.fromJson(json);
+    } catch (_) {
+      return null;
+    }
+  }
+
   factory SchoolDayConfig.fromJson(Map<String, dynamic> json) {
     int number(Object? value, int min, int max) {
       if (value is! int || value < min || value > max) {
@@ -59,3 +69,12 @@ class SchoolDayConfig {
 
 DateTime philippineTime(DateTime instant) =>
     instant.toUtc().add(const Duration(hours: 8));
+
+/// "7:30 AM" for a minute count after midnight (schedule period windows).
+String clockLabel(int minutes) {
+  final hour24 = (minutes ~/ 60) % 24;
+  final minute = minutes % 60;
+  final suffix = hour24 >= 12 ? 'PM' : 'AM';
+  final hour = hour24 % 12 == 0 ? 12 : hour24 % 12;
+  return '$hour:${minute.toString().padLeft(2, '0')} $suffix';
+}

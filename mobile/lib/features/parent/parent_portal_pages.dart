@@ -5,12 +5,13 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:url_launcher/url_launcher.dart';
 
-import '../../core/session.dart';
 import '../../design/overview_theme.dart';
 import '../../design/screen_search.dart';
+import '../../design/status_palette.dart';
 import '../../shared/models.dart';
 import '../../shared/widgets.dart';
 import '../../services/portal_service.dart';
+import '../adviser/schedule_timing.dart';
 
 // ---------------------------------------------------------------------------
 // Parent Home Page (Dashboard)
@@ -35,19 +36,22 @@ class _ParentHomeState extends ConsumerState<ParentHomePage> {
   }
 
   @override
-  Widget build(BuildContext context) => Theme(
-    data: overviewScreenTheme(Theme.of(context))
-        .copyWith(scaffoldBackgroundColor: Colors.white),
-    child: ColoredBox(
-      color: Colors.white,
-      child: LayoutBuilder(
-        builder: (context, constraints) => _content(context, compact: constraints.maxHeight < 650),
+  Widget build(BuildContext context) {
+    final theme = overviewScreenTheme(Theme.of(context));
+    return Theme(
+      data: theme,
+      child: ColoredBox(
+        color: theme.scaffoldBackgroundColor,
+        child: LayoutBuilder(
+          builder: (context, constraints) =>
+              _content(context, compact: constraints.maxHeight < 650),
+        ),
       ),
-    ),
-  );
+    );
+  }
 
   Widget _content(BuildContext context, {required bool compact}) {
-    final term = ref.watch(termProvider);
+    final term = portalScopeTerm(ref);
     final termKey = '${term?.schoolYearId}:${term?.id}';
     if (_lastTerm != termKey) {
       _lastTerm = termKey;
@@ -90,7 +94,7 @@ class _ParentHomeState extends ConsumerState<ParentHomePage> {
             ),
             data: (home) => home != null ? _body(context, home, query) : SliverFillRemaining(
               hasScrollBody: false,
-              child: Center(child: Text('Select a child to view their dashboard')),
+              child: Center(child: Text('Select a child from the menu to view their dashboard')),
             ),
           ),
           SliverToBoxAdapter(
@@ -106,7 +110,7 @@ class _ParentHomeState extends ConsumerState<ParentHomePage> {
     AsyncValue<PortalHome?> homeAsync, {
     required bool compact,
   }) {
-    final term = ref.watch(termProvider);
+    final term = portalScopeTerm(ref);
     final selectedChildId = ref.watch(selectedChildProvider);
     final children = ref.watch(parentChildrenProvider);
     PortalChild? child;
@@ -173,6 +177,7 @@ class _ParentHomeState extends ConsumerState<ParentHomePage> {
   Widget _body(BuildContext context, PortalHome home, String query) {
     final theme = Theme.of(context);
     final l = home.learner;
+    final dayConfig = SchoolDayConfig.tryFromJson(home.config);
     final grades = home.grades.where((g) => query.isEmpty || g.subjectName.toLowerCase().contains(query)).toList();
     final todaySlots = home.todaySlots.where((s) => query.isEmpty || s.subjectName.toLowerCase().contains(query)).toList();
     final sessions = home.upcomingSessions.where((s) => query.isEmpty || s.sessionType.toLowerCase().contains(query)).toList();
@@ -228,10 +233,16 @@ class _ParentHomeState extends ConsumerState<ParentHomePage> {
                     const SizedBox(width: 8),
                     Expanded(
                       child: ZKpi(
-                        value: '${home.attendance.percent}%',
+                        value: home.attendance.hasMarks
+                            ? '${home.attendance.percent}%'
+                            : '—',
                         label: 'Attendance',
                         icon: Icons.fact_check_outlined,
-                        desc: home.attendance.isRisk ? 'Below 80%' : null,
+                        desc: !home.attendance.hasMarks
+                            ? 'No marks yet'
+                            : home.attendance.isRisk
+                            ? 'Below 80%'
+                            : null,
                       ),
                     ),
                     const SizedBox(width: 8),
@@ -269,11 +280,19 @@ class _ParentHomeState extends ConsumerState<ParentHomePage> {
                     leading: CircleAvatar(
                       radius: 14,
                       backgroundColor: theme.colorScheme.surfaceContainerLow,
-                      child: Text('${slot.period}', style: const TextStyle(fontSize: 11)),
+                      child: Text('${slot.period + 1}', style: const TextStyle(fontSize: 11)),
                     ),
                     title: Text(slot.subjectName, style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w600)),
-                    subtitle: Text(slot.teacherName ?? slot.subjectCode, style: const TextStyle(fontSize: 11)),
-                    trailing: _slotStatusChip(context, slot.status),
+                    subtitle: Text(
+                      [
+                        slot.teacherName ?? slot.subjectCode,
+                        if (dayConfig != null &&
+                            slot.period >= 0 &&
+                            slot.period < dayConfig.periods.length)
+                          '${clockLabel(dayConfig.periods[slot.period].start)}–${clockLabel(dayConfig.periods[slot.period].end)}',
+                      ].join(' · '),
+                      style: const TextStyle(fontSize: 11),
+                    ),
                   ),
                 );
               },
@@ -352,18 +371,6 @@ class _ParentHomeState extends ConsumerState<ParentHomePage> {
     );
   }
 
-  Widget _slotStatusChip(BuildContext context, String status) {
-    final theme = Theme.of(context);
-    final label = status.isEmpty ? 'scheduled' : status.replaceAll('_', ' ');
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
-      decoration: BoxDecoration(
-        color: theme.colorScheme.surfaceContainerLow,
-        borderRadius: BorderRadius.circular(999),
-      ),
-      child: Text(label, style: theme.textTheme.labelSmall),
-    );
-  }
 }
 
 class _GradeCard extends StatelessWidget {
@@ -391,15 +398,21 @@ class _GradeCard extends StatelessWidget {
           Column(
             crossAxisAlignment: CrossAxisAlignment.end,
             children: [
+              if (grade.isFinal)
+                Text(
+                  grade.transmutedGrade?.toStringAsFixed(0) ?? '—',
+                  style: TextStyle(
+                    fontWeight: FontWeight.w700,
+                    fontSize: 18,
+                    color: (grade.transmutedGrade ?? 100) < 75 ? theme.colorScheme.error : null,
+                  ),
+                )
+              else
+                const ZStatusPill(text: 'In progress', tone: StatusTone.amber),
               Text(
-                grade.transmutedGrade?.toStringAsFixed(0) ?? '—',
-                style: TextStyle(
-                  fontWeight: FontWeight.w700,
-                  fontSize: 18,
-                  color: (grade.transmutedGrade ?? 100) < 75 ? theme.colorScheme.error : null,
-                ),
+                grade.isFinal ? 'Final' : 'Not yet final',
+                style: theme.textTheme.labelSmall,
               ),
-              Text(grade.lockStatus.replaceAll('_', ' '), style: theme.textTheme.labelSmall),
             ],
           ),
         ],
@@ -431,19 +444,22 @@ class _ParentGradesState extends ConsumerState<ParentGradesPage> {
   }
 
   @override
-  Widget build(BuildContext context) => Theme(
-    data: overviewScreenTheme(Theme.of(context))
-        .copyWith(scaffoldBackgroundColor: Colors.white),
-    child: ColoredBox(
-      color: Colors.white,
-      child: LayoutBuilder(
-        builder: (context, constraints) => _content(context, compact: constraints.maxHeight < 650),
+  Widget build(BuildContext context) {
+    final theme = overviewScreenTheme(Theme.of(context));
+    return Theme(
+      data: theme,
+      child: ColoredBox(
+        color: theme.scaffoldBackgroundColor,
+        child: LayoutBuilder(
+          builder: (context, constraints) =>
+              _content(context, compact: constraints.maxHeight < 650),
+        ),
       ),
-    ),
-  );
+    );
+  }
 
   Widget _content(BuildContext context, {required bool compact}) {
-    final term = ref.watch(termProvider);
+    final term = portalScopeTerm(ref);
     final termKey = '${term?.schoolYearId}:${term?.id}';
     if (_lastTerm != termKey) {
       _lastTerm = termKey;
@@ -478,7 +494,7 @@ class _ParentGradesState extends ConsumerState<ParentGradesPage> {
                 child: ZEmpty(
                   icon: Icons.family_restroom_outlined,
                   title: 'Select a child',
-                  subtitle: 'Choose a child from the header to view their grades.',
+                  subtitle: 'Choose a child from the menu to view their grades.',
                   compact: true,
                 ),
               ),
@@ -532,7 +548,7 @@ class _ParentGradesState extends ConsumerState<ParentGradesPage> {
     AsyncValue<PortalGrades?> gradesAsync, {
     required bool compact,
   }) {
-    final term = ref.watch(termProvider);
+    final term = portalScopeTerm(ref);
     final selectedChildId = ref.watch(selectedChildProvider);
     final children = ref.watch(parentChildrenProvider);
     PortalChild? child;
@@ -644,19 +660,22 @@ class _ParentAttendanceState extends ConsumerState<ParentAttendancePage> {
   }
 
   @override
-  Widget build(BuildContext context) => Theme(
-    data: overviewScreenTheme(Theme.of(context))
-        .copyWith(scaffoldBackgroundColor: Colors.white),
-    child: ColoredBox(
-      color: Colors.white,
-      child: LayoutBuilder(
-        builder: (context, constraints) => _content(context, compact: constraints.maxHeight < 650),
+  Widget build(BuildContext context) {
+    final theme = overviewScreenTheme(Theme.of(context));
+    return Theme(
+      data: theme,
+      child: ColoredBox(
+        color: theme.scaffoldBackgroundColor,
+        child: LayoutBuilder(
+          builder: (context, constraints) =>
+              _content(context, compact: constraints.maxHeight < 650),
+        ),
       ),
-    ),
-  );
+    );
+  }
 
   Widget _content(BuildContext context, {required bool compact}) {
-    final term = ref.watch(termProvider);
+    final term = portalScopeTerm(ref);
     final termKey = '${term?.schoolYearId}:${term?.id}';
     if (_lastTerm != termKey) {
       _lastTerm = termKey;
@@ -691,7 +710,7 @@ class _ParentAttendanceState extends ConsumerState<ParentAttendancePage> {
                 child: ZEmpty(
                   icon: Icons.family_restroom_outlined,
                   title: 'Select a child',
-                  subtitle: 'Choose a child from the header to view their attendance.',
+                  subtitle: 'Choose a child from the menu to view their attendance.',
                   compact: true,
                 ),
               ),
@@ -745,7 +764,7 @@ class _ParentAttendanceState extends ConsumerState<ParentAttendancePage> {
     AsyncValue<PortalAttendance?> attendanceAsync, {
     required bool compact,
   }) {
-    final term = ref.watch(termProvider);
+    final term = portalScopeTerm(ref);
     final selectedChildId = ref.watch(selectedChildProvider);
     final children = ref.watch(parentChildrenProvider);
     PortalChild? child;
@@ -832,11 +851,11 @@ class _ParentAttendanceState extends ConsumerState<ParentAttendancePage> {
                     children: [
                       Text('Overall attendance', style: theme.textTheme.titleSmall?.copyWith(fontWeight: FontWeight.w700)),
                       Text(
-                        '${s.percent}%',
+                        s.hasMarks ? '${s.percent}%' : 'No marks',
                         style: TextStyle(
                           fontWeight: FontWeight.w700,
                           fontSize: 20,
-                          color: s.isRisk ? theme.colorScheme.error : null,
+                          color: s.hasMarks && s.isRisk ? theme.colorScheme.error : null,
                         ),
                       ),
                     ],
@@ -844,7 +863,7 @@ class _ParentAttendanceState extends ConsumerState<ParentAttendancePage> {
                   const SizedBox(height: 10),
                   ClipRRect(
                     borderRadius: BorderRadius.circular(999),
-                    child: LinearProgressIndicator(value: s.rate.clamp(0, 1), minHeight: 8),
+                    child: LinearProgressIndicator(value: s.hasMarks ? s.rate.clamp(0, 1) : 0, minHeight: 8),
                   ),
                   const SizedBox(height: 10),
                   Row(
@@ -979,19 +998,22 @@ class _ParentScheduleState extends ConsumerState<ParentSchedulePage> {
   }
 
   @override
-  Widget build(BuildContext context) => Theme(
-    data: overviewScreenTheme(Theme.of(context))
-        .copyWith(scaffoldBackgroundColor: Colors.white),
-    child: ColoredBox(
-      color: Colors.white,
-      child: LayoutBuilder(
-        builder: (context, constraints) => _content(context, compact: constraints.maxHeight < 650),
+  Widget build(BuildContext context) {
+    final theme = overviewScreenTheme(Theme.of(context));
+    return Theme(
+      data: theme,
+      child: ColoredBox(
+        color: theme.scaffoldBackgroundColor,
+        child: LayoutBuilder(
+          builder: (context, constraints) =>
+              _content(context, compact: constraints.maxHeight < 650),
+        ),
       ),
-    ),
-  );
+    );
+  }
 
   Widget _content(BuildContext context, {required bool compact}) {
-    final term = ref.watch(termProvider);
+    final term = portalScopeTerm(ref);
     final termKey = '${term?.schoolYearId}:${term?.id}';
     if (_lastTerm != termKey) {
       _lastTerm = termKey;
@@ -1026,7 +1048,7 @@ class _ParentScheduleState extends ConsumerState<ParentSchedulePage> {
                 child: ZEmpty(
                   icon: Icons.family_restroom_outlined,
                   title: 'Select a child',
-                  subtitle: 'Choose a child from the header to view their schedule.',
+                  subtitle: 'Choose a child from the menu to view their schedule.',
                   compact: true,
                 ),
               ),
@@ -1080,7 +1102,7 @@ class _ParentScheduleState extends ConsumerState<ParentSchedulePage> {
     AsyncValue<PortalSchedule?> scheduleAsync, {
     required bool compact,
   }) {
-    final term = ref.watch(termProvider);
+    final term = portalScopeTerm(ref);
     final selectedChildId = ref.watch(selectedChildProvider);
     final children = ref.watch(parentChildrenProvider);
     PortalChild? child;
@@ -1105,9 +1127,9 @@ class _ParentScheduleState extends ConsumerState<ParentSchedulePage> {
       children: [
         if (!compact) ...[
           ZContentHeader(
-            title: 'Schedule',
+            title: 'Class Schedule',
             icon: Icons.calendar_month_outlined,
-            description: 'Class schedule for ${child?.name ?? 'your child'}.',
+            description: 'Designated classes for ${child?.name ?? 'your child'}.',
           ),
           const SizedBox(height: 12),
         ],
@@ -1146,6 +1168,14 @@ class _ParentScheduleState extends ConsumerState<ParentSchedulePage> {
 
   Widget _list(BuildContext context, PortalSchedule data, String query) {
     final theme = Theme.of(context);
+    SchoolDayConfig? config;
+    try {
+      if (data.config != null) {
+        config = SchoolDayConfig.fromJson(data.config!);
+      }
+    } catch (_) {
+      config = null;
+    }
     final slots = data.slots
         .where((s) => query.isEmpty || s.subjectName.toLowerCase().contains(query))
         .toList();
@@ -1182,31 +1212,62 @@ class _ParentScheduleState extends ConsumerState<ParentSchedulePage> {
               Column(
                 children: [
                   for (final slot in daySlots)
-                    Padding(
-                      padding: const EdgeInsets.only(bottom: 8),
-                      child: ZCard(
-                        padding: const EdgeInsets.all(12),
-                        child: Row(
-                          children: [
-                            CircleAvatar(
-                              radius: 14,
-                              backgroundColor: theme.colorScheme.surfaceContainerLow,
-                              child: Text('${slot.period}', style: const TextStyle(fontSize: 11)),
+                    Builder(
+                      builder: (context) {
+                        final window =
+                            config != null &&
+                                slot.period >= 0 &&
+                                slot.period < config.periods.length
+                            ? config.periods[slot.period]
+                            : null;
+                        final time = window == null
+                            ? null
+                            : '${clockLabel(window.start)} – ${clockLabel(window.end)}';
+                        return Padding(
+                          padding: const EdgeInsets.only(bottom: 8),
+                          child: ZCard(
+                            padding: const EdgeInsets.all(12),
+                            child: Row(
+                              children: [
+                                CircleAvatar(
+                                  radius: 14,
+                                  backgroundColor:
+                                      theme.colorScheme.surfaceContainerLow,
+                                  child: Text(
+                                    '${slot.period + 1}',
+                                    style: const TextStyle(fontSize: 11),
+                                  ),
+                                ),
+                                const SizedBox(width: 10),
+                                Expanded(
+                                  child: Column(
+                                    crossAxisAlignment:
+                                        CrossAxisAlignment.start,
+                                    children: [
+                                      Text(
+                                        slot.subjectName,
+                                        style: const TextStyle(
+                                          fontSize: 13,
+                                          fontWeight: FontWeight.w600,
+                                        ),
+                                      ),
+                                      Text(
+                                        slot.teacherName ?? slot.subjectCode,
+                                        style: theme.textTheme.labelSmall,
+                                      ),
+                                    ],
+                                  ),
+                                ),
+                                if (time != null)
+                                  Text(
+                                    time,
+                                    style: theme.textTheme.labelSmall,
+                                  ),
+                              ],
                             ),
-                            const SizedBox(width: 10),
-                            Expanded(
-                              child: Column(
-                                crossAxisAlignment: CrossAxisAlignment.start,
-                                children: [
-                                  Text(slot.subjectName, style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w600)),
-                                  Text(slot.teacherName ?? slot.subjectCode, style: theme.textTheme.labelSmall),
-                                ],
-                              ),
-                            ),
-                            if (slot.status.isNotEmpty) Text(slot.status.replaceAll('_', ' '), style: theme.textTheme.labelSmall),
-                          ],
-                        ),
-                      ),
+                          ),
+                        );
+                      },
                     ),
                 ],
               ),
@@ -1243,19 +1304,22 @@ class _ParentModulesState extends ConsumerState<ParentModulesPage> {
   }
 
   @override
-  Widget build(BuildContext context) => Theme(
-    data: overviewScreenTheme(Theme.of(context))
-        .copyWith(scaffoldBackgroundColor: Colors.white),
-    child: ColoredBox(
-      color: Colors.white,
-      child: LayoutBuilder(
-        builder: (context, constraints) => _content(context, compact: constraints.maxHeight < 650),
+  Widget build(BuildContext context) {
+    final theme = overviewScreenTheme(Theme.of(context));
+    return Theme(
+      data: theme,
+      child: ColoredBox(
+        color: theme.scaffoldBackgroundColor,
+        child: LayoutBuilder(
+          builder: (context, constraints) =>
+              _content(context, compact: constraints.maxHeight < 650),
+        ),
       ),
-    ),
-  );
+    );
+  }
 
   Widget _content(BuildContext context, {required bool compact}) {
-    final term = ref.watch(termProvider);
+    final term = portalScopeTerm(ref);
     final termKey = '${term?.schoolYearId}:${term?.id}';
     if (_lastTerm != termKey) {
       _lastTerm = termKey;
@@ -1290,7 +1354,7 @@ class _ParentModulesState extends ConsumerState<ParentModulesPage> {
                 child: ZEmpty(
                   icon: Icons.family_restroom_outlined,
                   title: 'Select a child',
-                  subtitle: 'Choose a child from the header to view their modules.',
+                  subtitle: 'Choose a child from the menu to view their modules.',
                   compact: true,
                 ),
               ),
@@ -1344,7 +1408,7 @@ class _ParentModulesState extends ConsumerState<ParentModulesPage> {
     AsyncValue<PortalModules?> modulesAsync, {
     required bool compact,
   }) {
-    final term = ref.watch(termProvider);
+    final term = portalScopeTerm(ref);
     final selectedChildId = ref.watch(selectedChildProvider);
     final children = ref.watch(parentChildrenProvider);
     PortalChild? child;
@@ -1590,19 +1654,22 @@ class _ParentSessionsState extends ConsumerState<ParentSessionsPage> {
   }
 
   @override
-  Widget build(BuildContext context) => Theme(
-    data: overviewScreenTheme(Theme.of(context))
-        .copyWith(scaffoldBackgroundColor: Colors.white),
-    child: ColoredBox(
-      color: Colors.white,
-      child: LayoutBuilder(
-        builder: (context, constraints) => _content(context, compact: constraints.maxHeight < 650),
+  Widget build(BuildContext context) {
+    final theme = overviewScreenTheme(Theme.of(context));
+    return Theme(
+      data: theme,
+      child: ColoredBox(
+        color: theme.scaffoldBackgroundColor,
+        child: LayoutBuilder(
+          builder: (context, constraints) =>
+              _content(context, compact: constraints.maxHeight < 650),
+        ),
       ),
-    ),
-  );
+    );
+  }
 
   Widget _content(BuildContext context, {required bool compact}) {
-    final term = ref.watch(termProvider);
+    final term = portalScopeTerm(ref);
     final termKey = '${term?.schoolYearId}:${term?.id}';
     if (_lastTerm != termKey) {
       _lastTerm = termKey;
@@ -1637,7 +1704,7 @@ class _ParentSessionsState extends ConsumerState<ParentSessionsPage> {
                 child: ZEmpty(
                   icon: Icons.family_restroom_outlined,
                   title: 'Select a child',
-                  subtitle: 'Choose a child from the header to view their sessions.',
+                  subtitle: 'Choose a child from the menu to view their sessions.',
                   compact: true,
                 ),
               ),
@@ -1691,7 +1758,7 @@ class _ParentSessionsState extends ConsumerState<ParentSessionsPage> {
     AsyncValue<List<PortalSession>?> sessionsAsync, {
     required bool compact,
   }) {
-    final term = ref.watch(termProvider);
+    final term = portalScopeTerm(ref);
     final selectedChildId = ref.watch(selectedChildProvider);
     final children = ref.watch(parentChildrenProvider);
     PortalChild? child;

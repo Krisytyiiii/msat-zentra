@@ -1,8 +1,20 @@
 import { prisma } from "../../lib/prisma.js";
 import type { PortalLearner, PortalTerm } from "../../lib/portalAccess.js";
-import { learnerSectionForTerm } from "../../lib/portalAccess.js";
-import { computeAttendanceRate } from "../attendance.rate.service.js";
+import {
+  learnerSectionForTerm,
+  learnerSectionForTermId,
+} from "../../lib/portalAccess.js";
+import { activeScheduleConfigForTerm } from "../../lib/schedule-config.js";
+import { isFinalLock } from "../../lib/grades.js";
+import {
+  computeAttendanceRate,
+  learnerSubjectAverageAttendance,
+} from "../attendance.rate.service.js";
 import { listStudentModules } from "../student/modules.service.js";
+import {
+  SCHEDULE_CONFIG_DEFAULTS,
+  toScheduleConfig,
+} from "../../modules/teacher/teacher.labels.js";
 import type { ModuleStatus } from "../../modules/teacher/advisory-modules.schemas.js";
 
 function iso(value: Date | null): string | null {
@@ -60,6 +72,8 @@ export async function getLearnerGrades(studentId: string, term: PortalTerm) {
       transmutedGrade: g.transmutedGrade,
       remarks: g.remarks,
       lockStatus: g.lockStatus,
+      // Only a locked final is official; unlocked rows are still in progress.
+      isFinal: isFinalLock(g.lockStatus),
       finalizedAt: iso(g.finalizedAt),
       adviserApprovedAt: iso(g.adviserApprovedAt),
     })),
@@ -67,7 +81,8 @@ export async function getLearnerGrades(studentId: string, term: PortalTerm) {
 }
 
 export async function getLearnerAttendance(studentId: string, term: PortalTerm) {
-  const [summary, bySubject, recent, sectionId] = await Promise.all([
+  const sectionId = await learnerSectionForTerm(studentId, term);
+  const [summary, bySubject, recent, subjectAverage, section] = await Promise.all([
     computeAttendanceRate(studentId, term.id),
     prisma.attendanceRecord.groupBy({
       by: ["subjectId", "status"],
@@ -86,7 +101,13 @@ export async function getLearnerAttendance(studentId: string, term: PortalTerm) 
         subject: { select: { name: true, code: true } },
       },
     }),
-    learnerSectionForTerm(studentId, term),
+    learnerSubjectAverageAttendance({ studentId }, sectionId, term.id),
+    sectionId
+      ? prisma.section.findUnique({
+          where: { id: sectionId },
+          select: { id: true, name: true, gradeLevel: true },
+        })
+      : Promise.resolve(null),
   ]);
 
   const subjectIds = [...new Set(bySubject.map((r) => r.subjectId).filter((v): v is string => !!v))];
@@ -106,16 +127,26 @@ export async function getLearnerAttendance(studentId: string, term: PortalTerm) 
     grouped.set(row.subjectId, cell);
   }
 
+  // The portal shows the same term presence the adviser boards and the risk
+  // engine use (mean of per-subject present rates). Legacy AM/PM sections with
+  // no per-subject meetups keep the recorded-rows rate.
+  const rate = subjectAverage?.average ?? summary.rate;
   return {
     term,
     sectionId,
+    sectionName: section?.name ?? null,
     summary: {
-      rate: summary.rate,
+      rate,
+      recordedRate: summary.rate,
+      // False until the term has a recorded meetup — the UI shows "No marks"
+      // instead of a fabricated 100%.
+      hasMarks: summary.total > 0,
       present: summary.present,
       absent: summary.absent,
       late: summary.late,
       excused: summary.excused,
       total: summary.total,
+      isRisk: rate < 0.8,
     },
     bySubject: [...grouped.entries()].map(([subjectId, c]) => ({
       subjectId,
@@ -137,30 +168,82 @@ export async function getLearnerAttendance(studentId: string, term: PortalTerm) 
 
 export async function getLearnerSchedule(studentId: string, term: PortalTerm) {
   const sectionId = await learnerSectionForTerm(studentId, term);
-  if (!sectionId) return { term, sectionId: null, slots: [] };
-  const rows = await prisma.sectionTimetableEntry.findMany({
-    where: { sectionId, termId: term.id },
-    orderBy: [{ day: "asc" }, { period: "asc" }],
-    select: {
-      id: true,
-      day: true,
-      period: true,
-      status: true,
-      subject: { select: { name: true, code: true } },
-      teacherName: { select: { name: true } },
-    },
-  });
+  if (!sectionId) {
+    return {
+      term,
+      sectionId: null,
+      config: SCHEDULE_CONFIG_DEFAULTS,
+      slots: [],
+      classes: [],
+    };
+  }
+  const [rows, configRow, section] = await Promise.all([
+    prisma.sectionTimetableEntry.findMany({
+      // Learners only ever see the published grid — drafts and submitted
+      // edits stay on the administrator desk until they are released.
+      where: { sectionId, termId: term.id, status: "APPROVED" },
+      orderBy: [{ day: "asc" }, { period: "asc" }],
+      select: {
+        id: true,
+        day: true,
+        period: true,
+        status: true,
+        subjectId: true,
+        subject: { select: { name: true, code: true } },
+        teacherName: { select: { name: true } },
+      },
+    }),
+    activeScheduleConfigForTerm(term.id),
+    prisma.section.findUnique({
+      where: { id: sectionId },
+      select: { id: true, name: true, gradeLevel: true },
+    }),
+  ]);
+
+  const classes = new Map<
+    string,
+    {
+      subjectId: string;
+      subjectName: string;
+      subjectCode: string;
+      teacherName: string | null;
+      days: number[];
+      periods: number[];
+    }
+  >();
+  for (const r of rows) {
+    const cell = classes.get(r.subjectId) ?? {
+      subjectId: r.subjectId,
+      subjectName: r.subject.name,
+      subjectCode: r.subject.code,
+      teacherName: r.teacherName?.name ?? null,
+      days: [],
+      periods: [],
+    };
+    if (!cell.days.includes(r.day)) cell.days.push(r.day);
+    if (!cell.periods.includes(r.period)) cell.periods.push(r.period);
+    classes.set(r.subjectId, cell);
+  }
+
   return {
     term,
     sectionId,
+    sectionName: section?.name ?? null,
+    config: configRow ? toScheduleConfig(configRow) : SCHEDULE_CONFIG_DEFAULTS,
     slots: rows.map((r) => ({
       id: r.id,
       day: r.day,
       period: r.period,
       status: r.status,
+      subjectId: r.subjectId,
       subjectName: r.subject.name,
       subjectCode: r.subject.code,
       teacherName: r.teacherName?.name ?? null,
+    })),
+    classes: [...classes.values()].map((c) => ({
+      ...c,
+      days: c.days.sort((a, b) => a - b),
+      periods: c.periods.sort((a, b) => a - b),
     })),
   };
 }
@@ -170,7 +253,8 @@ export async function getLearnerModules(
   termId: string,
   query: { page: number; pageSize: number; status?: ModuleStatus },
 ) {
-  return listStudentModules({ userId: studentId, termId }, query);
+  const sectionId = await learnerSectionForTermId(studentId, termId);
+  return listStudentModules({ userId: studentId, termId, sectionId }, query);
 }
 
 export interface PortalSessionRow {
@@ -239,15 +323,12 @@ export async function getUpcomingSessions(studentId: string): Promise<PortalSess
   return out.sort((a, b) => a.scheduledAt.localeCompare(b.scheduledAt));
 }
 
-/** Module counts only — used by the portal home snapshot. */
-export async function getModuleCounts(studentId: string) {
-  const profile = await prisma.studentProfile.findUnique({
-    where: { userId: studentId },
-    select: { sectionId: true },
-  });
-  if (!profile?.sectionId) return { all: 0, submitted: 0, pending: 0, overdue: 0 };
+/** Module counts for the portal home snapshot, scoped to the shown term. */
+export async function getModuleCounts(studentId: string, termId: string) {
+  const sectionId = await learnerSectionForTermId(studentId, termId);
+  if (!sectionId) return { all: 0, submitted: 0, pending: 0, overdue: 0 };
   const modules = await prisma.advisoryModule.findMany({
-    where: { sectionId: profile.sectionId },
+    where: { sectionId, termId },
     select: { id: true, kind: true, dueDate: true },
   });
   if (modules.length === 0) return { all: 0, submitted: 0, pending: 0, overdue: 0 };
@@ -276,7 +357,7 @@ export async function getLearnerHome(
     getLearnerGrades(studentId, term),
     getLearnerSchedule(studentId, term),
     getUpcomingSessions(studentId),
-    getModuleCounts(studentId),
+    getModuleCounts(studentId, term.id),
   ]);
 
   // JS getDay(): 0=Sun … 6=Sat. Timetable days are 1=Mon … 5=Fri.
@@ -286,7 +367,11 @@ export async function getLearnerHome(
   const today = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"].indexOf(weekday);
   const todaySlots = schedule.slots.filter((s) => s.day === today);
 
-  const graded = grades.grades.filter((g) => g.transmutedGrade != null);
+  // Official average: locked finals only. An unlocked term shows "in progress"
+  // instead of a number that may still change.
+  const graded = grades.grades.filter(
+    (g) => g.isFinal && g.transmutedGrade != null,
+  );
   const average =
     graded.length > 0
       ? graded.reduce((sum, g) => sum + g.transmutedGrade!, 0) / graded.length
@@ -296,6 +381,7 @@ export async function getLearnerHome(
     learner,
     term,
     todaySlots,
+    config: schedule.config,
     attendance: attendance.summary,
     grades: grades.grades,
     average: average == null ? null : Math.round(average * 100) / 100,

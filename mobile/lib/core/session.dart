@@ -131,7 +131,9 @@ class AuthNotifier extends StateNotifier<AuthState> {
       }
       state = AuthState(loggedIn: true, role: role, portal: portal);
       // Register this device for push notifications now that a session exists.
-      PushService.instance.register();
+      // Force a re-send: signing in on a device that already held a token must
+      // re-point that token to this account (multi-device / account switch).
+      PushService.instance.register(force: true);
       return true;
     } on DioException catch (e) {
       try {

@@ -275,6 +275,7 @@ class PortalGrade {
   final double? transmutedGrade;
   final String? remarks;
   final String lockStatus;
+  final bool isFinal;
   PortalGrade({
     required this.id,
     required this.subjectId,
@@ -284,6 +285,7 @@ class PortalGrade {
     this.transmutedGrade,
     this.remarks,
     required this.lockStatus,
+    this.isFinal = false,
   });
   factory PortalGrade.fromJson(Map<String, dynamic> j) => PortalGrade(
         id: j['id'] as String? ?? '',
@@ -294,6 +296,7 @@ class PortalGrade {
         transmutedGrade: (j['transmutedGrade'] as num?)?.toDouble(),
         remarks: j['remarks'] as String?,
         lockStatus: j['lockStatus'] as String? ?? 'unlocked',
+        isFinal: (j['isFinal'] ?? false) as bool,
       );
 }
 
@@ -305,6 +308,10 @@ class PortalAttendanceSummary {
   final int excused;
   final int total;
   final bool isRisk;
+
+  /// False when the term has no recorded meetup yet — the UI shows "No marks"
+  /// instead of a fabricated 100%.
+  final bool hasMarks;
   PortalAttendanceSummary({
     required this.rate,
     required this.present,
@@ -313,6 +320,7 @@ class PortalAttendanceSummary {
     required this.excused,
     required this.total,
     required this.isRisk,
+    this.hasMarks = true,
   });
   factory PortalAttendanceSummary.fromJson(Map<String, dynamic> j) => PortalAttendanceSummary(
         rate: (j['rate'] as num?)?.toDouble() ?? 1,
@@ -322,6 +330,7 @@ class PortalAttendanceSummary {
         excused: (j['excused'] ?? 0) as int,
         total: (j['total'] ?? 0) as int,
         isRisk: (j['isRisk'] ?? false) as bool,
+        hasMarks: (j['hasMarks'] ?? true) as bool,
       );
   int get percent => (rate * 100).round();
 }
@@ -402,6 +411,7 @@ class PortalScheduleSlot {
   final int day;
   final int period;
   final String status;
+  final String subjectId;
   final String subjectName;
   final String subjectCode;
   final String? teacherName;
@@ -410,6 +420,7 @@ class PortalScheduleSlot {
     required this.day,
     required this.period,
     required this.status,
+    this.subjectId = '',
     required this.subjectName,
     required this.subjectCode,
     this.teacherName,
@@ -419,11 +430,38 @@ class PortalScheduleSlot {
         day: (j['day'] ?? 1) as int,
         period: (j['period'] ?? 0) as int,
         status: j['status'] as String? ?? '',
+        subjectId: j['subjectId'] as String? ?? '',
         subjectName: j['subjectName'] as String? ?? '',
         subjectCode: j['subjectCode'] as String? ?? '',
         teacherName: j['teacherName'] as String?,
       );
   String get dayLabel => const ['', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'][day.clamp(0, 7)];
+}
+
+/// One subject's weekly placement in the learner's designated classes.
+class PortalScheduleClass {
+  final String subjectId;
+  final String subjectName;
+  final String subjectCode;
+  final String? teacherName;
+  final List<int> days;
+  final List<int> periods;
+  PortalScheduleClass({
+    required this.subjectId,
+    required this.subjectName,
+    required this.subjectCode,
+    this.teacherName,
+    required this.days,
+    required this.periods,
+  });
+  factory PortalScheduleClass.fromJson(Map<String, dynamic> j) => PortalScheduleClass(
+        subjectId: j['subjectId'] as String? ?? '',
+        subjectName: j['subjectName'] as String? ?? '',
+        subjectCode: j['subjectCode'] as String? ?? '',
+        teacherName: j['teacherName'] as String?,
+        days: [for (final d in (j['days'] as List? ?? [])) (d as num).toInt()],
+        periods: [for (final p in (j['periods'] as List? ?? [])) (p as num).toInt()],
+      );
 }
 
 class PortalModule {
@@ -525,6 +563,9 @@ class PortalHome {
   final PortalLearner learner;
   final PortalTerm term;
   final List<PortalScheduleSlot> todaySlots;
+
+  /// Raw `ScheduleConfig` JSON for the term's day shape.
+  final Map<String, dynamic>? config;
   final PortalAttendanceSummary attendance;
   final List<PortalGrade> grades;
   final double? average;
@@ -534,6 +575,7 @@ class PortalHome {
     required this.learner,
     required this.term,
     required this.todaySlots,
+    this.config,
     required this.attendance,
     required this.grades,
     this.average,
@@ -544,6 +586,7 @@ class PortalHome {
         learner: PortalLearner.fromJson(Map<String, dynamic>.from((j['learner'] as Map?) ?? {})),
         term: PortalTerm.fromJson(Map<String, dynamic>.from((j['term'] as Map?) ?? {})),
         todaySlots: [for (final x in (j['todaySlots'] as List? ?? [])) PortalScheduleSlot.fromJson(Map<String, dynamic>.from(x as Map))],
+        config: j['config'] is Map ? Map<String, dynamic>.from(j['config'] as Map) : null,
         attendance: PortalAttendanceSummary.fromJson(Map<String, dynamic>.from((j['attendance'] as Map?) ?? {})),
         grades: [for (final x in (j['grades'] as List? ?? [])) PortalGrade.fromJson(Map<String, dynamic>.from(x as Map))],
         average: (j['average'] as num?)?.toDouble(),
@@ -564,11 +607,29 @@ class PortalGrades {
 
 class PortalSchedule {
   final PortalTerm? term;
+  final String? sectionId;
+  final String? sectionName;
   final List<PortalScheduleSlot> slots;
-  PortalSchedule({required this.term, required this.slots});
+  final List<PortalScheduleClass> classes;
+
+  /// Raw `ScheduleConfig` JSON (`startTime`, `periodMins`, breaks) so the
+  /// portal can print real class times with the shared timing helper.
+  final Map<String, dynamic>? config;
+  PortalSchedule({
+    required this.term,
+    this.sectionId,
+    this.sectionName,
+    required this.slots,
+    this.classes = const [],
+    this.config,
+  });
   factory PortalSchedule.fromJson(Map<String, dynamic> j) => PortalSchedule(
         term: j['term'] is Map ? PortalTerm.fromJson(Map<String, dynamic>.from(j['term'] as Map)) : null,
+        sectionId: j['sectionId'] as String?,
+        sectionName: j['sectionName'] as String?,
         slots: [for (final x in (j['slots'] as List? ?? [])) PortalScheduleSlot.fromJson(Map<String, dynamic>.from(x as Map))],
+        classes: [for (final x in (j['classes'] as List? ?? [])) PortalScheduleClass.fromJson(Map<String, dynamic>.from(x as Map))],
+        config: j['config'] is Map ? Map<String, dynamic>.from(j['config'] as Map) : null,
       );
 }
 

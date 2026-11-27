@@ -14,8 +14,8 @@ vi.mock("../src/lib/prisma.js", () => ({ prisma: {
 } }));
 
 import {
-  assertLearnerAccess, learnerSectionForTerm, listLinkedChildren, resolvePortalTerm,
-  type PortalTerm,
+  assertLearnerAccess, learnerSectionForTerm, learnerSectionForTermId, listLinkedChildren,
+  resolvePortalTerm, type PortalTerm,
 } from "../src/lib/portalAccess.js";
 
 const term: PortalTerm = {
@@ -85,5 +85,20 @@ describe("historical portal scope", () => {
     mocks.profile.mockResolvedValue({ lrn: "123", sectionId: "current-section", section: { schoolYearId: "new-year" } });
     mocks.roster.mockResolvedValue(null);
     expect(await learnerSectionForTerm("child", term)).toBeNull();
+  });
+
+  it("resolves the term section from a bare term id for the module desk", async () => {
+    mocks.term.mockResolvedValue({ id: "historical", schoolYearId: "old-year" });
+    mocks.attendance.mockResolvedValue({ sectionId: "old-section" });
+    expect(await learnerSectionForTermId("child", "historical")).toBe("old-section");
+    expect(mocks.term).toHaveBeenCalledWith(expect.objectContaining({
+      where: { id: "historical" },
+    }));
+  });
+
+  it("returns no section for a term that does not exist", async () => {
+    mocks.term.mockResolvedValue(null);
+    expect(await learnerSectionForTermId("child", "missing")).toBeNull();
+    expect(mocks.attendance).not.toHaveBeenCalled();
   });
 });

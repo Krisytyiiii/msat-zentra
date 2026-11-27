@@ -71,8 +71,9 @@ router.get("/children/:studentId/terms", async (req, res, next) => {
 
 router.get("/children/:studentId/home", async (req, res, next) => {
   try {
-    const { studentId, learner } = await childOf(req);
+    const { studentId } = await childOf(req);
     const term = await termFor(req);
+    const learner = await loadPortalLearner(studentId, term);
     res.json(await getLearnerHome(studentId, learner, term));
   } catch (e) {
     next(e);

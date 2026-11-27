@@ -47,17 +47,19 @@ class _ModuleSubmissionSheetState extends ConsumerState<ModuleSubmissionSheet> {
     }
     setState(() { _busy = true; _error = null; });
     final api = ref.read(apiClientProvider);
-    final path = '/api/student/modules/${widget.module.id}/submission';
+    final termId = ref.read(portalTermIdProvider);
+    final scope = termId == null ? '' : '?termId=${Uri.encodeComponent(termId)}';
+    final base = '/api/student/modules/${widget.module.id}/submission';
     try {
       if (_kind == 'link') {
-        await api.dio.put(path, data: {'submissionUrl': _link.text.trim()});
+        await api.dio.put('$base$scope', data: {'submissionUrl': _link.text.trim()});
       } else if (_kind == 'physical') {
-        await api.dio.post('$path/physical');
+        await api.dio.post('$base/physical$scope');
       } else {
         final photo = _photo!;
         final bytes = await photo.readAsBytes();
         if (bytes.length > 10 * 1024 * 1024) throw ApiException('FILE_TOO_LARGE', 'Choose a photo smaller than 10 MB.');
-        await api.dio.post('$path/upload', data: FormData.fromMap({
+        await api.dio.post('$base/upload$scope', data: FormData.fromMap({
           'kind': 'file',
           'file': MultipartFile.fromBytes(bytes, filename: photo.name),
         }));

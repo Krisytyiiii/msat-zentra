@@ -22,7 +22,10 @@ export interface PortalLearner {
   adviserName: string | null;
 }
 
-export async function loadPortalLearner(studentId: string): Promise<PortalLearner> {
+export async function loadPortalLearner(
+  studentId: string,
+  term?: { id: string; schoolYearId: string },
+): Promise<PortalLearner> {
   const profile = await prisma.studentProfile.findUnique({
     where: { userId: studentId },
     select: {
@@ -44,6 +47,27 @@ export async function loadPortalLearner(studentId: string): Promise<PortalLearne
   if (!profile) {
     throw new AppError(404, "STUDENT_NOT_FOUND", "No learner profile was found for this account");
   }
+
+  // Browsing a historical term: the identity card follows the section the
+  // learner actually belonged to then, not today's placement.
+  let sectionId = profile.sectionId;
+  let sectionName = profile.section?.name ?? null;
+  let adviserName = profile.section?.adviser?.fullName ?? null;
+  if (term) {
+    const resolved = await learnerSectionForTerm(studentId, term);
+    if (resolved) {
+      sectionId = resolved;
+      if (resolved !== profile.sectionId) {
+        const section = await prisma.section.findUnique({
+          where: { id: resolved },
+          select: { name: true, adviser: { select: { fullName: true } } },
+        });
+        sectionName = section?.name ?? null;
+        adviserName = section?.adviser?.fullName ?? null;
+      }
+    }
+  }
+
   return {
     studentId: profile.userId,
     lrn: profile.lrn,
@@ -51,9 +75,9 @@ export async function loadPortalLearner(studentId: string): Promise<PortalLearne
     mascot: profile.mascot,
     photoUrl: profile.photoUrl,
     gradeLevel: profile.gradeLevel,
-    sectionId: profile.sectionId,
-    sectionName: profile.section?.name ?? null,
-    adviserName: profile.section?.adviser?.fullName ?? null,
+    sectionId,
+    sectionName,
+    adviserName,
   };
 }
 
@@ -158,7 +182,7 @@ export async function resolvePortalTerm(
  */
 export async function learnerSectionForTerm(
   studentId: string,
-  term: PortalTerm,
+  term: { id: string; schoolYearId: string },
 ): Promise<string | null> {
   const attendance = await prisma.attendanceRecord.findFirst({
     where: { studentId, termId: term.id },
@@ -178,6 +202,22 @@ export async function learnerSectionForTerm(
   });
   return roster?.sectionId ??
     (profile.section?.schoolYearId === term.schoolYearId ? profile.sectionId : null);
+}
+
+/**
+ * Same resolution as [learnerSectionForTerm] for callers that only hold a
+ * term id (the learner module desk). Unknown terms resolve to no section.
+ */
+export async function learnerSectionForTermId(
+  studentId: string,
+  termId: string,
+): Promise<string | null> {
+  const term = await prisma.term.findUnique({
+    where: { id: termId },
+    select: { id: true, schoolYearId: true },
+  });
+  if (!term) return null;
+  return learnerSectionForTerm(studentId, term);
 }
 
 /** Terms the learner has final grades or attendance for, newest first. */

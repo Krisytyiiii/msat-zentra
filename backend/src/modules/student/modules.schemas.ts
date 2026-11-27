@@ -14,6 +14,8 @@ const answeredUrlSchema = z
 
 export const studentModulesQuerySchema = paginationQuerySchema().extend({
   status: z.enum(MODULE_STATUSES).optional(),
+  /** Browse a historical term; defaults to the active one server-side. */
+  termId: z.string().trim().min(1).optional(),
 });
 
 /** Learner pastes the answered module's link. */

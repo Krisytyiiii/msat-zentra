@@ -21,8 +21,12 @@ function learnerStatusOf(dueDate: Date | null, submitted: boolean): ModuleStatus
 
 export interface StudentCtx {
   userId: string;
-  /** Learner's current term — modules are released per term. */
+  /** Term the desk is showing — modules are released per term. */
   termId: string | null;
+  /** Section the learner belonged to in that term (falls back to the profile). */
+  sectionId?: string | null;
+  /** Term that is actually running; historical terms stay read-only. */
+  activeTermId?: string | null;
 }
 
 interface StudentProfile {
@@ -63,14 +67,15 @@ async function loadStudent(userId: string): Promise<StudentProfile> {
   };
 }
 
-/** Modules released to the learner's own section, with their own submission state. */
+/** Modules released to the learner's term section, with their own submission state. */
 export async function listStudentModules(
   ctx: StudentCtx,
   query: { page: number; pageSize: number; status?: ModuleStatus },
 ) {
   const profile = await loadStudent(ctx.userId);
+  const sectionId = ctx.sectionId ?? profile.sectionId;
 
-  if (!profile.sectionId || !profile.section) {
+  if (!sectionId) {
     return {
       section: null,
       learner: { name: profile.name, lrn: profile.lrn, mascot: profile.mascot },
@@ -79,8 +84,16 @@ export async function listStudentModules(
     };
   }
 
+  const section =
+    profile.section?.id === sectionId
+      ? profile.section
+      : await prisma.section.findUnique({
+          where: { id: sectionId },
+          select: { id: true, name: true, gradeLevel: true, adviserId: true },
+        });
+
   const modules = await prisma.advisoryModule.findMany({
-    where: { sectionId: profile.sectionId, termId: ctx.termId },
+    where: { sectionId, termId: ctx.termId },
     orderBy: [{ createdAt: "asc" }, { id: "asc" }],
   });
   const moduleIds = modules.map((m) => m.id);
@@ -127,21 +140,22 @@ export async function listStudentModules(
   const start = (safePage - 1) * query.pageSize;
 
   return {
-    section: profile.section,
+    section,
     learner: { name: profile.name, lrn: profile.lrn, mascot: profile.mascot },
     counts,
     ...paginated(filtered.slice(start, start + query.pageSize), filtered.length, safePage, query.pageSize),
   };
 }
 
-/** Load the learner and confirm the module was released to their own section. */
+/** Load the learner and confirm the module was released to their term section. */
 async function loadStudentModule(ctx: StudentCtx, moduleId: string) {
   const profile = await loadStudent(ctx.userId);
-  if (!profile.sectionId) {
+  const sectionId = ctx.sectionId ?? profile.sectionId;
+  if (!sectionId) {
     throw new AppError(404, "MODULE_NOT_FOUND", "No modules are released to your section yet");
   }
   const module = await prisma.advisoryModule.findFirst({
-    where: { id: moduleId, sectionId: profile.sectionId, termId: ctx.termId },
+    where: { id: moduleId, sectionId, termId: ctx.termId },
   });
   if (!module) {
     throw new AppError(404, "MODULE_NOT_FOUND", "Module not found in your section");
@@ -153,7 +167,14 @@ async function loadStudentModule(ctx: StudentCtx, moduleId: string) {
       "General modules are post-only — there is nothing to submit",
     );
   }
-  return { profile, module };
+  const section =
+    profile.section?.id === sectionId
+      ? { name: profile.section.name, adviserId: profile.section.adviserId }
+      : await prisma.section.findUnique({
+          where: { id: sectionId },
+          select: { name: true, adviserId: true },
+        });
+  return { profile, module, sectionId, section };
 }
 
 async function saveStudentSubmission(
@@ -169,7 +190,16 @@ async function saveStudentSubmission(
     remarks?: string | null;
   },
 ) {
-  const { profile, module } = await loadStudentModule(ctx, moduleId);
+  const { profile, module, section } = await loadStudentModule(ctx, moduleId);
+  // Answers only belong to the term that is currently running; browsing an old
+  // term stays read-only instead of rewriting a closed record.
+  if (ctx.activeTermId && module.termId !== ctx.activeTermId) {
+    throw new AppError(
+      409,
+      "MODULE_TERM_CLOSED",
+      "This module belongs to an earlier term — submissions are only accepted for the current term",
+    );
+  }
   const existing = await prisma.advisoryModuleSubmission.findFirst({
     where: { moduleId: module.id, studentId: ctx.userId },
   });
@@ -225,14 +255,14 @@ async function saveStudentSubmission(
   });
   await invalidateTags([...MODULE_TAGS]);
 
-  const adviserId = profile.section?.adviserId ?? null;
+  const adviserId = section?.adviserId ?? null;
   if (adviserId && adviserId !== ctx.userId) {
     await fanoutNotification({
       userId: adviserId,
       sourceTable: "advisory_module_submissions",
       action: "submit",
       sourceId: saved.id,
-      message: `${profile.name} submitted ${module.moduleName} (${profile.section?.name ?? "advisory"})`,
+      message: `${profile.name} submitted ${module.moduleName} (${section?.name ?? "advisory"})`,
     });
   }
 

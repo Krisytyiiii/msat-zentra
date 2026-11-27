@@ -30,8 +30,8 @@ router.use(requireAuth, requireRole("student"));
 
 router.get("/me", async (req, res, next) => {
   try {
-    const learner = await loadPortalLearner(req.user!.id);
     const term = await termFor(req);
+    const learner = await loadPortalLearner(req.user!.id, term);
     res.json({ learner, term, profile: await getLearnerMe(req.user!.id) });
   } catch (e) {
     next(e);
@@ -49,8 +49,8 @@ router.get("/terms", async (req, res, next) => {
 
 router.get("/home", async (req, res, next) => {
   try {
-    const learner = await loadPortalLearner(req.user!.id);
     const term = await termFor(req);
+    const learner = await loadPortalLearner(req.user!.id, term);
     res.json(await getLearnerHome(req.user!.id, learner, term));
   } catch (e) {
     next(e);

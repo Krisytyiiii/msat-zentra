@@ -5,13 +5,14 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:url_launcher/url_launcher.dart';
 
-import '../../core/session.dart';
 import '../../design/overview_theme.dart';
 import '../../design/screen_search.dart';
+import '../../design/status_palette.dart';
 import '../../features/student/module_submission.dart';
 import '../../shared/models.dart';
 import '../../shared/widgets.dart';
 import '../../services/portal_service.dart';
+import '../adviser/schedule_timing.dart';
 
 class StudentHomePage extends ConsumerStatefulWidget {
   const StudentHomePage({super.key});
@@ -31,20 +32,22 @@ class _StudentHomeState extends ConsumerState<StudentHomePage> {
   }
 
   @override
-  Widget build(BuildContext context) => Theme(
-    data: overviewScreenTheme(Theme.of(context))
-        .copyWith(scaffoldBackgroundColor: Colors.white),
-    child: ColoredBox(
-      color: Colors.white,
-      child: LayoutBuilder(
-        builder: (context, constraints) =>
-            _content(context, compact: constraints.maxHeight < 650),
+  Widget build(BuildContext context) {
+    final theme = overviewScreenTheme(Theme.of(context));
+    return Theme(
+      data: theme,
+      child: ColoredBox(
+        color: theme.scaffoldBackgroundColor,
+        child: LayoutBuilder(
+          builder: (context, constraints) =>
+              _content(context, compact: constraints.maxHeight < 650),
+        ),
       ),
-    ),
-  );
+    );
+  }
 
   Widget _content(BuildContext context, {required bool compact}) {
-    final term = ref.watch(termProvider);
+    final term = portalScopeTerm(ref);
     final termKey = '${term?.schoolYearId}:${term?.id}';
     if (_lastTerm != termKey) {
       _lastTerm = termKey;
@@ -96,8 +99,8 @@ class _StudentHomeState extends ConsumerState<StudentHomePage> {
     AsyncValue<PortalHome> homeAsync, {
     required bool compact,
   }) {
-    final term = ref.watch(termProvider);
-    final learner = homeAsync.asData?.value?.learner;
+    final term = portalScopeTerm(ref);
+    final learner = homeAsync.asData?.value.learner;
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
@@ -148,6 +151,7 @@ class _StudentHomeState extends ConsumerState<StudentHomePage> {
   Widget _body(BuildContext context, PortalHome home, String query) {
     final theme = Theme.of(context);
     final l = home.learner;
+    final dayConfig = SchoolDayConfig.tryFromJson(home.config);
     final grades = home.grades.where((g) => query.isEmpty || g.subjectName.toLowerCase().contains(query)).toList();
     final todaySlots = home.todaySlots.where((s) => query.isEmpty || s.subjectName.toLowerCase().contains(query)).toList();
     final sessions = home.upcomingSessions.where((s) => query.isEmpty || s.sessionType.toLowerCase().contains(query)).toList();
@@ -203,10 +207,16 @@ class _StudentHomeState extends ConsumerState<StudentHomePage> {
                     const SizedBox(width: 8),
                     Expanded(
                       child: ZKpi(
-                        value: '${home.attendance.percent}%',
+                        value: home.attendance.hasMarks
+                            ? '${home.attendance.percent}%'
+                            : '—',
                         label: 'Attendance',
                         icon: Icons.fact_check_outlined,
-                        desc: home.attendance.isRisk ? 'Below 80%' : null,
+                        desc: !home.attendance.hasMarks
+                            ? 'No marks yet'
+                            : home.attendance.isRisk
+                            ? 'Below 80%'
+                            : null,
                       ),
                     ),
                     const SizedBox(width: 8),
@@ -244,11 +254,19 @@ class _StudentHomeState extends ConsumerState<StudentHomePage> {
                     leading: CircleAvatar(
                       radius: 14,
                       backgroundColor: theme.colorScheme.surfaceContainerLow,
-                      child: Text('${slot.period}', style: const TextStyle(fontSize: 11)),
+                      child: Text('${slot.period + 1}', style: const TextStyle(fontSize: 11)),
                     ),
                     title: Text(slot.subjectName, style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w600)),
-                    subtitle: Text(slot.teacherName ?? slot.subjectCode, style: const TextStyle(fontSize: 11)),
-                    trailing: _slotStatusChip(context, slot.status),
+                    subtitle: Text(
+                      [
+                        slot.teacherName ?? slot.subjectCode,
+                        if (dayConfig != null &&
+                            slot.period >= 0 &&
+                            slot.period < dayConfig.periods.length)
+                          '${clockLabel(dayConfig.periods[slot.period].start)}–${clockLabel(dayConfig.periods[slot.period].end)}',
+                      ].join(' · '),
+                      style: const TextStyle(fontSize: 11),
+                    ),
                   ),
                 );
               },
@@ -327,18 +345,6 @@ class _StudentHomeState extends ConsumerState<StudentHomePage> {
     );
   }
 
-  Widget _slotStatusChip(BuildContext context, String status) {
-    final theme = Theme.of(context);
-    final label = status.isEmpty ? 'scheduled' : status.replaceAll('_', ' ');
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
-      decoration: BoxDecoration(
-        color: theme.colorScheme.surfaceContainerLow,
-        borderRadius: BorderRadius.circular(999),
-      ),
-      child: Text(label, style: theme.textTheme.labelSmall),
-    );
-  }
 }
 
 class _GradeCard extends StatelessWidget {
@@ -366,15 +372,21 @@ class _GradeCard extends StatelessWidget {
           Column(
             crossAxisAlignment: CrossAxisAlignment.end,
             children: [
+              if (grade.isFinal)
+                Text(
+                  grade.transmutedGrade?.toStringAsFixed(0) ?? '—',
+                  style: TextStyle(
+                    fontWeight: FontWeight.w700,
+                    fontSize: 18,
+                    color: (grade.transmutedGrade ?? 100) < 75 ? theme.colorScheme.error : null,
+                  ),
+                )
+              else
+                const ZStatusPill(text: 'In progress', tone: StatusTone.amber),
               Text(
-                grade.transmutedGrade?.toStringAsFixed(0) ?? '—',
-                style: TextStyle(
-                  fontWeight: FontWeight.w700,
-                  fontSize: 18,
-                  color: (grade.transmutedGrade ?? 100) < 75 ? theme.colorScheme.error : null,
-                ),
+                grade.isFinal ? 'Final' : 'Not yet final',
+                style: theme.textTheme.labelSmall,
               ),
-              Text(grade.lockStatus.replaceAll('_', ' '), style: theme.textTheme.labelSmall),
             ],
           ),
         ],
@@ -405,20 +417,22 @@ class _StudentGradesState extends ConsumerState<StudentGradesPage> {
   }
 
   @override
-  Widget build(BuildContext context) => Theme(
-    data: overviewScreenTheme(Theme.of(context))
-        .copyWith(scaffoldBackgroundColor: Colors.white),
-    child: ColoredBox(
-      color: Colors.white,
-      child: LayoutBuilder(
-        builder: (context, constraints) =>
-            _content(context, compact: constraints.maxHeight < 650),
+  Widget build(BuildContext context) {
+    final theme = overviewScreenTheme(Theme.of(context));
+    return Theme(
+      data: theme,
+      child: ColoredBox(
+        color: theme.scaffoldBackgroundColor,
+        child: LayoutBuilder(
+          builder: (context, constraints) =>
+              _content(context, compact: constraints.maxHeight < 650),
+        ),
       ),
-    ),
-  );
+    );
+  }
 
   Widget _content(BuildContext context, {required bool compact}) {
-    final term = ref.watch(termProvider);
+    final term = portalScopeTerm(ref);
     final termKey = '${term?.schoolYearId}:${term?.id}';
     if (_lastTerm != termKey) {
       _lastTerm = termKey;
@@ -470,7 +484,7 @@ class _StudentGradesState extends ConsumerState<StudentGradesPage> {
     AsyncValue<PortalGrades> gradesAsync, {
     required bool compact,
   }) {
-    final term = ref.watch(termProvider);
+    final term = portalScopeTerm(ref);
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
@@ -551,20 +565,22 @@ class _StudentAttendanceState extends ConsumerState<StudentAttendancePage> {
   }
 
   @override
-  Widget build(BuildContext context) => Theme(
-    data: overviewScreenTheme(Theme.of(context))
-        .copyWith(scaffoldBackgroundColor: Colors.white),
-    child: ColoredBox(
-      color: Colors.white,
-      child: LayoutBuilder(
-        builder: (context, constraints) =>
-            _content(context, compact: constraints.maxHeight < 650),
+  Widget build(BuildContext context) {
+    final theme = overviewScreenTheme(Theme.of(context));
+    return Theme(
+      data: theme,
+      child: ColoredBox(
+        color: theme.scaffoldBackgroundColor,
+        child: LayoutBuilder(
+          builder: (context, constraints) =>
+              _content(context, compact: constraints.maxHeight < 650),
+        ),
       ),
-    ),
-  );
+    );
+  }
 
   Widget _content(BuildContext context, {required bool compact}) {
-    final term = ref.watch(termProvider);
+    final term = portalScopeTerm(ref);
     final termKey = '${term?.schoolYearId}:${term?.id}';
     if (_lastTerm != termKey) {
       _lastTerm = termKey;
@@ -616,7 +632,7 @@ class _StudentAttendanceState extends ConsumerState<StudentAttendancePage> {
     AsyncValue<PortalAttendance> attendanceAsync, {
     required bool compact,
   }) {
-    final term = ref.watch(termProvider);
+    final term = portalScopeTerm(ref);
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
@@ -673,11 +689,11 @@ class _StudentAttendanceState extends ConsumerState<StudentAttendancePage> {
                     children: [
                       Text('Overall attendance', style: theme.textTheme.titleSmall?.copyWith(fontWeight: FontWeight.w700)),
                       Text(
-                        '${s.percent}%',
+                        s.hasMarks ? '${s.percent}%' : 'No marks',
                         style: TextStyle(
                           fontWeight: FontWeight.w700,
                           fontSize: 20,
-                          color: s.isRisk ? theme.colorScheme.error : null,
+                          color: s.hasMarks && s.isRisk ? theme.colorScheme.error : null,
                         ),
                       ),
                     ],
@@ -685,7 +701,7 @@ class _StudentAttendanceState extends ConsumerState<StudentAttendancePage> {
                   const SizedBox(height: 10),
                   ClipRRect(
                     borderRadius: BorderRadius.circular(999),
-                    child: LinearProgressIndicator(value: s.rate.clamp(0, 1), minHeight: 8),
+                    child: LinearProgressIndicator(value: s.hasMarks ? s.rate.clamp(0, 1) : 0, minHeight: 8),
                   ),
                   const SizedBox(height: 10),
                   Row(
@@ -819,20 +835,22 @@ class _StudentScheduleState extends ConsumerState<StudentSchedulePage> {
   }
 
   @override
-  Widget build(BuildContext context) => Theme(
-    data: overviewScreenTheme(Theme.of(context))
-        .copyWith(scaffoldBackgroundColor: Colors.white),
-    child: ColoredBox(
-      color: Colors.white,
-      child: LayoutBuilder(
-        builder: (context, constraints) =>
-            _content(context, compact: constraints.maxHeight < 650),
+  Widget build(BuildContext context) {
+    final theme = overviewScreenTheme(Theme.of(context));
+    return Theme(
+      data: theme,
+      child: ColoredBox(
+        color: theme.scaffoldBackgroundColor,
+        child: LayoutBuilder(
+          builder: (context, constraints) =>
+              _content(context, compact: constraints.maxHeight < 650),
+        ),
       ),
-    ),
-  );
+    );
+  }
 
   Widget _content(BuildContext context, {required bool compact}) {
-    final term = ref.watch(termProvider);
+    final term = portalScopeTerm(ref);
     final termKey = '${term?.schoolYearId}:${term?.id}';
     if (_lastTerm != termKey) {
       _lastTerm = termKey;
@@ -884,15 +902,16 @@ class _StudentScheduleState extends ConsumerState<StudentSchedulePage> {
     AsyncValue<PortalSchedule> scheduleAsync, {
     required bool compact,
   }) {
-    final term = ref.watch(termProvider);
+    final term = portalScopeTerm(ref);
+    final sectionName = scheduleAsync.asData?.value.sectionName;
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
         if (!compact) ...[
           ZContentHeader(
-            title: 'Schedule',
+            title: 'Class Schedule',
             icon: Icons.calendar_month_outlined,
-            description: 'Your class schedule for this term.',
+            description: 'Your designated classes for this term.',
           ),
           const SizedBox(height: 12),
         ],
@@ -912,6 +931,13 @@ class _StudentScheduleState extends ConsumerState<StudentSchedulePage> {
                 compact: true,
               ),
             ],
+            if (sectionName != null)
+              ZScopePill(
+                text: sectionName,
+                kind: ScopePillKind.grade,
+                label: 'Section',
+                compact: true,
+              ),
           ],
         ),
       ],
@@ -920,6 +946,14 @@ class _StudentScheduleState extends ConsumerState<StudentSchedulePage> {
 
   Widget _list(BuildContext context, PortalSchedule data, String query) {
     final theme = Theme.of(context);
+    SchoolDayConfig? config;
+    try {
+      if (data.config != null) {
+        config = SchoolDayConfig.fromJson(data.config!);
+      }
+    } catch (_) {
+      config = null;
+    }
     final slots = data.slots
         .where((s) => query.isEmpty || s.subjectName.toLowerCase().contains(query))
         .toList();
@@ -956,31 +990,62 @@ class _StudentScheduleState extends ConsumerState<StudentSchedulePage> {
               Column(
                 children: [
                   for (final slot in daySlots)
-                    Padding(
-                      padding: const EdgeInsets.only(bottom: 8),
-                      child: ZCard(
-                        padding: const EdgeInsets.all(12),
-                        child: Row(
-                          children: [
-                            CircleAvatar(
-                              radius: 14,
-                              backgroundColor: theme.colorScheme.surfaceContainerLow,
-                              child: Text('${slot.period}', style: const TextStyle(fontSize: 11)),
+                    Builder(
+                      builder: (context) {
+                        final window =
+                            config != null &&
+                                slot.period >= 0 &&
+                                slot.period < config.periods.length
+                            ? config.periods[slot.period]
+                            : null;
+                        final time = window == null
+                            ? null
+                            : '${clockLabel(window.start)} – ${clockLabel(window.end)}';
+                        return Padding(
+                          padding: const EdgeInsets.only(bottom: 8),
+                          child: ZCard(
+                            padding: const EdgeInsets.all(12),
+                            child: Row(
+                              children: [
+                                CircleAvatar(
+                                  radius: 14,
+                                  backgroundColor:
+                                      theme.colorScheme.surfaceContainerLow,
+                                  child: Text(
+                                    '${slot.period + 1}',
+                                    style: const TextStyle(fontSize: 11),
+                                  ),
+                                ),
+                                const SizedBox(width: 10),
+                                Expanded(
+                                  child: Column(
+                                    crossAxisAlignment:
+                                        CrossAxisAlignment.start,
+                                    children: [
+                                      Text(
+                                        slot.subjectName,
+                                        style: const TextStyle(
+                                          fontSize: 13,
+                                          fontWeight: FontWeight.w600,
+                                        ),
+                                      ),
+                                      Text(
+                                        slot.teacherName ?? slot.subjectCode,
+                                        style: theme.textTheme.labelSmall,
+                                      ),
+                                    ],
+                                  ),
+                                ),
+                                if (time != null)
+                                  Text(
+                                    time,
+                                    style: theme.textTheme.labelSmall,
+                                  ),
+                              ],
                             ),
-                            const SizedBox(width: 10),
-                            Expanded(
-                              child: Column(
-                                crossAxisAlignment: CrossAxisAlignment.start,
-                                children: [
-                                  Text(slot.subjectName, style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w600)),
-                                  Text(slot.teacherName ?? slot.subjectCode, style: theme.textTheme.labelSmall),
-                                ],
-                              ),
-                            ),
-                            if (slot.status.isNotEmpty) Text(slot.status.replaceAll('_', ' '), style: theme.textTheme.labelSmall),
-                          ],
-                        ),
-                      ),
+                          ),
+                        );
+                      },
                     ),
                 ],
               ),
@@ -1016,20 +1081,22 @@ class _StudentModulesState extends ConsumerState<StudentModulesPage> {
   }
 
   @override
-  Widget build(BuildContext context) => Theme(
-    data: overviewScreenTheme(Theme.of(context))
-        .copyWith(scaffoldBackgroundColor: Colors.white),
-    child: ColoredBox(
-      color: Colors.white,
-      child: LayoutBuilder(
-        builder: (context, constraints) =>
-            _content(context, compact: constraints.maxHeight < 650),
+  Widget build(BuildContext context) {
+    final theme = overviewScreenTheme(Theme.of(context));
+    return Theme(
+      data: theme,
+      child: ColoredBox(
+        color: theme.scaffoldBackgroundColor,
+        child: LayoutBuilder(
+          builder: (context, constraints) =>
+              _content(context, compact: constraints.maxHeight < 650),
+        ),
       ),
-    ),
-  );
+    );
+  }
 
   Widget _content(BuildContext context, {required bool compact}) {
-    final term = ref.watch(termProvider);
+    final term = portalScopeTerm(ref);
     final termKey = '${term?.schoolYearId}:${term?.id}';
     if (_lastTerm != termKey) {
       _lastTerm = termKey;
@@ -1081,7 +1148,7 @@ class _StudentModulesState extends ConsumerState<StudentModulesPage> {
     AsyncValue<PortalModules> modulesAsync, {
     required bool compact,
   }) {
-    final term = ref.watch(termProvider);
+    final term = portalScopeTerm(ref);
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
@@ -1141,7 +1208,12 @@ class _StudentModulesState extends ConsumerState<StudentModulesPage> {
   );
 
   Widget _list(BuildContext context, PortalModules data, String query) {
-    final theme = Theme.of(context);
+    final activeTermId =
+        ref.watch(portalTermsResultProvider).asData?.value.activeTermId;
+    final selectedTermId = ref.watch(portalTermIdProvider);
+    // Historical terms stay read-only; answers only belong to the open term.
+    final canSubmit =
+        selectedTermId == null || selectedTermId == activeTermId;
     final modules = data.modules
         .where((m) => query.isEmpty || m.moduleName.toLowerCase().contains(query))
         .toList();
@@ -1166,7 +1238,7 @@ class _StudentModulesState extends ConsumerState<StudentModulesPage> {
             separatorBuilder: (_, _) => const SizedBox(height: 8),
             itemBuilder: (context, index) {
               final m = modules[index];
-              return _ModuleCard(module: m, canSubmit: true);
+              return _ModuleCard(module: m, canSubmit: canSubmit);
             },
           ),
         ),
@@ -1308,20 +1380,22 @@ class _StudentSessionsState extends ConsumerState<StudentSessionsPage> {
   }
 
   @override
-  Widget build(BuildContext context) => Theme(
-    data: overviewScreenTheme(Theme.of(context))
-        .copyWith(scaffoldBackgroundColor: Colors.white),
-    child: ColoredBox(
-      color: Colors.white,
-      child: LayoutBuilder(
-        builder: (context, constraints) =>
-            _content(context, compact: constraints.maxHeight < 650),
+  Widget build(BuildContext context) {
+    final theme = overviewScreenTheme(Theme.of(context));
+    return Theme(
+      data: theme,
+      child: ColoredBox(
+        color: theme.scaffoldBackgroundColor,
+        child: LayoutBuilder(
+          builder: (context, constraints) =>
+              _content(context, compact: constraints.maxHeight < 650),
+        ),
       ),
-    ),
-  );
+    );
+  }
 
   Widget _content(BuildContext context, {required bool compact}) {
-    final term = ref.watch(termProvider);
+    final term = portalScopeTerm(ref);
     final termKey = '${term?.schoolYearId}:${term?.id}';
     if (_lastTerm != termKey) {
       _lastTerm = termKey;
@@ -1373,7 +1447,7 @@ class _StudentSessionsState extends ConsumerState<StudentSessionsPage> {
     AsyncValue<List<PortalSession>> sessionsAsync, {
     required bool compact,
   }) {
-    final term = ref.watch(termProvider);
+    final term = portalScopeTerm(ref);
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [

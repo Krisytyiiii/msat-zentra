@@ -34,6 +34,40 @@ class ScreenSearchSpec {
 /// desks here and in [screenSearchCatalog] instead of inside the shell.
 ScreenSearchSpec screenSearchSpecFor(String location, [Uri? uri]) {
   switch (location) {
+    // Learner portals own one search field per desk; each page filters the
+    // list it renders from `ScreenSearchScope`.
+    case '/student/home':
+    case '/parent/home':
+      return const ScreenSearchSpec.filter(
+        'Home',
+        'Search classes, grades, sessions',
+      );
+    case '/student/grades':
+    case '/parent/grades':
+      return const ScreenSearchSpec.filter('Grades', 'Search subjects');
+    case '/student/attendance':
+    case '/parent/attendance':
+      return const ScreenSearchSpec.filter('Attendance', 'Search subjects');
+    case '/student/schedule':
+    case '/parent/schedule':
+      return const ScreenSearchSpec.filter(
+        'Class Schedule',
+        'Search subject or teacher',
+      );
+    case '/student/modules':
+    case '/parent/modules':
+      return const ScreenSearchSpec.filter('Modules', 'Search modules');
+    case '/student/sessions':
+    case '/parent/sessions':
+      return const ScreenSearchSpec.filter('Sessions', 'Search sessions');
+    case '/portal/notifications':
+      return const ScreenSearchSpec.filter(
+        'Notifications',
+        'Search notifications',
+      );
+    case '/student/profile':
+    case '/student/profile/qr':
+      return const ScreenSearchSpec.filter('Profile', 'Search profile');
     case '/adviser/interventions':
       return const ScreenSearchSpec.filter(
         'Interventions',

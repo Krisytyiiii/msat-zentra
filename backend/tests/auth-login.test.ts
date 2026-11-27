@@ -77,9 +77,23 @@ describe("unified password sign-in", () => {
     await expect(login({ ...credentials, role: "student" })).resolves.toMatchObject({ role: "student" });
   });
 
-  it.each(["pending", "suspended"])("rejects %s accounts", async (status) => {
+  it.each([
+    ["pending", "ACCOUNT_PENDING"],
+    ["suspended", "ACCOUNT_SUSPENDED"],
+  ] as const)("rejects %s accounts with a clear account state", async (status, code) => {
     mocks.findUnique.mockResolvedValue({ ...account, status });
-    await expect(login(credentials)).rejects.toMatchObject({ status: 401, code: "INVALID_CREDENTIALS" });
+    await expect(login(credentials)).rejects.toMatchObject({ status: 403, code });
+    expect(mocks.verify).toHaveBeenCalled();
+    expect(mocks.signAccess).not.toHaveBeenCalled();
+  });
+
+  it("does not reveal the account state before the password is verified", async () => {
+    mocks.findUnique.mockResolvedValue({ ...account, status: "pending" });
+    mocks.verify.mockResolvedValue(false);
+    await expect(login(credentials)).rejects.toMatchObject({
+      status: 401,
+      code: "INVALID_CREDENTIALS",
+    });
     expect(mocks.signAccess).not.toHaveBeenCalled();
   });
 

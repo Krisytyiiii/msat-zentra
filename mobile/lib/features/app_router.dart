@@ -12,9 +12,11 @@ import 'package:hive_flutter/hive_flutter.dart';
 import '../core/api_client.dart';
 import '../core/config.dart';
 import '../design/shell.dart';
+import '../design/portal_shell.dart';
 import 'student/student_identity_page.dart';
 import 'student/student_portal_pages.dart';
 import 'parent/parent_portal_pages.dart';
+import 'portal/portal_views.dart';
 import '../shared/models.dart';
 import 'adviser/academic_overview_page.dart';
 import 'adviser/adm_cases_page.dart';
@@ -133,20 +135,6 @@ const _staffShellPaths = {
   '/adviser/referrals',
   '/adviser/bama',
   '/adviser/bama/history',
-  // Student portal
-  '/student/home',
-  '/student/grades',
-  '/student/attendance',
-  '/student/schedule',
-  '/student/modules',
-  '/student/sessions',
-  // Parent portal
-  '/parent/home',
-  '/parent/grades',
-  '/parent/attendance',
-  '/parent/schedule',
-  '/parent/modules',
-  '/parent/sessions',
 };
 
 List<RouteBase> persistentStaffRoutes(List<RouteBase> routes) {
@@ -177,6 +165,69 @@ List<RouteBase> persistentStaffRoutes(List<RouteBase> routes) {
     ),
   ];
 }
+
+/// Learner portals render inside [PortalShell] (own header, drawer, floating
+/// navigation) instead of the teacher shell.
+List<RouteBase> _portalRoutes() => [
+  ShellRoute(
+    builder: (context, state, child) =>
+        PortalShellChrome(location: state.uri.path, child: child),
+    routes: [
+      GoRoute(
+        path: '/portal/notifications',
+        builder: (context, _) => const PortalNotificationsPage(),
+      ),
+      GoRoute(
+        path: '/student/home',
+        builder: (context, _) => const StudentHomePage(),
+      ),
+      GoRoute(
+        path: '/student/grades',
+        builder: (context, _) => const StudentGradesPage(),
+      ),
+      GoRoute(
+        path: '/student/attendance',
+        builder: (context, _) => const StudentAttendancePage(),
+      ),
+      GoRoute(
+        path: '/student/schedule',
+        builder: (context, _) => const StudentSchedulePage(),
+      ),
+      GoRoute(
+        path: '/student/modules',
+        builder: (context, _) => const StudentModulesPage(),
+      ),
+      GoRoute(
+        path: '/student/sessions',
+        builder: (context, _) => const StudentSessionsPage(),
+      ),
+      GoRoute(
+        path: '/parent/home',
+        builder: (context, _) => const ParentHomePage(),
+      ),
+      GoRoute(
+        path: '/parent/grades',
+        builder: (context, _) => const ParentGradesPage(),
+      ),
+      GoRoute(
+        path: '/parent/attendance',
+        builder: (context, _) => const ParentAttendancePage(),
+      ),
+      GoRoute(
+        path: '/parent/schedule',
+        builder: (context, _) => const ParentSchedulePage(),
+      ),
+      GoRoute(
+        path: '/parent/modules',
+        builder: (context, _) => const ParentModulesPage(),
+      ),
+      GoRoute(
+        path: '/parent/sessions',
+        builder: (context, _) => const ParentSessionsPage(),
+      ),
+    ],
+  ),
+];
 
 final routerProvider = Provider<GoRouter>((ref) {
   final authChanges = ValueNotifier<int>(0);
@@ -228,7 +279,18 @@ final routerProvider = Provider<GoRouter>((ref) {
       if (loc == '/teacher') return '/workspace/overview';
       return null;
     },
-    routes: persistentStaffRoutes([
+    routes: [
+      // Learner identity is a full-screen detail with its own header (like the
+      // staff record screens), so it stays outside the portal chrome.
+      GoRoute(
+        path: '/student/profile',
+        builder: (context, _) => const StudentIdentityPage(),
+      ),
+      GoRoute(
+        path: '/student/profile/qr',
+        builder: (context, _) => const StudentIdentityPage(qr: true),
+      ),
+      ...persistentStaffRoutes([
       GoRoute(path: '/login', builder: (context, _) => const LoginPage()),
       GoRoute(
         path: '/coordinator',
@@ -273,62 +335,6 @@ final routerProvider = Provider<GoRouter>((ref) {
         path: '/coordinator/notifications',
         builder: (_, _) =>
             _coordinatorView(const CoordinatorNotificationsPage()),
-      ),
-      GoRoute(
-        path: '/student/home',
-        builder: (context, _) => const StudentHomePage(),
-      ),
-      GoRoute(
-        path: '/student/profile',
-        builder: (context, _) => const StudentIdentityPage(),
-      ),
-      GoRoute(
-        path: '/student/profile/qr',
-        builder: (context, _) => const StudentIdentityPage(qr: true),
-      ),
-      GoRoute(
-        path: '/student/grades',
-        builder: (context, _) => const StudentGradesPage(),
-      ),
-      GoRoute(
-        path: '/student/attendance',
-        builder: (context, _) => const StudentAttendancePage(),
-      ),
-      GoRoute(
-        path: '/student/schedule',
-        builder: (context, _) => const StudentSchedulePage(),
-      ),
-      GoRoute(
-        path: '/student/modules',
-        builder: (context, _) => const StudentModulesPage(),
-      ),
-      GoRoute(
-        path: '/student/sessions',
-        builder: (context, _) => const StudentSessionsPage(),
-      ),
-      GoRoute(
-        path: '/parent/home',
-        builder: (context, _) => const ParentHomePage(),
-      ),
-      GoRoute(
-        path: '/parent/grades',
-        builder: (context, _) => const ParentGradesPage(),
-      ),
-      GoRoute(
-        path: '/parent/attendance',
-        builder: (context, _) => const ParentAttendancePage(),
-      ),
-      GoRoute(
-        path: '/parent/schedule',
-        builder: (context, _) => const ParentSchedulePage(),
-      ),
-      GoRoute(
-        path: '/parent/modules',
-        builder: (context, _) => const ParentModulesPage(),
-      ),
-      GoRoute(
-        path: '/parent/sessions',
-        builder: (context, _) => const ParentSessionsPage(),
       ),
       GoRoute(path: '/term', builder: (context, _) => const TermSelectPage()),
       GoRoute(path: '/gate', builder: (context, _) => const FirstTimeGate()),
@@ -599,6 +605,8 @@ final routerProvider = Provider<GoRouter>((ref) {
         },
       ),
     ]),
+      ..._portalRoutes(),
+    ],
     errorBuilder: (context, _) =>
         const Scaffold(body: Center(child: Text('Page not found'))),
   );

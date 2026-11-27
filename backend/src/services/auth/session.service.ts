@@ -133,7 +133,7 @@ export interface LoginInput {
 export async function login(input: LoginInput) {
   const { email, password, role, ip } = input;
   const user = await prisma.user.findUnique({ where: { email } });
-  if (!user || user.status !== "active") throw new AppError(401, "INVALID_CREDENTIALS", "Invalid credentials");
+  if (!user) throw new AppError(401, "INVALID_CREDENTIALS", "Invalid credentials");
 
   // Web portals still enforce their requested role. Unified mobile sign-in
   // accepts any known non-admin account, never the dedicated admin portal.
@@ -146,6 +146,24 @@ export async function login(input: LoginInput) {
 
   const ok = await argon2.verify(user.passwordHash, password);
   if (!ok) throw new AppError(401, "INVALID_CREDENTIALS", "Invalid credentials");
+
+  // Only reveal the account state once the password is proven, so the message
+  // can't be used to probe addresses. The mobile client has dedicated copy for
+  // both codes; pending learners/parents otherwise saw "wrong password".
+  if (user.status !== "active") {
+    if (user.status === "suspended") {
+      throw new AppError(
+        403,
+        "ACCOUNT_SUSPENDED",
+        "This account is suspended. Contact the school office for help.",
+      );
+    }
+    throw new AppError(
+      403,
+      "ACCOUNT_PENDING",
+      "This account is waiting for school approval.",
+    );
+  }
 
   await recordLogin(user.id, ip ?? null);
   return issueSession(user);

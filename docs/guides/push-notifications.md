@@ -21,11 +21,18 @@ write (referral, session, grade, ADM, …)
   `token`, `platform`, `createdAt`, `lastSeenAt`. Migration:
   `prisma/migrations/20261125100000_device_tokens`. Apply by hand like every
   other migration in this repo (`prisma migrate deploy` cannot bootstrap).
+- **Multiple devices**: one row per FCM token, indexed by `userId`, so an
+  account signed in on several devices keeps a row per device and
+  `sendPushToUser` fans out to every one of them. Signing into the same device
+  with a different account re-points that device's token (`upsert` by unique
+  token); sign-out removes only the current account's row. Rotated tokens are
+  deleted as soon as the new one registers, and tokens FCM later rejects are
+  pruned on the next send.
 - **Endpoints** (`backend/src/modules/notifications/notifications.routes.ts`):
   - `POST /api/notifications/device-token` `{ token, platform }` — upsert for
     the signed-in user (an account switch on the same device re-points the row).
   - `POST /api/notifications/device-token/unregister` `{ token }` — removes
-    only that user's row (sent on sign-out).
+    only that user's row (sent on sign-out and on token rotation).
 - **Env**: `FIREBASE_SERVICE_ACCOUNT_JSON` — service-account JSON, raw or
   base64. Empty ⇒ push is a no-op (development, CI, tests). Get it from
   Firebase console → Project settings → Service accounts → Generate new private
@@ -75,9 +82,12 @@ write (referral, session, grade, ADM, …)
 
 - **Lifecycle** (`lib/core/push_service.dart`): `main.dart` boots the service
   after the router exists and attaches `router.go`; the background handler is
-  registered before `runApp`. `AuthNotifier.login()` registers the device,
-  `logout()` unregisters it, and `onTokenRefresh` re-registers rotated tokens.
-  Session restore re-registers via the auth listener in `main.dart`.
+  registered before `runApp`. `AuthNotifier.login()` registers the device
+  (forced, so an account switch re-points the token), `logout()` unregisters
+  it, `onTokenRefresh` re-registers (and drops) rotated tokens, and the service
+  retries registration on every app resume so a sign-in that happened offline
+  still lands later. Session restore re-registers via the auth listener in
+  `main.dart`.
 
 - **Foreground**: FCM's OS banner is suppressed (`alert: false`) and
   `flutter_local_notifications` draws the notice instead, so the Z icon, blue

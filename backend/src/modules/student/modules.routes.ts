@@ -6,7 +6,8 @@ import { cache } from "../../lib/cache.js";
 import { AppError } from "../../lib/errors.js";
 import { etag } from "../../lib/etag.js";
 import { CACHE_TTLS } from "../../lib/cacheTags.js";
-import { resolveActiveTermId } from "../../services/risk.js";
+import { resolveActiveTermId } from "../../lib/term-resolve.js";
+import { learnerSectionForTerm, resolvePortalTerm } from "../../lib/portalAccess.js";
 import { MODULE_TAGS } from "../../services/advisory/modules.service.js";
 import {
   listStudentModules,
@@ -50,7 +51,17 @@ const submissionUpload = multer({
 });
 
 async function ctxOf(req: Request): Promise<StudentCtx> {
-  return { userId: req.user!.id, termId: await resolveActiveTermId(req) };
+  const raw = req.query.termId;
+  const wanted =
+    typeof raw === "string" && raw.trim() ? raw.trim() : undefined;
+  const activeTermId = await resolveActiveTermId();
+  const term = await resolvePortalTerm(wanted, activeTermId);
+  return {
+    userId: req.user!.id,
+    termId: term.id,
+    sectionId: await learnerSectionForTerm(req.user!.id, term),
+    activeTermId,
+  };
 }
 
 router.get(
