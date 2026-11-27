@@ -1,69 +1,56 @@
 import 'package:flutter/material.dart';
 
-import '../../shared/spinner.dart';
+import '../../design/desk_theme.dart';
 
-/// Document actions stay outside the paper and never consume its reading area.
+import 'package:lucide_icons_flutter/lucide_icons.dart';
+
+/// Bottom action for the GCForm-01 preview: signing only. Document actions
+/// (share/download) live in the header menu, like the other record viewers.
 class PreviewActionBar extends StatelessWidget {
   const PreviewActionBar({
     super.key,
     required this.canSign,
     required this.signed,
     required this.onSign,
-    required this.onXlsx,
-    required this.onPdf,
-    this.xlsxBusy = false,
-    this.pdfBusy = false,
   });
 
   final bool canSign;
   final bool signed;
   final VoidCallback onSign;
-  final VoidCallback onXlsx;
-  final VoidCallback onPdf;
-  final bool xlsxBusy;
-  final bool pdfBusy;
 
   @override
-  Widget build(BuildContext context) => DecoratedBox(
-    decoration: BoxDecoration(
-      color: Theme.of(context).colorScheme.surface,
-      border: Border(top: BorderSide(color: Theme.of(context).dividerColor)),
-    ),
-    child: SafeArea(
-      top: false,
-      child: Padding(
-        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-        child: Row(
-          children: [
-            if (canSign)
-              Expanded(
-                child: TextButton.icon(
-                  onPressed: onSign,
-                  icon: const Icon(Icons.draw_outlined, size: 18),
-                  label: Text(signed ? 'Signature' : 'Sign'),
+  Widget build(BuildContext context) {
+    if (!canSign) return const SizedBox.shrink();
+    final theme = Theme.of(context);
+    return DecoratedBox(
+      decoration: BoxDecoration(
+        color: theme.colorScheme.surface,
+        border: Border(top: BorderSide(color: theme.dividerColor)),
+      ),
+      child: SafeArea(
+        top: false,
+        child: Padding(
+          padding: const EdgeInsets.fromLTRB(16, 8, 16, 8),
+          child: SizedBox(
+            width: double.infinity,
+            child: FilledButton.icon(
+              onPressed: onSign,
+              icon: const Icon(LucideIcons.penLine, size: 18),
+              label: Text(signed ? 'Signature' : 'Sign'),
+              style: FilledButton.styleFrom(
+                backgroundColor: zLift(context, const Color(0xFF2563EB)),
+                foregroundColor: Theme.of(context).brightness == Brightness.dark
+                    ? const Color(0xFF06101F)
+                    : Colors.white,
+                minimumSize: const Size(48, 48),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(16),
                 ),
               ),
-            Expanded(
-              child: TextButton.icon(
-                onPressed: xlsxBusy ? null : onXlsx,
-                icon: xlsxBusy
-                    ? const ZSpinner(size: 16)
-                    : const Icon(Icons.download_outlined, size: 18),
-                label: const Text('.xlsx'),
-              ),
             ),
-            Expanded(
-              child: TextButton.icon(
-                onPressed: pdfBusy ? null : onPdf,
-                icon: pdfBusy
-                    ? const ZSpinner(size: 16)
-                    : const Icon(Icons.picture_as_pdf_outlined, size: 18),
-                label: const Text('.PDF'),
-              ),
-            ),
-          ],
+          ),
         ),
       ),
-    ),
-  );
+    );
+  }
 }

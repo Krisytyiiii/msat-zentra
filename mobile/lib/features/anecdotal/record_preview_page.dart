@@ -3,8 +3,8 @@
 // the official GCForm-01 export (GET /api/anecdotal/:id/pdf, drawn
 // server-side from the same record data) and renders it with pinch-zoom +
 // double-tap. The PDF is cached on disk per signature state, so signed
-// downloads can reuse the rendered bytes. The full-height print layout keeps
-// signature controls in a sheet and exports in a separate bottom action bar.
+// downloads can reuse the rendered bytes. Share/download live in the header
+// menu (PDF only); the bottom bar holds just the signature action.
 
 import 'dart:io';
 import 'dart:typed_data';
@@ -12,14 +12,16 @@ import 'dart:typed_data';
 import 'package:dio/dio.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:lucide_icons_flutter/lucide_icons.dart';
 import 'package:path_provider/path_provider.dart';
 import 'package:pdfrx/pdfrx.dart';
 import 'package:share_plus/share_plus.dart';
 
 import '../../shared/models.dart';
+import '../../shared/pdf_download.dart';
 import '../../shared/widgets.dart';
-import '../../design/status_palette.dart';
 import '../../design/adviser_navigation.dart';
+import '../../design/overview_theme.dart';
 import '../../shared/user_messages.dart';
 import 'anecdotal_data.dart';
 import 'signature_block.dart';
@@ -44,7 +46,6 @@ class _PreviewState extends ConsumerState<RecordPreviewPage> {
   Uint8List? _pdfBytes;
   String? _error;
   bool _busy = true;
-  bool _exportingXlsx = false;
   bool _exportingPdf = false;
 
   @override
@@ -114,12 +115,17 @@ class _PreviewState extends ConsumerState<RecordPreviewPage> {
 
   /// Cache identity includes the signature timestamp: signing/removing mints
   /// a new key, so a cached unsigned PDF can never shadow a signed one.
+  // Bump when the server-rendered form changes (artwork, layout): the PDF is
+  // cached on disk per record + signature state, so a new template must not be
+  // shadowed by an older cached copy.
+  static const _formVersion = 3;
+
   String _cacheKey(Map<String, dynamic> detail) {
     final at = recordSignatureOf(detail)?.at.trim() ?? '';
     final stamp = at.isEmpty
         ? 'unsigned'
         : at.replaceAll(RegExp(r'[^A-Za-z0-9]+'), '-');
-    return 'OCForm-01_${widget.record.id}_$stamp.pdf';
+    return 'OCForm-01_v${_formVersion}_${widget.record.id}_$stamp.pdf';
   }
 
   Future<File> _cacheFile(String key) async {
@@ -187,49 +193,7 @@ class _PreviewState extends ConsumerState<RecordPreviewPage> {
       ? widget.record.id
       : widget.record.studentName.trim().replaceAll(RegExp(r'\s+'), '-');
 
-  Future<void> _shareXlsx() async {
-    if (_exportingXlsx) return;
-    setState(() => _exportingXlsx = true);
-    try {
-      final bytes = await downloadRecordExport(ref, widget.record.id);
-      final dir = await getTemporaryDirectory();
-      final path =
-          '${dir.path}/OCForm-01_${_safeName}_${widget.record.date}.xlsx';
-      await File(path).writeAsBytes(Uint8List.fromList(bytes), flush: true);
-      if (mounted) {
-        await SharePlus.instance.share(
-          ShareParams(
-            files: [
-              XFile(
-                path,
-                mimeType: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
-              ),
-            ],
-            text: 'GCForm-01 ${widget.record.studentName}',
-          ),
-        );
-      }
-    } on DioException catch (e) {
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text(anecdotalError(e, 'Could not export.'))),
-        );
-      }
-    } on ApiException catch (e) {
-      if (mounted) {
-        ScaffoldMessenger.of(context)
-            .showSnackBar(SnackBar(content: Text(userMessage(e))));
-      }
-    } catch (_) {
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Could not share the file.')),
-        );
-      }
-    } finally {
-      if (mounted) setState(() => _exportingXlsx = false);
-    }
-  }
+  String get _fileName => 'OCForm-01_${_safeName}_${widget.record.date}.pdf';
 
   Future<void> _sharePdf() async {
     final bytes = _pdfBytes;
@@ -237,23 +201,49 @@ class _PreviewState extends ConsumerState<RecordPreviewPage> {
     setState(() => _exportingPdf = true);
     try {
       final dir = await getTemporaryDirectory();
-      final path =
-          '${dir.path}/OCForm-01_${_safeName}_${widget.record.date}.pdf';
+      final path = '${dir.path}/$_fileName';
       await File(path).writeAsBytes(bytes, flush: true);
       if (mounted) {
+        final box = context.findRenderObject() as RenderBox?;
         await SharePlus.instance.share(
           ShareParams(
             files: [XFile(path, mimeType: 'application/pdf')],
-            text: 'GCForm-01 ${widget.record.studentName}',
+            fileNameOverrides: [_fileName],
+            sharePositionOrigin: box == null
+                ? null
+                : box.localToGlobal(Offset.zero) & box.size,
           ),
         );
       }
     } catch (_) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Could not share the file.')),
+          const SnackBar(content: Text('Could not share the PDF.')),
         );
       }
+    } finally {
+      if (mounted) setState(() => _exportingPdf = false);
+    }
+  }
+
+  Future<void> _downloadPdf() async {
+    final bytes = _pdfBytes;
+    if (bytes == null || _exportingPdf) return;
+    final messenger = ScaffoldMessenger.of(context);
+    setState(() => _exportingPdf = true);
+    try {
+      final saved = await savePdfToDevice(fileName: _fileName, bytes: bytes);
+      messenger.showSnackBar(
+        SnackBar(
+          content: Text(
+            saved == null ? 'Download cancelled.' : '$_fileName saved.',
+          ),
+        ),
+      );
+    } catch (_) {
+      messenger.showSnackBar(
+        const SnackBar(content: Text('Could not save the PDF.')),
+      );
     } finally {
       if (mounted) setState(() => _exportingPdf = false);
     }
@@ -262,53 +252,38 @@ class _PreviewState extends ConsumerState<RecordPreviewPage> {
   Future<void> _openSignature() async {
     final detail = _detail;
     if (detail == null) return;
+    final height = MediaQuery.sizeOf(context).height * 0.5;
+    final sheetTheme = overviewScreenTheme(Theme.of(context));
     final changed = await showModalBottomSheet<bool>(
       context: context,
       isScrollControlled: true,
-      useSafeArea: true,
-      // Drag only the handle, not the drawing canvas.
-      enableDrag: false,
-      builder: (sheetContext) => DraggableScrollableSheet(
-        expand: false,
-        initialChildSize: 0.8,
-        minChildSize: 0.5,
-        maxChildSize: 0.95,
-        builder: (_, scrollController) => Column(
-          children: [
-            SingleChildScrollView(
-              controller: scrollController,
-              child: const SizedBox(
-                height: 32,
-                child: Center(child: Icon(Icons.drag_handle)),
-              ),
-            ),
-            Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 16),
-              child: Row(
+      showDragHandle: true,
+      constraints: BoxConstraints(maxHeight: height),
+      builder: (sheetContext) => Theme(
+        // Same desk sheet shell as the interventions details screen.
+        data: sheetTheme,
+        child: SafeArea(
+          child: SizedBox(
+            height: height,
+            child: ColoredBox(
+              color: sheetTheme.colorScheme.surface,
+              child: ListView(
+                padding: const EdgeInsets.fromLTRB(16, 0, 16, 24),
                 children: [
-                  const Expanded(child: Text('Report signature')),
-                  IconButton(
-                    tooltip: 'Close signature',
-                    onPressed: () => Navigator.pop(sheetContext),
-                    icon: const Icon(Icons.close),
+                  SignatureBlock(
+                    recordId: widget.record.id,
+                    canSign: detail['canSign'] == true,
+                    signature: recordSignatureOf(detail),
+                    onChanged: () {
+                      if (sheetContext.mounted) {
+                        Navigator.pop(sheetContext, true);
+                      }
+                    },
                   ),
                 ],
               ),
             ),
-            Expanded(
-              child: SingleChildScrollView(
-                padding: const EdgeInsets.all(16),
-                child: SignatureBlock(
-                  recordId: widget.record.id,
-                  canSign: detail['canSign'] == true,
-                  signature: recordSignatureOf(detail),
-                  onChanged: () {
-                    if (sheetContext.mounted) Navigator.pop(sheetContext, true);
-                  },
-                ),
-              ),
-            ),
-          ],
+          ),
         ),
       ),
     );
@@ -320,47 +295,83 @@ class _PreviewState extends ConsumerState<RecordPreviewPage> {
     final sig = _detail == null ? null : recordSignatureOf(_detail!);
     final loaded =
         !_busy && _error == null && _detail != null && _pdfBytes != null;
+    final hasPdf = _pdfBytes != null;
     return Scaffold(
       appBar: AppBar(
-        toolbarHeight: 80,
-        title: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            const Text(
-              'GCForm-01 — Anecdotal Report',
-              maxLines: 1,
-              overflow: TextOverflow.ellipsis,
-              style: TextStyle(fontSize: 15, fontWeight: FontWeight.w600),
-            ),
-            Text(
-              '${widget.record.studentName} · ${widget.record.date}',
-              maxLines: 1,
-              overflow: TextOverflow.ellipsis,
-              style: Theme.of(context).textTheme.bodySmall,
-            ),
-          ],
+        // Same header height as the Grade Record screen (desk chrome).
+        toolbarHeight: 72,
+        backgroundColor: Theme.of(context).scaffoldBackgroundColor,
+        surfaceTintColor: Colors.transparent,
+        scrolledUnderElevation: 0,
+        shape: Border(
+          bottom: BorderSide(color: Theme.of(context).colorScheme.outline),
         ),
+        centerTitle: true,
+        leadingWidth: 64,
+        leading: ZBackButton(
+          icon: const Icon(LucideIcons.chevronLeft),
+          tooltip: 'Back',
+          padding: EdgeInsets.zero,
+          onPressed: () => Navigator.of(context).pop(),
+        ),
+        title: const Text('Anecdotal Report'),
         actions: [
-          if (sig != null)
-            const Padding(
-              padding: EdgeInsets.only(right: 12),
-              child: ZStatusPill(text: 'Signed', tone: StatusTone.green),
+          PopupMenuButton<String>(
+            tooltip: 'Document actions',
+            enabled: hasPdf && !_exportingPdf,
+            // Same circular outline as the screen Back button.
+            style: IconButton.styleFrom(
+              side: BorderSide(color: Theme.of(context).colorScheme.outline),
+              minimumSize: const Size(42, 42),
+              shape: const CircleBorder(),
             ),
+            icon: _exportingPdf
+                ? const SizedBox(
+                    width: 20,
+                    height: 20,
+                    child: CircularProgressIndicator(strokeWidth: 2),
+                  )
+                : const Icon(LucideIcons.moreVertical),
+            onSelected: (value) {
+              if (!hasPdf) return;
+              if (value == 'share') _sharePdf();
+              if (value == 'download') _downloadPdf();
+            },
+            itemBuilder: (context) => [
+              PopupMenuItem(
+                value: 'share',
+                child: Row(
+                  children: [
+                    Icon(LucideIcons.share2, size: 16),
+                    const SizedBox(width: 10),
+                    const Text('Share'),
+                  ],
+                ),
+              ),
+              PopupMenuItem(
+                value: 'download',
+                child: Row(
+                  children: [
+                    Icon(LucideIcons.download, size: 16),
+                    const SizedBox(width: 10),
+                    const Text('Download'),
+                  ],
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(width: 4),
         ],
       ),
-      bottomNavigationBar: loaded
+      bottomNavigationBar: loaded && _detail!['canSign'] == true
           ? PreviewActionBar(
-              canSign: _detail!['canSign'] == true,
+              canSign: true,
               signed: sig != null,
               onSign: _openSignature,
-              onXlsx: _shareXlsx,
-              onPdf: _sharePdf,
-              xlsxBusy: _exportingXlsx,
-              pdfBusy: _exportingPdf,
             )
           : null,
       body: AdviserBamaAccess(
-        busy: _exportingXlsx || _exportingPdf,
+        busy: _exportingPdf,
         child: ColoredBox(
           color: Theme.of(context).colorScheme.surfaceContainerLow,
           child: _busy

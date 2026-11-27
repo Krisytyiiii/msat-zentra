@@ -12,6 +12,9 @@ import 'package:zentra_mobile/design/screen_search.dart';
 import 'package:zentra_mobile/design/shell.dart';
 import 'package:zentra_mobile/design/theme.dart';
 import 'package:zentra_mobile/features/adviser/academic_overview_page.dart';
+import 'package:zentra_mobile/features/anecdotal/anecdotal_data.dart';
+import 'package:zentra_mobile/features/anecdotal/anecdotal_repo_page.dart';
+import 'package:zentra_mobile/features/anecdotal/record_preview_page.dart';
 import 'package:zentra_mobile/features/adviser/advisory_list_data.dart';
 import 'package:zentra_mobile/features/settings/settings_data.dart';
 import 'package:zentra_mobile/shared/models.dart';
@@ -49,6 +52,7 @@ Future<void> mountShell(
   bool isAdviser = true,
   double width = 390,
   double scale = 1,
+  List<Override> overrides = const [],
 }) async {
   tester.view.devicePixelRatio = 1;
   tester.view.physicalSize = Size(width, 900);
@@ -65,6 +69,7 @@ Future<void> mountShell(
           (ref) async => const TeacherProfile(fullName: 'Test Teacher'),
         ),
         notificationsProvider.overrideWith((ref) => <ZNotification>[]),
+        ...overrides,
       ],
       child: MaterialApp(
         theme: zWorkspaceTheme(),
@@ -496,6 +501,84 @@ void main() {
       expect(tester.takeException(), isNull);
     });
   }
+
+  testWidgets('anecdotal record opens without the staff header or bottom bar', (
+    tester,
+  ) async {
+    tester.view.devicePixelRatio = 1;
+    tester.view.physicalSize = const Size(390, 900);
+    addTearDown(tester.view.resetDevicePixelRatio);
+    addTearDown(tester.view.resetPhysicalSize);
+    // Mirrors the production shell: the desk list lives in a nested navigator
+    // under a persistent header, so a plain push would keep the chrome.
+    await tester.pumpWidget(
+      ProviderScope(
+        overrides: [
+          apiClientProvider.overrideWithValue(_Api()),
+          anecdotalMineProvider.overrideWith(
+            (ref) async => [
+              MyAnecdotalRecord(
+                id: 'record-1',
+                studentId: 'roster:learner',
+                studentName: 'Ana Reyes',
+                lrn: '123456789012',
+                section: 'Grade 7 - Rizal',
+                observationDatetime: '2026-11-10T08:00:00.000Z',
+                category: 'behavioral',
+                confidentialityLevel: 'restricted',
+              ),
+            ],
+          ),
+        ],
+        child: MaterialApp(
+          theme: zWorkspaceTheme(),
+          home: Scaffold(
+            appBar: AppBar(title: const Text('shell header')),
+            body: Navigator(
+              onGenerateRoute: (_) => MaterialPageRoute<void>(
+                builder: (_) => const AnecdotalRepoPage(),
+              ),
+            ),
+          ),
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Ana Reyes').first);
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 400));
+    // The GCForm-01 preview is a dedicated screen: it covers the shell header.
+    final preview = tester.getRect(find.byType(RecordPreviewPage));
+    expect(preview.top, 0);
+    expect(preview.height, tester.view.physicalSize.height);
+    // Header height matches the Grade Record screen.
+    expect(
+      tester.getSize(find.byType(AppBar).hitTestable().first).height,
+      72,
+    );
+    // The document-actions menu is enclosed by the same circular outline as
+    // the Back button.
+    final actions = tester.widget<PopupMenuButton<String>>(
+      find.byType(PopupMenuButton<String>),
+    );
+    expect(actions.style!.shape!.resolve({}), isA<CircleBorder>());
+    // The header names the screen only, never the learner.
+    expect(
+      find.descendant(
+        of: find.byType(RecordPreviewPage),
+        matching: find.text('Anecdotal Report'),
+      ),
+      findsOneWidget,
+    );
+    expect(
+      find.descendant(
+        of: find.byType(RecordPreviewPage),
+        matching: find.textContaining('Ana Reyes'),
+      ),
+      findsNothing,
+    );
+    await tester.pumpWidget(const SizedBox());
+  });
 
   testWidgets('selected drawer destination stays readable in dark mode', (
     tester,

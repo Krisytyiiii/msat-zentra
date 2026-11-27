@@ -10,6 +10,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:signature/signature.dart';
 
+import '../../design/desk_theme.dart';
 import '../../shared/widgets.dart';
 import '../../design/status_palette.dart';
 import 'anecdotal_data.dart';
@@ -21,7 +22,11 @@ class RecordSignature {
   final String by;
   final String at;
   final String imageUrl;
-  const RecordSignature({required this.by, required this.at, required this.imageUrl});
+  const RecordSignature({
+    required this.by,
+    required this.at,
+    required this.imageUrl,
+  });
 }
 
 RecordSignature? recordSignatureOf(Map<String, dynamic> detail) {
@@ -30,9 +35,12 @@ RecordSignature? recordSignatureOf(Map<String, dynamic> detail) {
     final url = sig['imageUrl']?.toString() ?? '';
     if (url.isNotEmpty) {
       return RecordSignature(
-        by: sig['by']?.toString() ?? detail['signedBy']?.toString() ?? 'Adviser',
+        by:
+            sig['by']?.toString() ??
+            detail['signedBy']?.toString() ??
+            'Adviser',
         at: sig['at']?.toString() ?? detail['signedAt']?.toString() ?? '',
-      imageUrl: url,
+        imageUrl: url,
       );
     }
   }
@@ -77,7 +85,10 @@ class SignatureBlock extends ConsumerStatefulWidget {
 }
 
 class _SignatureBlockState extends ConsumerState<SignatureBlock> {
-  final _pad = SignatureController(penStrokeWidth: 3, exportBackgroundColor: const Color(0x00000000));
+  final _pad = SignatureController(
+    penStrokeWidth: 3,
+    exportBackgroundColor: const Color(0x00000000),
+  );
   bool _signing = false;
   bool _saving = false;
   bool _applying = false;
@@ -106,7 +117,9 @@ class _SignatureBlockState extends ConsumerState<SignatureBlock> {
     setState(() => _mySigLoading = true);
     try {
       final url = await fetchMySignature(ref);
-      if (mounted) setState(() => _mySignatureUrl = (url?.isEmpty ?? true) ? null : url);
+      if (mounted) {
+        setState(() => _mySignatureUrl = (url?.isEmpty ?? true) ? null : url);
+      }
     } catch (_) {
       // The pad stays available — saving a signature fixes this too (web parity).
       if (mounted) setState(() => _mySignatureUrl = null);
@@ -127,7 +140,10 @@ class _SignatureBlockState extends ConsumerState<SignatureBlock> {
         if (mounted) setState(() => _saving = false);
         return;
       }
-      await saveMySignature(ref, 'data:image/png;base64,${base64Encode(bytes)}');
+      await saveMySignature(
+        ref,
+        'data:image/png;base64,${base64Encode(bytes)}',
+      );
       final url = await fetchMySignature(ref);
       if (!mounted) return;
       setState(() {
@@ -135,9 +151,17 @@ class _SignatureBlockState extends ConsumerState<SignatureBlock> {
         _signing = false;
       });
       if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Signature saved.')));
+      ScaffoldMessenger.of(context)
+          .showSnackBar(const SnackBar(content: Text('Signature saved.')));
     } on DioException catch (e) {
-      if (mounted) setState(() => _signError = anecdotalError(e, 'Your signature could not be saved. Try drawing again.'));
+      if (mounted) {
+        setState(
+          () => _signError = anecdotalError(
+            e,
+            'Your signature could not be saved. Try drawing again.',
+          ),
+        );
+      }
     } finally {
       if (mounted) setState(() => _saving = false);
     }
@@ -153,9 +177,17 @@ class _SignatureBlockState extends ConsumerState<SignatureBlock> {
       await applyMySignature(ref, widget.recordId);
       widget.onChanged();
       if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Signature applied.')));
+      ScaffoldMessenger.of(context)
+          .showSnackBar(const SnackBar(content: Text('Signature applied.')));
     } on DioException catch (e) {
-      if (mounted) setState(() => _signError = anecdotalError(e, 'Your signature could not be applied. Try again.'));
+      if (mounted) {
+        setState(
+          () => _signError = anecdotalError(
+            e,
+            'Your signature could not be applied. Try again.',
+          ),
+        );
+      }
     } finally {
       if (mounted) setState(() => _applying = false);
     }
@@ -171,12 +203,30 @@ class _SignatureBlockState extends ConsumerState<SignatureBlock> {
       await removeRecordSignature(ref, widget.recordId);
       widget.onChanged();
       if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Signature removed.')));
+      ScaffoldMessenger.of(context)
+          .showSnackBar(const SnackBar(content: Text('Signature removed.')));
     } on DioException catch (e) {
       if (!mounted) return;
       // Web surfaces remove failures on the dialog error line.
-      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(anecdotalError(e, 'The signature could not be removed. Try again.'))));
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(
+            anecdotalError(e, 'The signature could not be removed. Try again.'),
+          ),
+        ),
+      );
     }
+  }
+
+  /// Blue primary action shared by Save / Apply / Create, matching the other
+  /// record screens (lifted in dark mode for contrast).
+  ButtonStyle _blueAction(BuildContext context) {
+    final dark = Theme.of(context).brightness == Brightness.dark;
+    return FilledButton.styleFrom(
+      backgroundColor: zLift(context, const Color(0xFF2563EB)),
+      foregroundColor: dark ? const Color(0xFF06101F) : Colors.white,
+      minimumSize: const Size(48, 48),
+    );
   }
 
   @override
@@ -184,124 +234,170 @@ class _SignatureBlockState extends ConsumerState<SignatureBlock> {
     final theme = Theme.of(context);
     final sig = widget.signature;
     return ZCard(
-      child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-        const Text('Signature', style: TextStyle(fontSize: 15, fontWeight: FontWeight.w600)),
-        const SizedBox(height: 8),
-        if (sig != null) ...[
-          Wrap(
-            crossAxisAlignment: WrapCrossAlignment.center,
-            spacing: 8,
-            children: [
-              Container(
-                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
-                decoration: BoxDecoration(color: theme.colorScheme.primary, borderRadius: BorderRadius.circular(4)),
-                child: Text('Signed',
-                    style: TextStyle(fontSize: 11, fontWeight: FontWeight.w700, color: theme.colorScheme.onPrimary)),
-              ),
-              Text(
-                sig.at.isEmpty ? sig.by : '${sig.by} · ${sig.at.length >= 10 ? sig.at.substring(0, 10) : sig.at}',
-                style: theme.textTheme.bodySmall,
-              ),
-            ],
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          const Text(
+            'Signature',
+            style: TextStyle(fontSize: 15, fontWeight: FontWeight.w600),
           ),
           const SizedBox(height: 8),
-        ],
-        if (_signing) ...[
-          Container(
-            height: 160,
-            decoration: BoxDecoration(
-              borderRadius: BorderRadius.circular(6),
-              border: Border.all(color: theme.colorScheme.outline),
+          if (sig != null) ...[
+            Wrap(
+              crossAxisAlignment: WrapCrossAlignment.center,
+              spacing: 8,
+              children: [
+                Container(
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 8,
+                    vertical: 2,
+                  ),
+                  decoration: BoxDecoration(
+                    color: theme.colorScheme.primary,
+                    borderRadius: BorderRadius.circular(4),
+                  ),
+                  child: Text(
+                    'Signed',
+                    style: TextStyle(
+                      fontSize: 11,
+                      fontWeight: FontWeight.w700,
+                      color: theme.colorScheme.onPrimary,
+                    ),
+                  ),
+                ),
+                Text(
+                  sig.at.isEmpty
+                      ? sig.by
+                      : '${sig.by} · ${sig.at.length >= 10 ? sig.at.substring(0, 10) : sig.at}',
+                  style: theme.textTheme.bodySmall,
+                ),
+              ],
             ),
-            child: Signature(controller: _pad, backgroundColor: theme.colorScheme.surface),
-          ),
-          const SizedBox(height: 8),
-          Row(children: [
-            Expanded(
-              child: OutlinedButton(
-                onPressed: _saving
-                    ? null
-                    : () => setState(() {
-                          _signing = false;
-                          _signError = null;
-                        }),
-                child: const Text('Cancel'),
+            const SizedBox(height: 8),
+          ],
+          if (_signing) ...[
+            Container(
+              height: 160,
+              decoration: BoxDecoration(
+                color: zSoft(context),
+                borderRadius: BorderRadius.circular(14),
+                border: Border.all(color: zLine(context)),
+              ),
+              clipBehavior: Clip.antiAlias,
+              child: Signature(
+                controller: _pad,
+                backgroundColor: theme.colorScheme.surface,
               ),
             ),
-            const SizedBox(width: 8),
-            Expanded(
-              child: FilledButton(
-                onPressed: _saving ? null : _saveDrawn,
-                child: Text(_saving ? 'Saving…' : 'Save signature'),
-              ),
+            const SizedBox(height: 12),
+            Row(
+              children: [
+                Expanded(
+                  child: OutlinedButton(
+                    onPressed: _saving
+                        ? null
+                        : () => setState(() {
+                            _signing = false;
+                            _signError = null;
+                          }),
+                    child: const Text('Cancel'),
+                  ),
+                ),
+                const SizedBox(width: 8),
+                Expanded(
+                  child: FilledButton(
+                    style: _blueAction(context),
+                    onPressed: _saving ? null : _saveDrawn,
+                    child: Text(_saving ? 'Saving…' : 'Save'),
+                  ),
+                ),
+              ],
             ),
-          ]),
-        ] else if (widget.canSign && sig == null && _mySignatureUrl != null) ...[
-          Row(children: [
-            Expanded(
+          ] else if (widget.canSign &&
+              sig == null &&
+              _mySignatureUrl != null) ...[
+            // Saved signature first (centred), then its actions.
+            _MinePreview(url: _mySignatureUrl),
+            const SizedBox(height: 12),
+            Row(
+              children: [
+                Expanded(
+                  child: FilledButton.icon(
+                    style: _blueAction(context),
+                    icon: const Icon(Icons.draw_outlined, size: 16),
+                    onPressed: _applying ? null : _apply,
+                    label: Text(_applying ? 'Applying…' : 'Apply'),
+                  ),
+                ),
+                const SizedBox(width: 8),
+                Expanded(
+                  child: OutlinedButton(
+                    onPressed: () => setState(() {
+                      _signError = null;
+                      _signing = true;
+                      _pad.clear();
+                    }),
+                    child: const Text('Replace'),
+                  ),
+                ),
+              ],
+            ),
+          ] else if (widget.canSign &&
+              sig == null &&
+              _mySignatureUrl == null &&
+              !_mySigLoading) ...[
+            SizedBox(
+              width: double.infinity,
               child: FilledButton.icon(
+                style: _blueAction(context),
                 icon: const Icon(Icons.draw_outlined, size: 16),
-                onPressed: _applying ? null : _apply,
-                label: Text(_applying ? 'Applying…' : 'Apply my signature'),
-              ),
-            ),
-            const SizedBox(width: 8),
-            Expanded(
-              child: OutlinedButton(
                 onPressed: () => setState(() {
                   _signError = null;
                   _signing = true;
                   _pad.clear();
                 }),
-                child: const Text('Replace'),
+                label: const Text('Create my signature'),
               ),
             ),
-          ]),
-          const SizedBox(height: 8),
-          _MinePreview(url: _mySignatureUrl),
-        ] else if (widget.canSign && sig == null && _mySignatureUrl == null && !_mySigLoading) ...[
-          SizedBox(
-            width: double.infinity,
-            child: OutlinedButton.icon(
-              icon: const Icon(Icons.draw_outlined, size: 16),
-              onPressed: () => setState(() {
-                _signError = null;
-                _signing = true;
-                _pad.clear();
-              }),
-              label: const Text('Create my signature'),
+          ] else if (widget.canSign && sig == null && _mySigLoading) ...[
+            const Padding(
+              padding: EdgeInsets.symmetric(vertical: 4),
+              child: ZSkeletonList(count: 1),
             ),
-          ),
-        ] else if (widget.canSign && sig == null && _mySigLoading) ...[
-          const Padding(
-            padding: EdgeInsets.symmetric(vertical: 4),
-            child: ZSkeletonList(count: 1),
-          ),
-        ] else if (widget.canSign && sig != null) ...[
-          SizedBox(
-            width: double.infinity,
-            child: OutlinedButton.icon(
-              style: OutlinedButton.styleFrom(
-                foregroundColor: zDangerText(Theme.of(context)),
+          ] else if (widget.canSign && sig != null) ...[
+            SizedBox(
+              width: double.infinity,
+              child: OutlinedButton.icon(
+                style: OutlinedButton.styleFrom(
+                  foregroundColor: zDangerText(Theme.of(context)),
+                ),
+                icon: const Icon(Icons.delete_outline, size: 16),
+                onPressed: _remove,
+                onLongPress: () => setState(() => _confirmingRemove = false),
+                label: Text(
+                  _confirmingRemove ? 'Confirm remove' : 'Remove signature',
+                ),
               ),
-              icon: const Icon(Icons.delete_outline, size: 16),
-              onPressed: _remove,
-              onLongPress: () => setState(() => _confirmingRemove = false),
-              label: Text(_confirmingRemove ? 'Confirm remove' : 'Remove signature'),
             ),
-          ),
-        ] else ...[
-          _MinePreview(url: _mySignatureUrl),
+          ] else ...[
+            _MinePreview(url: _mySignatureUrl),
+          ],
+          if (_signError != null) ...[
+            const SizedBox(height: 6),
+            Text(
+              _signError!,
+              style: TextStyle(fontSize: 12, color: theme.colorScheme.error),
+            ),
+          ],
+          if (!widget.canSign) ...[
+            const SizedBox(height: 6),
+            Text(
+              'Only the section adviser or observing teacher can sign.',
+              style: theme.textTheme.bodySmall,
+            ),
+          ],
         ],
-        if (_signError != null) ...[
-          const SizedBox(height: 6),
-          Text(_signError!, style: TextStyle(fontSize: 12, color: theme.colorScheme.error)),
-        ],
-        if (!widget.canSign) ...[
-          const SizedBox(height: 6),
-          Text('Only the section adviser or observing teacher can sign.', style: theme.textTheme.bodySmall),
-        ],
-      ]),
+      ),
     );
   }
 }
@@ -314,9 +410,18 @@ class _MinePreview extends StatelessWidget {
   Widget build(BuildContext context) {
     final img = signatureImageOf(url);
     if (img == null) {
-      return const ZEmpty(compact: true, icon: Icons.draw_outlined,
-        title: 'No saved signature yet.');
+      return const ZEmpty(
+        compact: true,
+        icon: Icons.draw_outlined,
+        title: 'No saved signature yet.',
+      );
     }
-    return Image(image: img, height: 72, errorBuilder: (context, _, _) => const Icon(Icons.draw_outlined));
+    return Center(
+      child: Image(
+        image: img,
+        height: 72,
+        errorBuilder: (context, _, _) => const Icon(Icons.draw_outlined),
+      ),
+    );
   }
 }

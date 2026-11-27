@@ -1,6 +1,6 @@
 // Anecdotal records repo — web anecdotal/page.tsx + folders/ parity.
 // All records (search, 20/page) | By student (grouped hubs). Tap opens the
-// official GCForm-01 preview (native A4 sheet + signature + Download .xlsx).
+// official GCForm-01 preview (native A4 sheet + signature + PDF share/download).
 // Empty states deep-link to Bama filing (?new=1 equivalent).
 // NOTE: custom-folder + follow-up UI was removed; the API helpers in
 // anecdotal_data.dart are intentionally kept for future use.
@@ -50,8 +50,12 @@ class _State extends ConsumerState<AnecdotalRepoPage> {
   bool get _filtered => _q.isNotEmpty || _category != null;
 
   void _openDetail(MyAnecdotalRecord r) {
-    Navigator.of(context)
-        .push(MaterialPageRoute(builder: (_) => RecordPreviewPage(record: r)));
+    // The GCForm-01 preview owns its own header and action bar; push it on the
+    // root navigator so the staff header and bottom navigation stay out of the
+    // dedicated screen.
+    Navigator.of(context, rootNavigator: true).push(
+      MaterialPageRoute(builder: (_) => RecordPreviewPage(record: r)),
+    );
   }
 
   /// Chips are the legend and the filter at once: tapping the selected chip

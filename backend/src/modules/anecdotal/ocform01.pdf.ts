@@ -28,7 +28,6 @@ const CONTENT_W = PAGE_W - MARGIN_X * 2;
 const USABLE_H = PAGE_H - MARGIN_TOP - MARGIN_BOTTOM;
 
 const INK = rgb(0, 0, 0);
-const EMAIL_BLUE = rgb(0x05 / 255, 0x63 / 255, 0xc1 / 255);
 
 async function loadLogos(): Promise<{ deped: Uint8Array; msat: Uint8Array }> {
   const here = path.dirname(fileURLToPath(import.meta.url));
@@ -88,9 +87,14 @@ const PARA_FIRST_BASE = PARA_PAD_TOP + 12 * 0.85; // 14.2
 const PARA_RULE_BELOW = 2.5;
 const PARA_BOT_PAD = 6;
 
-function paraBlock(heading: string, text: string, body: PDFFont): ParaBlock {
+function paraBlock(
+  heading: string,
+  text: string,
+  body: PDFFont,
+  minLines = PARA_MIN_LINES
+): ParaBlock {
   const lines = wrapText(text.trim() || " ", CONTENT_W - 20 - 8, 12, body);
-  const rows = Math.max(lines.length, PARA_MIN_LINES);
+  const rows = Math.max(lines.length, minLines);
   const areaH = PARA_FIRST_BASE + (rows - 1) * PARA_LINE_H + PARA_RULE_BELOW + PARA_BOT_PAD;
   return { heading, lines, rows, height: PARA_LABEL_H + areaH };
 }
@@ -173,7 +177,14 @@ export async function buildOcForm01Pdf(data: OcForm01Data): Promise<Uint8Array> 
   const gap12 = 12;
   const incident = paraBlock("Description of the Incident:", data.descriptionOfIncident, body);
   const location = paraBlock("Description of the Location/ Setting:", data.descriptionOfLocation, body);
-  const notes = paraBlock("Notes/ Recommendations/ Actions:", data.notesRecommendationsActions, body);
+  // The notes block carries one ruled row fewer than the other narrative
+  // blocks: its trailing blank line crowded the Academic heading.
+  const notes = paraBlock(
+    "Notes/ Recommendations/ Actions:",
+    data.notesRecommendationsActions,
+    body,
+    PARA_MIN_LINES - 1
+  );
   const academicH = 24;
   const f41 = fieldRow("Class Performance: ", data.classPerformance, body);
   const f42 = fieldRow(
@@ -267,18 +278,13 @@ export async function buildOcForm01Pdf(data: OcForm01Data): Promise<Uint8Array> 
   centered("MATI SCHOOL OF ARTS AND TRADES", 12, bold, 17);
   centered("Quezon Ave., Barangay Sainz, City of Mati, Davao Oriental", 9, body, 13);
   centered("Tel # (087) 388-3448", 9, body, 13);
-  centered("Email Add: msat.mati@deped.gov.ph", 9, body, 13, EMAIL_BLUE, true);
-  // Double rule under the header (A10 in the workbook).
+  centered("Email Add: msat.mati@deped.gov.ph", 9, body, 13, INK, true);
+  // Single rule under the header (the lower line of the workbook's A10
+  // double rule is intentionally omitted).
   const ruleTop = topY(t);
   page.drawLine({
     start: { x: X(0), y: ruleTop - LW(1) },
     end: { x: X(CONTENT_W), y: ruleTop - LW(1) },
-    thickness: LW(1),
-    color: INK,
-  });
-  page.drawLine({
-    start: { x: X(0), y: ruleTop - 4 * scale },
-    end: { x: X(CONTENT_W), y: ruleTop - 4 * scale },
     thickness: LW(1),
     color: INK,
   });

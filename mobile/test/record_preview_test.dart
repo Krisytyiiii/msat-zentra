@@ -67,11 +67,7 @@ Future<void> _mountBar(
   WidgetTester tester, {
   bool canSign = true,
   bool signed = false,
-  bool xlsxBusy = false,
-  bool pdfBusy = false,
   VoidCallback? onSign,
-  VoidCallback? onXlsx,
-  VoidCallback? onPdf,
   double textScale = 1,
 }) async {
   tester.view.devicePixelRatio = 1;
@@ -90,11 +86,7 @@ Future<void> _mountBar(
         bottomNavigationBar: PreviewActionBar(
           canSign: canSign,
           signed: signed,
-          xlsxBusy: xlsxBusy,
-          pdfBusy: pdfBusy,
           onSign: onSign ?? () {},
-          onXlsx: onXlsx ?? () {},
-          onPdf: onPdf ?? () {},
         ),
       ),
     ),
@@ -102,31 +94,29 @@ Future<void> _mountBar(
 }
 
 void main() {
-  testWidgets('action bar exposes signing and both exports on a phone', (
-    tester,
-  ) async {
+  testWidgets('action bar holds only the signing action', (tester) async {
     var signs = 0;
-    var spreadsheets = 0;
-    var pdfs = 0;
-    await _mountBar(
-      tester,
-      onSign: () => signs++,
-      onXlsx: () => spreadsheets++,
-      onPdf: () => pdfs++,
-    );
+    await _mountBar(tester, onSign: () => signs++);
     await tester.tap(find.text('Sign'));
-    await tester.tap(find.text('.xlsx'));
-    await tester.tap(find.text('.PDF'));
-    expect([signs, spreadsheets, pdfs], [1, 1, 1]);
+    expect(signs, 1);
+    expect(find.text('.xlsx'), findsNothing);
+    expect(find.text('.PDF'), findsNothing);
     expect(tester.takeException(), isNull);
   });
 
-  testWidgets('unauthorized readers only see export actions', (tester) async {
+  testWidgets('sign action uses the blue accent', (tester) async {
+    await _mountBar(tester);
+    final button = tester.widget<FilledButton>(find.byType(FilledButton));
+    final background = button.style!.backgroundColor!.resolve({})!;
+    expect(background.b, greaterThan(background.r));
+    expect(background.b, greaterThan(background.g));
+  });
+
+  testWidgets('readers who cannot sign get no bottom bar', (tester) async {
     await _mountBar(tester, canSign: false);
     expect(find.text('Sign'), findsNothing);
     expect(find.text('Signature'), findsNothing);
-    expect(find.text('.xlsx'), findsOneWidget);
-    expect(find.text('.PDF'), findsOneWidget);
+    expect(find.byType(FilledButton), findsNothing);
   });
 
   testWidgets('signed report offers signature management', (tester) async {
@@ -141,26 +131,6 @@ void main() {
     await _mountBar(tester, signed: true, textScale: 1.5);
     expect(tester.takeException(), isNull);
   });
-
-  for (final pdfBusy in [false, true]) {
-    testWidgets(
-      'busy ${pdfBusy ? 'PDF' : 'XLSX'} leaves other actions enabled',
-      (tester) async {
-        await _mountBar(tester, xlsxBusy: !pdfBusy, pdfBusy: pdfBusy);
-        TextButton button(String label) => tester.widget<TextButton>(
-          find.ancestor(
-            of: find.text(label),
-            matching: find.byType(TextButton),
-          ),
-        );
-        expect(button('Sign').onPressed, isNotNull);
-        expect(button('.PDF').onPressed, pdfBusy ? isNull : isNotNull);
-        expect(button('.xlsx').onPressed, pdfBusy ? isNotNull : isNull);
-        // Do not pumpAndSettle: the busy spinner intentionally animates.
-        await tester.pumpWidget(const SizedBox());
-      },
-    );
-  }
 
   for (final failPdf in [false, true]) {
     testWidgets('${failPdf ? 'PDF' : 'detail'} failure offers retry', (

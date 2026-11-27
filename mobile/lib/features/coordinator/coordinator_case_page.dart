@@ -1,17 +1,15 @@
-import 'dart:io';
-
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:lucide_icons_flutter/lucide_icons.dart';
-import 'package:path_provider/path_provider.dart';
 import 'package:pdfrx/pdfrx.dart';
 import 'package:share_plus/share_plus.dart';
 
 import '../../design/overview_theme.dart';
 import '../../design/theme.dart' show zLightTheme;
 import '../../shared/models.dart';
+import '../../shared/pdf_download.dart';
 import '../../shared/widgets.dart';
 import '../adviser/student_profile_components.dart';
 import 'coordinator_data.dart';
@@ -1397,13 +1395,16 @@ class _AnecdotalDocumentState
   Future<void> _download(BuildContext context, Uint8List bytes) async {
     final messenger = ScaffoldMessenger.of(context);
     try {
-      final directory =
-          await getDownloadsDirectory() ??
-          await getApplicationDocumentsDirectory();
-      final file = File('${directory.path}/${widget.fileName}');
-      await file.writeAsBytes(bytes, flush: true);
+      final saved = await savePdfToDevice(
+        fileName: widget.fileName,
+        bytes: bytes,
+      );
       messenger.showSnackBar(
-        SnackBar(content: Text('${widget.fileName} saved to Downloads.')),
+        SnackBar(
+          content: Text(
+            saved == null ? 'Download cancelled.' : '${widget.fileName} saved.',
+          ),
+        ),
       );
     } catch (_) {
       messenger.showSnackBar(

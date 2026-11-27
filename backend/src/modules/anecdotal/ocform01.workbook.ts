@@ -212,13 +212,15 @@ export async function buildOcForm01Workbook(
     name: ARIAL,
     size: 9,
     underline: true,
-    color: { argb: "FF0563C1" },
+    color: { argb: "FF000000" },
   };
   email.alignment = center;
 
   ws.mergeCells("A10:R10");
+  // One rule under the header: the lower line of the former double rule is
+  // intentionally omitted so the workbook matches the PDF.
   ws.getCell("A10").border = {
-    bottom: { style: "double", color: { argb: "FF000000" } },
+    bottom: { style: "thin", color: { argb: "FF000000" } },
   };
   ws.getRow(10).height = 8;
 
