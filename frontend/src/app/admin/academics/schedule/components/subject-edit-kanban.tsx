@@ -16,7 +16,8 @@ import styles from "./add-section-kanban.module.css";
 
 const CATEGORIES = [
   { value: "CORE", label: "Core" },
-  { value: "ELECTIVE", label: "Elective" },
+  { value: "APPLIED", label: "Applied" },
+  { value: "SPECIALIZED", label: "Specialized" },
 ] as const;
 
 interface Props {
@@ -108,7 +109,7 @@ export function SubjectEditKanban({ subject, onClose }: Props) {
               label="Category"
               variant="tags"
               options={CATEGORIES.map((c) => ({ value: c.value, label: c.label, tone: "neutral" as const }))}
-              value={category === "ELECTIVE" ? "ELECTIVE" : "CORE"}
+              value={category === "ELECTIVE" ? "SPECIALIZED" : category}
               onChange={(next) => setCategory(next)}
               className="self-start"
             />

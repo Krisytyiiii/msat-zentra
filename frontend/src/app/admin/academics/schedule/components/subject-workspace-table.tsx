@@ -22,9 +22,12 @@ export function gradeLabel(grade: string): string {
   return GRADES.find((g) => g.key === grade)?.label ?? grade;
 }
 
-export function categoryLabel(category: string): string {
-  return category === "ELECTIVE" ? "Elective" : "Core";
-}
+import {
+  subjectCategoryLabel as categoryLabel,
+  subjectCategoryTone as categoryTone,
+} from "@/lib/labels/subject-category";
+
+export { categoryLabel, categoryTone };
 
 /** "Locked — used by 3 timetable slots, 1 teacher assignment, gradebook records". */
 export function lockReason(links: ScheduleSubject["links"]): string {
@@ -178,7 +181,7 @@ export function SubjectWorkspaceTable({
                 </td>
                 <td className="px-4 py-2.5 align-middle whitespace-nowrap">
                   <Pill
-                    tone={s.category === "ELECTIVE" ? "sky" : "amber"}
+                    tone={categoryTone(s.category)}
                     label="Subject category"
                   >
                     {categoryLabel(s.category)}

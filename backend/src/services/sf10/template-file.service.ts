@@ -9,6 +9,10 @@
  *    the template workbook and leaves every label, merge, border and formula
  *    master alone. The LEARNING AREAS column is blank in the template, so each
  *    filled row's learning area is written from Zentra's own subject name.
+ *  - `fillShsSf10Template` fills DepEd's Senior High School form
+ *    (`assets/sf10-template-shs.xlsx`: FRONT = Grade 11, BACK = Grade 12, ANNEX =
+ *    subject checklist) for the SHS band, leaving the book's own final-grade,
+ *    action-taken and annex formulas intact.
  *  - `renderSf10TemplatePdf` turns a filled workbook into a PDF at the exact
  *    print size the form is laid out for (10.4" × 13" portrait, margins
  *    top 0.1", left/right 0.25", bottom 0.75"). There is no XLSX→PDF engine in
@@ -20,6 +24,7 @@ import path from "node:path";
 import { fileURLToPath } from "node:url";
 
 import { logger } from "../../lib/pino.js";
+import { classifyShsSubject, normalizeSubjectCategory, shsCategoryTag } from "./subject-category.js";
 import { convertXlsxToPdf } from "./xlsx-to-pdf.service.js";
 
 type ExcelJSModule = typeof import("exceljs");
@@ -72,6 +77,8 @@ export interface Sf10TemplateSubjectRow {
   quarters: Array<number | null>;
   rating: number;
   remarks: "PASSED" | "FAILED";
+  /** Stored Core/Applied/Specialized tag (SF10-SHS column A). */
+  category?: string;
 }
 
 export interface Sf10TemplateInput {
@@ -88,7 +95,7 @@ const TEMPLATE_PATH = path.join(
 const SHS_TEMPLATE_PATH = path.join(
   path.dirname(fileURLToPath(import.meta.url)),
   "assets",
-  "sf10-template-sshs.xlsx",
+  "sf10-template-shs.xlsx",
 );
 
 /** Header logos, shared with the anecdotal OCForm-01 workbook. */
@@ -227,6 +234,28 @@ export const SF10_JHS_LAYOUT = {
 
 function writeCell(ws: Worksheet, row: number, col: number, value: string | number | null): void {
   ws.getRow(row).getCell(col).value = value;
+}
+
+/**
+ * Strip the cached result of every formula cell, leaving the formula itself.
+ *
+ * The SHS record is formula-driven, and this workbook ships with its sample
+ * learner's results cached in those cells. A reader that trusts the cache (Excel
+ * and LibreOffice both do for xlsx by default) would print the sample grades and
+ * action-taken labels over the learner's real data, so the cached values are
+ * removed and the file is flagged for a full recalculation on load.
+ */
+function dropFormulaResults(ws: Worksheet): void {
+  ws.eachRow({ includeEmpty: false }, (row) => {
+    row.eachCell({ includeEmpty: false }, (cell) => {
+      const value = cell.value as unknown;
+      if (!value || typeof value !== "object") return;
+      if (!("formula" in value) && !("sharedFormula" in value)) return;
+      const rest = { ...(value as Record<string, unknown>) };
+      delete rest.result;
+      (cell as unknown as { value: unknown }).value = rest;
+    });
+  });
 }
 
 /**
@@ -667,133 +696,150 @@ export async function fillSf10Template(input: Sf10TemplateInput): Promise<Buffer
 /* ------------------------------- SHS fill --------------------------------- */
 
 /**
- * The Strengthened SHS form (SF10-SHS v2026) is a different book from the JHS
- * one: it has no per-grade "block" section, but one FRONT sheet for Grade 11
- * and one BACK sheet for Grade 12, each carrying a FIRST and a SECOND semester
- * table plus a final-grades summary. Every semester table only has two quarter
- * columns (Q1/Q2 on the first, Q3/Q4 on the second), which fits Zentra's
- * trimester: terms 1–2 land in the first semester and term 3 in the second,
- * Q4 stays blank.
+ * The SHS permanent record (SF10-SHS) is DepEd's official blank form: FRONT
+ * carries Grade 11 (first-semester table, its remedial block, second-semester
+ * table, its remedial block), BACK carries Grade 12 and the closing page, and
+ * ANNEX is the checklist of subjects taken.
  *
- * The template ships with sample subjects, tags and formulas. The fill rewrites
- * the touched rows with plain values (formulas flattened first so a shared
- * formula master is never overwritten), clears the grade sheet that does not
- * belong to this learner, and re-applies one shared print scale so both record
- * pages print the same width with the same gutters.
+ * Unlike the JHS book, this one is formula-driven: SEM FINAL GRADE, ACTION
+ * TAKEN, the semester general average and every ANNEX checkmark are computed by
+ * the workbook from the subject name, tag and two quarter cells. The fill
+ * therefore only writes the learner's data — identity, the semester headers and
+ * the subject/quarter cells — clears the sample values the template ships with,
+ * and leaves every formula untouched.
+ *
+ * Zentra runs trimesters, so terms 1–2 land in the first semester (Q1/Q2) and
+ * term 3 in the second (Q3); Q4 stays blank on a trimestral record. A subject is
+ * written into a semester only when that semester has a grade for it, so no
+ * subject list is duplicated across the two tables.
  */
-interface ShsSemBlock {
+interface ShsSemesterBlock {
+  /** Row holding SCHOOL / SCHOOL ID / GRADE LEVEL / SY / SEM values. */
   headerRow: number;
+  /** Row holding TRACK/STRAND and SECTION values. */
   trackRow: number;
+  /** First subject row of the table. */
   subjectStart: number;
+  /** Number of subject rows the form provides. */
   subjectRows: number;
-  /** Rows whose REMARK cells sit under the form's printed computation note. */
-  noteRows?: [number, number];
+  semester: "1ST" | "2ND";
 }
 
-interface ShsGradeSheet {
+interface ShsRecordSheet {
   sheet: string;
-  blocks: [ShsSemBlock, ShsSemBlock];
-  summaryStart: number;
-  summaryRows: number;
-  generalAverageRow: number;
+  /** Printed in the GRADE LEVEL cell ("11" / "12"). */
+  gradeNumber: string;
+  /** Last row of the sheet's own print area. */
+  lastPrintRow: number;
+  semesters: readonly [ShsSemesterBlock, ShsSemesterBlock];
 }
 
-const SHS_GRADE_SHEETS: Record<string, ShsGradeSheet> = {
+const SHS_RECORD_SHEETS: Record<string, ShsRecordSheet> = {
   G11: {
     sheet: "FRONT",
-    blocks: [
-      { headerRow: 22, trackRow: 23, subjectStart: 28, subjectRows: 14, noteRows: [28, 34] },
-      { headerRow: 61, trackRow: 62, subjectStart: 67, subjectRows: 14, noteRows: [67, 73] },
+    gradeNumber: "11",
+    lastPrintRow: 106,
+    semesters: [
+      { headerRow: 23, trackRow: 25, subjectStart: 31, subjectRows: 12, semester: "1ST" },
+      { headerRow: 66, trackRow: 68, subjectStart: 74, subjectRows: 12, semester: "2ND" },
     ],
-    summaryStart: 104,
-    summaryRows: 18,
-    generalAverageRow: 123,
   },
   G12: {
     sheet: "BACK",
-    blocks: [
-      { headerRow: 3, trackRow: 4, subjectStart: 9, subjectRows: 10 },
-      { headerRow: 38, trackRow: 39, subjectStart: 44, subjectRows: 10 },
+    gradeNumber: "12",
+    lastPrintRow: 116,
+    semesters: [
+      { headerRow: 4, trackRow: 5, subjectStart: 11, subjectRows: 12, semester: "1ST" },
+      { headerRow: 46, trackRow: 48, subjectStart: 54, subjectRows: 12, semester: "2ND" },
     ],
-    summaryStart: 77,
-    summaryRows: 12,
-    generalAverageRow: 89,
   },
 };
 
-/** R = Q1/Q3, S = Q2/Q4, T = semestral grade, U = action taken, W = remark. */
-const SHS_QUARTER_COLS = [18, 19] as const;
-const SHS_SEMESTRAL_COL = 20;
-const SHS_ACTION_COL = 21;
-const SHS_REMARK_COL = 23;
-/** Summary table: Q..T quarters, U/V semestral grades, W average, X action. */
-const SHS_SUMMARY_COLS = { q: 17, q2: 18, q3: 19, q4: 20, sem1: 21, sem2: 22, ave: 23, action: 24 };
-const SHS_HEADER_COLS = {
-  school: 3,
-  schoolId: 14,
-  gradeLevel: 19,
-  section: 23,
-  track: 3,
-  schoolYear: 19,
-};
+/**
+ * Column of every value cell the fill writes. Both semester blocks and both
+ * record sheets use the same columns, so one map covers all four tables.
+ */
+const SHS_HEADER_CELLS = {
+  /** E — SCHOOL value (label A:D). */
+  school: 5,
+  /** AF — SCHOOL ID value (label AB:AE). */
+  schoolId: 32,
+  /** AS — GRADE LEVEL value (label AM:AR). */
+  gradeLevel: 45,
+  /** BA — SY value (label AY:AZ). */
+  schoolYear: 53,
+  /** BK — SEM value (label BH:BJ). */
+  semester: 63,
+  /** G — TRACK/STRAND value (label A:F). */
+  track: 7,
+  /** AS — SECTION value (label AN:AR). */
+  section: 45,
+} as const;
 
-function meanOf(values: Array<number | null | undefined>): number | null {
-  const clean = values.filter((v): v is number => typeof v === "number" && Number.isFinite(v));
-  if (clean.length === 0) return null;
-  return Math.round(clean.reduce((total, v) => total + v, 0) / clean.length);
-}
+/**
+ * Subject-table columns: A = CORE/APPLIED/SPECIALIZED tag, I = SUBJECTS,
+ * AT = first quarter, AY = second quarter. BD (SEM FINAL GRADE) and BI (ACTION
+ * TAKEN) are the template's own formulas and are never written.
+ */
+const SHS_TAG_COL = 1;
+const SHS_SUBJECT_COL = 9;
+const SHS_QUARTER_COLS = [46, 51] as const; // AT, AY
 
-function inNoteRows(block: ShsSemBlock, row: number): boolean {
-  return !!block.noteRows && row >= block.noteRows[0] && row <= block.noteRows[1];
-}
+/** Rows carrying the REMEDIAL CLASSES line, per record sheet. */
+const SHS_REMEDIAL_LABEL_ROWS: Record<string, number[]> = { FRONT: [52, 95], BACK: [32, 75] };
+/**
+ * Label cells on that line. A ("REMEDIAL CLASSES") is only clipped on BACK, where
+ * it is merged across A:F; on FRONT it is a bare cell whose text spills right.
+ */
+const SHS_REMEDIAL_LABEL_COLS: Record<string, number[]> = { FRONT: [9, 23], BACK: [1, 9, 23] };
 
-/** Every row the fill rewrites, so shared formulas can be flattened first. */
-
-function clearShsSheet(ws: Worksheet, sheet: ShsGradeSheet): void {
-  for (const block of sheet.blocks) {
-    for (const col of [SHS_HEADER_COLS.school, SHS_HEADER_COLS.schoolId, SHS_HEADER_COLS.gradeLevel, SHS_HEADER_COLS.section]) {
+/** Blank every cell the fill owns on a record sheet, leaving the formulas. */
+function clearShsSheet(ws: Worksheet, sheet: ShsRecordSheet): void {
+  for (const block of sheet.semesters) {
+    for (const col of [
+      SHS_HEADER_CELLS.school,
+      SHS_HEADER_CELLS.schoolId,
+      SHS_HEADER_CELLS.gradeLevel,
+      SHS_HEADER_CELLS.schoolYear,
+      SHS_HEADER_CELLS.semester,
+    ]) {
       writeCell(ws, block.headerRow, col, null);
     }
-    for (const col of [SHS_HEADER_COLS.track, SHS_HEADER_COLS.schoolYear]) {
-      writeCell(ws, block.trackRow, col, null);
-    }
+    writeCell(ws, block.trackRow, SHS_HEADER_CELLS.track, null);
+    writeCell(ws, block.trackRow, SHS_HEADER_CELLS.section, null);
     for (let i = 0; i < block.subjectRows; i += 1) {
       const row = block.subjectStart + i;
-      writeCell(ws, row, 1, null);
-      writeCell(ws, row, 2, null);
-      writeCell(ws, row, 4, null);
+      writeCell(ws, row, SHS_TAG_COL, null);
+      writeCell(ws, row, SHS_SUBJECT_COL, null);
       writeCell(ws, row, SHS_QUARTER_COLS[0], null);
       writeCell(ws, row, SHS_QUARTER_COLS[1], null);
-      writeCell(ws, row, SHS_SEMESTRAL_COL, null);
-      writeCell(ws, row, SHS_ACTION_COL, null);
-      if (!inNoteRows(block, row)) writeCell(ws, row, SHS_REMARK_COL, null);
     }
   }
-  for (let i = 0; i < sheet.summaryRows; i += 1) {
-    const row = sheet.summaryStart + i;
-    writeCell(ws, row, 1, null);
-    writeCell(ws, row, 2, null);
-    writeCell(ws, row, 4, null);
-    for (const col of Object.values(SHS_SUMMARY_COLS)) writeCell(ws, row, col, null);
-  }
-  writeCell(ws, sheet.generalAverageRow, SHS_SUMMARY_COLS.ave, null);
-  writeCell(ws, sheet.generalAverageRow, SHS_SUMMARY_COLS.action, null);
 }
 
-function writeShsHeaders(ws: Worksheet, sheet: ShsGradeSheet, gradeNumber: string, learner: Sf10TemplateLearner): void {
-  for (const block of sheet.blocks) {
-    writeCell(ws, block.headerRow, SHS_HEADER_COLS.school, SCHOOL_NAME);
-    writeCell(ws, block.headerRow, SHS_HEADER_COLS.schoolId, SCHOOL_ID);
-    writeCell(ws, block.headerRow, SHS_HEADER_COLS.gradeLevel, gradeNumber);
-    writeCell(ws, block.headerRow, SHS_HEADER_COLS.section, learner.section);
-    writeCell(ws, block.trackRow, SHS_HEADER_COLS.track, null);
-    writeCell(ws, block.trackRow, SHS_HEADER_COLS.schoolYear, learner.schoolYear);
+function writeShsHeaders(
+  ws: Worksheet,
+  sheet: ShsRecordSheet,
+  learner: Sf10TemplateLearner,
+): void {
+  for (const block of sheet.semesters) {
+    writeCell(ws, block.headerRow, SHS_HEADER_CELLS.school, SCHOOL_NAME);
+    writeCell(ws, block.headerRow, SHS_HEADER_CELLS.schoolId, SCHOOL_ID);
+    writeCell(ws, block.headerRow, SHS_HEADER_CELLS.gradeLevel, sheet.gradeNumber);
+    writeCell(ws, block.headerRow, SHS_HEADER_CELLS.schoolYear, learner.schoolYear);
+    writeCell(ws, block.headerRow, SHS_HEADER_CELLS.semester, block.semester);
+    writeCell(ws, block.trackRow, SHS_HEADER_CELLS.track, null);
+    writeCell(ws, block.trackRow, SHS_HEADER_CELLS.section, learner.section);
   }
 }
 
+/**
+ * Write one semester table. `quarterOffset` selects the terms that belong to the
+ * semester: 0 → terms 1–2 (Q1/Q2), 2 → term 3 (Q3), Q4 always blank.
+ */
 function writeShsSemester(
   ws: Worksheet,
-  block: ShsSemBlock,
+  block: ShsSemesterBlock,
   rows: Sf10TemplateSubjectRow[],
   quarterOffset: 0 | 2,
 ): void {
@@ -801,146 +847,94 @@ function writeShsSemester(
     const row = block.subjectStart + i;
     const filled = rows[i];
     if (!filled) {
-      writeCell(ws, row, 1, null);
-      writeCell(ws, row, 2, null);
-      writeCell(ws, row, 4, null);
+      writeCell(ws, row, SHS_TAG_COL, null);
+      writeCell(ws, row, SHS_SUBJECT_COL, null);
       writeCell(ws, row, SHS_QUARTER_COLS[0], null);
       writeCell(ws, row, SHS_QUARTER_COLS[1], null);
-      writeCell(ws, row, SHS_SEMESTRAL_COL, null);
-      writeCell(ws, row, SHS_ACTION_COL, null);
-      if (!inNoteRows(block, row)) writeCell(ws, row, SHS_REMARK_COL, null);
       continue;
     }
-    const quarterValues = [filled.quarters[quarterOffset], filled.quarters[quarterOffset + 1]];
-    writeCell(ws, row, 1, i + 1);
-    writeCell(ws, row, 4, filled.subject);
-    writeCell(ws, row, SHS_QUARTER_COLS[0], quarterValues[0] ?? null);
-    writeCell(ws, row, SHS_QUARTER_COLS[1], quarterValues[1] ?? null);
-    writeCell(ws, row, SHS_SEMESTRAL_COL, meanOf(quarterValues));
-    writeCell(ws, row, SHS_ACTION_COL, filled.remarks);
-    if (!inNoteRows(block, row)) writeCell(ws, row, SHS_REMARK_COL, filled.remarks);
+    // The header asks the form to be tagged CORE / APPLIED / SPECIALIZED; the
+    // stored subject category wins, with the DepEd name matrix as the fallback.
+    const category = normalizeSubjectCategory(filled.category) ?? classifyShsSubject(filled.subject);
+    writeCell(ws, row, SHS_TAG_COL, shsCategoryTag(category));
+    writeCell(ws, row, SHS_SUBJECT_COL, filled.subject);
+    writeCell(ws, row, SHS_QUARTER_COLS[0], filled.quarters[quarterOffset] ?? null);
+    writeCell(ws, row, SHS_QUARTER_COLS[1], filled.quarters[quarterOffset + 1] ?? null);
   }
-}
-
-function writeShsSummary(ws: Worksheet, sheet: ShsGradeSheet, rows: Sf10TemplateSubjectRow[]): void {
-  for (let i = 0; i < sheet.summaryRows; i += 1) {
-    const row = sheet.summaryStart + i;
-    const filled = rows[i];
-    if (!filled) {
-      writeCell(ws, row, 1, null);
-      writeCell(ws, row, 2, null);
-      writeCell(ws, row, 4, null);
-      for (const col of Object.values(SHS_SUMMARY_COLS)) writeCell(ws, row, col, null);
-      continue;
-    }
-    writeCell(ws, row, 1, i + 1);
-    writeCell(ws, row, 4, filled.subject);
-    writeCell(ws, row, SHS_SUMMARY_COLS.q, filled.quarters[0] ?? null);
-    writeCell(ws, row, SHS_SUMMARY_COLS.q2, filled.quarters[1] ?? null);
-    writeCell(ws, row, SHS_SUMMARY_COLS.q3, filled.quarters[2] ?? null);
-    writeCell(ws, row, SHS_SUMMARY_COLS.q4, filled.quarters[3] ?? null);
-    writeCell(ws, row, SHS_SUMMARY_COLS.sem1, meanOf([filled.quarters[0], filled.quarters[1]]));
-    writeCell(ws, row, SHS_SUMMARY_COLS.sem2, meanOf([filled.quarters[2], filled.quarters[3]]));
-    writeCell(ws, row, SHS_SUMMARY_COLS.ave, filled.rating);
-    writeCell(ws, row, SHS_SUMMARY_COLS.action, filled.remarks);
-  }
-
-  const average = meanOf(rows.map((r) => r.rating));
-  writeCell(ws, sheet.generalAverageRow, SHS_SUMMARY_COLS.ave, average);
-  writeCell(
-    ws,
-    sheet.generalAverageRow,
-    SHS_SUMMARY_COLS.action,
-    average === null ? null : average >= 75 ? "PASSED" : "FAILED",
-  );
 }
 
 /* ----------------------------- SHS print setup ---------------------------- */
 
-/** The SHS book prints on Letter, the paper its page setup was authored for. */
-const SHS_PRINT_PAPER = 1 as PaperSize;
-const LETTER_WIDTH_PT = 612; // 8.5in
-const LETTER_HEIGHT_PT = 792; // 11in
+/**
+ * The official SHS record prints on legal (8.5 × 14 in) — the paper size its own
+ * page setup describes.
+ */
+const SHS_PRINT_PAPER = 5 as PaperSize;
+const LEGAL_WIDTH_PT = 612; // 8.5in
+const LEGAL_HEIGHT_PT = 1008; // 14in
 const SHS_PRINT_FIRST_COL = 1; // A
-const SHS_PRINT_LAST_COL = 25; // Y — the form's own right edge
+const SHS_PRINT_LAST_COL = 67; // BO — the form's own right edge
 const SHS_MARGINS_PT = 18;
 
 /**
- * Last row of a sheet's own print area (the template ships the DepEd range,
- * e.g. `A1:Y118`). The trailing rows past it carry styles but no content, and
- * counting them overstated the sheet's height — which shrank the shared scale
- * and left the form floating in wide gutters.
- */
-function printAreaLastRow(ws: Worksheet): number {
-  const area = ws.pageSetup.printArea;
-  const match = area ? /:?\$?[A-Z]+\$?(\d+)\s*$/.exec(area) : null;
-  const row = match ? Number(match[1]) : 0;
-  return row > 0 ? row : contentLastRow(ws);
-}
-
-/**
- * Give the two record pages one width and one scale.
+ * Give both record pages one width and one scale.
  *
- * The workbook ships with fit-to-page set per sheet, so LibreOffice scaled each
- * page independently: the taller Grade 11 page came out narrower than the
- * Grade 12 page and their left/right gutters differed. Worse, the template
- * keeps its rotated "FIRST SEMESTER / SECOND SEMESTER" helper labels in column
- * AA, outside the form (the OOXML print area ExcelJS writes is `$A1:$Y124`,
- * which LibreOffice ignores), so the printed pages showed that strip in the
- * right margin.
- *
- * Fixed shared scale (tightest fit across both pages), equalised column widths,
- * and hiding every column past Y keep both record pages identical and the
- * helper strip off the paper. The Annex fits one page the same way.
+ * The workbook ships with a different fit-to-page scale per sheet and with
+ * different column widths on FRONT and BACK, so the two pages printed at
+ * different widths with different gutters. Equalising the widths, then applying
+ * one scale computed from the tightest fit, matching print areas and the same
+ * margins makes the pair print identically.
  */
 function applyShsPrintSetup(wb: Workbook): void {
-  const records = ["FRONT", "BACK"]
-    .map((name) => wb.getWorksheet(name))
-    .filter((ws): ws is Worksheet => !!ws && contentLastRow(ws) > 1);
+  const pages = [
+    { name: "FRONT", lastRow: SHS_RECORD_SHEETS.G11.lastPrintRow },
+    { name: "BACK", lastRow: SHS_RECORD_SHEETS.G12.lastPrintRow },
+  ];
+  const availW = LEGAL_WIDTH_PT - 2 * SHS_MARGINS_PT;
+  const availH = LEGAL_HEIGHT_PT - 2 * SHS_MARGINS_PT;
+  let scale = 1;
+  const records: Array<{ ws: Worksheet; lastRow: number }> = [];
 
-  if (records.length > 0) {
-    // Equal column widths: a column that differs between the sheets would
-    // print each page at a different width.
+  for (const page of pages) {
+    const ws = wb.getWorksheet(page.name);
+    if (ws) records.push({ ws, lastRow: page.lastRow });
+  }
+
+  // One column width for both pages: a column that differs between the sheets
+  // would print the pair at different widths.
+  if (records.length > 1) {
     for (let c = SHS_PRINT_FIRST_COL; c <= SHS_PRINT_LAST_COL; c += 1) {
-      const widest = Math.max(...records.map((ws) => ws.getColumn(c).width ?? 0));
-      for (const ws of records) ws.getColumn(c).width = widest;
+      const widest = Math.max(...records.map(({ ws }) => ws.getColumn(c).width ?? 0));
+      for (const { ws } of records) ws.getColumn(c).width = widest;
     }
-    // Helper columns (the rotated semester labels) never print.
-    for (const ws of records) {
-      for (let c = SHS_PRINT_LAST_COL + 1; c <= ws.columnCount; c += 1) {
-        ws.getColumn(c).hidden = true;
-      }
-    }
+  }
 
-    const availW = LETTER_WIDTH_PT - 2 * SHS_MARGINS_PT;
-    const availH = LETTER_HEIGHT_PT - 2 * SHS_MARGINS_PT;
-    let scale = 1;
-    const lastRows = records.map((ws) => printAreaLastRow(ws));
-    for (const [index, ws] of records.entries()) {
-      const lastRow = lastRows[index];
-      let width = 0;
-      for (let c = SHS_PRINT_FIRST_COL; c <= SHS_PRINT_LAST_COL; c += 1) {
-        width += printColumnPt(ws.getColumn(c).width);
-      }
-      let height = 0;
-      for (let r = 1; r <= lastRow; r += 1) height += rowHeightPt(ws, r);
-      scale = Math.min(scale, availW / width, availH / height);
+  for (const { ws, lastRow } of records) {
+    let width = 0;
+    for (let c = SHS_PRINT_FIRST_COL; c <= SHS_PRINT_LAST_COL; c += 1) {
+      width += printColumnPt(ws.getColumn(c).width);
     }
-    const percent = Math.max(10, Math.floor(scale * 100) - 1);
+    let height = 0;
+    for (let r = 1; r <= lastRow; r += 1) height += rowHeightPt(ws, r);
+    scale = Math.min(scale, availW / width, availH / height);
+  }
 
-    records.forEach((ws, index) => {
-      const setup = ws.pageSetup;
-      setup.paperSize = SHS_PRINT_PAPER;
-      setup.orientation = "portrait";
-      setup.fitToPage = false;
-      setup.scale = percent;
-      setup.horizontalCentered = true;
-      setup.verticalCentered = true;
-      setup.horizontalDpi = 600;
-      setup.verticalDpi = 600;
-      setup.margins = { left: 0.25, right: 0.25, top: 0.25, bottom: 0.25, header: 0, footer: 0 };
-      setup.printArea = `A1:Y${lastRows[index]}`;
-    });
+  const percent = Math.max(10, Math.floor(scale * 100) - 1);
+  for (const { ws, lastRow } of records) {
+    const setup = ws.pageSetup;
+    setup.paperSize = SHS_PRINT_PAPER;
+    setup.orientation = "portrait";
+    setup.fitToPage = false;
+    setup.scale = percent;
+    setup.horizontalCentered = true;
+    setup.verticalCentered = true;
+    setup.horizontalDpi = 600;
+    setup.verticalDpi = 600;
+    setup.margins = { left: 0.25, right: 0.25, top: 0.25, bottom: 0.25, header: 0, footer: 0 };
+    // Pass a plain A1 range: ExcelJS prepends the absolute `$` itself, and a
+    // doubled `$$A$1` range is what LibreOffice silently ignored before (it then
+    // printed the sheet's stray helper cells outside the form).
+    setup.printArea = `A1:BO${lastRow}`;
   }
 
   // The Annex is a single page in the official form; the template's
@@ -959,7 +953,39 @@ function applyShsPrintSetup(wb: Workbook): void {
     setup.horizontalDpi = 600;
     setup.verticalDpi = 600;
     setup.margins = { left: 0.25, right: 0.25, top: 0.25, bottom: 0.25, header: 0, footer: 0 };
-    setup.printArea = `A1:H${contentLastRow(annex)}`;
+    setup.printArea = `A1:I${contentLastRow(annex)}`;
+  }
+}
+
+/**
+ * The FRONT sheet's DepEd logo is a floating image that sits under the
+ * top-right "SF10-SHS" mark. Excel draws the cell text over it, but LibreOffice
+ * (which renders our PDFs) draws the image last, so the logo's white background
+ * hides the first characters of the mark. Nudging that one image left clears the
+ * text — the logo is decorative, and the form code has to stay readable.
+ */
+const SHS_HEADER_LOGO_SHIFT_PT = 28;
+const EMU_PER_POINT = 12700;
+
+function shiftShsHeaderLogo(ws: Worksheet): void {
+  const images = ws.getImages();
+
+  const move = (pos: { nativeCol: number; nativeColOff: number }, deltaPt: number): void => {
+    let remaining = pos.nativeColOff - Math.round(deltaPt * EMU_PER_POINT);
+    while (remaining < 0 && pos.nativeCol > 0) {
+      pos.nativeCol -= 1;
+      const widthPt = ((ws.getColumn(pos.nativeCol + 1).width ?? 8.43) * 7 + 5) * 0.75;
+      remaining += Math.round(widthPt * EMU_PER_POINT);
+    }
+    pos.nativeColOff = Math.max(0, remaining);
+  };
+
+  for (const image of images) {
+    // The header logo is the only image anchored in the last columns.
+    const range = image.range as { tl: { nativeCol: number; nativeColOff: number }; br?: { nativeCol: number; nativeColOff: number } };
+    if (!range.br || range.br.nativeCol < 60) continue;
+    move(range.tl, SHS_HEADER_LOGO_SHIFT_PT);
+    move(range.br, SHS_HEADER_LOGO_SHIFT_PT);
   }
 }
 
@@ -970,53 +996,67 @@ export async function fillShsSf10Template(input: Sf10TemplateInput): Promise<Buf
 
   const L = input.learner;
   const gradeKey = L.gradeLevel.toUpperCase().replace(/^GRADE\s*/i, "G");
-  const sheetDef = SHS_GRADE_SHEETS[gradeKey];
-  if (!sheetDef) throw new Error(`SF10-SHS template has no grade block for ${L.gradeLevel}`);
-  const otherDef = SHS_GRADE_SHEETS[gradeKey === "G11" ? "G12" : "G11"];
-  const ws = wb.getWorksheet(sheetDef.sheet);
-  const otherWs = wb.getWorksheet(otherDef.sheet);
+  const own = SHS_RECORD_SHEETS[gradeKey];
+  if (!own) throw new Error(`SF10-SHS template has no grade block for ${L.gradeLevel}`);
+  const other = SHS_RECORD_SHEETS[gradeKey === "G11" ? "G12" : "G11"];
+  const ws = wb.getWorksheet(own.sheet);
+  const otherWs = wb.getWorksheet(other.sheet);
   if (!ws || !otherWs) throw new Error("SF10-SHS template is missing its grade sheets");
 
   // Learner identity lives on the FRONT sheet even when the grades are G12's.
   const identity = wb.getWorksheet("FRONT") ?? ws;
-  writeCell(identity, 7, 3, L.lastName ?? "");
-  writeCell(identity, 7, 11, L.firstName ?? "");
-  writeCell(identity, 7, 19, L.middleName ?? "");
-  writeCell(identity, 7, 24, L.suffix ?? "");
-  writeCell(identity, 8, 3, L.lrn);
-  writeCell(identity, 8, 11, L.birthdate ?? "");
-  writeCell(identity, 8, 16, L.sex ?? "");
+  writeCell(identity, 8, 6, L.lastName ?? ""); // F8 — LAST NAME
+  writeCell(identity, 8, 25, L.firstName ?? ""); // Y8 — FIRST NAME
+  writeCell(identity, 8, 52, L.middleName ?? ""); // AZ8 — MIDDLE NAME
+  writeCell(identity, 9, 3, L.lrn); // C9 — LRN
+  writeCell(identity, 9, 27, L.birthdate ?? ""); // AA9 — Date of Birth
+  writeCell(identity, 9, 40, L.sex ?? ""); // AN9 — Sex
 
-  // Flatten every formula on both record sheets: the fill rewrites cells that
-  // sit inside shared-formula chains, and leaving an orphaned clone behind makes
-  // the workbook unserializable.
-  flattenRowsFormulas(
-    ws,
-    Array.from({ length: contentLastRow(ws) }, (_, i) => i + 1),
-    ws.columnCount,
-  );
-  flattenRowsFormulas(
-    otherWs,
-    Array.from({ length: contentLastRow(otherWs) }, (_, i) => i + 1),
-    otherWs.columnCount,
-  );
-  clearShsSheet(ws, sheetDef);
-  clearShsSheet(otherWs, otherDef);
+  // The "Date of Birth (MM/DD/YYYY):" label is right-aligned in a merged cell and
+  // slightly wider than it. Excel lets the overflow spill left over the LRN cell;
+  // LibreOffice clips it at the merge edge and prints "ate of Birth". Shrinking
+  // the label to fit keeps it whole under both renderers.
+  const birthLabel = identity.getCell("R9");
+  birthLabel.alignment = { ...birthLabel.alignment, shrinkToFit: true };
+  shiftShsHeaderLogo(identity);
 
-  writeShsHeaders(ws, sheetDef, gradeKey.replace(/^G/, ""), L);
+  // Same LibreOffice clip on the REMEDIAL CLASSES line: "Conducted from …" and
+  // "to …" are right-aligned in merged cells just narrower than the text, so
+  // their first word lost its opening letters. Fit them to the cell.
+  for (const [sheetName, rows] of Object.entries(SHS_REMEDIAL_LABEL_ROWS)) {
+    const labelSheet = wb.getWorksheet(sheetName);
+    const cols = SHS_REMEDIAL_LABEL_COLS[sheetName];
+    if (!labelSheet || !cols) continue;
+    for (const row of rows) {
+      for (const col of cols) {
+        const cell = labelSheet.getRow(row).getCell(col);
+        cell.alignment = { ...cell.alignment, shrinkToFit: true };
+      }
+    }
+  }
+
+  clearShsSheet(ws, own);
+  clearShsSheet(otherWs, other);
+  writeShsHeaders(ws, own, L);
 
   // Zentra runs trimesters: terms 1–2 are the first semester, term 3 the
   // second. Q4 is always blank on a trimestral record.
   const firstSem = input.rows.filter((r) => r.quarters[0] != null || r.quarters[1] != null);
   const secondSem = input.rows.filter((r) => r.quarters[2] != null || r.quarters[3] != null);
-  writeShsSemester(ws, sheetDef.blocks[0], firstSem, 0);
-  writeShsSemester(ws, sheetDef.blocks[1], secondSem, 2);
-  writeShsSummary(ws, sheetDef, input.rows);
+  writeShsSemester(ws, own.semesters[0], firstSem, 0);
+  writeShsSemester(ws, own.semesters[1], secondSem, 2);
 
-  // One width, one scale and one page per sheet: the workbook's own per-sheet
-  // fit-to-page made the two record pages differ, and its helper columns past Y
-  // printed the vertical semester strip outside the form.
+  // One width, one scale and one page per record sheet; the print areas keep
+  // the workbook's stray helper cells off the paper.
   applyShsPrintSetup(wb);
+
+  // Every total, ACTION TAKEN cell and ANNEX tick is a formula whose cached
+  // result still holds the template's sample data, and LibreOffice prints the
+  // cached result rather than recomputing on load (its default for xlsx). Drop
+  // the cached results so the reader has to compute them from the values written
+  // above instead of printing the sample.
+  for (const sheet of wb.worksheets) dropFormulaResults(sheet);
+  wb.calcProperties.fullCalcOnLoad = true;
 
   return Buffer.from(await wb.xlsx.writeBuffer());
 }

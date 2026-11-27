@@ -167,7 +167,7 @@ export function useAddSubjects(onClose: () => void, onProgress?: (p: SubjectCrea
     onProgress?.({
       count: filled.length,
       gradeLabel: `Grade ${gradeLevel.replace("G", "")}`,
-      categoryLabel: category === "ELECTIVE" ? "Elective" : "Core",
+      categoryLabel: category === "APPLIED" ? "Applied" : category === "SPECIALIZED" ? "Specialized" : "Core",
     });
     // Optimistic catalog write + instant dismiss: the new rows are already in
     // the board (and animate in) before the requests are sent.

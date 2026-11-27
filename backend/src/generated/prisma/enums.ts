@@ -338,7 +338,8 @@ export type LearnerType = (typeof LearnerType)[keyof typeof LearnerType]
 
 export const SubjectCategory = {
   CORE: 'CORE',
-  ELECTIVE: 'ELECTIVE'
+  APPLIED: 'APPLIED',
+  SPECIALIZED: 'SPECIALIZED'
 } as const
 
 export type SubjectCategory = (typeof SubjectCategory)[keyof typeof SubjectCategory]

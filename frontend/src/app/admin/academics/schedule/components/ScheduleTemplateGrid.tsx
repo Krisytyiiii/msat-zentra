@@ -7,6 +7,7 @@ import { DropdownSelect } from "@/app/principal/academics/assign/components/Drop
 import dropdownStyles from "@/app/principal/academics/assign/components/dropdown-select.module.css";
 import type { SlotValue } from "./SlotEntryDialog";
 import { conflictKey } from "./use-schedule-conflicts";
+import { categoryLabel, categoryTone } from "./subject-workspace-table";
 import styles from "@/components/schedule/schedule-empty.module.css";
 
 const DAYS = [1, 2, 3, 4, 5];
@@ -125,10 +126,10 @@ export function ScheduleTemplateGrid({
                                   {subject?.code || subject?.name || "Subject"}
                                 </span>
                                 <Pill
-                                  tone={subject?.category === "ELECTIVE" ? "sky" : "amber"}
+                                  tone={categoryTone(subject?.category ?? "CORE")}
                                   label="Subject type"
                                 >
-                                  {subject?.category === "ELECTIVE" ? "Elective" : "Core"}
+                                  {categoryLabel(subject?.category ?? "CORE")}
                                 </Pill>
                               </span>
                               <span
@@ -176,7 +177,7 @@ export function ScheduleTemplateGrid({
                                   <span className={dropdownStyles.optionLabel}>
                                     <span className={dropdownStyles.optionName}>{s.code}</span>
                                     <span className={dropdownStyles.gradePill}>
-                                      {s.category === "ELECTIVE" ? "Elective" : "Core"}
+                                      {categoryLabel(s.category)}
                                     </span>
                                   </span>
                                 ),

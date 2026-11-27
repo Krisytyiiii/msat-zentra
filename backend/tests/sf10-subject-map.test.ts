@@ -268,7 +268,7 @@ describe("SF10 taken policy (any score counts; 0/blank = not taken)", () => {
 describe("SF10 per-year deficiency (strict per-grade, no cross-grade credit)", () => {
   const catalog = [
     { code: "MATH8", name: "Mathematics", gradeLevel: "G8", category: "CORE" },
-    { code: "MAPEH8", name: "MAPEH", gradeLevel: "G8", category: "ELECTIVE" },
+    { code: "MAPEH8", name: "MAPEH", gradeLevel: "G8", category: "SPECIALIZED" },
     { code: "MATH9", name: "Mathematics", gradeLevel: "G9", category: "CORE" },
     { code: "ENG9", name: "English", gradeLevel: "G9", category: "CORE" },
   ];
@@ -330,7 +330,7 @@ describe("SF10 per-year deficiency (strict per-grade, no cross-grade credit)", (
 
   it("does not credit a G9 elective toward a G8 deficiency", () => {
     const result = buildDeficiencyMap(
-      [{ code: "MAPEH8", name: "MAPEH", gradeLevel: "G8", category: "ELECTIVE" }],
+      [{ code: "MAPEH8", name: "MAPEH", gradeLevel: "G8", category: "SPECIALIZED" }],
       [{ rawName: "MAPEH", norm: "mapeh", rating: 90, gradeLevel: "G9" }],
       "G9",
     );
@@ -353,7 +353,7 @@ describe("SF10 per-year deficiency (strict per-grade, no cross-grade credit)", (
   it("sends untagged rows to add-ons, never into grade tables", () => {
     const result = buildDeficiencyMap(
       [
-        { code: "MAPEH8", name: "MAPEH", gradeLevel: "G8", category: "ELECTIVE" },
+        { code: "MAPEH8", name: "MAPEH", gradeLevel: "G8", category: "SPECIALIZED" },
         { code: "ENG9", name: "English", gradeLevel: "G9", category: "CORE" },
       ],
       [{ rawName: "English", norm: "english", rating: 88, gradeLevel: null, quarters: null, remarks: "PASSED" }],
@@ -403,7 +403,7 @@ describe("SF10 per-year deficiency (strict per-grade, no cross-grade credit)", (
     const result = buildDeficiencyMap(
       [
         { code: "MATH8", name: "Mathematics", gradeLevel: "G8", category: "CORE" },
-        { code: "MAPEH8", name: "MAPEH", gradeLevel: "G8", category: "ELECTIVE" },
+        { code: "MAPEH8", name: "MAPEH", gradeLevel: "G8", category: "SPECIALIZED" },
       ],
       subjects,
       "G8",

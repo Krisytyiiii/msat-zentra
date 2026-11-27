@@ -48,18 +48,23 @@ export function toGradeLevel(band: GradeLevel[], n: number): GradeLevel {
   return code;
 }
 
-type SubjectCategoryLabel = "Core" | "Elective";
+type SubjectCategoryLabel = "Core" | "Applied" | "Specialized";
 
 export function toCategoryLabel(category: string): SubjectCategoryLabel {
-  return category === "ELECTIVE" ? "Elective" : "Core";
+  if (category === "APPLIED") return "Applied";
+  if (category === "SPECIALIZED" || category === "ELECTIVE") return "Specialized";
+  return "Core";
 }
 
-export function parseCategory(raw: unknown): "CORE" | "ELECTIVE" {
+export function parseCategory(raw: unknown): "CORE" | "APPLIED" | "SPECIALIZED" {
   if (raw == null || String(raw).trim() === "") return "CORE";
   const norm = String(raw).trim().toLowerCase();
   if (norm === "core") return "CORE";
-  if (norm === "elective") return "ELECTIVE";
-  throw new AppError(400, "INVALID_CATEGORY", "Category must be Core or Elective");
+  if (norm === "applied") return "APPLIED";
+  // "elective" is the pre-matrix label; keep it accepted so an old client can
+  // still save a subject.
+  if (norm === "specialized" || norm === "elective") return "SPECIALIZED";
+  throw new AppError(400, "INVALID_CATEGORY", "Category must be Core, Applied or Specialized");
 }
 
 function normalizeYearLabel(raw: string): string {

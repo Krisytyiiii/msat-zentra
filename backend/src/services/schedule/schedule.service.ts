@@ -792,7 +792,7 @@ export interface CreateSubjectInput {
   /** Optional — the desk mints one from the name when it is omitted. */
   code?: string;
   gradeLevel: "G7" | "G8" | "G9" | "G10" | "G11" | "G12";
-  category: "CORE" | "ELECTIVE";
+  category: "CORE" | "APPLIED" | "SPECIALIZED";
 }
 
 export interface CreateSectionInput {
@@ -951,7 +951,7 @@ export async function createSubject(ctx: ScheduleContext, input: CreateSubjectIn
 
 export interface UpdateSubjectInput {
   name?: string;
-  category?: "CORE" | "ELECTIVE";
+  category?: "CORE" | "APPLIED" | "SPECIALIZED";
 }
 
 /**

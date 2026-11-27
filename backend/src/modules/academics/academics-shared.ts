@@ -34,8 +34,10 @@ export async function resolveScopeYear(req: {
   return active;
 }
 
-export function toCategoryLabel(category: string): "Core" | "Elective" {
-  return category === "ELECTIVE" ? "Elective" : "Core";
+export function toCategoryLabel(category: string): "Core" | "Applied" | "Specialized" {
+  if (category === "APPLIED") return "Applied";
+  if (category === "SPECIALIZED" || category === "ELECTIVE") return "Specialized";
+  return "Core";
 }
 
 export function toAdviserResult(updated: {
