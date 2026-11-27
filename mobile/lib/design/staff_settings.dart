@@ -103,6 +103,7 @@ class StaffSettingsSection extends StatelessWidget {
 
   static IconData _icon(String title) => switch (title) {
     'Profile' => LucideIcons.user,
+    'Account' => LucideIcons.user,
     'Adviser' => LucideIcons.graduationCap,
     'Master Teacher' => LucideIcons.badgeCheck,
     'Appearance' => LucideIcons.sun,

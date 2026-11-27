@@ -358,7 +358,7 @@ class PortalProfileScreen extends ConsumerWidget {
           Navigator.of(ctx).pop();
           router.go('/portal/notifications');
         },
-        settingsPath: null,
+        settingsPath: '/portal/settings',
         notificationTitle: portalNotificationTitle,
         notificationTarget: (n) => portalNotificationTarget(n, portal),
         emptySubtitle: isStudent

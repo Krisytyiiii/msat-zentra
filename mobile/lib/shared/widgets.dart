@@ -764,43 +764,51 @@ class SegTabs<T> extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
+    final scheme = theme.colorScheme;
+    final dark = theme.brightness == Brightness.dark;
     return Container(
-      padding: const EdgeInsets.all(2),
+      padding: const EdgeInsets.all(3),
       decoration: BoxDecoration(
-        borderRadius: BorderRadius.circular(ZTokens.radiusLg),
-        color: theme.colorScheme.surfaceContainerLow,
+        borderRadius: BorderRadius.circular(ZTokens.radiusPill),
+        color: scheme.surfaceContainerLow,
       ),
-      child: Wrap(
-        crossAxisAlignment: WrapCrossAlignment.center,
+      child: Row(
         children: [
-          for (var i = 0; i < values.length; i++)
-            Semantics(
-              checked: values[i] == selected,
-              inMutuallyExclusiveGroup: true,
-              child: TextButton(
-                onPressed: () => onChanged(values[i]),
-                style: TextButton.styleFrom(
-                  minimumSize: const Size(48, ZTokens.controlH),
-                  foregroundColor: theme.colorScheme.onSurface,
-                  backgroundColor: values[i] == selected
-                      ? theme.colorScheme.surface
-                      : Colors.transparent,
-                  side: values[i] == selected
-                      ? BorderSide(color: theme.colorScheme.outline)
-                      : BorderSide.none,
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(ZTokens.radiusMd),
+          for (var i = 0; i < values.length; i++) ...[
+            if (i > 0) const SizedBox(width: 3),
+            Expanded(
+              child: Semantics(
+                checked: values[i] == selected,
+                inMutuallyExclusiveGroup: true,
+                child: TextButton(
+                  onPressed: () => onChanged(values[i]),
+                  style: TextButton.styleFrom(
+                    minimumSize: const Size(0, ZTokens.controlH),
+                    padding: const EdgeInsets.symmetric(horizontal: 10),
+                    foregroundColor: values[i] == selected
+                        ? scheme.primary
+                        : scheme.onSurfaceVariant,
+                    backgroundColor: values[i] == selected
+                        ? scheme.primary.withValues(alpha: dark ? 0.22 : 0.12)
+                        : Colors.transparent,
+                    overlayColor: scheme.primary.withValues(alpha: 0.08),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(ZTokens.radiusPill),
+                    ),
+                    textStyle: theme.textTheme.labelMedium?.copyWith(
+                      fontSize: 12,
+                      fontWeight: FontWeight.w600,
+                    ),
                   ),
-                ),
-                child: Text(
-                  labels[i],
-                  style: const TextStyle(
-                    fontSize: 12,
-                    fontWeight: FontWeight.w600,
+                  child: Text(
+                    labels[i],
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
                   ),
                 ),
               ),
             ),
+          ],
         ],
       ),
     );

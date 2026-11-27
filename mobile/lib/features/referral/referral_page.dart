@@ -531,22 +531,23 @@ class _State extends ConsumerState<ReferralPage> with WidgetsBindingObserver {
   Future<void> _openComposer() async {
     if (_composerOpen) return;
     _composerOpen = true;
+    final navigation = ref.read(staffNavigationHiddenProvider.notifier);
+    navigation.state = true;
     try {
       await showModalBottomSheet<void>(
         context: context,
         isScrollControlled: true,
-        showDragHandle: true,
+        isDismissible: false,
+        enableDrag: false,
+        backgroundColor: Theme.of(context).scaffoldBackgroundColor,
+        barrierColor: const Color(0x660B1220),
         shape: const RoundedRectangleBorder(
-          borderRadius: BorderRadius.vertical(top: Radius.circular(6)),
+          borderRadius: BorderRadius.vertical(top: Radius.circular(28)),
         ),
-        builder: (ctx) => DraggableScrollableSheet(
-          expand: false,
-          initialChildSize: 0.85,
-          builder: (_, scroll) =>
-              _ComposerSheet(scroll: scroll, onSent: _refresh),
-        ),
+        builder: (_) => _ComposerSheet(onSent: _refresh),
       );
     } finally {
+      navigation.state = false;
       _composerOpen = false;
     }
   }
@@ -649,26 +650,15 @@ class _ReferralCardState extends State<_ReferralCard> {
                   ),
                 ],
               ),
-              const SizedBox(height: 6),
-              Wrap(
-                spacing: 6,
-                runSpacing: 6,
-                children: [
-                  _TypeBadge(adm: adm),
-                  ZStatusPill(
-                    text: _humanize(r['targetRole']?.toString()),
-                    tone: StatusTone.neutral,
-                  ),
-                  if ((r['consultReviewer']?.toString().isNotEmpty ?? false))
-                    ZStatusPill(
-                      text:
-                          'Review: ${_humanize(r['consultReviewer']?.toString())}',
-                      tone: StatusTone.neutral,
-                    ),
-                ],
-              ),
+              const SizedBox(height: 10),
+              _routeLine('To:', _humanize(r['targetRole']?.toString())),
+              if (r['consultReviewer']?.toString().isNotEmpty ?? false)
+                _routeLine(
+                  'Review by:',
+                  _humanize(r['consultReviewer']?.toString()),
+                ),
               Padding(
-                padding: EdgeInsets.symmetric(vertical: 12),
+                padding: EdgeInsets.symmetric(vertical: 10),
                 child: Divider(height: 1, color: zLine(context)),
               ),
               Row(
@@ -685,6 +675,8 @@ class _ReferralCardState extends State<_ReferralCard> {
                       style: TextStyle(fontSize: 12, color: zMutedInk(context)),
                     ),
                   ),
+                  const SizedBox(width: 8),
+                  _TypeBadge(adm: adm),
                 ],
               ),
             ],
@@ -693,6 +685,32 @@ class _ReferralCardState extends State<_ReferralCard> {
       ),
     );
   }
+
+  Widget _routeLine(String label, String value) => Padding(
+    padding: const EdgeInsets.only(bottom: 3),
+    child: Row(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        SizedBox(
+          width: 72,
+          child: Text(
+            label,
+            style: TextStyle(fontSize: 12, color: zMutedInk(context)),
+          ),
+        ),
+        Expanded(
+          child: Text(
+            value,
+            style: TextStyle(
+              fontSize: 12,
+              fontWeight: FontWeight.w600,
+              color: zInk(context),
+            ),
+          ),
+        ),
+      ],
+    ),
+  );
 
   Future<void> _openTrack(BuildContext context) async {
     if (_opening) return;
@@ -1238,9 +1256,8 @@ class _TrackSheet extends StatelessWidget {
 }
 
 class _ComposerSheet extends ConsumerStatefulWidget {
-  final ScrollController scroll;
   final VoidCallback onSent;
-  const _ComposerSheet({required this.scroll, required this.onSent});
+  const _ComposerSheet({required this.onSent});
 
   @override
   ConsumerState<_ComposerSheet> createState() => _ComposerState();
@@ -1317,187 +1334,333 @@ class _ComposerState extends ConsumerState<_ComposerSheet> {
     }
   }
 
+  Color get _sheetInk => zInk(context);
+  Color get _sheetMuted => zMutedInk(context);
+  Color get _sheetAccent => zLift(context, const Color(0xFF1D4ED8));
+
   @override
   Widget build(BuildContext context) {
     final referable = ref.watch(referableProvider);
-    return Padding(
-      padding: const EdgeInsets.all(16),
-      child: referable.when(
-        loading: () => const ZSkeletonList(count: 3),
-        error: (e, _) => ErrorView(
-          message: e,
-          onRetry: () => ref.invalidate(referableProvider),
+    return PopScope(
+      canPop: !_busy,
+      child: Padding(
+        padding: EdgeInsets.only(
+          bottom: MediaQuery.viewInsetsOf(context).bottom,
         ),
-        data: (records) {
-          final open = records.where((r) => r['hasReferral'] != true).toList();
-          final students = <String, Map<String, String>>{};
-          for (final r in open) {
+        child: SafeArea(
+          top: false,
+          child: ClipRRect(
+            borderRadius: const BorderRadius.vertical(top: Radius.circular(28)),
+            child: Container(
+              color: zCard(context),
+              height: MediaQuery.sizeOf(context).height * 0.5,
+              child: Column(
+                children: [
+                  Padding(
+                    padding: const EdgeInsets.only(top: 22, bottom: 24),
+                    child: Center(
+                      child: Container(
+                        width: 32,
+                        height: 4,
+                        decoration: BoxDecoration(
+                          color: zMutedInk(context),
+                          borderRadius: BorderRadius.circular(2),
+                        ),
+                      ),
+                    ),
+                  ),
+                  Expanded(
+                    child: SingleChildScrollView(
+                      padding: const EdgeInsets.fromLTRB(13, 12, 16, 16),
+                      child: Theme(
+                        data: _sheetTheme(context),
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.stretch,
+                          children: [
+                            _sheetHeader(context),
+                            Padding(
+                              padding: const EdgeInsets.symmetric(vertical: 12),
+                              child: Divider(height: 1, color: zSoft(context)),
+                            ),
+                            referable.when(
+                              loading: () => const Padding(
+                                padding: EdgeInsets.symmetric(vertical: 8),
+                                child: ScreenSkeleton(
+                                  layout: SkeletonLayout.form,
+                                  section: true,
+                                  label: 'Loading referral options',
+                                ),
+                              ),
+                              error: (e, _) => ErrorView(
+                                message: e,
+                                onRetry: () =>
+                                    ref.invalidate(referableProvider),
+                              ),
+                              data: (records) => _formFields(context, records),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+
+  ThemeData _sheetTheme(BuildContext context) => Theme.of(context).copyWith(
+    colorScheme: ColorScheme.fromSeed(
+      seedColor: _sheetAccent,
+      brightness: Theme.of(context).brightness,
+      primary: _sheetAccent,
+      surface: zCard(context),
+    ),
+    textTheme: Theme.of(context).textTheme.apply(
+      bodyColor: _sheetInk,
+      displayColor: _sheetInk,
+    ),
+    inputDecorationTheme: InputDecorationTheme(
+      filled: true,
+      fillColor: zCard(context),
+      labelStyle: TextStyle(fontSize: 12, color: _sheetMuted),
+      helperStyle: TextStyle(fontSize: 12, color: _sheetMuted),
+      contentPadding: const EdgeInsets.all(14),
+      border: OutlineInputBorder(
+        borderRadius: BorderRadius.circular(14),
+        borderSide: BorderSide(color: zLine(context)),
+      ),
+      enabledBorder: OutlineInputBorder(
+        borderRadius: BorderRadius.circular(14),
+        borderSide: BorderSide(color: zLine(context)),
+      ),
+      focusedBorder: OutlineInputBorder(
+        borderRadius: BorderRadius.circular(14),
+        borderSide: BorderSide(color: _sheetAccent),
+      ),
+    ),
+  );
+
+  Widget _sheetHeader(BuildContext context) => Row(
+    children: [
+      Container(
+        width: 46,
+        height: 46,
+        alignment: Alignment.center,
+        decoration: BoxDecoration(
+          color: _sheetAccent,
+          borderRadius: BorderRadius.circular(13),
+        ),
+        child: const Icon(LucideIcons.send, size: 18, color: Colors.white),
+      ),
+      const SizedBox(width: 12),
+      Expanded(
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(
+              'New referral',
+              style: TextStyle(
+                fontSize: 15,
+                fontWeight: FontWeight.w700,
+                color: _sheetInk,
+              ),
+            ),
+            const SizedBox(height: 4),
+            Text(
+              'Filed to $_filedTo',
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+              style: TextStyle(fontSize: 12, color: _sheetMuted),
+            ),
+          ],
+        ),
+      ),
+      IconButton(
+        tooltip: 'Close',
+        onPressed: _busy ? null : () => Navigator.of(context).pop(),
+        icon: const Icon(LucideIcons.x, size: 20),
+        style: IconButton.styleFrom(
+          foregroundColor: _sheetMuted,
+          side: BorderSide(color: zLine(context)),
+          minimumSize: const Size(42, 42),
+          shape: const CircleBorder(),
+        ),
+      ),
+    ],
+  );
+
+  Widget _formFields(BuildContext context, List<Map<String, dynamic>> records) {
+    final open = records.where((r) => r['hasReferral'] != true).toList();
+    final students = <String, Map<String, String>>{};
+    for (final r in open) {
+      final key = (r['studentId']?.toString().isNotEmpty ?? false)
+          ? r['studentId'].toString()
+          : 'lrn:${r['lrn']}';
+      students.putIfAbsent(
+        key,
+        () => {
+          'name': (r['studentName'] ?? '').toString(),
+          'lrn': (r['lrn'] ?? '').toString(),
+        },
+      );
+    }
+    if (_studentKey != null && !students.containsKey(_studentKey)) {
+      _studentKey = null;
+    }
+    final studentRecords = _studentKey == null
+        ? const <Map<String, dynamic>>[]
+        : open.where((r) {
             final key = (r['studentId']?.toString().isNotEmpty ?? false)
                 ? r['studentId'].toString()
                 : 'lrn:${r['lrn']}';
-            students.putIfAbsent(
-              key,
-              () => {
-                'name': (r['studentName'] ?? '').toString(),
-                'lrn': (r['lrn'] ?? '').toString(),
-              },
-            );
-          }
-          if (_studentKey != null && !students.containsKey(_studentKey)) {
-            _studentKey = null;
-          }
-          final studentRecords = _studentKey == null
-              ? const <Map<String, dynamic>>[]
-              : open.where((r) {
-                  final key = (r['studentId']?.toString().isNotEmpty ?? false)
-                      ? r['studentId'].toString()
-                      : 'lrn:${r['lrn']}';
-                  return key == _studentKey;
-                }).toList();
-          if (_record != null &&
-              !studentRecords.any((r) => r['id'] == _record!['id'])) {
-            _record = null;
-          }
-          return ListView(
-            controller: widget.scroll,
-            children: [
-              const Text(
-                'New referral',
-                style: TextStyle(fontSize: 15, fontWeight: FontWeight.w600),
+            return key == _studentKey;
+          }).toList();
+    if (_record != null &&
+        !studentRecords.any((r) => r['id'] == _record!['id'])) {
+      _record = null;
+    }
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        DropdownButtonFormField<String>(
+          initialValue: _studentKey,
+          decoration: const InputDecoration(labelText: 'Student'),
+          items: [
+            for (final e in students.entries)
+              DropdownMenuItem(
+                value: e.key,
+                child: Text(
+                  '${e.value['name']} · ${e.value['lrn']}',
+                  style: const TextStyle(fontSize: 13),
+                ),
               ),
-              const SizedBox(height: 8),
-              DropdownButtonFormField<String>(
-                initialValue: _studentKey,
-                decoration: const InputDecoration(labelText: 'Student'),
-                items: [
-                  for (final e in students.entries)
-                    DropdownMenuItem(
-                      value: e.key,
-                      child: Text(
-                        '${e.value['name']} · ${e.value['lrn']}',
-                        style: const TextStyle(fontSize: 13),
-                      ),
-                    ),
-                ],
-                onChanged: (v) => setState(() {
+          ],
+          onChanged: _busy
+              ? null
+              : (v) => setState(() {
                   _studentKey = v;
                   _record = null;
                 }),
-              ),
-              const SizedBox(height: 8),
-              DropdownButtonFormField<Map<String, dynamic>>(
-                initialValue: _record,
-                decoration: const InputDecoration(
-                  labelText: 'Anecdotal record',
+        ),
+        const SizedBox(height: 14),
+        DropdownButtonFormField<Map<String, dynamic>>(
+          initialValue: _record,
+          decoration: const InputDecoration(labelText: 'Anecdotal record'),
+          items: [
+            for (final r in studentRecords)
+              DropdownMenuItem(
+                value: r,
+                child: Text(
+                  '${r['observationDate'] ?? ''} · ${_humanize(r['category']?.toString())}',
+                  style: const TextStyle(fontSize: 13),
                 ),
-                items: [
-                  for (final r in studentRecords)
-                    DropdownMenuItem(
-                      value: r,
-                      child: Text(
-                        '${r['observationDate'] ?? ''} · ${_humanize(r['category']?.toString())}',
-                        style: const TextStyle(fontSize: 13),
-                      ),
+              ),
+          ],
+          onChanged: _studentKey == null || _busy
+              ? null
+              : (v) => setState(() => _record = v),
+        ),
+        if (_record != null &&
+            (_record!['excerpt']?.toString().isNotEmpty ?? false)) ...[
+          const SizedBox(height: 6),
+          Text(
+            (_record!['excerpt'] ?? '').toString(),
+            maxLines: 3,
+            overflow: TextOverflow.ellipsis,
+            style: TextStyle(fontSize: 12, color: _sheetMuted),
+          ),
+        ],
+        const SizedBox(height: 14),
+        SegTabs<String>(
+          values: const ['adm', 'other'],
+          labels: const ['ADM case', 'Other matters'],
+          selected: _kind,
+          onChanged: (v) {
+            if (_busy) return;
+            setState(() {
+              _kind = v;
+              _receiver = v == 'adm' ? 'adm:nurse' : 'other:guidance';
+            });
+          },
+        ),
+        const SizedBox(height: 14),
+        DropdownButtonFormField<String>(
+          initialValue: _receiver,
+          decoration: const InputDecoration(labelText: 'Received by'),
+          items: _kind == 'adm'
+              ? const [
+                  DropdownMenuItem(
+                    value: 'adm:nurse',
+                    child: Text(
+                      'Nurse (ADM)',
+                      style: TextStyle(fontSize: 13),
                     ),
-                ],
-                onChanged: _studentKey == null
-                    ? null
-                    : (v) => setState(() => _record = v),
-              ),
-              if (_record != null &&
-                  (_record!['excerpt']?.toString().isNotEmpty ?? false)) ...[
-                const SizedBox(height: 4),
-                Text(
-                  (_record!['excerpt'] ?? '').toString(),
-                  maxLines: 3,
-                  overflow: TextOverflow.ellipsis,
-                  style: Theme.of(context).textTheme.bodySmall,
-                ),
-              ],
-              const SizedBox(height: 8),
-              SegTabs<String>(
-                values: const ['adm', 'other'],
-                labels: const ['ADM case', 'Other matters'],
-                selected: _kind,
-                onChanged: (v) => setState(() {
-                  _kind = v;
-                  _receiver = v == 'adm' ? 'adm:nurse' : 'other:guidance';
-                }),
-              ),
-              const SizedBox(height: 8),
-              DropdownButtonFormField<String>(
-                initialValue: _receiver,
-                decoration: const InputDecoration(labelText: 'Received by'),
-                items: _kind == 'adm'
-                    ? const [
-                        DropdownMenuItem(
-                          value: 'adm:nurse',
-                          child: Text(
-                            'Nurse (ADM)',
-                            style: TextStyle(fontSize: 13),
-                          ),
-                        ),
-                        DropdownMenuItem(
-                          value: 'adm:guidance',
-                          child: Text(
-                            'Guidance (ADM)',
-                            style: TextStyle(fontSize: 13),
-                          ),
-                        ),
-                        DropdownMenuItem(
-                          value: 'adm:lrpc',
-                          child: Text(
-                            'LRPC (ADM)',
-                            style: TextStyle(fontSize: 13),
-                          ),
-                        ),
-                      ]
-                    : const [
-                        DropdownMenuItem(
-                          value: 'other:guidance',
-                          child: Text(
-                            'Guidance',
-                            style: TextStyle(fontSize: 13),
-                          ),
-                        ),
-                        DropdownMenuItem(
-                          value: 'other:nurse',
-                          child: Text('Nurse', style: TextStyle(fontSize: 13)),
-                        ),
-                      ],
-                onChanged: (v) => setState(() => _receiver = v ?? _receiver),
-              ),
-              const SizedBox(height: 4),
-              Text(
-                'Filed to: $_filedTo',
-                style: Theme.of(context).textTheme.bodySmall,
-              ),
-              const SizedBox(height: 8),
-              TextField(
-                controller: _reason,
-                decoration: const InputDecoration(labelText: 'Reason'),
-                maxLines: 3,
-                style: const TextStyle(fontSize: 13),
-              ),
-              if (_error != null) ...[
-                const SizedBox(height: 4),
-                Text(
-                  _error!,
-                  style: TextStyle(
-                    color: Theme.of(context).colorScheme.error,
-                    fontSize: 13,
                   ),
-                ),
-              ],
-              const SizedBox(height: 12),
-              FilledButton(
-                onPressed: _busy ? null : _send,
-                child: Text(_busy ? 'Sending…' : 'Send referral'),
+                  DropdownMenuItem(
+                    value: 'adm:guidance',
+                    child: Text(
+                      'Guidance (ADM)',
+                      style: TextStyle(fontSize: 13),
+                    ),
+                  ),
+                  DropdownMenuItem(
+                    value: 'adm:lrpc',
+                    child: Text('LRPC (ADM)', style: TextStyle(fontSize: 13)),
+                  ),
+                ]
+              : const [
+                  DropdownMenuItem(
+                    value: 'other:guidance',
+                    child: Text('Guidance', style: TextStyle(fontSize: 13)),
+                  ),
+                  DropdownMenuItem(
+                    value: 'other:nurse',
+                    child: Text('Nurse', style: TextStyle(fontSize: 13)),
+                  ),
+                ],
+          onChanged: _busy
+              ? null
+              : (v) => setState(() => _receiver = v ?? _receiver),
+        ),
+        const SizedBox(height: 14),
+        TextField(
+          controller: _reason,
+          enabled: !_busy,
+          decoration: const InputDecoration(labelText: 'Reason'),
+          maxLines: 3,
+          style: const TextStyle(fontSize: 13),
+        ),
+        if (_error != null) ...[
+          const SizedBox(height: 10),
+          Semantics(
+            liveRegion: true,
+            child: Text(
+              _error!,
+              style: TextStyle(
+                color: Theme.of(context).colorScheme.error,
+                fontSize: 12,
               ),
-            ],
-          );
-        },
-      ),
+            ),
+          ),
+        ],
+        const SizedBox(height: 20),
+        FilledButton(
+          style: FilledButton.styleFrom(
+            backgroundColor: _sheetAccent,
+            foregroundColor: Colors.white,
+            minimumSize: const Size.fromHeight(48),
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(14),
+            ),
+          ),
+          onPressed: _busy ? null : _send,
+          child: Text(_busy ? 'Sending…' : 'Send referral'),
+        ),
+      ],
     );
   }
 }

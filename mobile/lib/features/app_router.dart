@@ -16,6 +16,7 @@ import '../design/portal_shell.dart';
 import 'student/student_identity_page.dart';
 import 'student/student_portal_pages.dart';
 import 'parent/parent_portal_pages.dart';
+import 'portal/portal_settings_page.dart';
 import 'portal/portal_views.dart';
 import '../shared/models.dart';
 import 'adviser/academic_overview_page.dart';
@@ -266,7 +267,7 @@ final routerProvider = Provider<GoRouter>((ref) {
             Hive.box(AppConfig.portalBox).get('portal') as String? ??
             'staff';
         if (portal == 'student' || portal == 'parent') {
-          if (loc == '/portal/notifications' || loc.startsWith('/$portal/'))
+          if (loc.startsWith('/portal/') || loc.startsWith('/$portal/'))
             return null;
           return '/$portal/overview';
         }
@@ -290,6 +291,10 @@ final routerProvider = Provider<GoRouter>((ref) {
     routes: [
       // Learner identity is a full-screen detail with its own header (like the
       // staff record screens), so it stays outside the portal chrome.
+      GoRoute(
+        path: '/portal/settings',
+        builder: (context, _) => const PortalSettingsPage(),
+      ),
       GoRoute(
         path: '/student/profile',
         builder: (context, _) => const StudentIdentityPage(),
