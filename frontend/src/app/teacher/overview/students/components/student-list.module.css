@@ -574,6 +574,47 @@
   white-space: nowrap;
 }
 
+/* Metric value reads as plain text, not a chip — colour still encodes tone. */
+.studentCardStatValue {
+  font-size: 0.875rem;
+  font-weight: 700;
+  line-height: 1.2;
+  color: var(--foreground);
+  font-variant-numeric: tabular-nums;
+}
+
+.studentCardStatValue[data-tone="red"] {
+  color: #b91c1c;
+}
+
+.studentCardStatValue[data-tone="amber"] {
+  color: #b45309;
+}
+
+.studentCardStatValue[data-tone="green"] {
+  color: #15803d;
+}
+
+.studentCardStatValue[data-tone="blue"] {
+  color: #1d4ed8;
+}
+
+:global(.dark) .studentCardStatValue[data-tone="red"] {
+  color: #fca5a5;
+}
+
+:global(.dark) .studentCardStatValue[data-tone="amber"] {
+  color: #fcd34d;
+}
+
+:global(.dark) .studentCardStatValue[data-tone="green"] {
+  color: #86efac;
+}
+
+:global(.dark) .studentCardStatValue[data-tone="blue"] {
+  color: #93c5fd;
+}
+
 @media (max-width: 1024px) {
   .page,
   .pageRail {

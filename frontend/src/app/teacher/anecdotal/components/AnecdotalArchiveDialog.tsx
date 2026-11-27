@@ -4,14 +4,12 @@ import * as React from "react";
 import { ArchiveRestore, CalendarClock, Inbox, Loader2, RotateCcw } from "lucide-react";
 import { useQueryClient } from "@tanstack/react-query";
 import { useLiveQuery } from "@/lib/api/live";
-import { anecdotalCategoryBadgeVariant } from "@/lib/labels/anecdotal";
 import { StudentMascot } from "@/components/student-mascot/StudentMascot";
 import { humanizeCategory } from "@/components/anecdotal/anecdotal-record-kanban-card";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
 import { GlassCard } from "@/components/ui/glass-card";
-import { KanbanOverlay } from "@/components/ui/kanban-overlay";
-import { Pill } from "@/components/ui/pill";
+import { SidePanel } from "@/components/ui/side-panel";
 import { ShimmerGroup, ShimmerSkeleton } from "@/components/ui/shimmer-skeleton";
 import { toast } from "@/components/ui/sonner";
 import { useDock } from "@/components/dock/dock-store";
@@ -156,20 +154,31 @@ export function AnecdotalArchiveDialog({
   const busy = restoringIds.size > 0;
 
   return (
-    <KanbanOverlay
+    <SidePanel
       open={open}
       onClose={onClose}
       width="lg"
-      title="Archive records"
-      icon={
-        <span className="text-primary" aria-hidden>
-          <ArchiveRestore size={14} />
-        </span>
-      }
-      description="Records you removed from this desk. Restoring brings the full GCForm-01 back, including its follow-ups."
-      toolbar={
-        deletedRecords.length > 0 ? (
-          <div className="flex flex-wrap items-center justify-between gap-2 px-1">
+      label="Archive records"
+      showCloseButton
+    >
+      <div className="flex h-full min-h-0 flex-col">
+        <header className="flex shrink-0 items-start gap-2.5 border-b border-border px-4 py-3 pr-12">
+          <span className="flex size-9 shrink-0 items-center justify-center rounded-lg border border-amber-500/25 bg-amber-500/10 text-amber-600 dark:text-amber-400">
+            <ArchiveRestore size={16} aria-hidden />
+          </span>
+          <div className="min-w-0 flex-1">
+            <h2 className="truncate text-sm font-semibold leading-tight text-foreground">
+              Archive records
+            </h2>
+            <p className="mt-1 text-[12px] leading-snug text-muted-foreground">
+              Records you removed from this desk. Restoring brings the full
+              GCForm-01 back, including its follow-ups.
+            </p>
+          </div>
+        </header>
+
+        {deletedRecords.length > 0 ? (
+          <div className="flex shrink-0 flex-wrap items-center justify-between gap-2 border-b border-border px-4 py-2">
             <label className="flex cursor-pointer items-center gap-2 text-xs text-muted-foreground">
               <Checkbox
                 checked={allSelected}
@@ -182,35 +191,10 @@ export function AnecdotalArchiveDialog({
               {deletedRecords.length} archived
             </span>
           </div>
-        ) : null
-      }
-      footer={
-        deletedRecords.length > 0 ? (
-          <div className="flex w-full items-center justify-between gap-2">
-            <span className="text-xs text-muted-foreground">
-              {selectedRecords.length > 0
-                ? `${selectedRecords.length} selected`
-                : "Click a card to tick it"}
-            </span>
-            <Button
-              type="button"
-              size="sm"
-              className="gap-1"
-              disabled={selectedRecords.length === 0 || busy}
-              onClick={() => void handleRestore(selectedRecords)}
-            >
-              {busy ? (
-                <Loader2 size={14} className="animate-spin" aria-hidden />
-              ) : (
-                <RotateCcw size={14} aria-hidden />
-              )}
-              Restore selected{selectedRecords.length > 0 ? ` (${selectedRecords.length})` : ""}
-            </Button>
-          </div>
-        ) : null
-      }
-    >
-      <div className="flex min-w-0 flex-col gap-2 px-1 pb-1">
+        ) : null}
+
+        <div className="min-h-0 flex-1 overflow-y-auto p-3">
+        <div className="flex min-w-0 flex-col gap-2 px-1 pb-1">
         {deletedQuery.isPending ? (
           <ShimmerGroup>
             <div
@@ -290,23 +274,28 @@ export function AnecdotalArchiveDialog({
                       <p className={styles.cardName} title={entry.studentName}>
                         {entry.studentName}
                       </p>
-                      <span className="flex max-w-full flex-wrap items-center gap-1">
-                        <Pill label="LRN" className="tabular-nums">
-                          {entry.lrn}
-                        </Pill>
-                        <Pill
-                          tone={anecdotalCategoryBadgeVariant(entry.category) ?? "neutral"}
-                          label="Category"
-                        >
-                          {humanizeCategory(entry.category)}
-                        </Pill>
-                        {entry.termNumber ? (
-                          <Pill tone="neutral" label="Term">
-                            Term {entry.termNumber}
-                          </Pill>
-                        ) : null}
-                      </span>
                     </div>
+                    <p className={styles.cardTags}>
+                      <span>
+                        Category:{" "}
+                        <span className="font-medium text-foreground">
+                          {humanizeCategory(entry.category)}
+                        </span>
+                      </span>
+                      {entry.termNumber ? (
+                        <>
+                          <span aria-hidden className="text-border">
+                            |
+                          </span>
+                          <span>
+                            Term:{" "}
+                            <span className="font-medium text-foreground">
+                              Term {entry.termNumber}
+                            </span>
+                          </span>
+                        </>
+                      ) : null}
+                    </p>
                   </header>
                   {entry.incident?.trim() ? (
                     <p className={styles.cardIncident}>{entry.incident.trim()}</p>
@@ -346,7 +335,33 @@ export function AnecdotalArchiveDialog({
             );
           })
         )}
+        </div>
+        </div>
+
+        {deletedRecords.length > 0 ? (
+          <footer className="flex shrink-0 items-center justify-between gap-2 border-t border-border px-4 py-3">
+            <span className="text-xs text-muted-foreground">
+              {selectedRecords.length > 0
+                ? `${selectedRecords.length} selected`
+                : "Click a card to tick it"}
+            </span>
+            <Button
+              type="button"
+              size="sm"
+              className="gap-1"
+              disabled={selectedRecords.length === 0 || busy}
+              onClick={() => void handleRestore(selectedRecords)}
+            >
+              {busy ? (
+                <Loader2 size={14} className="animate-spin" aria-hidden />
+              ) : (
+                <RotateCcw size={14} aria-hidden />
+              )}
+              Restore selected{selectedRecords.length > 0 ? ` (${selectedRecords.length})` : ""}
+            </Button>
+          </footer>
+        ) : null}
       </div>
-    </KanbanOverlay>
+    </SidePanel>
   );
 }

@@ -48,7 +48,6 @@ export const STAFF_BY_TYPE: Record<ReferralTypeKey, StaffOption[]> = {
   adm: [
     { value: "adm:nurse", label: "School Nurse", hint: "ADM review", desk: "adm_coordinator", reviewer: "nurse" },
     { value: "adm:guidance_counselor", label: "Guidance Counselor", hint: "ADM review", desk: "adm_coordinator", reviewer: "guidance_counselor" },
-    { value: "adm:lrpc", label: "LRPC", hint: "ADM review", desk: "adm_coordinator", reviewer: "lrpc" },
   ],
   other: [
     { value: "other:guidance_counselor", label: "Guidance Counselor", hint: "Counseling", desk: "guidance_counselor", reviewer: null },

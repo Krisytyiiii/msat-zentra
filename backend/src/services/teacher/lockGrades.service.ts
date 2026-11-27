@@ -2,6 +2,7 @@ import { prisma } from "../../lib/prisma.js";
 import { findTeacherTermGrant } from "../../lib/teacherGrant.js";
 import {
   archivedAdvisoryLearnerIds,
+  excludeArchivedLearnerRows,
   excludeArchivedProfiles,
   excludeArchivedRosters,
 } from "../../lib/learnerVisibility.js";
@@ -73,6 +74,7 @@ function emptyResult(
     gates: { linked: false, termGrant: false },
     classes: [] as LockGradesClassRow[],
     advisorySections,
+    learners: [] as LockGradesAdviseeRow[],
     advisees: [] as LockGradesAdviseeRow[],
   };
 }
@@ -89,17 +91,74 @@ async function getClassRows(
   const sectionIds = [...new Set(linkedPairs.map((p) => p.sectionId))];
   const subjectIds = [...new Set(linkedPairs.map((p) => p.subjectId))];
 
-  const [headcounts, finals] = await Promise.all([
+  // Grades of learners their adviser removed stay untouched, so they must not
+  // inflate `ready`/`locked` here either — otherwise the board keeps offering
+  // a lock that the batch route (correctly) refuses to touch.
+  const archivedLearners = await archivedAdvisoryLearnerIds();
+  const [headcounts, finals, profiles, rosters] = await Promise.all([
     sectionHeadcounts(sectionIds),
     prisma.finalGrade.findMany({
-      where: { termId, subjectId: { in: subjectIds } },
+      where: {
+        termId,
+        subjectId: { in: subjectIds },
+        ...excludeArchivedLearnerRows(archivedLearners),
+      },
       select: {
         subjectId: true,
         computedAverage: true,
+        transmutedGrade: true,
+        remarks: true,
         lockStatus: true,
-        student: { select: { sectionId: true } },
-        roster: { select: { sectionId: true } },
+        studentId: true,
+        rosterId: true,
+        subject: { select: { id: true, name: true } },
+        student: {
+          select: {
+            userId: true,
+            lrn: true,
+            sectionId: true,
+            user: { select: { fullName: true } },
+            section: { select: { name: true } },
+          },
+        },
+        roster: {
+          select: {
+            id: true,
+            lrn: true,
+            fullName: true,
+            sectionId: true,
+            section: { select: { name: true } },
+          },
+        },
       },
+    }),
+    prisma.studentProfile.findMany({
+      where: {
+        sectionId: { in: sectionIds },
+        ...excludeArchivedProfiles(archivedLearners),
+      },
+      select: {
+        userId: true,
+        lrn: true,
+        sectionId: true,
+        user: { select: { fullName: true } },
+        section: { select: { name: true } },
+      },
+      orderBy: { user: { fullName: "asc" } },
+    }),
+    prisma.studentRoster.findMany({
+      where: {
+        sectionId: { in: sectionIds },
+        ...excludeArchivedRosters(archivedLearners),
+      },
+      select: {
+        id: true,
+        lrn: true,
+        fullName: true,
+        sectionId: true,
+        section: { select: { name: true } },
+      },
+      orderBy: { fullName: "asc" },
     }),
   ]);
 
@@ -119,7 +178,7 @@ async function getClassRows(
     byClass.set(key, cell);
   }
 
-  return linkedPairs
+  const classes = linkedPairs
     .map((p) => {
       const key = `${p.subjectId}|${p.sectionId}`;
       const cell = byClass.get(key) ?? { computed: 0, ready: 0, locked: 0, approved: 0 };
@@ -139,6 +198,96 @@ async function getClassRows(
       (a, b) =>
         a.section.localeCompare(b.section) || a.subject.localeCompare(b.subject),
     );
+
+  // --- Learner lock board ------------------------------------------------
+  // One row per learner with a card per subject this teacher actually teaches
+  // in their section, so the classes desk can list lock statuses the same way
+  // the advisory desk does. Only this teacher's own pairs are read, so the
+  // data-sharing hide rule (adviser view) does not apply.
+  const subjectsBySection = new Map<string, Map<string, string>>();
+  for (const pair of linkedPairs) {
+    const perSection = subjectsBySection.get(pair.sectionId) ?? new Map<string, string>();
+    perSection.set(pair.subjectId, pair.subject.name);
+    subjectsBySection.set(pair.sectionId, perSection);
+  }
+
+  const finalsByLearner = new Map<
+    string,
+    Map<string, { subject: string; computedAverage: number | null; transmutedGrade: number | null; remarks: string | null; lockStatus: string | null }>
+  >();
+  for (const f of finals) {
+    const learnerKey = f.studentId ? f.studentId : f.rosterId ? `roster:${f.rosterId}` : null;
+    if (!learnerKey) continue;
+    const map = finalsByLearner.get(learnerKey) ?? new Map();
+    map.set(f.subjectId, {
+      subject: f.subject.name,
+      computedAverage: f.computedAverage,
+      transmutedGrade: f.transmutedGrade,
+      remarks: f.remarks,
+      lockStatus: f.lockStatus,
+    });
+    finalsByLearner.set(learnerKey, map);
+  }
+
+  const buildLearnerRow = (
+    sectionId: string,
+    learnerKey: string,
+  ): LockGradesAdviseeRow => {
+    const finalsForLearner = finalsByLearner.get(learnerKey) ?? new Map();
+    const sectionSubjects = subjectsBySection.get(sectionId) ?? new Map();
+    const subjectIds = new Set<string>([...sectionSubjects.keys(), ...finalsForLearner.keys()]);
+    const subjects = [...subjectIds]
+      .map((subjectId): LockGradesSubjectRow => {
+        const final = finalsForLearner.get(subjectId);
+        return {
+          subject: final?.subject ?? sectionSubjects.get(subjectId) ?? "Subject",
+          subjectId,
+          computedAverage: final?.computedAverage ?? null,
+          transmutedGrade: final?.transmutedGrade ?? null,
+          remarks: final?.remarks ?? null,
+          lockStatus: final?.lockStatus ?? null,
+        };
+      })
+      .sort((a, b) => a.subject.localeCompare(b.subject));
+
+    return {
+      studentId: learnerKey,
+      name: "",
+      lrn: "",
+      section: "",
+      sectionId,
+      hasAccount: !learnerKey.startsWith("roster:"),
+      subjects,
+      summary: {
+        subjects: subjects.length,
+        graded: subjects.filter((s) => s.computedAverage !== null).length,
+        locked: subjects.filter((s) => s.lockStatus === "locked").length,
+        approved: subjects.filter((s) => s.lockStatus === "adviser_approved").length,
+      },
+    };
+  };
+
+  const registeredLrns = new Set(profiles.map((p) => p.lrn));
+  const rosterOnly = rosters.filter((r) => !registeredLrns.has(r.lrn));
+  const learners: LockGradesAdviseeRow[] = [
+    ...profiles.map((p) => ({
+      ...buildLearnerRow(p.sectionId ?? "", p.userId),
+      name: p.user.fullName,
+      lrn: p.lrn,
+      section: p.section?.name ?? "",
+    })),
+    ...rosterOnly.map((r) => ({
+      ...buildLearnerRow(r.sectionId, `roster:${r.id}`),
+      name: r.fullName,
+      lrn: r.lrn,
+      section: r.section?.name ?? "",
+    })),
+  ].sort(
+    (a, b) =>
+      a.section.localeCompare(b.section) || a.name.localeCompare(b.name),
+  );
+
+  return { classes, learners };
 }
 
 export async function getLockGrades(ctx: TeacherContext, view: LockGradesView) {
@@ -182,6 +331,7 @@ export async function getLockGrades(ctx: TeacherContext, view: LockGradesView) {
         gates: { linked: false, termGrant: false },
         classes: [] as LockGradesClassRow[],
         advisorySections,
+        learners: [] as LockGradesAdviseeRow[],
         advisees: [] as LockGradesAdviseeRow[],
       };
     }
@@ -195,6 +345,7 @@ export async function getLockGrades(ctx: TeacherContext, view: LockGradesView) {
         gates: { linked: true, termGrant: false },
         classes: [] as LockGradesClassRow[],
         advisorySections,
+        learners: [] as LockGradesAdviseeRow[],
         advisees: [] as LockGradesAdviseeRow[],
       };
     }
@@ -205,7 +356,7 @@ export async function getLockGrades(ctx: TeacherContext, view: LockGradesView) {
     const linkedPairs = await resolveTeacherClassPairs(teacherId, termId);
     const isSubjectTeacher = linkedPairs.length > 0 || assignmentCount > 0;
 
-    const classes = await getClassRows(termId, linkedPairs);
+    const { classes, learners } = await getClassRows(termId, linkedPairs);
     return {
       view,
       termId,
@@ -214,6 +365,7 @@ export async function getLockGrades(ctx: TeacherContext, view: LockGradesView) {
       gates: { linked: true, termGrant: true },
       classes,
       advisorySections,
+      learners,
       advisees: [] as LockGradesAdviseeRow[],
     };
   }
@@ -228,6 +380,7 @@ export async function getLockGrades(ctx: TeacherContext, view: LockGradesView) {
       gates: { linked: false, termGrant: false },
       classes: [] as LockGradesClassRow[],
       advisorySections,
+      learners: [] as LockGradesAdviseeRow[],
       advisees: [] as LockGradesAdviseeRow[],
     };
   }
@@ -467,6 +620,7 @@ export async function getLockGrades(ctx: TeacherContext, view: LockGradesView) {
     gates: { linked: false, termGrant: false },
     classes: [] as LockGradesClassRow[],
     advisorySections,
+    learners: [] as LockGradesAdviseeRow[],
     advisees: adviseeRows,
   };
 }

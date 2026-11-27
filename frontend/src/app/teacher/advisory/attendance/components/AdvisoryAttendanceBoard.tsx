@@ -94,7 +94,7 @@ export function AdvisoryAttendanceBoard({
 
   const overall = attendanceOverall(student.rates, subjects.length);
   const hasMarks = overall !== null;
-  const atRisk = overall !== null && overall < 0.75;
+  const overallPct = overall === null ? null : Math.round(overall * 100);
 
   return (
     <div
@@ -113,16 +113,11 @@ export function AdvisoryAttendanceBoard({
         </div>
         <GlassCard className="shrink-0" intensity={4}>
           <div className={boardStyles.statusCard}>
-            <span className={boardStyles.statusLabel}>Attendance status</span>
+            <span className={boardStyles.statusLabel}>Overall present rate</span>
             <span
-              className={`${boardStyles.statusValue} ${attendanceRateClass(overall)}`}
+              className={`${boardStyles.statusValue} ${boardStyles.statusBig} ${attendanceRateClass(overall)}`}
             >
-              {!hasMarks ? "No data" : atRisk ? "At risk" : "On track"}
-            </span>
-            <span className={boardStyles.statusMeta}>
-              {student.learnerType === "transferee"
-                ? "Transferee · counted since enlistment"
-                : "Regular · counted from term start"}
+              {hasMarks ? `${overallPct}%` : "No data"}
             </span>
           </div>
         </GlassCard>
@@ -149,7 +144,7 @@ export function AdvisoryAttendanceBoard({
               return (
                 <li key={subject.id} className="min-w-0">
                   <section
-                    className={boardStyles.lane}
+                    className={`${boardStyles.lane} ${boardStyles.laneFlat}`}
                     aria-label={`${subject.name} attendance lane`}
                   >
                     <header className={boardStyles.colHead}>

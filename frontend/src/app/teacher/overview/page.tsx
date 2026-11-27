@@ -13,6 +13,7 @@ import {
 } from "@/services/teacher/overview.service";
 import { useTerm } from "@/lib/term/TermContext";
 import { PageEmptyCallout } from "@/components/shared/page-empty-callout";
+import { useHydrated } from "@/lib/hooks/useHydrated";
 import styles from "./components/teacher-overview.module.css";
 
 /** Right-rail width is user-resizable between these bounds (px). */
@@ -39,8 +40,11 @@ function readRailWidth(): number {
 }
 
 export default function TeacherOverviewPage() {
-
   const { data, isPending, isError } = useTeacherOverview();
+  // SSR renders the skeleton (the session lives in localStorage), so the first
+  // client render must render it too — otherwise hydration compares a loaded
+  // desk with the server's skeleton. See useHydrated.
+  const hydrated = useHydrated();
   const { activeTerm } = useTerm();
   const termKey = `${activeTerm?.schoolYearId ?? ""}:${activeTerm?.termId ?? ""}`;
 
@@ -118,7 +122,7 @@ export default function TeacherOverviewPage() {
     updateRailWidth(railWidth + delta);
   };
 
-  if (isPending) {
+  if (!hydrated || isPending) {
     return <TeacherOverviewSkeleton />;
   }
 

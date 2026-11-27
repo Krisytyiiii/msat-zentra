@@ -1,4 +1,5 @@
 import type { OcrSubjectPayload } from "./records.service.js";
+import { SF10_JHS_LAYOUT, applySf10JhsLook, applySf10PrintSetup, assignSubjectRows, renderSf10Pdf, writeJhsBlockHeader } from "./template-file.service.js";
 import { detectQuarterHeader, isXlsxUpload } from "./ocr-text.service.js";
 import { extractPdfTextRuns, groupPdfLines, stripPdfTextSpans, type PdfLine } from "./pdf-text.service.js";
 import {
@@ -20,6 +21,10 @@ export interface GeneratedSf10Input {
   lrn: string;
   gradeLevel: string;
   schoolYear?: string | null;
+  /** Current section, written into the patched block's scholastic header. */
+  sectionName?: string | null;
+  /** Current adviser, written into the patched block's scholastic header. */
+  adviserName?: string | null;
   subjects: OcrSubjectPayload[];
   generatedAt?: Date;
 }
@@ -118,10 +123,35 @@ interface GradeBlock {
 export async function patchSf10Workbook(
   original: Buffer,
   filled: AutoFillPatchRow[],
+  header?: {
+    sectionName?: string | null;
+    schoolYear?: string | null;
+    adviserName?: string | null;
+  },
 ): Promise<Buffer> {
   const ExcelJS = await excelJs();
   const wb = new ExcelJS.Workbook();
   await wb.xlsx.load(original as unknown as ArrayBuffer);
+
+  // Only the learner's own grade block gets the current scholastic header —
+  // school, grade, section, school year and adviser — so a registry upload that
+  // arrived with all of it blank prints like the template path. Other grade
+  // blocks stay untouched (the current section/adviser does not apply to them).
+  const learnerGrade = filled[0]?.gradeLevel ?? null;
+  if (learnerGrade && header?.sectionName) {
+    const entry = Object.entries(SF10_JHS_LAYOUT.blocks).find(([g]) => g === learnerGrade);
+    if (entry) {
+      const [gradeKey, layout] = entry;
+      for (const ws of wb.worksheets) {
+        if (!blockHeaderMatches(ws, layout)) continue;
+        writeJhsBlockHeader(ws, layout, gradeKey, {
+          section: header.sectionName,
+          schoolYear: header.schoolYear ?? "",
+          adviserName: header.adviserName ?? null,
+        });
+      }
+    }
+  }
 
   for (const ws of wb.worksheets) {
     const width = ws.columnCount;
@@ -192,9 +222,15 @@ export async function patchSf10Workbook(
       current.slots.push({ ...subject, row: r });
     }
 
+    // Match the Section value's print size to the adviser value beside it.
+    for (const layout of Object.values(SF10_JHS_LAYOUT.blocks)) {
+      if (blockHeaderMatches(ws, layout)) normalizeHeaderFonts(ws, layout);
+    }
+
     for (const block of blocks) {
       const touched = filled.filter((f) => f.gradeLevel === block.grade);
       if (touched.length === 0) continue;
+
       // Flatten formulas only in the rows being rewritten. The final-rating
       // and remarks columns share formulas across the block's subject rows;
       // leaving the clones as formulas after overwriting a master makes the
@@ -209,10 +245,154 @@ export async function patchSf10Workbook(
         writeSubjectRow(ws, slot.row, block, f);
       }
     }
+
+    const handled = new Set(
+      blocks.filter((b) => b.slots.length > 0).map((b) => b.grade),
+    );
+
+    // A freshly downloaded school template has a blank LEARNING AREAS column,
+    // so the name-matched blocks above never exist and the run used to write
+    // nothing. The form's DepEd row positions are fixed per grade, so fill
+    // those rows instead when the block still matches the template's header.
+    for (const [grade, layout] of Object.entries(SF10_JHS_LAYOUT.blocks)) {
+      if (handled.has(grade)) continue;
+      const touched = filled.filter((f) => f.gradeLevel === grade);
+      if (touched.length === 0) continue;
+      if (!blockHeaderMatches(ws, layout)) continue;
+      writePositionalBlock(ws, layout, touched);
+      handled.add(grade);
+    }
+
+    // Grade blocks the learner has not reached keep the template's formulas,
+    // which Excel recalculates to 0 even though no grade was written. Flatten
+    // and blank them so the untouched grades print empty.
+    for (const [grade, layout] of Object.entries(SF10_JHS_LAYOUT.blocks)) {
+      if (handled.has(grade)) continue;
+      if (!blockHeaderMatches(ws, layout)) continue;
+      sanitizeBlankBlock(ws, layout);
+    }
+  }
+
+  // Print with the same page geometry as the school's own JHS form — the
+  // uploaded workbook often carries no usable setup, which printed the patched
+  // copy at a different scale/margin than the template/PDF paths. SHS uploads
+  // keep their own page setup (the SHS template ships with a usable one).
+  const looksJhs = wb.worksheets.some((ws) =>
+    Object.values(SF10_JHS_LAYOUT.blocks).some((layout) => blockHeaderMatches(ws, layout)),
+  );
+  if (looksJhs) {
+    // The school's own editable workbook ships with grey bands and no logos;
+    // the official form's olive bands, checkboxes and header marks are added
+    // here too so a patched copy prints like the template path.
+    await applySf10JhsLook(wb);
+    applySf10PrintSetup(wb);
   }
 
   const out = await wb.xlsx.writeBuffer();
   return Buffer.from(out);
+}
+
+type JhsBlockLayout = (typeof SF10_JHS_LAYOUT.blocks)[keyof typeof SF10_JHS_LAYOUT.blocks];
+
+/**
+ * True when this worksheet carries the school template's block at the fixed
+ * rows: the quarter headers read 1–4 and the final/remarks columns are those
+ * labels. Prevents writing to an unrelated layout that happens to share rows.
+ */
+function blockHeaderMatches(ws: Worksheet, layout: JhsBlockLayout): boolean {
+  const headerRow = layout.subjectStart - 1;
+  const quartersOk = SF10_JHS_LAYOUT.quarterCols.every(
+    (col, i) => readCellText(ws.getCell(headerRow, col).value) === String(i + 1),
+  );
+  if (!quartersOk) return false;
+  return (
+    /final/i.test(readCellText(ws.getCell(headerRow, SF10_JHS_LAYOUT.finalCol).value)) &&
+    /remark/i.test(readCellText(ws.getCell(headerRow, SF10_JHS_LAYOUT.remarksCol).value))
+  );
+}
+
+/**
+ * The school template's Section value cell (N21 per block) is one size smaller
+ * than the grade / school-year / adviser cells, so a filled section printed
+ * smaller than the adviser name beside it. Copy the adviser value's font onto
+ * the block's other header values.
+ */
+function normalizeHeaderFonts(ws: Worksheet, layout: JhsBlockLayout): void {
+  const row = ws.getRow(layout.gradeRow);
+  const adviser = row.getCell(35);
+  if (!adviser.font) return;
+  for (const col of [9, 14, 22, 35]) row.getCell(col).font = { ...adviser.font };
+}
+
+/**
+ * Write the auto-filled rows into a block whose LEARNING AREAS names are
+ * missing, using the template's fixed subject offsets, and replace the
+ * template's pre-printed General Average with the mean of those rows.
+ */
+function writePositionalBlock(
+  ws: Worksheet,
+  layout: JhsBlockLayout,
+  filled: AutoFillPatchRow[],
+): void {
+  const mapped = assignSubjectRows(filled, (f) => f.rawName ?? f.norm ?? "");
+  if (mapped.size === 0) return;
+
+  const blockRows: number[] = [];
+  for (let r = layout.subjectStart; r <= layout.generalAverageRow; r += 1) blockRows.push(r);
+  // Flatten the whole block first: shared final/remarks formulas would be
+  // orphaned when one of their masters is overwritten.
+  flattenRowsFormulas(ws, blockRows, ws.columnCount);
+
+  for (const [offset, f] of mapped) {
+    const rowNumber = layout.subjectStart + offset;
+    const subject = (f.rawName ?? f.norm ?? "").trim();
+    if (subject) writeCell(ws, rowNumber, SF10_JHS_LAYOUT.subjectCol, subject);
+    SF10_JHS_LAYOUT.quarterCols.forEach((col, i) => {
+      writeCell(ws, rowNumber, col, f.quarters?.[i] ?? null);
+    });
+    writeCell(ws, rowNumber, SF10_JHS_LAYOUT.finalCol, f.rating ?? null);
+    writeCell(ws, rowNumber, SF10_JHS_LAYOUT.remarksCol, f.remarks ?? null);
+  }
+
+  const ratings = [...mapped.values()]
+    .map((f) => f.rating)
+    .filter((v): v is number => typeof v === "number" && Number.isFinite(v));
+  if (ratings.length > 0) {
+    const average = Math.round(ratings.reduce((a, b) => a + b, 0) / ratings.length);
+    writeCell(ws, layout.generalAverageRow, SF10_JHS_LAYOUT.finalCol, average);
+  }
+
+  const writtenRows = new Set([...mapped.keys()].map((offset) => layout.subjectStart + offset));
+  for (const rowNumber of blockRows) {
+    if (writtenRows.has(rowNumber)) continue;
+    clearPlaceholderZeroes(ws, rowNumber);
+  }
+}
+
+/** Blank a grade block that has no learning areas (and so no grades). */
+function sanitizeBlankBlock(ws: Worksheet, layout: JhsBlockLayout): void {
+  const blockRows: number[] = [];
+  for (let r = layout.subjectStart; r <= layout.generalAverageRow; r += 1) blockRows.push(r);
+  const hasSubjects = blockRows.some(
+    (r) => readCellText(ws.getCell(r, SF10_JHS_LAYOUT.subjectCol).value) !== "",
+  );
+  if (hasSubjects) return;
+  flattenRowsFormulas(ws, blockRows, ws.columnCount);
+  for (const r of blockRows) clearPlaceholderZeroes(ws, r);
+  // The template pre-prints 100 in the Grade 7 General Average cell.
+  writeCell(ws, layout.generalAverageRow, SF10_JHS_LAYOUT.finalCol, null);
+}
+
+function clearPlaceholderZeroes(ws: Worksheet, rowNumber: number): void {
+  const columns = [
+    ...SF10_JHS_LAYOUT.quarterCols,
+    SF10_JHS_LAYOUT.finalCol,
+    SF10_JHS_LAYOUT.remarksCol,
+  ];
+  for (const col of columns) {
+    const cell = ws.getCell(rowNumber, col);
+    if (cell.value === 0 || cell.value === "0") cell.value = null;
+  }
 }
 
 function writeSubjectRow(
@@ -588,11 +768,11 @@ export async function buildSf10Pdf(input: GeneratedSf10Input): Promise<Buffer> {
 }
 
 /**
- * Choose the output format from the original upload: PDF originals become a
- * new document built from the upload's own layout (old grade glyphs replaced,
- * not overlaid), XLSX originals become a patched copy of the workbook, and
- * anything without a readable original (e.g. a scanned PDF) falls back to the
- * standard generated workbook.
+ * Auto-fill always files a PDF. A PDF original is patched in place (old grade
+ * glyphs replaced, not overlaid); an XLSX original is patched first so the
+ * untouched blocks stay exactly as uploaded, then printed to PDF the way Excel
+ * would print it. Anything without a readable original falls back to the
+ * rebuilt SF10-layout PDF. XLSX is only returned if every PDF render fails.
  */
 export async function renderAutoFillFile(
   input: RenderAutoFillFileInput,
@@ -604,11 +784,30 @@ export async function renderAutoFillFile(
     (original.ext === "xlsx" || isXlsxUpload(original.mimeType, `file.${original.ext}`));
 
   if (isXlsx) {
+    let workbook: Buffer | null = null;
     try {
-      const buffer = await patchSf10Workbook(original.buffer, input.filled);
-      return { buffer, ext: "xlsx", mimeType: XLSX_MIME };
+      workbook = await patchSf10Workbook(original.buffer, input.filled, {
+        sectionName: input.sectionName ?? null,
+        schoolYear: input.schoolYear ?? null,
+        adviserName: input.adviserName ?? null,
+      });
     } catch {
-      // Fall through to the standard workbook — still an Excel file.
+      workbook = null;
+    }
+    if (!workbook) {
+      try {
+        workbook = await buildSf10Workbook(input);
+      } catch {
+        workbook = null;
+      }
+    }
+    if (workbook) {
+      try {
+        return { buffer: await renderSf10Pdf(workbook), ext: "pdf", mimeType: PDF_MIME };
+      } catch {
+        // Keep the workbook as the last resort below — a PDF we could not print.
+        return { buffer: workbook, ext: "xlsx", mimeType: XLSX_MIME };
+      }
     }
   }
   if (isPdf) {
@@ -621,15 +820,14 @@ export async function renderAutoFillFile(
     } catch {
       // Fall through to the rebuilt PDF.
     }
-    try {
-      const buffer = await buildSf10Pdf(input);
-      return { buffer, ext: "pdf", mimeType: PDF_MIME };
-    } catch {
-      // Fall through to the standard workbook.
-    }
   }
-  const buffer = await buildSf10Workbook(input);
-  return { buffer, ext: "xlsx", mimeType: XLSX_MIME };
+  try {
+    const buffer = await buildSf10Pdf(input);
+    return { buffer, ext: "pdf", mimeType: PDF_MIME };
+  } catch {
+    const buffer = await buildSf10Workbook(input);
+    return { buffer, ext: "xlsx", mimeType: XLSX_MIME };
+  }
 }
 
 /**

@@ -7,14 +7,13 @@ import glass from "./modules-glass.module.css";
 import styles from "./modules-skeleton.module.css";
 
 const MODULE_CARDS = 6;
-/** All / Submitted / Pending / Overdue — the same four tags ModulesPanel renders. */
-const FILTER_TAGS = ["w-[4.25rem]", "w-[6.25rem]", "w-[5.5rem]", "w-[5.5rem]"];
 
 /**
  * One module tile placeholder — same glass card, header, two-up metric grid,
- * progress track and footer actions as the loaded ModuleCard in ModulesPanel.
+ * progress track and footer actions as the loaded ModuleCard in ModulesPanel
+ * (type and status are plain text there, so they are text-line shimmers here).
  */
-function ModuleCardSkeleton() {
+export function ModuleCardSkeleton() {
   return (
     <article className={`${glass.card} pointer-events-none`} aria-hidden>
       <div className={glass.cardHead}>
@@ -22,10 +21,10 @@ function ModuleCardSkeleton() {
         <div className={glass.cardHeading}>
           <Skeleton className="h-3.5 w-32 max-w-full" />
           <span className={glass.cardMetaRow}>
-            <Skeleton className="h-6 w-20 rounded-md" />
+            <Skeleton className="h-3 w-20 max-w-full" />
           </span>
         </div>
-        <Skeleton className="h-6 w-[4.75rem] shrink-0 rounded-md" />
+        <Skeleton className="h-3 w-14 shrink-0" />
       </div>
 
       <div className={glass.cardMetrics}>
@@ -57,8 +56,9 @@ function ModuleCardSkeleton() {
 /**
  * Loading state for the adviser Modules desk. Mirrors the loaded page exactly:
  * the Modules panel header (icon + title, section picker + Add module), the
- * status tag row, the module card grid and its pager. Submissions live in a
- * drawer, so they are not part of this board.
+ * module card grid and its pager. Submissions live in a drawer, so they are
+ * not part of this board. The status filter row was removed from the board, so
+ * it is not part of the skeleton either.
  */
 export function AdvisoryModulesSkeleton() {
   return (
@@ -79,14 +79,6 @@ export function AdvisoryModulesSkeleton() {
               <Skeleton className="h-7 w-[6.5rem] rounded-md" />
             </div>
           </header>
-
-          <div className="flex flex-wrap items-center justify-between gap-2">
-            <div className="flex flex-wrap items-center gap-1.5">
-              {FILTER_TAGS.map((width, i) => (
-                <Skeleton key={i} className={`h-[1.875rem] ${width} rounded-full`} />
-              ))}
-            </div>
-          </div>
 
           <div className="grid gap-3 [grid-template-columns:repeat(auto-fill,minmax(264px,1fr))]">
             {Array.from({ length: MODULE_CARDS }).map((_, i) => (

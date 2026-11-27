@@ -53,6 +53,8 @@ export interface AnecdotalRecordKanbanCardProps {
   plainName?: boolean;
   /** Stack the meta pill(s) under the student name instead of inline. */
   stackIdentity?: boolean;
+  /** Render the meta value as plain text instead of a bordered pill. */
+  plainMeta?: boolean;
   /** Seed for the student's mascot; renders the mascot when provided. */
   mascotSeed?: string;
   /** Mascot sprite assigned to the student in their profile (takes precedence). */
@@ -100,6 +102,7 @@ export function AnecdotalRecordKanbanCard({
   lrn,
   plainName = false,
   stackIdentity = false,
+  plainMeta = false,
   mascotSeed,
   mascotCharacter,
   fileName,
@@ -223,14 +226,26 @@ export function AnecdotalRecordKanbanCard({
                   {lrn}
                 </Pill>
               ) : null}
-              <Pill
-                tone={metaTone}
-                label={metaLabel ?? metaTitle ?? metaText}
-                aria-label={metaTitle ?? metaText}
-                className={cn("min-w-0 max-w-full overflow-hidden", metaClassName)}
-              >
-                <span className="truncate">{metaText}</span>
-              </Pill>
+              {plainMeta ? (
+                <span
+                  className={cn(
+                    "min-w-0 max-w-full truncate text-[12px] leading-none text-muted-foreground tabular-nums",
+                    metaClassName,
+                  )}
+                  title={metaTitle ?? metaText}
+                >
+                  {metaText}
+                </span>
+              ) : (
+                <Pill
+                  tone={metaTone}
+                  label={metaLabel ?? metaTitle ?? metaText}
+                  aria-label={metaTitle ?? metaText}
+                  className={cn("min-w-0 max-w-full overflow-hidden", metaClassName)}
+                >
+                  <span className="truncate">{metaText}</span>
+                </Pill>
+              )}
             </span>
           </span>
         </span>

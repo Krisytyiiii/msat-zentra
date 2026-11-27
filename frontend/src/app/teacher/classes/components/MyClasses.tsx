@@ -4,32 +4,20 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { liveQueryOptions, useLiveQuery } from "@/lib/api/live";
 
-import {
-  BookOpen,
-  GraduationCap,
-  Layers,
-  NotebookPen,
-  UserRound,
-} from "lucide-react";
+import { BookOpen } from "lucide-react";
 import { apiClient } from "@/lib/api/client";
 import { toast } from "@/components/ui/sonner";
-import { FilterTabs } from "@/components/ui/filter-tabs";
-import { StatDeck } from "@/components/ui/stat-deck";
-import { TeacherSearchField, searchEmptyMessage } from "@/app/teacher/components/TeacherSearchField";
 import { useTerm } from "@/lib/term/TermContext";
-import { UnlinkCodeDialog } from "./UnlinkCodeDialog";
-import { Pill } from "@/components/ui/pill";
 import { useDock } from "@/components/dock/dock-store";
 import { getErrorMessage } from "./get-error-message";
 import type { LinkedName } from "./timetable-sidebar";
-import { Skeleton } from "@/components/ui/skeleton";
+import { ClassesTimetableSkeleton } from "./ClassesTimetableSkeleton";
 import {
   buildTimetable,
   DEFAULT_DAY_CONFIG,
   type DayConfig,
 } from "@/components/schedule/schedule-time";
-import { ClassCardGrid } from "./ClassCardGrid";
-import { ClassDetailDrawer } from "./ClassDetailDrawer";
+import { ClassTimetable } from "./ClassTimetable";
 import { TeacherCodeCard, TeacherCodeDrawer } from "./TeacherCodeCard";
 import type { MyClass, MySlot } from "./class-types";
 import cardStyles from "@/app/principal/academics/assign/components/sections-kanban.module.css";
@@ -47,10 +35,10 @@ interface MyLoad {
 }
 
 /**
- * My Classes: the published teaching load as a plain list — the timetable
- * itself (grid, day/period cells) lives on the administrator desk only. The
- * code-link card in the rail still lets a teacher attach their login to the
- * published teacher-name row.
+ * My Classes: the published teaching load as a read-only week grid — the same
+ * day × period timetable the administrator's section workspace renders. The
+ * code-link card still lets a teacher attach their login to the published
+ * teacher-name row; the grid itself is owned by the administrator desk.
  */
 export function MyClasses() {
   const queryClient = useQueryClient();
@@ -59,9 +47,6 @@ export function MyClasses() {
   useEffect(() => {
     dockRef.current = dock;
   }, [dock]);
-  const [confirmReleaseOpen, setConfirmReleaseOpen] = useState(false);
-  // Unlink progress now lives in the single shared Dock.
-  const unlinkTaskRef = useRef<string | null>(null);
   // Term-entry verification also reports into the shared Dock.
   const verifyTaskRef = useRef<string | null>(null);
   const claimTaskRef = useRef<string | null>(null);
@@ -93,8 +78,6 @@ export function MyClasses() {
     // body (the react-compiler gate rejects a synchronous setState here).
     queueMicrotask(() => setCodeDrawerOpen(true));
   }, []);
-  const [grade, setGrade] = useState<string | null>(null);
-  const [query, setQuery] = useState("");
 
   const meQuery = useLiveQuery<{ teacherName: LinkedName | null; termGrant: TermGrant | null }>({
     queryKey: ["teacher-schedule-me", termKey],
@@ -124,38 +107,17 @@ export function MyClasses() {
   });
   const classes = useMemo(() => loadQuery.data?.classes ?? [], [loadQuery.data]);
 
-  const gradeLevels = useMemo(
-    () =>
-      Array.from(new Set(classes.map((c) => c.gradeLevel))).sort(
-        (a, b) => (Number(a.replace("G", "")) || 0) - (Number(b.replace("G", "")) || 0),
-      ),
-    [classes],
-  );
-  const sectionCount = useMemo(() => new Set(classes.map((c) => c.sectionId)).size, [classes]);
-
   // School-day shape: one row per period, plus the lunch/recess bands.
   const rows = useMemo(
     () => buildTimetable(loadQuery.data?.config ?? DEFAULT_DAY_CONFIG),
     [loadQuery.data?.config],
   );
 
-  // Period → clock range, from the school-day shape the API sends with the load.
-  const periodTimes = useMemo(() => {
-    const map = new Map<number, { startMin: number; endMin: number }>();
-    for (const row of rows) {
-      if (row.kind === "period") map.set(row.periodIndex, { startMin: row.startMin, endMin: row.endMin });
-    }
-    return map;
-  }, [rows]);
-
-  // "Today" + the live period are client-only — the server render has no clock.
+  // "Today" is client-only — the server render has no clock.
   const [todayDow, setTodayDow] = useState<number | null>(null);
-  const [nowMin, setNowMin] = useState<number | null>(null);
   useEffect(() => {
     const tick = () => {
-      const now = new Date();
-      setTodayDow(now.getDay());
-      setNowMin(now.getHours() * 60 + now.getMinutes());
+      setTodayDow(new Date().getDay());
     };
     tick();
     const id = window.setInterval(tick, 60_000);
@@ -163,7 +125,6 @@ export function MyClasses() {
   }, []);
 
   const slots = useMemo(() => loadQuery.data?.slots ?? [], [loadQuery.data]);
-  const [selectedClass, setSelectedClass] = useState<MyClass | null>(null);
 
   const refresh = () => {
     void queryClient.invalidateQueries({ queryKey: ["teacher-schedule-me"] });
@@ -176,58 +137,6 @@ export function MyClasses() {
     void queryClient.invalidateQueries({ queryKey: ["attendance-sheet-marks"] });
     void queryClient.invalidateQueries({ queryKey: ["attendance-section-roster"] });
     void queryClient.invalidateQueries({ queryKey: ["teacher-grading-class"] });
-  };
-
-  const release = useMutation({
-    mutationFn: async () => {
-      const { data } = await apiClient.delete("/api/teacher/schedule/teachers/me");
-      return data;
-    },
-    onSuccess: () => {
-      const id = unlinkTaskRef.current;
-      unlinkTaskRef.current = null;
-      try {
-        if (id)
-          dockRef.current.completeTask(
-            id,
-            "Code unlinked · classes, grading, attendance cleared",
-          );
-      } catch {
-        /* ignore */
-      }
-      refresh();
-      toast.success({
-        title: "Code unlinked",
-        description:
-          "Your link code was removed — classes, grading, and attendance are now cleared.",
-      });
-    },
-    onError: (err: unknown) => {
-      const message = getErrorMessage(err, "Failed to unlink code.");
-      const id = unlinkTaskRef.current;
-      unlinkTaskRef.current = null;
-      try {
-        if (id) dockRef.current.failTask(id, message);
-      } catch {
-        /* ignore */
-      }
-      toast.error({ title: "Could not unlink code", description: message });
-    },
-  });
-
-  const handleUnlinkConfirm = () => {
-    if (!linked || release.isPending) return;
-    try {
-      unlinkTaskRef.current = dockRef.current.startTask({
-        kind: "unlink-code",
-        title: "Unlinking code",
-        description: linked.code ? `Unlinking ${linked.code}…` : "Unlinking code…",
-      });
-    } catch {
-      unlinkTaskRef.current = null;
-    }
-    setConfirmReleaseOpen(false);
-    release.mutate();
   };
 
   const verify = useMutation({
@@ -354,29 +263,7 @@ export function MyClasses() {
   };
 
   if (meQuery.isPending) {
-    return (
-      <div className="flex flex-col gap-4" aria-busy="true" aria-label="Loading classes">
-        <div className="grid flex-1 items-start gap-4 lg:grid-cols-[minmax(0,1fr)_auto]">
-          <div className="flex min-w-0 flex-col gap-4">
-            <div className="min-w-0">
-              <Skeleton className="h-8 w-40" />
-              <Skeleton className="mt-1 h-5 w-64" />
-            </div>
-            <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
-              {[0, 1, 2, 3, 4, 5].map((i) => (
-                <div
-                  key={i}
-                  className="flex flex-col gap-2 rounded-xl border border-border p-4"
-                >
-                  <Skeleton className="h-5 w-32 rounded-md" />
-                  <Skeleton className="h-4 w-24 rounded-md" />
-                </div>
-              ))}
-            </div>
-          </div>
-        </div>
-      </div>
-    );
+    return <ClassesTimetableSkeleton />;
   }
 
   if (meQuery.isError || !meQuery.data) {
@@ -446,17 +333,6 @@ export function MyClasses() {
     );
   }
 
-  const needle = query.trim().toLowerCase();
-  const hasVisibleClass = classes.some((cls) => {
-    if (grade != null && cls.gradeLevel !== grade) return false;
-    if (!needle) return true;
-    return (
-      cls.subjectName.toLowerCase().includes(needle) ||
-      cls.subjectCode.toLowerCase().includes(needle) ||
-      cls.sectionName.toLowerCase().includes(needle)
-    );
-  });
-
   return (
     <div className="flex flex-col gap-5">
       {loadQuery.isError ? (
@@ -464,97 +340,9 @@ export function MyClasses() {
           Could not load your classes.
         </p>
       ) : loadQuery.isPending ? (
-        <div className="flex flex-col gap-4" aria-busy="true" aria-label="Loading classes">
-          <div className="rounded-xl border border-border bg-card p-3.5">
-            <Skeleton className="h-3.5 w-28 rounded-md" />
-            <div className="mt-3 grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-4">
-              {[0, 1, 2, 3].map((i) => (
-                <div key={i} className="flex flex-col gap-2">
-                  <Skeleton className="h-3 w-20 rounded-md" />
-                  <Skeleton className="h-7 w-12 rounded-md" />
-                  <Skeleton className="h-3 w-24 rounded-md" />
-                </div>
-              ))}
-            </div>
-          </div>
-          <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-3">
-            {[0, 1, 2, 3, 4, 5].map((i) => (
-              <div
-                key={i}
-                className="flex flex-col gap-2 rounded-xl border border-border bg-card p-3"
-              >
-                <Skeleton className="h-9 w-9 rounded-lg" />
-                <Skeleton className="h-4 w-36 rounded-md" />
-                <Skeleton className="h-3 w-24 rounded-md" />
-                <Skeleton className="h-1.5 w-full rounded-full" />
-                <Skeleton className="h-5 w-full rounded-md" />
-              </div>
-            ))}
-          </div>
-        </div>
+        <ClassesTimetableSkeleton />
       ) : (
         <>
-          {/* The shared stat deck: load figures + the linked teacher code. */}
-          <StatDeck
-            title="My classes"
-            icon={NotebookPen}
-            ariaLabel="Teaching load at a glance"
-            headerExtra={
-              <span className="flex flex-wrap items-center gap-1.5">
-                {termLabel
-                  .split("·")
-                  .map((part) => part.trim())
-                  .filter(Boolean)
-                  .map((part, index) => (
-                    <Pill
-                      key={part}
-                      tone="amber"
-                      label={index === 0 ? "School year" : "Active term"}
-                    >
-                      {part}
-                    </Pill>
-                  ))}
-              </span>
-            }
-            items={[
-              {
-                key: "classes",
-                icon: NotebookPen,
-                label: "Subject assignments",
-                unit: classes.length === 1 ? "class" : "classes",
-                value: classes.length,
-                hint: "Subject × section load",
-              },
-              {
-                key: "sections",
-                icon: Layers,
-                label: "Sections",
-                unit: sectionCount === 1 ? "section" : "sections",
-                value: sectionCount,
-                hint: "Distinct sections you handle",
-              },
-              {
-                key: "grades",
-                icon: GraduationCap,
-                label: "Grade levels",
-                unit: "",
-                value: gradeLevels.length,
-                hint: gradeLevels.join(", ") || "No grade levels",
-              },
-              {
-                key: "linked",
-                icon: UserRound,
-                label: "Teacher code",
-                unit: "",
-                value: linked.code ?? "—",
-                hint: `${linked.name} · tap to unlink`,
-                onClick: () => setConfirmReleaseOpen(true),
-                indicator: "none",
-                ariaLabel: `Linked teacher ${linked.name} — unlink code`,
-              },
-            ]}
-          />
-
           {classes.length === 0 ? (
             <div className="flex justify-center py-6">
               <div className="w-full max-w-md">
@@ -576,69 +364,12 @@ export function MyClasses() {
               </div>
             </div>
           ) : (
-            <section className="flex min-w-0 flex-col gap-3.5" aria-label="My classes">
-              <div className="flex flex-wrap items-center justify-between gap-2.5">
-                <FilterTabs
-                  label="Filter by grade level"
-                  options={[
-                    { value: "all", label: "All grades" },
-                    ...gradeLevels.map((g) => ({
-                      value: g,
-                      label: `Grade ${g.replace("G", "")}`,
-                    })),
-                  ]}
-                  value={grade ?? "all"}
-                  onChange={(next) => setGrade(next === "all" ? null : next)}
-                />
-                <TeacherSearchField
-                  className="w-64 max-w-full"
-                  placeholder="Find a subject, code, or section…"
-                  value={query}
-                  onChange={setQuery}
-                  aria-label="Find a class"
-                />
-              </div>
-
-              {hasVisibleClass ? (
-                <ClassCardGrid
-                  classes={classes}
-                  slots={slots}
-                  periodTimes={periodTimes}
-                  todayDow={todayDow}
-                  nowMin={nowMin}
-                  grade={grade}
-                  query={query}
-                  onOpen={setSelectedClass}
-                />
-              ) : (
-                <p className="rounded-xl border border-dashed border-border px-3.5 py-6 text-center text-[12px] text-muted-foreground">
-                  {searchEmptyMessage(query, "classes", "Try another grade or search term.")}
-                </p>
-              )}
+            <section className="flex min-w-0 flex-col gap-3.5" aria-label="Weekly timetable">
+              <ClassTimetable rows={rows} slots={slots} todayDow={todayDow} />
             </section>
           )}
         </>
       )}
-
-      {confirmReleaseOpen && linked ? (
-        <UnlinkCodeDialog
-          linked={linked}
-          pending={release.isPending}
-          onClose={() => {
-            if (!release.isPending) setConfirmReleaseOpen(false);
-          }}
-          onConfirm={handleUnlinkConfirm}
-        />
-      ) : null}
-
-      <ClassDetailDrawer
-        selectedClass={selectedClass}
-        slots={slots}
-        periodTimes={periodTimes}
-        todayDow={todayDow}
-        nowMin={nowMin}
-        onClose={() => setSelectedClass(null)}
-      />
     </div>
   );
 }

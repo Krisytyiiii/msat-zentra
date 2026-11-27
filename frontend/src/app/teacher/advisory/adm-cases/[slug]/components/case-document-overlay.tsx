@@ -4,8 +4,8 @@ import * as React from "react";
 import { useQuery } from "@tanstack/react-query";
 import { ExternalLink, FileText, Paperclip } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { KanbanOverlay } from "@/components/ui/kanban-overlay";
 import { Pill } from "@/components/ui/pill";
+import { SidePanel } from "@/components/ui/side-panel";
 import { formStatusLabel, formStatusTone } from "@/lib/labels/status-tone";
 import { OcForm01PreviewDialog } from "@/components/ocform01/OcForm01PreviewDialog";
 import { fetchOcForm01Detail } from "@/components/ocform01/ocform01";
@@ -134,81 +134,90 @@ function DocumentFileOverlay({
 }) {
   const typeLabel = FORM_TYPE_LABELS[form.formType] ?? form.title;
   return (
-    <KanbanOverlay
+    <SidePanel
       open
       onClose={onClose}
-      title={form.title}
-      ariaLabel={form.title}
-      width="lg"
-      icon={
-        <span className="text-primary" aria-hidden>
-          <FileText size={14} />
-        </span>
-      }
-      headerActions={
-        <Pill tone={formStatusTone(form.status)} label="Form status">
-          {formStatusLabel(form.status)}
-        </Pill>
-      }
+      label={form.title}
+      width="3xl"
+      showCloseButton
     >
-      <div className="flex min-w-0 flex-col gap-4">
-        <dl className="grid grid-cols-2 gap-3">
-          <div>
-            <dt className="m-0 text-[12px] font-semibold uppercase tracking-[0.04em] text-muted-foreground">
-              Document
-            </dt>
-            <dd className="m-0 text-sm font-medium text-foreground">{typeLabel}</dd>
+      <div className="flex h-full min-h-0 flex-col">
+        <header className="flex shrink-0 items-center gap-2.5 border-b border-border px-4 py-3 pr-12">
+          <span className="flex size-8 shrink-0 items-center justify-center rounded-md border bg-muted/50 text-primary">
+            <FileText size={15} aria-hidden />
+          </span>
+          <div className="min-w-0 flex-1">
+            <h2 className="m-0 truncate text-sm font-semibold leading-tight text-foreground">
+              {form.title}
+            </h2>
+            <p className="m-0 truncate text-[12px] text-muted-foreground">{typeLabel}</p>
           </div>
-          <div>
-            <dt className="m-0 text-[12px] font-semibold uppercase tracking-[0.04em] text-muted-foreground">
-              Uploaded
-            </dt>
-            <dd className="m-0 text-sm text-foreground">{dayLabel(form.uploadedAt)}</dd>
-          </div>
-          <div className="col-span-2">
-            <dt className="m-0 text-[12px] font-semibold uppercase tracking-[0.04em] text-muted-foreground">
-              Notes
-            </dt>
-            <dd className="m-0 text-sm text-muted-foreground">
-              {form.notes?.trim() || "No notes on file."}
-            </dd>
-          </div>
-        </dl>
+          <Pill tone={formStatusTone(form.status)} label="Form status">
+            {formStatusLabel(form.status)}
+          </Pill>
+        </header>
 
-        {form.fileUrl ? (
-          isImageFile(form.fileUrl) ? (
-            // eslint-disable-next-line @next/next/no-img-element
-            <img
-              src={fileHref(form.fileUrl)}
-              alt={`${form.title} attachment`}
-              className="mx-auto max-h-[60vh] w-auto max-w-full rounded-md border object-contain"
-            />
-          ) : isPdfFile(form.fileUrl) ? (
-            <iframe
-              src={fileHref(form.fileUrl)}
-              title={`${form.title} attachment`}
-              className="h-[60vh] w-full rounded-md border"
-            />
-          ) : (
-            <div className="flex flex-col items-center gap-2 rounded-md border border-dashed px-4 py-8 text-center">
-              <Paperclip size={16} className="text-muted-foreground" aria-hidden />
-              <p className="m-0 text-sm text-muted-foreground">
-                This record's attachment can only be opened in a new tab.
+        <div className="min-h-0 flex-1 overflow-y-auto px-4 py-4">
+          <div className="flex min-w-0 flex-col gap-4">
+            <dl className="grid grid-cols-2 gap-3">
+              <div>
+                <dt className="m-0 text-[12px] font-semibold uppercase tracking-[0.04em] text-muted-foreground">
+                  Document
+                </dt>
+                <dd className="m-0 text-sm font-medium text-foreground">{typeLabel}</dd>
+              </div>
+              <div>
+                <dt className="m-0 text-[12px] font-semibold uppercase tracking-[0.04em] text-muted-foreground">
+                  Uploaded
+                </dt>
+                <dd className="m-0 text-sm text-foreground">{dayLabel(form.uploadedAt)}</dd>
+              </div>
+              <div className="col-span-2">
+                <dt className="m-0 text-[12px] font-semibold uppercase tracking-[0.04em] text-muted-foreground">
+                  Notes
+                </dt>
+                <dd className="m-0 text-sm text-muted-foreground">
+                  {form.notes?.trim() || "No notes on file."}
+                </dd>
+              </div>
+            </dl>
+
+            {form.fileUrl ? (
+              isImageFile(form.fileUrl) ? (
+                // eslint-disable-next-line @next/next/no-img-element
+                <img
+                  src={fileHref(form.fileUrl)}
+                  alt={`${form.title} attachment`}
+                  className="mx-auto max-h-[60vh] w-auto max-w-full rounded-md border object-contain"
+                />
+              ) : isPdfFile(form.fileUrl) ? (
+                <iframe
+                  src={fileHref(form.fileUrl)}
+                  title={`${form.title} attachment`}
+                  className="h-[60vh] w-full rounded-md border"
+                />
+              ) : (
+                <div className="flex flex-col items-center gap-2 rounded-md border border-dashed px-4 py-8 text-center">
+                  <Paperclip size={16} className="text-muted-foreground" aria-hidden />
+                  <p className="m-0 text-sm text-muted-foreground">
+                    This record's attachment can only be opened in a new tab.
+                  </p>
+                  <Button asChild variant="outline" size="sm" className="gap-1">
+                    <a href={fileHref(form.fileUrl)} target="_blank" rel="noreferrer">
+                      <ExternalLink size={13} aria-hidden />
+                      Open attachment
+                    </a>
+                  </Button>
+                </div>
+              )
+            ) : (
+              <p className="m-0 rounded-md border border-dashed px-4 py-8 text-center text-sm text-muted-foreground">
+                No file attached to this record.
               </p>
-              <Button asChild variant="outline" size="sm" className="gap-1">
-                <a href={fileHref(form.fileUrl)} target="_blank" rel="noreferrer">
-                  <ExternalLink size={13} aria-hidden />
-                  Open attachment
-                </a>
-              </Button>
-            </div>
-          )
-        ) : (
-          <p className="m-0 rounded-md border border-dashed px-4 py-8 text-center text-sm text-muted-foreground">
-            No file attached to this record.
-          </p>
-        )}
+            )}
+          </div>
+        </div>
       </div>
-    </KanbanOverlay>
+    </SidePanel>
   );
 }

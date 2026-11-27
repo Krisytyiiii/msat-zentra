@@ -17,10 +17,9 @@ import { Button } from "@/components/ui/button";
 import { Calendar } from "@/components/ui/calendar";
 import { FilterTabs } from "@/components/ui/filter-tabs";
 import { Input } from "@/components/ui/input";
-import { KanbanOverlay } from "@/components/ui/kanban-overlay";
 import { Label } from "@/components/ui/label";
-import { Pill } from "@/components/ui/pill";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { SidePanel } from "@/components/ui/side-panel";
 import { Textarea } from "@/components/ui/textarea";
 import { cn } from "@/lib/utils";
 import {
@@ -45,6 +44,9 @@ const fromIso = (iso: string | null) => {
 
 const MAX_FILE_BYTES = 10 * 1024 * 1024;
 const ACCEPTED_EXTENSIONS = ["pdf", "doc", "docx"];
+
+/** Amber focus edge, matching the teacher search field and the type cards. */
+const FIELD_CLASS = "focus-visible:border-amber-500 focus-visible:ring-amber-500/25";
 
 type AttachmentMode = "upload" | "link";
 
@@ -158,58 +160,51 @@ export function ModuleFormDialog({
   };
 
   return (
-    <KanbanOverlay
+    <SidePanel
       open
       onClose={() => {
         if (!pending) onClose();
       }}
-      dismissable={!pending}
-      title={editing ? "Edit module" : "Release a module"}
-      ariaLabel={editing ? "Edit module" : "Release a module"}
-      icon={
-        <span
-          className="flex size-6 items-center justify-center rounded-md bg-amber-500/10 text-amber-600 dark:text-amber-400"
-          aria-hidden
-        >
-          <BookOpen size={14} />
-        </span>
-      }
-      headerActions={
-        <Pill tone={kind === "adm" ? "violet" : "blue"} label="Module type">
-          {kind === "adm" ? "ADM module" : "General post"}
-        </Pill>
-      }
-      description={
-        editing
-          ? "Update the module details and what your advisees receive."
-          : "Post the module the whole section sees — upload a file or paste a link."
-      }
+      label={editing ? "Edit module" : "Release a module"}
       width="lg"
-      footer={
-        <div className="flex w-full flex-wrap items-center justify-between gap-2 px-0.5 pb-0.5">
-          <p className="m-0 text-[12px] text-muted-foreground">
-            {editing
-              ? "Changes apply to every advisee in this section."
-              : "The release date is set when you save."}
-          </p>
-          <Button
-            type="button"
-            className="ml-auto gap-1.5"
-            onClick={handleSubmit}
-            disabled={!canSubmit}
-            aria-busy={pending || uploading || undefined}
-          >
-            {pending ? (
-              <Loader2 size={14} className="animate-spin" aria-hidden />
-            ) : (
-              <Check size={14} aria-hidden />
-            )}
-            {editing ? "Save changes" : "Release module"}
-          </Button>
-        </div>
-      }
     >
-      <div className="flex flex-col gap-3">
+      <div className="flex h-full min-h-0 flex-col overflow-hidden bg-card">
+        <header className="flex shrink-0 items-start gap-2.5 border-b border-border px-4 py-3">
+          <span
+            className="mt-0.5 flex h-7 w-7 shrink-0 items-center justify-center rounded-md bg-amber-500/10 text-amber-500"
+            aria-hidden
+          >
+            <BookOpen size={15} />
+          </span>
+          <div className="min-w-0 flex-1">
+            <h2 className="text-sm font-semibold leading-tight text-foreground">
+              {editing ? "Edit module" : "Release a module"}
+            </h2>
+            <p className="mt-0.5 text-[12px] leading-snug text-muted-foreground">
+              {editing
+                ? "Update the module details and what your advisees receive."
+                : "Post the module the whole section sees — upload a file or paste a link."}
+            </p>
+          </div>
+          <div className="flex shrink-0 items-center gap-2">
+            <span className="text-[12px] font-medium text-muted-foreground">
+              {kind === "adm" ? "ADM module" : "General post"}
+            </span>
+            <button
+              type="button"
+              onClick={() => {
+                if (!pending) onClose();
+              }}
+              disabled={pending}
+              aria-label={editing ? "Close edit module" : "Close release a module"}
+              className="-mr-1 flex h-7 w-7 shrink-0 items-center justify-center rounded-md text-muted-foreground transition-colors duration-150 hover:bg-muted hover:text-foreground disabled:pointer-events-none disabled:opacity-50"
+            >
+              <X size={15} aria-hidden />
+            </button>
+          </div>
+        </header>
+
+        <div className="flex min-h-0 flex-1 flex-col gap-3 overflow-y-auto px-4 py-4">
         {/* Identity */}
         <section
           className="flex flex-col gap-2 rounded-md border bg-background/60 p-3"
@@ -229,7 +224,7 @@ export function ModuleFormDialog({
             />
             <Input
               id="module-name"
-              className="pl-8"
+              className={`pl-8 ${FIELD_CLASS}`}
               value={moduleName}
               onChange={(e) => setModuleName(e.target.value)}
               placeholder="e.g. Module 1 · Reading Comprehension"
@@ -434,7 +429,7 @@ export function ModuleFormDialog({
                 />
                 <Input
                   id="module-url"
-                  className="pl-8"
+                  className={`pl-8 ${FIELD_CLASS}`}
                   type="url"
                   inputMode="url"
                   value={linkUrl}
@@ -514,11 +509,34 @@ export function ModuleFormDialog({
               placeholder="What the learner must do"
               maxLength={1000}
               rows={4}
-              className="min-h-[88px] resize-y"
+              className={`min-h-[88px] resize-y ${FIELD_CLASS}`}
             />
           </div>
         </section>
+        </div>
+
+        <div className="flex shrink-0 flex-wrap items-center justify-between gap-2 border-t border-border px-4 py-3">
+          <p className="m-0 text-[12px] text-muted-foreground">
+            {editing
+              ? "Changes apply to every advisee in this section."
+              : "The release date is set when you save."}
+          </p>
+          <Button
+            type="button"
+            className="ml-auto gap-1.5"
+            onClick={handleSubmit}
+            disabled={!canSubmit}
+            aria-busy={pending || uploading || undefined}
+          >
+            {pending ? (
+              <Loader2 size={14} className="animate-spin" aria-hidden />
+            ) : (
+              <Check size={14} aria-hidden />
+            )}
+            {editing ? "Save changes" : "Release module"}
+          </Button>
+        </div>
       </div>
-    </KanbanOverlay>
+    </SidePanel>
   );
 }

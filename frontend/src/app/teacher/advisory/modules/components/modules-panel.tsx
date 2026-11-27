@@ -15,12 +15,12 @@ import {
   Trash2,
   TriangleAlert,
 } from "lucide-react";
-import { useReducedMotion } from "motion/react";
 import { Button } from "@/components/ui/button";
-import { FilterTabs } from "@/components/ui/filter-tabs";
 import { GlassCard } from "@/components/ui/glass-card";
-import { Pill, type PillTone } from "@/components/ui/pill";
 import { Pagination } from "@/components/shared/pagination";
+import { PageEmptyCallout } from "@/components/shared/page-empty-callout";
+import { ShimmerGroup } from "@/components/ui/shimmer-skeleton";
+import { ModuleCardSkeleton } from "./modules-skeleton";
 import {
   isUploadedModuleFile,
   moduleFileName,
@@ -48,19 +48,16 @@ const hostOf = (url: string) => {
 
 const STATUS: Record<
   AdvisoryModuleStatus,
-  { label: string; tone: PillTone; icon: typeof CheckCircle2 }
+  { label: string; text: string; icon: typeof CheckCircle2 }
 > = {
-  submitted: { label: "Submitted", tone: "green", icon: CheckCircle2 },
-  pending: { label: "Pending", tone: "amber", icon: Clock3 },
-  overdue: { label: "Overdue", tone: "red", icon: TriangleAlert },
-  posted: { label: "Posted", tone: "blue", icon: Megaphone },
-};
-
-const FILTER_LABELS: Record<keyof ModuleStatusCounts, string> = {
-  all: "All",
-  submitted: "Submitted",
-  pending: "Pending",
-  overdue: "Overdue",
+  submitted: {
+    label: "Submitted",
+    text: "text-emerald-600 dark:text-emerald-400",
+    icon: CheckCircle2,
+  },
+  pending: { label: "Pending", text: "text-amber-600 dark:text-amber-400", icon: Clock3 },
+  overdue: { label: "Overdue", text: "text-red-600 dark:text-red-400", icon: TriangleAlert },
+  posted: { label: "Posted", text: "text-blue-600 dark:text-blue-400", icon: Megaphone },
 };
 
 const KIND_ACCENT: Record<AdvisoryModuleRow["kind"], string> = {
@@ -131,7 +128,7 @@ function ModuleCard({
       style={{ "--card-index": Math.min(index, 9) } as React.CSSProperties}
       className={`${motion.card} min-w-0`}
     >
-      <GlassCard className="flex h-full w-full min-w-0">
+      <GlassCard disabled className="flex h-full w-full min-w-0">
         <div
           onClick={onSelect}
           className={`${glass.card} ${selected ? glass.cardSelected : ""}`}
@@ -158,14 +155,16 @@ function ModuleCard({
                 {module.moduleName}
               </button>
               <span className={glass.cardMetaRow}>
-                <Pill tone={module.kind === "adm" ? "violet" : "blue"} label="Module type">
+                <span className="text-[12px] text-muted-foreground">
                   {module.kind === "adm" ? "ADM module" : "General post"}
-                </Pill>
+                </span>
               </span>
             </div>
-            <Pill tone={status.tone} label="Module status" className="shrink-0">
-              <StatusIcon size={11} aria-hidden /> {status.label}
-            </Pill>
+            <span
+              className={`inline-flex shrink-0 items-center gap-1 text-[12px] font-semibold ${status.text}`}
+            >
+              <StatusIcon size={12} aria-hidden /> {status.label}
+            </span>
           </div>
 
           <div className={glass.cardMetrics}>
@@ -260,25 +259,24 @@ export function ModulesPanel({
   total,
   page,
   selectedId,
-  filter,
   headerActions,
-  onFilterChange,
   onPageChange,
   onAdd,
   onEdit,
   onDelete,
   onSelect,
   onOpen,
+  loading = false,
 }: {
   rows: AdvisoryModuleRow[];
   counts: ModuleStatusCounts;
   total: number;
   page: number;
   selectedId: string | null;
-  filter: keyof ModuleStatusCounts;
+  /** True while a new filter/page is loading — keeps the shell, shows tiles. */
+  loading?: boolean;
   /** Extra controls (e.g. the advisory section picker) shown beside Add module. */
   headerActions?: React.ReactNode;
-  onFilterChange: (filter: keyof ModuleStatusCounts) => void;
   onPageChange: (page: number) => void;
   onAdd: () => void;
   onEdit: (module: AdvisoryModuleRow) => void;
@@ -292,15 +290,19 @@ export function ModulesPanel({
       className={`${motion.reveal} flex min-w-0 flex-col gap-3`}
       aria-label="Modules"
     >
-      <header className="flex flex-wrap items-center justify-between gap-2.5 border-b border-border/70 pb-3">
+      <header className="flex flex-wrap items-center justify-between gap-x-4 gap-y-3">
         <div className="flex min-w-0 items-center gap-2">
           <span
-            className="flex size-7 shrink-0 items-center justify-center rounded-lg border border-border bg-card text-muted-foreground"
+            className="flex h-[1.625rem] w-[1.625rem] shrink-0 items-center justify-center rounded-lg border border-border"
+            style={{
+              backgroundColor: "color-mix(in oklch, var(--muted) 55%, transparent)",
+              color: "color-mix(in oklch, #f59e0b 80%, var(--muted-foreground))",
+            }}
             aria-hidden
           >
-            <BookOpen size={14} />
+            <BookOpen size={16} />
           </span>
-          <h2 className="m-0 text-[0.9375rem] font-bold tracking-[-0.01em] text-foreground">
+          <h2 className="m-0 text-base font-bold tracking-[-0.015em] text-foreground">
             Modules
           </h2>
         </div>
@@ -311,32 +313,6 @@ export function ModulesPanel({
           </Button>
         </div>
       </header>
-
-      {counts.all > 0 ? (
-        <div className="flex flex-wrap items-center justify-between gap-2">
-          <FilterTabs
-            label="Filter modules by status"
-            variant="tags"
-            options={(Object.keys(FILTER_LABELS) as (keyof ModuleStatusCounts)[]).map(
-              (key) => ({
-                value: key,
-                label: FILTER_LABELS[key],
-                count: counts[key],
-                tone:
-                  key === "submitted"
-                    ? ("green" as const)
-                    : key === "pending"
-                      ? ("amber" as const)
-                      : key === "overdue"
-                        ? ("red" as const)
-                        : ("neutral" as const),
-              }),
-            )}
-            value={filter}
-            onChange={onFilterChange}
-          />
-        </div>
-      ) : null}
 
       <div className="flex min-w-0 flex-col gap-3">
         {counts.all === 0 ? (
@@ -350,14 +326,24 @@ export function ModulesPanel({
               <Plus size={13} aria-hidden /> Release a module
             </Button>
           </div>
+        ) : loading ? (
+          <ShimmerGroup>
+            <div
+              className="grid gap-3 [grid-template-columns:repeat(auto-fill,minmax(264px,1fr))]"
+              aria-busy="true"
+              aria-label="Loading modules"
+            >
+              {Array.from({ length: 3 }).map((_, i) => (
+                <ModuleCardSkeleton key={i} />
+              ))}
+            </div>
+          </ShimmerGroup>
         ) : rows.length === 0 ? (
-          <div className="flex flex-col items-center gap-1 rounded-lg border border-dashed border-border/80 px-4 py-10 text-center">
-            <p className="m-0 text-sm font-semibold text-foreground">
-              No {FILTER_LABELS[filter].toLowerCase()} modules
-            </p>
-            <p className="m-0 text-xs text-muted-foreground">
-              Switch the status filter to see the rest of this term.
-            </p>
+          <div className="flex min-h-[calc(100dvh-11rem)] flex-col items-center justify-center">
+            <PageEmptyCallout fit>
+              <strong>No modules to show.</strong> Release a module or check back after the
+              next term starts.
+            </PageEmptyCallout>
           </div>
         ) : (
           <div className="grid gap-3 [grid-template-columns:repeat(auto-fill,minmax(264px,1fr))]">

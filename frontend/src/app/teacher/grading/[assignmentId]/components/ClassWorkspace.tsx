@@ -1,10 +1,16 @@
 "use client";
 
 import * as React from "react";
-import { createPortal } from "react-dom";
-import { ArrowLeft, Plus, Scale } from "lucide-react";
+import {
+  ArrowLeft,
+  PanelRightClose,
+  PanelRightOpen,
+  Plus,
+  Scale,
+} from "lucide-react";
 import { KanbanBoard } from "@/components/ui/kanban-board";
 import { Pill } from "@/components/ui/pill";
+import { SidePanel } from "@/components/ui/side-panel";
 import { gradeLabel } from "@/services/teacher/grading.compute";
 import { compareSurnameFirst } from "@/lib/names";
 import emptyStyles from "@/components/schedule/schedule-empty.module.css";
@@ -99,6 +105,30 @@ export function ClassWorkspace({ detail, queryKeyId, onMutated }: Props) {
     }
   };
 
+  // Collapsed tool rail (icon-only, hover tooltips); remembered per teacher.
+  const [railCollapsed, setRailCollapsed] = React.useState(false);
+  const railStorageKey = `zentra.teacher.grading.rail.collapsed.${session?.sub ?? "anon"}`;
+  React.useEffect(() => {
+    if (!session?.sub) return;
+    try {
+      // eslint-disable-next-line react-hooks/set-state-in-effect
+      setRailCollapsed(window.localStorage.getItem(railStorageKey) === "1");
+    } catch {
+      /* storage unavailable — keep the expanded rail */
+    }
+  }, [railStorageKey, session?.sub]);
+  const toggleRail = () => {
+    setRailCollapsed((prev) => {
+      const next = !prev;
+      try {
+        window.localStorage.setItem(railStorageKey, next ? "1" : "0");
+      } catch {
+        /* storage unavailable — still applies for this visit */
+      }
+      return next;
+    });
+  };
+
   const selectedAssessment = React.useMemo(
     () =>
       detail.components
@@ -108,6 +138,19 @@ export function ClassWorkspace({ detail, queryKeyId, onMutated }: Props) {
   );
 
   const weightsConfigured = detail.components.some((c) => (c.weight ?? 0) > 0);
+  // Per-audience totals for the type filter tags — Regular vs ADM assessments
+  // this class already has across every category.
+  const audienceCounts = React.useMemo(() => {
+    let regular = 0;
+    let adm = 0;
+    for (const component of detail.components) {
+      for (const assessment of component.assessments) {
+        if (assessment.audience === "adm") adm += 1;
+        else regular += 1;
+      }
+    }
+    return { regular, adm };
+  }, [detail.components]);
   const unlockCount = students.filter(
     (s) => s.final != null && s.final.lockStatus === "unlocked" && s.final.computedAverage != null,
   ).length;
@@ -116,15 +159,6 @@ export function ClassWorkspace({ detail, queryKeyId, onMutated }: Props) {
   return (
     <section className={styles.page}>
       <div className={styles.layout}>
-        <aside className={styles.subjectsPanel} aria-label="Gradebook tools">
-          <div className={styles.subjects}>
-            <WorkspaceToolNav
-              value={tool}
-              onChange={selectTool}
-              unlockCount={unlockCount}
-            />
-          </div>
-        </aside>
         <div className={styles.main}>
           {!weightsConfigured && tool !== "weights" ? (
             <div className={emptyStyles.emptyWrap}>
@@ -201,7 +235,7 @@ export function ClassWorkspace({ detail, queryKeyId, onMutated }: Props) {
               beneath them. */}
           {weightsConfigured && tool === "add" ? (
             <div className="flex flex-wrap items-center justify-between gap-2">
-              <AudienceTabs value={audience} onChange={setAudience} />
+              <AudienceTabs value={audience} onChange={setAudience} counts={audienceCounts} />
               <Button
                 type="button"
                 size="sm"
@@ -215,7 +249,7 @@ export function ClassWorkspace({ detail, queryKeyId, onMutated }: Props) {
           ) : null}
           {weightsConfigured && tool !== "add" && !FOCUSED_TOOLS.has(tool) ? (
             <div className="flex flex-wrap items-center justify-end">
-              <AudienceTabs value={audience} onChange={setAudience} />
+              <AudienceTabs value={audience} onChange={setAudience} counts={audienceCounts} />
             </div>
           ) : null}
           {weightsConfigured && (tool === "add" || !FOCUSED_TOOLS.has(tool)) ? (
@@ -266,104 +300,100 @@ export function ClassWorkspace({ detail, queryKeyId, onMutated }: Props) {
           </>
           )}
         </div>
+        <aside
+          className={`${styles.subjectsPanel} ${
+            railCollapsed ? styles.subjectsPanelCollapsed : ""
+          }`}
+          aria-label="Gradebook tools"
+          data-collapsed={railCollapsed || undefined}
+        >
+          <div className={styles.subjects}>
+            <div
+              className={`flex w-full items-center ${
+                railCollapsed ? "justify-center" : "justify-end"
+              }`}
+            >
+              <button
+                type="button"
+                onClick={toggleRail}
+                aria-label={railCollapsed ? "Expand tools" : "Collapse tools"}
+                aria-expanded={!railCollapsed}
+                className={`group relative flex h-7 items-center justify-center rounded-md text-muted-foreground transition-colors duration-150 hover:bg-accent hover:text-foreground focus-visible:ring-2 focus-visible:ring-amber-500/40 focus-visible:outline-none ${
+                  railCollapsed ? "w-7" : "w-6"
+                }`}
+              >
+                {railCollapsed ? (
+                  <PanelRightOpen size={15} aria-hidden />
+                ) : (
+                  <PanelRightClose size={15} aria-hidden />
+                )}
+                <span
+                  role="tooltip"
+                  className="pointer-events-none absolute top-1/2 right-full z-50 mr-2.5 -translate-y-1/2 translate-x-1 rounded-md border border-border bg-popover px-2 py-1 text-[12px] font-medium whitespace-nowrap text-popover-foreground opacity-0 shadow-md transition-[opacity,transform] duration-150 ease-out group-hover:translate-x-0 group-hover:opacity-100 group-focus-visible:translate-x-0 group-focus-visible:opacity-100"
+                >
+                  {railCollapsed ? "Expand tools" : "Collapse tools"}
+                </span>
+              </button>
+            </div>
+            <WorkspaceToolNav
+              value={tool}
+              onChange={selectTool}
+              unlockCount={unlockCount}
+              collapsed={railCollapsed}
+            />
+          </div>
+        </aside>
       </div>
 
-      {addOpen ? (
-        <AddAssessmentOverlay
-          assignmentId={assignment.id}
-          sectionName={assignment.sectionName}
-          gradeLevel={assignment.gradeLevel}
-          onClose={() => setAddOpen(false)}
-          onSaved={() => {
-            onMutated();
-            refreshAcademic();
-            setAddOpen(false);
-          }}
-        />
-      ) : null}
+      {/* Kept mounted so Radix can play the drawer's slide-out on close —
+          unmounting it here would cut the exit animation off. */}
+      <AddAssessmentOverlay
+        open={addOpen}
+        assignmentId={assignment.id}
+        sectionName={assignment.sectionName}
+        gradeLevel={assignment.gradeLevel}
+        onClose={() => setAddOpen(false)}
+        onSaved={() => {
+          onMutated();
+          refreshAcademic();
+          setAddOpen(false);
+        }}
+      />
     </section>
   );
 }
 
 /**
- * Add-assessment overlay — portaled to `document.body` (no transformed
- * ancestor can trap it) and the same card language as the tab panels.
+ * Add-assessment drawer — the same right-hand sheet anatomy as the
+ * administrator's schedule drawers (icon header, scrolling body, bordered
+ * footer). The form itself owns the panel chrome.
  */
 function AddAssessmentOverlay({
+  open,
   assignmentId,
   sectionName,
   gradeLevel,
   onClose,
   onSaved,
 }: {
+  open: boolean;
   assignmentId: string;
   sectionName: string;
   gradeLevel: ClassDetail["assignment"]["gradeLevel"];
   onClose: () => void;
   onSaved: () => void;
 }) {
-  const [mounted, setMounted] = React.useState(false);
-
-  React.useEffect(() => {
-    // eslint-disable-next-line react-hooks/set-state-in-effect
-    setMounted(true);
-  }, []);
-
-  React.useEffect(() => {
-    const onKey = (e: KeyboardEvent) => {
-      if (e.key === "Escape") onClose();
-    };
-    window.addEventListener("keydown", onKey);
-    return () => window.removeEventListener("keydown", onKey);
-  }, [onClose]);
-
-  React.useEffect(() => {
-    const prev = document.body.style.overflow;
-    document.body.style.overflow = "hidden";
-    return () => {
-      document.body.style.overflow = prev;
-    };
-  }, []);
-
-  if (!mounted) return null;
-
-  return createPortal(
-    <div
-      className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4"
-      onMouseDown={(e) => {
-        if (e.target === e.currentTarget) onClose();
-      }}
-    >
-      <div
-        role="dialog"
-        aria-modal="true"
-        aria-label="Add assessment"
-        className="w-full max-w-xl"
-      >
-        <KanbanBoard
-          title="Add assessment"
-          icon={
-            <span className="text-amber-500" aria-hidden>
-              <Plus size={14} />
-            </span>
-          }
-          actions={
-            <span className="flex items-center gap-1.5">
-              <Pill tone="green" label="Section">
-                {sectionName}
-              </Pill>
-              <Pill tone="blue" label="Grade level">
-                Grade {gradeLabel(gradeLevel)}
-              </Pill>
-            </span>
-          }
-          description="New quiz, activity, or exam for this class."
-          className="bg-card shadow-2xl"
-        >
-          <AddAssessmentForm assignmentId={assignmentId} onSaved={onSaved} />
-        </KanbanBoard>
-      </div>
-    </div>,
-    document.body,
+  return (
+    <SidePanel open={open} onClose={onClose} label="Add assessment" width="md">
+      <AddAssessmentForm
+        assignmentId={assignmentId}
+        variant="drawer"
+        sectionName={sectionName}
+        gradeLevel={gradeLevel}
+        onCancel={onClose}
+        onSaved={onSaved}
+      />
+    </SidePanel>
   );
 }
+

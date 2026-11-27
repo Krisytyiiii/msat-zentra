@@ -33,6 +33,8 @@ export interface AdvisoryInterventionSession {
   createdAt: string;
   completedAt: string | null;
   attachmentsCount: number;
+  /** How many times guidance moved this session (0 = never rescheduled). */
+  rescheduleCount: number;
 }
 
 export interface AdvisoryInterventionDetail {

@@ -5,7 +5,6 @@ import { useLiveQuery } from "@/lib/api/live";
 import {
   BookOpen,
   CalendarClock,
-  FilePenLine,
   KanbanSquare,
   ShieldAlert,
 } from "lucide-react";
@@ -263,11 +262,9 @@ export function AdvisoryInsightBoard({
                       {activeFlags.length === 0 ? (
                         <span className={styles.kFactValue}>None</span>
                       ) : (
-                        activeFlags.map((f) => (
-                          <Pill key={f} tone={FACTOR_BADGE[f].variant} label="Risk factor">
-                            {FACTOR_BADGE[f].label}
-                          </Pill>
-                        ))
+                        <span className={styles.kFactValue}>
+                          {activeFlags.map((f) => FACTOR_BADGE[f].label).join(", ")}
+                        </span>
                       )}
                     </span>
                   </span>
@@ -403,68 +400,51 @@ export function AdvisoryInsightBoard({
             </li>
 
             <li className={`min-w-0 ${styles.laneWide}`}>
-              <GlassCard className="h-full w-full min-w-0" intensity={0}>
-                <article
-                  className={styles.kCard}
+              {anecdotalRecords.length === 0 ? (
+                <p className={styles.kEmpty} aria-label={`Anecdotal records for ${student.name}`}>
+                  {isRoster
+                    ? "Roster-only file — category only, never the private write-up."
+                    : "No anecdotal records this term."}
+                </p>
+              ) : (
+                <ul
+                  className={styles.folderGrid}
                   aria-label={`Anecdotal records for ${student.name}`}
                 >
-                <header className={styles.kHead}>
-                  <span className={styles.kHeading}>
-                    <span className={styles.kName}>Anecdotal</span>
-                    <Pill tone="neutral" label="Records filed">
-                      {anecdotalRecords.length} filed
-                    </Pill>
-                  </span>
-                  <span className={styles.kIconChip} aria-hidden>
-                    <FilePenLine size={13} />
-                  </span>
-                </header>
-                <div className={styles.kBody}>
-                  {anecdotalRecords.length === 0 ? (
-                    <p className={styles.kEmpty}>
-                      {isRoster
-                        ? "Roster-only file — category only, never the private write-up."
-                        : "No anecdotal records this term."}
-                    </p>
-                  ) : (
-                    <ul className={styles.folderGrid}>
-                      {anecdotalRecords.map((r) => {
-                        const category = String(r.category);
-                        const label = humanizeCategory(category);
-                        const filed = recordDate(r.observationDatetime);
-                        return (
-                          <li key={r.id} className="min-w-0">
-                            <AnecdotalRecordKanbanCard
-                              category={category}
-                              studentName={student.name}
-                              metaText={filed}
-                              metaLabel="Filed"
-                              fileName={`GCForm-01_${filed}`}
-                              fileTag={label}
-                              layout="horizontal"
-                              headerRight={
-                                <Pill
-                                  tone={
-                                    r.confidentialityLevel === "confidential" ? "red" : "neutral"
-                                  }
-                                  label="Confidentiality level"
-                                >
-                                  {r.confidentialityLevel === "confidential"
-                                    ? "Confidential"
-                                    : "Restricted"}
-                                </Pill>
+                  {anecdotalRecords.map((r) => {
+                    const category = String(r.category);
+                    const label = humanizeCategory(category);
+                    const filed = recordDate(r.observationDatetime);
+                    return (
+                      <li key={r.id} className="min-w-0">
+                        <AnecdotalRecordKanbanCard
+                          category={category}
+                          studentName={student.name}
+                          metaText={filed}
+                          metaLabel="Filed"
+                          fileName={`GCForm-01_${filed}`}
+                          fileTag={label}
+                          layout="horizontal"
+                          headerRight={
+                            <Pill
+                              tone={
+                                r.confidentialityLevel === "confidential" ? "red" : "neutral"
                               }
-                              openLabel={`Open ${student.name}'s ${label} record from ${filed}`}
-                              onOpen={() => setPreviewId(r.id)}
-                            />
-                          </li>
-                        );
-                      })}
-                    </ul>
-                  )}
-                </div>
-                </article>
-              </GlassCard>
+                              label="Confidentiality level"
+                            >
+                              {r.confidentialityLevel === "confidential"
+                                ? "Confidential"
+                                : "Restricted"}
+                            </Pill>
+                          }
+                          openLabel={`Open ${student.name}'s ${label} record from ${filed}`}
+                          onOpen={() => setPreviewId(r.id)}
+                        />
+                      </li>
+                    );
+                  })}
+                </ul>
+              )}
             </li>
           </ul>
         </section>

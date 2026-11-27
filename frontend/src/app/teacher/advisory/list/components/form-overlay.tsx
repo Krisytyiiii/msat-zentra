@@ -3,22 +3,40 @@
 import { useEffect, useState } from "react";
 import { createPortal } from "react-dom";
 
+import { SidePanel, type SidePanelWidth } from "@/components/ui/side-panel";
+
 interface Props {
   open: boolean;
   onClose: () => void;
   label: string;
+  /**
+   * `dialog` is the centered sheet used by the small edit forms. `drawer`
+   * slides in from the right edge — the same shape the admin section creator
+   * uses — for the longer add form.
+   */
+  variant?: "dialog" | "drawer";
   /** Dialog width; the default matches the admin schedule template forms. */
   widthClassName?: string;
+  /** Drawer width; `md` (28rem) unless the form needs a table. */
+  drawerWidth?: SidePanelWidth;
   children: React.ReactNode;
 }
 
 /**
- * Backdrop + centered sheet for the advisory add/edit forms — mirrors the admin
+ * Backdrop + sheet for the advisory add/edit forms — mirrors the admin
  * schedule template overlay (`TemplateFormOverlay`): the form itself is a card
  * (header strip, body, footer), so this only supplies the scrim, Escape/backdrop
  * close and the scroll box while the list stays put underneath.
  */
-export function FormOverlay({ open, onClose, label, widthClassName = "max-w-xl", children }: Props) {
+export function FormOverlay({
+  open,
+  onClose,
+  label,
+  variant = "dialog",
+  widthClassName = "max-w-xl",
+  drawerWidth = "md",
+  children,
+}: Props) {
   const [mounted, setMounted] = useState(false);
 
   useEffect(() => {
@@ -35,6 +53,16 @@ export function FormOverlay({ open, onClose, label, widthClassName = "max-w-xl",
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
   }, [open, onClose]);
+
+  if (variant === "drawer") {
+    return (
+      <SidePanel open={open} onClose={onClose} label={label} width={drawerWidth}>
+        <div className="flex min-h-0 flex-1 flex-col overflow-hidden bg-card [&>div]:rounded-none [&>div]:border-0 [&>div]:shadow-none">
+          {children}
+        </div>
+      </SidePanel>
+    );
+  }
 
   if (!open || !mounted) return null;
 

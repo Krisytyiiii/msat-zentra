@@ -5,6 +5,7 @@ import * as React from "react";
 export function KanbanBoardHeader({
   icon,
   title,
+  titleMeta,
   count,
   actions,
   center,
@@ -17,6 +18,8 @@ export function KanbanBoardHeader({
   icon?: React.ReactNode;
   /** Omit to render the filter/search row without a title segment. */
   title?: React.ReactNode;
+  /** Secondary line rendered under the title (labels, scope, counts). */
+  titleMeta?: React.ReactNode;
   count?: React.ReactNode;
   actions?: React.ReactNode;
   /** Slot centered in the title row (e.g. a status filter / view switcher). */
@@ -45,11 +48,18 @@ export function KanbanBoardHeader({
       {title || icon ? (
         <span
           className={`inline-flex min-w-0 items-center gap-1.5 text-[13px] font-semibold text-muted-foreground ${
-            toolbar ? "shrink-0" : "flex-1"
+            toolbar ? (titleMeta ? "shrink min-w-0" : "shrink-0") : "flex-1"
           }`}
         >
           {icon}
-          <span className="truncate">{title}</span>
+          <span className="flex min-w-0 flex-col gap-0.5">
+            <span className="truncate">{title}</span>
+            {titleMeta ? (
+              <span className="text-[12px] font-normal text-muted-foreground break-words whitespace-normal">
+                {titleMeta}
+              </span>
+            ) : null}
+          </span>
         </span>
       ) : null}
       {toolbar ? (
@@ -88,6 +98,8 @@ export function KanbanBoardEmpty({ children }: { children: React.ReactNode }) {
 interface KanbanBoardProps {
   /** Omit to render only the filters/search row (no title segment). */
   title?: React.ReactNode;
+  /** Secondary line rendered under the title (labels, scope, counts). */
+  titleMeta?: React.ReactNode;
   icon?: React.ReactNode;
   count?: React.ReactNode;
   actions?: React.ReactNode;
@@ -123,6 +135,7 @@ interface KanbanBoardProps {
 
 export function KanbanBoard({
   title,
+  titleMeta,
   icon,
   count,
   actions,
@@ -161,6 +174,7 @@ export function KanbanBoard({
           <KanbanBoardHeader
             icon={icon}
             title={title}
+            titleMeta={titleMeta}
             count={count}
             actions={actions}
             center={headerCenter}

@@ -24,12 +24,15 @@ export function SheetDatePicker({
   date,
   onChange,
   meetupDates,
+  showShortcuts = true,
 }: {
 
   date: string;
   onChange: (date: string) => void;
 
   meetupDates: string[] | null;
+  /** Past-sheet badge and "Back to today" shortcut (rail only). */
+  showShortcuts?: boolean;
 }) {
   const [open, setOpen] = React.useState(false);
   const todayKey = phTodayKey();
@@ -95,10 +98,10 @@ export function SheetDatePicker({
           </div>
         </PopoverContent>
       </Popover>
-      {!isToday ? (
+      {showShortcuts && !isToday ? (
         <Badge variant="amber">Past sheet</Badge>
       ) : null}
-      {!isToday ? (
+      {showShortcuts && !isToday ? (
         <Button
           type="button"
           variant="ghost"

@@ -60,7 +60,18 @@ const FREE_FOLLOWUPS: Record<BamaChatType, string> = {
     "Noted — I've kept that with this chat. Follow the steps above to fill SF10 from approved grades.",
 };
 
-export function BamaChat() {
+export function BamaChat({
+  compact = false,
+  initialType,
+  initialEditId,
+}: {
+  /** Drawer mode: no history rail, fills the host panel. */
+  compact?: boolean;
+  /** Drawer mode: open a filing chat straight away when none is restored. */
+  initialType?: BamaChatType;
+  /** Drawer mode: seed the fresh anecdotal chat straight into edit mode for this record. */
+  initialEditId?: string;
+} = {}) {
   const router = useRouter();
   const searchParams = useSearchParams();
   const [conversations, setConversations] = useState<BamaConversation[]>([]);
@@ -178,14 +189,16 @@ export function BamaChat() {
     else handleFreeSend();
   }
 
-  function startChat(type: BamaChatType, keepDraft = false) {
+  function startChat(type: BamaChatType, keepDraft = false, withGreeting = true) {
     flow.resetFlowStates();
     sf10Flow.resetFlowStates();
     autofillFlow.resetFlowStates();
     const now = Date.now();
     const convo: BamaConversation = {
       ...createConversation(type),
-      messages: [{ id: nextMessageId(), from: "assistant", text: GREETINGS[type], at: now }],
+      messages: withGreeting
+        ? [{ id: nextMessageId(), from: "assistant", text: GREETINGS[type], at: now }]
+        : [],
       updatedAt: now,
     };
     setConversations((prev) => [convo, ...prev]);
@@ -193,6 +206,74 @@ export function BamaChat() {
     if (!keepDraft) setDraft("");
     composerRef.current?.focus();
   }
+
+  // One loader for both entry points (URL deep link and the anecdotal desk's
+  // edit drawer) so a record opens exactly the same review flow either way.
+  async function loadAnecdotalEdit(editId: string): Promise<AnecdotalEditInput | null> {
+    try {
+      const [records, detail] = await Promise.all([
+        fetchMyRecords(),
+        fetchOcForm01Detail(editId),
+      ]);
+      const record = records.find((r) => r.id === editId);
+      if (!record) return null;
+      const category = (detail.category ?? record.category) as AnecdotalCategory;
+      const tier = (detail.confidentialityLevel ??
+        record.confidentialityLevel) as AnecdotalTier;
+      return {
+        recordId: record.id,
+        studentId: record.studentId,
+        studentName: record.studentName,
+        lrn: record.lrn,
+        section: record.section,
+        category,
+        tier: tier === "confidential" ? "confidential" : "restricted",
+        observationDatetime:
+          detail.observationDatetime ?? record.observationDatetime,
+        incident: detail.descriptionOfIncident ?? record.incident,
+        location: detail.descriptionOfLocation ?? "",
+        notes: detail.notesRecommendationsActions ?? "",
+        classPerformance: detail.classPerformance ?? "",
+        attendanceSummary: detail.attendanceSummary ?? "",
+      };
+    } catch {
+      /* keep the plain anecdotal chat open if the record can't be loaded */
+      return null;
+    }
+  }
+
+  // Drawer mode: every open starts a fresh filing chat. Reusing whatever the
+  // shared store last had could resume a half-finished edit or another learner's
+  // draft, which is not what "Chat now" means.
+  const initialTypeHandled = useRef(false);
+  /* eslint-disable react-hooks/set-state-in-effect -- one-shot drawer seed */
+  useEffect(() => {
+    if (!compact || !hydrated || initialTypeHandled.current || !initialType) return;
+    // Edit mode builds its own conversation below — it must not start with the
+    // "pick a student" greeting because the learner is already chosen.
+    if (initialEditId) return;
+    initialTypeHandled.current = true;
+    startChat(initialType);
+    /* eslint-disable-next-line react-hooks/exhaustive-deps */
+  }, [compact, hydrated, initialType, initialEditId]);
+  /* eslint-enable react-hooks/set-state-in-effect */
+
+  // Drawer edit mode: load the record, open a greeting-free anecdotal chat and
+  // seed its current values. The learner is fixed by the record, so the drawer
+  // never asks for a student again.
+  const initialEditHandled = useRef(false);
+  /* eslint-disable react-hooks/set-state-in-effect -- one-shot drawer edit seed */
+  useEffect(() => {
+    if (!compact || !hydrated || !initialEditId || initialEditHandled.current) return;
+    initialEditHandled.current = true;
+    void (async () => {
+      const input = await loadAnecdotalEdit(initialEditId);
+      startChat("anecdotal", false, false);
+      if (input) setPendingEdit(input);
+    })();
+    /* eslint-disable-next-line react-hooks/exhaustive-deps */
+  }, [compact, hydrated, initialEditId]);
+  /* eslint-enable react-hooks/set-state-in-effect */
 
   const newParamHandled = useRef(false);
   /* eslint-disable react-hooks/set-state-in-effect -- one-shot deep-link reset */
@@ -210,37 +291,9 @@ export function BamaChat() {
       startChat(t);
       const editId = searchParams.get("edit");
       if (t === "anecdotal" && editId) {
-        void (async () => {
-          try {
-            const [records, detail] = await Promise.all([
-              fetchMyRecords(),
-              fetchOcForm01Detail(editId),
-            ]);
-            const record = records.find((r) => r.id === editId);
-            if (!record) return;
-            const category = (detail.category ?? record.category) as AnecdotalCategory;
-            const tier = (detail.confidentialityLevel ??
-              record.confidentialityLevel) as AnecdotalTier;
-            setPendingEdit({
-              recordId: record.id,
-              studentId: record.studentId,
-              studentName: record.studentName,
-              lrn: record.lrn,
-              section: record.section,
-              category,
-              tier: tier === "confidential" ? "confidential" : "restricted",
-              observationDatetime:
-                detail.observationDatetime ?? record.observationDatetime,
-              incident: detail.descriptionOfIncident ?? record.incident,
-              location: detail.descriptionOfLocation ?? "",
-              notes: detail.notesRecommendationsActions ?? "",
-              classPerformance: detail.classPerformance ?? "",
-              attendanceSummary: detail.attendanceSummary ?? "",
-            });
-          } catch {
-            /* keep the plain anecdotal chat open if the record can't be loaded */
-          }
-        })();
+        void loadAnecdotalEdit(editId).then((input) => {
+          if (input) setPendingEdit(input);
+        });
       }
     } else {
       flow.resetFlowStates();
@@ -347,67 +400,77 @@ export function BamaChat() {
         ? sf10Flow.phase !== "reason" || !draft.trim()
         : !draft.trim());
 
-  return (
-    <section className={styles.page} aria-label="Chat with Bama">
-      <div className={styles.layout}>
-        <BamaSidebar
-          conversations={conversations}
-          query={query}
-          onQueryChange={setQuery}
-          activeId={activeId}
-          onSelect={setActiveId}
-          onNew={handleNewChat}
-          onDeleteRequest={setDeleteTarget}
-        />
-
-        <div className={styles.body}>
-          <BamaThread
-            active={active}
-            sending={sending}
-            flow={flow}
-            sf10Flow={sf10Flow}
-            autofillFlow={autofillFlow}
-            typeLabel={active ? TYPE_LABELS[active.type] : ""}
-            threadRef={threadRef}
-            onStartChat={startChat}
-            onViewRecord={setPreviewRecordId}
-          />
-          {active && active.filed ? (
-            <div className={styles.endedBar}>
-              <p className={styles.endedBarText}>This chat has ended.</p>
-              <Button type="button" variant="outline" size="sm" onClick={() => startChat(active.type)}>
-                Start new chat
-              </Button>
-            </div>
-          ) : (
-            <BamaComposer
-            draft={draft}
-            onDraftChange={setDraft}
-            disabled={composerDisabled}
-            placeholder={composerPlaceholder}
-            inputLabel={
-              anecMode && flow.textQuestion
-                ? TEXT_QUESTION_LABELS[flow.textQuestion]
-                : sf10Mode && sf10Flow.phase === "reason"
-                  ? "Reason for SF10 access request"
-                  : "Ask Bama"
-            }
-            sendDisabled={sendDisabled}
-            sendLabel={anecMode && flow.textQuestion === null ? "File record" : "Send message"}
-            hint={
-              active?.filed
-                ? "This record is filed — start a New chat for another report."
-                : sending || flow.filing || sf10Flow.submitting || autofillFlow.submitting
-                  ? "Working on it…"
-                  : "Enter to send · Shift + Enter for a new line"
-            }
-            onSend={handleSend}
-            composerRef={composerRef}
-            activeId={activeId}
-          />
-          )}
+  const thread = (
+    <>
+      <BamaThread
+        active={active}
+        sending={sending}
+        flow={flow}
+        sf10Flow={sf10Flow}
+        autofillFlow={autofillFlow}
+        typeLabel={active ? TYPE_LABELS[active.type] : ""}
+        threadRef={threadRef}
+        onStartChat={startChat}
+        onViewRecord={setPreviewRecordId}
+      />
+      {active && active.filed ? (
+        <div className={styles.endedBar}>
+          <p className={styles.endedBarText}>This chat has ended.</p>
+          <Button type="button" variant="outline" size="sm" onClick={() => startChat(active.type)}>
+            Start new chat
+          </Button>
         </div>
-      </div>
+      ) : (
+        <BamaComposer
+          draft={draft}
+          onDraftChange={setDraft}
+          disabled={composerDisabled}
+          placeholder={composerPlaceholder}
+          inputLabel={
+            anecMode && flow.textQuestion
+              ? TEXT_QUESTION_LABELS[flow.textQuestion]
+              : sf10Mode && sf10Flow.phase === "reason"
+                ? "Reason for SF10 access request"
+                : "Ask Bama"
+          }
+          sendDisabled={sendDisabled}
+          sendLabel={anecMode && flow.textQuestion === null ? "File record" : "Send message"}
+          hint={
+            active?.filed
+              ? "This record is filed — start a New chat for another report."
+              : sending || flow.filing || sf10Flow.submitting || autofillFlow.submitting
+                ? "Working on it…"
+                : "Enter to send · Shift + Enter for a new line"
+          }
+          onSend={handleSend}
+          composerRef={composerRef}
+          activeId={activeId}
+        />
+      )}
+    </>
+  );
+
+  return (
+    <section
+      className={compact ? "flex h-full min-h-0 min-w-0 flex-col" : styles.page}
+      aria-label="Chat with Bama"
+    >
+      {compact ? (
+        <div className="flex min-h-0 flex-1 flex-col">{thread}</div>
+      ) : (
+        <div className={styles.layout}>
+          <BamaSidebar
+            conversations={conversations}
+            query={query}
+            onQueryChange={setQuery}
+            activeId={activeId}
+            onSelect={setActiveId}
+            onNew={handleNewChat}
+            onDeleteRequest={setDeleteTarget}
+          />
+          <div className={styles.body}>{thread}</div>
+        </div>
+      )}
 
       <BamaDeleteDialog
         target={deleteTarget}

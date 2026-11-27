@@ -31,8 +31,9 @@ export function ScoreDataTable({ assessment, students, drafts, nameFilter }: { a
         num !== null
           ? { label: "Scored", tone: "green" as const }
           : { label: "Missing", tone: "muted" as const },
+      statusPlain: true,
       title: formatSurnameFirst(s.name),
-      idLabel: s.lrn,
+      subtitle: s.lrn,
       avatarMascot: {
         name: s.name,
         seed: s.lrn,
@@ -54,7 +55,9 @@ export function ScoreDataTable({ assessment, students, drafts, nameFilter }: { a
   return (
     <div className="flex w-full min-w-0 flex-col gap-3">
       {items.length === 0 ? (
-        <InsightCallout>No students match your search.</InsightCallout>
+        <InsightCallout className="mx-auto w-full max-w-md">
+          No students match your search.
+        </InsightCallout>
       ) : (
         <RowList
           bleed

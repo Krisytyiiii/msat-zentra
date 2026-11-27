@@ -7,7 +7,6 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { KanbanBoard } from "@/components/ui/kanban-board";
-import { Pill } from "@/components/ui/pill";
 
 type Props = {
   open: boolean;
@@ -90,12 +89,27 @@ export function LockGradesModal({ open, subjectLabel, unlockCount, pending, erro
             </button>
           }
           description={
-            <span className="flex flex-wrap items-center gap-1">
-              {subjectPart ? <Pill tone="amber" label="Subject">{subjectPart}</Pill> : null}
-              {sectionPart ? <Pill tone="amber" label="Section">{sectionPart}</Pill> : null}
-              <Pill tone="amber" label="Learners ready to lock">
-                {unlockCount} learner{unlockCount === 1 ? "" : "s"} ready to lock
-              </Pill>
+            <span className="flex flex-wrap items-center gap-x-2 gap-y-0.5">
+              {subjectPart ? (
+                <span>
+                  Subject: <span className="font-medium text-foreground">{subjectPart}</span>
+                </span>
+              ) : null}
+              {sectionPart ? (
+                <>
+                  <span aria-hidden className="text-border">|</span>
+                  <span>
+                    Section: <span className="font-medium text-foreground">{sectionPart}</span>
+                  </span>
+                </>
+              ) : null}
+              <span aria-hidden className="text-border">|</span>
+              <span>
+                <span className="font-medium text-foreground">
+                  {unlockCount} learner{unlockCount === 1 ? "" : "s"}
+                </span>{" "}
+                ready to lock
+              </span>
             </span>
           }
           ariaLabel="Lock grades"
@@ -135,7 +149,7 @@ export function LockGradesModal({ open, subjectLabel, unlockCount, pending, erro
                 onKeyDown={(e) => {
                   if (e.key === "Enter" && code.trim() && !pending) onConfirm(code.trim());
                 }}
-                className="pr-9"
+                className="pr-9 focus-visible:border-amber-500 focus-visible:ring-amber-500/25"
               />
               <button
                 type="button"

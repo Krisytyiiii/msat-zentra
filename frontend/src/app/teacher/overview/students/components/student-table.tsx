@@ -4,7 +4,7 @@ import { motion, useReducedMotion } from "motion/react";
 import { BookOpen, CalendarClock, ClipboardList, Users } from "lucide-react";
 import { InsightCallout } from "@/components/ui/insight-callout";
 import { GlassCard } from "@/components/ui/glass-card";
-import { Pill, type PillTone } from "@/components/ui/pill";
+import { type PillTone } from "@/components/ui/pill";
 import { StudentMascot } from "@/components/student-mascot/StudentMascot";
 import { TeacherSearchField, searchEmptyMessage } from "@/app/teacher/components/TeacherSearchField";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -47,13 +47,6 @@ function StudentCard({ row, showAnecdotal }: { row: StudentListRow; showAnecdota
             <p className={styles.studentCardName} title={row.name}>
               {row.name}
             </p>
-            <Pill
-              tone="neutral"
-              label="LRN"
-              className={`${styles.studentCardLrn} tabular-nums`}
-            >
-              {row.lrn}
-            </Pill>
           </div>
         </header>
         <div className={styles.studentCardBody}>
@@ -64,13 +57,12 @@ function StudentCard({ row, showAnecdotal }: { row: StudentListRow; showAnecdota
               <span className={styles.sectionCardStatIcon} aria-hidden>
                 <CalendarClock />
               </span>
-              <Pill
-                tone={attendanceTone(pct)}
-                label="Attendance"
-                className="tabular-nums"
+              <span
+                className={styles.studentCardStatValue}
+                data-tone={attendanceTone(pct)}
               >
                 {pct === null ? "—" : `${pct}%`}
-              </Pill>
+              </span>
               <span
                 className={styles.studentCardStatLabel}
                 title={
@@ -86,9 +78,12 @@ function StudentCard({ row, showAnecdotal }: { row: StudentListRow; showAnecdota
               <span className={styles.sectionCardStatIcon} aria-hidden>
                 <BookOpen />
               </span>
-              <Pill tone={gradeTone(grade)} label="Academic grade" className="tabular-nums">
+              <span
+                className={styles.studentCardStatValue}
+                data-tone={gradeTone(grade)}
+              >
                 {grade === null ? "—" : grade}
-              </Pill>
+              </span>
               <span className={styles.studentCardStatLabel}>
                 {row.computedAverage !== null
                   ? `Avg ${Math.round(row.computedAverage * 10) / 10}`
@@ -100,13 +95,12 @@ function StudentCard({ row, showAnecdotal }: { row: StudentListRow; showAnecdota
                 <span className={styles.sectionCardStatIcon} aria-hidden>
                   <ClipboardList />
                 </span>
-                <Pill
-                  tone={row.anecdotalCount > 0 ? "amber" : "neutral"}
-                  label="Anecdotal"
-                  className="tabular-nums"
+                <span
+                  className={styles.studentCardStatValue}
+                  data-tone={row.anecdotalCount > 0 ? "amber" : "neutral"}
                 >
                   {row.anecdotalCount}
-                </Pill>
+                </span>
                 <span className={styles.studentCardStatLabel}>Anecdotal</span>
               </div>
             ) : null}
@@ -178,7 +172,6 @@ export function StudentTable({
                   <Skeleton className="size-8 rounded-full" />
                   <div className="flex min-w-0 flex-1 flex-col items-start gap-1">
                     <Skeleton className="h-3.5 w-3/4 rounded" />
-                    <Skeleton className="h-4 w-24 rounded-full" />
                   </div>
                 </header>
                 <div className={styles.studentCardBody}>
@@ -186,7 +179,7 @@ export function StudentTable({
                     {Array.from({ length: 3 }).map((__, j) => (
                       <div key={j} className={styles.studentCardStat}>
                         <Skeleton className="size-6 rounded-md" />
-                        <Skeleton className="h-4 w-8 rounded-full" />
+                        <Skeleton className="h-4 w-8 rounded" />
                         <Skeleton className="h-3 w-12 rounded" />
                       </div>
                     ))}

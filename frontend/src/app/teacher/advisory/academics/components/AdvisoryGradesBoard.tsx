@@ -79,7 +79,15 @@ export function AdvisoryGradesBoard({
     );
   }
 
-  const risk = academicRiskOf(student, subjects);
+  const average = generalAverageOf(student, subjects);
+  const dotColor =
+    average === null
+      ? "#f59e0b"
+      : average >= 90
+        ? "#22c55e"
+        : average >= 80
+          ? "#f59e0b"
+          : "#ef4444";
 
   return (
     <div
@@ -93,22 +101,24 @@ export function AdvisoryGradesBoard({
         <div className="min-w-0 flex-1">
           <h2 className={boardStyles.boardTitle}>Student grades</h2>
           <p className={boardStyles.boardSub}>
-            General average and live grades per subject
+            Overall average and live grades per subject
           </p>
         </div>
         <GlassCard className="shrink-0" intensity={4}>
           <div className={boardStyles.statusCard}>
-            <span className={boardStyles.statusLabel}>Academic risk</span>
+            <span className={boardStyles.statusLabel}>Overall average</span>
             <span
-              className={`${boardStyles.statusValue} ${
-                risk === null
+              className={`${boardStyles.statusValue} ${boardStyles.statusBig} ${
+                average === null
                   ? "text-muted-foreground"
-                  : risk === "Low"
+                  : average >= 90
                     ? "text-green-600 dark:text-green-500"
-                    : "text-amber-600 dark:text-amber-500"
+                    : average >= 80
+                      ? "text-amber-600 dark:text-amber-500"
+                      : "text-red-600 dark:text-red-500"
               }`}
             >
-              {risk === null ? "No data" : `${risk} risk`}
+              {average === null ? "No data" : average.toFixed(1)}
             </span>
           </div>
         </GlassCard>
@@ -118,10 +128,7 @@ export function AdvisoryGradesBoard({
         <header className={boardStyles.laneHead}>
           <span
             className={boardStyles.laneDot}
-            style={{
-              background:
-                risk === "Low" ? "#22c55e" : risk === "Moderate" ? "#f59e0b" : "#f59e0b",
-            }}
+            style={{ background: dotColor }}
             aria-hidden
           />
           <h3 className={boardStyles.laneTitle}>Live average per subject</h3>
@@ -136,7 +143,7 @@ export function AdvisoryGradesBoard({
               return (
                 <li key={subject.name} className="min-w-0">
                   <section
-                    className={boardStyles.lane}
+                    className={`${boardStyles.lane} ${boardStyles.laneFlat}`}
                     aria-label={`${subject.name} grade lane`}
                   >
                     <header className={boardStyles.colHead}>

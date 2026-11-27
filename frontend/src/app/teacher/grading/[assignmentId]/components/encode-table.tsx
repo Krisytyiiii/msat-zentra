@@ -20,7 +20,7 @@ export function PlainEncodeTable({ assessment, students, drafts, nameFilter, onD
   }
   if (rows.length === 0) {
     return (
-      <InsightCallout>
+      <InsightCallout className="mx-auto w-full max-w-md">
         No students match your search.
       </InsightCallout>
     );
@@ -46,13 +46,15 @@ export function PlainEncodeTable({ assessment, students, drafts, nameFilter, onD
             className={rowStyles.row}
             aria-label={`${scored ? "Scored" : "Missing"}: ${s.name}`}
           >
-            <Pill
-              tone={scored ? "green" : "neutral"}
-              label="Score status"
-              className="w-fit max-w-full justify-center"
+            <span
+              className={`w-fit text-[12px] font-medium ${
+                scored
+                  ? "text-emerald-600 dark:text-emerald-400"
+                  : "text-muted-foreground"
+              }`}
             >
               {scored ? "Scored" : "Missing"}
-            </Pill>
+            </span>
             <span className={rowStyles.sep} aria-hidden>
               |
             </span>
@@ -63,12 +65,14 @@ export function PlainEncodeTable({ assessment, students, drafts, nameFilter, onD
                 character={mascotById.get(s.id)}
                 size={28}
               />
-              <span className={rowStyles.title} title={formatSurnameFirst(s.name)}>
-                {formatSurnameFirst(s.name)}
+              <span className={rowStyles.titleStack}>
+                <span className={rowStyles.title} title={formatSurnameFirst(s.name)}>
+                  {formatSurnameFirst(s.name)}
+                </span>
+                <span className={rowStyles.subtitle} title={s.lrn}>
+                  {s.lrn}
+                </span>
               </span>
-              <Pill tone="neutral" label="LRN" className="min-w-0 max-w-full truncate" title={s.lrn}>
-                {s.lrn}
-              </Pill>
               {s.isAdm ? (
                 <Pill
                   tone="amber"
@@ -87,6 +91,7 @@ export function PlainEncodeTable({ assessment, students, drafts, nameFilter, onD
                 initial={drafts[s.id] ?? savedText}
                 studentName={formatSurnameFirst(s.name)}
                 assessmentTitle={assessment.title}
+                maxScore={assessment.maxScore}
                 onDraft={(value) => onDraftChange(s.id, value)}
               />
               <Pill tone="amber" label="Percentage" className="gap-1">

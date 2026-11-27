@@ -1,5 +1,5 @@
-/* Assessment rows — horizontal scroll per category section.
-   Thin amber scrollbar, revealed only while its section is hovered. */
+/* Assessment cards — responsive grid that reflows with the panel width when
+   the desk dock expands or collapses. */
 
 .row {
   scrollbar-width: thin;

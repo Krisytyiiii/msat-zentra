@@ -2,7 +2,13 @@
 
 import { FolderKanban, Loader2, Send } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { Pill } from "@/components/ui/pill";
+import {
+  Table,
+  TableBody,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "@/components/ui/table";
 import { Pagination } from "@/components/shared/pagination";
 import {
   TeacherSearchField,
@@ -11,6 +17,8 @@ import {
 import { PageEmptyCallout } from "@/components/shared/page-empty-callout";
 import type { AdmCase } from "@/services/teacher/admCases.types";
 import { AdmCaseRow } from "./AdmCaseRow";
+import cascade from "@/components/shared/desk-cascade.module.css";
+import listStyles from "../../list/components/advisory-list.module.css";
 import styles from "./adm-cases.module.css";
 
 export function AdmCaseListPanel({
@@ -55,9 +63,6 @@ export function AdmCaseListPanel({
           </div>
         </div>
         <div className="flex shrink-0 items-center gap-1.5">
-          <Pill tone="amber" className={styles.countPill} label="Cases shown">
-            {total}
-          </Pill>
           <Button
             type="button"
             variant="outline"
@@ -103,24 +108,33 @@ export function AdmCaseListPanel({
             </Button>
           </div>
         ) : cases.length > 0 ? (
-          <>
-            <div className={styles.listHead} aria-hidden>
-              <span>Advisee</span>
-              <span>ADM stage</span>
-              <span>Modules</span>
-              <span />
-            </div>
-            <ul className={styles.listBody} aria-label="ADM cases">
-              {cases.map((row) => (
-                <AdmCaseRow
-                  key={row.id}
-                  caseData={row}
-                  selected={row.id === selectedId}
-                  onSelect={() => onSelect(row)}
-                />
-              ))}
-            </ul>
-          </>
+          <div className={`${listStyles.tableWrap} ${cascade.table}`}>
+            <Table className="w-full table-fixed">
+              <TableHeader>
+                <TableRow className="bg-muted/50 [&>th]:border-t-0">
+                  <TableHead className="h-10">Advisee</TableHead>
+                  <TableHead className="h-10" style={{ width: 148 }}>
+                    ADM stage
+                  </TableHead>
+                  <TableHead className="h-10" style={{ width: 124 }}>
+                    Modules
+                  </TableHead>
+                  <TableHead className="h-10" style={{ width: 44 }} />
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {cases.map((row, index) => (
+                  <AdmCaseRow
+                    key={row.id}
+                    caseData={row}
+                    selected={row.id === selectedId}
+                    onSelect={() => onSelect(row)}
+                    index={index}
+                  />
+                ))}
+              </TableBody>
+            </Table>
+          </div>
         ) : (
           <div className="flex w-full justify-center px-3 py-8">
             <PageEmptyCallout>

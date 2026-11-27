@@ -4,28 +4,23 @@ import { KanbanSquare } from "lucide-react";
 import type { ReactNode } from "react";
 import { Skeleton } from "@/components/ui/skeleton";
 import { ShimmerGroup } from "@/components/ui/shimmer-skeleton";
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "@/components/ui/table";
+import cascade from "@/components/shared/desk-cascade.module.css";
 import listStyles from "./advisory-list.module.css";
 import insightStyles from "./advisory-insight-board.module.css";
 
 const TABLE_ROWS = 8;
 const INSIGHT_CARDS = 3;
 
-function ListRowSkeleton() {
-  return (
-    <div className="flex items-center border-t px-4 py-3">
-      <div className="flex min-w-0 items-center gap-2" style={{ width: 250 }}>
-        <Skeleton className="size-8 shrink-0 rounded-full" />
-        <div className="flex min-w-0 flex-1 flex-col gap-1.5">
-          <Skeleton className="h-3.5 w-4/5" />
-          <div className="flex items-center justify-between gap-2">
-            <Skeleton className="h-6 w-24 rounded-full" />
-            <Skeleton className="h-6 w-16 shrink-0 rounded-full" />
-          </div>
-        </div>
-      </div>
-    </div>
-  );
-}
+/** Live column budget: Student, Risk, Attendance, Average, Anecdotal, actions. */
+const COLUMNS = [250, 110, 140, 100, 110, 50];
 
 /** One insight card placeholder — same head / metric / facts anatomy as the board. */
 function InsightCardSkeleton({ folders }: { folders?: ReactNode }) {
@@ -79,9 +74,9 @@ function FolderCardSkeleton() {
 }
 
 /**
- * The insight board's placeholder body. Shared by the page-load shell and by
- * the board's own per-student fetch, so a fetch always shows one skeleton UI
- * (and the same one) instead of two different treatments.
+ * The insight board's placeholder body. Shared by the board's own per-student
+ * fetch, so a fetch always shows one skeleton UI instead of a different
+ * treatment from the page-load shell.
  */
 export function InsightBoardSkeleton() {
   return (
@@ -112,90 +107,94 @@ export function InsightBoardSkeleton() {
   );
 }
 
-/** Right pane of the split: the Student insight board at rest. */
-function InsightSkeleton() {
-  return (
-    <div className={`${insightStyles.board} ${insightStyles.bare}`} aria-hidden>
-      <header className={insightStyles.boardHead}>
-        <span className={insightStyles.boardIcon}>
-          <KanbanSquare size={18} />
-        </span>
-        <div className="min-w-0 flex-1">
-          <Skeleton className="h-4 w-28" />
-        </div>
-      </header>
-
-      <InsightBoardSkeleton />
-    </div>
-  );
-}
-
 /**
- * Advisory list loading state — mirrors the loaded page: one panel split into
- * the roster lane (head, filter, table, pagination) and the Student insight
- * board, plus the two-button action rail on the right.
+ * Advisory list loading state — mirrors the loaded page: one full-width board
+ * with the toolbar (risk tabs, search, edit/remove) and the roster data table.
  */
 export function AdvisoryListSkeleton() {
   return (
     <ShimmerGroup>
       <section
-        className={`${listStyles.pageLock} flex min-w-0 flex-col gap-3`}
         aria-busy="true"
         aria-label="Loading advisory list"
+        className="flex min-w-0 flex-col gap-3"
       >
-        <div className="grid w-full items-start gap-4">
-          <div className={listStyles.panel} aria-hidden>
+        <div className="flex min-w-0 flex-col" aria-hidden>
             <header className={listStyles.boardHead}>
-              <span className={listStyles.boardIcon} aria-hidden>
+              <span className={listStyles.boardIcon}>
                 <KanbanSquare size={18} />
               </span>
               <div className="min-w-0 flex-1">
                 <Skeleton className="h-4 w-32" />
               </div>
               <div className="flex shrink-0 items-center gap-1.5">
-                <Skeleton className="h-6 w-24 rounded-md" />
-                <Skeleton className="h-6 w-28 rounded-md" />
+                <Skeleton className="h-8 w-8 rounded-md" />
+                <Skeleton className="h-8 w-8 rounded-md" />
+                <Skeleton className="h-8 w-24 rounded-md" />
+                <Skeleton className="h-8 w-28 rounded-md" />
               </div>
             </header>
 
-            <div className={listStyles.split}>
-              <div className={listStyles.left}>
-                <section className={listStyles.lane}>
-                  <header className={listStyles.laneHead}>
-                    <span className={listStyles.laneDot} style={{ background: "#f59e0b" }} />
-                    <Skeleton className="h-3 w-24" />
-                    <div className="ml-auto flex shrink-0 items-center gap-1">
-                      <Skeleton className="size-6 rounded-md" />
-                      <Skeleton className="size-6 rounded-md" />
-                    </div>
-                  </header>
-
-                  <Skeleton className="h-8 w-full rounded-[16px]" />
-
-                  <div className={listStyles.tableWrap}>
-                    <div className="flex items-center bg-muted/50 px-4 py-3">
-                      <Skeleton className="h-3 w-[7.5rem]" />
-                    </div>
-                    {Array.from({ length: TABLE_ROWS }).map((_, i) => (
-                      <ListRowSkeleton key={i} />
-                    ))}
-                  </div>
-
-                  <div className="flex items-center justify-between gap-2">
-                    <Skeleton className="h-3 w-28" />
-                    <div className="flex items-center gap-2">
-                      <Skeleton className="h-8 w-8 rounded-md" />
-                      <Skeleton className="h-8 w-8 rounded-md" />
-                    </div>
-                  </div>
-                </section>
+            <div className={listStyles.body}>
+              <div className={listStyles.toolbar}>
+                {/* Risk tags: All students / Low / Moderate / High. */}
+                {["w-32", "w-20", "w-28", "w-20"].map((width, index) => (
+                  <Skeleton key={index} className={`h-[30px] ${width} rounded-full`} />
+                ))}
+                <Skeleton className="ml-auto h-8 w-56 rounded-[16px] sm:w-64" />
               </div>
 
-              <div className={listStyles.right}>
-                <InsightSkeleton />
+              <div className={listStyles.tableWrap}>
+                <Table className={`${cascade.table} w-full table-fixed`}>
+                  <TableHeader>
+                    <TableRow className="bg-muted/50 [&>th]:border-t-0">
+                      {COLUMNS.map((width, index) => (
+                        <TableHead key={index} style={{ width }} className="h-10">
+                          {index < COLUMNS.length - 1 ? (
+                            <Skeleton className="h-3 w-16" />
+                          ) : null}
+                        </TableHead>
+                      ))}
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {Array.from({ length: TABLE_ROWS }).map((_, index) => (
+                      <TableRow key={index} className="hover:bg-transparent">
+                        <TableCell>
+                          <div className="flex min-w-0 items-center gap-2">
+                            <Skeleton className="size-8 shrink-0 rounded-full" />
+                            <div className="flex min-w-0 flex-1 flex-col gap-1.5">
+                              <Skeleton className="h-3.5 w-32" />
+                              <Skeleton className="h-3 w-24" />
+                            </div>
+                          </div>
+                        </TableCell>
+                        <TableCell>
+                          <Skeleton className="h-3 w-10" />
+                        </TableCell>
+                        <TableCell>
+                          <div className="flex items-center gap-2">
+                            <Skeleton className="h-1.5 w-14 rounded-full" />
+                            <Skeleton className="h-3 w-8" />
+                          </div>
+                        </TableCell>
+                        <TableCell>
+                          <Skeleton className="h-3 w-10" />
+                        </TableCell>
+                        <TableCell>
+                          <Skeleton className="h-3 w-12" />
+                        </TableCell>
+                        <TableCell>
+                          <div className="flex items-center justify-end">
+                            <Skeleton className="size-6 rounded" />
+                          </div>
+                        </TableCell>
+                      </TableRow>
+                    ))}
+                  </TableBody>
+                </Table>
               </div>
             </div>
-          </div>
         </div>
       </section>
     </ShimmerGroup>

@@ -31,6 +31,15 @@
   align-items: stretch;
 }
 
+/* One full-width board per row. */
+.gridStack {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: 1.25rem;
+  min-width: 0;
+  align-items: stretch;
+}
+
 /* Board header icon — same slot as the guidance/nurse boards. */
 .boardIcon {
   display: inline-flex;
@@ -147,6 +156,11 @@
   opacity: 0.7;
 }
 
+.legendPillSep {
+  margin: 0 0.25rem;
+  color: var(--muted-foreground);
+}
+
 /* Chart tooltip — popover surface tokens keep it readable in light (white
    card) and dark (near-black card) mode, with amber figures matching the
    legend pills. Identical to the guidance/nurse overview tooltip. */
@@ -238,12 +252,6 @@
 .barChart .barNumber {
   fill: var(--teacher-number);
   font-weight: 600;
-  font-variant-numeric: tabular-nums;
-}
-
-/* Board header count + any inline figure — amber, theme-aware. */
-.amberNumber {
-  color: var(--teacher-number);
   font-variant-numeric: tabular-nums;
 }
 

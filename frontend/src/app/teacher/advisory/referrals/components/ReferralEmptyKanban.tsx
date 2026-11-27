@@ -1,12 +1,15 @@
 "use client";
 
+import * as React from "react";
 import Link from "next/link";
-import { FileText, Info, Plus, Send } from "lucide-react";
+import { ChevronRight, FileText, Plus, Send, Sparkles } from "lucide-react";
 import { StudentMascot } from "@/components/student-mascot/StudentMascot";
 import { Button } from "@/components/ui/button";
 import { Pill } from "@/components/ui/pill";
-import { REFERRAL_STATUS_LEGEND } from "@/lib/labels/referral-status";
-import refStyles from "./referrals.module.css";
+import { cn } from "@/lib/utils";
+import cardStyles from "@/app/principal/academics/assign/components/sections-kanban.module.css";
+import scheduleCardStyles from "@/app/admin/academics/schedule/components/schedule-overview-board.module.css";
+import styles from "@/app/teacher/anecdotal/components/anecdotal-empty-kanban.module.css";
 
 function BamaMascot({ size = 14 }: { size?: number }) {
   return (
@@ -16,234 +19,175 @@ function BamaMascot({ size = 14 }: { size?: number }) {
   );
 }
 
-const STATUS_ENTRIES = REFERRAL_STATUS_LEGEND;
-
-function ColumnHead({
-  icon,
-  title,
-  count,
-  action,
-}: {
-  icon: React.ReactNode;
-  title: string;
-  count?: number;
-  action?: React.ReactNode;
-}) {
-  return (
-    <div
-      className="-mx-2.5 flex items-center justify-between gap-2 border-b border-border px-3.5 pb-2"
-      aria-label={count !== undefined && !action ? `${title}, ${count}` : title}
-    >
-      <span className="inline-flex min-w-0 items-center gap-1.5 text-[13px] font-semibold">
-        {icon} <span className="truncate">{title}</span>
-      </span>
-      <span className="flex shrink-0 items-center gap-1.5">
-        {action ??
-          (count !== undefined ? (
-            <span className="text-xs font-semibold text-muted-foreground">{count}</span>
-          ) : null)}
-      </span>
-    </div>
-  );
-}
-
-function LinkCard({
-  href,
-  title,
-  description,
-  icon,
-  newTab = false,
-  mascot = false,
-}: {
-  href: string;
+interface EmptyKanbanAction {
+  key: string;
   title: string;
   description: string;
-  icon: React.ComponentType<{ size?: number | string; className?: string; "aria-hidden"?: boolean | "true" | "false" }>;
+  href: string;
+  icon: React.ComponentType<{
+    size?: number | string;
+    className?: string;
+    "aria-hidden"?: boolean | "true" | "false";
+  }>;
+  /** Chat with Bama entries always open the standalone chat in a new tab. */
   newTab?: boolean;
+  /** Render the CRT Bama mascot instead of the lucide icon. */
   mascot?: boolean;
-}) {
-  const Icon = icon;
-  return (
-    <Link
-      href={href}
-      {...(newTab ? { target: "_blank", rel: "noopener noreferrer" } : {})}
-      aria-label={`Open ${title}${newTab ? " (opens in a new tab)" : ""}`}
-      className="flex min-w-0 cursor-pointer flex-col gap-1.5 rounded-lg border bg-white p-3 shadow-sm transition-colors [font-family:var(--font-inter)] hover:border-primary/60 hover:shadow dark:bg-card"
-    >
-      <span className="flex items-center justify-between gap-2">
-        <span className="truncate text-[12px] font-medium text-muted-foreground" title={href}>
-          {href}
-        </span>
-        <span
-          className="flex h-6 w-6 shrink-0 items-center justify-center overflow-hidden rounded-full bg-muted text-muted-foreground"
-          aria-hidden
-        >
-          {mascot ? <BamaMascot size={20} /> : <Icon size={13} />}
-        </span>
-      </span>
-      <span className="truncate text-sm font-semibold leading-snug" title={title}>
-        {title}
-      </span>
-      <span className="text-xs leading-snug text-muted-foreground">{description}</span>
-    </Link>
-  );
+  /** Action that opens the referral form instead of navigating. */
+  onClick?: () => void;
+  /** Status line shown under the title, same slot as "Scheduled". */
+  statusLabel: string;
+  statusTone: "green" | "amber" | "neutral";
+  /** Amber code badge, same slot as the class code. */
+  badgeLabel: string;
+  badgeValue: string;
+  /** Left-hand hint in the card footer. */
+  hintLabel: string;
+  /** Footer action. */
+  ctaLabel: string;
 }
 
-export function ReferralStarterKanban({
+const ACTIONS: EmptyKanbanAction[] = [
+  {
+    key: "new",
+    title: "New referral",
+    description: "Refer a learner to guidance, the clinic, or the ADM desk.",
+    href: "/teacher/advisory/referrals",
+    icon: Send,
+    statusLabel: "Ready to file",
+    statusTone: "green",
+    badgeLabel: "Starts here",
+    badgeValue: "Form",
+    hintLabel: "Pick a filed record to refer",
+    ctaLabel: "Start",
+  },
+  {
+    key: "chat",
+    title: "Chat with Bama",
+    description: "File through chat — Bama drafts the GCForm-01 for you.",
+    href: "/teacher/anecdotal?chat=1",
+    icon: Plus,
+    mascot: true,
+    statusLabel: "Ready to file",
+    statusTone: "green",
+    badgeLabel: "Starts here",
+    badgeValue: "Chat",
+    hintLabel: "Drafts the form as you talk",
+    ctaLabel: "Chat now",
+  },
+  {
+    key: "records",
+    title: "Anecdotal records",
+    description: "Referrals start from a filed GCForm-01 record.",
+    href: "/teacher/anecdotal",
+    icon: FileText,
+    statusLabel: "One step before",
+    statusTone: "amber",
+    badgeLabel: "View",
+    badgeValue: "Per learner",
+    hintLabel: "File a record first",
+    ctaLabel: "Open",
+  },
+];
+
+function ActionCard({
+  action,
   onNewReferral,
-  singleRow = false,
 }: {
+  action: EmptyKanbanAction;
   onNewReferral?: () => void;
-  /** One row of four (used as the bottom strip on the filled view). */
-  singleRow?: boolean;
 }) {
+  const Icon = action.icon;
+  const isNew = action.key === "new";
+  const cta = (
+    <>
+      {action.ctaLabel}
+      <ChevronRight size={12} aria-hidden />
+    </>
+  );
   return (
-    <div
-      className={singleRow ? refStyles.stripGrid : refStyles.kanbanGrid}
-      role="group"
-      aria-label="Referral starter actions"
-    >
-          <div
-            className="flex min-w-0 flex-col gap-2 rounded-xl border border-border p-2.5 [font-family:var(--font-inter)]"
-            aria-label="New Referral"
+    <article className={cn(scheduleCardStyles.card, "w-full")} aria-label={action.title}>
+      <header className={cardStyles.cardHead}>
+        <span className="flex size-9 shrink-0 items-center justify-center rounded-lg border border-amber-500/25 bg-amber-500/10 text-amber-600 dark:text-amber-400">
+          {action.mascot ? <BamaMascot size={22} /> : <Icon size={16} aria-hidden />}
+        </span>
+        <div className={cardStyles.cardId}>
+          <span className={cardStyles.sectionName} title={action.title}>
+            {action.title}
+          </span>
+        </div>
+      </header>
+
+      <div className={cardStyles.metaRow}>
+        <span className={scheduleCardStyles.statusText} data-tone={action.statusTone}>
+          {action.statusLabel}
+        </span>
+        <span className={scheduleCardStyles.codeBadgeWrap}>
+          <Pill tone="amber" label={action.badgeLabel}>
+            {action.badgeValue}
+          </Pill>
+        </span>
+      </div>
+
+      <p className={scheduleCardStyles.progressLine}>{action.description}</p>
+
+      <div className={cardStyles.cardActions}>
+        <span className={cn(cardStyles.lockedHint, "min-w-0")}>
+          <Sparkles size={11} aria-hidden />
+          <span className="truncate">{action.hintLabel}</span>
+        </span>
+        {isNew ? (
+          <Button
+            type="button"
+            variant="outline"
+            className="h-6 shrink-0 gap-1 bg-card px-2 text-[12px] text-foreground"
+            onClick={onNewReferral}
+            disabled={!onNewReferral}
+            aria-label="Start a new referral"
           >
-            <ColumnHead
-              icon={<Send size={14} aria-hidden className="text-blue-500" />}
-              title="New Referral"
-              action={
-                <Button
-                  type="button"
-                  className="h-6 w-6 px-0"
-                  aria-label="New referral"
-                  onClick={onNewReferral}
-                >
-                  <Plus aria-hidden />
-                </Button>
-              }
-            />
-            <button
-              type="button"
-              onClick={onNewReferral}
-              aria-label="Start a new referral"
-              className="flex min-w-0 flex-1 cursor-pointer flex-col gap-1.5 rounded-lg border bg-white p-3 text-left shadow-sm transition-colors [font-family:var(--font-inter)] hover:border-primary/60 hover:shadow dark:bg-card"
+            {cta}
+          </Button>
+        ) : (
+          <Button
+            asChild
+            variant="outline"
+            className="h-6 shrink-0 gap-1 bg-card px-2 text-[12px] text-foreground"
+          >
+            <Link
+              href={action.href}
+              {...(action.newTab ? { target: "_blank", rel: "noopener noreferrer" } : {})}
+              aria-label={`Open ${action.title}${action.newTab ? " (opens in a new tab)" : ""}`}
             >
-              <span className="flex items-center justify-between gap-2">
-                <span className="truncate text-[12px] font-medium text-muted-foreground" title="action/new-referral">
-                  action/new-referral
-                </span>
-                <span
-                  className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-muted text-muted-foreground"
-                  aria-hidden
-                >
-                  <Send size={13} />
-                </span>
-              </span>
-              <span className="truncate text-sm font-semibold leading-snug" title="New Referral">
-                New Referral
-              </span>
-              <span className="text-xs leading-snug text-muted-foreground">
-                Refer from an anecdotal record to the right desk
-              </span>
-            </button>
-          </div>
-
-          <div
-            className="flex min-w-0 flex-col gap-2 rounded-xl border border-border p-2.5 [font-family:var(--font-inter)]"
-            aria-label="Anecdotal Records"
-          >
-            <ColumnHead
-              icon={<FileText size={14} aria-hidden className="text-amber-500" />}
-              title="Anecdotal Records"
-              action={
-                <Button asChild variant="outline" className="h-6 px-2 text-[12px]">
-                  <Link href="/teacher/anecdotal">See all</Link>
-                </Button>
-              }
-            />
-            <ul className="flex min-w-0 flex-1 flex-col gap-2">
-              <li className="flex min-w-0 flex-col">
-                <LinkCard
-                  href="/teacher/anecdotal"
-                  title="Anecdotal Records"
-                  description="Referrals start from a filed GCForm-01 record"
-                  icon={FileText}
-                />
-              </li>
-            </ul>
-          </div>
-
-          <div
-            className="flex min-w-0 flex-col gap-2 rounded-xl border border-border p-2.5 [font-family:var(--font-inter)]"
-            aria-label="Chat with Bama"
-          >
-            <ColumnHead
-              icon={<BamaMascot size={16} />}
-              title="Chat with Bama"
-              action={
-                <Button asChild className="h-6 px-2 text-[12px]">
-                  <Link
-                    href="/teacher/chat?standalone=1"
-                    target="_blank"
-                    rel="noopener noreferrer"
-                  >
-                    Chat now
-                  </Link>
-                </Button>
-              }
-            />
-            <ul className="flex min-w-0 flex-1 flex-col gap-2">
-              <li className="flex min-w-0 flex-col">
-                <LinkCard
-                  href="/teacher/chat?standalone=1"
-                  title="Chat with Bama"
-                  description="File an anecdotal record first, then refer it"
-                  icon={Send}
-                  newTab
-                  mascot
-                />
-              </li>
-            </ul>
-          </div>
-
-          <div
-            className="flex h-full min-w-0 flex-col gap-2 rounded-xl border border-border p-2.5 [font-family:var(--font-inter)]"
-            aria-label={`Status Legend, ${STATUS_ENTRIES.length}`}
-          >
-            <ColumnHead
-              icon={<Info size={14} aria-hidden className="text-amber-500" />}
-              title="Status Legend"
-              count={STATUS_ENTRIES.length}
-            />
-            <ul
-              className="flex min-w-0 flex-1 flex-row flex-wrap content-center items-center justify-center gap-1.5"
-              aria-label="Referral status legend"
-            >
-              {STATUS_ENTRIES.map((e) => (
-                <li key={e.key} className="flex">
-                  <Pill tone={e.tone} label={e.hint}>
-                    {e.label}
-                  </Pill>
-                </li>
-              ))}
-            </ul>
-          </div>
-    </div>
+              {cta}
+            </Link>
+          </Button>
+        )}
+      </div>
+    </article>
   );
 }
 
 export function ReferralEmptyKanban({ onNewReferral }: { onNewReferral?: () => void }) {
   return (
-    <section aria-labelledby="referral-empty-board" className="flex min-w-0 flex-col gap-3">
-      <div className="mx-auto flex w-full max-w-4xl flex-col gap-3">
-        <div>
-          <h2 id="referral-empty-board" className="m-0 text-[0.9375rem] font-bold tracking-[-0.01em] text-foreground">
+    <section aria-labelledby="referral-empty-board" className={styles.section}>
+      <div className="mx-auto flex w-full max-w-lg flex-col gap-3">
+        <div className={styles.head}>
+          <h2 id="referral-empty-board" className={styles.title}>
             No referrals yet
           </h2>
-          <p className="m-0 text-[0.8125rem] leading-[1.45] text-muted-foreground">
+          <p className={styles.subtitle}>
             Referrals you submit will appear here once created. Pick a starting point below.
           </p>
         </div>
-        <ReferralStarterKanban onNewReferral={onNewReferral} />
+        <div className="flex w-full min-w-0 flex-col gap-2.5" aria-label="Referral starting points">
+          {ACTIONS.map((action) => (
+            <ActionCard
+              key={action.key}
+              action={action}
+              onNewReferral={onNewReferral}
+            />
+          ))}
+        </div>
       </div>
     </section>
   );

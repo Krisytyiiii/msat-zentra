@@ -8,7 +8,6 @@ import { ArrowLeft, BookOpenText, ImageDown, Loader2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import { KanbanBoard, KanbanBoardEmpty } from "@/components/ui/kanban-board";
-import { Pill } from "@/components/ui/pill";
 import { StudentMascot } from "@/components/student-mascot/StudentMascot";
 import {
   COMPONENT_ORDER,
@@ -226,28 +225,35 @@ export default function ClassRecordPage() {
       <KanbanBoard
         className={styles.board}
         title={`${assignment.subjectName} (${assignment.subjectCode})`}
+        titleMeta={
+          <span className="flex flex-wrap items-center gap-x-2 gap-y-0.5">
+            <span>
+              Section: <span className="font-medium text-foreground">{assignment.sectionName}</span>
+            </span>
+            <span aria-hidden className="text-border">|</span>
+            <span>
+              Grade level:{" "}
+              <span className="font-medium text-foreground">
+                Grade {gradeLabel(assignment.gradeLevel)}
+              </span>
+            </span>
+            <span aria-hidden className="text-border">|</span>
+            <span>
+              Term: <span className="font-medium text-foreground">Term {assignment.termNumber}</span>
+            </span>
+            <span aria-hidden className="text-border">|</span>
+            <span>
+              School year:{" "}
+              <span className="font-medium text-foreground">{assignment.schoolYear}</span>
+            </span>
+          </span>
+        }
         icon={
           <span className="text-amber-500" aria-hidden>
             <BookOpenText size={14} />
           </span>
         }
         count={`${students.length} student${students.length === 1 ? "" : "s"}`}
-        actions={
-          <span className="flex flex-wrap items-center justify-end gap-1">
-            <Pill tone="green" label="Section">
-              {assignment.sectionName}
-            </Pill>
-            <Pill tone="blue" label="Grade level">
-              Grade {gradeLabel(assignment.gradeLevel)}
-            </Pill>
-            <Pill tone="amber" label="Term">
-              Term {assignment.termNumber}
-            </Pill>
-            <Pill tone="neutral" label="School year">
-              {assignment.schoolYear}
-            </Pill>
-          </span>
-        }
         ariaLabel="Class record grading sheet"
         boardLabel={`${assignment.subjectName}, ${assignment.sectionName}, ${students.length} students`}
         footer={
@@ -323,7 +329,7 @@ export default function ClassRecordPage() {
                             <span className={styles.studentName} title={s.name}>
                               {s.name}
                             </span>
-                            <span className={styles.lrnPill} title={s.lrn}>
+                            <span className={styles.lrn} title={s.lrn}>
                               {s.lrn}
                             </span>
                           </span>

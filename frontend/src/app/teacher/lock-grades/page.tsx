@@ -1,10 +1,10 @@
 "use client";
 
 import * as React from "react";
-import { Lock } from "lucide-react";
 import { TeacherSearchField, searchEmptyMessage } from "@/app/teacher/components/TeacherSearchField";
 import { TeacherGateCard } from "@/app/teacher/components/TeacherGateCard";
 import { InsightCallout } from "@/components/ui/insight-callout";
+import { FilterTabs, type FilterTabOption } from "@/components/ui/filter-tabs";
 import { useTerm } from "@/lib/term/TermContext";
 import {
   Select,
@@ -14,11 +14,11 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Skeleton } from "@/components/ui/skeleton";
+import { ShimmerGroup } from "@/components/ui/shimmer-skeleton";
 import { Pagination } from "@/components/shared/pagination";
-import { useLockGrades, type LockGradesView } from "@/services/teacher/lockGrades.service";
-import { FilterTabs } from "@/app/teacher/advisory/interventions/components/filter-tabs";
-import { LockGradesClassCard } from "./components/class-card";
-import { LockGradesAdviseeCard } from "./components/advisee-card";
+import { useLockGrades, type LockGradesView, type LockGradesAdviseeRow } from "@/services/teacher/lockGrades.service";
+import { LockGradesAdviseeTable } from "./components/advisee-card";
+import { LockGradesClassCards, LockGradesCardsSkeleton } from "./components/class-card";
 import styles from "./components/lock-grades.module.css";
 
 const ADVISEES_PAGE_SIZE = 15;
@@ -66,56 +66,141 @@ function GateCard({
   );
 }
 
-/** One placeholder card, shaped exactly like the loaded class / advisee card. */
-function CardSkeleton() {
+/** Loading state shaped like the loaded data list — search at the right, then
+ *  the same column anatomy — so the swap causes no shift. */
+function TableSkeleton() {
   return (
-    <div className={styles.skelCard} aria-hidden="true">
-      <div className={styles.cardHead}>
-        <Skeleton className={styles.skelAvatar} />
-        <div className={styles.cardId}>
-          <Skeleton className="h-3.5 w-32 max-w-full" />
-          <Skeleton className="h-3 w-24 max-w-full" />
+    <ShimmerGroup>
+      <div className="flex flex-col gap-3" aria-busy="true" aria-label="Loading lock grades">
+        <div className="flex items-center justify-end">
+          <Skeleton className="h-8 w-60 max-w-full" />
         </div>
-        <Skeleton className={styles.skelPill} />
+        <div className="overflow-hidden rounded-lg border border-border bg-card dark:bg-transparent">
+          <div className="flex items-center gap-4 border-b border-border px-4 py-2.5">
+            <Skeleton className="h-3 w-24" />
+            <Skeleton className="h-3 w-16" />
+            <Skeleton className="ml-auto h-3 w-12" />
+            <Skeleton className="h-3 w-10" />
+            <Skeleton className="h-3 w-10" />
+            <Skeleton className="h-3 w-12" />
+          </div>
+          {[0, 1, 2, 3, 4, 5].map((i) => (
+            <div
+              key={i}
+              className="flex items-center gap-4 border-b border-border/60 px-4 py-3 last:border-b-0"
+            >
+              <Skeleton className="h-7 w-7 shrink-0 rounded-full" />
+              <div className="flex flex-col gap-1.5">
+                <Skeleton className="h-3.5 w-40 max-w-full" />
+                <Skeleton className="h-3 w-24 max-w-full" />
+              </div>
+              <Skeleton className="ml-auto h-3 w-16" />
+              <Skeleton className="h-3 w-10" />
+              <Skeleton className="h-3 w-10" />
+              <Skeleton className="h-3 w-12" />
+            </div>
+          ))}
+        </div>
       </div>
-      <div className={styles.metaRow}>
-        <Skeleton className={styles.skelMetaPill} />
-        <Skeleton className={styles.skelMetaPill} style={{ width: "4rem" }} />
-        <Skeleton className={styles.skelMetaPill} style={{ width: "4.5rem" }} />
-      </div>
-      <Skeleton className={styles.skelRail} />
-      <Skeleton className="h-3 w-44 max-w-full" />
-      <div className={styles.linksRow}>
-        <Skeleton className="h-3 w-20" />
-        <Skeleton className="h-3 w-24" />
-      </div>
-      <div className={styles.cardActions}>
-        <Skeleton className="mr-auto h-3 w-24" />
-        <Skeleton className={styles.skelAction} />
-      </div>
-    </div>
+    </ShimmerGroup>
   );
 }
 
-function BoardSkeleton() {
-  return (
-    <div className={styles.skelGrid} aria-busy="true" aria-label="Loading lock grades">
-      {[0, 1, 2, 3, 4, 5].map((i) => (
-        <CardSkeleton key={i} />
-      ))}
-    </div>
-  );
-}
-
-const MODE_OPTIONS: { value: LockGradesView; label: string }[] = [
-  { value: "classes", label: "My Classes" },
-  { value: "advisees", label: "My Advisees" },
+const MODE_OPTIONS: ReadonlyArray<FilterTabOption<LockGradesView>> = [
+  { value: "classes", label: "Subjects", tone: "blue" },
+  { value: "advisees", label: "Advisees", tone: "amber" },
 ];
+
+/**
+ * Learner lock-status table shared by both modes: search over learner, LRN,
+ * section and subject, then page the same 15-row data list as the advisory
+ * list desk. Clicking a row's Grades action opens the per-subject drawer.
+ */
+function LearnerLockTable({ rows }: { rows: LockGradesAdviseeRow[] }) {
+  const [search, setSearch] = React.useState("");
+  const [page, setPage] = React.useState(1);
+
+  const needle = search.trim().toLowerCase();
+  const filtered = React.useMemo(
+    () =>
+      needle
+        ? rows.filter((row) =>
+            `${row.name} ${row.lrn} ${row.section} ${row.subjects
+              .map((s) => s.subject)
+              .join(" ")}`
+              .toLowerCase()
+              .includes(needle),
+          )
+        : rows,
+    [rows, needle],
+  );
+
+  const totalPages = Math.max(1, Math.ceil(filtered.length / ADVISEES_PAGE_SIZE));
+  const safePage = Math.min(page, totalPages);
+  const pageRows = filtered.slice(
+    (safePage - 1) * ADVISEES_PAGE_SIZE,
+    safePage * ADVISEES_PAGE_SIZE,
+  );
+
+  return (
+    <div className="flex flex-col gap-3">
+      <div className={styles.toolbar} style={{ justifyContent: "flex-end" }}>
+        <TeacherSearchField
+          className="w-60 max-w-full"
+          value={search}
+          onChange={(next) => {
+            setSearch(next);
+            setPage(1);
+          }}
+          placeholder="Search learner, LRN or subject…"
+          aria-label="Search learner, LRN or subject"
+        />
+      </div>
+
+      {filtered.length === 0 ? (
+        <EmptyCallout>
+          {needle ? (
+            searchEmptyMessage(
+              search,
+              "learners",
+              "Clear the search to see every learner in your classes.",
+            )
+          ) : (
+            <>
+              <strong>No learners yet.</strong> Learners appear here once they are
+              enlisted in your sections.
+            </>
+          )}
+        </EmptyCallout>
+      ) : (
+        <>
+          <LockGradesAdviseeTable rows={pageRows} />
+          <Pagination
+            currentPage={safePage}
+            totalItems={filtered.length}
+            pageSize={ADVISEES_PAGE_SIZE}
+            onPageChange={setPage}
+          />
+        </>
+      )}
+    </div>
+  );
+}
 
 function ClassesMode() {
   const query = useLockGrades("classes");
 
-  if (query.isPending && !query.data) return <BoardSkeleton />;
+  if (query.isPending && !query.data) {
+    return (
+      <div className="flex flex-col gap-4">
+        <LockGradesCardsSkeleton />
+        <section className="flex flex-col gap-2" aria-busy="true" aria-label="Loading learner lock status">
+          <Skeleton className="h-3.5 w-40" />
+          <TableSkeleton />
+        </section>
+      </div>
+    );
+  }
 
   if (query.isError || !query.data) {
     return <p className={styles.error}>Could not load your classes. Check your connection and try again.</p>;
@@ -166,26 +251,28 @@ function ClassesMode() {
     );
   }
 
+  if (data.classes.length === 0) {
+    return (
+      <GateCard
+        title="No classes assigned yet"
+        status="No classes"
+        description="Your linked load is empty for this term — classes appear once the administrator publishes the section grid with your teacher row on it."
+        facts={[
+          "Your load follows the linked teacher row, not a manual pick.",
+          "Ask the administrator if your subjects are missing from the grid.",
+        ]}
+        actionLabel="Open classes"
+      />
+    );
+  }
+
   return (
-    <div className="flex flex-col gap-3">
-      {data.classes.length === 0 ? (
-        <GateCard
-          title="No classes assigned yet"
-          status="No classes"
-          description="Your linked load is empty for this term — classes appear once the administrator publishes the section grid with your teacher row on it."
-          facts={[
-            "Your load follows the linked teacher row, not a manual pick.",
-            "Ask the administrator if your subjects are missing from the grid.",
-          ]}
-          actionLabel="Open classes"
-        />
-      ) : (
-        <div className={`${styles.grid} ${styles.gridEnter}`}>
-          {data.classes.map((row) => (
-            <LockGradesClassCard key={row.id} row={row} />
-          ))}
-        </div>
-      )}
+    <div className="flex flex-col gap-4">
+      <LockGradesClassCards rows={data.classes} />
+      <section className="flex flex-col gap-2" aria-label="Learner lock status">
+        <h3 className="m-0 text-[13px] font-semibold text-foreground">Learner lock status</h3>
+        <LearnerLockTable rows={data.learners ?? []} />
+      </section>
     </div>
   );
 }
@@ -193,10 +280,8 @@ function ClassesMode() {
 function AdviseesMode() {
   const query = useLockGrades("advisees");
   const [sectionId, setSectionId] = React.useState<string>("all");
-  const [search, setSearch] = React.useState("");
-  const [page, setPage] = React.useState(1);
 
-  if (query.isPending && !query.data) return <BoardSkeleton />;
+  if (query.isPending && !query.data) return <TableSkeleton />;
 
   if (query.isError || !query.data) {
     return (
@@ -218,32 +303,18 @@ function AdviseesMode() {
     );
   }
 
-  const needle = search.trim().toLowerCase();
-  const filtered = data.advisees.filter((row) => {
-    if (sectionId !== "all" && row.sectionId !== sectionId) return false;
-    if (needle && !`${row.name} ${row.lrn} ${row.section}`.toLowerCase().includes(needle)) {
-      return false;
-    }
-    return true;
-  });
-
-  const totalPages = Math.max(1, Math.ceil(filtered.length / ADVISEES_PAGE_SIZE));
-  const safePage = Math.min(page, totalPages);
-  const pageRows = filtered.slice(
-    (safePage - 1) * ADVISEES_PAGE_SIZE,
-    safePage * ADVISEES_PAGE_SIZE,
-  );
+  const sectionRows =
+    sectionId === "all"
+      ? data.advisees
+      : data.advisees.filter((row) => row.sectionId === sectionId);
 
   return (
     <div className="flex flex-col gap-3">
-      <div className={styles.toolbar}>
-        {data.advisorySections.length > 1 ? (
+      {data.advisorySections.length > 1 ? (
+        <div className={styles.toolbar}>
           <Select
             value={sectionId}
-            onValueChange={(value) => {
-              setSectionId(value);
-              setPage(1);
-            }}
+            onValueChange={(value) => setSectionId(value)}
           >
             <SelectTrigger className="h-8 w-48 text-xs" aria-label="Advisory section">
               <SelectValue placeholder="All sections" />
@@ -257,54 +328,9 @@ function AdviseesMode() {
               ))}
             </SelectContent>
           </Select>
-        ) : null}
-        <TeacherSearchField
-          className="w-60 max-w-full"
-          value={search}
-          onChange={(next) => {
-            setSearch(next);
-            setPage(1);
-          }}
-          placeholder="Search advisee or LRN…"
-          aria-label="Search advisee or LRN"
-        />
-        <span className="text-xs text-muted-foreground">
-          {filtered.length} advisee{filtered.length === 1 ? "" : "s"}
-        </span>
-      </div>
-
-      {filtered.length === 0 ? (
-        <EmptyCallout>
-          {needle || sectionId !== "all" ? (
-            searchEmptyMessage(
-              needle ? search : "",
-              "advisees",
-              needle
-                ? "Clear the search or pick another section to see every advisee."
-                : "Pick another section to see every advisee.",
-            )
-          ) : (
-            <>
-              <strong>No advisees yet.</strong> Learners from your advisory section will
-              appear here once they are enrolled.
-            </>
-          )}
-        </EmptyCallout>
-      ) : (
-        <>
-          <div className={`${styles.grid} ${styles.gridEnter}`}>
-            {pageRows.map((row) => (
-              <LockGradesAdviseeCard key={row.studentId} row={row} />
-            ))}
-          </div>
-          <Pagination
-            currentPage={safePage}
-            totalItems={filtered.length}
-            pageSize={ADVISEES_PAGE_SIZE}
-            onPageChange={setPage}
-          />
-        </>
-      )}
+        </div>
+      ) : null}
+      <LearnerLockTable rows={sectionRows} />
     </div>
   );
 }
@@ -320,43 +346,18 @@ export default function TeacherLockGradesPage() {
   const effectiveMode: LockGradesView =
     canTeach || !canAdvise ? mode : "advisees";
 
-  // The gate card stands alone — hide the page title/subtitle while it shows.
-  const gateActive =
-    !!data &&
-    effectiveMode === "classes" &&
-    (!data.isSubjectTeacher ||
-      !data.gates.linked ||
-      !data.gates.termGrant ||
-      data.classes.length === 0);
-
   return (
     <section className={styles.page} aria-label="Lock grades">
-      {gateActive ? null : (
-        <div className={styles.header}>
-          <div className={styles.headerText}>
-            <div className={styles.titleRow}>
-              <span className={styles.titleIcon} aria-hidden>
-                <Lock size={14} />
-              </span>
-              <h1 className={styles.title}>Lock Grades</h1>
-            </div>
-            <p className={styles.subtitle}>
-              Review the lock status of your classes and advisees — read-only.
-            </p>
-          </div>
-          {canTeach && canAdvise ? (
-            <div className={styles.headerActions}>
-              <FilterTabs
-                label="Lock grades mode"
-                options={MODE_OPTIONS}
-                value={effectiveMode}
-                onChange={setMode}
-                tone="blue"
-              />
-            </div>
-          ) : null}
-        </div>
-      )}
+      {canTeach && canAdvise ? (
+        <FilterTabs
+          label="Lock grades view"
+          variant="tags"
+          options={MODE_OPTIONS}
+          value={effectiveMode}
+          onChange={setMode}
+          className="self-end"
+        />
+      ) : null}
 
       {effectiveMode === "classes" ? <ClassesMode /> : <AdviseesMode />}
     </section>

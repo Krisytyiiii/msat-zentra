@@ -41,6 +41,7 @@
     "prisma:seed:registrar-final-grades-5": "tsx prisma/seed-registrar-final-grades-5.ts",
     "prisma:seed:guidance-session-docs": "tsx prisma/seed-guidance-session-docs.ts",
     "prisma:seed:adm-enrolled": "tsx prisma/seed-adm-enrolled-learner.ts",
+    "prisma:seed:adm-two": "tsx prisma/seed-adm-two-learners.ts",
     "prisma:seed:adm-guinto-t2": "tsx prisma/seed-adm-guinto-term2.ts",
     "prisma:seed:wipe": "tsx prisma/seed/wipe.ts",
     "prisma:wipe:keep-accounts": "tsx prisma/wipe-keep-accounts.ts",

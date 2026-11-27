@@ -112,6 +112,7 @@ interface Sf10RecordLite {
   id: string;
   desk: string;
   status: string;
+  source: string;
   currentVersion: number;
   lrn: string;
 }
@@ -134,6 +135,8 @@ export interface AutofillCandidate {
   section: string;
   recordId: string | null;
   recordStatus: string | null;
+  /** `auto_populated` = the stored upload is an older render of our template. */
+  recordSource: string | null;
   currentVersion: number | null;
   subjectsReady: number;
   subjectsSkipped: number;
@@ -345,6 +348,7 @@ async function loadContext(
             id: true,
             desk: true,
             status: true,
+            source: true,
             currentVersion: true,
             lrn: true,
           },
@@ -434,10 +438,18 @@ function buildStudent(
     ctx.requiredTermNumbers,
   );
 
+  // Grade 7 enrolment opens the learner's SF10, so the advisory desk fills it
+  // without a registry access request; every later grade waits for the
+  // record keeper / registrar to approve the grant first. Once access is
+  // approved the fill also opens the record when the registry desk has not
+  // uploaded a form yet — Grades 7–10 all use the school's own JHS template,
+  // so a missing record is not a reason to refuse. A learner with no recorded
+  // grades still waits — there is nothing to write.
+  const isFirstSf10 = grade === "G7";
+  const accessOk = grant || isFirstSf10;
   let reason: string | null = null;
-  if (!grant) reason = "SF10 access not approved";
-  else if (!record) reason = "No SF10 record yet";
-  else if (record.status === "released") reason = "SF10 already released";
+  if (!accessOk) reason = "SF10 access not approved";
+  else if (record?.status === "released") reason = "SF10 already released";
   else if (rows.length === 0) {
     reason = "No locked grades yet";
   }
@@ -450,11 +462,12 @@ function buildStudent(
     section: ctx.section.name,
     recordId: record?.id ?? null,
     recordStatus: record?.status ?? null,
+    recordSource: record?.source ?? null,
     currentVersion: record?.currentVersion ?? null,
     subjectsReady: rows.length,
     subjectsSkipped: skipped.length,
     ready: reason === null && rows.length > 0,
-    templateReady: grant && rows.length > 0,
+    templateReady: accessOk && rows.length > 0,
     reason,
     rows,
     skipped,
@@ -469,11 +482,11 @@ export async function listCandidates(userId: string, sectionId: string): Promise
   return { candidates };
 }
 
-export async function getPreview(
+async function buildPreview(
   userId: string,
   sectionId: string,
   studentLrns: string[],
-): Promise<AutofillPreview> {
+): Promise<{ ctx: SectionContext; students: AutofillPreviewStudent[] }> {
   const picked = new Set(studentLrns.map((l) => l.trim()).filter(Boolean));
   if (picked.size === 0) throw new AppError(400, "BAD_REQUEST", "Pick at least one student");
   if (picked.size > 200) throw new AppError(400, "BAD_REQUEST", "Select at most 200 students");
@@ -482,13 +495,90 @@ export async function getPreview(
   if (ctx.learners.length !== picked.size) {
     throw new AppError(400, "BAD_REQUEST", "Selected students must belong to your advisory section");
   }
+  return { ctx, students: ctx.learners.map((l) => buildStudent(l, ctx)) };
+}
+
+export async function getPreview(
+  userId: string,
+  sectionId: string,
+  studentLrns: string[],
+): Promise<AutofillPreview> {
+  const { ctx, students } = await buildPreview(userId, sectionId, studentLrns);
   return {
     sectionId: ctx.section.id,
     section: ctx.section.name,
     gradeLevel: ctx.section.gradeLevel,
     schoolYear: ctx.schoolYear,
-    students: ctx.learners.map((l) => buildStudent(l, ctx)),
+    students,
   };
+}
+
+/**
+ * Fill the school's SF10 template with the learner's auto-fill rows. The JHS
+ * book covers Grades 7–10, the Strengthened SHS book Grades 11–12.
+ */
+async function renderTemplateWorkbook(
+  learner: SectionLearner,
+  ctx: SectionContext,
+  grade: string,
+  rows: AutofillRow[],
+  adviserName: string | null,
+): Promise<Buffer> {
+  const fill = (GRADE_BAND_7_10 as string[]).includes(grade)
+    ? fillSf10Template
+    : fillShsSf10Template;
+  return fill({
+    learner: {
+      ...parseFullName(learner.name),
+      lrn: learner.lrn,
+      birthdate: learner.birthdate ? mmDdYyyy(learner.birthdate) : null,
+      sex: learner.gender,
+      gradeLevel: grade,
+      section: ctx.section.name,
+      schoolYear: ctx.schoolYear.name,
+      adviserName,
+    },
+    rows: rows.map((r) => ({
+      subject: r.subject,
+      quarters: r.quarters,
+      rating: r.rating,
+      remarks: r.remarks,
+    })),
+  });
+}
+
+/**
+ * Create the SF10 record a learner does not have yet (Grades 7–10: no prior
+ * form has ever been filed) so auto-fill can fill it in the same run.
+ * The generated template becomes the record's first upload, exactly like the
+ * template download path, so the registry desk opens the same document.
+ */
+async function createRecordForLearner(
+  writeCtx: Sf10Context,
+  learner: SectionLearner,
+  ctx: SectionContext,
+  student: AutofillPreviewStudent,
+  adviserName: string | null,
+): Promise<{ recordId: string; fileUrl: string }> {
+  const grade = String(student.gradeLevel);
+  const workbook = await renderTemplateWorkbook(learner, ctx, grade, student.rows, adviserName);
+  // Auto-fill files PDFs only, so the record's opening upload is the printed
+  // form too (LibreOffice print, hand-drawn SF10 layout as the fallback).
+  const file = await renderSf10Pdf(workbook);
+  const fileUrl = await uploadFile(
+    file,
+    sf10ObjectPath(learner.lrn, "pdf"),
+    "application/pdf",
+    getSf10Bucket(),
+  );
+  const created = await createAutoPopulatedRecord(writeCtx, {
+    lrn: learner.lrn,
+    learnerName: learner.name,
+    gradeLevel: grade,
+    desk: (GRADE_BAND_7_10 as string[]).includes(grade) ? "record_keeper" : "registrar",
+    fileUrl,
+  });
+  return { recordId: created.id, fileUrl };
 }
 
 export async function runAutofill(
@@ -496,11 +586,27 @@ export async function runAutofill(
   sectionId: string,
   studentLrns: string[],
 ): Promise<AutofillResult> {
-  const preview = await getPreview(ctx.userId, sectionId, studentLrns);
+  const { ctx: section, students } = await buildPreview(ctx.userId, sectionId, studentLrns);
+  const preview = {
+    sectionId: section.section.id,
+    section: section.section.name,
+    gradeLevel: section.section.gradeLevel,
+    schoolYear: section.schoolYear,
+  };
   const results: AutofillResultRow[] = [];
+  let adviserName: string | null | undefined;
+  const resolveAdviserName = async () => {
+    if (adviserName !== undefined) return adviserName;
+    const adviser = await prisma.user.findUnique({
+      where: { id: ctx.userId },
+      select: { fullName: true },
+    });
+    adviserName = adviser?.fullName ?? null;
+    return adviserName;
+  };
 
-  for (const student of preview.students) {
-    if (!student.ready || !student.recordId) {
+  for (const student of students) {
+    if (!student.ready) {
       results.push({
         lrn: student.lrn,
         name: student.name,
@@ -523,7 +629,58 @@ export async function runAutofill(
         quarters: r.quarters,
         remarks: r.remarks,
       }));
-      const write = await applyAutoFilledSubjects(ctx, student.recordId, student.gradeLevel, payload);
+      let recordId = student.recordId;
+      let generatedFileUrl: string | undefined;
+      let renderFresh: (() => Promise<{ buffer: Buffer; mimeType: string }>) | undefined;
+      const learner = section.learners.find((l) => l.lrn === student.lrn);
+      if (!learner) {
+        throw new AppError(404, "NOT_FOUND", "Learner is not on this advisory section");
+      }
+      if (!recordId) {
+        const created = await createRecordForLearner(
+          ctx,
+          learner,
+          section,
+          student,
+          await resolveAdviserName(),
+        );
+        recordId = created.recordId;
+        generatedFileUrl = created.fileUrl;
+      } else if (student.recordSource === "auto_populated") {
+        // This flow created the record, so its stored upload is an older render
+        // of our own template. Ask applyAutoFilledSubjects to rebuild from the
+        // current template (grey bands/logos/header fixed) when it writes.
+        const adviserName = await resolveAdviserName();
+        renderFresh = async () => ({
+          buffer: await renderSf10Pdf(
+            await renderTemplateWorkbook(
+              learner,
+              section,
+              student.gradeLevel,
+              student.rows,
+              adviserName,
+            ),
+          ),
+          mimeType: "application/pdf",
+        });
+      }
+      const write = await applyAutoFilledSubjects(
+        ctx,
+        recordId,
+        student.gradeLevel,
+        payload,
+        {
+          ...(generatedFileUrl ? { generatedFileUrl } : {}),
+          ...(renderFresh ? { renderFresh } : {}),
+          header: {
+            sectionName: section.section.name,
+            schoolYear: section.schoolYear.name,
+            adviserName: await resolveAdviserName(),
+          },
+          // Grade 7 opens the SF10, so no registry grant is needed to fill it.
+          skipAdviserAccessCheck: student.gradeLevel === "G7",
+        },
+      );
       if (write.wasVerified) {
         const deskRole = (GRADE_BAND_7_10 as string[]).includes(student.gradeLevel)
           ? "record_keeper"
@@ -532,7 +689,7 @@ export async function runAutofill(
           sourceTable: "sf10_records",
           action: "autofill",
           message: `SF10 auto-filled for ${student.name} (${preview.section}) — re-verification needed.`,
-          sourceId: student.recordId,
+          sourceId: recordId,
           excludeUserId: ctx.userId,
         });
       }
@@ -540,11 +697,13 @@ export async function runAutofill(
         lrn: student.lrn,
         name: student.name,
         status: "updated",
-        recordId: student.recordId,
+        recordId,
         version: write.version,
         added: write.added,
         replaced: write.replaced,
-        message: `${student.rows.length} subject${student.rows.length === 1 ? "" : "s"} filled`,
+        message: write.unchanged
+          ? "Already up to date — grades match the last auto-fill"
+          : `${student.rows.length} subject${student.rows.length === 1 ? "" : "s"} filled${generatedFileUrl ? " · SF10 created" : ""}`,
       });
     } catch (e) {
       const message = e instanceof AppError ? e.message : "Could not fill this record";
@@ -582,8 +741,8 @@ export interface GeneratedTemplateFile {
   ext: Sf10TemplateFormat;
   mimeType: string;
   filename: string;
-  recordId: string;
-  version: number;
+  recordId: string | null;
+  version: number | null;
 }
 
 function mmDdYyyy(date: Date): string {
@@ -604,6 +763,14 @@ export async function generateTemplateFile(
   sectionId: string,
   lrn: string,
   format: Sf10TemplateFormat,
+  options?: {
+    /**
+     * Preview renders the same document but never files it: no upload, no new
+     * SF10 record, no version snapshot. Used by the drawer's pre-download
+     * preview so looking is free and does not churn the learner's history.
+     */
+    persist?: boolean;
+  },
 ): Promise<GeneratedTemplateFile> {
   const wanted = lrn.trim();
   if (!wanted) throw new AppError(400, "BAD_REQUEST", "A learner LRN is required");
@@ -621,7 +788,10 @@ export async function generateTemplateFile(
       "The SF10 template can only be generated for Grades 7-12.",
     );
   }
-  if (!hasGrant(section.grants, wanted, sectionId)) {
+  // Grade 7 opens the learner's SF10, so the advisory desk may generate and
+  // fill it without first filing a registry access request; later grades need
+  // the approved grant.
+  if (grade !== "G7" && !hasGrant(section.grants, wanted, sectionId)) {
     throw new AppError(403, "FORBIDDEN", "SF10 access for this learner is not approved");
   }
 
@@ -639,25 +809,13 @@ export async function generateTemplateFile(
     select: { fullName: true },
   });
 
-  const fill = (GRADE_BAND_7_10 as string[]).includes(grade) ? fillSf10Template : fillShsSf10Template;
-  const filledWorkbook = await fill({
-    learner: {
-      ...parseFullName(learner.name),
-      lrn: learner.lrn,
-      birthdate: learner.birthdate ? mmDdYyyy(learner.birthdate) : null,
-      sex: learner.gender,
-      gradeLevel: grade,
-      section: section.section.name,
-      schoolYear: section.schoolYear.name,
-      adviserName: adviser?.fullName ?? null,
-    },
-    rows: student.rows.map((r) => ({
-      subject: r.subject,
-      quarters: r.quarters,
-      rating: r.rating,
-      remarks: r.remarks,
-    })),
-  });
+  const filledWorkbook = await renderTemplateWorkbook(
+    learner,
+    section,
+    grade,
+    student.rows,
+    adviser?.fullName ?? null,
+  );
 
   const buffer =
     format === "pdf" ? await renderSf10Pdf(filledWorkbook) : filledWorkbook;
@@ -665,6 +823,22 @@ export async function generateTemplateFile(
     format === "pdf"
       ? "application/pdf"
       : "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet";
+  const safeName = learner.name.replace(/[^A-Za-z0-9]+/g, "-").replace(/^-+|-+$/g, "");
+  const filename = `SF10-${safeName || learner.lrn}.${format}`;
+
+  // Preview: hand the rendered document back without filing it. Looking at the
+  // form must not append a version or rewrite a verified record.
+  if (options?.persist === false) {
+    return {
+      buffer,
+      ext: format,
+      mimeType,
+      filename,
+      recordId: student.recordId,
+      version: null,
+    };
+  }
+
   const fileUrl = await uploadFile(
     buffer,
     sf10ObjectPath(learner.lrn, format),
@@ -700,7 +874,10 @@ export async function generateTemplateFile(
       quarters: r.quarters,
       remarks: r.remarks,
     })),
-    { generatedFileUrl: fileUrl },
+    {
+      generatedFileUrl: fileUrl,
+      skipAdviserAccessCheck: grade === "G7",
+    },
   );
 
   if (write.wasVerified) {
@@ -716,12 +893,11 @@ export async function generateTemplateFile(
     });
   }
 
-  const safeName = learner.name.replace(/[^A-Za-z0-9]+/g, "-").replace(/^-+|-+$/g, "");
   return {
     buffer,
     ext: format,
     mimeType,
-    filename: `SF10-${safeName || learner.lrn}.${format}`,
+    filename,
     recordId,
     version: write.version,
   };

@@ -91,8 +91,22 @@ const SHS_TEMPLATE_PATH = path.join(
   "sf10-template-sshs.xlsx",
 );
 
+/** Header logos, shared with the anecdotal OCForm-01 workbook. */
+const ANECDOTAL_ASSETS = path.join(
+  path.dirname(fileURLToPath(import.meta.url)),
+  "..",
+  "..",
+  "modules",
+  "anecdotal",
+  "assets",
+);
+const DEPED_SEAL_PATH = path.join(ANECDOTAL_ASSETS, "deped-seal.png");
+const DEPED_LOGO_PATH = path.join(ANECDOTAL_ASSETS, "deped-logo.png");
+
 let cachedTemplate: Buffer | null = null;
 let cachedShsTemplate: Buffer | null = null;
+let cachedDepedSeal: Buffer | null = null;
+let cachedDepedLogo: Buffer | null = null;
 
 async function loadTemplate(): Promise<Buffer> {
   if (!cachedTemplate) cachedTemplate = await readFile(TEMPLATE_PATH);
@@ -121,18 +135,51 @@ const SUBJECT_ROWS: Array<{ offset: number; test: RegExp }> = [
   { offset: 6, test: /mapeh/i },
   { offset: 5, test: /(technology and livelihood|\btle\b|\bepp\b|\bstve\b)/i },
   { offset: 11, test: /(edukasyon|edukasyong|\besp\b)/i },
-  { offset: 4, test: /(araling|\bap\b)/i },
+  { offset: 4, test: /(araling|panlipunan|\baral\b|\bap\b)/i },
   { offset: 0, test: /english/i },
   { offset: 1, test: /(mathematics|\bmath\b)/i },
   { offset: 2, test: /filipino/i },
   { offset: 3, test: /science/i },
 ];
 
-function templateRowOffsetFor(subject: string): number | null {
+export function templateRowOffsetFor(subject: string): number | null {
   for (const { offset, test } of SUBJECT_ROWS) {
     if (test.test(subject)) return offset;
   }
   return null;
+}
+
+/** DepEd learning-area rows per JHS block (12 on every grade). */
+const JHS_SUBJECT_ROWS = 12;
+
+/**
+ * Assign each auto-filled subject to a learning-area row. Rows always fill
+ * from the first learning area down — never leaving a gap in the middle — and
+ * DepEd's printed order (English, Math, Filipino, Science, AP, TLE, MAPEH,
+ * Music, Arts, PE, Health, ESP) is kept for the subjects that match it.
+ * Anything else (a teacher's short name like "Aral Pan", a school-specific
+ * subject) follows in the order given instead of being silently dropped.
+ */
+export function assignSubjectRows<T>(
+  rows: T[],
+  nameOf: (row: T) => string,
+): Map<number, T> {
+  const ranked = rows.map((row, index) => ({
+    row,
+    index,
+    // Unknown subjects rank after the twelve printed learning areas.
+    rank: templateRowOffsetFor(nameOf(row)) ?? JHS_SUBJECT_ROWS,
+  }));
+  ranked.sort((a, b) => a.rank - b.rank || a.index - b.index);
+
+  const slots = new Map<number, T>();
+  let offset = 0;
+  for (const entry of ranked) {
+    if (offset >= JHS_SUBJECT_ROWS) break;
+    slots.set(offset, entry.row);
+    offset += 1;
+  }
+  return slots;
 }
 
 /**
@@ -162,10 +209,35 @@ const QUARTER_COLS = [21, 25, 29, 33];
 const FINAL_COL = 36;
 const REMARKS_COL = 42;
 
+/**
+ * The school template's own JHS geometry. The upload auto-fill also uses it:
+ * a freshly downloaded blank form has no LEARNING AREAS names, so the patcher
+ * writes the learner's rows into their fixed DepEd positions instead of
+ * matching names that are not there.
+ */
+export const SF10_JHS_LAYOUT = {
+  blocks: GRADE_BLOCKS,
+  subjectCol: 2,
+  quarterCols: QUARTER_COLS,
+  finalCol: FINAL_COL,
+  remarksCol: REMARKS_COL,
+} as const;
+
 /* ------------------------------- XLSX fill -------------------------------- */
 
 function writeCell(ws: Worksheet, row: number, col: number, value: string | number | null): void {
   ws.getRow(row).getCell(col).value = value;
+}
+
+/**
+ * The template's Section value cell (N21) ships one size smaller than the
+ * other scholastic-header values, which made an auto-filled section print
+ * smaller than the adviser name beside it. Copy the reference cell's font so
+ * every filled header value prints identically.
+ */
+function matchCellFont(target: Cell, reference: Cell): void {
+  if (!reference.font) return;
+  target.font = { ...reference.font };
 }
 
 /**
@@ -274,6 +346,239 @@ function applyPrintSetup(sheets: Worksheet[]): void {
   }
 }
 
+/**
+ * Give an auto-fill render the paper geometry of the school's own form before
+ * it is converted to PDF. Uploaded workbooks regularly ship with no usable page
+ * setup (that is exactly why the template path pins one), so printing a patched
+ * copy used to lay the form out at a different scale and margin than the form
+ * the adviser sees on the template/PDF paths.
+ *
+ * Sheets that span the official form get the template's setup verbatim (A3
+ * portrait, one scale shared by both pages, print area B..BC); anything
+ * narrower is fitted to a single A3 page so it can never spill sideways.
+ */
+export function applySf10PrintSetup(wb: Workbook): void {
+  const sheets = wb.worksheets.filter((ws) => contentLastRow(ws) > 1);
+  if (sheets.length === 0) return;
+  if (sheets.every((ws) => ws.columnCount >= PRINT_LAST_COL)) {
+    applyPrintSetup(sheets);
+    return;
+  }
+  for (const ws of sheets) {
+    const lastRow = contentLastRow(ws);
+    const lastCol = Math.max(1, ws.columnCount);
+    const setup = ws.pageSetup;
+    setup.paperSize = PRINT_PAPER_A3;
+    setup.orientation = "portrait";
+    setup.fitToPage = true;
+    setup.fitToWidth = 1;
+    setup.fitToHeight = 1;
+    setup.horizontalCentered = true;
+    setup.verticalCentered = true;
+    setup.horizontalDpi = 600;
+    setup.verticalDpi = 600;
+    setup.margins = { left: 0.25, right: 0.25, top: 0.25, bottom: 0.25, header: 0, footer: 0 };
+    setup.printArea = `A1:${ws.getColumn(lastCol).letter}${lastRow}`;
+  }
+}
+
+/* --------------------------- official-form details -------------------------- */
+
+// The DepEd SF10-JHS band is a light olive/cream, not the neutral grey the
+// school workbook shipped with.
+const OFFICIAL_BAND_ARGB = "FFDCD9C3";
+const JHS_BAND_ROWS = [5, 9, 18, 72];
+const JHS_PAGE2_BAND_ROWS = [84];
+
+/** Repaint the heading bands of one sheet in the official olive. */
+function applyBandFill(ws: Worksheet, rows: number[]): void {
+  for (const row of rows) {
+    const cell = ws.getCell(row, 2);
+    cell.style = {
+      ...cell.style,
+      fill: {
+        type: "pattern",
+        pattern: "solid",
+        fgColor: { argb: OFFICIAL_BAND_ARGB },
+      },
+    };
+  }
+}
+
+async function loadDepedSeal(): Promise<Buffer> {
+  if (!cachedDepedSeal) cachedDepedSeal = await readFile(DEPED_SEAL_PATH);
+  return cachedDepedSeal;
+}
+
+async function loadDepedLogo(): Promise<Buffer> {
+  if (!cachedDepedLogo) cachedDepedLogo = await readFile(DEPED_LOGO_PATH);
+  return cachedDepedLogo;
+}
+
+/**
+ * The official form prints a small open square before each credential label.
+ * The workbook keeps those cells empty (and merged), so the spacer is split
+ * and the square is drawn as the cell's own four borders — that prints as a
+ * crisp box in both LibreOffice and the hand-drawn fallback, with no glyph
+ * fallback that could render too small.
+ */
+function setCheckbox(ws: Worksheet, range: string, address: string): void {
+  ws.unMergeCells(range);
+  const thin = { style: "thin" as const, color: { argb: "FF000000" } };
+  const cell = ws.getCell(address);
+  // ExcelJS shares one style object between cells loaded from the same xf;
+  // assigning `cell.border` would paint every cell that shares it. Replace the
+  // whole style object so only this cell changes.
+  cell.style = {
+    ...cell.style,
+    border: { top: thin, bottom: thin, left: thin, right: thin },
+  };
+}
+
+/**
+ * Restore the details of the DepEd form that the school's editable workbook
+ * does not carry: the olive band behind the section headings, the credential
+ * checkboxes, and the MSAT crest / DepEd logo in the page header. Applied to
+ * the first sheet (the face of the form) on every fill, so the template file
+ * itself stays untouched.
+ */
+async function applyOfficialJhsLook(wb: Workbook, ws: Worksheet): Promise<void> {
+  applyBandFill(ws, JHS_BAND_ROWS);
+  const page2 = wb.getWorksheet("Sheet2");
+  if (page2) applyBandFill(page2, JHS_PAGE2_BAND_ROWS);
+
+  setCheckbox(ws, "B11:C11", "B11");
+  setCheckbox(ws, "B15:C15", "B15");
+  setCheckbox(ws, "R15:W15", "W15");
+  setCheckbox(ws, "AN15:AP15", "AP15");
+
+  // LibreOffice clips these merged labels at the print-area edge when the
+  // fixed scale is used; pinning them left and shrinking to the merge width
+  // keeps the whole label on the page (the template relied on overflow into
+  // the neighbouring blank cell, which a written value now occupies).
+  for (const address of ["B6", "B7"]) {
+    const cell = ws.getCell(address);
+    cell.style = {
+      ...cell.style,
+      alignment: {
+        horizontal: "left",
+        vertical: "middle",
+        wrapText: false,
+        shrinkToFit: true,
+      },
+    };
+  }
+  for (const address of ["D16", "AJ75"]) {
+    const cell = ws.getCell(address);
+    cell.style = {
+      ...cell.style,
+      alignment: {
+        ...(cell.alignment ?? {}),
+        wrapText: false,
+        shrinkToFit: true,
+      },
+    };
+  }
+
+  // The certification sentence in B74/B86 starts in the merged cell's first
+  // column; the print area begins at column B, so a label with no indent loses
+  // its opening "I " at the page edge. Pin it left with one indent step, exactly
+  // as the official form prints it.
+  for (const [sheet, address] of [
+    [ws, "B74"],
+    [page2, "B86"],
+  ] as const) {
+    if (!sheet) continue;
+    const cell = sheet.getCell(address);
+    cell.style = {
+      ...cell.style,
+      alignment: {
+        ...(cell.alignment ?? {}),
+        horizontal: "left",
+        indent: 1,
+        wrapText: false,
+      },
+    };
+  }
+
+  // An SF10 carries only the official DepEd seal (upper left) and logo (upper
+  // right) — never a school crest (DepEd Service Marks manual; DO 009, s. 2026).
+  // The school's editable workbook ships with no header images at all, so both
+  // marks are drawn here.
+  const [seal, deped] = await Promise.all([loadDepedSeal(), loadDepedLogo()]);
+  const leftId = wb.addImage({ base64: seal.toString("base64"), extension: "png" });
+  ws.addImage(leftId, {
+    tl: { col: 9.5, row: 0.34 },
+    ext: { width: 80, height: 80 },
+  });
+  const rightId = wb.addImage({ base64: deped.toString("base64"), extension: "png" });
+  ws.addImage(rightId, {
+    tl: { col: 48.5, row: 0.34 },
+    ext: { width: 116, height: 59 },
+  });
+}
+
+/**
+ * True when this sheet carries the school template's own block geometry (its
+ * quarter header cells read 1–4 exactly where the template puts them).
+ */
+function carriesJhsBlock(ws: Worksheet, block: GradeBlock): boolean {
+  if (block.sheet !== ws.name) return false;
+  const header = ws.getRow(block.subjectStart - 1);
+  return QUARTER_COLS.every((col, i) => cellText(header.getCell(col).value) === String(i + 1));
+}
+
+/**
+ * Apply the official DepEd JHS look (olive heading bands, credential
+ * checkboxes, MSAT crest + DepEd logo) to an uploaded workbook that still
+ * carries the school template's geometry. A form that already has its own
+ * images (a real DepEd export or scan) keeps them untouched.
+ */
+export async function applySf10JhsLook(wb: Workbook): Promise<boolean> {
+  const first = wb.getWorksheet("Sheet1");
+  if (!first) return false;
+  if (wb.worksheets.some((ws) => ws.getImages().length > 0)) return false;
+  const matches = Object.values(GRADE_BLOCKS).some((block) => carriesJhsBlock(first, block));
+  if (!matches) return false;
+  await applyOfficialJhsLook(wb, first);
+  return true;
+}
+
+export interface Sf10JhsHeaderValues {
+  section: string;
+  schoolYear: string;
+  adviserName: string | null;
+}
+
+/**
+ * Write the scholastic header of one grade block: the school details and the
+ * block's grade number belong to the form; section, school year and adviser are
+ * the learner's current enrollment. Shared by the template render and by the
+ * patched registry upload so both paths print the same header.
+ */
+export function writeJhsBlockHeader(
+  ws: Worksheet,
+  block: { schoolRow: number; gradeRow: number },
+  gradeKey: string,
+  values: Sf10JhsHeaderValues,
+): void {
+  writeCell(ws, block.schoolRow, 5, SCHOOL_NAME);
+  writeCell(ws, block.schoolRow, 21, SCHOOL_ID);
+  writeCell(ws, block.schoolRow, 30, SCHOOL_DISTRICT);
+  writeCell(ws, block.schoolRow, 42, SCHOOL_DIVISION);
+  writeCell(ws, block.schoolRow, 54, SCHOOL_REGION);
+  writeCell(ws, block.gradeRow, 9, gradeKey.replace(/^G/, ""));
+  writeCell(ws, block.gradeRow, 14, values.section);
+  writeCell(ws, block.gradeRow, 22, values.schoolYear);
+  writeCell(ws, block.gradeRow, 35, values.adviserName ?? "");
+
+  // The template's Section cell is a size smaller than the grade/adviser
+  // values; print every filled header value in the adviser value's font.
+  const headerRow = ws.getRow(block.gradeRow);
+  const headerFont = headerRow.getCell(35);
+  for (const col of [9, 14, 22, 35]) matchCellFont(headerRow.getCell(col), headerFont);
+}
+
 export async function fillSf10Template(input: Sf10TemplateInput): Promise<Buffer> {
   const ExcelJS = await excelJs();
   const wb = new ExcelJS.Workbook();
@@ -291,6 +596,7 @@ export async function fillSf10Template(input: Sf10TemplateInput): Promise<Buffer
   // Learner block (merged value cells; writing the anchor is enough). Only the
   // first page repeats the learner's identity.
   const identity = wb.getWorksheet("Sheet1") ?? ws;
+  await applyOfficialJhsLook(wb, identity);
   writeCell(identity, 6, 7, L.lastName ?? "");
   writeCell(identity, 6, 23, L.firstName ?? "");
   writeCell(identity, 6, 40, L.suffix ?? "");
@@ -299,22 +605,16 @@ export async function fillSf10Template(input: Sf10TemplateInput): Promise<Buffer
   writeCell(identity, 7, 34, L.birthdate ?? "");
   writeCell(identity, 7, 48, L.sex ?? "");
 
-  // Scholastic header for this grade block.
-  writeCell(ws, block.schoolRow, 5, SCHOOL_NAME);
-  writeCell(ws, block.schoolRow, 21, SCHOOL_ID);
-  writeCell(ws, block.schoolRow, 30, SCHOOL_DISTRICT);
-  writeCell(ws, block.schoolRow, 42, SCHOOL_DIVISION);
-  writeCell(ws, block.schoolRow, 54, SCHOOL_REGION);
-  writeCell(ws, block.gradeRow, 9, gradeKey.replace(/^G/, ""));
-  writeCell(ws, block.gradeRow, 14, L.section);
-  writeCell(ws, block.gradeRow, 22, L.schoolYear);
-  writeCell(ws, block.gradeRow, 35, L.adviserName ?? "");
+  // Scholastic header for the learner's own grade block only. Other blocks stay
+  // blank — the form is filled by hand as the learner reaches those grades, and
+  // the current section/adviser does not apply to them.
+  writeJhsBlockHeader(ws, block, gradeKey, {
+    section: L.section,
+    schoolYear: L.schoolYear,
+    adviserName: L.adviserName ?? null,
+  });
 
-  const slots = new Map<number, Sf10TemplateSubjectRow>();
-  for (const row of input.rows) {
-    const slot = templateRowOffsetFor(row.subject);
-    if (slot != null && !slots.has(slot)) slots.set(slot, row);
-  }
+  const slots = assignSubjectRows(input.rows, (row) => row.subject);
 
   // Subject rows run from the block's first row to the row before its General
   // Average band (12 learning areas on every JHS block).
@@ -338,10 +638,24 @@ export async function fillSf10Template(input: Sf10TemplateInput): Promise<Buffer
 
   // General average over the rows actually written. The template's own formula
   // expects four quarters per subject; Zentra runs trimesters, so the captured
-  // rating is the correct basis.
-  if (slots.size > 0) {
-    const sum = [...slots.values()].reduce((total, r) => total + r.rating, 0);
-    writeCell(ws, block.generalAverageRow, FINAL_COL, Math.round(sum / slots.size));
+  // rating is the correct basis. Cleared when nothing was written — the blank
+  // template pre-prints a 100 in this cell, which is not the learner's average.
+  const average =
+    slots.size > 0
+      ? Math.round(
+          [...slots.values()].reduce((total, r) => total + r.rating, 0) / slots.size,
+        )
+      : null;
+  writeCell(ws, block.generalAverageRow, FINAL_COL, average);
+
+  // Every other grade block is left blank, as the form is filled by hand — but
+  // the template pre-prints a 100 average in each, which would print as if the
+  // learner had earned it. Clear those placeholder averages.
+  for (const [key, other] of Object.entries(GRADE_BLOCKS)) {
+    if (key === gradeKey) continue;
+    const otherSheet = wb.getWorksheet(other.sheet);
+    if (!otherSheet) continue;
+    writeCell(otherSheet, other.generalAverageRow, FINAL_COL, null);
   }
 
   // Applied last so the print area and scale cover the filled content.
@@ -763,6 +1077,65 @@ export async function renderSf10TemplatePdf(xlsx: Buffer): Promise<Buffer> {
       return PAGE_HEIGHT - offset;
     };
 
+    // Fills next (the section bands), then the header logos, then the rules.
+    for (let r = 1; r <= lastRow; r += 1) {
+      for (let c = 1; c <= lastCol; c += 1) {
+        const merged = merges.get(`${r}:${c}`);
+        if (merged && !merged.isMaster) continue;
+        const fill = ws.getRow(r).getCell(c).fill as
+          | { type?: string; fgColor?: { argb?: string } }
+          | undefined;
+        const argb = fill?.fgColor?.argb;
+        if (fill?.type !== "pattern" || !argb) continue;
+        const [red, green, blue] = argbToRgb(argb, [1, 1, 1]);
+        if (red === 1 && green === 1 && blue === 1) continue;
+        const spanCols = merged?.width ?? 1;
+        const spanRows = merged?.height ?? 1;
+        const x = xAt(c);
+        const yTop = yTopAt(r);
+        const yBottom = yTopAt(r + spanRows);
+        page.drawRectangle({
+          x,
+          y: yBottom,
+          width: xAt(c + spanCols) - x,
+          height: yTop - yBottom,
+          color: rgb(red, green, blue),
+        });
+      }
+    }
+
+    // Logos embedded in the workbook (the header crest and DepEd mark).
+    type ImageRangeLike = {
+      tl: { nativeCol: number; nativeColOff: number; nativeRow: number; nativeRowOff: number };
+      br?: { nativeCol: number; nativeColOff: number; nativeRow: number; nativeRowOff: number };
+      ext?: { width: number; height: number };
+    };
+    for (const image of ws.getImages()) {
+      const media = wb.getImage(Number(image.imageId));
+      if (!media?.buffer) continue;
+      const isJpeg = String(media.extension).toLowerCase().startsWith("jp");
+      const embedded = isJpeg
+        ? await doc.embedJpg(media.buffer)
+        : await doc.embedPng(media.buffer);
+      const range = image.range as unknown as ImageRangeLike;
+      const tl = range.tl;
+      const x = xAt(tl.nativeCol + 1) + (tl.nativeColOff / 9525) * 0.75 * scale;
+      const yTop = yTopAt(tl.nativeRow + 1) - (tl.nativeRowOff / 9525) * 0.75 * scale;
+      let widthPt: number;
+      let heightPt: number;
+      if (range.ext) {
+        widthPt = range.ext.width * 0.75 * scale;
+        heightPt = range.ext.height * 0.75 * scale;
+      } else {
+        const br = range.br;
+        if (!br) continue;
+        widthPt = xAt(br.nativeCol + 1) + (br.nativeColOff / 9525) * 0.75 * scale - x;
+        heightPt = yTop - (yTopAt(br.nativeRow + 1) - (br.nativeRowOff / 9525) * 0.75 * scale);
+      }
+      if (widthPt <= 0 || heightPt <= 0) continue;
+      page.drawImage(embedded, { x, y: yTop - heightPt, width: widthPt, height: heightPt });
+    }
+
     // Borders first so text sits on top of them.
     for (let r = 1; r <= lastRow; r += 1) {
       for (let c = 1; c <= lastCol; c += 1) {
@@ -829,6 +1202,28 @@ export async function renderSf10TemplatePdf(xlsx: Buffer): Promise<Buffer> {
         );
         const horizontal = cell.alignment?.horizontal;
         const vertical = cell.alignment?.vertical;
+
+        // The checkbox glyph is outside Helvetica's WinAnsi set, so draw the
+        // open square the form prints instead of trying to encode the glyph.
+        if (text === "□") {
+          const side = Math.max(5, Math.min(boxW, boxH) * 0.62);
+          const x =
+            horizontal === "right"
+              ? x1 + boxW - side - 2
+              : horizontal === "center"
+                ? x1 + (boxW - side) / 2
+                : x1 + 2;
+          const y = yT - boxH + (boxH - side) / 2;
+          page.drawRectangle({
+            x,
+            y,
+            width: side,
+            height: side,
+            borderColor: rgb(0, 0, 0),
+            borderWidth: 0.8,
+          });
+          continue;
+        }
 
         // Wrap to the cell's printable width (a couple of points of padding).
         const maxW = Math.max(4, boxW - 2);

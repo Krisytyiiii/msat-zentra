@@ -110,29 +110,35 @@ router.get(
         return;
       }
       const format = req.query.format === "pdf" ? "pdf" : "xlsx";
+      // `preview=1` renders the same form without filing it, so the drawer can
+      // show the document before the adviser decides to build/download.
+      const preview = req.query.preview === "1" || req.query.preview === "true";
       const lrn = String(req.params.lrn ?? "").trim();
       const file = await generateTemplateFile(
         { userId: req.user!.id, role: req.user!.role },
         sectionId,
         lrn,
         format,
+        { persist: !preview },
       );
-      // Generating files the learner's SF10 record — same desk tags as the
-      // auto-fill run.
-      await invalidateTags([
-        "teacher",
-        "adviser-access",
-        "registrar",
-        "registrar-sf10",
-        "registrar-overview",
-        "record-keeper",
-        "overview",
-        "principal",
-      ]);
+      if (!preview) {
+        // Generating files the learner's SF10 record — same desk tags as the
+        // auto-fill run.
+        await invalidateTags([
+          "teacher",
+          "adviser-access",
+          "registrar",
+          "registrar-sf10",
+          "registrar-overview",
+          "record-keeper",
+          "overview",
+          "principal",
+        ]);
+      }
       res.setHeader("Content-Type", file.mimeType);
       res.setHeader(
         "Content-Disposition",
-        `attachment; filename="${file.filename}"`,
+        `${preview ? "inline" : "attachment"}; filename="${file.filename}"`,
       );
       res.setHeader("Cache-Control", "private, no-store");
       res.send(file.buffer);

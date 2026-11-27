@@ -1,9 +1,7 @@
 "use client";
 
 import * as React from "react";
-import { Building2, CalendarClock, Check, Clock, History, MapPin, MessageSquareText } from "lucide-react";
-import { Pill } from "@/components/ui/pill";
-import { GlassCard } from "@/components/ui/glass-card";
+import { CalendarClock, Check, Clock, History, MapPin, MessageSquareText } from "lucide-react";
 import { StudentMascot } from "@/components/student-mascot/StudentMascot";
 import { buildAdmTrackSteps } from "@/components/adm-tracker/adm-track-data";
 import type { TrackerCaseInput } from "@/components/adm-tracker/adm-stage-activity";
@@ -31,7 +29,7 @@ function formatDateTime(iso: string): string {
     month: "short",
     day: "numeric",
     year: "numeric",
-  })} · ${d.toTimeString().slice(0, 5)}`;
+  })} | ${d.toTimeString().slice(0, 5)}`;
 }
 
 const SOURCE_LABEL: Record<string, string> = {
@@ -80,26 +78,15 @@ function StageActivityRow({ entry }: { entry: RailTimelineEntry }) {
         ) : null}
         <p className={styles.trackFeedMeta}>
           {entry.byRole ? humanize(entry.byRole) : "Receiving desk"}
-          <span className={styles.trackDot} aria-hidden>·</span>
+          <span className={styles.trackDot} aria-hidden>|</span>
           {SOURCE_LABEL[entry.source ?? "case"] ?? "Case update"}
-          <span className={styles.trackDot} aria-hidden>·</span>
+          <span className={styles.trackDot} aria-hidden>|</span>
           {formatDateTime(entry.at ?? entry.date)}
         </p>
       </div>
     </li>
   );
 }
-
-const VARIANT_TONE: Record<
-  TrackableReferral["statusVariant"],
-  "amber" | "blue" | "green" | "red" | "neutral"
-> = {
-  amber: "amber",
-  blue: "blue",
-  green: "green",
-  red: "red",
-  outline: "neutral",
-};
 
 type RailStep = TrackableReferral["timeline"][number] & { step: number };
 
@@ -120,17 +107,23 @@ type RailItem = {
  */
 export function ReferralTrackRail({
   referral,
+  /** Renders bare inside a drawer (no sticky card chrome of its own). */
+  embedded = false,
 }: {
   referral: TrackableReferral | null;
+  embedded?: boolean;
 }) {
-  if (!referral) return <RailEmpty />;
+  if (!referral) return <RailEmpty embedded={embedded} />;
 
-  return <RailBody referral={referral} />;
+  return <RailBody referral={referral} embedded={embedded} />;
 }
 
-function RailEmpty() {
+function RailEmpty({ embedded }: { embedded?: boolean }) {
   return (
-    <aside className={styles.trackRail} aria-label="Referral tracking">
+    <aside
+      className={`${styles.trackRail} ${embedded ? styles.trackRailEmbedded : ""}`}
+      aria-label="Referral tracking"
+    >
       <div className={styles.trackEmpty}>
         <span className={styles.trackEmptyIcon} aria-hidden>
           <History size={16} />
@@ -145,7 +138,13 @@ function RailEmpty() {
   );
 }
 
-function RailBody({ referral }: { referral: TrackableReferral }) {
+function RailBody({
+  referral,
+  embedded = false,
+}: {
+  referral: TrackableReferral;
+  embedded?: boolean;
+}) {
   const isAdm = referral.track === "adm";
   const trackInput: TrackerCaseInput | null = isAdm
     ? {
@@ -220,12 +219,12 @@ function RailBody({ referral }: { referral: TrackableReferral }) {
     : steps.map((step, index) => ({
         key: `${step.label}-${step.at ?? step.date}-${index}`,
         label: step.label,
-        meta: `${SOURCE_LABEL[step.source ?? "case"] ?? "Case update"} · ${formatShortDate(
+        meta: `${SOURCE_LABEL[step.source ?? "case"] ?? "Case update"} | ${formatShortDate(
           step.at ?? step.date,
         )}`,
         detail: step.detail ?? "",
         logged: `${formatDateTime(step.at ?? step.date)}${
-          step.byRole ? ` · ${humanize(step.byRole)}` : ""
+          step.byRole ? ` | ${humanize(step.byRole)}` : ""
         }`,
         state: index === 0 ? "current" : "done",
       }));
@@ -254,51 +253,67 @@ function RailBody({ referral }: { referral: TrackableReferral }) {
     return map;
   }, [referral.timeline]);
 
+  // A cancelled/rejected case records why in its dismissal timeline entry —
+  // surface that note here, not just the original reason for referral.
+  const dismissal =
+    referral.status === "dismissed"
+      ? ([...(referral.timeline ?? [])]
+          .reverse()
+          .find((entry) => entry.action === "referral_dismissed") ?? null)
+      : null;
+  const closedByTeacher =
+    !referral.dismissedByRole ||
+    referral.dismissedByRole === "adviser" ||
+    referral.dismissedByRole === "subject_teacher";
+  const closingLabel = closedByTeacher ? "Cancellation note" : "Rejection note";
+  const closingNote = dismissal?.detail?.trim() ?? "";
+
   return (
-    <aside className={styles.trackRail} aria-label="Referral tracking">
+    <aside
+      className={`${styles.trackRail} ${embedded ? styles.trackRailEmbedded : ""}`}
+      aria-label="Referral tracking"
+    >
       <header className={styles.trackHead}>
         <p className={styles.trackEyebrow}>
           <History size={12} aria-hidden />
-          {isAdm ? "Pipeline tracking" : "Case tracking"}
+          Referral pathway
         </p>
-        <GlassCard className={styles.trackIdentityGlass} intensity={4}>
-          <div className={`${styles.trackIdentity} ${styles.trackIdentityCard}`}>
-            <StudentMascot
-              name={referral.studentName}
-              seed={referral.lrn}
-              character={referral.mascot ?? undefined}
-              size={34}
-            />
-            <div className={styles.trackIdentityText}>
-              <h2 className={styles.trackName} title={referral.studentName}>
-                {referral.studentName}
-              </h2>
-              <Pill
-                tone="neutral"
-                label="LRN"
-                className={`${styles.trackLrnPill} tabular-nums`}
-              >
-                {referral.lrn}
-              </Pill>
-            </div>
+        <div className={styles.trackIdentity}>
+          <StudentMascot
+            name={referral.studentName}
+            seed={referral.lrn}
+            character={referral.mascot ?? undefined}
+            size={34}
+          />
+          <div className={styles.trackIdentityText}>
+            <h2 className={styles.trackName} title={referral.studentName}>
+              {referral.studentName}
+            </h2>
+            <p className={styles.trackMetaLine}>
+              <span>
+                LRN:{" "}
+                <span className={styles.trackMetaValue}>{referral.lrn}</span>
+              </span>
+              <span className={styles.trackMetaSep} aria-hidden>
+                |
+              </span>
+              <span>
+                Status:{" "}
+                <span className={styles.trackMetaValue}>
+                  {referral.statusLabel}
+                </span>
+              </span>
+              <span className={styles.trackMetaSep} aria-hidden>
+                |
+              </span>
+              <span>
+                Type:{" "}
+                <span className={styles.trackMetaValue}>
+                  {referral.typeLabel}
+                </span>
+              </span>
+            </p>
           </div>
-        </GlassCard>
-
-        <div className={styles.trackPills}>
-          <Pill
-            className="h-6 leading-none"
-            tone={VARIANT_TONE[referral.statusVariant]}
-            label="Referral status"
-          >
-            {referral.statusLabel}
-          </Pill>
-          <Pill
-            className="h-6 leading-none"
-            tone={isAdm ? "amber" : "blue"}
-            label="Referral type"
-          >
-            {referral.typeLabel}
-          </Pill>
         </div>
 
         {referral.bookedSession && referral.status !== "dismissed" ? (
@@ -310,7 +325,7 @@ function RailBody({ referral }: { referral: TrackableReferral }) {
               <p className={styles.trackBookingLabel}>Booked session</p>
               <p className={styles.trackBookingValue}>
                 {sessionTypeLabel(referral.bookedSession.sessionType)}
-                <span className={styles.trackDot} aria-hidden>·</span>
+                <span className={styles.trackDot} aria-hidden>|</span>
                 {formatDateTime(referral.bookedSession.scheduledAt)}
               </p>
               <p className={styles.trackBookingMeta}>
@@ -321,16 +336,25 @@ function RailBody({ referral }: { referral: TrackableReferral }) {
           </div>
         ) : null}
 
-        <div className={styles.trackHeldBy}>
-          <Building2 size={12} aria-hidden />
-          <span className="truncate">With {deskNow}</span>
-          <span className={styles.trackDot} aria-hidden>·</span>
+        <p className={styles.trackMetaLine}>
           <span>
-            {isAdm
-              ? `${doneCount} of ${admSteps.length} stages`
-              : `${steps.length} update${steps.length === 1 ? "" : "s"}`}
+            Handled by:{" "}
+            <span className={styles.trackMetaValue}>
+              {deskNow}
+            </span>
           </span>
-        </div>
+          <span className={styles.trackMetaSep} aria-hidden>
+            |
+          </span>
+          <span>
+            Progress:{" "}
+            <span className={styles.trackMetaValue}>
+              {isAdm
+                ? `${doneCount} of ${admSteps.length} stages`
+                : `${steps.length} update${steps.length === 1 ? "" : "s"}`}
+            </span>
+          </span>
+        </p>
 
         {segments.length > 0 ? (
           <div
@@ -460,6 +484,18 @@ function RailBody({ referral }: { referral: TrackableReferral }) {
               );
             })}
           </ol>
+
+          {referral.status === "dismissed" ? (
+            <footer className={styles.trackFoot}>
+              <p className={styles.trackFootLabel}>{closingLabel}</p>
+              <p className={styles.trackFootText}>
+                {closingNote ||
+                  (closedByTeacher
+                    ? "No note was left when the referral was cancelled."
+                    : "No note was left when the desk rejected the referral.")}
+              </p>
+            </footer>
+          ) : null}
 
           {referral.reason.trim() ? (
             <footer className={styles.trackFoot}>

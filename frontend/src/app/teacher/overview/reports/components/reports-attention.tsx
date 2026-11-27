@@ -80,7 +80,7 @@ export function ReportsAttention({
                     <span className={styles.classCell}>
                       <span className={styles.className}>{row.title}</span>
                       <span className={styles.classMeta}>
-                        {row.subject} · {row.section}
+                        {row.subject} | {row.section}
                       </span>
                     </span>
                   </td>

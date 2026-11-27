@@ -70,6 +70,8 @@ export interface AnecdotalFlow {
   setTimeInput: (next: string) => void;
   studentQ: string;
   setStudentQ: (next: string) => void;
+  classQ: string;
+  setClassQ: (next: string) => void;
   filing: boolean;
   fileProgress: number;
   fileStage: string;
@@ -150,6 +152,7 @@ export function useAnecdotalFlow({
   const [fileStage, setFileStage] = useState("");
   const [flowError, setFlowError] = useState<string | null>(null);
   const [studentQ, setStudentQ] = useState("");
+  const [classQ, setClassQ] = useState("");
   const [datePopoverOpen, setDatePopoverOpen] = useState(false);
   const [editingRecordId, setEditingRecordId] = useState<string | null>(null);
   const [editPrefill, setEditPrefill] = useState<Record<TextQuestion, string> | null>(null);
@@ -195,6 +198,7 @@ export function useAnecdotalFlow({
     setDateInput("");
     setTimeInput("");
     setStudentQ("");
+    setClassQ("");
     setDatePopoverOpen(false);
     setFlowError(null);
     setEditingRecordId(null);
@@ -334,6 +338,7 @@ export function useAnecdotalFlow({
     }
     setFlowError(null);
     setStudentId(id);
+    setClassQ("");
     setConversations((prev) =>
       prev.map((c) =>
         c.id === activeId && c.title === "New chat" ? { ...c, title: picked.name } : c
@@ -782,6 +787,8 @@ export function useAnecdotalFlow({
     setTimeInput,
     studentQ,
     setStudentQ,
+    classQ,
+    setClassQ,
     filing,
     fileProgress,
     fileStage,

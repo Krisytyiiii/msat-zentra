@@ -78,6 +78,24 @@ export function SidePanel({
       <SheetContent
         side={side}
         showCloseButton={showCloseButton}
+        // A nested message overlay portals to <body>, so Radix sees its clicks
+        // as "outside" the sheet and would close the drawer before the overlay's
+        // own buttons receive the click. Keep the sheet open while it is up —
+        // the overlay is the active layer.
+        onPointerDownOutside={(event) => {
+          const target = event.target;
+          if (
+            target instanceof Element &&
+            target.closest("[data-message-overlay]")
+          ) {
+            event.preventDefault();
+          }
+        }}
+        onEscapeKeyDown={(event) => {
+          if (typeof document !== "undefined" && document.querySelector("[data-message-overlay]")) {
+            event.preventDefault();
+          }
+        }}
         className={cn(
           "gap-0 overflow-hidden rounded-xl border border-border bg-card p-0 shadow-xl",
           SIDE_CLASSES[side],

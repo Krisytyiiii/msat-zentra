@@ -1,12 +1,22 @@
 "use client";
 
 import * as React from "react";
-import { createPortal } from "react-dom";
-import { ClipboardList, FileText, Loader2, Lock, PenLine, Plus, Trash2 } from "lucide-react";
+import {
+  Check,
+  ChevronRight,
+  ClipboardList,
+  FileText,
+  Loader2,
+  Lock,
+  PenLine,
+  Plus,
+  Trash2,
+  Users,
+} from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { KanbanBoard } from "@/components/ui/kanban-board";
 import { InsightCallout } from "@/components/ui/insight-callout";
-import { Pill } from "@/components/ui/pill";
+import { ConfirmDialog } from "@/components/ui/confirm-dialog";
+import { EmptyActionCard } from "@/components/shared/empty-action-card";
 import { format } from "date-fns";
 import { COMPONENT_LABELS, COMPONENT_NAMES } from "@/services/teacher/grading.compute";
 import { useDeleteAssessmentSave } from "./delete-assessment-save-context";
@@ -17,6 +27,7 @@ import type {
   ComponentType,
 } from "@/services/teacher/grading.types";
 import emptyStyles from "@/components/schedule/schedule-empty.module.css";
+import cardStyles from "../../components/GradebookCards.module.css";
 import styles from "./AssessmentList.module.css";
 
 const DOT: Record<string, string> = {
@@ -83,9 +94,11 @@ export function AssessmentList({ students, components, query, audience, onSelect
     poolOf(a).filter((s) => a.scores[s.id] != null).length;
 
   const handleDelete = async () => {
-    if (!pendingDelete) return;
+    if (!pendingDelete || deletingId) return;
     const { assessment, type } = pendingDelete;
     const { id } = assessment;
+    // Close the question right away and hand the work to the shared dock so
+    // the user can keep grading instead of watching a blocking overlay.
     setPendingDelete(null);
     setDeletingId(id);
     const given = new Date(assessment.dateGiven);
@@ -102,53 +115,58 @@ export function AssessmentList({ students, components, query, audience, onSelect
   };
 
   if (unfilteredTotal === 0) {
-    // Empty stage: the shared amber insight callout, centered in the content
-    // area, with the one action that fills it.
+    // Empty stage: the shared action card (same language as the admin desks),
+    // centered in the content area with the one action that fills it.
     return (
       <div className={emptyStyles.emptyWrap}>
-        <div className="mx-auto flex w-full max-w-md flex-col items-center gap-3">
-          <InsightCallout className="w-full text-center">
-            No assessments yet — create the first quiz, activity, or exam for this class.
-          </InsightCallout>
-          {onAddAssessment ? (
-            <Button
-              type="button"
-              size="sm"
-              className="h-7 gap-1 px-3 text-xs"
-              onClick={onAddAssessment}
-            >
-              <Plus size={14} aria-hidden />
-              Add assessment
-            </Button>
-          ) : null}
-        </div>
+        <EmptyActionCard
+          icon={ClipboardList}
+          title="No assessments yet"
+          description="Create the first quiz, activity, or exam for this class so its scores can be encoded."
+          actions={
+            onAddAssessment
+              ? [
+                  {
+                    title: "Add assessment",
+                    description: "New quiz, activity, or exam for this class",
+                    icon: Plus,
+                    accent: "text-amber-500",
+                    onClick: onAddAssessment,
+                  },
+                ]
+              : []
+          }
+        />
       </div>
     );
   }
 
   return (
     <>
-    <div className="min-w-0 flex-1" aria-label="Select assessment">
+    <div className="flex min-w-0 flex-1 flex-col" aria-label="Select assessment">
       {audienceTotal === 0 ? (
-        <div className="mx-auto mt-2 flex w-full max-w-md flex-col items-center gap-3">
-          <InsightCallout className="w-full text-center">
-            No {audience === "adm" ? "ADM" : "regular"} assessments yet — switch the type
-            above or add one.
-          </InsightCallout>
-          {onAddAssessment ? (
-            <Button
-              type="button"
-              size="sm"
-              className="h-7 gap-1 px-3 text-xs"
-              onClick={onAddAssessment}
-            >
-              <Plus size={14} aria-hidden />
-              Add assessment
-            </Button>
-          ) : null}
+        <div className="mx-auto flex w-full max-w-md flex-1 flex-col items-center justify-center">
+          <EmptyActionCard
+            icon={ClipboardList}
+            title={`No ${audience === "adm" ? "ADM" : "regular"} assessments yet`}
+            description={`This class has no ${audience === "adm" ? "ADM" : "regular"} assessments in the selected term. Switch the type above or add one.`}
+            actions={
+              onAddAssessment
+                ? [
+                    {
+                      title: "Add assessment",
+                      description: "New quiz, activity, or exam for this class",
+                      icon: Plus,
+                      accent: "text-amber-500",
+                      onClick: onAddAssessment,
+                    },
+                  ]
+                : []
+            }
+          />
         </div>
       ) : total === 0 ? (
-        <div className="mx-auto mt-2 w-full max-w-md">
+        <div className="mx-auto flex w-full max-w-md flex-1 flex-col items-center justify-center">
           <InsightCallout className="text-center">
             No assessments match &quot;{query.trim()}&quot;.
           </InsightCallout>
@@ -168,117 +186,128 @@ export function AssessmentList({ students, components, query, audience, onSelect
               <span className={`h-2 w-2 shrink-0 rounded-full ${DOT[g.type]}`} aria-hidden />
               <h2 className="text-xs font-semibold tracking-wide text-muted-foreground uppercase">{COMPONENT_NAMES[g.type]}</h2>
             </div>
-            <ul className={`${styles.row} flex min-w-0 flex-row gap-2 overflow-x-auto pb-2`}>
+            <ul className={`${styles.row} grid min-w-0 gap-2 pb-1 [grid-template-columns:repeat(auto-fill,minmax(19rem,1fr))]`}>
               {g.assessments.map((a, cardIdx) => {
                 const scored = scoredOf(a);
                 const poolSize = poolOf(a).length;
                 const busy = deletingId === a.id;
                 const pct = poolSize > 0 ? Math.round((scored / poolSize) * 100) : 0;
+                const complete = poolSize > 0 && scored >= poolSize;
+                const Icon =
+                  CATEGORY_ICON[g.type as keyof typeof CATEGORY_ICON] ?? ClipboardList;
+                const accent = CATEGORY_COLOR[g.type] ?? "#f59e0b";
                 return (
                   <li
                     key={a.id}
-                    className={`w-80 max-w-full shrink-0 ${styles.item}`}
+                    className={`min-w-0 ${styles.item}`}
                     style={{ animationDelay: `${secIdx * 70 + Math.min(cardIdx, 8) * 35}ms` }}
                   >
-                    <KanbanBoard
-                      className={styles.board}
-                      title={a.title}
-                      icon={(() => {
-                        const Icon =
-                          CATEGORY_ICON[g.type as keyof typeof CATEGORY_ICON] ?? ClipboardList;
-                        return (
-                          <span
-                            aria-hidden
-                            style={{ color: CATEGORY_COLOR[g.type] ?? "#f59e0b" }}
-                          >
-                            <Icon size={14} />
-                          </span>
-                        );
-                      })()}
-                      count={`${a.maxScore} max`}
-                      description={
-                        <span className="flex flex-wrap items-center gap-x-2 gap-y-1">
-                          <Pill
-                            tone={a.audience === "adm" ? "amber" : "neutral"}
-                            label="Assessment type"
-                          >
-                            {a.audience === "adm" ? "ADM" : "Regular"}
-                          </Pill>
-                          <span className="text-[12px] text-muted-foreground">
-                            Added {a.createdAt}
-                          </span>
-                        </span>
-                      }
-                      footer={
-                        <div className="flex items-center justify-between gap-2 px-1 pb-1">
-                          {scored > 0 ? (
-                            <span
-                              className="flex min-w-0 items-center gap-1 text-[12px] text-muted-foreground"
-                              title="Encoded scores keep this assessment in the class record — it cannot be deleted."
-                            >
-                              <Lock size={11} className="shrink-0" aria-hidden />
-                              <span className="truncate">Locked — scores encoded</span>
-                            </span>
-                          ) : (
-                            <button
-                              type="button"
-                              onClick={() => setPendingDelete({ assessment: a, type: g.type })}
-                              disabled={busy}
-                              aria-label={`Delete ${a.title}`}
-                              title="Delete assessment"
-                              className="shrink-0 rounded-md p-1.5 transition-colors hover:bg-muted hover:text-red-500"
-                            >
-                              {busy ? (
-                                <Loader2 size={14} className="animate-spin" aria-hidden />
-                              ) : (
-                                <Trash2 size={14} aria-hidden />
-                              )}
-                            </button>
-                          )}
-                          <Button
-                            type="button"
-                            size="sm"
-                            className="h-6 rounded-lg bg-black px-3 text-xs text-white hover:bg-neutral-800 dark:bg-white dark:text-black dark:hover:bg-neutral-200"
-                            onClick={() => onSelect(g.type, a.id)}
-                            aria-label={`Encode scores for ${a.title}`}
-                          >
-                            Encode scores
-                          </Button>
-                        </div>
-                      }
+                    <article
+                      className={`${cardStyles.card} h-full ${complete ? cardStyles.cardComplete : ""}`}
+                      aria-label={`${a.title}, ${a.audience === "adm" ? "ADM" : "Regular"}, ${a.maxScore} max`}
                     >
-                      <div className="flex items-end justify-between gap-3 px-1 pt-1 pb-0.5">
-                        <div className="flex min-w-0 flex-1 flex-col gap-1.5">
-                          <span className="text-[12px] font-medium tracking-[0.08em] text-muted-foreground uppercase">
-                            Encoding progress
+                      <header className={cardStyles.cardHead}>
+                        <span
+                          className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full border border-border bg-muted/40"
+                          style={{ color: accent }}
+                          aria-hidden
+                        >
+                          <Icon size={18} />
+                        </span>
+                        <div className={cardStyles.cardId}>
+                          <span className={cardStyles.subjectName} title={a.title}>
+                            {a.title}
                           </span>
-                          <div className="h-1.5 overflow-hidden rounded-full bg-muted" aria-hidden>
-                            <div
-                              className="h-full rounded-full transition-[width] duration-300 ease-out"
-                              style={{
-                                width: `${pct}%`,
-                                backgroundColor: CATEGORY_COLOR[g.type] ?? "#f59e0b",
-                              }}
-                            />
-                          </div>
-                          <span className="text-[12px] text-muted-foreground tabular-nums">
-                            {scored} of {poolSize} scored
+                          <span
+                            className={cardStyles.section}
+                            title={`${a.audience === "adm" ? "ADM" : "Regular"} · Added ${a.createdAt}`}
+                          >
+                            {a.audience === "adm" ? "ADM" : "Regular"} · Added {a.createdAt}
                           </span>
                         </div>
+                        <span className={cardStyles.gradeText}>{a.maxScore} max</span>
+                      </header>
+
+                      <div className={cardStyles.metaRow}>
+                        {complete ? (
+                          <span className={cardStyles.statusText} data-tone="green">
+                            <Check size={12} aria-hidden />
+                            Fully encoded
+                          </span>
+                        ) : scored > 0 ? (
+                          <span className={cardStyles.statusText} data-tone="amber">
+                            Encoding in progress
+                          </span>
+                        ) : (
+                          <span className={cardStyles.statusText} data-tone="neutral">
+                            Not started
+                          </span>
+                        )}
+                      </div>
+
+                      <div
+                        className={cardStyles.progress}
+                        role="progressbar"
+                        aria-valuemin={0}
+                        aria-valuemax={100}
+                        aria-valuenow={pct}
+                        aria-label={`${scored} of ${poolSize} scored`}
+                      >
                         <span
-                          className={`shrink-0 text-2xl leading-none font-bold tabular-nums ${
-                            scored > 0 ? "" : "text-muted-foreground"
-                          }`}
-                          style={
-                            scored > 0
-                              ? { color: CATEGORY_COLOR[g.type] ?? "#f59e0b" }
-                              : undefined
-                          }
-                        >
-                          {pct}%
+                          className={`${cardStyles.progressFill} ${complete ? cardStyles.progressDone : ""}`}
+                          style={{ width: `${pct}%` }}
+                        />
+                      </div>
+                      <div className={cardStyles.linksRow}>
+                        <span className={cardStyles.linkStat}>
+                          <ClipboardList size={11} aria-hidden />
+                          {a.maxScore} max
+                        </span>
+                        <span className={cardStyles.linkStat}>
+                          <Users size={11} aria-hidden />
+                          {poolSize} student{poolSize === 1 ? "" : "s"}
                         </span>
                       </div>
-                    </KanbanBoard>
+
+                      <div className={cardStyles.cardActions}>
+                        <span className={cardStyles.hint}>
+                          {scored > 0 ? (
+                            <>
+                              <Lock size={11} aria-hidden />
+                              <span>Locked — scores encoded</span>
+                            </>
+                          ) : (
+                            <span>No scores encoded yet</span>
+                          )}
+                        </span>
+                        {scored === 0 ? (
+                          <button
+                            type="button"
+                            onClick={() => setPendingDelete({ assessment: a, type: g.type })}
+                            disabled={busy}
+                            aria-label={`Delete ${a.title}`}
+                            title="Delete assessment"
+                            className="shrink-0 rounded-md p-1.5 transition-colors hover:bg-muted hover:text-red-500"
+                          >
+                            {busy ? (
+                              <Loader2 size={14} className="animate-spin" aria-hidden />
+                            ) : (
+                              <Trash2 size={14} aria-hidden />
+                            )}
+                          </button>
+                        ) : null}
+                        <Button
+                          type="button"
+                          variant="outline"
+                          className="h-6 gap-1 bg-card px-2 text-[12px] text-foreground"
+                          onClick={() => onSelect(g.type, a.id)}
+                          aria-label={`Encode scores for ${a.title}`}
+                        >
+                          Encode scores
+                          <ChevronRight size={12} aria-hidden />
+                        </Button>
+                      </div>
+                    </article>
                   </li>
                 );
               })}
@@ -291,85 +320,19 @@ export function AssessmentList({ students, components, query, audience, onSelect
     </div>
 
       {pendingDelete ? (
-        <DeleteAssessmentOverlay
-          title={pendingDelete.assessment.title}
-          onClose={() => setPendingDelete(null)}
+        <ConfirmDialog
+          tone="danger"
+          title="Delete assessment?"
+          description={`"${pendingDelete.assessment.title}" will be permanently removed from this class.`}
+          confirmLabel="Delete"
+          pendingLabel="Deleting…"
+          pending={deletingId === pendingDelete.assessment.id}
+          onCancel={() => {
+            if (!deletingId) setPendingDelete(null);
+          }}
           onConfirm={() => void handleDelete()}
         />
       ) : null}
     </>
-  );
-}
-
-function DeleteAssessmentOverlay({
-  title,
-  onClose,
-  onConfirm,
-}: {
-  title: string;
-  onClose: () => void;
-  onConfirm: () => void;
-}) {
-  // Portal to document.body so no transformed ancestor can hijack this
-  // fixed overlay as its containing block. Mounted flag guards prerender.
-  const [mounted, setMounted] = React.useState(false);
-
-  React.useEffect(() => {
-    // eslint-disable-next-line react-hooks/set-state-in-effect
-    setMounted(true);
-  }, []);
-
-  React.useEffect(() => {
-    const onKey = (e: KeyboardEvent) => {
-      if (e.key === "Escape") onClose();
-    };
-    window.addEventListener("keydown", onKey);
-    return () => window.removeEventListener("keydown", onKey);
-  }, [onClose]);
-
-  React.useEffect(() => {
-    const prev = document.body.style.overflow;
-    document.body.style.overflow = "hidden";
-    return () => {
-      document.body.style.overflow = prev;
-    };
-  }, []);
-
-  if (!mounted) return null;
-
-  return createPortal(
-    <div
-      className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4"
-      onMouseDown={(e) => {
-        if (e.target === e.currentTarget) onClose();
-      }}
-    >
-      <div
-        role="dialog"
-        aria-modal="true"
-        aria-label="Delete assessment?"
-        className="w-full max-w-sm"
-      >
-        <KanbanBoard
-          title="Delete assessment?"
-          icon={<Trash2 size={14} className="text-red-500" aria-hidden />}
-          description={`"${title}" will be permanently removed. Close the panel or press Escape to keep it.`}
-          footer={
-            <div className="flex justify-end px-1 pb-1">
-              <Button
-                type="button"
-                size="sm"
-                className="h-6 bg-red-500 px-3 text-xs text-white hover:bg-red-600"
-                onClick={onConfirm}
-              >
-                Delete
-              </Button>
-            </div>
-          }
-          className="bg-card shadow-2xl"
-        >{null}</KanbanBoard>
-      </div>
-    </div>,
-    document.body,
   );
 }

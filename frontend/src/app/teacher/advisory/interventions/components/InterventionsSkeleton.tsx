@@ -2,24 +2,38 @@
 
 import { Skeleton } from "@/components/ui/skeleton";
 import { ShimmerGroup } from "@/components/ui/shimmer-skeleton";
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "@/components/ui/table";
+import cascade from "@/components/shared/desk-cascade.module.css";
+import listStyles from "../../list/components/advisory-list.module.css";
 import styles from "./interventions.module.css";
 
 /** Six placeholder rows — the same count the first page usually lands with. */
 const ROWS = 6;
 
-/** Filter chips the live toolbar shows (section is the optional one). */
-const TAGS = [7, 9.5, 10.5, 8];
+/** Live column budget, so the skeleton table keeps the same rhythm. */
+const COLUMNS = [260, 90, 220, 150, 110, 100, 56];
 
 /**
  * Loading state for the adviser's intervention desk — one shimmer sweep over a
- * pixel-for-pixel copy of the live layout: header + count pill, the glass-tag
- * toolbar with search, the glass case list (head row, eight columns, pager)
- * and the detection-flow rail on the right, so nothing shifts when data lands.
+ * pixel-for-pixel copy of the live layout: the header with its search field on
+ * the right, then the same bordered case table (seven columns, header strip,
+ * pager). Nothing shifts when data lands.
  */
 export function InterventionsSkeleton() {
   return (
     <ShimmerGroup>
-      <section className={styles.page} aria-busy="true" aria-label="Loading interventions">
+      <section
+        className="flex min-w-0 flex-col gap-3"
+        aria-busy="true"
+        aria-label="Loading interventions"
+      >
         <div className={styles.boardShell}>
           <header className={styles.header}>
             <div className={styles.headerText}>
@@ -29,84 +43,65 @@ export function InterventionsSkeleton() {
               </div>
               <Skeleton className={styles.skelDescription} />
             </div>
-            <Skeleton className={styles.skelCountPill} />
+            <Skeleton className={styles.skelSearch} />
           </header>
 
-          <div className={styles.toolbar}>
-            <div className={styles.toolbarFilters}>
-              {TAGS.map((width, index) => (
-                <Skeleton
-                  key={index}
-                  className={styles.skelTag}
-                  style={{ width: `${width}rem` }}
-                />
-              ))}
-            </div>
-            <Skeleton className={styles.skelSearch} />
-          </div>
-
-          <div className={styles.listPanel} role="status" aria-label="Loading intervention cases">
-            <div className={styles.listHead} aria-hidden>
-              <Skeleton className={styles.skelHeadLabel} />
-              <Skeleton className={styles.skelHeadLabel} style={{ width: "2.5rem" }} />
-              <Skeleton
-                className={`${styles.skelHeadLabel} ${styles.headSection}`}
-                style={{ width: "4rem" }}
-              />
-              <Skeleton className={styles.skelHeadLabel} style={{ width: "4.25rem" }} />
-              <Skeleton className={styles.skelHeadLabel} style={{ width: "4rem" }} />
-              <Skeleton
-                className={`${styles.skelHeadLabel} ${styles.headSessions}`}
-                style={{ width: "3.5rem" }}
-              />
-              <Skeleton className={styles.skelHeadLabel} style={{ width: "3.25rem" }} />
-              <span />
-            </div>
-            <ul className={styles.listBody} aria-hidden>
-              {Array.from({ length: ROWS }).map((_, index) => (
-                <li key={index} className={styles.skelCaseRow}>
-                  <div className={`${styles.cell} ${styles.cellPerson}`}>
-                    <Skeleton className={styles.skelAvatar} />
-                    <div className={styles.skelPersonLines}>
-                      <Skeleton className={styles.skelBar} style={{ width: "8.5rem" }} />
-                      <Skeleton className={styles.skelBar} style={{ width: "5.5rem" }} />
-                    </div>
-                  </div>
-
-                  <div className={`${styles.cell} ${styles.cellRisk}`}>
-                    <Skeleton className={styles.skelPill} style={{ width: "3.75rem" }} />
-                  </div>
-
-                  <div className={`${styles.cell} ${styles.cellMetaRow} ${styles.cellSection}`}>
-                    <Skeleton className={styles.skelMeta} style={{ width: "3.75rem" }} />
-                    <Skeleton className={styles.skelMeta} style={{ width: "3rem" }} />
-                  </div>
-
-                  <div className={`${styles.cell} ${styles.cellFactors}`}>
-                    <Skeleton className={styles.skelFactor} />
-                    <Skeleton className={styles.skelFactor} />
-                    <Skeleton className={styles.skelFactor} />
-                  </div>
-
-                  <div className={`${styles.cell} ${styles.cellStatus}`}>
-                    <Skeleton className={styles.skelPill} style={{ width: "5.5rem" }} />
-                  </div>
-
-                  <div className={`${styles.cell} ${styles.cellMetaRow} ${styles.cellSessions}`}>
-                    <Skeleton className={styles.skelMeta} style={{ width: "3rem" }} />
-                    <Skeleton className={styles.skelMeta} style={{ width: "2.5rem" }} />
-                  </div>
-
-                  <div className={`${styles.cell} ${styles.cellMetaRow} ${styles.cellFlagged}`}>
-                    <Skeleton className={styles.skelMeta} style={{ width: "3.25rem" }} />
-                  </div>
-
-                  <div className={`${styles.cell} ${styles.cellAction}`}>
-                    <Skeleton className={styles.skelAction} />
-                  </div>
-                </li>
-              ))}
-            </ul>
+          <div
+            className={listStyles.tableWrap}
+            role="status"
+            aria-label="Loading intervention cases"
+          >
+            <Table className={`${cascade.table} w-full table-fixed`}>
+              <TableHeader>
+                <TableRow className="bg-muted/50 [&>th]:border-t-0">
+                  {COLUMNS.map((width, index) => (
+                    <TableHead key={index} style={{ width }} className="h-10">
+                      {index < COLUMNS.length - 1 ? (
+                        <Skeleton className={styles.skelHeadLabel} />
+                      ) : null}
+                    </TableHead>
+                  ))}
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {Array.from({ length: ROWS }).map((_, index) => (
+                  <TableRow key={index} className="hover:bg-transparent">
+                    <TableCell>
+                      <div className="flex min-w-0 items-center gap-2">
+                        <Skeleton className={styles.skelAvatar} />
+                        <div className={styles.skelPersonLines}>
+                          <Skeleton className={styles.skelBar} style={{ width: "8.5rem" }} />
+                          <Skeleton className={styles.skelBar} style={{ width: "5.5rem" }} />
+                        </div>
+                      </div>
+                    </TableCell>
+                    <TableCell>
+                      <Skeleton className={styles.skelPill} style={{ width: "3.75rem" }} />
+                    </TableCell>
+                    <TableCell>
+                      <Skeleton className={styles.skelBar} style={{ width: "9rem" }} />
+                    </TableCell>
+                    <TableCell>
+                      <Skeleton className={styles.skelPill} style={{ width: "5.5rem" }} />
+                    </TableCell>
+                    <TableCell>
+                      <div className={styles.skelPersonLines}>
+                        <Skeleton className={styles.skelBar} style={{ width: "3rem" }} />
+                        <Skeleton className={styles.skelBar} style={{ width: "2.5rem" }} />
+                      </div>
+                    </TableCell>
+                    <TableCell>
+                      <Skeleton className={styles.skelBar} style={{ width: "3.25rem" }} />
+                    </TableCell>
+                    <TableCell>
+                      <div className="flex items-center justify-end">
+                        <Skeleton className="size-7 rounded-md" />
+                      </div>
+                    </TableCell>
+                  </TableRow>
+                ))}
+              </TableBody>
+            </Table>
           </div>
 
           <div className={styles.skelPager}>
@@ -118,35 +113,6 @@ export function InterventionsSkeleton() {
             </div>
           </div>
         </div>
-
-        <aside className={styles.flowAside} aria-label="Loading detection flow">
-          <div className={styles.skelFlow}>
-            <div className={styles.skelFlowHead}>
-              <Skeleton className={styles.skelEyebrow} />
-              <Skeleton className={styles.skelFlowTitle} />
-            </div>
-
-            <div className={styles.skelFlowColumns}>
-              {Array.from({ length: 5 }).map((_, index) => (
-                <div key={index} className={styles.skelFlowColumn}>
-                  <Skeleton className={styles.skelBar} style={{ width: "3.5rem" }} />
-                  <Skeleton className={styles.skelFlowCount} />
-                  <Skeleton className={styles.skelBar} style={{ width: "3rem" }} />
-                </div>
-              ))}
-            </div>
-
-            <Skeleton className={styles.skelFlowMesh} />
-
-            <div className={styles.skelFlowTotal}>
-              <Skeleton className={styles.skelBar} style={{ width: "4rem" }} />
-              <Skeleton className={styles.skelFlowTotalValue} />
-              <Skeleton className={styles.skelBar} style={{ width: "9rem", maxWidth: "100%" }} />
-            </div>
-
-            <Skeleton className={styles.skelFlowFoot} />
-          </div>
-        </aside>
       </section>
     </ShimmerGroup>
   );

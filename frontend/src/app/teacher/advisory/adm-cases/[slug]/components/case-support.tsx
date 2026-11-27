@@ -33,6 +33,7 @@ type TabKey = "devices" | "meetings" | "documents";
 /** Support the learner received during monitoring — devices, meetings, forms. */
 export function CaseSupport({ data }: { data: AdmMonitoringCase }) {
   const { devices, meetings, forms } = data;
+  const documents = forms;
   const [tab, setTab] = React.useState<TabKey>("devices");
   const [previewForm, setPreviewForm] = React.useState<
     AdmMonitoringCase["forms"][number] | null
@@ -41,7 +42,7 @@ export function CaseSupport({ data }: { data: AdmMonitoringCase }) {
   const tabs = [
     { key: "devices" as const, label: "Devices", count: devices.length, icon: Laptop },
     { key: "meetings" as const, label: "Meetings", count: meetings.length, icon: CalendarCheck2 },
-    { key: "documents" as const, label: "Documents", count: forms.length, icon: FileText },
+    { key: "documents" as const, label: "Documents", count: documents.length, icon: FileText },
   ];
 
   return (
@@ -143,44 +144,58 @@ export function CaseSupport({ data }: { data: AdmMonitoringCase }) {
       ) : null}
 
       {tab === "documents" ? (
-        forms.length === 0 ? (
+        documents.length === 0 ? (
           <p className="m-0 rounded-md border border-dashed px-3 py-6 text-center text-sm text-muted-foreground">
             No linked forms yet.
           </p>
         ) : (
-          <ul className="m-0 flex list-none flex-col gap-2 p-0">
-            {forms.map((f) => (
-              <li
-                key={f.id}
-                className="flex items-center justify-between gap-2 rounded-md border bg-background p-2.5"
-              >
-                <div className="flex min-w-0 flex-col gap-0.5">
-                  <p className="m-0 truncate text-sm font-semibold text-foreground" title={f.title}>
-                    {f.title}
-                  </p>
+          <div className="flex min-w-0 flex-col gap-2">
+            <div className="flex min-w-0 flex-col gap-0.5">
+              <p className="m-0 text-[12px] font-semibold text-foreground">
+                {documents.length} {documents.length === 1 ? "document" : "documents"} on file
+              </p>
+              <p className="m-0 text-[12px] text-muted-foreground">
+                Signed forms and supporting records filed for this ADM case. Open one to preview
+                it in the side drawer.
+              </p>
+            </div>
+            <ul className="m-0 flex list-none flex-col gap-2 p-0">
+              {documents.map((f) => (
+                <li
+                  key={f.id}
+                  className="flex flex-col gap-1 rounded-md border bg-background p-2.5"
+                >
+                  <div className="flex items-center justify-between gap-2">
+                    <p className="m-0 truncate text-sm font-semibold text-foreground" title={f.title}>
+                      {f.title}
+                    </p>
+                    <div className="flex shrink-0 items-center gap-2">
+                      <Pill tone={formStatusTone(f.status)} label="Form status">
+                        {formStatusLabel(f.status)}
+                      </Pill>
+                      <Button
+                        type="button"
+                        variant="outline"
+                        size="sm"
+                        className="gap-1"
+                        onClick={() => setPreviewForm(f)}
+                        aria-label={`Preview ${f.title}`}
+                      >
+                        <FileText size={13} aria-hidden />
+                        View
+                      </Button>
+                    </div>
+                  </div>
                   <p className="m-0 text-[14px] text-muted-foreground">
-                    {dayLabel(f.uploadedAt)}
+                    {f.notes?.trim() || "No notes on file."}
                   </p>
-                </div>
-                <div className="flex shrink-0 items-center gap-2">
-                  <Pill tone={formStatusTone(f.status)} label="Form status">
-                    {formStatusLabel(f.status)}
-                  </Pill>
-                  <Button
-                    type="button"
-                    variant="outline"
-                    size="sm"
-                    className="gap-1"
-                    onClick={() => setPreviewForm(f)}
-                    aria-label={`Preview ${f.title}`}
-                  >
-                    <FileText size={13} aria-hidden />
-                    View
-                  </Button>
-                </div>
-              </li>
-            ))}
-          </ul>
+                  <p className="m-0 text-[12px] text-muted-foreground">
+                    Uploaded {dayLabel(f.uploadedAt)}
+                  </p>
+                </li>
+              ))}
+            </ul>
+          </div>
         )
       ) : null}
 

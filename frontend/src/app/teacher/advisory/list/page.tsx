@@ -4,7 +4,6 @@ import * as React from "react";
 import {
   getCoreRowModel,
   getFilteredRowModel,
-  getPaginationRowModel,
   getSortedRowModel,
   useReactTable,
   flexRender,
@@ -15,12 +14,15 @@ import {
 import {
   ArchiveRestore,
   CalendarClock,
+  Eye,
   KanbanSquare,
   Loader2,
   Pencil,
+  Plus,
   RotateCcw,
   Trash2,
   UserPlus,
+  Users,
   X,
 } from "lucide-react";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
@@ -28,7 +30,9 @@ import { apiClient } from "@/lib/api/client";
 import { useTeacherInvalidate } from "../../components/use-teacher-invalidate";
 import { markSelfNotified } from "@/lib/realtime/teacherChannel";
 import { Button } from "@/components/ui/button";
-import { KanbanOverlay } from "@/components/ui/kanban-overlay";
+import { FilterTabs } from "@/components/ui/filter-tabs";
+import { MessageOverlay } from "@/components/ui/message-overlay";
+import { SidePanel } from "@/components/ui/side-panel";
 import { FormOverlay } from "./components/form-overlay";
 import { useDock } from "@/components/dock/dock-store";
 import { Input } from "@/components/ui/input";
@@ -50,25 +54,25 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import { Pill } from "@/components/ui/pill";
 import { GlassCard } from "@/components/ui/glass-card";
 import { Checkbox } from "@/components/ui/checkbox";
 import { InsightCallout } from "@/components/ui/insight-callout";
 import { ShimmerGroup, ShimmerSkeleton } from "@/components/ui/shimmer-skeleton";
-import { Pagination } from "@/components/shared/pagination";
 import {
-  useAdvisoryListRoster,
+  useAdvisoryRoster,
   useArchivedAdvisoryStudents,
 } from "@/services/teacher/advisory.service";
 import type { AdviseeRow, AdvisoryRoster, ArchivedAdvisee } from "@/services/teacher/advisory.types";
 import { compareSurnameFirst, formatSurnameFirst } from "@/lib/names";
 import { formatManilaDateLong } from "@/lib/labels/datetime";
-import { riskBadgeVariant } from "@/lib/risk/status";
-import { PAGE_SIZE } from "@/components/shared/pagination";
+import { useTerm } from "@/lib/term/TermContext";
+import cascade from "@/components/shared/desk-cascade.module.css";
 import { AdvisoryInsightBoard } from "./components/advisory-insight-board";
 import { AdvisoryListSkeleton } from "./components/advisory-list-skeleton";
 import { StudentMascot } from "../referrals/components/StudentMascot";
 import listStyles from "./components/advisory-list.module.css";
+import cardStyles from "@/app/principal/academics/assign/components/sections-kanban.module.css";
+import scheduleCardStyles from "@/app/admin/academics/schedule/components/schedule-overview-board.module.css";
 
 function getErrorMessage(err: unknown, fallback: string): string {
   const data = (err as { response?: { data?: { error?: { message?: unknown }; message?: unknown } } })?.response?.data;
@@ -78,10 +82,66 @@ function getErrorMessage(err: unknown, fallback: string): string {
   return fallback;
 }
 
+/** Live general average — same figure the insight board shows. */
+function adviseeAverage(row: AdviseeRow): number | null {
+  const live = row.liveGrades
+    .map((g) => g.average)
+    .filter((v) => typeof v === "number" && Number.isFinite(v));
+  if (live.length > 0) return live.reduce((a, b) => a + b, 0) / live.length;
+  const finals = row.grades
+    .map((g) => g.transmutedGrade ?? g.computedAverage)
+    .filter((v): v is number => typeof v === "number" && Number.isFinite(v));
+  if (finals.length > 0) return finals.reduce((a, b) => a + b, 0) / finals.length;
+  return null;
+}
+
+
+/** Placeholder row for an enlist that has not come back from the server yet. */
+function optimisticAdvisee(
+  studentId: string,
+  name: string,
+  lrn: string,
+  sectionName: string,
+  learnerType: "regular" | "transferee",
+): AdviseeRow {
+  return {
+    studentId,
+    name,
+    lrn,
+    mascot: null,
+    birthdate: null,
+    gender: null,
+    section: sectionName,
+    riskLevel: "Low",
+    flags: [],
+    attendanceRate: 1,
+    anecdotalCount: 0,
+    confidentialityTiers: [],
+    hasOpenFlag: false,
+    openFlagCount: 0,
+    hasAccount: false,
+    learnerType,
+    admExempt: false,
+    grades: [],
+    liveGrades: [],
+  };
+}
+
+
+/** One row per learner; a single submit enlists them all (admin-section parity). */
+const MAX_ADD_ROWS = 12;
+
+/** Same field shell the admin section creator uses, so the two drawers match. */
+const ADD_INPUT_CLASS =
+  "h-8 rounded-lg border-input bg-transparent px-2.5 text-sm transition-[border-color,box-shadow] duration-150 focus-visible:border-amber-500 focus-visible:ring-2 focus-visible:ring-amber-500/25 dark:bg-transparent";
+
 export default function TeacherAdvisoryListPage() {
-  const rosterQuery = useAdvisoryListRoster();
+  // The board renders risk, attendance, grades and records per row, so it reads
+  // the full roster (the identity-only `view=list` feed has no metrics).
+  const rosterQuery = useAdvisoryRoster();
   const queryClient = useQueryClient();
   const invalidateTeacher = useTeacherInvalidate();
+  const { activeTerm } = useTerm();
   const students = React.useMemo(
     () =>
       [...(rosterQuery.data?.students ?? [])].sort((a, b) =>
@@ -96,7 +156,19 @@ export default function TeacherAdvisoryListPage() {
 
   const [sorting, setSorting] = React.useState<SortingState>([]);
   const [columnFilters, setColumnFilters] = React.useState<ColumnFiltersState>([]);
+  /** Risk-lane filter (the table's "risk" column filter, driven by the tabs). */
+  const [riskScope, setRiskScope] = React.useState<"all" | "Low" | "Moderate" | "High">("all");
   const [selectedId, setSelectedId] = React.useState<string | null>(null);
+  /** The student detail drawer opened by a row click / eye action. */
+  const [insightOpen, setInsightOpen] = React.useState(false);
+
+  const riskCounts = React.useMemo(() => {
+    const counts: Record<string, number> = { Low: 0, Moderate: 0, High: 0 };
+    for (const student of students) {
+      counts[student.riskLevel] = (counts[student.riskLevel] ?? 0) + 1;
+    }
+    return counts;
+  }, [students]);
 
   // Keep a valid selection as the roster loads / changes.
   React.useEffect(() => {
@@ -121,8 +193,7 @@ export default function TeacherAdvisoryListPage() {
         accessorFn: (row) => `${formatSurnameFirst(row.name)} ${row.lrn}`,
         header: "Student",
         size: 250,
-        minSize: 230,
-        maxSize: 300,
+        minSize: 220,
         cell: ({ row }) => (
           <div className="flex min-w-0 items-center gap-2">
             <StudentMascot
@@ -138,26 +209,119 @@ export default function TeacherAdvisoryListPage() {
               >
                 {formatSurnameFirst(row.original.name)}
               </span>
-              <span className="mt-1 flex max-w-full items-center justify-between gap-1.5">
-                <span className="flex min-w-0 flex-wrap items-center gap-1.5">
-                  <Pill className="h-6 leading-none" tone="neutral" label="LRN">
-                    {row.original.lrn}
-                  </Pill>
-                  {row.original.learnerType === "transferee" ? (
-                    <Pill className="h-6 leading-none" tone="amber" label="Learner type">
-                      Transferee
-                    </Pill>
-                  ) : null}
-                </span>
-                <Pill
-                  className="h-6 shrink-0 leading-none"
-                  tone={riskBadgeVariant(row.original.riskLevel)}
-                  label="Risk level"
-                >
-                  {row.original.riskLevel}
-                </Pill>
+              <span
+                className="mt-0.5 block max-w-full truncate font-mono text-[12px] tabular-nums text-muted-foreground"
+                title={`LRN ${row.original.lrn}`}
+              >
+                {row.original.lrn}
               </span>
             </div>
+          </div>
+        ),
+      },
+      {
+        id: "risk",
+        accessorKey: "riskLevel",
+        header: "Risk",
+        size: 110,
+        minSize: 90,
+        cell: ({ row }) => {
+          const level = row.original.riskLevel;
+          const color =
+            level === "High"
+              ? "text-red-600 dark:text-red-400"
+              : level === "Moderate"
+                ? "text-amber-600 dark:text-amber-400"
+                : "text-emerald-600 dark:text-emerald-400";
+          return (
+            <span className={`text-[12px] font-semibold ${color}`} title={`Risk level: ${level}`}>
+              {level}
+            </span>
+          );
+        },
+      },
+      {
+        id: "attendance",
+        accessorKey: "attendanceRate",
+        header: "Attendance",
+        size: 140,
+        minSize: 120,
+        cell: ({ row }) => {
+          const pct = Math.round(row.original.attendanceRate * 100);
+          return (
+            <span
+              className="flex items-center gap-2"
+              aria-label={`Attendance ${pct}%`}
+            >
+              <span className="h-1.5 w-14 shrink-0 overflow-hidden rounded-full bg-muted">
+                <span
+                  className={`block h-full rounded-full ${pct < 80 ? "bg-amber-500" : "bg-emerald-500"}`}
+                  style={{ width: `${Math.min(100, Math.max(0, pct))}%` }}
+                />
+              </span>
+              <span className="text-[12px] font-medium tabular-nums">{pct}%</span>
+            </span>
+          );
+        },
+      },
+      {
+        id: "average",
+        accessorFn: (row) => adviseeAverage(row) ?? -1,
+        header: "Average",
+        size: 100,
+        minSize: 90,
+        cell: ({ row }) => {
+          const average = adviseeAverage(row.original);
+          if (average === null) {
+            return <span className="text-[12px] text-muted-foreground">No grades</span>;
+          }
+          return (
+            <span
+              className={`text-[12px] font-semibold tabular-nums ${
+                average < 75 ? "text-red-600 dark:text-red-400" : "text-foreground"
+              }`}
+            >
+              {average.toFixed(1)}
+            </span>
+          );
+        },
+      },
+      {
+        id: "anecdotal",
+        accessorKey: "anecdotalCount",
+        header: "Anecdotal",
+        size: 110,
+        minSize: 100,
+        cell: ({ row }) =>
+          row.original.anecdotalCount > 0 ? (
+            <span className="text-[12px] text-foreground">
+              {row.original.anecdotalCount} filed
+            </span>
+          ) : (
+            <span className="text-[12px] text-muted-foreground">—</span>
+          ),
+      },
+      {
+        id: "actions",
+        header: "",
+        size: 50,
+        minSize: 44,
+        enableSorting: false,
+        cell: ({ row }) => (
+          <div className="flex items-center justify-end" onClick={(e) => e.stopPropagation()}>
+            <Button
+              type="button"
+              variant="ghost"
+              size="icon-xs"
+              aria-label={`Open ${row.original.name}'s insight`}
+              title="Open student insight"
+              onClick={() => {
+                setSelectedId(row.original.studentId);
+                setInsightOpen(true);
+              }}
+            >
+              <Eye size={13} aria-hidden />
+            </Button>
           </div>
         ),
       },
@@ -172,46 +336,34 @@ export default function TeacherAdvisoryListPage() {
     onSortingChange: setSorting,
     onColumnFiltersChange: setColumnFilters,
     getCoreRowModel: getCoreRowModel(),
-    getPaginationRowModel: getPaginationRowModel(),
     getSortedRowModel: getSortedRowModel(),
     getFilteredRowModel: getFilteredRowModel(),
-    initialState: { pagination: { pageSize: PAGE_SIZE } },
     state: { sorting, columnFilters },
   });
-
-  // A newly enlisted / restored learner can land on any page of the sorted
-  // roster — jump the table to whichever page now holds the selection so the
-  // add is visible without paging or reloading.
-  const selectedPageIndex = React.useMemo(() => {
-    if (!selectedId) return null;
-    const idx = table
-      .getFilteredRowModel()
-      .rows.findIndex((r) => r.original.studentId === selectedId);
-    return idx < 0 ? null : Math.floor(idx / PAGE_SIZE);
-  }, [selectedId, students, table]); // eslint-disable-line react-hooks/exhaustive-deps
-
-  React.useEffect(() => {
-    if (selectedPageIndex === null) return;
-    if (table.getState().pagination.pageIndex !== selectedPageIndex) {
-      table.setPageIndex(selectedPageIndex);
-    }
-  }, [selectedPageIndex, table]);
 
   const advisorySections = React.useMemo(
     () => rosterQuery.data?.advisorySections ?? [],
     [rosterQuery.data],
   );
+  const selectedGradeLevel = React.useMemo(() => {
+    if (!selectedStudent?.section) return null;
+    return (
+      advisorySections.find((s) => s.name === selectedStudent.section)?.gradeLevel ?? null
+    );
+  }, [selectedStudent, advisorySections]);
   const [addOpen, setAddOpen] = React.useState(false);
-  const [addName, setAddName] = React.useState("");
-  const [addLrn, setAddLrn] = React.useState("");
+  /** One row per learner; a single submit enlists them all. */
+  const [addRows, setAddRows] = React.useState<Array<{ name: string; lrn: string }>>([
+    { name: "", lrn: "" },
+  ]);
   const [addSectionId, setAddSectionId] = React.useState("");
   /** Transferees start their attendance window on the enlistment date. */
   const [addLearnerType, setAddLearnerType] = React.useState<"regular" | "transferee">(
     "regular",
   );
   const [addError, setAddError] = React.useState<string | null>(null);
+  const [addSaving, setAddSaving] = React.useState(false);
   const dock = useDock();
-  const dockTaskRef = React.useRef<string | null>(null);
   const editDockTaskRef = React.useRef<string | null>(null);
 
   const [editTarget, setEditTarget] = React.useState<AdviseeRow | null>(null);
@@ -259,14 +411,18 @@ export default function TeacherAdvisoryListPage() {
     openEdit(target);
   }
 
-  /** Row click: normally inspects; while a rail tool is armed it ticks the row. */
+  /** Row click: normally opens the insight drawer; while a rail tool is armed it ticks the row. */
   function handleRowClick(row: AdviseeRow) {
     setSelectedId(row.studentId);
     if (removeArmed) {
       toggleRemoveSelected(row.studentId);
       return;
     }
-    if (editArmed) toggleEditSelected(row.studentId);
+    if (editArmed) {
+      toggleEditSelected(row.studentId);
+      return;
+    }
+    setInsightOpen(true);
   }
 
   const editMutation = useMutation({
@@ -598,173 +754,206 @@ export default function TeacherAdvisoryListPage() {
   }
 
   function openAdd() {
-    setAddName("");
-    setAddLrn("");
+    setAddRows([{ name: "", lrn: "" }]);
     setAddSectionId(advisorySections[0]?.id ?? "");
     setAddLearnerType("regular");
     setAddError(null);
     setAddOpen(true);
   }
 
-  const enlistMutation = useMutation({
-    mutationFn: async (payload: {
-      fullName: string;
-      lrn: string;
-      sectionId?: string;
-      learnerType: "regular" | "transferee";
-    }) => {
-      const { data } = await apiClient.post<{ studentId?: string }>("/api/teacher/advisory/roster", payload);
-      return data;
-    },
-    // Show the new advisee immediately — the refetch on settle only reconciles
-    // the server-assigned id, never the row's presence.
-    onMutate: async (payload) => {
-      const root = ["advisory-students"] as const;
-      await queryClient.cancelQueries({ queryKey: root });
-      const previous = queryClient.getQueriesData<AdvisoryRoster>({ queryKey: root });
-      const optimisticId = `pending:${payload.lrn}`;
-      queryClient.setQueriesData<AdvisoryRoster>({ queryKey: root }, (current) => {
-        if (!current) return current;
-        if (current.students.some((s) => s.lrn === payload.lrn)) return current;
-        const section =
-          current.advisorySections.find((s) => s.id === payload.sectionId) ??
-          current.advisorySections[0];
-        const row: AdviseeRow = {
-          studentId: optimisticId,
-          name: payload.fullName,
-          lrn: payload.lrn,
-          mascot: null,
-          birthdate: null,
-          gender: null,
-          section: section?.name ?? "",
-          riskLevel: "Low",
-          flags: [],
-          attendanceRate: 1,
-          anecdotalCount: 0,
-          confidentialityTiers: [],
-          hasOpenFlag: false,
-          openFlagCount: 0,
-          hasAccount: false,
-          learnerType: payload.learnerType,
-          admExempt: false,
-          grades: [],
-          liveGrades: [],
-        };
-        return { ...current, students: [...current.students, row] };
-      });
-      setSelectedId(optimisticId);
-      return { previous };
-    },
-    onError: (err, _payload, context) => {
-      context?.previous?.forEach(([key, data]) => queryClient.setQueryData(key, data));
-      const message = getErrorMessage(err, "Could not enlist this student.");
-      setAddError(message);
-      if (dockTaskRef.current) {
-        dock.failTask(dockTaskRef.current, message);
-        dockTaskRef.current = null;
+  const setAddRow = (index: number, patch: Partial<{ name: string; lrn: string }>) =>
+    setAddRows((prev) => prev.map((row, i) => (i === index ? { ...row, ...patch } : row)));
+  const addRow = () =>
+    setAddRows((prev) => (prev.length >= MAX_ADD_ROWS ? prev : [...prev, { name: "", lrn: "" }]));
+  const removeAddRow = (index: number) =>
+    setAddRows((prev) =>
+      prev.length === 1 ? [{ name: "", lrn: "" }] : prev.filter((_, i) => i !== index),
+    );
+
+  const addFilledRows = React.useMemo(
+    () =>
+      addRows
+        .map((row) => ({ fullName: row.name.trim(), lrn: row.lrn.trim() }))
+        .filter((row) => row.fullName || row.lrn),
+    [addRows],
+  );
+
+  const addDuplicateLrn = React.useMemo(() => {
+    const seen = new Set<string>();
+    for (const row of addFilledRows) {
+      if (!row.lrn) continue;
+      if (seen.has(row.lrn)) return row.lrn;
+      seen.add(row.lrn);
+    }
+    return null;
+  }, [addFilledRows]);
+
+  const addSectionLabel =
+    advisorySections.find((s) => s.id === addSectionId)?.name ??
+    advisorySections[0]?.name ??
+    "your advisory section";
+
+  /**
+   * Enlist every filled row. Confirming closes at once — the board paints the
+   * new learners optimistically and the shared Dock reports the batch; failures
+   * are reported there (and in a toast) per learner.
+   */
+  async function handleAddStudents() {
+    if (addSaving) return;
+    const filled = addFilledRows;
+    if (filled.length === 0) {
+      setAddError("Add at least one student.");
+      return;
+    }
+    const incomplete = filled.find((row) => !row.fullName || !row.lrn);
+    if (incomplete) {
+      setAddError(
+        incomplete.fullName
+          ? `${incomplete.fullName} needs a 12-digit LRN.`
+          : "Every row needs both a full name and an LRN.",
+      );
+      return;
+    }
+    const badLrn = filled.find((row) => !/^\d{12}$/.test(row.lrn));
+    if (badLrn) {
+      setAddError(`LRN for ${badLrn.fullName} must be exactly 12 digits (numbers only).`);
+      return;
+    }
+    if (addDuplicateLrn) {
+      setAddError(`LRN ${addDuplicateLrn} appears twice — each student must be different.`);
+      return;
+    }
+
+    setAddError(null);
+    setAddOpen(false);
+    setAddSaving(true);
+
+    const total = filled.length;
+    const sectionId = addSectionId;
+    const learnerType = addLearnerType;
+    const section = advisorySections.find((s) => s.id === sectionId) ?? advisorySections[0];
+    const sectionName = section?.name ?? "advisory section";
+    const taskId = dock.startTask({
+      kind: "generic",
+      title:
+        total === 1 ? `Enlisting ${filled[0].fullName}…` : `Enlisting ${total} students…`,
+      description: `${sectionName} · ${total} learner${total === 1 ? "" : "s"}`,
+      total,
+    });
+
+    // Show every new advisee immediately; the refetch on settle reconciles the
+    // server-assigned ids, never the rows' presence.
+    const root = ["advisory-students"] as const;
+    await queryClient.cancelQueries({ queryKey: root });
+    const optimisticIds = new Map<string, string>();
+    queryClient.setQueriesData<AdvisoryRoster>({ queryKey: root }, (current) => {
+      if (!current) return current;
+      const additions: AdviseeRow[] = [];
+      for (const row of filled) {
+        if (current.students.some((s) => s.lrn === row.lrn)) continue;
+        const optimisticId = `pending:${row.lrn}`;
+        optimisticIds.set(row.lrn, optimisticId);
+        additions.push(
+          optimisticAdvisee(optimisticId, row.fullName, row.lrn, sectionName, learnerType),
+        );
       }
-      // Bring the form back so the entered name/LRN are not lost.
-      setAddOpen(true);
-      toast.error({ title: "Could not enlist student", description: message });
-    },
-    onSuccess: (data, payload) => {
-      const optimisticId = `pending:${payload.lrn}`;
-      const newId = data?.studentId;
-      if (newId) {
-        // Swap the placeholder id for the real one so the selection survives
-        // the roster refetch — and put the learner back if a refetch that
-        // started before this write resolved replaced the cache without them.
-        setSelectedId(newId);
-        queryClient.setQueriesData<AdvisoryRoster>(
-          { queryKey: ["advisory-students"] },
-          (current) => {
-            if (!current) return current;
-            const present = current.students.some(
-              (s) => s.studentId === newId || s.lrn === payload.lrn,
-            );
-            if (present) {
-              return {
-                ...current,
-                students: current.students.map((s) =>
-                  s.studentId === optimisticId ? { ...s, studentId: newId } : s,
-                ),
-              };
-            }
-            const section =
-              current.advisorySections.find((s) => s.id === payload.sectionId) ??
-              current.advisorySections[0];
-            const row: AdviseeRow = {
-              studentId: newId,
-              name: payload.fullName,
-              lrn: payload.lrn,
-              mascot: null,
-              birthdate: null,
-              gender: null,
-              section: section?.name ?? "",
-              riskLevel: "Low",
-              flags: [],
-              attendanceRate: 1,
-              anecdotalCount: 0,
-              confidentialityTiers: [],
-              hasOpenFlag: false,
-              openFlagCount: 0,
-              hasAccount: false,
-              learnerType: payload.learnerType,
-              admExempt: false,
-              grades: [],
-              liveGrades: [],
-            };
-            return { ...current, students: [...current.students, row] };
+      return additions.length > 0
+        ? { ...current, students: [...current.students, ...additions] }
+        : current;
+    });
+
+    const failed: string[] = [];
+    const failedLrns = new Set<string>();
+    let settled = 0;
+    for (const row of filled) {
+      try {
+        const { data } = await apiClient.post<{ studentId?: string }>(
+          "/api/teacher/advisory/roster",
+          {
+            fullName: row.fullName,
+            lrn: row.lrn,
+            learnerType,
+            ...(sectionId ? { sectionId } : {}),
           },
         );
+        const newId = data?.studentId;
+        const optimisticId = optimisticIds.get(row.lrn);
+        if (newId) {
+          // Swap the placeholder id for the real one — or put the learner back
+          // if a refetch that started before this write resolved dropped them.
+          queryClient.setQueriesData<AdvisoryRoster>({ queryKey: root }, (current) => {
+            if (!current) return current;
+            const present = current.students.some(
+              (s) => s.studentId === newId || s.lrn === row.lrn,
+            );
+            if (!present) {
+              return {
+                ...current,
+                students: [
+                  ...current.students,
+                  optimisticAdvisee(newId, row.fullName, row.lrn, sectionName, learnerType),
+                ],
+              };
+            }
+            return {
+              ...current,
+              students: current.students.map((s) =>
+                s.studentId === optimisticId ? { ...s, studentId: newId } : s,
+              ),
+            };
+          });
+          const rosterId = newId.startsWith("roster:")
+            ? newId.slice("roster:".length)
+            : undefined;
+          if (rosterId) markSelfNotified(rosterId);
+        }
+      } catch (err) {
+        failed.push(`${row.fullName} — ${getErrorMessage(err, "not enlisted")}`);
+        failedLrns.add(row.lrn);
       }
-      const rosterId = newId?.startsWith("roster:") ? newId.slice("roster:".length) : undefined;
-      if (rosterId) markSelfNotified(rosterId);
-      if (dockTaskRef.current) {
-        dock.completeTask(
-          dockTaskRef.current,
-          `${payload.fullName} added to your advisory section.`,
-        );
-        dockTaskRef.current = null;
-      }
-      toast.success({
-        title: "Student enlisted",
-        description: `${payload.fullName} was added to your advisory section.`,
+      settled += 1;
+      dock.updateTask(taskId, {
+        progress: { done: settled, total },
+        description: `${settled}/${total} saved · ${sectionName}`,
       });
-    },
-    onSettled: () => {
-      invalidateTeacher.advisory();
-    },
-  });
+    }
 
-  const addSaving = enlistMutation.isPending;
+    // Never keep a placeholder for a learner the server refused.
+    if (failedLrns.size > 0) {
+      queryClient.setQueriesData<AdvisoryRoster>({ queryKey: root }, (current) => {
+        if (!current) return current;
+        return {
+          ...current,
+          students: current.students.filter(
+            (s) => !(failedLrns.has(s.lrn) && s.studentId.startsWith("pending:")),
+          ),
+        };
+      });
+    }
 
-  function handleAddStudent() {
-    if (addSaving) return;
-    const fullName = addName.trim();
-    const lrn = addLrn.trim();
-    if (!fullName || !lrn) {
-      setAddError("Name and LRN are both required.");
+    setAddSaving(false);
+    invalidateTeacher.advisory();
+
+    if (failed.length > 0) {
+      const message = failed.join(" · ");
+      dock.failTask(taskId, message);
+      toast.error({
+        title:
+          failed.length === 1
+            ? "One student was not enlisted"
+            : `${failed.length} students were not enlisted`,
+        description: message,
+      });
       return;
     }
-    if (!/^\d{12}$/.test(lrn)) {
-      setAddError("LRN must be exactly 12 digits (numbers only).");
-      return;
-    }
-    setAddError(null);
 
-    // Close first, then report the request in the shared Dock (bottom-right).
-    setAddOpen(false);
-    dockTaskRef.current = dock.startTask({
-      kind: "generic",
-      title: "Enlisting student",
-      description: `${fullName} · ${lrn}`,
-    });
-    enlistMutation.mutate({
-      fullName,
-      lrn,
-      learnerType: addLearnerType,
-      ...(addSectionId ? { sectionId: addSectionId } : {}),
+    dock.completeTask(
+      taskId,
+      `${total} student${total === 1 ? "" : "s"} · ${sectionName}`,
+    );
+    toast.success({
+      title: total === 1 ? "Student enlisted" : `${total} students enlisted`,
+      description: `${filled.map((row) => row.fullName).join(", ")} added to your ${sectionName === "advisory section" ? "advisory section" : sectionName}.`,
     });
   }
 
@@ -784,125 +973,172 @@ export default function TeacherAdvisoryListPage() {
   }
 
   return (
-    <section
-      aria-label="Advisory list"
-      className={`${listStyles.pageLock} flex min-w-0 flex-col gap-3`}
-    >
+    <section aria-label="Advisory list" className="flex min-w-0 flex-col gap-3">
       {students.length === 0 ? (
-        <div className="flex h-full min-h-[calc(100dvh-9rem)] w-full flex-col items-center justify-center gap-3">
-          <InsightCallout role="status" className="w-full max-w-xl self-center text-left">
-            <strong>No advisory students yet.</strong>{" "}
-            {sectionLabel
-              ? `${sectionLabel} has no enlisted learners this term.`
-              : "Students enlisted in your advisory section will appear here."}
-          </InsightCallout>
-          <div className="flex items-center justify-center gap-2">
-            {archivedStudents.length > 0 ? (
-              <Button
-                size="sm"
-                variant="outline"
-                className="px-2 text-xs"
-                onClick={() => { setRestoreSelected(new Set()); setRestoreOpen(true); }}
-              >
-                <ArchiveRestore size={14} aria-hidden />
-                Archived students
-              </Button>
-            ) : null}
-            <Button size="sm" className="px-2 text-xs" onClick={openAdd}>
-              <UserPlus size={14} aria-hidden />
-              Add student
-            </Button>
+        <div className="flex h-full min-h-[calc(100dvh-9rem)] w-full items-center justify-center py-6">
+          <div className="w-full max-w-md">
+            <article
+              className={scheduleCardStyles.card}
+              aria-label="No advisory students yet"
+            >
+              <header className={cardStyles.cardHead}>
+                <span className="flex size-9 shrink-0 items-center justify-center rounded-lg border border-amber-500/25 bg-amber-500/10 text-amber-600 dark:text-amber-400">
+                  <Users size={16} aria-hidden />
+                </span>
+                <div className={cardStyles.cardId}>
+                  <span className={cardStyles.sectionName}>No advisory students yet</span>
+                  <span className={cardStyles.teacher}>
+                    {sectionLabel || "Your advisory section"}
+                  </span>
+                </div>
+              </header>
+              <p className={scheduleCardStyles.progressLine}>
+                {sectionLabel
+                  ? `${sectionLabel} has no enlisted learners this term.`
+                  : "Students enlisted in your advisory section will appear here."}
+              </p>
+              <div className={cardStyles.cardActions}>
+                {archivedStudents.length > 0 ? (
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    className="h-6 shrink-0 gap-1 bg-card px-2 text-[12px] text-foreground"
+                    onClick={() => {
+                      setRestoreSelected(new Set());
+                      setRestoreOpen(true);
+                    }}
+                  >
+                    <ArchiveRestore size={12} aria-hidden />
+                    Archived students
+                  </Button>
+                ) : null}
+                <Button
+                  size="sm"
+                  className="h-6 shrink-0 gap-1 px-2 text-[12px]"
+                  onClick={openAdd}
+                >
+                  <UserPlus size={12} aria-hidden />
+                  Add student
+                </Button>
+              </div>
+            </article>
           </div>
         </div>
       ) : (
-        <div className={listStyles.boardLayout}>
-          <div className={listStyles.panel} aria-label="Advisory board">
-          <header className={listStyles.boardHead}>
-            <span className={listStyles.boardIcon} aria-hidden>
-              <KanbanSquare size={18} />
-            </span>
-            <div className="min-w-0 flex-1">
-              <h2 className={listStyles.boardTitle}>Advisory board</h2>
-            </div>
-            <div className={listStyles.pageActions}>
-              <Button
-                type="button"
-                size="sm"
-                variant="outline"
-                className="px-2 text-xs"
-                onClick={() => { setRestoreSelected(new Set()); setRestoreOpen(true); }}
-              >
-                <ArchiveRestore size={14} aria-hidden />
-                Archive{archivedStudents.length > 0 ? ` (${archivedStudents.length})` : ""}
-              </Button>
-              <Button
-                size="sm"
-                className="shrink-0 px-2 text-xs"
-                onClick={openAdd}
-              >
-                <UserPlus size={14} aria-hidden />
-                Add student
-              </Button>
-            </div>
-          </header>
+        <div className="flex min-w-0 flex-col" aria-label="Advisory board">
+            <header className={listStyles.boardHead}>
+              <span className={listStyles.boardIcon} aria-hidden>
+                <KanbanSquare size={18} />
+              </span>
+              <div className="min-w-0 flex-1">
+                <h2 className={listStyles.boardTitle}>Advisory list</h2>
+              </div>
+              <div className={listStyles.pageActions}>
+                <Button
+                  type="button"
+                  size="icon-sm"
+                  variant={editArmed ? "secondary" : "outline"}
+                  className={editArmed ? "text-amber-600 dark:text-amber-400" : ""}
+                  onClick={() => {
+                    if (editArmed) exitEditMode();
+                    else enterEditMode();
+                  }}
+                  aria-pressed={editArmed}
+                  aria-expanded={editArmed && editIntroOpen}
+                  aria-label={editArmed ? "Stop editing" : "Edit a student"}
+                  title={editArmed ? "Stop editing" : "Edit"}
+                >
+                  <Pencil size={14} aria-hidden />
+                </Button>
+                <Button
+                  type="button"
+                  size="icon-sm"
+                  variant={removeArmed ? "secondary" : "outline"}
+                  className={
+                    removeArmed
+                      ? "border-red-600 bg-red-600 text-white hover:bg-red-700 dark:bg-red-600 dark:text-white dark:hover:bg-red-700"
+                      : "border-red-500/40 text-red-600 hover:bg-red-500/10 hover:text-red-600 dark:text-red-400 dark:hover:bg-red-500/15 dark:hover:text-red-400"
+                  }
+                  onClick={() => {
+                    exitEditMode();
+                    if (removeArmed) exitRemoveMode();
+                    else enterRemoveMode();
+                  }}
+                  aria-pressed={removeArmed}
+                  aria-expanded={removeArmed && removeIntroOpen}
+                  aria-label={removeArmed ? "Stop removing" : "Remove students"}
+                  title={removeArmed ? "Stop removing" : "Remove"}
+                >
+                  <Trash2 size={14} aria-hidden />
+                </Button>
+                <Button
+                  type="button"
+                  size="sm"
+                  variant="outline"
+                  className="px-2 text-xs"
+                  onClick={() => { setRestoreSelected(new Set()); setRestoreOpen(true); }}
+                >
+                  <ArchiveRestore size={14} aria-hidden />
+                  Archive{archivedStudents.length > 0 ? ` (${archivedStudents.length})` : ""}
+                </Button>
+                <Button
+                  size="sm"
+                  className="shrink-0 px-2 text-xs"
+                  onClick={openAdd}
+                >
+                  <UserPlus size={14} aria-hidden />
+                  Add student
+                </Button>
+              </div>
+            </header>
 
-          <div className={listStyles.split}>
-            <div className={listStyles.left}>
-              <section className={listStyles.lane} aria-label="Advisory list lane">
-                <header className={listStyles.laneHead}>
-                  <span className={listStyles.laneDot} style={{ background: "#f59e0b" }} aria-hidden />
-                  <h3 className={listStyles.laneTitle}>Advisory list</h3>
-                  <div className="flex shrink-0 items-center gap-1">
-                    <Button
-                      type="button"
-                      size="icon-sm"
-                      variant={editArmed ? "secondary" : "outline"}
-                      className={editArmed ? "text-amber-600 dark:text-amber-400" : ""}
-                      onClick={() => {
-                        if (editArmed) exitEditMode();
-                        else enterEditMode();
-                      }}
-                      aria-pressed={editArmed}
-                      aria-expanded={editArmed && editIntroOpen}
-                      aria-label={editArmed ? "Stop editing" : "Edit a student"}
-                      title={editArmed ? "Stop editing" : "Edit"}
-                    >
-                      <Pencil size={14} aria-hidden />
-                    </Button>
-                    <Button
-                      type="button"
-                      size="icon-sm"
-                      variant={removeArmed ? "secondary" : "outline"}
-                      className={
-                        removeArmed
-                          ? "border-red-600 bg-red-600 text-white hover:bg-red-700 dark:bg-red-600 dark:text-white dark:hover:bg-red-700"
-                          : "border-red-500/40 text-red-600 hover:bg-red-500/10 hover:text-red-600 dark:text-red-400 dark:hover:bg-red-500/15 dark:hover:text-red-400"
-                      }
-                      onClick={() => {
-                        exitEditMode();
-                        if (removeArmed) exitRemoveMode();
-                        else enterRemoveMode();
-                      }}
-                      aria-pressed={removeArmed}
-                      aria-expanded={removeArmed && removeIntroOpen}
-                      aria-label={removeArmed ? "Stop removing" : "Remove students"}
-                      title={removeArmed ? "Stop removing" : "Remove"}
-                    >
-                      <Trash2 size={14} aria-hidden />
-                    </Button>
-                  </div>
-                </header>
-                <div className={listStyles.toolbar}>
-                  <TeacherSearchField
-                    className="w-full min-w-0 flex-1"
-                    placeholder="Search students…"
-                    value={(table.getColumn("name")?.getFilterValue() as string) ?? ""}
-                    onChange={(next) => table.getColumn("name")?.setFilterValue(next)}
-                    aria-label="Filter students"
-                  />
-                </div>
+            <div className={listStyles.body}>
+              <div className={listStyles.toolbar}>
+                <FilterTabs
+                  label="Filter students by risk level"
+                  variant="tags"
+                  options={[
+                    {
+                      value: "all" as const,
+                      label: "All students",
+                      count: students.length,
+                      tone: "neutral" as const,
+                    },
+                    {
+                      value: "Low" as const,
+                      label: "Low",
+                      count: riskCounts.Low ?? 0,
+                      tone: "green" as const,
+                    },
+                    {
+                      value: "Moderate" as const,
+                      label: "Moderate",
+                      count: riskCounts.Moderate ?? 0,
+                      tone: "amber" as const,
+                    },
+                    {
+                      value: "High" as const,
+                      label: "High",
+                      count: riskCounts.High ?? 0,
+                      tone: "red" as const,
+                    },
+                  ]}
+                  value={riskScope}
+                  onChange={(next) => {
+                    setRiskScope(next);
+                    table.getColumn("risk")?.setFilterValue(next === "all" ? undefined : next);
+                  }}
+                />
+                <TeacherSearchField
+                  className="ml-auto w-56 shrink-0 sm:w-64"
+                  placeholder="Search students…"
+                  value={(table.getColumn("name")?.getFilterValue() as string) ?? ""}
+                  onChange={(next) => table.getColumn("name")?.setFilterValue(next)}
+                  aria-label="Filter students"
+                />
+              </div>
 
-                {selectionMode ? (
+              {selectionMode ? (
                   <div className="flex min-w-0 items-center justify-between gap-2 rounded-md border border-destructive/40 bg-destructive/5 px-2.5 py-1.5">
                     <span className="min-w-0 flex-1 truncate text-[12px] font-medium text-muted-foreground">
                       {selectionCount === 0
@@ -961,7 +1197,7 @@ export default function TeacherAdvisoryListPage() {
                 ) : null}
 
                 <div className={listStyles.tableWrap}>
-                <Table className="w-full table-fixed">
+                <Table className={`${cascade.table} w-full table-fixed`}>
                   <TableHeader>
                     {table.getHeaderGroups().map((headerGroup) => (
                       <TableRow key={headerGroup.id} className="bg-muted/50 [&>th]:border-t-0">
@@ -1000,11 +1236,12 @@ export default function TeacherAdvisoryListPage() {
                   </TableHeader>
                   <TableBody>
                     {table.getRowModel().rows?.length ? (
-                      table.getRowModel().rows.map((row) => {
+                      table.getRowModel().rows.map((row, index) => {
                         const isSelected = row.original.studentId === selectedId;
                         return (
                           <TableRow
                             key={row.id}
+                            style={{ animationDelay: `${450 + Math.min(index, 11) * 140}ms` }}
                             onClick={() => handleRowClick(row.original)}
                             onKeyDown={(e) => {
                               if (e.key === "Enter" || e.key === " ") {
@@ -1067,111 +1304,145 @@ export default function TeacherAdvisoryListPage() {
                   </TableBody>
                 </Table>
                 </div>
-                <Pagination
-                  currentPage={table.getState().pagination.pageIndex + 1}
-                  totalItems={table.getFilteredRowModel().rows.length}
-                  onPageChange={(p) => table.setPageIndex(p - 1)}
-                />
-              </section>
             </div>
-            <div className={listStyles.right} aria-label="Student insight">
-              <AdvisoryInsightBoard student={selectedStudent} bare />
-            </div>
-          </div>
-
-          </div>
-
         </div>
       )}
 
-      <KanbanOverlay
-        open={editArmed && editIntroOpen}
-        onClose={exitEditMode}
-        width="sm"
-        title="Edit student"
-        icon={
-          <span className="text-amber-500" aria-hidden>
-            <Pencil size={14} />
-          </span>
+      <SidePanel
+        open={insightOpen && selectedStudent !== null}
+        onClose={() => setInsightOpen(false)}
+        label={
+          selectedStudent ? `${selectedStudent.name} — student insight` : "Student insight"
         }
-        description="Correct learners' names or LRNs straight from the list."
-        footer={
-          <div className="flex items-center justify-end gap-1.5 px-1 pb-1">
+        width="3xl"
+        showCloseButton
+      >
+        <div className="flex h-full min-h-0 flex-col">
+          <header className="flex shrink-0 items-center gap-2.5 border-b border-border px-4 py-3">
+            {selectedStudent ? (
+              <StudentMascot
+                name={selectedStudent.name}
+                seed={selectedStudent.lrn}
+                character={selectedStudent.mascot ?? undefined}
+                size={36}
+              />
+            ) : null}
+            <div className="min-w-0 flex-1">
+              <h2 className="truncate text-sm font-semibold leading-tight text-foreground">
+                {selectedStudent ? formatSurnameFirst(selectedStudent.name) : "Student insight"}
+              </h2>
+              {selectedStudent ? (
+                <p className="mt-1 flex flex-wrap items-center gap-x-2 gap-y-0.5 text-[12px] text-muted-foreground">
+                  <span>
+                    LRN:{" "}
+                    <span className="font-medium tabular-nums text-foreground">
+                      {selectedStudent.lrn}
+                    </span>
+                  </span>
+                  <span aria-hidden className="text-border">
+                    |
+                  </span>
+                  <span>
+                    Section:{" "}
+                    <span className="font-medium text-foreground">
+                      {selectedStudent.section || "—"}
+                    </span>
+                  </span>
+                  <span aria-hidden className="text-border">
+                    |
+                  </span>
+                  <span>
+                    Grade level:{" "}
+                    <span className="font-medium text-foreground">
+                      {selectedGradeLevel
+                        ? selectedGradeLevel.replace(/^G/, "Grade ")
+                        : "—"}
+                    </span>
+                  </span>
+                  <span aria-hidden className="text-border">
+                    |
+                  </span>
+                  <span>
+                    Term:{" "}
+                    <span className="font-medium text-foreground">
+                      {activeTerm ? `Term ${activeTerm.termNumber}` : "—"}
+                    </span>
+                  </span>
+                  <span aria-hidden className="text-border">
+                    |
+                  </span>
+                  <span>
+                    School year:{" "}
+                    <span className="font-medium text-foreground">
+                      {activeTerm?.schoolYearName ?? "—"}
+                    </span>
+                  </span>
+                </p>
+              ) : null}
+            </div>
+          </header>
+          <div className="min-h-0 flex-1 overflow-y-auto p-3">
+            <AdvisoryInsightBoard student={selectedStudent} bare />
+          </div>
+        </div>
+      </SidePanel>
+
+      {editArmed && editIntroOpen ? (
+        <MessageOverlay
+          width="sm"
+          tone="warning"
+          icon={<Pencil size={16} aria-hidden />}
+          title="Edit student"
+          description="Correct a learner's name or LRN without leaving the advisory list."
+          detail="Tick one student, then press Edit student. Names and LRNs only — an LRN stays 12 digits and is saved to the linked account too."
+          onDismiss={exitEditMode}
+          actions={
             <Button
               type="button"
               size="sm"
-              className="h-6 px-2 text-xs"
+              className="px-3 text-[12px]"
               onClick={() => setEditIntroOpen(false)}
               autoFocus
             >
               Start editing
             </Button>
-          </div>
-        }
-      >
-        <p className="px-1 text-xs text-muted-foreground">
-          Tick the student to edit, then press{" "}
-          <strong className="text-foreground">Edit student</strong> in the list
-          toolbar. One learner at a time — names and LRNs only, LRNs stay 12
-          digits.
-        </p>
-      </KanbanOverlay>
+          }
+        />
+      ) : null}
 
-      <KanbanOverlay
-        open={removeArmed && removeIntroOpen}
-        onClose={exitRemoveMode}
-        width="sm"
-        title="Remove students"
-        icon={
-          <span className="text-red-500" aria-hidden>
-            <Trash2 size={14} />
-          </span>
-        }
-        description="Soft delete — the learner is only hidden from your advisory list."
-        footer={
-          <div className="flex items-center justify-end gap-1.5 px-1 pb-1">
+      {removeArmed && removeIntroOpen ? (
+        <MessageOverlay
+          width="sm"
+          tone="danger"
+          icon={<Trash2 size={16} aria-hidden />}
+          title="Remove students"
+          description="Soft delete — the learner is only hidden from your advisory list."
+          detail="Grades, attendance, anecdotal records and referrals stay intact. Any learner can be restored from Archived students at any time."
+          onDismiss={exitRemoveMode}
+          actions={
             <Button
               type="button"
               size="sm"
-              className="h-6 px-2 text-xs"
+              className="px-3 text-[12px]"
               onClick={() => setRemoveIntroOpen(false)}
               autoFocus
             >
               Start selecting
             </Button>
-          </div>
-        }
-      >
-        <ol className="list-inside list-decimal space-y-1.5 px-1 text-xs text-muted-foreground">
-          <li>
-            Tick the checkbox on the left of every student you want to remove from
-            this list.
-          </li>
-          <li>
-            Press <strong className="text-foreground">Remove selected</strong> in
-            the list toolbar, then confirm.
-          </li>
-          <li>
-            Grades, attendance, anecdotal records and referrals stay intact —
-            nothing is deleted.
-          </li>
-          <li>
-            Restore any archived learner later from{" "}
-            <strong className="text-foreground">Archived students</strong>.
-          </li>
-        </ol>
-      </KanbanOverlay>
+          }
+        />
+      ) : null}
 
       <FormOverlay
         open={addOpen}
         onClose={() => {
           if (!addSaving) setAddOpen(false);
         }}
-        label="Add student"
-        widthClassName="max-w-md"
+        label="Add students"
+        variant="drawer"
       >
-        <div className="overflow-hidden rounded-xl border border-border bg-card shadow-2xl">
-          <header className="flex items-start gap-2.5 border-b border-border px-4 py-3">
+        <div className="flex h-full min-h-0 flex-col overflow-hidden bg-card">
+          <header className="flex shrink-0 items-start gap-2.5 border-b border-border px-4 py-3">
             <span
               className="mt-0.5 flex h-7 w-7 shrink-0 items-center justify-center rounded-md bg-amber-500/10 text-amber-500"
               aria-hidden
@@ -1180,14 +1451,10 @@ export default function TeacherAdvisoryListPage() {
             </span>
             <div className="min-w-0 flex-1">
               <h2 className="text-sm font-semibold leading-tight text-foreground">
-                Add student
+                Add students
               </h2>
               <p className="mt-0.5 text-[12px] leading-snug text-muted-foreground">
-                Enlist a student into your advisory section
-                {advisorySections.length === 1 && advisorySections[0]
-                  ? ` (${advisorySections[0].name})`
-                  : ""}
-                .
+                Enlist one or more learners into {addSectionLabel} in one pass.
               </p>
             </div>
             <button
@@ -1196,7 +1463,7 @@ export default function TeacherAdvisoryListPage() {
                 if (!addSaving) setAddOpen(false);
               }}
               disabled={addSaving}
-              aria-label="Close add student"
+              aria-label="Close add students"
               className="-mr-1 flex h-7 w-7 shrink-0 items-center justify-center rounded-md text-muted-foreground transition-colors duration-150 hover:bg-muted hover:text-foreground disabled:pointer-events-none disabled:opacity-50"
             >
               <X size={15} aria-hidden />
@@ -1206,53 +1473,88 @@ export default function TeacherAdvisoryListPage() {
           <form
             onSubmit={(event) => {
               event.preventDefault();
-              void handleAddStudent();
+              void handleAddStudents();
             }}
+            className="flex min-h-0 flex-1 flex-col"
           >
-            <div className="flex max-h-[60dvh] min-w-0 flex-col gap-3 overflow-y-auto px-4 py-4">
-              <div className="flex min-w-0 flex-col gap-1.5">
-                <Label htmlFor="advisory-add-name">Full name</Label>
-                <Input
-                  id="advisory-add-name"
-                  className="h-8 text-[13px]"
-                  value={addName}
-                  onChange={(e) => {
-                    setAddName(e.target.value);
-                    setAddError(null);
-                  }}
-                  placeholder="e.g. Juan Garcia"
-                  maxLength={120}
-                  autoFocus
-                  autoComplete="off"
-                />
-              </div>
-
-              <div className="flex min-w-0 flex-col gap-1.5">
-                <Label htmlFor="advisory-add-lrn">LRN</Label>
-                <Input
-                  id="advisory-add-lrn"
-                  className="h-8 text-[13px]"
-                  value={addLrn}
-                  onChange={(e) => {
-                    // Digits only — a DepEd LRN is exactly 12 numbers.
-                    setAddLrn(e.target.value.replace(/\D/g, "").slice(0, 12));
-                    setAddError(null);
-                  }}
-                  placeholder="12-digit LRN"
-                  inputMode="numeric"
-                  pattern="[0-9]{12}"
-                  autoComplete="off"
-                  maxLength={12}
-                />
+            <div className="flex min-h-0 flex-1 flex-col gap-4 overflow-y-auto px-4 py-4">
+              <div className="flex flex-col gap-1.5">
+                <div className="flex items-center justify-between gap-2">
+                  <span className="text-[12px] font-medium text-foreground">Students</span>
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    onClick={addRow}
+                    disabled={addRows.length >= MAX_ADD_ROWS}
+                    aria-label="Add another student"
+                    title="Add another student"
+                    className="h-7 w-7 shrink-0 p-0 text-muted-foreground hover:text-foreground"
+                  >
+                    <Plus size={14} aria-hidden />
+                  </Button>
+                </div>
+                <div className="flex flex-col">
+                  {addRows.map((row, index) => (
+                    <div
+                      key={index}
+                      className="flex items-start gap-2 border-t border-amber-500/40 py-2 first:border-t-0 first:pt-0 last:pb-0"
+                    >
+                      <div className="flex min-w-0 flex-1 flex-col gap-1.5">
+                        <Input
+                          className={ADD_INPUT_CLASS}
+                          placeholder="Full name, e.g. Juan Garcia"
+                          value={row.name}
+                          onChange={(e) => {
+                            setAddRow(index, { name: e.target.value });
+                            setAddError(null);
+                          }}
+                          maxLength={120}
+                          autoFocus={index === 0}
+                          autoComplete="off"
+                          aria-label={`Full name ${index + 1}`}
+                        />
+                        <Input
+                          className={ADD_INPUT_CLASS}
+                          placeholder="12-digit LRN"
+                          value={row.lrn}
+                          onChange={(e) => {
+                            // Digits only — a DepEd LRN is exactly 12 numbers.
+                            setAddRow(index, {
+                              lrn: e.target.value.replace(/\D/g, "").slice(0, 12),
+                            });
+                            setAddError(null);
+                          }}
+                          inputMode="numeric"
+                          pattern="[0-9]{12}"
+                          autoComplete="off"
+                          maxLength={12}
+                          aria-label={`LRN ${index + 1}`}
+                        />
+                      </div>
+                      <button
+                        type="button"
+                        onClick={() => removeAddRow(index)}
+                        aria-label={`Cancel student ${index + 1}`}
+                        className="mt-1.5 shrink-0 text-[12px] font-medium text-muted-foreground transition-colors duration-150 hover:text-foreground hover:underline hover:underline-offset-2"
+                      >
+                        Cancel
+                      </button>
+                    </div>
+                  ))}
+                </div>
+                <p className="text-[12px] leading-snug text-muted-foreground">
+                  Every filled row is enlisted for {addSectionLabel}. Leave a row empty to skip it.
+                </p>
+                {addDuplicateLrn ? (
+                  <p role="alert" className="text-[12px] leading-snug text-destructive">
+                    LRN {addDuplicateLrn} appears twice — each student must be different.
+                  </p>
+                ) : null}
               </div>
 
               <div className="flex min-w-0 flex-col gap-2">
                 <Label>Learner type</Label>
-                <div
-                  role="radiogroup"
-                  aria-label="Learner type"
-                  className="grid gap-2 sm:grid-cols-2"
-                >
+                <div role="radiogroup" aria-label="Learner type" className="grid grid-cols-2 gap-2">
                   {(
                     [
                       {
@@ -1313,12 +1615,20 @@ export default function TeacherAdvisoryListPage() {
                   {addError}
                 </p>
               ) : null}
+
+              <div className="mt-auto flex items-start gap-2 rounded-lg border border-border bg-muted/40 px-2.5 py-2">
+                <UserPlus size={13} aria-hidden className="mt-0.5 shrink-0 text-amber-500" />
+                <p className="text-[12px] leading-relaxed text-muted-foreground">
+                  A transferee&apos;s attendance window opens on enlistment day. Names and LRNs must
+                  be unique — an existing learner is matched by LRN instead of duplicated.
+                </p>
+              </div>
             </div>
 
-            <div className="flex items-center justify-end gap-2 border-t border-border px-4 py-3">
+            <div className="flex shrink-0 items-center justify-end gap-2 border-t border-border px-4 py-3">
               <Button
                 type="submit"
-                disabled={addSaving}
+                disabled={addSaving || addFilledRows.length === 0}
                 aria-busy={addSaving || undefined}
                 className="h-6 gap-1.5 px-2.5 text-[12px]"
               >
@@ -1327,6 +1637,8 @@ export default function TeacherAdvisoryListPage() {
                     <Loader2 size={12} className="animate-spin" aria-hidden />
                     <span aria-live="polite">Enlisting…</span>
                   </>
+                ) : addFilledRows.length > 1 ? (
+                  `Enlist ${addFilledRows.length} students`
                 ) : (
                   "Enlist student"
                 )}
@@ -1336,23 +1648,89 @@ export default function TeacherAdvisoryListPage() {
         </div>
       </FormOverlay>
 
-      <KanbanOverlay
+      <FormOverlay
         open={editOpen && editTarget !== null}
         onClose={() => {
           if (!editSaving) setEditOpen(false);
         }}
-        dismissable={!editSaving}
-        busy={editSaving}
-        width="sm"
-        title="Edit student"
-        icon={
-          <span className="text-primary" aria-hidden>
-            <Pencil size={14} />
-          </span>
-        }
-        description="Correct the learner's name or LRN. The LRN stays 12 digits, numbers only."
-        footer={
-          <div className="flex items-center justify-end gap-1.5 px-1 pb-1">
+        label="Edit student"
+        variant="drawer"
+      >
+        <div className="flex h-full min-h-0 flex-col overflow-hidden bg-card">
+          <header className="flex shrink-0 items-start gap-2.5 border-b border-border px-4 py-3">
+            <span
+              className="mt-0.5 flex h-7 w-7 shrink-0 items-center justify-center rounded-md bg-amber-500/10 text-amber-500"
+              aria-hidden
+            >
+              <Pencil size={15} />
+            </span>
+            <div className="min-w-0 flex-1">
+              <h2 className="text-sm font-semibold leading-tight text-foreground">
+                Edit student
+              </h2>
+              <p className="mt-0.5 text-[12px] leading-snug text-muted-foreground">
+                Correct the learner&apos;s name or LRN. The LRN stays 12 digits, numbers only.
+              </p>
+            </div>
+            <button
+              type="button"
+              onClick={() => {
+                if (!editSaving) setEditOpen(false);
+              }}
+              disabled={editSaving}
+              aria-label="Close edit student"
+              className="-mr-1 flex h-7 w-7 shrink-0 items-center justify-center rounded-md text-muted-foreground transition-colors duration-150 hover:bg-muted hover:text-foreground disabled:pointer-events-none disabled:opacity-50"
+            >
+              <X size={15} aria-hidden />
+            </button>
+          </header>
+
+          <div className="flex min-h-0 flex-1 flex-col gap-3 overflow-y-auto px-4 py-4">
+            <div className="flex min-w-0 flex-col gap-1.5">
+              <Label htmlFor="advisory-edit-name">Full name</Label>
+              <Input
+                id="advisory-edit-name"
+                className={ADD_INPUT_CLASS}
+                value={editName}
+                onChange={(e) => {
+                  setEditName(e.target.value);
+                  setEditError(null);
+                }}
+                placeholder="e.g. Juan Garcia"
+                maxLength={120}
+              />
+            </div>
+            <div className="flex min-w-0 flex-col gap-1.5">
+              <Label htmlFor="advisory-edit-lrn">LRN</Label>
+              <Input
+                id="advisory-edit-lrn"
+                className={ADD_INPUT_CLASS}
+                value={editLrn}
+                onChange={(e) => {
+                  // Digits only — a DepEd LRN is exactly 12 numbers.
+                  setEditLrn(e.target.value.replace(/\D/g, "").slice(0, 12));
+                  setEditError(null);
+                }}
+                placeholder="12-digit LRN"
+                inputMode="numeric"
+                pattern="[0-9]{12}"
+                autoComplete="off"
+                maxLength={12}
+              />
+            </div>
+            {editTarget?.hasAccount ? (
+              <p className="text-xs text-muted-foreground">
+                This learner has an account — the name and LRN on it change too.
+              </p>
+            ) : null}
+            {editError ? (
+              <p role="alert" className="text-sm text-destructive">
+                {editError}
+              </p>
+            ) : null}
+          </div>
+
+          <div className="flex shrink-0 items-center justify-end gap-2 border-t border-border px-4 py-3">
             <Button
               type="button"
               size="sm"
@@ -1372,72 +1750,85 @@ export default function TeacherAdvisoryListPage() {
               )}
             </Button>
           </div>
-        }
-      >
-        <div className="flex min-w-0 flex-col gap-3 px-1">
-          <div className="flex min-w-0 flex-col gap-1.5">
-            <Label htmlFor="advisory-edit-name">Full name</Label>
-            <Input
-              id="advisory-edit-name"
-              value={editName}
-              onChange={(e) => {
-                setEditName(e.target.value);
-                setEditError(null);
-              }}
-              placeholder="e.g. Juan Garcia"
-              maxLength={120}
-            />
-          </div>
-          <div className="flex min-w-0 flex-col gap-1.5">
-            <Label htmlFor="advisory-edit-lrn">LRN</Label>
-            <Input
-              id="advisory-edit-lrn"
-              value={editLrn}
-              onChange={(e) => {
-                // Digits only — a DepEd LRN is exactly 12 numbers.
-                setEditLrn(e.target.value.replace(/\D/g, "").slice(0, 12));
-                setEditError(null);
-              }}
-              placeholder="12-digit LRN"
-              inputMode="numeric"
-              pattern="[0-9]{12}"
-              autoComplete="off"
-              maxLength={12}
-            />
-          </div>
-          {editTarget?.hasAccount ? (
-            <p className="text-xs text-muted-foreground">
-              This learner has an account — the name and LRN on it change too.
-            </p>
-          ) : null}
-          {editError ? (
-            <p role="alert" className="text-sm text-destructive">
-              {editError}
-            </p>
-          ) : null}
         </div>
-      </KanbanOverlay>
-      <KanbanOverlay
+      </FormOverlay>
+      <FormOverlay
         open={removeOpen && removeTargets.length > 0}
         onClose={() => {
           if (!removeSaving) setRemoveOpen(false);
         }}
-        dismissable={!removeSaving}
-        busy={removeSaving}
-        width="sm"
-        title={
+        label={
           removeTargets.length === 1
             ? "Remove student"
             : `Remove ${removeTargets.length} students`
         }
-        icon={
-          <span className="text-destructive" aria-hidden>
-            <Trash2 size={14} />
-          </span>
-        }
-        description="Hide these learners from your advisory list. Nothing is deleted."
-        footer={
-          <div className="flex items-center justify-end gap-1.5 px-1 pb-1">
+        variant="drawer"
+      >
+        <div className="flex h-full min-h-0 flex-col overflow-hidden bg-card">
+          <header className="flex shrink-0 items-start gap-2.5 border-b border-border px-4 py-3">
+            <span
+              className="mt-0.5 flex h-7 w-7 shrink-0 items-center justify-center rounded-md bg-red-500/10 text-red-500"
+              aria-hidden
+            >
+              <Trash2 size={15} />
+            </span>
+            <div className="min-w-0 flex-1">
+              <h2 className="text-sm font-semibold leading-tight text-foreground">
+                {removeTargets.length === 1
+                  ? "Remove student"
+                  : `Remove ${removeTargets.length} students`}
+              </h2>
+              <p className="mt-0.5 text-[12px] leading-snug text-muted-foreground">
+                Hide these learners from your advisory list. Nothing is deleted.
+              </p>
+            </div>
+            <button
+              type="button"
+              onClick={() => {
+                if (!removeSaving) setRemoveOpen(false);
+              }}
+              disabled={removeSaving}
+              aria-label="Close remove students"
+              className="-mr-1 flex h-7 w-7 shrink-0 items-center justify-center rounded-md text-muted-foreground transition-colors duration-150 hover:bg-muted hover:text-foreground disabled:pointer-events-none disabled:opacity-50"
+            >
+              <X size={15} aria-hidden />
+            </button>
+          </header>
+
+          <div className="flex min-h-0 flex-1 flex-col gap-3 overflow-y-auto px-4 py-4">
+            {/* Compact row cards for the remove confirmation list. */}
+            <ul className={`${listStyles.thinScrollbar} flex min-w-0 flex-col gap-2`}>
+              {removeTargets.map((target) => (
+                <li
+                  key={target.studentId}
+                  className="flex min-w-0 items-center gap-2 rounded-md border border-border bg-card px-2.5 py-2"
+                >
+                  <StudentMascot
+                    name={target.name}
+                    seed={target.lrn}
+                    character={target.mascot ?? undefined}
+                    size={28}
+                  />
+                  <div className="min-w-0 flex-1">
+                    <span className="block truncate text-[13px] font-semibold text-primary">
+                      {formatSurnameFirst(target.name)}
+                    </span>
+                    <span className="mt-0.5 block text-[12px] tabular-nums text-muted-foreground">
+                      {target.lrn}
+                    </span>
+                  </div>
+                </li>
+              ))}
+            </ul>
+            <p className="text-xs text-muted-foreground">
+              This is a soft delete. The learners are only hidden from your advisory
+              list — grades, attendance, anecdotal records and referrals are kept,
+              and you can restore them any time from{" "}
+              <strong>Archived students</strong>.
+            </p>
+          </div>
+
+          <div className="flex shrink-0 items-center justify-end gap-2 border-t border-border px-4 py-3">
             <Button
               type="button"
               size="sm"
@@ -1472,94 +1863,50 @@ export default function TeacherAdvisoryListPage() {
               )}
             </Button>
           </div>
-        }
-      >
-        <div className="flex min-w-0 flex-col gap-2 px-1">
-          {/* Compact row cards for the remove confirmation list. */}
-          <ul
-            className={`${listStyles.thinScrollbar} flex max-h-48 min-w-0 flex-col gap-2 overflow-y-auto pr-1`}
-          >
-            {removeTargets.map((target) => (
-              <li
-                key={target.studentId}
-                className="flex min-w-0 items-center gap-2 rounded-md border border-border bg-card px-2.5 py-2"
-              >
-                <StudentMascot
-                  name={target.name}
-                  seed={target.lrn}
-                  character={target.mascot ?? undefined}
-                  size={28}
-                />
-                <div className="min-w-0 flex-1">
-                  <span className="block truncate text-[13px] font-semibold text-primary">
-                    {formatSurnameFirst(target.name)}
-                  </span>
-                  <span className="mt-1 flex max-w-full flex-wrap items-center gap-1">
-                    <Pill tone="neutral" label="LRN">
-                      {target.lrn}
-                    </Pill>
-                    {target.section ? (
-                      <Pill tone="neutral" label="Section">
-                        {target.section}
-                      </Pill>
-                    ) : null}
-                  </span>
-                </div>
-              </li>
-            ))}
-          </ul>
-          <p className="text-xs text-muted-foreground">
-            This is a soft delete. The learners are only hidden from your advisory
-            list — grades, attendance, anecdotal records and referrals are kept,
-            and you can restore them any time from{" "}
-            <strong>Archived students</strong>.
-          </p>
         </div>
-      </KanbanOverlay>
+      </FormOverlay>
 
-      <KanbanOverlay
+      <FormOverlay
         open={restoreOpen}
         onClose={() => {
           setRestoreOpen(false);
           setRestoreSelected(new Set());
         }}
-        width="lg"
-        title="Archived students"
-        icon={
-          <span className="text-primary" aria-hidden>
-            <ArchiveRestore size={14} />
-          </span>
-        }
-        description="Learners you archived from your advisory list. Restoring brings back their full record history."
-        footer={
-          <div className="flex w-full items-center justify-between gap-2">
-            <span className="text-xs text-muted-foreground">
-              {restoreSelectedCount > 0
-                ? `${restoreSelectedCount} selected`
-                : "Click a card to tick it"}
-            </span>
-            <Button
-              type="button"
-              size="sm"
-              className="gap-1"
-              disabled={restoreSelectedCount === 0 || restoreMutation.isPending}
-              onClick={() =>
-                handleRestoreStudents(
-                  archivedStudents.filter((s) => restoreSelected.has(s.archiveId)),
-                )
-              }
-            >
-              {restoreMutation.isPending ? (
-                <Loader2 size={14} className="animate-spin" aria-hidden />
-              ) : (
-                <RotateCcw size={14} aria-hidden />
-              )}
-              Restore selected{restoreSelectedCount > 0 ? ` (${restoreSelectedCount})` : ""}
-            </Button>
-          </div>
-        }
+        label="Archived students"
+        variant="drawer"
+        drawerWidth="lg"
       >
-        <div className="flex min-w-0 flex-col gap-2 px-1">
+        <div className="flex h-full min-h-0 flex-col overflow-hidden bg-card">
+          <header className="flex shrink-0 items-start gap-2.5 border-b border-border px-4 py-3">
+            <span
+              className="mt-0.5 flex h-7 w-7 shrink-0 items-center justify-center rounded-md bg-amber-500/10 text-amber-500"
+              aria-hidden
+            >
+              <ArchiveRestore size={15} />
+            </span>
+            <div className="min-w-0 flex-1">
+              <h2 className="text-sm font-semibold leading-tight text-foreground">
+                Archived students
+              </h2>
+              <p className="mt-0.5 text-[12px] leading-snug text-muted-foreground">
+                Learners you archived from your advisory list. Restoring brings back their
+                full record history.
+              </p>
+            </div>
+            <button
+              type="button"
+              onClick={() => {
+                setRestoreOpen(false);
+                setRestoreSelected(new Set());
+              }}
+              aria-label="Close archived students"
+              className="-mr-1 flex h-7 w-7 shrink-0 items-center justify-center rounded-md text-muted-foreground transition-colors duration-150 hover:bg-muted hover:text-foreground"
+            >
+              <X size={15} aria-hidden />
+            </button>
+          </header>
+
+          <div className="flex min-h-0 flex-1 flex-col gap-2 overflow-y-auto px-4 py-4">
           {archivedQuery.isPending ? (
             <ShimmerGroup>
               <div
@@ -1652,10 +1999,8 @@ export default function TeacherAdvisoryListPage() {
                           >
                             {formatSurnameFirst(entry.name)}
                           </p>
-                          <span className="flex max-w-full flex-wrap items-center gap-1">
-                            <Pill label="LRN" className="tabular-nums">
-                              {entry.lrn}
-                            </Pill>
+                          <span className="block text-[12px] tabular-nums text-muted-foreground">
+                            {entry.lrn}
                           </span>
                         </div>
                       </header>
@@ -1690,8 +2035,35 @@ export default function TeacherAdvisoryListPage() {
               })}
             </>
           )}
+          </div>
+
+          <div className="flex shrink-0 items-center justify-between gap-2 border-t border-border px-4 py-3">
+            <span className="text-[12px] text-muted-foreground">
+              {restoreSelectedCount > 0
+                ? `${restoreSelectedCount} selected`
+                : "Click a card to tick it"}
+            </span>
+            <Button
+              type="button"
+              size="sm"
+              className="gap-1"
+              disabled={restoreSelectedCount === 0 || restoreMutation.isPending}
+              onClick={() =>
+                handleRestoreStudents(
+                  archivedStudents.filter((s) => restoreSelected.has(s.archiveId)),
+                )
+              }
+            >
+              {restoreMutation.isPending ? (
+                <Loader2 size={14} className="animate-spin" aria-hidden />
+              ) : (
+                <RotateCcw size={14} aria-hidden />
+              )}
+              Restore selected{restoreSelectedCount > 0 ? ` (${restoreSelectedCount})` : ""}
+            </Button>
+          </div>
         </div>
-      </KanbanOverlay>
+      </FormOverlay>
 
     </section>
   );

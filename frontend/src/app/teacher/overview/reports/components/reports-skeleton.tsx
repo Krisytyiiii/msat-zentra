@@ -7,17 +7,17 @@ import { ShimmerGroup } from "@/components/ui/shimmer-skeleton";
 import { StatDeck } from "@/components/ui/stat-deck";
 import styles from "./reports.module.css";
 
-/* "This term at a glance": the real <StatDeck> paints its own loading tiles,
-   so the placeholder keeps the exact deck geometry (6 divided tiles, one row). */
-function StatDeckSkeleton() {
-  return (
-    <StatDeck
-      items={[]}
-      columns={6}
-      loading
-      ariaLabel="Term report KPIs"
-    />
-  );
+/* Both strips on the desk are real <StatDeck>s, so the placeholder reuses the
+   component's own loading tiles and keeps each deck's exact geometry: the
+   teaching-load strip is 4-up (default), the KPI strip is 6-up in one row. */
+function StatDeckSkeleton({
+  columns = 4,
+  ariaLabel,
+}: {
+  columns?: 4 | 6;
+  ariaLabel: string;
+}) {
+  return <StatDeck items={[]} columns={columns} loading ariaLabel={ariaLabel} />;
 }
 
 /* Both chart boards lost their title row, so their placeholder is the real
@@ -57,6 +57,8 @@ function ClassTableSkeleton() {
               <Skeleton className="h-3.5 w-2/3 rounded" />
               <div className={styles.classCardMeta}>
                 <Skeleton className="h-[18px] w-14 rounded-md" />
+                <Skeleton className="h-[18px] w-16 rounded-md" />
+                <Skeleton className="h-[18px] w-10 rounded-md" />
               </div>
             </div>
             <Skeleton className="h-[22px] w-16 rounded-md" />
@@ -66,13 +68,14 @@ function ClassTableSkeleton() {
               <div key={j} className={styles.classCardMetric}>
                 <Skeleton className="h-3 w-12 rounded" />
                 <Skeleton className="h-5 w-10 rounded" />
-                <Skeleton className="h-3 w-16 rounded" />
+                {j > 0 ? <Skeleton className="h-3 w-16 rounded" /> : null}
               </div>
             ))}
           </div>
           <div className={styles.classCardFacts}>
-            {["w-20", "w-16", "w-24", "w-24"].map((width, k) => (
+            {["w-12", "w-10", "w-16", "w-14"].map((width, k) => (
               <div key={k} className={styles.classCardFact}>
+                <Skeleton className="h-3 w-8 rounded" />
                 <Skeleton className={`h-3 ${width} rounded`} />
               </div>
             ))}
@@ -139,7 +142,8 @@ export function ReportsSkeleton() {
   return (
     <div className={styles.page} aria-busy="true" aria-label="Loading term report">
       <ShimmerGroup>
-        <StatDeckSkeleton />
+        <StatDeckSkeleton columns={4} ariaLabel="Teaching load at a glance" />
+        <StatDeckSkeleton columns={6} ariaLabel="Term report KPIs" />
         <div className={styles.panels}>
           <BoardSkeleton ariaLabel="Grade distribution" footer={<BoardFooterSkeleton />}>
             <DistributionSkeleton />

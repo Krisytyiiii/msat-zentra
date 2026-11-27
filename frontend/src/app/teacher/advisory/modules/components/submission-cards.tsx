@@ -13,6 +13,7 @@ import {
 import { Button } from "@/components/ui/button";
 import { Pill, type PillTone } from "@/components/ui/pill";
 import { Pagination } from "@/components/shared/pagination";
+import { PageEmptyCallout } from "@/components/shared/page-empty-callout";
 import { StudentMascot } from "@/components/student-mascot/StudentMascot";
 import { toSlug } from "@/lib/slug";
 import motion from "./modules-motion.module.css";
@@ -197,13 +198,13 @@ export function SubmissionCards({
   onPageChange: (page: number) => void;
 }) {
   return (
-    <div className="flex min-w-0 flex-col gap-3">
+    <div className="flex min-h-0 min-w-0 flex-1 flex-col gap-3">
       {rows.length === 0 ? (
-        <div className="rounded-md border border-dashed border-border/80 px-4 py-10 text-center">
-          <p className="m-0 text-sm font-semibold text-foreground">No submissions yet</p>
-          <p className="m-0 mt-1 text-[12px] text-muted-foreground">
-            Advisees in this section will appear here once enrolled.
-          </p>
+        <div className="flex min-h-0 flex-1 items-center justify-center">
+          <PageEmptyCallout fit>
+            <strong>No submissions yet.</strong> Advisees in this section will appear here
+            once enrolled.
+          </PageEmptyCallout>
         </div>
       ) : (
         <div className="flex min-w-0 flex-col gap-2.5">

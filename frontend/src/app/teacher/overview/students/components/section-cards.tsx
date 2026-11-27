@@ -3,7 +3,6 @@
 import { motion, useReducedMotion, type Variants } from "motion/react";
 import { BookOpen, GraduationCap } from "lucide-react";
 import { GlassCard } from "@/components/ui/glass-card";
-import { Pill } from "@/components/ui/pill";
 import type {
   AdvisorySectionItem,
   ClassPick,
@@ -37,7 +36,6 @@ function SectionCardButton({
   active,
   kind,
   title,
-  kicker,
   grade,
   section,
   count,
@@ -50,7 +48,6 @@ function SectionCardButton({
   active: boolean;
   kind: "advisory" | "class";
   title: string;
-  kicker: string;
   grade: string;
   section?: string;
   count: number;
@@ -68,7 +65,8 @@ function SectionCardButton({
       custom={index}
       style={{ willChange: "transform, opacity" }}
     >
-      <GlassCard className="flex w-full min-w-0" disabled={reduceMotion}>
+      {/* No hover tilt/glare: the card should stay still under the cursor. */}
+      <GlassCard className="flex w-full min-w-0" disabled>
         <motion.button
           type="button"
           onClick={onSelect}
@@ -83,15 +81,6 @@ function SectionCardButton({
             <span className={styles.sectionCardHeading}>
               <span className={styles.sectionCardName} title={title}>
                 {title}
-              </span>
-              <span className={styles.sectionCardMetaRow}>
-                <Pill
-                  tone="blue"
-                  label={kind === "advisory" ? "Card type" : "Subject code"}
-                  className="font-semibold uppercase tracking-[0.04em]"
-                >
-                  {kicker}
-                </Pill>
               </span>
             </span>
             <span className={styles.sectionCardIcon} aria-hidden>
@@ -189,7 +178,6 @@ export function SectionCards({
                 active={active}
                 kind="advisory"
                 title={s.name}
-                kicker="Advisory"
                 grade={s.gradeLevel}
                 count={count}
                 icon={<GraduationCap size={13} aria-hidden />}
@@ -209,7 +197,6 @@ export function SectionCards({
                 active={active}
                 kind="class"
                 title={c.subject}
-                kicker={c.code}
                 grade={c.gradeLevel}
                 section={c.section}
                 count={count}
