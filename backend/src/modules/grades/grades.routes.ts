@@ -12,6 +12,11 @@ import { fanoutNotification, fanoutToRole } from "../../lib/notify.js";
 import { assertAssignment, hasClassCoverage } from "../teacher/grading.repository.js";
 import { verifyTeacherCode } from "../../services/teacher/directory.service.js";
 import { admExemptStudentIds, isAdmExempt } from "../../services/adm/attendancePolicy.js";
+import {
+  archivedAdvisoryLearnerIds,
+  excludeArchivedLearnerRows,
+  isArchivedAdvisoryLearner,
+} from "../../lib/learnerVisibility.js";
 
 const router = Router();
 
@@ -494,11 +499,18 @@ router.post(
           termId: true,
           subjectId: true,
           lockStatus: true,
+          studentId: true,
+          rosterId: true,
           student: { select: { sectionId: true } },
           roster: { select: { sectionId: true } },
         },
       });
       if (!fg) throw new AppError(404, "FINAL_NOT_FOUND", "Final grade not found");
+      // A learner their adviser removed is gone from every desk: locking their
+      // grade one by one must 404 exactly like a batch lock skips them.
+      if (await isArchivedAdvisoryLearner({ studentId: fg.studentId, rosterId: fg.rosterId })) {
+        throw new AppError(404, "FINAL_NOT_FOUND", "Final grade not found");
+      }
       const termId = req.termScope?.termId ?? null;
       if (!termId) throw new AppError(400, "NO_ACTIVE_TERM", "No active term selected");
       if (fg.termId !== termId) {
@@ -581,12 +593,17 @@ router.post(
       // silently writes to another term's grades.
       const assignment = await assertAssignment(teacherId, assignmentId, termId);
       const effectiveTermId: string = assignment.termId;
+      // Learners their section adviser deleted keep their computed averages in
+      // the DB but must never be locked by a class-wide lock; only the learners
+      // still on the advisory record are finalised.
+      const archivedLearners = await archivedAdvisoryLearnerIds();
       const targets = await prisma.finalGrade.findMany({
         where: {
           subjectId: assignment.subjectId,
           termId: effectiveTermId,
           lockStatus: "unlocked",
           NOT: { computedAverage: null },
+          ...excludeArchivedLearnerRows(archivedLearners),
           OR: [
             { student: { sectionId: assignment.sectionId } },
             { roster: { sectionId: assignment.sectionId } },

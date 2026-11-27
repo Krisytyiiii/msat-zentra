@@ -16,7 +16,7 @@ import {
 import { Skeleton } from "@/components/ui/skeleton";
 import { ShimmerGroup } from "@/components/ui/shimmer-skeleton";
 import { Pagination } from "@/components/shared/pagination";
-import { useLockGrades, type LockGradesView } from "@/services/teacher/lockGrades.service";
+import { useLockGrades, type LockGradesView, type LockGradesAdviseeRow } from "@/services/teacher/lockGrades.service";
 import { LockGradesAdviseeTable } from "./components/advisee-card";
 import { LockGradesClassCards, LockGradesCardsSkeleton } from "./components/class-card";
 import styles from "./components/lock-grades.module.css";
@@ -66,38 +66,43 @@ function GateCard({
   );
 }
 
-/** Loading state shaped like the loaded data table, so the swap causes no shift. */
+/** Loading state shaped like the loaded data list — search at the right, then
+ *  the same column anatomy — so the swap causes no shift. */
 function TableSkeleton() {
   return (
-    <div
-      className="overflow-hidden rounded-lg border border-border bg-card dark:bg-transparent"
-      aria-busy="true"
-      aria-label="Loading lock grades"
-    >
-      <ShimmerGroup>
-        <div className="flex items-center gap-4 border-b border-border px-4 py-2.5">
-          <Skeleton className="h-3 w-24" />
-          <Skeleton className="h-3 w-16" />
-          <Skeleton className="ml-auto h-3 w-12" />
-          <Skeleton className="h-3 w-10" />
-          <Skeleton className="h-3 w-10" />
-          <Skeleton className="h-3 w-12" />
+    <ShimmerGroup>
+      <div className="flex flex-col gap-3" aria-busy="true" aria-label="Loading lock grades">
+        <div className="flex items-center justify-end">
+          <Skeleton className="h-8 w-60 max-w-full" />
         </div>
-        {[0, 1, 2, 3, 4, 5].map((i) => (
-          <div
-            key={i}
-            className="flex items-center gap-4 border-b border-border/60 px-4 py-3 last:border-b-0"
-          >
-            <Skeleton className="h-7 w-7 shrink-0 rounded-full" />
-            <Skeleton className="h-3.5 w-40 max-w-full" />
-            <Skeleton className="ml-auto h-3 w-16" />
+        <div className="overflow-hidden rounded-lg border border-border bg-card dark:bg-transparent">
+          <div className="flex items-center gap-4 border-b border-border px-4 py-2.5">
+            <Skeleton className="h-3 w-24" />
+            <Skeleton className="h-3 w-16" />
+            <Skeleton className="ml-auto h-3 w-12" />
             <Skeleton className="h-3 w-10" />
             <Skeleton className="h-3 w-10" />
             <Skeleton className="h-3 w-12" />
           </div>
-        ))}
-      </ShimmerGroup>
-    </div>
+          {[0, 1, 2, 3, 4, 5].map((i) => (
+            <div
+              key={i}
+              className="flex items-center gap-4 border-b border-border/60 px-4 py-3 last:border-b-0"
+            >
+              <Skeleton className="h-7 w-7 shrink-0 rounded-full" />
+              <div className="flex flex-col gap-1.5">
+                <Skeleton className="h-3.5 w-40 max-w-full" />
+                <Skeleton className="h-3 w-24 max-w-full" />
+              </div>
+              <Skeleton className="ml-auto h-3 w-16" />
+              <Skeleton className="h-3 w-10" />
+              <Skeleton className="h-3 w-10" />
+              <Skeleton className="h-3 w-12" />
+            </div>
+          ))}
+        </div>
+      </div>
+    </ShimmerGroup>
   );
 }
 
@@ -106,10 +111,96 @@ const MODE_OPTIONS: ReadonlyArray<FilterTabOption<LockGradesView>> = [
   { value: "advisees", label: "Advisees", tone: "amber" },
 ];
 
+/**
+ * Learner lock-status table shared by both modes: search over learner, LRN,
+ * section and subject, then page the same 15-row data list as the advisory
+ * list desk. Clicking a row's Grades action opens the per-subject drawer.
+ */
+function LearnerLockTable({ rows }: { rows: LockGradesAdviseeRow[] }) {
+  const [search, setSearch] = React.useState("");
+  const [page, setPage] = React.useState(1);
+
+  const needle = search.trim().toLowerCase();
+  const filtered = React.useMemo(
+    () =>
+      needle
+        ? rows.filter((row) =>
+            `${row.name} ${row.lrn} ${row.section} ${row.subjects
+              .map((s) => s.subject)
+              .join(" ")}`
+              .toLowerCase()
+              .includes(needle),
+          )
+        : rows,
+    [rows, needle],
+  );
+
+  const totalPages = Math.max(1, Math.ceil(filtered.length / ADVISEES_PAGE_SIZE));
+  const safePage = Math.min(page, totalPages);
+  const pageRows = filtered.slice(
+    (safePage - 1) * ADVISEES_PAGE_SIZE,
+    safePage * ADVISEES_PAGE_SIZE,
+  );
+
+  return (
+    <div className="flex flex-col gap-3">
+      <div className={styles.toolbar} style={{ justifyContent: "flex-end" }}>
+        <TeacherSearchField
+          className="w-60 max-w-full"
+          value={search}
+          onChange={(next) => {
+            setSearch(next);
+            setPage(1);
+          }}
+          placeholder="Search learner, LRN or subject…"
+          aria-label="Search learner, LRN or subject"
+        />
+      </div>
+
+      {filtered.length === 0 ? (
+        <EmptyCallout>
+          {needle ? (
+            searchEmptyMessage(
+              search,
+              "learners",
+              "Clear the search to see every learner in your classes.",
+            )
+          ) : (
+            <>
+              <strong>No learners yet.</strong> Learners appear here once they are
+              enlisted in your sections.
+            </>
+          )}
+        </EmptyCallout>
+      ) : (
+        <>
+          <LockGradesAdviseeTable rows={pageRows} />
+          <Pagination
+            currentPage={safePage}
+            totalItems={filtered.length}
+            pageSize={ADVISEES_PAGE_SIZE}
+            onPageChange={setPage}
+          />
+        </>
+      )}
+    </div>
+  );
+}
+
 function ClassesMode() {
   const query = useLockGrades("classes");
 
-  if (query.isPending && !query.data) return <LockGradesCardsSkeleton />;
+  if (query.isPending && !query.data) {
+    return (
+      <div className="flex flex-col gap-4">
+        <LockGradesCardsSkeleton />
+        <section className="flex flex-col gap-2" aria-busy="true" aria-label="Loading learner lock status">
+          <Skeleton className="h-3.5 w-40" />
+          <TableSkeleton />
+        </section>
+      </div>
+    );
+  }
 
   if (query.isError || !query.data) {
     return <p className={styles.error}>Could not load your classes. Check your connection and try again.</p>;
@@ -175,14 +266,20 @@ function ClassesMode() {
     );
   }
 
-  return <LockGradesClassCards rows={data.classes} />;
+  return (
+    <div className="flex flex-col gap-4">
+      <LockGradesClassCards rows={data.classes} />
+      <section className="flex flex-col gap-2" aria-label="Learner lock status">
+        <h3 className="m-0 text-[13px] font-semibold text-foreground">Learner lock status</h3>
+        <LearnerLockTable rows={data.learners ?? []} />
+      </section>
+    </div>
+  );
 }
 
 function AdviseesMode() {
   const query = useLockGrades("advisees");
   const [sectionId, setSectionId] = React.useState<string>("all");
-  const [search, setSearch] = React.useState("");
-  const [page, setPage] = React.useState(1);
 
   if (query.isPending && !query.data) return <TableSkeleton />;
 
@@ -206,32 +303,18 @@ function AdviseesMode() {
     );
   }
 
-  const needle = search.trim().toLowerCase();
-  const filtered = data.advisees.filter((row) => {
-    if (sectionId !== "all" && row.sectionId !== sectionId) return false;
-    if (needle && !`${row.name} ${row.lrn} ${row.section}`.toLowerCase().includes(needle)) {
-      return false;
-    }
-    return true;
-  });
-
-  const totalPages = Math.max(1, Math.ceil(filtered.length / ADVISEES_PAGE_SIZE));
-  const safePage = Math.min(page, totalPages);
-  const pageRows = filtered.slice(
-    (safePage - 1) * ADVISEES_PAGE_SIZE,
-    safePage * ADVISEES_PAGE_SIZE,
-  );
+  const sectionRows =
+    sectionId === "all"
+      ? data.advisees
+      : data.advisees.filter((row) => row.sectionId === sectionId);
 
   return (
     <div className="flex flex-col gap-3">
-      <div className={styles.toolbar}>
-        {data.advisorySections.length > 1 ? (
+      {data.advisorySections.length > 1 ? (
+        <div className={styles.toolbar}>
           <Select
             value={sectionId}
-            onValueChange={(value) => {
-              setSectionId(value);
-              setPage(1);
-            }}
+            onValueChange={(value) => setSectionId(value)}
           >
             <SelectTrigger className="h-8 w-48 text-xs" aria-label="Advisory section">
               <SelectValue placeholder="All sections" />
@@ -245,50 +328,9 @@ function AdviseesMode() {
               ))}
             </SelectContent>
           </Select>
-        ) : null}
-        <TeacherSearchField
-          className="w-60 max-w-full"
-          value={search}
-          onChange={(next) => {
-            setSearch(next);
-            setPage(1);
-          }}
-          placeholder="Search advisee or LRN…"
-          aria-label="Search advisee or LRN"
-        />
-        <span className="text-xs text-muted-foreground">
-          {filtered.length} advisee{filtered.length === 1 ? "" : "s"}
-        </span>
-      </div>
-
-      {filtered.length === 0 ? (
-        <EmptyCallout>
-          {needle || sectionId !== "all" ? (
-            searchEmptyMessage(
-              needle ? search : "",
-              "advisees",
-              needle
-                ? "Clear the search or pick another section to see every advisee."
-                : "Pick another section to see every advisee.",
-            )
-          ) : (
-            <>
-              <strong>No advisees yet.</strong> Learners from your advisory section will
-              appear here once they are enrolled.
-            </>
-          )}
-        </EmptyCallout>
-      ) : (
-        <>
-          <LockGradesAdviseeTable rows={pageRows} />
-          <Pagination
-            currentPage={safePage}
-            totalItems={filtered.length}
-            pageSize={ADVISEES_PAGE_SIZE}
-            onPageChange={setPage}
-          />
-        </>
-      )}
+        </div>
+      ) : null}
+      <LearnerLockTable rows={sectionRows} />
     </div>
   );
 }

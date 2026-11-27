@@ -1,7 +1,7 @@
 "use client";
 
 import * as React from "react";
-import { FileText, Send } from "lucide-react";
+import { FileSpreadsheet, FileText, Send } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { FolderCard } from "@/components/ui/FolderCard";
 import { TeacherSearchField, searchEmptyMessage } from "@/app/teacher/components/TeacherSearchField";
@@ -49,6 +49,10 @@ interface Sf10RepoFoldersProps {
   error: boolean;
   denied: boolean;
   onOpen: (fileUrl: string) => void;
+  /** Build and download the learner's SF10 from locked grades (Excel or PDF). */
+  onDownload?: (row: HasRow, format: "xlsx" | "pdf") => void;
+  /** The learner whose download is currently being built. */
+  downloading?: { lrn: string; format: "xlsx" | "pdf" } | null;
   /** Opens the Bama drawer on the SF10 access request flow. */
   onRequest?: () => void;
 }
@@ -62,6 +66,8 @@ export function Sf10RepoFolders({
   error,
   denied,
   onOpen,
+  onDownload,
+  downloading,
   onRequest,
 }: Sf10RepoFoldersProps) {
   const [page, setPage] = React.useState(1);
@@ -150,77 +156,110 @@ export function Sf10RepoFolders({
                     ? ("chart" as const)
                     : ("doc" as const);
                 const viewable = !!file.url && !!canAct;
+                const busy = downloading?.lrn === full.lrn;
                 const tag = file.autoFill
                   ? `Bama v${full.record?.autoFill?.version ?? full.record?.currentVersion ?? 1} · ${full.gradeLevel} · ${full.section}`
                   : `${sf10StatusLabel(full.sf10Status)} · ${full.gradeLevel} · ${full.section}`;
                 return (
-                  <button
+                  <div
                     key={full.lrn}
-                    type="button"
-                    onClick={() => {
-                      if (viewable) onOpen(file.url);
-                    }}
-                    disabled={!viewable}
-                    aria-label={
-                      viewable
-                        ? `Open ${full.name}'s ${file.autoFill ? "Bama auto-fill" : "original"} SF10 file in a new tab (view only, no download)`
-                        : `${full.name}'s ${file.autoFill ? "auto-fill" : "original"} SF10 file (not viewable yet)`
-                    }
-                    title={viewable ? "Open record in a new tab — view only" : undefined}
-                    className="flex min-w-0 cursor-pointer flex-col gap-2 rounded-xl border border-border bg-muted/60 p-2.5 text-left transition-colors [font-family:var(--font-inter)] hover:border-primary/60 hover:shadow disabled:cursor-default dark:bg-muted/20"
+                    className="flex min-w-0 flex-col gap-2 rounded-xl border border-border bg-muted/60 p-2.5 text-left transition-colors [font-family:var(--font-inter)] hover:border-primary/60 hover:shadow dark:bg-muted/20"
                   >
-                    <span className="-mx-2.5 flex min-w-0 items-center gap-1.5 border-b border-border px-3.5 pb-2">
-                      <Pill
-                        tone={file.autoFill ? "blue" : sf10StatusTone(full.sf10Status)}
-                        className="gap-1.5"
-                      >
-                        <FileText size={12} aria-hidden />
-                        <span className="truncate">
-                          {file.autoFill ? "Bama auto-fill" : sf10StatusLabel(full.sf10Status)}
-                        </span>
-                      </Pill>
-                      <SharedTermPill termNumber={full.grantedTermNumber} action="Granted" />
-                    </span>
-                    <span className="flex min-w-0 flex-col gap-2 rounded-lg border bg-white p-3 shadow-sm dark:bg-card">
-                      <span className="flex min-w-0 items-center gap-2">
-                        <StudentMascot
-                          name={full.name}
-                          seed={full.lrn}
-                          character={full.mascot ?? undefined}
-                          size={32}
-                        />
-                        <span className="flex min-w-0 flex-1 flex-col gap-1">
-                          <Pill tone="amber" className="w-fit max-w-full" title={full.name}>
-                            <span className="truncate">{full.name}</span>
-                          </Pill>
-                          <Pill
-                            tone="neutral"
-                            label="LRN"
-                            className="w-fit max-w-full"
-                            title={`${full.lrn} · ${full.gradeLevel} · ${full.section}`}
-                          >
-                            <span className="truncate">{full.lrn}</span>
-                          </Pill>
-                        </span>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        if (viewable) onOpen(file.url);
+                      }}
+                      disabled={!viewable}
+                      aria-label={
+                        viewable
+                          ? `Open ${full.name}'s ${file.autoFill ? "Bama auto-fill" : "original"} SF10 file in a new tab (view only, no download)`
+                          : `${full.name}'s ${file.autoFill ? "auto-fill" : "original"} SF10 file (not viewable yet)`
+                      }
+                      title={viewable ? "Open record in a new tab — view only" : undefined}
+                      className="flex min-w-0 cursor-pointer flex-col gap-2 rounded-lg text-left disabled:cursor-default"
+                    >
+                      <span className="-mx-2.5 flex min-w-0 items-center gap-1.5 border-b border-border px-3.5 pb-2">
+                        <Pill
+                          tone={file.autoFill ? "blue" : sf10StatusTone(full.sf10Status)}
+                          className="gap-1.5"
+                        >
+                          <FileText size={12} aria-hidden />
+                          <span className="truncate">
+                            {file.autoFill ? "Bama auto-fill" : sf10StatusLabel(full.sf10Status)}
+                          </span>
+                        </Pill>
+                        <SharedTermPill termNumber={full.grantedTermNumber} action="Granted" />
                       </span>
-                      <span className="flex w-full justify-center">
-                        <span className="w-full max-w-[220px]">
-                          <FolderCard
-                            label=""
-                            folderColor="#f59e0b"
-                            files={[
-                              {
-                                name: ext ? `SF10.${ext}` : "SF10 file",
-                                tag,
-                                tone: STATUS_TONES[full.sf10Status] ?? 1,
-                                icon,
-                              },
-                            ]}
+                      <span className="flex min-w-0 flex-col gap-2 rounded-lg border bg-white p-3 shadow-sm dark:bg-card">
+                        <span className="flex min-w-0 items-center gap-2">
+                          <StudentMascot
+                            name={full.name}
+                            seed={full.lrn}
+                            character={full.mascot ?? undefined}
+                            size={32}
                           />
+                          <span className="flex min-w-0 flex-1 flex-col gap-1">
+                            <Pill tone="amber" className="w-fit max-w-full" title={full.name}>
+                              <span className="truncate">{full.name}</span>
+                            </Pill>
+                            <Pill
+                              tone="neutral"
+                              label="LRN"
+                              className="w-fit max-w-full"
+                              title={`${full.lrn} · ${full.gradeLevel} · ${full.section}`}
+                            >
+                              <span className="truncate">{full.lrn}</span>
+                            </Pill>
+                          </span>
+                        </span>
+                        <span className="flex w-full justify-center">
+                          <span className="w-full max-w-[220px]">
+                            <FolderCard
+                              label=""
+                              folderColor="#f59e0b"
+                              files={[
+                                {
+                                  name: ext ? `SF10.${ext}` : "SF10 file",
+                                  tag,
+                                  tone: STATUS_TONES[full.sf10Status] ?? 1,
+                                  icon,
+                                },
+                              ]}
+                            />
+                          </span>
                         </span>
                       </span>
-                    </span>
-                  </button>
+                    </button>
+                    {onDownload && canAct ? (
+                      <div className="flex min-w-0 items-center gap-1.5">
+                        <Button
+                          type="button"
+                          variant="outline"
+                          size="sm"
+                          className="min-w-0 flex-1 gap-1.5"
+                          onClick={() => onDownload(full, "xlsx")}
+                          disabled={busy}
+                          aria-label={`Build and download ${full.name}'s SF10 as Excel`}
+                        >
+                          <FileSpreadsheet size={14} aria-hidden />
+                          {busy && downloading?.format === "xlsx" ? "Building…" : "Excel"}
+                        </Button>
+                        <Button
+                          type="button"
+                          variant="outline"
+                          size="sm"
+                          className="min-w-0 flex-1 gap-1.5"
+                          onClick={() => onDownload(full, "pdf")}
+                          disabled={busy}
+                          aria-label={`Build and download ${full.name}'s SF10 as PDF`}
+                        >
+                          <FileText size={14} aria-hidden />
+                          {busy && downloading?.format === "pdf" ? "Building…" : "PDF"}
+                        </Button>
+                      </div>
+                    ) : null}
+                  </div>
                 );
               })}
             </div>

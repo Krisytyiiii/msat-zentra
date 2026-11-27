@@ -47,6 +47,8 @@ export interface HasRow {
   hasAccount: boolean;
   gradeLevel: string;
   section: string;
+  /** Advisory section the grant belongs to — the template endpoint needs it. */
+  sectionId: string;
   sf10Status: "verified" | "validated" | "pending";
   /** Per-student grant (whole-request approval grants every row). */
   approved: boolean;
@@ -151,6 +153,7 @@ interface LrnMatch {
     versions: Array<{
       versionNumber: number;
       dataSnapshot: unknown;
+      changeReason: string;
       changedAt: Date;
     }>;
   } | null;
@@ -217,7 +220,12 @@ async function matchAdvisoryLrns(
         currentVersion: true,
         versions: {
           orderBy: { versionNumber: "desc" },
-          select: { versionNumber: true, dataSnapshot: true, changedAt: true },
+          select: {
+            versionNumber: true,
+            dataSnapshot: true,
+            changeReason: true,
+            changedAt: true,
+          },
         },
       },
     }),
@@ -441,6 +449,188 @@ export async function createAccessRequest(
   };
 }
 
+/**
+ * Grade-7 records the advisory desk already owns. Enrolment in G7 opens a
+ * learner's first SF10 and auto-fill is allowed without a registry grant (see
+ * `sf10-autofill.service.ts`), so the access desk shows the same records
+ * without waiting for a request to be approved. Only rows already on file are
+ * returned — there is nothing to open otherwise, and G8–G12 access keeps
+ * flowing through `AdviserSf10AccessRequest`.
+ */
+export async function listOwnedFirstSf10(userId: string): Promise<{ hasSf10: HasRow[] }> {
+  const sections = await prisma.section.findMany({
+    where: { adviserId: userId, gradeLevel: "G7" },
+    select: { id: true, name: true },
+    orderBy: { name: "asc" },
+  });
+  const hasSf10: HasRow[] = [];
+  const seen = new Set<string>();
+  for (const section of sections) {
+    const rows = await matchAdvisoryLrns(section.id, new Set(), section.name);
+    for (const row of rows) {
+      if (!row.rec || seen.has(row.lrn)) continue;
+      seen.add(row.lrn);
+      hasSf10.push({
+        lrn: row.lrn,
+        name: row.name,
+        mascot: row.mascot,
+        hasAccount: row.hasAccount,
+        gradeLevel: row.gradeLevel,
+        section: row.section,
+        sectionId: section.id,
+        sf10Status: sf10StatusOf(String(row.rec.status)),
+        approved: true,
+        approvedAt: null,
+        grantedTermNumber: null,
+        record: {
+          id: row.rec.id,
+          source: String(row.rec.source),
+          status: String(row.rec.status),
+          fileUrl: row.rec.uploadedFileUrl ?? null,
+          verifiedAt: row.rec.verifiedAt?.toISOString() ?? null,
+          validatedAt: row.rec.validatedAt?.toISOString() ?? null,
+          currentVersion: row.rec.currentVersion,
+          autoFill: autoFillOf(row.rec),
+        },
+      });
+    }
+  }
+  return { hasSf10 };
+}
+
+/* ------------------------- SF10 version history ---------------------------- */
+
+export interface Sf10HistorySubject {
+  subject: string;
+  quarters: Array<number | null>;
+  rating: number | null;
+  remarks: string | null;
+}
+
+export interface Sf10HistoryVersion {
+  versionNumber: number;
+  at: string;
+  reason: string;
+  /** Public render of this version, when the run could produce one. */
+  fileUrl: string | null;
+  subjectCount: number;
+  subjects: Sf10HistorySubject[];
+}
+
+export interface Sf10History {
+  lrn: string;
+  name: string;
+  gradeLevel: string;
+  section: string;
+  sectionId: string;
+  recordId: string | null;
+  status: string;
+  currentVersion: number | null;
+  originalFileUrl: string | null;
+  versions: Sf10HistoryVersion[];
+}
+
+function historySubjectOf(raw: unknown): Sf10HistorySubject | null {
+  if (!raw || typeof raw !== "object") return null;
+  const r = raw as Record<string, unknown>;
+  const subject =
+    typeof r.rawName === "string"
+      ? r.rawName
+      : typeof r.subject === "string"
+        ? r.subject
+        : "";
+  if (!subject.trim()) return null;
+  const quarters =
+    Array.isArray(r.quarters) && r.quarters.length === 4
+      ? r.quarters.map((v) => (typeof v === "number" && Number.isFinite(v) ? v : null))
+      : [null, null, null, null];
+  const rating =
+    typeof r.rating === "number" && Number.isFinite(r.rating)
+      ? r.rating
+      : typeof r.grade === "number" && Number.isFinite(r.grade)
+        ? r.grade
+        : null;
+  return {
+    subject,
+    quarters,
+    rating,
+    remarks: typeof r.remarks === "string" && r.remarks ? r.remarks : null,
+  };
+}
+
+/**
+ * The adviser desk's version history for one advisee: every Bama auto-fill /
+ * template render filed on the learner's SF10, newest first. Grants are
+ * LRN-scoped exactly like auto-fill (a whole-request approval or a per-student
+ * grant); Grade 7 is owned by the advisory desk, so no request is required.
+ */
+export async function getMySf10History(
+  userId: string,
+  sectionId: string,
+  lrn: string,
+): Promise<Sf10History> {
+  const section = await prisma.section.findUnique({
+    where: { id: sectionId },
+    select: { id: true, name: true, gradeLevel: true, adviserId: true },
+  });
+  if (!section) throw new AppError(404, "NOT_FOUND", "Section not found");
+  if (section.adviserId !== userId)
+    throw new AppError(403, "FORBIDDEN", "You can only view your own advisory section");
+
+  const wanted = String(section.gradeLevel) === "G7";
+  if (!wanted) {
+    const requests = await prisma.adviserSf10AccessRequest.findMany({
+      where: { adviserId: userId, sectionId },
+      select: { status: true, approvedLrns: true },
+    });
+    const granted = requests.some(
+      (r) => r.status === "approved" || (r.approvedLrns ?? []).includes(lrn),
+    );
+    if (!granted) throw new AppError(403, "FORBIDDEN", "SF10 access for this learner is not approved");
+  }
+
+  const rows = await matchAdvisoryLrns(section.id, new Set([lrn]), section.name);
+  const row = rows[0];
+  if (!row) throw new AppError(404, "NOT_FOUND", "Learner is not on this advisory section");
+
+  const versions: Sf10HistoryVersion[] = [];
+  if (row.rec) {
+    for (const v of row.rec.versions) {
+      const snap = v.dataSnapshot as
+        | { engine?: string; generatedFileUrl?: string; subjects?: unknown }
+        | null;
+      if (snap?.engine !== "grading-auto-fill-v1") continue;
+      const subjects = Array.isArray(snap.subjects)
+        ? snap.subjects.map(historySubjectOf).filter((s): s is Sf10HistorySubject => !!s)
+        : [];
+      versions.push({
+        versionNumber: v.versionNumber,
+        at: v.changedAt.toISOString(),
+        reason: v.changeReason,
+        fileUrl:
+          typeof snap.generatedFileUrl === "string" && snap.generatedFileUrl
+            ? snap.generatedFileUrl
+            : null,
+        subjectCount: subjects.length,
+        subjects,
+      });
+    }
+  }
+
+  return {
+    lrn: row.lrn,
+    name: row.name,
+    gradeLevel: row.gradeLevel,
+    section: row.section,
+    sectionId: section.id,
+    recordId: row.rec?.id ?? null,
+    status: row.rec ? String(row.rec.status) : "missing",
+    currentVersion: row.rec?.currentVersion ?? null,
+    originalFileUrl: row.rec?.uploadedFileUrl ?? null,
+    versions,
+  };
+}
+
 export interface VerificationResult {
   requestId: string;
   section: string;
@@ -501,6 +691,7 @@ export async function getMyVerification(userId: string, requestId: string): Prom
         hasAccount: row.hasAccount,
         gradeLevel: row.gradeLevel,
         section: row.section,
+        sectionId,
         sf10Status: sf10StatusOf(String(rec.status)),
         approved: granted,
         approvedAt: grantedAt,

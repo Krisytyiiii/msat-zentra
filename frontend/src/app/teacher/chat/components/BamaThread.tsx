@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, type RefObject } from "react";
+import { Fragment, useEffect, type RefObject } from "react";
 import Link from "next/link";
 import { format } from "date-fns";
 import {
@@ -29,6 +29,14 @@ import {
   PopoverTrigger,
 } from "@/components/ui/popover";
 import { Skeleton } from "@/components/ui/skeleton";
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "@/components/ui/table";
 import type { BamaChatType, BamaConversation } from "./bama-conversations";
 import { CATEGORY_COLORS } from "../../anecdotal/components/AnecdotalSideRail";
 import { CATEGORIES, CATEGORY_TONES, TIERS } from "./bama-flow";
@@ -1003,7 +1011,8 @@ export function BamaThread({
               count={autofillFlow.candidatesPending ? undefined : autofillFlow.candidateCount}
             />
             <p className="m-0 px-1 text-xs leading-snug text-muted-foreground">
-              Only advisees with an SF10 record and approved access can be filled.
+              Grade 7 advisees fill without a registry request — a new SF10 is
+              created on the first fill. Grades 8–12 need approved SF10 access.
             </p>
             <div className="flex justify-end gap-2">
               <Button
@@ -1082,7 +1091,7 @@ export function BamaThread({
                         <span className={dialogStyles.pickerName}>{s.name}</span>
                         <span className={dialogStyles.pickerMeta}>
                           {s.ready
-                            ? `${s.lrn} · ${s.subjectsReady} subject${s.subjectsReady === 1 ? "" : "s"} ready`
+                            ? `${s.lrn} · ${s.subjectsReady} subject${s.subjectsReady === 1 ? "" : "s"} ready${s.recordId ? "" : " · new SF10"}`
                             : `${s.lrn} · ${s.reason ?? "Not ready"}`}
                         </span>
                       </span>
@@ -1133,44 +1142,80 @@ export function BamaThread({
             ) : autofillFlow.previewError ? (
               <p className={dialogStyles.pickerEmpty}>Could not build the preview. Try again.</p>
             ) : autofillFlow.preview ? (
-              <div className={dialogStyles.kanbanList}>
-                {autofillFlow.preview.students.map((s) => (
-                  <div key={s.lrn} className={`${PICK_CARD} cursor-default`}>
-                    <span className="flex min-w-0 items-center justify-between gap-2">
-                      <span className={dialogStyles.pickerName}>{s.name}</span>
-                      <span className="shrink-0 text-[12px] font-medium text-muted-foreground">
-                        {s.ready
-                          ? `${s.rows.length} subject${s.rows.length === 1 ? "" : "s"}`
-                          : s.reason}
-                      </span>
-                    </span>
-                    {s.rows.length > 0 ? (
-                      <span className="flex flex-col gap-0.5">
-                        {s.rows.map((r) => (
-                          <span
-                            key={r.subject}
-                            className="flex min-w-0 items-center justify-between gap-2 text-xs"
-                          >
-                            <span className="min-w-0 flex-1 truncate text-foreground" title={r.subject}>
-                              {r.subject}
-                            </span>
-                            <span className="shrink-0 font-mono text-muted-foreground tabular-nums">
-                              {(r.quarters.slice(0, 3) as Array<number | null>)
-                                .map((q) => q ?? "—")
-                                .join(" · ")}{" "}
-                              → {r.rating}
-                            </span>
-                          </span>
-                        ))}
-                      </span>
-                    ) : null}
-                    {s.skipped.length > 0 ? (
-                      <span className="text-[12px] text-muted-foreground">
-                        Skipped: {s.skipped.map((k) => `${k.subject} (${k.reason})`).join("; ")}
-                      </span>
-                    ) : null}
-                  </div>
-                ))}
+              <div className="overflow-hidden rounded-lg border border-border bg-white dark:bg-card">
+                <Table className="text-xs">
+                  <TableHeader>
+                    <TableRow className="bg-muted/50 hover:bg-muted/50">
+                      <TableHead className="h-8 px-2.5 text-[12px]">Student</TableHead>
+                      <TableHead className="h-8 px-2 text-[12px]">Subject</TableHead>
+                      <TableHead className="h-8 px-2 text-right text-[12px]">Q1</TableHead>
+                      <TableHead className="h-8 px-2 text-right text-[12px]">Q2</TableHead>
+                      <TableHead className="h-8 px-2 text-right text-[12px]">Q3</TableHead>
+                      <TableHead className="h-8 pl-2 pr-2.5 text-right text-[12px]">Rating</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {autofillFlow.preview.students.map((s) =>
+                      s.rows.length === 0 ? (
+                        <TableRow key={s.lrn}>
+                          <TableCell className="px-2.5 py-2">
+                            <span className={`${dialogStyles.pickerName} block`}>{s.name}</span>
+                          </TableCell>
+                          <TableCell colSpan={5} className="px-2 py-2 text-[12px] text-muted-foreground">
+                            {s.reason ?? "Not ready"}
+                          </TableCell>
+                        </TableRow>
+                      ) : (
+                        <Fragment key={s.lrn}>
+                          {s.rows.map((r, i) => (
+                            <TableRow key={`${s.lrn}-${r.norm}`}>
+                              {i === 0 ? (
+                                <TableCell
+                                  rowSpan={s.rows.length + (s.skipped.length > 0 ? 1 : 0)}
+                                  className="border-r border-border px-2.5 py-2 align-top"
+                                >
+                                  <span className={`${dialogStyles.pickerName} block`}>{s.name}</span>
+                                  <span className="text-[12px] text-muted-foreground">
+                                    {s.rows.length} subject{s.rows.length === 1 ? "" : "s"}
+                                  </span>
+                                </TableCell>
+                              ) : null}
+                              <TableCell className="px-2 py-2 text-foreground">
+                                <span
+                                  className="block max-w-[7.5rem] truncate"
+                                  title={r.subject}
+                                >
+                                  {r.subject}
+                                </span>
+                              </TableCell>
+                              {(r.quarters.slice(0, 3) as Array<number | null>).map((q, qi) => (
+                                <TableCell
+                                  key={qi}
+                                  className="px-2 py-2 text-right font-mono text-muted-foreground tabular-nums"
+                                >
+                                  {q ?? "—"}
+                                </TableCell>
+                              ))}
+                              <TableCell className="py-2 pl-2 pr-2.5 text-right font-semibold tabular-nums">
+                                {r.rating}
+                              </TableCell>
+                            </TableRow>
+                          ))}
+                          {s.skipped.length > 0 ? (
+                            <TableRow key={`${s.lrn}-skipped`}>
+                              <TableCell
+                                colSpan={5}
+                                className="px-2 py-1.5 text-[12px] text-muted-foreground"
+                              >
+                                Skipped: {s.skipped.map((k) => `${k.subject} (${k.reason})`).join("; ")}
+                              </TableCell>
+                            </TableRow>
+                          ) : null}
+                        </Fragment>
+                      ),
+                    )}
+                  </TableBody>
+                </Table>
               </div>
             ) : null}
             <div className="flex justify-end gap-2">

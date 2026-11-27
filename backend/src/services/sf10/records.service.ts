@@ -1263,6 +1263,8 @@ export interface AutoFillWriteResult {
   replaced: number;
   added: number;
   wasVerified: boolean;
+  /** Grades matched the last auto-fill, so no new version was appended. */
+  unchanged?: boolean;
 }
 
 /**
@@ -1301,6 +1303,37 @@ export async function createAutoPopulatedRecord(
 }
 
 /**
+ * Double-submit guard: a re-run that repeats the exact same grades as the last
+ * stored auto-fill, less than this long after it, is treated as the same click
+ * (the drawer's Build + Bama run, a double tap) and appends no version. Any
+ * later deliberate re-run appends one, even when the grades did not move, so a
+ * re-render (template look, header values) becomes a visible version.
+ */
+const AUTOFILL_DUPLICATE_WINDOW_MS = 90_000;
+
+/**
+ * A subject row's grade-bearing fields as a stable comparable string. Only the
+ * values auto-fill actually writes are compared — `ocrAt` and `generatedFileUrl`
+ * change on every run even when the grades did not.
+ */
+function subjectSignature(s: OcrSubjectPayload): string {
+  return JSON.stringify([
+    s.norm,
+    s.gradeLevel ?? null,
+    s.rating ?? s.grade ?? null,
+    s.quarters ?? null,
+    s.remarks ?? null,
+  ]);
+}
+
+function sameSubjectContent(a: OcrSubjectPayload[], b: OcrSubjectPayload[]): boolean {
+  if (a.length !== b.length) return false;
+  const left = a.map(subjectSignature).sort();
+  const right = b.map(subjectSignature).sort();
+  return left.every((sig, i) => sig === right[i]);
+}
+
+/**
  * Merge grading-portal rows into an SF10 record for one grade level.
  *
  * Only the rows tagged with `gradeLevel` are replaced; prior years and untagged
@@ -1319,10 +1352,33 @@ export async function applyAutoFilledSubjects(
      * record exists). When set the original-file patching below is skipped.
      */
     generatedFileUrl?: string;
+    /**
+     * Adviser auto-fill for a Grade 7 section: G7 enrolment is the learner's
+     * first SF10, so the advisory desk fills it without a registry approval.
+     * Only the Bama auto-fill/template flow passes this, and only for G7.
+     */
+    skipAdviserAccessCheck?: boolean;
+    /**
+     * Build the printed form from the current template instead of patching the
+     * record's stored upload. Passed for records this flow created itself
+     * (`source: auto_populated`): their upload is an older render of our own
+     * template, so patching it would keep that stale layout (grey bands, no
+     * logos, header values as of the first fill). Only called when a version
+     * is actually going to be written.
+     */
+    renderFresh?: () => Promise<{ buffer: Buffer; mimeType: string }>;
+    /**
+     * Current enrollment, written into the patched registry upload's scholastic
+     * header (school, grade, section, school year, adviser) so auto-fill fills
+     * the form's header too, not just the subject rows.
+     */
+    header?: { sectionName: string; schoolYear: string; adviserName: string | null };
   },
 ): Promise<AutoFillWriteResult> {
   const record = await assertRecordAccess(recordId, ctx);
-  if (ctx.role === "adviser") await assertAdviserSf10Access(ctx.userId, recordId);
+  if (ctx.role === "adviser" && !options?.skipAdviserAccessCheck) {
+    await assertAdviserSf10Access(ctx.userId, recordId);
+  }
   if (record.status === "released") {
     throw new AppError(
       409,
@@ -1356,7 +1412,48 @@ export async function applyAutoFilledSubjects(
   // a PDF. Untouched grade blocks and every non-rating cell stay as uploaded.
   const generatedAt = new Date();
   const mergedSubjects = [...kept, ...rows];
+
+  // A double-submit must not append a duplicate version: identical grades
+  // within the guard window are treated as the same click. A deliberate re-run
+  // later always appends, so a re-render (template look, header values) is a
+  // visible version instead of silently keeping the previous file.
+  const lastFilledAt = prior?.ocrAt ? Date.parse(prior.ocrAt) : Number.NaN;
+  const unchanged =
+    prior?.engine === "grading-auto-fill-v1" &&
+    typeof prior.generatedFileUrl === "string" &&
+    prior.generatedFileUrl.length > 0 &&
+    sameSubjectContent(priorSubjects, mergedSubjects) &&
+    Number.isFinite(lastFilledAt) &&
+    Date.now() - lastFilledAt < AUTOFILL_DUPLICATE_WINDOW_MS;
+  if (unchanged) {
+    return {
+      recordId,
+      version: record.currentVersion,
+      status: record.status,
+      replaced,
+      added,
+      wasVerified: false,
+      unchanged: true,
+    };
+  }
+
   let generatedFileUrl: string | undefined = options?.generatedFileUrl;
+  if (!generatedFileUrl && options?.renderFresh) {
+    try {
+      const fresh = await options.renderFresh();
+      generatedFileUrl = await uploadFile(
+        fresh.buffer,
+        sf10ObjectPath(record.lrn, "pdf"),
+        fresh.mimeType,
+        getSf10Bucket(),
+      );
+    } catch (e) {
+      logger.warn(
+        { err: e, recordId },
+        "[sf10-autofill] could not rebuild the current template — patching the stored file",
+      );
+    }
+  }
   if (!generatedFileUrl) {
     try {
       const original = await downloadOriginalSf10File(record.uploadedFileUrl);
@@ -1367,6 +1464,9 @@ export async function applyAutoFilledSubjects(
         subjects: mergedSubjects,
         generatedAt,
         original,
+        sectionName: options?.header?.sectionName ?? null,
+        schoolYear: options?.header?.schoolYear ?? null,
+        adviserName: options?.header?.adviserName ?? null,
         filled: rows.map((r) => ({
           norm: r.norm,
           rawName: r.rawName,

@@ -1,8 +1,7 @@
 "use client";
 
 import { Skeleton } from "@/components/ui/skeleton";
-import repoStyles from "./sf10-repo.module.css";
-import folderStyles from "./sf10-repo-folders.module.css";
+import { ShimmerGroup } from "@/components/ui/shimmer-skeleton";
 
 /**
  * One folder tile placeholder. Mirrors the loaded card markup exactly (outer
@@ -36,45 +35,70 @@ export function Sf10FolderCardSkeleton() {
   );
 }
 
+/** Card placeholder matching the loaded glass learner card. */
+function Sf10RecordCardSkeleton() {
+  return (
+    <div
+      className="flex min-h-[11.5rem] min-w-0 flex-col overflow-hidden rounded-xl border border-border bg-card"
+      aria-hidden
+    >
+      <div className="flex items-start gap-2 border-b border-border p-3">
+        <Skeleton className="h-9 w-9 shrink-0 rounded-lg" />
+        <div className="flex min-w-0 flex-1 flex-col gap-1.5">
+          <Skeleton className="h-4 w-3/4 rounded-full" />
+          <Skeleton className="h-3 w-1/2 rounded-full" />
+        </div>
+        <Skeleton className="h-5 w-16 shrink-0 rounded-full" />
+      </div>
+      <div className="grid grid-cols-2">
+        {Array.from({ length: 4 }).map((_, i) => (
+          <div key={i} className="flex flex-col gap-1.5 border-r border-border p-2.5 last:border-r-0">
+            <Skeleton className="h-3 w-16 rounded-full" />
+            <Skeleton className="h-5 w-12 rounded-full" />
+            <Skeleton className="h-3 w-20 rounded-full" />
+          </div>
+        ))}
+      </div>
+      <div className="mt-auto flex items-center justify-between gap-2 border-t border-border p-2.5">
+        <Skeleton className="h-6 w-32 rounded-full" />
+        <Skeleton className="h-6 w-14 rounded-md" />
+      </div>
+    </div>
+  );
+}
+
 /**
- * Page-level loading state. Mirrors the loaded desk exactly: the same
- * `sf10-repo.module.css` page/main wrappers, the folder panel with its
- * search + Request header row, a 6-up folder grid, and the mobile rejected /
- * missing cards below the fold. There is no desktop icon rail on this desk, so
- * the skeleton does not paint one.
+ * Page-level loading state. Mirrors the loaded SF10 access desk: the same
+ * header (icon tile + title + Request), the filter tabs + search row, then the
+ * responsive learner card grid.
  */
 export function Sf10PageSkeleton() {
   return (
-    <section
-      className={repoStyles.page}
-      aria-busy="true"
-      aria-label="Loading SF10 access"
-    >
-      <div className="flex min-w-0 flex-1 flex-col">
-        <div className={`${repoStyles.main} flex min-w-0 flex-col`}>
-          <div className={`${folderStyles.panel} flex flex-1 flex-col`}>
-            <div className={folderStyles.header}>
-              <Skeleton
-                className={`${folderStyles.search} h-8 rounded-lg`}
-              />
-              <Skeleton className="h-8 w-24 shrink-0 rounded-md" />
-            </div>
-            <div className={folderStyles.content}>
-              <div className={folderStyles.scrollArea}>
-                <div className={folderStyles.folderGrid}>
-                  {Array.from({ length: 6 }).map((_, i) => (
-                    <Sf10FolderCardSkeleton key={i} />
-                  ))}
-                </div>
-              </div>
-            </div>
+    <ShimmerGroup>
+      <section
+        className="flex min-w-0 flex-col gap-3"
+        aria-busy="true"
+        aria-label="Loading SF10 access"
+      >
+        <header className="flex flex-wrap items-center justify-between gap-x-4 gap-y-3">
+          <div className="flex min-w-0 items-center gap-2">
+            <Skeleton className="h-[1.625rem] w-[1.625rem] shrink-0 rounded-lg" />
+            <Skeleton className="h-5 w-28 rounded-full" />
           </div>
+          <Skeleton className="h-7 w-32 shrink-0 rounded-md" />
+        </header>
+
+        <div className="flex flex-wrap items-center gap-2">
+          <Skeleton className="h-7 w-64 rounded-full" />
+          <Skeleton className="ml-auto h-8 w-56 rounded-lg sm:w-64" />
         </div>
-      </div>
-      <div className="flex min-w-0 flex-col gap-4 lg:hidden" aria-hidden>
-        <Skeleton className="h-40 w-full rounded-xl" />
-        <Skeleton className="h-40 w-full rounded-xl" />
-      </div>
-    </section>
+
+        <div className="grid gap-3 [grid-template-columns:repeat(auto-fill,minmax(264px,1fr))]">
+          {Array.from({ length: 6 }).map((_, i) => (
+            <Sf10RecordCardSkeleton key={i} />
+          ))}
+        </div>
+      </section>
+    </ShimmerGroup>
   );
 }

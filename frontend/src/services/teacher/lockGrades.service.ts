@@ -63,6 +63,8 @@ export interface LockGradesData {
   gates: { linked: boolean; termGrant: boolean };
   classes: LockGradesClassRow[];
   advisorySections: LockGradesSection[];
+  /** Classes view: one lock-status row per learner in the teacher's sections. */
+  learners?: LockGradesAdviseeRow[];
   advisees: LockGradesAdviseeRow[];
 }
 

@@ -3,53 +3,17 @@
 import * as React from "react";
 import { ArrowUpRight, BookOpen } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { KanbanOverlay } from "@/components/ui/kanban-overlay";
+import { SidePanel } from "@/components/ui/side-panel";
 import { StudentMascot } from "@/components/student-mascot/StudentMascot";
-import type {
-  LockGradesAdviseeRow,
-  LockGradesSubjectRow,
-} from "@/services/teacher/lockGrades.service";
+import { useTerm } from "@/lib/term/TermContext";
+import type { LockGradesAdviseeRow } from "@/services/teacher/lockGrades.service";
 import rowStyles from "@/components/ui/table-row-in.module.css";
-import styles from "./lock-grades.module.css";
+import { AdviseeGradesBoard } from "./advisee-grades-board";
 
 const HEAD_CLASS =
   "px-4 py-2.5 text-left text-[12px] font-medium tracking-[0.02em] whitespace-nowrap text-muted-foreground";
 const CELL_CLASS = "px-4 py-2.5 align-middle whitespace-nowrap";
 const NUM_CLASS = `${CELL_CLASS} tabular-nums text-[12px] text-muted-foreground`;
-
-const statusLabel: Record<string, string> = {
-  unlocked: "Unlocked",
-  locked: "Locked",
-  adviser_approved: "Final",
-};
-
-function subjectStatus(row: LockGradesSubjectRow): string {
-  if (row.hiddenByTeacher) return "Hidden";
-  if (row.lockStatus) return statusLabel[row.lockStatus] ?? row.lockStatus;
-  if (row.computedAverage != null) return "Not locked";
-  return "No grade";
-}
-
-function subjectStatusClass(row: LockGradesSubjectRow): string {
-  if (row.hiddenByTeacher) return "text-[12px] text-muted-foreground";
-  if (row.lockStatus === "locked" || row.lockStatus === "adviser_approved") {
-    return "text-[12px] font-medium text-green-700 dark:text-green-400";
-  }
-  if (row.lockStatus === "unlocked") {
-    return "text-[12px] font-medium text-sky-700 dark:text-sky-400";
-  }
-  return "text-[12px] text-muted-foreground";
-}
-
-function subjectComputed(row: LockGradesSubjectRow): string {
-  if (row.hiddenByTeacher) return "—";
-  return row.computedAverage != null ? row.computedAverage.toFixed(2) : "—";
-}
-
-function subjectGrade(row: LockGradesSubjectRow): string {
-  if (row.hiddenByTeacher) return "—";
-  return row.transmutedGrade != null ? String(row.transmutedGrade) : "—";
-}
 
 function AdviseeRow({
   row,
@@ -87,7 +51,19 @@ function AdviseeRow({
       <td className={`${CELL_CLASS} text-[12px] text-muted-foreground`}>
         {row.section || "No section"}
       </td>
-      <td className={NUM_CLASS}>{total}</td>
+      <td className={CELL_CLASS}>
+        <span className="block text-[12px] font-medium tabular-nums text-foreground">
+          {total} subject{total === 1 ? "" : "s"}
+        </span>
+        <span
+          className="block max-w-[20rem] truncate text-[12px] text-muted-foreground"
+          title={row.subjects.map((s) => s.subject).join(", ")}
+        >
+          {row.subjects.length === 0
+            ? "No subjects"
+            : row.subjects.map((s) => s.subject).join(", ")}
+        </span>
+      </td>
       <td className={NUM_CLASS}>{row.summary.graded}</td>
       <td className={CELL_CLASS}>
         <span className="text-[12px] font-medium tabular-nums text-foreground">{locked}</span>
@@ -115,6 +91,7 @@ function AdviseeRow({
 
 export function LockGradesAdviseeTable({ rows }: { rows: LockGradesAdviseeRow[] }) {
   const [openRow, setOpenRow] = React.useState<LockGradesAdviseeRow | null>(null);
+  const { activeTerm } = useTerm();
 
   return (
     <>
@@ -145,63 +122,58 @@ export function LockGradesAdviseeTable({ rows }: { rows: LockGradesAdviseeRow[] 
         </table>
       </div>
 
-      <KanbanOverlay
+      <SidePanel
         open={openRow !== null}
         onClose={() => setOpenRow(null)}
-        title={openRow ? `${openRow.name} — per-subject grades` : ""}
-        ariaLabel={openRow ? `${openRow.name} per-subject grades` : "Advisee grades"}
-        icon={
-          <span className="text-amber-600 dark:text-amber-400" aria-hidden>
-            <BookOpen size={14} />
-          </span>
-        }
-        description={
-          openRow ? (
-            <span className="flex flex-wrap items-center gap-x-3 gap-y-1 text-[12px] text-muted-foreground">
-              <span>{openRow.section || "No section"}</span>
-              <span>
-                {openRow.summary.subjects} subject{openRow.summary.subjects === 1 ? "" : "s"}
-              </span>
-              <span>{openRow.summary.locked} locked</span>
-            </span>
-          ) : null
-        }
-        width="lg"
+        label={openRow ? `${openRow.name} — per-subject grades` : "Advisee grades"}
+        width="3xl"
+        showCloseButton
       >
-        {openRow ? (
-          openRow.subjects.length === 0 ? (
-            <p className={`${styles.muted} ${styles.center}`}>No subjects on this section yet.</p>
-          ) : (
-            <div className="grid gap-2 sm:grid-cols-2">
-              {openRow.subjects.map((subject) => (
-                <div
-                  key={subject.subjectId}
-                  className="flex flex-col gap-1.5 rounded-lg border bg-card p-2.5 transition-colors duration-150 ease-out hover:border-amber-500/40"
-                >
-                  <span className="truncate text-xs font-semibold" title={subject.subject}>
-                    {subject.subject}
+        <div className="flex h-full min-h-0 flex-col">
+          <header className="flex shrink-0 items-center gap-2.5 border-b border-border px-4 py-3">
+            {openRow ? <StudentMascot name={openRow.name} seed={openRow.studentId} size={36} /> : null}
+            <div className="min-w-0 flex-1">
+              <h2 className="truncate text-sm font-semibold leading-tight text-foreground">
+                {openRow?.name ?? "Advisee grades"}
+              </h2>
+              {openRow ? (
+                <p className="mt-1 flex flex-wrap items-center gap-x-2 gap-y-0.5 text-[12px] text-muted-foreground">
+                  <span>
+                    LRN:{" "}
+                    <span className="font-medium tabular-nums text-foreground">
+                      {openRow.lrn || "—"}
+                    </span>
                   </span>
-                  <div className="flex items-center justify-between gap-2 text-[12px] text-muted-foreground">
-                    <span>
-                      Computed{" "}
-                      <span className="font-semibold tabular-nums text-foreground">
-                        {subjectComputed(subject)}
-                      </span>
+                  <span aria-hidden className="text-border">|</span>
+                  <span>
+                    Section:{" "}
+                    <span className="font-medium text-foreground">
+                      {openRow.section || "—"}
                     </span>
-                    <span>
-                      Grade{" "}
-                      <span className="font-semibold tabular-nums text-foreground">
-                        {subjectGrade(subject)}
-                      </span>
+                  </span>
+                  <span aria-hidden className="text-border">|</span>
+                  <span>
+                    Term:{" "}
+                    <span className="font-medium text-foreground">
+                      {activeTerm ? `Term ${activeTerm.termNumber}` : "—"}
                     </span>
-                  </div>
-                  <span className={subjectStatusClass(subject)}>{subjectStatus(subject)}</span>
-                </div>
-              ))}
+                  </span>
+                  <span aria-hidden className="text-border">|</span>
+                  <span>
+                    School year:{" "}
+                    <span className="font-medium text-foreground">
+                      {activeTerm?.schoolYearName ?? "—"}
+                    </span>
+                  </span>
+                </p>
+              ) : null}
             </div>
-          )
-        ) : null}
-      </KanbanOverlay>
+          </header>
+          <div className="min-h-0 flex-1 overflow-y-auto p-3">
+            <AdviseeGradesBoard row={openRow} bare />
+          </div>
+        </div>
+      </SidePanel>
     </>
   );
 }

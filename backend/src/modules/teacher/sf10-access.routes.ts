@@ -8,8 +8,10 @@ import { CACHE_TAGS, CACHE_TTLS } from "../../lib/cacheTags.js";
 import { TEACHER_ROLES } from "./advisory.repository.js";
 import {
   createAccessRequest,
+  getMySf10History,
   getMyVerification,
   listMyRequests,
+  listOwnedFirstSf10,
 } from "../../services/advisory/sf10-access.service.js";
 
 const router = Router();
@@ -60,6 +62,50 @@ router.post(
         "teacher",
       ]);
       res.status(201).json(result);
+    } catch (e) {
+      next(e);
+    }
+  },
+);
+
+router.get(
+  "/sf10-access/own-records",
+  requireAuth,
+  requireRole(...TEACHER_ROLES),
+  cache({ tags: [CACHE_TAGS.teacher, "adviser-access"], ttl: CACHE_TTLS.list }),
+  etag(),
+  async (req, res, next) => {
+    try {
+      res.json(await listOwnedFirstSf10(req.user!.id));
+    } catch (e) {
+      next(e);
+    }
+  },
+);
+
+router.get(
+  "/sf10-access/records/:lrn/history",
+  requireAuth,
+  requireRole(...TEACHER_ROLES),
+  cache({ tags: [CACHE_TAGS.teacher, "adviser-access"], ttl: CACHE_TTLS.list }),
+  etag(),
+  async (req, res, next) => {
+    try {
+      const sectionId =
+        typeof req.query.sectionId === "string" ? req.query.sectionId.trim() : "";
+      if (!sectionId) {
+        res
+          .status(400)
+          .json({ error: { code: "BAD_REQUEST", message: "sectionId is required" } });
+        return;
+      }
+      res.json(
+        await getMySf10History(
+          req.user!.id,
+          sectionId,
+          String(req.params.lrn ?? "").trim(),
+        ),
+      );
     } catch (e) {
       next(e);
     }

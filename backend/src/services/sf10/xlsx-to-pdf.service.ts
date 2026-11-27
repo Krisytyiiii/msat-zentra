@@ -12,6 +12,7 @@
  * back to the hand renderer.
  */
 import { execFile } from "node:child_process";
+import { createHash } from "node:crypto";
 import { existsSync } from "node:fs";
 import { mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
 import os from "node:os";
@@ -71,6 +72,21 @@ export function resolveSoffice(): string | null {
  * profile and each cold start is expensive. */
 let queue: Promise<unknown> = Promise.resolve();
 
+/**
+ * One LibreOffice user profile for the whole server process. A throwaway
+ * profile per conversion forced a brand-new soffice instance every time
+ * (measured ~6s on Windows); with a shared profile the next `--convert-to`
+ * call is forwarded to the already-running instance instead.
+ */
+let sharedProfileDir: string | null = null;
+
+async function sharedProfile(): Promise<string> {
+  if (!sharedProfileDir) {
+    sharedProfileDir = await mkdtemp(path.join(os.tmpdir(), "zentra-sf10-profile-"));
+  }
+  return sharedProfileDir;
+}
+
 function enqueue<T>(job: () => Promise<T>): Promise<T> {
   const run = queue.then(job, job);
   queue = run.then(
@@ -94,6 +110,19 @@ async function waitForFile(file: string, timeoutMs: number): Promise<boolean> {
   }
 }
 
+/** Rendered PDFs keyed by the workbook's hash — a repeated download is instant. */
+const pdfCache = new Map<string, Buffer>();
+const PDF_CACHE_MAX = 20;
+
+function rememberPdf(key: string, pdf: Buffer): void {
+  pdfCache.set(key, pdf);
+  while (pdfCache.size > PDF_CACHE_MAX) {
+    const oldest = pdfCache.keys().next().value;
+    if (oldest === undefined) break;
+    pdfCache.delete(oldest);
+  }
+}
+
 /**
  * Convert an XLSX buffer to PDF. Returns null when LibreOffice is unavailable
  * so the caller can fall back; throws when the conversion itself fails.
@@ -102,8 +131,18 @@ export async function convertXlsxToPdf(xlsx: Buffer): Promise<Buffer | null> {
   const bin = resolveSoffice();
   if (!bin) return null;
 
+  // Same workbook in, same PDF out — LibreOffice costs ~3-6s per run, and the
+  // desk downloads the same learner's file repeatedly (Excel, then PDF).
+  const cacheKey = createHash("sha256").update(xlsx).digest("hex");
+  const cached = pdfCache.get(cacheKey);
+  if (cached) return cached;
+
   return enqueue(async () => {
+    // A queued twin of the same workbook may have finished while we waited.
+    const raced = pdfCache.get(cacheKey);
+    if (raced) return raced;
     const dir = await mkdtemp(path.join(os.tmpdir(), "zentra-sf10-pdf-"));
+    const profile = await sharedProfile();
     try {
       const input = path.join(dir, "sf10.xlsx");
       const output = path.join(dir, "sf10.pdf");
@@ -116,7 +155,7 @@ export async function convertXlsxToPdf(xlsx: Buffer): Promise<Buffer | null> {
           "--norestore",
           "--nolockcheck",
           "--nodefault",
-          `-env:UserInstallation=${profileUrl(path.join(dir, "profile"))}`,
+          `-env:UserInstallation=${profileUrl(profile)}`,
           "--convert-to",
           "pdf:calc_pdf_Export",
           "--outdir",
@@ -129,7 +168,9 @@ export async function convertXlsxToPdf(xlsx: Buffer): Promise<Buffer | null> {
       if (!(await waitForFile(output, OUTPUT_WAIT_MS))) {
         throw new Error("LibreOffice did not produce a PDF");
       }
-      return await readFile(output);
+      const pdf = await readFile(output);
+      rememberPdf(cacheKey, pdf);
+      return pdf;
     } catch (err) {
       // A bare `soffice` name that is not installed surfaces here as ENOENT.
       if ((err as NodeJS.ErrnoException).code === "ENOENT") {

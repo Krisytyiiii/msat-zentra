@@ -102,19 +102,59 @@ export async function runAutofill(payload: {
  * rendered file onto the learner's SF10 record, so the caller should refresh the
  * records queries afterwards.
  */
+async function requestSf10Template(
+  sectionId: string,
+  lrn: string,
+  format: "xlsx" | "pdf",
+  preview: boolean,
+): Promise<{ blob: Blob; filename: string }> {
+  const response = await apiClient.get<Blob>(
+    `/api/teacher/advisory/sf10-template/${encodeURIComponent(lrn)}`,
+    {
+      params: { sectionId, format, ...(preview ? { preview: 1 } : {}) },
+      responseType: "blob",
+    },
+  );
+  const disposition = String(response.headers?.["content-disposition"] ?? "");
+  const match = /filename="?([^";]+)"?/i.exec(disposition);
+  return {
+    blob: response.data,
+    filename: match?.[1]?.trim() || `SF10-${lrn}.${format}`,
+  };
+}
+
 export async function downloadSf10Template(
   sectionId: string,
   lrn: string,
   format: "xlsx" | "pdf",
 ): Promise<void> {
-  const response = await apiClient.get<Blob>(
-    `/api/teacher/advisory/sf10-template/${encodeURIComponent(lrn)}`,
-    { params: { sectionId, format }, responseType: "blob" },
-  );
-  const blob = response.data;
-  const disposition = String(response.headers?.["content-disposition"] ?? "");
-  const match = /filename="?([^";]+)"?/i.exec(disposition);
-  const filename = match?.[1]?.trim() || `SF10-${lrn}.${format}`;
+  const { blob, filename } = await requestSf10Template(sectionId, lrn, format, false);
+  saveBlob(blob, filename);
+}
+
+/**
+ * Render the SF10 for preview without filing it — no upload, no new version.
+ * The caller owns the returned blob (turn it into an object URL and revoke it).
+ */
+export async function previewSf10Template(
+  sectionId: string,
+  lrn: string,
+  format: "xlsx" | "pdf",
+): Promise<{ blob: Blob; filename: string }> {
+  return requestSf10Template(sectionId, lrn, format, true);
+}
+
+/** Save an already-built version render (public storage URL) under a name. */
+export async function downloadSf10FileFromUrl(
+  url: string,
+  filename: string,
+): Promise<void> {
+  const response = await fetch(url);
+  if (!response.ok) throw new Error("Could not download this file.");
+  saveBlob(await response.blob(), filename);
+}
+
+function saveBlob(blob: Blob, filename: string): void {
   const url = URL.createObjectURL(blob);
   const anchor = document.createElement("a");
   anchor.href = url;
