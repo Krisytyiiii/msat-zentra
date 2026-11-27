@@ -55,8 +55,10 @@ function mergeEntries(...groups: CoordinatorNavEntry[][]): CoordinatorNavEntry[]
  *
  * The scope mirrors what the desk actually reads:
  *  - `listAllReferrals` only shows ADM profiles whose referral was endorsed
- *    (consult reviewer nurse / guidance + referral form ready), and pre-profile
- *    referrals the same desks forwarded but that have no profile yet;
+ *    (clinic with the referral form ready, or a guidance consultation review —
+ *    which has no form step and also covers referrals filed with no reviewer),
+ *    and pre-profile referrals the same desks forwarded but that have no
+ *    profile yet;
  *  - `listApprovals` shows every principal-approved profile;
  *  - `listDevices` shows the device ledger (archived learners excluded).
  * Archive rows for adviser-removed learners are filtered out like the boards.
@@ -97,8 +99,11 @@ export async function getCoordinatorNavQueues(
         SELECT a.id, a.stage, a."approvedBy", a.xmin::text AS pv
         FROM "AdmLearnerProfile" a
         JOIN "Referral" r ON r.id = a."referralId"
-        WHERE r."consultReviewer" IN ('nurse', 'guidance_counselor')
-          AND r."referralFormReady" = true
+        WHERE (
+          (r."consultReviewer" = 'nurse' AND r."referralFormReady" = true)
+          OR r."consultReviewer" IS NULL
+          OR r."consultReviewer" = 'guidance_counselor'
+        )
           ${archivedProfileSql}
       ),
       versions AS (
@@ -124,9 +129,12 @@ export async function getCoordinatorNavQueues(
         SELECT r.id, r.xmin::text AS v
         FROM "Referral" r
         WHERE r."referredToRole" = 'adm_coordinator'
-          AND r."consultReviewer" IN ('nurse', 'guidance_counselor')
-          AND r."referralFormReady" = true
-          AND r.status <> 'pending'
+          AND (
+            (r."consultReviewer" = 'nurse' AND r."referralFormReady" = true)
+            OR r."consultReviewer" IS NULL
+            OR r."consultReviewer" = 'guidance_counselor'
+          )
+          AND r.status NOT IN ('pending', 'dismissed')
           AND NOT EXISTS (
             SELECT 1 FROM "AdmLearnerProfile" a WHERE a."referralId" = r.id
           )
