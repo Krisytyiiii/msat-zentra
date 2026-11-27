@@ -222,6 +222,7 @@ Future<void> mount(
   Widget page, {
   double width = 390,
   double scale = 1,
+  ThemeData? theme,
 }) async {
   tester.view.physicalSize = Size(width, 900);
   tester.view.devicePixelRatio = 1;
@@ -238,7 +239,7 @@ Future<void> mount(
         ),
       ],
       child: MaterialApp(
-        theme: zWorkspaceTheme(),
+        theme: theme ?? zWorkspaceTheme(),
         home: page,
         builder: (context, child) => MediaQuery(
           data: MediaQuery.of(context)
@@ -841,6 +842,12 @@ void main() {
     for (final destination in coordinatorDestinations) {
       expect(find.text(destination.label), findsWidgets);
     }
+    // The desk follows the app appearance: dark when the app is dark.
+    final shellTheme = Theme.of(
+      tester.element(find.byType(Scaffold).first),
+    );
+    expect(shellTheme.brightness, Brightness.dark);
+    expect(shellTheme.scaffoldBackgroundColor, const Color(0xFF050807));
     // Settings moved into the account panel, not the bottom bar.
     expect(find.text('Settings'), findsNothing);
     // The coordinator header shows the Zentra mark, not a menu button.
@@ -851,6 +858,25 @@ void main() {
     expect(find.text('ADM workspace'), findsOneWidget);
     expect(find.text('Settings'), findsNothing);
     expect(api.requests.any((r) => r.path.contains('/teacher/')), isFalse);
+    expect(tester.takeException(), isNull);
+  });
+
+  testWidgets('coordinator shell follows the light appearance', (tester) async {
+    final api = CoordinatorApi();
+    await mount(
+      tester,
+      api,
+      const CoordinatorShell(
+        path: '/coordinator/overview',
+        child: CoordinatorOverviewPage(),
+      ),
+      theme: zLightTheme(),
+    );
+    final shellTheme = Theme.of(
+      tester.element(find.byType(Scaffold).first),
+    );
+    expect(shellTheme.brightness, Brightness.light);
+    expect(shellTheme.scaffoldBackgroundColor, Colors.white);
     expect(tester.takeException(), isNull);
   });
 

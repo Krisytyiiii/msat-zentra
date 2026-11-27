@@ -3,7 +3,6 @@ import 'package:go_router/go_router.dart';
 import 'package:lucide_icons_flutter/lucide_icons.dart';
 
 import 'overview_theme.dart';
-import 'theme.dart' show zLightTheme;
 
 const _adviserDestinations = [
   (
@@ -375,11 +374,8 @@ class CoordinatorBottomNavigation extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) => Theme(
-    // Keep the coordinator pill on the adviser Overview's white surface in
-    // every desk. Build it from the light palette so the ink/hover overlay is
-    // the same soft light gray the adviser bar uses, not the login workspace's
-    // dark hover.
-    data: overviewScreenTheme(zLightTheme()),
+    // The coordinator pill follows the same appearance mode as its desks.
+    data: overviewScreenTheme(Theme.of(context)),
     child: ZPillBottomNavigation(
       destinations: [
         for (final destination in _coordinatorDestinations)

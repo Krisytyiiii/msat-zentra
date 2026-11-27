@@ -5,13 +5,13 @@ import 'package:lucide_icons_flutter/lucide_icons.dart';
 
 import '../../design/overview_theme.dart';
 import '../../design/status_palette.dart';
-import '../../design/theme.dart' show zLightTheme;
 import '../../shared/widgets.dart';
 
 import 'coordinator_data.dart';
 import 'coordinator_forms.dart';
 import 'coordinator_models.dart';
 import 'coordinator_widgets.dart';
+import '../../design/desk_theme.dart';
 
 class CoordinatorDeviceCard extends ConsumerStatefulWidget {
   const CoordinatorDeviceCard({super.key, required this.device});
@@ -58,10 +58,10 @@ class _DeviceState extends ConsumerState<CoordinatorDeviceCard> {
       key: ValueKey('device-card-${d.id}'),
       margin: const EdgeInsets.only(bottom: 4),
       elevation: 0,
-      color: Colors.white,
+      color: zCard(context),
       shape: RoundedRectangleBorder(
         borderRadius: BorderRadius.circular(16),
-        side: const BorderSide(color: Color(0xFFE6ECF4)),
+        side: BorderSide(color: zLine(context)),
       ),
       clipBehavior: Clip.antiAlias,
       child: InkWell(
@@ -76,8 +76,8 @@ class _DeviceState extends ConsumerState<CoordinatorDeviceCard> {
                 children: [
                   CircleAvatar(
                     radius: 19,
-                    backgroundColor: const Color(0xFFEFF6FF),
-                    foregroundColor: const Color(0xFF52627C),
+                    backgroundColor: zWash(context, const Color(0xFFEFF6FF)),
+                    foregroundColor: zMutedInk(context),
                     child: Text(
                       _initials(name),
                       style: const TextStyle(
@@ -93,10 +93,10 @@ class _DeviceState extends ConsumerState<CoordinatorDeviceCard> {
                       children: [
                         Text(
                           name,
-                          style: const TextStyle(
+                          style: TextStyle(
                             fontSize: 14,
                             fontWeight: FontWeight.w600,
-                            color: Color(0xFF172033),
+                            color: zInk(context),
                           ),
                         ),
                         Text(
@@ -123,16 +123,16 @@ class _DeviceState extends ConsumerState<CoordinatorDeviceCard> {
                   ),
                 ],
               ),
-              const Padding(
+              Padding(
                 padding: EdgeInsets.symmetric(vertical: 12),
-                child: Divider(height: 1, color: Color(0xFFF0F3F8)),
+                child: Divider(height: 1, color: zLine(context)),
               ),
               Row(
                 children: [
-                  const Icon(
+                  Icon(
                     LucideIcons.calendar,
                     size: 13,
-                    color: Color(0xFF8B9BBA),
+                    color: zMutedInk(context),
                   ),
                   const SizedBox(width: 5),
                   Expanded(
@@ -140,9 +140,9 @@ class _DeviceState extends ConsumerState<CoordinatorDeviceCard> {
                       d.returned
                           ? 'Returned ${admDate(d.returnedDate)}'
                           : admDate(d.issuedDate),
-                      style: const TextStyle(
+                      style: TextStyle(
                         fontSize: 12,
-                        color: Color(0xFF8B9BBA),
+                        color: zMutedInk(context),
                       ),
                     ),
                   ),
@@ -230,7 +230,7 @@ class _DeviceDetailState extends ConsumerState<CoordinatorDeviceDetailPage> {
 
   @override
   Widget build(BuildContext context) {
-    final theme = overviewScreenTheme(zLightTheme());
+    final theme = overviewScreenTheme(Theme.of(context));
     final initial = widget.initial;
     final resolved = initial == null
         ? ref.watch(coordinatorDeviceProvider(widget.deviceId))
@@ -256,12 +256,12 @@ class _DeviceDetailState extends ConsumerState<CoordinatorDeviceDetailPage> {
     return Theme(
       data: theme,
       child: Scaffold(
-        backgroundColor: Colors.white,
+        backgroundColor: Theme.of(context).scaffoldBackgroundColor,
         appBar: AppBar(
-          backgroundColor: Colors.white,
+          backgroundColor: Theme.of(context).scaffoldBackgroundColor,
           surfaceTintColor: Colors.transparent,
           scrolledUnderElevation: 0,
-          shape: const Border(bottom: BorderSide(color: Color(0xFFEDF0F6))),
+          shape: Border(bottom: BorderSide(color: zLine(context))),
           centerTitle: true,
           leadingWidth: 64,
           leading: ZBackButton(
@@ -284,9 +284,9 @@ class _DeviceDetailState extends ConsumerState<CoordinatorDeviceDetailPage> {
   }
 
   BoxDecoration _card(double radius) => BoxDecoration(
-    color: Colors.white,
+    color: zCard(context),
     borderRadius: BorderRadius.circular(radius),
-    border: Border.all(color: const Color(0xFFE6ECF4)),
+    border: Border.all(color: zLine(context)),
   );
 
   Widget _content(AdmDevice d) {
@@ -307,14 +307,14 @@ class _DeviceDetailState extends ConsumerState<CoordinatorDeviceDetailPage> {
                 width: 44,
                 height: 44,
                 decoration: BoxDecoration(
-                  color: const Color(0xFFEAF2FF),
+                  color: zWash(context, const Color(0xFFEAF2FF)),
                   borderRadius: BorderRadius.circular(12),
-                  border: Border.all(color: const Color(0xFFD4E4FF)),
+                  border: Border.all(color: zWash(context, const Color(0xFFD4E4FF))),
                 ),
-                child: const Icon(
+                child: Icon(
                   LucideIcons.tablet,
                   size: 22,
-                  color: Color(0xFF2563EB),
+                  color: zLift(context, Color(0xFF2563EB)),
                 ),
               ),
               const SizedBox(width: 12),
@@ -324,18 +324,18 @@ class _DeviceDetailState extends ConsumerState<CoordinatorDeviceDetailPage> {
                   children: [
                     Text(
                       name,
-                      style: const TextStyle(
+                      style: TextStyle(
                         fontSize: 15,
                         fontWeight: FontWeight.w700,
-                        color: Color(0xFF172033),
+                        color: zInk(context),
                       ),
                     ),
                     const SizedBox(height: 2),
                     Text(
                       'LRN ${d.lrn.isEmpty ? '—' : d.lrn}',
-                      style: const TextStyle(
+                      style: TextStyle(
                         fontSize: 12,
-                        color: Color(0xFF8B9BBA),
+                        color: zMutedInk(context),
                         fontFeatures: [FontFeature.tabularFigures()],
                       ),
                     ),
@@ -360,7 +360,7 @@ class _DeviceDetailState extends ConsumerState<CoordinatorDeviceDetailPage> {
           ),
         ),
         const SizedBox(height: 18),
-        const Padding(
+        Padding(
           padding: EdgeInsets.symmetric(horizontal: 2),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
@@ -370,13 +370,13 @@ class _DeviceDetailState extends ConsumerState<CoordinatorDeviceDetailPage> {
                 style: TextStyle(
                   fontSize: 14,
                   fontWeight: FontWeight.w700,
-                  color: Color(0xFF172033),
+                  color: zInk(context),
                 ),
               ),
               SizedBox(height: 5),
               DecoratedBox(
                 decoration: BoxDecoration(
-                  color: Color(0xFF2563EB),
+                  color: zLift(context, const Color(0xFF2563EB)),
                   borderRadius: BorderRadius.all(Radius.circular(2)),
                 ),
                 child: SizedBox(width: 34, height: 3),
@@ -394,8 +394,8 @@ class _DeviceDetailState extends ConsumerState<CoordinatorDeviceDetailPage> {
                   icon: LucideIcons.calendar,
                   label: 'Issued',
                   value: admDate(d.issuedDate),
-                  foreground: const Color(0xFF2563EB),
-                  background: const Color(0xFFEAF2FF),
+                  foreground: zLift(context, const Color(0xFF2563EB)),
+                  background: zWash(context, const Color(0xFFEAF2FF)),
                 ),
               ),
               const SizedBox(width: 8),
@@ -407,11 +407,11 @@ class _DeviceDetailState extends ConsumerState<CoordinatorDeviceDetailPage> {
                       ? admDate(d.returnedDate)
                       : 'Not returned yet',
                   foreground: d.returned
-                      ? const Color(0xFF15803D)
-                      : const Color(0xFFB45309),
+                      ? zLift(context, const Color(0xFF15803D))
+                      : zLift(context, const Color(0xFFB45309)),
                   background: d.returned
-                      ? const Color(0xFFF0FDF4)
-                      : const Color(0xFFFFF6E5),
+                      ? zWash(context, const Color(0xFFF0FDF4))
+                      : zWash(context, const Color(0xFFFFF6E5)),
                 ),
               ),
               const SizedBox(width: 8),
@@ -420,8 +420,8 @@ class _DeviceDetailState extends ConsumerState<CoordinatorDeviceDetailPage> {
                   icon: LucideIcons.hash,
                   label: 'Serial Number',
                   value: serial,
-                  foreground: const Color(0xFF7C6BD0),
-                  background: const Color(0xFFF3F0FF),
+                  foreground: zLift(context, const Color(0xFF7C6BD0)),
+                  background: zWash(context, const Color(0xFFF3F0FF)),
                 ),
               ),
             ],
@@ -434,12 +434,12 @@ class _DeviceDetailState extends ConsumerState<CoordinatorDeviceDetailPage> {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              const Row(
+              Row(
                 children: [
                   _DeviceTitleIcon(
                     icon: LucideIcons.layers,
-                    foreground: Color(0xFF2563EB),
-                    background: Color(0xFFEAF2FF),
+                    foreground: zLift(context, Color(0xFF2563EB)),
+                    background: zWash(context, const Color(0xFFEAF2FF)),
                   ),
                   SizedBox(width: 8),
                   Text(
@@ -447,7 +447,7 @@ class _DeviceDetailState extends ConsumerState<CoordinatorDeviceDetailPage> {
                     style: TextStyle(
                       fontSize: 13,
                       fontWeight: FontWeight.w700,
-                      color: Color(0xFF172033),
+                      color: zInk(context),
                     ),
                   ),
                 ],
@@ -471,12 +471,12 @@ class _DeviceDetailState extends ConsumerState<CoordinatorDeviceDetailPage> {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                const Row(
+                Row(
                   children: [
                     _DeviceTitleIcon(
                       icon: LucideIcons.fileText,
-                      foreground: Color(0xFFB45309),
-                      background: Color(0xFFFFF6E5),
+                      foreground: zLift(context, Color(0xFFB45309)),
+                      background: zWash(context, const Color(0xFFFFF6E5)),
                     ),
                     SizedBox(width: 8),
                     Text(
@@ -484,7 +484,7 @@ class _DeviceDetailState extends ConsumerState<CoordinatorDeviceDetailPage> {
                       style: TextStyle(
                         fontSize: 13,
                         fontWeight: FontWeight.w700,
-                        color: Color(0xFF172033),
+                        color: zInk(context),
                       ),
                     ),
                   ],
@@ -499,10 +499,10 @@ class _DeviceDetailState extends ConsumerState<CoordinatorDeviceDetailPage> {
                   ),
                   child: Text(
                     notes,
-                    style: const TextStyle(
+                    style: TextStyle(
                       fontSize: 12,
                       height: 1.5,
-                      color: Color(0xFF41506B),
+                      color: zMutedInk(context),
                     ),
                   ),
                 ),
@@ -514,8 +514,11 @@ class _DeviceDetailState extends ConsumerState<CoordinatorDeviceDetailPage> {
           const SizedBox(height: 20),
           FilledButton(
             style: FilledButton.styleFrom(
-              backgroundColor: const Color(0xFF2563EB),
-              foregroundColor: Colors.white,
+              backgroundColor: zLift(context, const Color(0xFF2563EB)),
+              foregroundColor:
+                  Theme.of(context).brightness == Brightness.dark
+                  ? const Color(0xFF06101F)
+                  : Colors.white,
               minimumSize: const Size.fromHeight(48),
               shape: RoundedRectangleBorder(
                 borderRadius: BorderRadius.circular(14),
@@ -550,9 +553,9 @@ class _DeviceStatTile extends StatelessWidget {
   Widget build(BuildContext context) => Container(
     padding: const EdgeInsets.all(10),
     decoration: BoxDecoration(
-      color: Colors.white,
+      color: zCard(context),
       borderRadius: BorderRadius.circular(14),
-      border: Border.all(color: const Color(0xFFE6ECF4)),
+      border: Border.all(color: zLine(context)),
     ),
     child: Column(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -569,17 +572,17 @@ class _DeviceStatTile extends StatelessWidget {
         const SizedBox(height: 8),
         Text(
           label,
-          style: const TextStyle(fontSize: 11, color: Color(0xFF8B9BBA)),
+          style: TextStyle(fontSize: 11, color: zMutedInk(context)),
         ),
         const SizedBox(height: 2),
         Text(
           value,
           maxLines: 2,
           overflow: TextOverflow.ellipsis,
-          style: const TextStyle(
+          style: TextStyle(
             fontSize: 12,
             fontWeight: FontWeight.w700,
-            color: Color(0xFF172033),
+            color: zInk(context),
           ),
         ),
       ],
@@ -599,17 +602,17 @@ class _DeviceInfoRow extends StatelessWidget {
     children: [
       Text(
         label,
-        style: const TextStyle(fontSize: 12, color: Color(0xFF8B9BBA)),
+        style: TextStyle(fontSize: 12, color: zMutedInk(context)),
       ),
       const SizedBox(width: 12),
       Expanded(
         child: Text(
           value,
           textAlign: TextAlign.right,
-          style: const TextStyle(
+          style: TextStyle(
             fontSize: 12,
             fontWeight: FontWeight.w600,
-            color: Color(0xFF172033),
+            color: zInk(context),
           ),
         ),
       ),
@@ -741,18 +744,18 @@ class _IssueState extends ConsumerState<CoordinatorIssueDevicePage> {
 
   @override
   Widget build(BuildContext context) {
-    final theme = overviewScreenTheme(zLightTheme());
+    final theme = overviewScreenTheme(Theme.of(context));
     final scope = ref.watch(coordinatorScopeProvider).asData?.value;
     final query = (desk: 'deviceCandidates', page: 1, q: _q, filter: '');
     return Theme(
       data: theme,
       child: Scaffold(
-        backgroundColor: Colors.white,
+        backgroundColor: Theme.of(context).scaffoldBackgroundColor,
         appBar: AppBar(
-          backgroundColor: Colors.white,
+          backgroundColor: Theme.of(context).scaffoldBackgroundColor,
           surfaceTintColor: Colors.transparent,
           scrolledUnderElevation: 0,
-          shape: const Border(bottom: BorderSide(color: Color(0xFFEDF0F6))),
+          shape: Border(bottom: BorderSide(color: zLine(context))),
           centerTitle: true,
           leadingWidth: 64,
           leading: ZBackButton(
@@ -859,9 +862,9 @@ class _IssueState extends ConsumerState<CoordinatorIssueDevicePage> {
                     children: [
                       Text(
                         'Showing ${data.total} ${data.total == 1 ? 'learner' : 'learners'}',
-                        style: const TextStyle(
+                        style: TextStyle(
                           fontSize: 12,
-                          color: Color(0xFF9999A6),
+                          color: zMutedInk(context),
                         ),
                       ),
                       const SizedBox(height: 8),
@@ -910,10 +913,10 @@ class _LearnerCandidateCard extends StatelessWidget {
     return Card(
       margin: const EdgeInsets.only(bottom: 4),
       elevation: 0,
-      color: Colors.white,
+      color: zCard(context),
       shape: RoundedRectangleBorder(
         borderRadius: BorderRadius.circular(16),
-        side: const BorderSide(color: Color(0xFFE6ECF4)),
+        side: BorderSide(color: zLine(context)),
       ),
       clipBehavior: Clip.antiAlias,
       child: InkWell(
@@ -928,8 +931,8 @@ class _LearnerCandidateCard extends StatelessWidget {
                 children: [
                   CircleAvatar(
                     radius: 19,
-                    backgroundColor: const Color(0xFFEFF6FF),
-                    foregroundColor: const Color(0xFF52627C),
+                    backgroundColor: zWash(context, const Color(0xFFEFF6FF)),
+                    foregroundColor: zMutedInk(context),
                     child: Text(
                       _initials(name),
                       style: const TextStyle(
@@ -945,10 +948,10 @@ class _LearnerCandidateCard extends StatelessWidget {
                       children: [
                         Text(
                           name,
-                          style: const TextStyle(
+                          style: TextStyle(
                             fontSize: 14,
                             fontWeight: FontWeight.w600,
-                            color: Color(0xFF172033),
+                            color: zInk(context),
                           ),
                         ),
                         Text(
@@ -975,9 +978,9 @@ class _LearnerCandidateCard extends StatelessWidget {
                   ),
                 ],
               ),
-              const Padding(
+              Padding(
                 padding: EdgeInsets.symmetric(vertical: 12),
-                child: Divider(height: 1, color: Color(0xFFF0F3F8)),
+                child: Divider(height: 1, color: zLine(context)),
               ),
               Row(
                 children: [
@@ -985,7 +988,7 @@ class _LearnerCandidateCard extends StatelessWidget {
                     LucideIcons.tablet,
                     size: 13,
                     color: available
-                        ? const Color(0xFF8B9BBA)
+                        ? zMutedInk(context)
                         : const Color(0xFFB6C1D4),
                   ),
                   const SizedBox(width: 5),
@@ -994,17 +997,17 @@ class _LearnerCandidateCard extends StatelessWidget {
                       available
                           ? 'Ready to issue a device'
                           : 'A device is already recorded',
-                      style: const TextStyle(
+                      style: TextStyle(
                         fontSize: 12,
-                        color: Color(0xFF8B9BBA),
+                        color: zMutedInk(context),
                       ),
                     ),
                   ),
                   if (available)
-                    const Icon(
+                    Icon(
                       Icons.chevron_right,
                       size: 18,
-                      color: Color(0xFF8B9BBA),
+                      color: zMutedInk(context),
                     ),
                 ],
               ),

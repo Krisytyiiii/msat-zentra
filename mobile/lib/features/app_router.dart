@@ -48,7 +48,6 @@ import 'workspace/attendance_record_page.dart';
 import 'workspace/attendance_data.dart';
 import '../core/session.dart'
     show authProvider, sessionRoleHint, mobilePortalForRole;
-import '../design/theme.dart' show zWorkspaceTheme;
 import 'coordinator/coordinator_shell.dart';
 import 'coordinator/coordinator_pages.dart';
 import 'coordinator/coordinator_case_page.dart';
@@ -71,8 +70,9 @@ String? coordinatorRedirect(String? role, String location, bool hasTerm) {
   return null;
 }
 
-Widget _coordinatorView(Widget child) =>
-    Theme(data: zWorkspaceTheme(), child: child);
+// Coordinator routes inherit the app Appearance setting; each desk scopes its
+// own presentation theme from it.
+Widget _coordinatorView(Widget child) => child;
 
 /// The five coordinator desks (plus Settings) share one persistent shell, so
 /// the header and floating pill navigation stay mounted exactly like the

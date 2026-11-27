@@ -10,7 +10,6 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../design/settings_theme.dart';
 import '../../design/staff_settings.dart';
-import '../../design/theme.dart' show zLightTheme;
 import '../../shared/widgets.dart';
 import 'coordinator_data.dart';
 
@@ -23,7 +22,7 @@ class CoordinatorSettingsPage extends ConsumerWidget {
     return Theme(
       // Build the white Settings desk from the light palette so its cards,
       // fields and buttons hover like the adviser Settings screen.
-      data: settingsScreenTheme(zLightTheme()),
+      data: settingsScreenTheme(Theme.of(context)),
       child: StaffSettingsScaffold(
         backFallback: '/coordinator/overview',
         children: [

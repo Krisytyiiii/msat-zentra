@@ -18,11 +18,11 @@ import '../../design/overview_theme.dart';
 import '../../design/screen_search.dart';
 import '../../design/shell.dart' show staffNavigationHiddenProvider;
 import '../../design/staff_profile.dart';
-import '../../design/theme.dart' show zLightTheme;
 import '../../shared/widgets.dart';
 import 'coordinator_data.dart';
 import 'coordinator_notifications.dart';
 import 'coordinator_widgets.dart';
+import '../../design/desk_theme.dart';
 
 /// Searchable desks. Settings is deliberately absent: it lives in the account
 /// panel opened from the header avatar.
@@ -121,10 +121,16 @@ class _CoordinatorShellState extends ConsumerState<CoordinatorShell>
     // The header is light on every desk, so build it from the same light
     // palette the adviser Overview uses. Deriving it from the dark login
     // workspace left icon buttons, hover fills and the search cursor dark.
-    final headerTheme = overviewScreenTheme(zLightTheme()).copyWith(
-      appBarTheme: const AppBarTheme(
-        backgroundColor: Colors.white,
-        foregroundColor: Color(0xFF242B42),
+    final headerBase = overviewScreenTheme(Theme.of(context));
+    final headerDark = headerBase.brightness == Brightness.dark;
+    final headerTheme = headerBase.copyWith(
+      appBarTheme: AppBarTheme(
+        backgroundColor: headerDark
+            ? headerBase.colorScheme.surface
+            : Colors.white,
+        foregroundColor: headerDark
+            ? headerBase.colorScheme.onSurface
+            : zInk(context),
         surfaceTintColor: Colors.transparent,
         elevation: 0,
         scrolledUnderElevation: 0,
@@ -150,6 +156,9 @@ class _CoordinatorShellState extends ConsumerState<CoordinatorShell>
     return Theme(
       // The Overview desk shares the adviser overview's light palette,
       // including the floating bottom navigation; other desks stay dark.
+      // Use a light base explicitly: the coordinator root is always wrapped in
+      // the dark workspace theme, so deriving from it painted the overview
+      // canvas black even when the app appearance was light.
       data: isOverview
           ? overviewScreenTheme(Theme.of(context))
           : Theme.of(context),
@@ -178,9 +187,12 @@ class _CoordinatorShellState extends ConsumerState<CoordinatorShell>
                       ),
                       title: _searchField(context, spec),
                       actions: [_CoordinatorProfileButton(name: name)],
-                      bottom: const PreferredSize(
-                        preferredSize: Size.fromHeight(1),
-                        child: Divider(height: 1, color: Color(0xFFEDF0F6)),
+                      bottom: PreferredSize(
+                        preferredSize: const Size.fromHeight(1),
+                        child: Divider(
+                          height: 1,
+                          color: headerBase.colorScheme.outline,
+                        ),
                       ),
                     ),
                   ),
@@ -210,12 +222,13 @@ class _CoordinatorShellState extends ConsumerState<CoordinatorShell>
   }
 
   Widget _searchField(BuildContext context, ScreenSearchSpec spec) {
-    // Match the light header: the search text and its clear control must use
-    // the adviser's light ink, not the ambient dark workspace text.
-    final theme = overviewScreenTheme(zLightTheme());
+    final theme = overviewScreenTheme(Theme.of(context));
+    final dark = theme.brightness == Brightness.dark;
     final border = OutlineInputBorder(
       borderRadius: BorderRadius.circular(999),
-      borderSide: const BorderSide(color: Color(0xFFDDE2EE)),
+      borderSide: BorderSide(
+        color: dark ? theme.colorScheme.outline : const Color(0xFFDDE2EE),
+      ),
     );
     return Padding(
       padding: const EdgeInsets.only(right: 12),
@@ -233,11 +246,20 @@ class _CoordinatorShellState extends ConsumerState<CoordinatorShell>
           decoration: InputDecoration(
             prefixIcon: const Icon(Icons.search, size: 20),
             hintText: spec.hint,
-            hintStyle: const TextStyle(color: Color(0xFF626B82), fontSize: 14),
-            prefixIconColor: const Color(0xFF242B42),
+            hintStyle: TextStyle(
+              color: dark
+                  ? theme.colorScheme.onSurfaceVariant
+                  : zMutedInk(context),
+              fontSize: 14,
+            ),
+            prefixIconColor: dark
+                ? theme.colorScheme.onSurfaceVariant
+                : zInk(context),
             isDense: true,
             filled: true,
-            fillColor: const Color(0xFFF3F5FA),
+            fillColor: dark
+                ? theme.colorScheme.surfaceContainerLow
+                : zSoft(context),
             constraints: const BoxConstraints(minHeight: 40),
             contentPadding: const EdgeInsets.symmetric(
               vertical: 8,
@@ -281,7 +303,7 @@ class _CoordinatorPageResults extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final theme = overviewScreenTheme(zLightTheme());
+    final theme = overviewScreenTheme(Theme.of(context));
     return Theme(
       data: theme,
       child: ColoredBox(
@@ -343,27 +365,37 @@ class _CoordinatorDrawer extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final base = zLightTheme();
+    final base = Theme.of(context);
+    final dark = base.brightness == Brightness.dark;
+    final surface = dark ? const Color(0xFF0B1411) : const Color(0xFFFAFAF9);
+    final ink = dark ? const Color(0xFFF3F7F5) : zInk(context);
+    final muted = dark ? const Color(0xFF99AAA3) : zMutedInk(context);
+    final border = dark ? const Color(0xFF2A3530) : zLine(context);
+    final soft = dark ? const Color(0xFF101D18) : zSoft(context);
+    final blue = dark ? const Color(0xFF7EB2FF) : zLift(context, const Color(0xFF2563EB));
     final drawerTheme = base.copyWith(
-      brightness: Brightness.light,
-      colorScheme: const ColorScheme.light(
-        primary: Color(0xFFB45309),
-        surface: Color(0xFFFAFAF9),
-        onSurface: Color(0xFF181B19),
-        onSurfaceVariant: Color(0xFF707572),
-        outline: Color(0xFFDDE0DD),
-        outlineVariant: Color(0xFFDDE0DD),
-        surfaceContainerLow: Color(0xFFF0F1EF),
+      brightness: dark ? Brightness.dark : Brightness.light,
+      colorScheme: ColorScheme(
+        brightness: dark ? Brightness.dark : Brightness.light,
+        primary: dark ? blue : zLift(context, const Color(0xFFB45309)),
+        onPrimary: dark ? const Color(0xFF06101F) : Colors.white,
+        secondary: blue,
+        onSecondary: dark ? const Color(0xFF06101F) : Colors.white,
+        error: const Color(0xFFFF6467),
+        onError: const Color(0xFF2A0507),
+        surface: surface,
+        onSurface: ink,
+        onSurfaceVariant: muted,
+        outline: border,
+        outlineVariant: border,
+        surfaceContainerLow: soft,
       ),
-      textTheme: base.textTheme.apply(
-        bodyColor: const Color(0xFF181B19),
-        displayColor: const Color(0xFF181B19),
-      ),
+      textTheme: base.textTheme.apply(bodyColor: ink, displayColor: ink),
     );
     return Theme(
       data: drawerTheme,
       child: Drawer(
-        backgroundColor: const Color(0xFFFAFAF9),
+        backgroundColor: surface,
         surfaceTintColor: Colors.transparent,
         shape: const RoundedRectangleBorder(
           borderRadius: BorderRadius.horizontal(right: Radius.circular(20)),
@@ -400,31 +432,30 @@ class _CoordinatorDrawer extends StatelessWidget {
                         horizontal: 8,
                         vertical: 4,
                       ),
-                      leading: const CircleAvatar(
+                      leading: CircleAvatar(
                         radius: 21,
-                        backgroundColor: Color(0xFFDBEAFE),
+                        backgroundColor: dark
+                            ? blue.withValues(alpha: 0.18)
+                            : zWash(context, const Color(0xFFDBEAFE)),
                         child: Icon(
                           LucideIcons.userRound,
                           size: 20,
-                          color: Color(0xFF2563EB),
+                          color: blue,
                         ),
                       ),
                       title: Text(
                         name,
                         maxLines: 1,
                         overflow: TextOverflow.ellipsis,
-                        style: const TextStyle(
-                          color: Color(0xFF181B19),
+                        style: TextStyle(
+                          color: ink,
                           fontSize: 14,
                           fontWeight: FontWeight.w600,
                         ),
                       ),
-                      subtitle: const Text(
+                      subtitle: Text(
                         'ADM Coordinator',
-                        style: TextStyle(
-                          color: Color(0xFF707572),
-                          fontSize: 12,
-                        ),
+                        style: TextStyle(color: muted, fontSize: 12),
                       ),
                     ),
                     const SizedBox(height: 4),
@@ -432,25 +463,25 @@ class _CoordinatorDrawer extends StatelessWidget {
                       margin: const EdgeInsets.symmetric(horizontal: 8),
                       padding: const EdgeInsets.all(12),
                       decoration: BoxDecoration(
-                        color: const Color(0xFFF0F1EF),
+                        color: soft,
                         borderRadius: BorderRadius.circular(12),
                       ),
-                      child: const Row(
+                      child: Row(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
                           Icon(
                             Icons.lock_clock_outlined,
                             size: 18,
-                            color: Color(0xFF707572),
+                            color: muted,
                           ),
-                          SizedBox(width: 8),
+                          const SizedBox(width: 8),
                           Expanded(
                             child: Text(
                               'School-managed scope. The active term is resolved by the server; case and device records may span terms.',
                               style: TextStyle(
                                 fontSize: 12,
                                 height: 1.4,
-                                color: Color(0xFF707572),
+                                color: muted,
                               ),
                             ),
                           ),
@@ -464,27 +495,33 @@ class _CoordinatorDrawer extends StatelessWidget {
                 padding: const EdgeInsets.fromLTRB(16, 8, 16, 16),
                 child: Column(
                   children: [
-                    const Divider(color: Color(0xFFDDE0DD)),
+                    Divider(color: border),
                     Container(
                       width: double.infinity,
                       padding: const EdgeInsets.symmetric(vertical: 14),
                       decoration: BoxDecoration(
-                        color: const Color(0xFFD9E6FC),
+                        color: dark
+                            ? blue.withValues(alpha: 0.16)
+                            : zWash(context, const Color(0xFFD9E6FC)),
                         borderRadius: BorderRadius.circular(12),
                       ),
-                      child: const Row(
+                      child: Row(
                         mainAxisAlignment: MainAxisAlignment.center,
                         children: [
                           Icon(
                             LucideIcons.briefcaseBusiness,
                             size: 18,
-                            color: Color(0xFF1855B5),
+                            color: dark
+                                ? const Color(0xFFA9C9FF)
+                                : zLift(context, const Color(0xFF1855B5)),
                           ),
-                          SizedBox(width: 8),
+                          const SizedBox(width: 8),
                           Text(
                             'ADM workspace',
                             style: TextStyle(
-                              color: Color(0xFF1855B5),
+                              color: dark
+                                  ? const Color(0xFFA9C9FF)
+                                  : zLift(context, const Color(0xFF1855B5)),
                               fontSize: 13,
                               fontWeight: FontWeight.w600,
                             ),
@@ -528,15 +565,17 @@ class _CoordinatorProfileButton extends ConsumerWidget {
           borderRadius: BorderRadius.circular(999),
           onTap: () => showCoordinatorProfile(context),
           child: Badge(
-            backgroundColor: const Color(0xFF2442A8),
-            textColor: Colors.white,
+            backgroundColor: zLift(context, const Color(0xFF2442A8)),
+            textColor: Theme.of(context).brightness == Brightness.dark
+                ? const Color(0xFF06101F)
+                : Colors.white,
             isLabelVisible: unread > 0,
             label: Text(unread > 99 ? '99+' : '$unread'),
             child: Container(
               padding: const EdgeInsets.all(5),
               decoration: BoxDecoration(
                 shape: BoxShape.circle,
-                border: Border.all(color: const Color(0xFFE5E8F0)),
+                border: Border.all(color: zLine(context)),
               ),
               child: TeacherAvatar(photoUrl: photoUrl, radius: 16),
             ),

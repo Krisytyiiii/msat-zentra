@@ -7,7 +7,6 @@ import 'package:pdfrx/pdfrx.dart';
 import 'package:share_plus/share_plus.dart';
 
 import '../../design/overview_theme.dart';
-import '../../design/theme.dart' show zLightTheme;
 import '../../shared/models.dart';
 import '../../shared/pdf_download.dart';
 import '../../shared/widgets.dart';
@@ -192,16 +191,16 @@ class _CaseState extends ConsumerState<CoordinatorCasePage>
   Widget build(BuildContext context) {
     final data = ref.watch(coordinatorCaseProvider(widget.caseId));
     return Theme(
-      data: overviewScreenTheme(zLightTheme()),
+      data: overviewScreenTheme(Theme.of(context)),
       child: PopScope(
         canPop: !_busy,
         child: Scaffold(
-          backgroundColor: Colors.white,
+          backgroundColor: Theme.of(context).scaffoldBackgroundColor,
           appBar: AppBar(
-            backgroundColor: Colors.white,
+            backgroundColor: Theme.of(context).scaffoldBackgroundColor,
             surfaceTintColor: Colors.transparent,
             scrolledUnderElevation: 0,
-            shape: const Border(bottom: BorderSide(color: Color(0xFFEDF0F6))),
+            shape: Border(bottom: BorderSide(color: zLine(context))),
             centerTitle: true,
             leadingWidth: 64,
             title: Text(data.asData?.value.student ?? 'ADM case'),
@@ -545,7 +544,7 @@ class _CaseState extends ConsumerState<CoordinatorCasePage>
                       height: 1.45,
                       color: verified
                           ? zLift(context, Color(0xFF1F8A48))
-                          : zLift(context, Color(0xFFB45309)),
+                          : zLift(context, const Color(0xFFB45309)),
                     ),
                   ),
                 ),
@@ -770,7 +769,7 @@ class _CaseState extends ConsumerState<CoordinatorCasePage>
   void _showFormSheet(AdmJson form) {
     showModalBottomSheet<void>(
       context: context,
-      backgroundColor: Colors.white,
+      backgroundColor: Theme.of(context).scaffoldBackgroundColor,
       showDragHandle: true,
       isScrollControlled: true,
       builder: (sheetContext) {
@@ -1169,7 +1168,7 @@ class _MeetingCard extends StatelessWidget {
                     child: Icon(
                       LucideIcons.paperclip,
                       size: 13,
-                      color: zLift(context, Color(0xFF2563EB)),
+                      color: zLift(context, const Color(0xFF2563EB)),
                     ),
                   ),
                   const SizedBox(width: 8),
@@ -1183,7 +1182,7 @@ class _MeetingCard extends StatelessWidget {
                         overflow: TextOverflow.ellipsis,
                         style: TextStyle(
                           fontSize: 12,
-                          color: zLift(context, Color(0xFF2563EB)),
+                          color: zLift(context, const Color(0xFF2563EB)),
                         ),
                       ),
                     ),
@@ -1274,7 +1273,7 @@ class _HistoryRow extends StatelessWidget {
           child: Icon(
             LucideIcons.clock,
             size: 14,
-            color: zLift(context, Color(0xFF2563EB)),
+            color: zLift(context, const Color(0xFF2563EB)),
           ),
         ),
         const SizedBox(width: 10),
@@ -1330,7 +1329,7 @@ class _AnecdotalDocumentState
   final _zoom = ValueNotifier<double>(1);
   bool _viewerReady = false;
   late final PdfViewerParams _params = PdfViewerParams(
-    backgroundColor: Colors.white,
+    backgroundColor: Theme.of(context).scaffoldBackgroundColor,
     margin: 12,
     pageDropShadow: const BoxShadow(
       color: Color(0x47000000),
@@ -1422,14 +1421,14 @@ class _AnecdotalDocumentState
         : ref.watch(anecdotal);
     final bytes = document.asData?.value;
     return Theme(
-      data: overviewScreenTheme(zLightTheme()),
+      data: overviewScreenTheme(Theme.of(context)),
       child: Scaffold(
-        backgroundColor: Colors.white,
+        backgroundColor: Theme.of(context).scaffoldBackgroundColor,
         appBar: AppBar(
-          backgroundColor: Colors.white,
+          backgroundColor: Theme.of(context).scaffoldBackgroundColor,
           surfaceTintColor: Colors.transparent,
           scrolledUnderElevation: 0,
-          shape: const Border(bottom: BorderSide(color: Color(0xFFEDF0F6))),
+          shape: Border(bottom: BorderSide(color: zLine(context))),
           centerTitle: true,
           leadingWidth: 64,
           leading: ZBackButton(

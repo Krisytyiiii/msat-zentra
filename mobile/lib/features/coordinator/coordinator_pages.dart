@@ -9,7 +9,6 @@ import 'package:lucide_icons_flutter/lucide_icons.dart';
 import '../../design/overview_theme.dart';
 import '../../design/screen_search.dart';
 import '../../design/status_palette.dart';
-import '../../design/theme.dart' show zLightTheme;
 import '../../shared/floating_add.dart';
 import '../../shared/widgets.dart';
 import '../adviser/adm_case_card.dart';
@@ -18,6 +17,7 @@ import 'coordinator_data.dart';
 import 'coordinator_devices.dart';
 import 'coordinator_models.dart';
 import 'coordinator_widgets.dart';
+import '../../design/desk_theme.dart';
 
 class CoordinatorOverviewPage extends ConsumerStatefulWidget {
   const CoordinatorOverviewPage({super.key});
@@ -58,7 +58,7 @@ class _OverviewState extends ConsumerState<CoordinatorOverviewPage>
 
   @override
   Widget build(BuildContext context) {
-    final theme = overviewScreenTheme(zLightTheme());
+    final theme = overviewScreenTheme(Theme.of(context));
     final profile = ref.watch(coordinatorProfileProvider);
     final scope = ref.watch(coordinatorScopeProvider);
     final dashboard = ref.watch(coordinatorDashboardProvider);
@@ -73,7 +73,7 @@ class _OverviewState extends ConsumerState<CoordinatorOverviewPage>
     return Theme(
       data: theme,
       child: initialLoading
-          ? const ScreenSkeleton(
+          ? ScreenSkeleton(
               layout: SkeletonLayout.overview,
               label: 'Loading overview',
             )
@@ -81,7 +81,7 @@ class _OverviewState extends ConsumerState<CoordinatorOverviewPage>
               builder: (context) => RefreshIndicator(
                 onRefresh: refresh,
                 child: SingleChildScrollView(
-                  physics: const AlwaysScrollableScrollPhysics(),
+                  physics: AlwaysScrollableScrollPhysics(),
                   padding: EdgeInsets.fromLTRB(
                     16,
                     16,
@@ -90,18 +90,18 @@ class _OverviewState extends ConsumerState<CoordinatorOverviewPage>
                   ),
                   child: Center(
                     child: ConstrainedBox(
-                      constraints: const BoxConstraints(maxWidth: 760),
+                      constraints: BoxConstraints(maxWidth: 760),
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.stretch,
                         children: [
                           _welcome(context, profile, scope),
-                          const SizedBox(height: 16),
+                          SizedBox(height: 16),
                           OverviewBoard(
                             icon: LucideIcons.bell,
                             title: 'Needs attention',
                             count: _attentionCount(dashboard.asData?.value),
                             child: dashboard.when(
-                              loading: () => const ZSkeletonRow(),
+                              loading: () => ZSkeletonRow(),
                               error: (error, _) => OverviewInlineError(
                                 error: error,
                                 retry: () => ref.invalidate(
@@ -111,14 +111,14 @@ class _OverviewState extends ConsumerState<CoordinatorOverviewPage>
                               data: _attention,
                             ),
                           ),
-                          const SizedBox(height: 16),
+                          SizedBox(height: 16),
                           OverviewBoard(
                             icon: LucideIcons.clock,
                             title: 'Up next',
                             action: 'View cases',
                             onAction: () => _open('/coordinator/referrals'),
                             child: meetings.when(
-                              loading: () => const ZSkeletonRow(),
+                              loading: () => ZSkeletonRow(),
                               error: (error, _) => OverviewInlineError(
                                 error: error,
                                 retry: () => ref.invalidate(
@@ -128,12 +128,12 @@ class _OverviewState extends ConsumerState<CoordinatorOverviewPage>
                               data: (page) => _upNext(context, page),
                             ),
                           ),
-                          const SizedBox(height: 16),
+                          SizedBox(height: 16),
                           OverviewBoard(
                             icon: LucideIcons.activity,
                             title: 'At a glance',
                             child: dashboard.when(
-                              loading: () => const ScreenSkeleton(
+                              loading: () => ScreenSkeleton(
                                 layout: SkeletonLayout.summary,
                                 section: true,
                               ),
@@ -146,12 +146,12 @@ class _OverviewState extends ConsumerState<CoordinatorOverviewPage>
                               data: _stats,
                             ),
                           ),
-                          const SizedBox(height: 16),
+                          SizedBox(height: 16),
                           OverviewBoard(
                             icon: LucideIcons.chartPie,
                             title: 'Case mix',
                             child: dashboard.when(
-                              loading: () => const ScreenSkeleton(
+                              loading: () => ScreenSkeleton(
                                 layout: SkeletonLayout.chart,
                                 section: true,
                               ),
@@ -166,12 +166,12 @@ class _OverviewState extends ConsumerState<CoordinatorOverviewPage>
                               ),
                             ),
                           ),
-                          const SizedBox(height: 16),
+                          SizedBox(height: 16),
                           OverviewBoard(
                             icon: LucideIcons.chartColumn,
                             title: 'Cases by section',
                             child: dashboard.when(
-                              loading: () => const ScreenSkeleton(
+                              loading: () => ScreenSkeleton(
                                 layout: SkeletonLayout.chart,
                                 section: true,
                               ),
@@ -219,13 +219,13 @@ class _OverviewState extends ConsumerState<CoordinatorOverviewPage>
               ),
             );
           },
-          loading: () => const SkeletonBox(height: 48),
+          loading: () => SkeletonBox(height: 48),
           error: (error, _) => OverviewInlineError(
             error: error,
             retry: () => ref.invalidate(coordinatorProfileProvider),
           ),
         ),
-        const SizedBox(height: 6),
+        SizedBox(height: 6),
         Wrap(
           spacing: 6,
           runSpacing: 6,
@@ -260,7 +260,7 @@ class _OverviewState extends ConsumerState<CoordinatorOverviewPage>
     final pending = admInt(kpis['pendingSignature']);
     final revisions = admInt(data['needsRevision']);
     if (pending == 0 && revisions == 0) {
-      return const OverviewAllClear(
+      return OverviewAllClear(
         text: 'No signatures or revisions waiting from these checks.',
       );
     }
@@ -275,7 +275,7 @@ class _OverviewState extends ConsumerState<CoordinatorOverviewPage>
             subtitle: 'Review and endorse signed certifications.',
             onTap: () => _open('/coordinator/files'),
           ),
-        if (pending > 0 && revisions > 0) const SizedBox(height: 8),
+        if (pending > 0 && revisions > 0) SizedBox(height: 8),
         if (revisions > 0)
           OverviewAttentionRow(
             icon: LucideIcons.pencilLine,
@@ -304,7 +304,7 @@ class _OverviewState extends ConsumerState<CoordinatorOverviewPage>
             (a, b) => a.meeting!.datetime!.compareTo(b.meeting!.datetime!),
           );
     if (upcoming.isEmpty) {
-      return const ZEmpty(
+      return ZEmpty(
         icon: LucideIcons.calendarDays,
         title: 'No upcoming meetings',
         subtitle: 'No upcoming meetings in the first 15 cases. Check ADM Cases for other meetings.',
@@ -312,7 +312,7 @@ class _OverviewState extends ConsumerState<CoordinatorOverviewPage>
     }
     final next = upcoming.first;
     final theme = Theme.of(context);
-    const accent = Color(0xffb45309);
+    final accent = zLift(context, const Color(0xFFB45309));
     final start = admSchoolTime(next.meeting!.datetime!);
     final now = admPhilippineNow();
     final today =
@@ -362,7 +362,7 @@ class _OverviewState extends ConsumerState<CoordinatorOverviewPage>
               Text(
                 next.student,
                 style: theme.textTheme.titleSmall?.copyWith(
-                  color: const Color(0xff080d23),
+                  color: zInk(context),
                   fontSize: 17,
                   fontWeight: FontWeight.w700,
                 ),
@@ -444,12 +444,12 @@ class _MeetingMeta extends StatelessWidget {
   Widget build(BuildContext context) => Row(
     mainAxisSize: MainAxisSize.min,
     children: [
-      Icon(icon, size: 16, color: const Color(0xff52647b)),
+      Icon(icon, size: 16, color: zMutedInk(context)),
       const SizedBox(width: 5),
       Flexible(
         child: Text(
           text,
-          style: const TextStyle(fontSize: 12, color: Color(0xff52647b)),
+          style: TextStyle(fontSize: 12, color: zMutedInk(context)),
         ),
       ),
     ],
@@ -773,14 +773,14 @@ class _ListState extends ConsumerState<CoordinatorListPage>
   Widget _progressFooter(AdmCaseRow row) {
     final completed = row.stage == 'completion';
     final pillColor = completed
-        ? const Color(0xFF15803D)
-        : const Color(0xFF2563EB);
+        ? zLift(context, const Color(0xFF15803D))
+        : zLift(context, const Color(0xFF2563EB));
     final pillBackground = completed
-        ? const Color(0xFFF0FDF4)
-        : const Color(0xFFEFF6FF);
+        ? zWash(context, const Color(0xFFF0FDF4))
+        : zWash(context, const Color(0xFFEFF6FF));
     final pillBorder = completed
-        ? const Color(0xFFBBF7D0)
-        : const Color(0xFFBFDBFE);
+        ? zWash(context, const Color(0xFFBBF7D0))
+        : zWash(context, const Color(0xFFBFDBFE));
     return Row(
       children: [
         Container(
@@ -803,18 +803,18 @@ class _ListState extends ConsumerState<CoordinatorListPage>
         Text.rich(
           TextSpan(
             text: '${row.modulesSubmitted}/${row.modulesTotal}',
-            style: const TextStyle(
+            style: TextStyle(
               fontSize: 13,
               fontWeight: FontWeight.w700,
-              color: Color(0xFF172033),
+              color: zInk(context),
             ),
-            children: const [
+            children: [
               TextSpan(
                 text: ' modules',
                 style: TextStyle(
                   fontSize: 12,
                   fontWeight: FontWeight.w400,
-                  color: Color(0xFF52627C),
+                  color: zMutedInk(context),
                 ),
               ),
             ],
@@ -856,14 +856,13 @@ class _ListState extends ConsumerState<CoordinatorListPage>
     final isDevices = widget.desk == 'devices';
     final search = ScreenSearchScope.maybeOf(context);
     final scope = ref.watch(coordinatorScopeProvider).asData?.value;
-    final theme = overviewScreenTheme(zLightTheme())
-        .copyWith(scaffoldBackgroundColor: Colors.white);
+    final theme = overviewScreenTheme(Theme.of(context));
     return Theme(
       data: theme,
       child: Stack(
         children: [
           ColoredBox(
-            color: Colors.white,
+            color: Theme.of(context).scaffoldBackgroundColor,
             child: Align(
               alignment: Alignment.topCenter,
               child: ConstrainedBox(
@@ -924,13 +923,13 @@ class _ListState extends ConsumerState<CoordinatorListPage>
                         ),
                         const SizedBox(height: 12),
                       ],
-                      const Text(
+                      Text(
                         'FILTER ADM RECORDS',
                         style: TextStyle(
                           fontSize: 12,
                           fontWeight: FontWeight.w700,
                           letterSpacing: 0.4,
-                          color: Color(0xFF929FB5),
+                          color: zMutedInk(context),
                         ),
                       ),
                       Row(
@@ -1068,7 +1067,7 @@ class _ListState extends ConsumerState<CoordinatorListPage>
         Expanded(
           child: Text(
             'Showing $total record${total == 1 ? '' : 's'}',
-            style: const TextStyle(fontSize: 12, color: Color(0xFF9999A6)),
+            style: TextStyle(fontSize: 12, color: zMutedInk(context)),
           ),
         ),
         TextButton.icon(
@@ -1079,7 +1078,7 @@ class _ListState extends ConsumerState<CoordinatorListPage>
             style: const TextStyle(fontSize: 12),
           ),
           style: TextButton.styleFrom(
-            foregroundColor: const Color(0xFF334155),
+            foregroundColor: zInk(context),
             padding: const EdgeInsets.symmetric(horizontal: 8),
             minimumSize: Size.zero,
             tapTargetSize: MaterialTapTargetSize.shrinkWrap,

@@ -4,7 +4,6 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:lucide_icons_flutter/lucide_icons.dart';
 
 import '../../design/overview_theme.dart';
-import '../../design/theme.dart' show zLightTheme;
 import '../../shared/widgets.dart';
 import '../adviser/student_profile_components.dart';
 
@@ -70,16 +69,16 @@ class _MonitoringState extends ConsumerState<CoordinatorMonitoringPage>
   @override
   Widget build(BuildContext context) {
     final data = ref.watch(coordinatorMonitoringProvider(widget.caseId));
-    final theme = overviewScreenTheme(zLightTheme());
+    final theme = overviewScreenTheme(Theme.of(context));
     return Theme(
       data: theme,
       child: Scaffold(
-        backgroundColor: Colors.white,
+        backgroundColor: Theme.of(context).scaffoldBackgroundColor,
         appBar: AppBar(
-          backgroundColor: Colors.white,
+          backgroundColor: Theme.of(context).scaffoldBackgroundColor,
           surfaceTintColor: Colors.transparent,
           scrolledUnderElevation: 0,
-          shape: const Border(bottom: BorderSide(color: Color(0xFFEDF0F6))),
+          shape: Border(bottom: BorderSide(color: zLine(context))),
           centerTitle: true,
           leadingWidth: 64,
           leading: ZBackButton(
@@ -197,7 +196,7 @@ class _MonitoringState extends ConsumerState<CoordinatorMonitoringPage>
                   color: zLift(context, const Color(0xFF2563EB)),
                   backgroundColor: zLift(
                     context,
-                    const Color(0xFF2563EB),
+                    zLift(context, const Color(0xFF2563EB)),
                   ).withValues(alpha: 0.14),
                 ),
               ),
@@ -228,7 +227,10 @@ class _MonitoringState extends ConsumerState<CoordinatorMonitoringPage>
                 FilledButton(
                   style: FilledButton.styleFrom(
                     backgroundColor: zLift(context, const Color(0xFF2563EB)),
-                    foregroundColor: Colors.white,
+                    foregroundColor:
+                        Theme.of(context).brightness == Brightness.dark
+                        ? const Color(0xFF06101F)
+                        : Colors.white,
                     minimumSize: const Size.fromHeight(48),
                   ),
                   onPressed: _busy ? null : () => _complete(m),
