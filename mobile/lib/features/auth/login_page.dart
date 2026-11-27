@@ -1,4 +1,5 @@
-// Web-matched auth palette and form, with mobile-sized touch targets.
+// Workspace-matched sign-in: same desk palette, hairline borders and controls
+// the signed-in shells use (Light/Dark/System), with a compact editorial layout.
 
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
@@ -8,7 +9,6 @@ import 'package:go_router/go_router.dart';
 
 import '../../core/session.dart';
 import '../../design/brand.dart';
-import 'login_background.dart';
 import 'auth_flow_ui.dart';
 
 class LoginPage extends ConsumerStatefulWidget {
@@ -24,7 +24,6 @@ class _LoginPageState extends ConsumerState<LoginPage> {
   final _passwordFocus = FocusNode();
   bool _busy = false;
   bool _showPassword = false;
-  bool _amber = false;
   String? _error;
 
   bool get _working => _busy;
@@ -77,525 +76,312 @@ class _LoginPageState extends ConsumerState<LoginPage> {
 
   @override
   Widget build(BuildContext context) {
-    final accent = _amber ? const Color(0xffffd88a) : const Color(0xff7ef5d0);
-    final panel = _amber ? const Color(0xff0d0805) : const Color(0xff070d0b);
-    const ink = Color(0xfff3f7f5);
-    const muted = Color(0xff99aaa3);
-    const border = Color(0xff2a3530);
-    final base = Theme.of(context);
-    final theme = base.copyWith(
-      brightness: Brightness.dark,
-      colorScheme: ColorScheme.dark(
-        primary: accent,
-        onPrimary: const Color(0xff08110e),
-        surface: panel,
-        onSurface: ink,
-        onSurfaceVariant: muted,
-        outline: border,
-        error: const Color(0xffff9f9f),
-      ),
-      textTheme: base.textTheme.apply(bodyColor: ink, displayColor: ink),
-      inputDecorationTheme: InputDecorationTheme(
-        filled: true,
-        fillColor: Colors.white.withValues(alpha: 0.025),
-        hintStyle: const TextStyle(color: Color(0xff718079), fontSize: 14),
-        contentPadding: const EdgeInsets.symmetric(
-          horizontal: 14,
-          vertical: 15,
-        ),
-        border: OutlineInputBorder(borderRadius: BorderRadius.circular(6)),
-        enabledBorder: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(6),
-          borderSide: const BorderSide(color: border),
-        ),
-        focusedBorder: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(6),
-          borderSide: BorderSide(color: accent),
-        ),
-        errorMaxLines: 2,
-      ),
-      filledButtonTheme: FilledButtonThemeData(
-        style: FilledButton.styleFrom(
-          backgroundColor: ink,
-          foregroundColor: const Color(0xff08110e),
-          minimumSize: const Size.fromHeight(48),
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(6)),
-        ),
-      ),
-      outlinedButtonTheme: OutlinedButtonThemeData(
-        style: OutlinedButton.styleFrom(
-          foregroundColor: ink,
-          side: const BorderSide(color: border),
-          minimumSize: const Size.fromHeight(48),
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(6)),
-        ),
+    return AuthFlowScaffold(
+      centerContent: true,
+      child: LayoutBuilder(
+        builder: (context, constraints) {
+          final wide = constraints.maxWidth >= 760;
+          if (!wide) {
+            return Center(
+              child: ConstrainedBox(
+                constraints: const BoxConstraints(maxWidth: 380),
+                child: _formCard(context, showLogo: true, showSchool: true),
+              ),
+            );
+          }
+          return Row(
+            crossAxisAlignment: CrossAxisAlignment.center,
+            children: [
+              Expanded(flex: 5, child: _brandPanel(context)),
+              const SizedBox(width: 44),
+              Container(
+                width: 1,
+                height: 236,
+                color: Theme.of(context).colorScheme.outline,
+              ),
+              const SizedBox(width: 44),
+              Expanded(
+                flex: 4,
+                child: ConstrainedBox(
+                  constraints: const BoxConstraints(maxWidth: 360),
+                  child: _formCard(
+                    context,
+                    showLogo: false,
+                    showSchool: false,
+                  ),
+                ),
+              ),
+            ],
+          );
+        },
       ),
     );
-    const title = 'Welcome back';
-    const description =
-        'Sign in to open your account’s workspace automatically.';
-    return Theme(
-      data: theme,
-      child: Scaffold(
-        backgroundColor: panel,
-        body: Stack(
+  }
+
+  Widget _formCard(
+    BuildContext context, {
+    required bool showLogo,
+    required bool showSchool,
+  }) {
+    final theme = Theme.of(context);
+    final colors = theme.colorScheme;
+    final buttonForeground =
+        theme.filledButtonTheme.style?.foregroundColor?.resolve(
+          const <WidgetState>{},
+        ) ??
+        colors.onPrimary;
+    return AutofillGroup(
+      child: Form(
+        key: _form,
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          mainAxisSize: MainAxisSize.min,
           children: [
-            Positioned.fill(child: LoginBackground(amber: _amber)),
-            SafeArea(
-              child: LayoutBuilder(
-                builder: (context, constraints) {
-                  final wide = constraints.maxWidth >= 840;
-                  return SingleChildScrollView(
-                    padding: const EdgeInsets.fromLTRB(20, 16, 20, 24),
-                    keyboardDismissBehavior:
-                        ScrollViewKeyboardDismissBehavior.onDrag,
-                    child: ConstrainedBox(
-                      constraints: BoxConstraints(
-                        minHeight: (constraints.maxHeight - 40).clamp(
-                          0.0,
-                          double.infinity,
-                        ),
-                      ),
-                      child: Column(
-                        children: [
-                          ConstrainedBox(
-                            constraints: const BoxConstraints(maxWidth: 1040),
-                            child: Container(
-                              padding: const EdgeInsets.symmetric(
-                                horizontal: 12,
-                                vertical: 4,
-                              ),
-                              decoration: BoxDecoration(
-                                color: panel.withValues(alpha: 0.9),
-                                border: Border.all(color: border),
-                                borderRadius: BorderRadius.circular(10),
-                              ),
-                              child: Row(
-                                children: [
-                                  const ZLogo(size: 28),
-                                  const SizedBox(width: 9),
-                                  const Expanded(
-                                    child: Text(
-                                      'Zentra',
-                                      style: TextStyle(
-                                        fontSize: 17,
-                                        fontWeight: FontWeight.w600,
-                                      ),
-                                    ),
-                                  ),
-                                  _paletteButton(
-                                    false,
-                                    const Color(0xff7ef5d0),
-                                  ),
-                                  _paletteButton(true, const Color(0xffffd88a)),
-                                ],
-                              ),
-                            ),
-                          ),
-                          SizedBox(height: wide ? 64 : 40),
-                          ConstrainedBox(
-                            constraints: const BoxConstraints(maxWidth: 960),
-                            child: Row(
-                              mainAxisAlignment: MainAxisAlignment.center,
-                              crossAxisAlignment: CrossAxisAlignment.center,
-                              children: [
-                                Flexible(
-                                  child: ConstrainedBox(
-                                    constraints: const BoxConstraints(
-                                      maxWidth: 420,
-                                    ),
-                                    child: Container(
-                                      padding: EdgeInsets.all(
-                                        constraints.maxWidth < 360 ? 20 : 28,
-                                      ),
-                                      decoration: BoxDecoration(
-                                        color: panel.withValues(alpha: 0.96),
-                                        border: Border.all(color: border),
-                                        borderRadius: BorderRadius.circular(12),
-                                        boxShadow: [
-                                          BoxShadow(
-                                            color: Colors.black.withValues(
-                                              alpha: 0.25,
-                                            ),
-                                            blurRadius: 40,
-                                            offset: const Offset(0, 16),
-                                          ),
-                                        ],
-                                      ),
-                                      child: AutofillGroup(
-                                        child: Form(
-                                          key: _form,
-                                          child: Column(
-                                            crossAxisAlignment:
-                                                CrossAxisAlignment.stretch,
-                                            children: [
-                                              Text(
-                                                'WELCOME TO ZENTRA',
-                                                style: TextStyle(
-                                                  color: accent,
-                                                  fontSize: 10,
-                                                  letterSpacing: 1.8,
-                                                  fontWeight: FontWeight.w600,
-                                                ),
-                                              ),
-                                              const SizedBox(height: 12),
-                                              Text(
-                                                title,
-                                                style: const TextStyle(
-                                                  fontSize: 26,
-                                                  fontWeight: FontWeight.w500,
-                                                  letterSpacing: -0.6,
-                                                ),
-                                              ),
-                                              const SizedBox(height: 8),
-                                              Text(
-                                                description,
-                                                style: const TextStyle(
-                                                  color: muted,
-                                                  fontSize: 13,
-                                                  height: 1.6,
-                                                ),
-                                              ),
-                                              const SizedBox(height: 24),
-                                              const Text(
-                                                'School email',
-                                                style: TextStyle(
-                                                  fontSize: 13,
-                                                  fontWeight: FontWeight.w500,
-                                                ),
-                                              ),
-                                              const SizedBox(height: 8),
-                                              TextFormField(
-                                                key: const Key('login-email'),
-                                                controller: _email,
-                                                enabled: !_working,
-                                                decoration:
-                                                    const InputDecoration(
-                                                      hintText: 'name@msat.edu',
-                                                    ),
-                                                keyboardType:
-                                                    TextInputType.emailAddress,
-                                                textInputAction:
-                                                    TextInputAction.next,
-                                                autofillHints: const [
-                                                  AutofillHints.username,
-                                                ],
-                                                autocorrect: false,
-                                                onFieldSubmitted: (_) =>
-                                                    _passwordFocus
-                                                        .requestFocus(),
-                                                validator: (value) {
-                                                  final email =
-                                                      value?.trim() ?? '';
-                                                  if (email.isEmpty) {
-                                                    return 'Enter your school email.';
-                                                  }
-                                                  if (!RegExp(
-                                                    r'^[^\s@]+@[^\s@]+\.[^\s@]+$',
-                                                  ).hasMatch(email)) {
-                                                    return 'Enter a valid email address.';
-                                                  }
-                                                  return null;
-                                                },
-                                              ),
-                                              const SizedBox(height: 18),
-                                              const Text(
-                                                'Password',
-                                                style: TextStyle(
-                                                  fontSize: 13,
-                                                  fontWeight: FontWeight.w500,
-                                                ),
-                                              ),
-                                              const SizedBox(height: 8),
-                                              TextFormField(
-                                                key: const Key(
-                                                  'login-password',
-                                                ),
-                                                controller: _pass,
-                                                focusNode: _passwordFocus,
-                                                enabled: !_working,
-                                                decoration: InputDecoration(
-                                                  hintText:
-                                                      'Enter your password',
-                                                  suffixIcon: IconButton(
-                                                    tooltip: _showPassword
-                                                        ? 'Hide password'
-                                                        : 'Show password',
-                                                    onPressed: () => setState(
-                                                      () => _showPassword =
-                                                          !_showPassword,
-                                                    ),
-                                                    icon: Icon(
-                                                      _showPassword
-                                                          ? Icons
-                                                                .visibility_off_outlined
-                                                          : Icons
-                                                                .visibility_outlined,
-                                                      size: 20,
-                                                    ),
-                                                    color: muted,
-                                                  ),
-                                                ),
-                                                obscureText: !_showPassword,
-                                                autocorrect: false,
-                                                enableSuggestions: false,
-                                                autofillHints: const [
-                                                  AutofillHints.password,
-                                                ],
-                                                textInputAction:
-                                                    TextInputAction.done,
-                                                onFieldSubmitted: (_) =>
-                                                    _submit(),
-                                                validator: (value) =>
-                                                    value == null ||
-                                                        value.isEmpty
-                                                    ? 'Enter your password.'
-                                                    : null,
-                                              ),
-                                              if (_error != null) ...[
-                                                const SizedBox(height: 16),
-                                                Semantics(
-                                                  liveRegion: true,
-                                                  child: Container(
-                                                    padding:
-                                                        const EdgeInsets.all(
-                                                          12,
-                                                        ),
-                                                    decoration: BoxDecoration(
-                                                      color: const Color(
-                                                        0x19ff9f9f,
-                                                      ),
-                                                      border: Border.all(
-                                                        color: const Color(
-                                                          0x55ff9f9f,
-                                                        ),
-                                                      ),
-                                                      borderRadius:
-                                                          BorderRadius.circular(
-                                                            6,
-                                                          ),
-                                                    ),
-                                                    child: Text(
-                                                      _error!,
-                                                      style: const TextStyle(
-                                                        color: Color(
-                                                          0xffff9f9f,
-                                                        ),
-                                                        fontSize: 13,
-                                                      ),
-                                                    ),
-                                                  ),
-                                                ),
-                                              ],
-                                              const SizedBox(height: 24),
-                                              FilledButton(
-                                                onPressed: _working
-                                                    ? null
-                                                    : _submit,
-                                                child: Row(
-                                                  mainAxisAlignment:
-                                                      MainAxisAlignment.center,
-                                                  children: [
-                                                    if (_busy) ...[
-                                                      const AuthSpinner(
-                                                        size: 16,
-                                                        color: muted,
-                                                      ),
-                                                      const SizedBox(width: 10),
-                                                    ],
-                                                    Text(
-                                                      _busy
-                                                          ? 'Signing in…'
-                                                          : 'Sign in',
-                                                    ),
-                                                  ],
-                                                ),
-                                              ),
-                                              const SizedBox(height: 20),
-                                              const Row(
-                                                children: [
-                                                  Expanded(
-                                                    child: Divider(
-                                                      color: border,
-                                                    ),
-                                                  ),
-                                                  Padding(
-                                                    padding:
-                                                        EdgeInsets.symmetric(
-                                                          horizontal: 14,
-                                                        ),
-                                                    child: Text(
-                                                      'OR',
-                                                      style: TextStyle(
-                                                        fontSize: 10,
-                                                        color: muted,
-                                                        letterSpacing: 1,
-                                                      ),
-                                                    ),
-                                                  ),
-                                                  Expanded(
-                                                    child: Divider(
-                                                      color: border,
-                                                    ),
-                                                  ),
-                                                ],
-                                              ),
-                                              const SizedBox(height: 20),
-                                              OutlinedButton.icon(
-                                                onPressed: _working
-                                                    ? null
-                                                    : _googleSignIn,
-                                                icon: SvgPicture.string(
-                                                  _googleLogoSvg,
-                                                  width: 18,
-                                                  height: 18,
-                                                ),
-                                                label: const Text(
-                                                  'Sign in with Google',
-                                                ),
-                                              ),
-                                              const SizedBox(height: 24),
-                                              const Text(
-                                                'Mati School of Arts and Trades',
-                                                textAlign: TextAlign.center,
-                                                style: TextStyle(
-                                                  color: muted,
-                                                  fontSize: 11,
-                                                  height: 1.5,
-                                                ),
-                                              ),
-                                            ],
-                                          ),
-                                        ),
-                                      ),
-                                    ),
-                                  ),
-                                ),
-                                if (wide) ...[
-                                  const SizedBox(width: 64),
-                                  Flexible(
-                                    child: _workspacePreview(
-                                      accent,
-                                      border,
-                                      panel,
-                                    ),
-                                  ),
-                                ],
-                              ],
-                            ),
-                          ),
-                          const SizedBox(height: 24),
-                          const Text(
-                            'One learner record. Every school day.',
-                            style: TextStyle(color: muted, fontSize: 11),
-                          ),
-                        ],
-                      ),
+            if (showLogo) ...[
+              Row(
+                children: [
+                  const ZLogo(size: 30, radius: 8),
+                  const SizedBox(width: 9),
+                  Text(
+                    'Zentra',
+                    style: theme.textTheme.titleSmall?.copyWith(
+                      fontSize: 15,
+                      fontWeight: FontWeight.w700,
+                      letterSpacing: -0.2,
                     ),
-                  );
-                },
+                  ),
+                ],
+              ),
+              const SizedBox(height: 26),
+            ],
+            Text(
+              'Welcome back',
+              style: theme.textTheme.headlineSmall?.copyWith(
+                fontSize: 24,
+                fontWeight: FontWeight.w700,
+                letterSpacing: -0.6,
+                color: colors.onSurface,
               ),
             ),
+            const SizedBox(height: 6),
+            Text(
+              'Use your school email and password.',
+              style: TextStyle(
+                color: colors.onSurfaceVariant,
+                fontSize: 13,
+                height: 1.45,
+              ),
+            ),
+            const SizedBox(height: 22),
+            const _FieldLabel(text: 'School email'),
+            const SizedBox(height: 6),
+            TextFormField(
+              key: const Key('login-email'),
+              controller: _email,
+              enabled: !_working,
+              decoration: const InputDecoration(hintText: 'name@msat.edu'),
+              keyboardType: TextInputType.emailAddress,
+              textInputAction: TextInputAction.next,
+              autofillHints: const [AutofillHints.username],
+              autocorrect: false,
+              onFieldSubmitted: (_) => _passwordFocus.requestFocus(),
+              validator: (value) {
+                final email = value?.trim() ?? '';
+                if (email.isEmpty) {
+                  return 'Enter your school email.';
+                }
+                if (!RegExp(r'^[^\s@]+@[^\s@]+\.[^\s@]+$').hasMatch(email)) {
+                  return 'Enter a valid email address.';
+                }
+                return null;
+              },
+            ),
+            const SizedBox(height: 14),
+            const _FieldLabel(text: 'Password'),
+            const SizedBox(height: 6),
+            TextFormField(
+              key: const Key('login-password'),
+              controller: _pass,
+              focusNode: _passwordFocus,
+              enabled: !_working,
+              decoration: InputDecoration(
+                hintText: 'Enter your password',
+                suffixIcon: IconButton(
+                  tooltip: _showPassword ? 'Hide password' : 'Show password',
+                  onPressed: () =>
+                      setState(() => _showPassword = !_showPassword),
+                  icon: Icon(
+                    _showPassword
+                        ? Icons.visibility_off_outlined
+                        : Icons.visibility_outlined,
+                    size: 18,
+                  ),
+                  color: colors.onSurfaceVariant,
+                ),
+              ),
+              obscureText: !_showPassword,
+              autocorrect: false,
+              enableSuggestions: false,
+              autofillHints: const [AutofillHints.password],
+              textInputAction: TextInputAction.done,
+              onFieldSubmitted: (_) => _submit(),
+              validator: (value) => value == null || value.isEmpty
+                  ? 'Enter your password.'
+                  : null,
+            ),
+            if (_error != null) ...[
+              const SizedBox(height: 12),
+              Semantics(
+                liveRegion: true,
+                child: Container(
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 10,
+                    vertical: 8,
+                  ),
+                  decoration: BoxDecoration(
+                    color: colors.error.withValues(alpha: 0.09),
+                    border: Border.all(
+                      color: colors.error.withValues(alpha: 0.3),
+                    ),
+                    borderRadius: BorderRadius.circular(10),
+                  ),
+                  child: Row(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Icon(
+                        Icons.error_outline,
+                        size: 15,
+                        color: colors.error,
+                      ),
+                      const SizedBox(width: 7),
+                      Expanded(
+                        child: Text(
+                          _error!,
+                          style: TextStyle(color: colors.error, fontSize: 12),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+            ],
+            const SizedBox(height: 20),
+            FilledButton(
+              onPressed: _working ? null : _submit,
+              child: Row(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  if (_busy) ...[
+                    AuthSpinner(size: 15, color: buttonForeground),
+                    const SizedBox(width: 9),
+                  ],
+                  Text(_busy ? 'Signing in…' : 'Sign in'),
+                ],
+              ),
+            ),
+            const SizedBox(height: 16),
+            Row(
+              children: [
+                Expanded(child: Divider(color: colors.outline)),
+                Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 10),
+                  child: Text(
+                    'OR',
+                    style: TextStyle(
+                      fontSize: 10,
+                      color: colors.onSurfaceVariant,
+                      letterSpacing: 0.8,
+                    ),
+                  ),
+                ),
+                Expanded(child: Divider(color: colors.outline)),
+              ],
+            ),
+            const SizedBox(height: 16),
+            OutlinedButton.icon(
+              onPressed: _working ? null : _googleSignIn,
+              icon: SvgPicture.string(
+                _googleLogoSvg,
+                width: 17,
+                height: 17,
+              ),
+              label: const Text('Sign in with Google'),
+            ),
+            if (showSchool) ...[
+              const SizedBox(height: 22),
+              Text(
+                'Mati School of Arts and Trades',
+                textAlign: TextAlign.center,
+                style: TextStyle(
+                  color: colors.onSurfaceVariant,
+                  fontSize: 11,
+                ),
+              ),
+            ],
           ],
         ),
       ),
     );
   }
 
-  Widget _paletteButton(bool amber, Color color) => Semantics(
-    selected: _amber == amber,
-    child: IconButton(
-      tooltip: amber ? 'Amber palette' : 'Mint and violet palette',
-      onPressed: () => setState(() => _amber = amber),
-      icon: Container(
-        width: 18,
-        height: 18,
-        decoration: BoxDecoration(
-          shape: BoxShape.circle,
-          color: color,
-          border: Border.all(
-            color: _amber == amber ? Colors.white : Colors.transparent,
-            width: 2,
-          ),
-        ),
-      ),
-    ),
-  );
-
-  Widget _workspacePreview(Color accent, Color border, Color panel) {
-    const title = 'Your school workspace';
-    const lines = [
-      'One sign-in for students, parents, and supported staff.',
-      'Open the workspace linked to your account.',
-      'Stay connected to learning and school updates.',
-    ];
-    return Container(
-      decoration: BoxDecoration(
-        color: panel.withValues(alpha: 0.85),
-        border: Border.all(color: border),
-        borderRadius: BorderRadius.circular(12),
-      ),
+  Widget _brandPanel(BuildContext context) {
+    final theme = Theme.of(context);
+    final colors = theme.colorScheme;
+    return ConstrainedBox(
+      constraints: const BoxConstraints(maxWidth: 420),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
+        mainAxisSize: MainAxisSize.min,
         children: [
-          Container(
-            padding: const EdgeInsets.all(16),
-            decoration: BoxDecoration(
-              border: Border(bottom: BorderSide(color: border)),
-            ),
-            child: Row(
-              children: [
-                for (var i = 0; i < 3; i++)
-                  Padding(
-                    padding: const EdgeInsets.only(right: 5),
-                    child: Icon(
-                      Icons.circle,
-                      size: 7,
-                      color: accent.withValues(alpha: 0.4),
-                    ),
-                  ),
-                const SizedBox(width: 16),
-                const Text(
-                  'msat.edu/zentra',
-                  style: TextStyle(color: Color(0xff99aaa3), fontSize: 11),
-                ),
-              ],
+          const ZLogo(size: 44, radius: 11),
+          const SizedBox(height: 22),
+          Text(
+            'Your school workspace',
+            style: theme.textTheme.headlineSmall?.copyWith(
+              fontSize: 30,
+              fontWeight: FontWeight.w700,
+              letterSpacing: -0.9,
+              height: 1.15,
+              color: colors.onSurface,
             ),
           ),
-          Padding(
-            padding: const EdgeInsets.all(28),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Icon(Icons.school_outlined, color: accent, size: 28),
-                const SizedBox(height: 20),
-                Text(
-                  title,
-                  style: const TextStyle(
-                    fontSize: 23,
-                    fontWeight: FontWeight.w500,
-                  ),
-                ),
-                const SizedBox(height: 20),
-                for (final line in lines)
-                  Padding(
-                    padding: const EdgeInsets.only(bottom: 14),
-                    child: Text(
-                      '•  $line',
-                      style: const TextStyle(
-                        color: Color(0xff99aaa3),
-                        fontSize: 13,
-                        height: 1.6,
-                      ),
-                    ),
-                  ),
-              ],
+          const SizedBox(height: 12),
+          Text(
+            'Sign in to open the classes, records, and updates linked to your account.',
+            style: TextStyle(
+              color: colors.onSurfaceVariant,
+              fontSize: 14,
+              height: 1.55,
+            ),
+          ),
+          const SizedBox(height: 26),
+          Text(
+            'MATI SCHOOL OF ARTS AND TRADES',
+            style: TextStyle(
+              color: colors.onSurfaceVariant,
+              fontSize: 10,
+              fontWeight: FontWeight.w600,
+              letterSpacing: 0.9,
             ),
           ),
         ],
       ),
     );
   }
+}
+
+class _FieldLabel extends StatelessWidget {
+  const _FieldLabel({required this.text});
+  final String text;
+
+  @override
+  Widget build(BuildContext context) => Text(
+    text,
+    style: Theme.of(context).textTheme.labelLarge?.copyWith(
+      fontSize: 12,
+      fontWeight: FontWeight.w600,
+    ),
+  );
 }
 
 // Same four-color "G" as the web login button (LoginForm.tsx GoogleIcon).

@@ -274,7 +274,7 @@ void main() {
     await mount(tester, load: () => pending.future);
     expect(find.byType(ScreenSkeleton), findsOneWidget);
     expect(find.byType(AuthSpinner), findsNothing);
-    expect(find.byType(LoginBackground), findsOneWidget);
+    expect(find.byType(AuthFlowScaffold), findsOneWidget);
     expect(find.byKey(const ValueKey('auth-flow-center')), findsNothing);
     expect(tester.hasRunningAnimations, isFalse);
     pending.complete(fixture());

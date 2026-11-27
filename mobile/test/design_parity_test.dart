@@ -685,7 +685,7 @@ void main() {
   );
 
   testWidgets(
-    'login hand-off keeps its own palette under custom workspace colors',
+    'login hand-off follows the workspace desk palette',
     (tester) async {
       await tester.pumpWidget(
         MaterialApp(
@@ -701,7 +701,7 @@ void main() {
         ),
       );
       expect(
-        find.text('Login palette: ${authMint.toARGB32()}'),
+        find.text('Login palette: ${const Color(0xFFFFB900).toARGB32()}'),
         findsOneWidget,
       );
       expect(tester.takeException(), isNull);

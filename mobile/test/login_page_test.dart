@@ -147,7 +147,7 @@ void main() {
     expect(auth.calls, 0);
   });
 
-  testWidgets('unified form has no role picker; palette retains credentials', (
+  testWidgets('unified form has no role picker and uses the workspace shell', (
     tester,
   ) async {
     await _mount(tester);
@@ -177,12 +177,9 @@ void main() {
           .text,
       'name@msat.edu',
     );
-    await tester.tap(find.byTooltip('Amber palette'));
-    await tester.pump();
-    expect(
-      tester.widget<LoginBackground>(find.byType(LoginBackground)).amber,
-      isTrue,
-    );
+    // The auth flow renders in the workspace desk language, not the old
+    // mint particle background.
+    expect(find.byType(LoginBackground), findsNothing);
     expect(find.text('Welcome back'), findsOneWidget);
     expect(tester.takeException(), isNull);
   });

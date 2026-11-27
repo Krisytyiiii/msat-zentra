@@ -4,15 +4,96 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter/widget_previews.dart';
 
-import '../../design/brand.dart';
+import '../../design/overview_theme.dart';
 import '../../shared/spinner.dart';
-import 'login_background.dart';
 
-const authInk = Color(0xfff3f7f5);
-const authMuted = Color(0xff99aaa3);
-const authMint = Color(0xff7ef5d0);
-const authPanel = Color(0xff070d0b);
-const authBorder = Color(0xff2a3530);
+// The auth hand-off renders in the same desk language as the workspaces it
+// opens: the overview palette in Light/Dark/System, hairline borders and the
+// amber accent. No separate particle universe, no top header bar.
+
+/// Desk palette for the auth screens. The desks follow the app Appearance
+/// setting, so sign-in and term selection do too.
+ThemeData authFlowTheme(ThemeData base) {
+  final theme = overviewScreenTheme(base);
+  final colors = theme.colorScheme;
+  final dark = theme.brightness == Brightness.dark;
+
+  OutlineInputBorder fieldBorder(Color color, [double width = 1]) =>
+      OutlineInputBorder(
+        borderRadius: BorderRadius.circular(12),
+        borderSide: BorderSide(color: color, width: width),
+      );
+
+  final buttonBackground = dark
+      ? const Color(0xFFEAF6F1)
+      : const Color(0xFF101828);
+  final buttonForeground = dark
+      ? const Color(0xFF08110E)
+      : const Color(0xFFF8FAFC);
+
+  return theme.copyWith(
+    scaffoldBackgroundColor: dark
+        ? const Color(0xFF050807)
+        : const Color(0xFFF6F8FB),
+    inputDecorationTheme: InputDecorationTheme(
+      isDense: true,
+      filled: true,
+      fillColor: colors.surfaceContainerLow,
+      hintStyle: theme.textTheme.bodyMedium?.copyWith(
+        color: colors.onSurfaceVariant,
+      ),
+      contentPadding: const EdgeInsets.symmetric(horizontal: 13, vertical: 14),
+      border: fieldBorder(colors.outline),
+      enabledBorder: fieldBorder(colors.outline),
+      focusedBorder: fieldBorder(colors.primary, 1.5),
+      errorBorder: fieldBorder(colors.error),
+      focusedErrorBorder: fieldBorder(colors.error, 1.5),
+      errorStyle: theme.textTheme.bodySmall?.copyWith(color: colors.error),
+      errorMaxLines: 2,
+    ),
+    filledButtonTheme: FilledButtonThemeData(
+      style: FilledButton.styleFrom(
+        backgroundColor: buttonBackground,
+        foregroundColor: buttonForeground,
+        disabledBackgroundColor: buttonBackground.withValues(alpha: 0.45),
+        disabledForegroundColor: buttonForeground.withValues(alpha: 0.6),
+        minimumSize: const Size.fromHeight(46),
+        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 11),
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(12),
+        ),
+      ),
+    ),
+    outlinedButtonTheme: OutlinedButtonThemeData(
+      style: OutlinedButton.styleFrom(
+        foregroundColor: colors.onSurface,
+        backgroundColor: colors.surface,
+        side: BorderSide(color: colors.outline),
+        minimumSize: const Size.fromHeight(46),
+        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 11),
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(12),
+        ),
+      ),
+    ),
+    textButtonTheme: TextButtonThemeData(
+      style: TextButton.styleFrom(
+        foregroundColor: colors.primary,
+        minimumSize: const Size(48, 46),
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(12),
+        ),
+      ),
+    ),
+    iconButtonTheme: IconButtonThemeData(
+      style: IconButton.styleFrom(
+        minimumSize: const Size(40, 40),
+        iconSize: 18,
+        foregroundColor: colors.onSurfaceVariant,
+      ),
+    ),
+  );
+}
 
 // Scoped to the sign-in hand-off. Workspace themes and loaders stay unchanged.
 class AuthFlowScaffold extends StatelessWidget {
@@ -25,122 +106,61 @@ class AuthFlowScaffold extends StatelessWidget {
   final Widget child;
   final bool centerContent;
 
-  Widget _fitContent(Widget content) =>
-      IntrinsicHeight(child: content);
-
   @override
   Widget build(BuildContext context) {
     final base = Theme.of(context);
-    final theme = base.copyWith(
-      brightness: Brightness.dark,
-      scaffoldBackgroundColor: const Color(0xff050807),
-      colorScheme: const ColorScheme.dark(
-        primary: authMint,
-        onPrimary: Color(0xff08110e),
-        surface: authPanel,
-        onSurface: authInk,
-        onSurfaceVariant: authMuted,
-        outline: authBorder,
-        error: Color(0xffff9f9f),
-      ),
-      textTheme: base.textTheme.apply(
-        bodyColor: authInk,
-        displayColor: authInk,
-      ),
-      filledButtonTheme: FilledButtonThemeData(
-        style: FilledButton.styleFrom(
-          foregroundColor: const Color(0xff08110e),
-          backgroundColor: authInk,
-          minimumSize: const Size(0, 48),
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(6)),
-        ),
-      ),
-    );
+    final theme = authFlowTheme(base);
+    final dark = theme.brightness == Brightness.dark;
     return AnnotatedRegion<SystemUiOverlayStyle>(
-      value: SystemUiOverlayStyle.light,
+      value: dark ? SystemUiOverlayStyle.light : SystemUiOverlayStyle.dark,
       child: Theme(
         data: theme,
         child: Scaffold(
-          body: Stack(
-            children: [
-              const Positioned.fill(child: LoginBackground(amber: false)),
-              SafeArea(
-                child: LayoutBuilder(
-                  builder: (context, constraints) {
-                    return SingleChildScrollView(
-                      padding: const EdgeInsets.fromLTRB(20, 16, 20, 24),
-                      child: ConstrainedBox(
-                        constraints: BoxConstraints(
-                          minHeight: math.max(0, constraints.maxHeight - 40),
-                        ),
-                        child: _fitContent(
-                          Column(
-                            children: [
-                              ConstrainedBox(
-                                constraints: const BoxConstraints(
-                                  maxWidth: 1040,
-                                ),
-                                child: Container(
-                                  padding: const EdgeInsets.all(12),
-                                  decoration: BoxDecoration(
-                                    color: authPanel.withValues(alpha: 0.9),
-                                    border: Border.all(color: authBorder),
-                                    borderRadius: BorderRadius.circular(10),
-                                  ),
-                                  child: const Row(
-                                    children: [
-                                      ZLogo(size: 28),
-                                      SizedBox(width: 9),
-                                      Text(
-                                        'Zentra',
-                                        style: TextStyle(
-                                          fontSize: 17,
-                                          fontWeight: FontWeight.w600,
-                                        ),
-                                      ),
-                                    ],
-                                  ),
-                                ),
-                              ),
-                              const SizedBox(height: 40),
-                              if (centerContent)
-                                Expanded(
-                                  child: Center(
-                                    key: const ValueKey('auth-flow-center'),
-                                    child: ConstrainedBox(
-                                      constraints: const BoxConstraints(
-                                        maxWidth: 900,
-                                      ),
-                                      child: child,
-                                    ),
-                                  ),
-                                )
-                              else
-                                ConstrainedBox(
-                                  constraints: const BoxConstraints(
-                                    maxWidth: 900,
-                                  ),
-                                  child: child,
-                                ),
-                              if (!centerContent) const Spacer(),
-                              const SizedBox(height: 32),
-                              const Text(
-                                'Mati School of Arts and Trades',
-                                textAlign: TextAlign.center,
-                                style: TextStyle(
-                                  fontSize: 11,
-                                  color: authMuted,
-                                ),
-                              ),
-                            ],
-                          ),
-                        ),
-                      ),
-                    );
-                  },
-                ),
+          backgroundColor: theme.scaffoldBackgroundColor,
+          body: DecoratedBox(
+            decoration: BoxDecoration(
+              gradient: LinearGradient(
+                begin: Alignment.topLeft,
+                end: Alignment.bottomRight,
+                colors: dark
+                    ? const [Color(0xFF050807), Color(0xFF0B1411)]
+                    : const [Color(0xFFF6F8FB), Color(0xFFFDFEFF)],
               ),
-            ],
+            ),
+            child: SafeArea(
+              child: LayoutBuilder(
+                builder: (context, constraints) {
+                  final content = centerContent
+                      ? Center(
+                          key: const ValueKey('auth-flow-center'),
+                          child: Padding(
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: 22,
+                              vertical: 24,
+                            ),
+                            child: ConstrainedBox(
+                              constraints: const BoxConstraints(
+                                maxWidth: 880,
+                              ),
+                              child: child,
+                            ),
+                          ),
+                        )
+                      : child;
+                  return SingleChildScrollView(
+                    padding: EdgeInsets.zero,
+                    keyboardDismissBehavior:
+                        ScrollViewKeyboardDismissBehavior.onDrag,
+                    child: ConstrainedBox(
+                      constraints: BoxConstraints(
+                        minHeight: math.max(0, constraints.maxHeight),
+                      ),
+                      child: content,
+                    ),
+                  );
+                },
+              ),
+            ),
           ),
         ),
       ),
@@ -173,7 +193,10 @@ class AuthLoading extends StatelessWidget {
             Flexible(
               child: Text(
                 label,
-                style: const TextStyle(color: authMuted, fontSize: 13),
+                style: TextStyle(
+                  color: Theme.of(context).colorScheme.onSurfaceVariant,
+                  fontSize: 13,
+                ),
               ),
             ),
           ],
