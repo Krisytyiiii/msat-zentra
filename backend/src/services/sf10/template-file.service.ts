@@ -678,8 +678,8 @@ export async function fillSf10Template(input: Sf10TemplateInput): Promise<Buffer
  * The template ships with sample subjects, tags and formulas. The fill rewrites
  * the touched rows with plain values (formulas flattened first so a shared
  * formula master is never overwritten), clears the grade sheet that does not
- * belong to this learner, and leaves the printed page setup exactly as DepEd
- * shipped it.
+ * belong to this learner, and re-applies one shared print scale so both record
+ * pages print the same width with the same gutters.
  */
 interface ShsSemBlock {
   headerRow: number;
@@ -855,6 +855,114 @@ function writeShsSummary(ws: Worksheet, sheet: ShsGradeSheet, rows: Sf10Template
   );
 }
 
+/* ----------------------------- SHS print setup ---------------------------- */
+
+/** The SHS book prints on Letter, the paper its page setup was authored for. */
+const SHS_PRINT_PAPER = 1 as PaperSize;
+const LETTER_WIDTH_PT = 612; // 8.5in
+const LETTER_HEIGHT_PT = 792; // 11in
+const SHS_PRINT_FIRST_COL = 1; // A
+const SHS_PRINT_LAST_COL = 25; // Y — the form's own right edge
+const SHS_MARGINS_PT = 18;
+
+/**
+ * Last row of a sheet's own print area (the template ships the DepEd range,
+ * e.g. `A1:Y118`). The trailing rows past it carry styles but no content, and
+ * counting them overstated the sheet's height — which shrank the shared scale
+ * and left the form floating in wide gutters.
+ */
+function printAreaLastRow(ws: Worksheet): number {
+  const area = ws.pageSetup.printArea;
+  const match = area ? /:?\$?[A-Z]+\$?(\d+)\s*$/.exec(area) : null;
+  const row = match ? Number(match[1]) : 0;
+  return row > 0 ? row : contentLastRow(ws);
+}
+
+/**
+ * Give the two record pages one width and one scale.
+ *
+ * The workbook ships with fit-to-page set per sheet, so LibreOffice scaled each
+ * page independently: the taller Grade 11 page came out narrower than the
+ * Grade 12 page and their left/right gutters differed. Worse, the template
+ * keeps its rotated "FIRST SEMESTER / SECOND SEMESTER" helper labels in column
+ * AA, outside the form (the OOXML print area ExcelJS writes is `$A1:$Y124`,
+ * which LibreOffice ignores), so the printed pages showed that strip in the
+ * right margin.
+ *
+ * Fixed shared scale (tightest fit across both pages), equalised column widths,
+ * and hiding every column past Y keep both record pages identical and the
+ * helper strip off the paper. The Annex fits one page the same way.
+ */
+function applyShsPrintSetup(wb: Workbook): void {
+  const records = ["FRONT", "BACK"]
+    .map((name) => wb.getWorksheet(name))
+    .filter((ws): ws is Worksheet => !!ws && contentLastRow(ws) > 1);
+
+  if (records.length > 0) {
+    // Equal column widths: a column that differs between the sheets would
+    // print each page at a different width.
+    for (let c = SHS_PRINT_FIRST_COL; c <= SHS_PRINT_LAST_COL; c += 1) {
+      const widest = Math.max(...records.map((ws) => ws.getColumn(c).width ?? 0));
+      for (const ws of records) ws.getColumn(c).width = widest;
+    }
+    // Helper columns (the rotated semester labels) never print.
+    for (const ws of records) {
+      for (let c = SHS_PRINT_LAST_COL + 1; c <= ws.columnCount; c += 1) {
+        ws.getColumn(c).hidden = true;
+      }
+    }
+
+    const availW = LETTER_WIDTH_PT - 2 * SHS_MARGINS_PT;
+    const availH = LETTER_HEIGHT_PT - 2 * SHS_MARGINS_PT;
+    let scale = 1;
+    const lastRows = records.map((ws) => printAreaLastRow(ws));
+    for (const [index, ws] of records.entries()) {
+      const lastRow = lastRows[index];
+      let width = 0;
+      for (let c = SHS_PRINT_FIRST_COL; c <= SHS_PRINT_LAST_COL; c += 1) {
+        width += printColumnPt(ws.getColumn(c).width);
+      }
+      let height = 0;
+      for (let r = 1; r <= lastRow; r += 1) height += rowHeightPt(ws, r);
+      scale = Math.min(scale, availW / width, availH / height);
+    }
+    const percent = Math.max(10, Math.floor(scale * 100) - 1);
+
+    records.forEach((ws, index) => {
+      const setup = ws.pageSetup;
+      setup.paperSize = SHS_PRINT_PAPER;
+      setup.orientation = "portrait";
+      setup.fitToPage = false;
+      setup.scale = percent;
+      setup.horizontalCentered = true;
+      setup.verticalCentered = true;
+      setup.horizontalDpi = 600;
+      setup.verticalDpi = 600;
+      setup.margins = { left: 0.25, right: 0.25, top: 0.25, bottom: 0.25, header: 0, footer: 0 };
+      setup.printArea = `A1:Y${lastRows[index]}`;
+    });
+  }
+
+  // The Annex is a single page in the official form; the template's
+  // fit-to-height "auto" spilled its last rows onto a mostly blank page.
+  const annex = wb.getWorksheet("ANNEX");
+  if (annex) {
+    for (let c = 9; c <= annex.columnCount; c += 1) annex.getColumn(c).hidden = true;
+    const setup = annex.pageSetup;
+    setup.paperSize = SHS_PRINT_PAPER;
+    setup.orientation = "portrait";
+    setup.fitToPage = true;
+    setup.fitToWidth = 1;
+    setup.fitToHeight = 1;
+    setup.horizontalCentered = true;
+    setup.verticalCentered = true;
+    setup.horizontalDpi = 600;
+    setup.verticalDpi = 600;
+    setup.margins = { left: 0.25, right: 0.25, top: 0.25, bottom: 0.25, header: 0, footer: 0 };
+    setup.printArea = `A1:H${contentLastRow(annex)}`;
+  }
+}
+
 export async function fillShsSf10Template(input: Sf10TemplateInput): Promise<Buffer> {
   const ExcelJS = await excelJs();
   const wb = new ExcelJS.Workbook();
@@ -905,8 +1013,11 @@ export async function fillShsSf10Template(input: Sf10TemplateInput): Promise<Buf
   writeShsSemester(ws, sheetDef.blocks[1], secondSem, 2);
   writeShsSummary(ws, sheetDef, input.rows);
 
-  // The workbook's own page setup (paper, scale, print areas) is already the
-  // official form's; unlike the JHS fill, nothing here needs to be re-applied.
+  // One width, one scale and one page per sheet: the workbook's own per-sheet
+  // fit-to-page made the two record pages differ, and its helper columns past Y
+  // printed the vertical semester strip outside the form.
+  applyShsPrintSetup(wb);
+
   return Buffer.from(await wb.xlsx.writeBuffer());
 }
 

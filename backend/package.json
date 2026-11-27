@@ -47,6 +47,7 @@
     "prisma:wipe:keep-accounts": "tsx prisma/wipe-keep-accounts.ts",
     "prisma:seed:roles": "tsx prisma/seed-roles-only.ts",
     "prisma:seed:sample5": "tsx prisma/seed-sample-five.ts",
+    "prisma:seed:teacher-grade11": "tsx prisma/seed-teacher-grade11.ts",
     "cleanup:sf10-provisioned": "tsx scripts/cleanup-sf10-provisioned-students.ts",
     "test": "vitest run --testTimeout=15000",
     "test:watch": "vitest",

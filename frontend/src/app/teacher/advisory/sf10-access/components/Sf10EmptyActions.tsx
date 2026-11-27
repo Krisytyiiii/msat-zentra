@@ -109,8 +109,9 @@ export function Sf10EmptyActions({ onRequest }: { onRequest?: () => void }) {
             No SF10 records yet
           </h2>
           <p className={styles.subtitle}>
-            Approved students appear here as folders once the registrar or record keeper
-            grants access. Pick a starting point below.
+            Your Grade 7 and Grade 11 SF10 records appear here automatically. Other grades
+            show as folders once the registrar or record keeper grants access. Pick a
+            starting point below.
           </p>
         </div>
         <div className="flex w-full min-w-0 flex-col gap-2.5" aria-label="SF10 starting points">

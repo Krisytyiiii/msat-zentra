@@ -1353,9 +1353,10 @@ export async function applyAutoFilledSubjects(
      */
     generatedFileUrl?: string;
     /**
-     * Adviser auto-fill for a Grade 7 section: G7 enrolment is the learner's
-     * first SF10, so the advisory desk fills it without a registry approval.
-     * Only the Bama auto-fill/template flow passes this, and only for G7.
+     * Adviser auto-fill for a Grade 7 or Grade 11 section: G7 enrolment is the
+     * learner's first SF10 and G11 anchors the SHS form, so the advisory desk
+     * fills both without a registry approval. Only the Bama auto-fill/template
+     * flow passes this, and only for those grades.
      */
     skipAdviserAccessCheck?: boolean;
     /**

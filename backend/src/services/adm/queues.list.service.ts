@@ -82,14 +82,33 @@ export async function listAllReferrals(ctx: AdmContext, query: AllReferralsQuery
       : (stageFilter as AdmStage);
 
   // The coordinator desk only surfaces cases the nurse / guidance counselor
-  // endorsed with the referral form ready — never every ADM case, and never
-  // the enrolled / monitoring / completed stages. "Endorsed" means the
-  // consultation reviewer forwarded the referral to the ADM coordinator with
-  // the referral form completed. The principal desk keeps the full view.
+  // endorsed — never every ADM case, and never the enrolled / monitoring /
+  // completed stages. The principal desk keeps the full view.
   const coordinatorIntake = ctx.role === "adm_coordinator";
-  const endorsedReferralWhere: Prisma.ReferralWhereInput = {
-    consultReviewer: { in: ["nurse", "guidance_counselor"] },
-    referralFormReady: true,
+  // "Endorsed" differs per reviewer. The clinic completes `referralFormReady`
+  // before it can forward, so a form-ready clinic case is a real hand-off.
+  // Guidance's consultation review *is* the endorsement — it has no separate
+  // referral-form step — and its queue also picks up referrals filed with no
+  // reviewer chosen, which keep `consultReviewer: null`.
+  const endorsedReviewerWhere: Prisma.ReferralWhereInput = {
+    OR: [
+      { consultReviewer: "nurse", referralFormReady: true },
+      { consultReviewer: "guidance_counselor" },
+      { consultReviewer: null },
+    ],
+  };
+  // A profile only exists once the coordinator has taken the case in, so the
+  // status doesn't need re-checking there (a closed case must stay visible for
+  // the enrolled/monitoring counters).
+  const endorsedProfileReferralWhere: Prisma.ReferralWhereInput = endorsedReviewerWhere;
+  // A pre-profile (early) referral only reached the coordinator after an
+  // endorsement, which always flips it off `pending`; a rejection parks it at
+  // `dismissed`, and those withdrawn rows stay off the desk.
+  const endorsedEarlyReferralWhere: Prisma.ReferralWhereInput = {
+    AND: [
+      endorsedReviewerWhere,
+      { status: { notIn: ["pending", "dismissed"] } },
+    ],
   };
   // No profile exists at the "consultation" stage (forwards live as pre-profile
   // referrals), so a consultation filter matches zero profiles. Any stage
@@ -129,7 +148,7 @@ export async function listAllReferrals(ctx: AdmContext, query: AllReferralsQuery
   const where: Prisma.AdmLearnerProfileWhereInput = coordinatorIntake
     ? {
         stage: coordinatorStageWhere,
-        referral: endorsedReferralWhere,
+        referral: endorsedProfileReferralWhere,
         ...notArchivedProfile,
         ...(eligibilityFilter ? { eligibilityStatus: eligibilityFilter } : {}),
         ...(qProfileWhere ? { OR: qProfileWhere } : {}),
@@ -165,9 +184,8 @@ export async function listAllReferrals(ctx: AdmContext, query: AllReferralsQuery
     ? {
         referredToRole: "adm_coordinator",
         admProfiles: { none: {} },
-        ...endorsedReferralWhere,
+        ...endorsedEarlyReferralWhere,
         ...archivedRows,
-        status: { not: "pending" },
         ...(qReferralWhere ? { OR: qReferralWhere } : {}),
       }
     : {
@@ -182,7 +200,7 @@ export async function listAllReferrals(ctx: AdmContext, query: AllReferralsQuery
       };
 
   const referredWhere: Prisma.AdmLearnerProfileWhereInput = coordinatorIntake
-    ? { stage: { in: REFERRAL_STAGES }, referral: endorsedReferralWhere, ...notArchivedProfile }
+    ? { stage: { in: REFERRAL_STAGES }, referral: endorsedProfileReferralWhere, ...notArchivedProfile }
     : { stage: { in: REFERRAL_STAGES }, ...notArchivedProfile };
 
   const useDbPaging = !includeEarly;
