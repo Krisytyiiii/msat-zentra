@@ -191,9 +191,10 @@ export function useSf10Verifications(requestIds: readonly string[]) {
 }
 
 /**
- * Grade-7 records the adviser's own desk owns: enrolment opens the first SF10
- * and auto-fill needs no registry grant, so this desk lists them without an
- * approved access request. G8–G12 stay behind the request flow.
+ * Grade-7 and Grade-11 records the adviser's own desk owns: G7 enrolment opens
+ * the first SF10 and G11 anchors the SHS form, so auto-fill needs no registry
+ * grant and this desk lists them without an approved access request. Every
+ * other grade stays behind the request flow.
  */
 export async function fetchMyFirstSf10Records(): Promise<HasRow[]> {
   const { data } = await apiClient.get<{ hasSf10: HasRow[] }>(

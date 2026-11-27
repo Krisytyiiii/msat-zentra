@@ -196,6 +196,16 @@ function hasGrant(
 }
 
 /**
+ * Grades whose advisory desk may auto-fill without a registry access grant.
+ * Grade 7 enrolment opens the learner's SF10, and Grade 11 is the first SHS
+ * year the adviser already fills from the section's locked grades. Every other
+ * grade waits for the record keeper / registrar to approve the grant first.
+ */
+function fillsWithoutGrant(grade: string): boolean {
+  return grade === "G7" || grade === "G11";
+}
+
+/**
  * Desk that owns the learner's SF10 record. The current grade comes from the
  * advisory section (the enrollment being filled), not the profile field — a
  * profile can lag behind the roster and would otherwise pick the wrong desk.
@@ -438,14 +448,15 @@ function buildStudent(
     ctx.requiredTermNumbers,
   );
 
-  // Grade 7 enrolment opens the learner's SF10, so the advisory desk fills it
-  // without a registry access request; every later grade waits for the
-  // record keeper / registrar to approve the grant first. Once access is
-  // approved the fill also opens the record when the registry desk has not
-  // uploaded a form yet — Grades 7–10 all use the school's own JHS template,
-  // so a missing record is not a reason to refuse. A learner with no recorded
-  // grades still waits — there is nothing to write.
-  const isFirstSf10 = grade === "G7";
+  // Grade 7 enrolment opens the learner's SF10 and Grade 11 anchors the SHS
+  // form, so the advisory desk fills both without a registry access request;
+  // every other grade waits for the record keeper / registrar to approve the
+  // grant first. Once access is approved the fill also opens the record when
+  // the registry desk has not uploaded a form yet — Grades 7–10 use the
+  // school's own JHS template and 11–12 the SHS book, so a missing record is
+  // not a reason to refuse. A learner with no recorded grades still waits —
+  // there is nothing to write.
+  const isFirstSf10 = fillsWithoutGrant(grade);
   const accessOk = grant || isFirstSf10;
   let reason: string | null = null;
   if (!accessOk) reason = "SF10 access not approved";
@@ -677,8 +688,8 @@ export async function runAutofill(
             schoolYear: section.schoolYear.name,
             adviserName: await resolveAdviserName(),
           },
-          // Grade 7 opens the SF10, so no registry grant is needed to fill it.
-          skipAdviserAccessCheck: student.gradeLevel === "G7",
+          // Grade 7 / Grade 11 skip the registry grant on their own sections.
+          skipAdviserAccessCheck: fillsWithoutGrant(student.gradeLevel),
         },
       );
       if (write.wasVerified) {
@@ -788,10 +799,10 @@ export async function generateTemplateFile(
       "The SF10 template can only be generated for Grades 7-12.",
     );
   }
-  // Grade 7 opens the learner's SF10, so the advisory desk may generate and
-  // fill it without first filing a registry access request; later grades need
-  // the approved grant.
-  if (grade !== "G7" && !hasGrant(section.grants, wanted, sectionId)) {
+  // Grade 7 opens the learner's SF10 and Grade 11 anchors the SHS form, so the
+  // advisory desk may generate and fill them without first filing a registry
+  // access request; later/unrelated grades need the approved grant.
+  if (!fillsWithoutGrant(grade) && !hasGrant(section.grants, wanted, sectionId)) {
     throw new AppError(403, "FORBIDDEN", "SF10 access for this learner is not approved");
   }
 
@@ -876,7 +887,7 @@ export async function generateTemplateFile(
     })),
     {
       generatedFileUrl: fileUrl,
-      skipAdviserAccessCheck: grade === "G7",
+      skipAdviserAccessCheck: fillsWithoutGrant(grade),
     },
   );
 

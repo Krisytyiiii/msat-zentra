@@ -450,16 +450,17 @@ export async function createAccessRequest(
 }
 
 /**
- * Grade-7 records the advisory desk already owns. Enrolment in G7 opens a
- * learner's first SF10 and auto-fill is allowed without a registry grant (see
- * `sf10-autofill.service.ts`), so the access desk shows the same records
- * without waiting for a request to be approved. Only rows already on file are
- * returned — there is nothing to open otherwise, and G8–G12 access keeps
- * flowing through `AdviserSf10AccessRequest`.
+ * Grade-7 and Grade-11 records the advisory desk already owns. Enrolment in G7
+ * opens a learner's first SF10, and G11 anchors the SHS form; auto-fill is
+ * allowed for both without a registry grant (see `sf10-autofill.service.ts`),
+ * so the access desk shows the same records without waiting for a request to
+ * be approved. Only rows already on file are returned — there is nothing to
+ * open otherwise, and the remaining grades keep flowing through
+ * `AdviserSf10AccessRequest`.
  */
 export async function listOwnedFirstSf10(userId: string): Promise<{ hasSf10: HasRow[] }> {
   const sections = await prisma.section.findMany({
-    where: { adviserId: userId, gradeLevel: "G7" },
+    where: { adviserId: userId, gradeLevel: { in: ["G7", "G11"] } },
     select: { id: true, name: true },
     orderBy: { name: "asc" },
   });
@@ -562,7 +563,8 @@ function historySubjectOf(raw: unknown): Sf10HistorySubject | null {
  * The adviser desk's version history for one advisee: every Bama auto-fill /
  * template render filed on the learner's SF10, newest first. Grants are
  * LRN-scoped exactly like auto-fill (a whole-request approval or a per-student
- * grant); Grade 7 is owned by the advisory desk, so no request is required.
+ * grant); Grade 7 and Grade 11 are owned by the advisory desk, so no request
+ * is required for them.
  */
 export async function getMySf10History(
   userId: string,
@@ -577,7 +579,7 @@ export async function getMySf10History(
   if (section.adviserId !== userId)
     throw new AppError(403, "FORBIDDEN", "You can only view your own advisory section");
 
-  const wanted = String(section.gradeLevel) === "G7";
+  const wanted = ["G7", "G11"].includes(String(section.gradeLevel));
   if (!wanted) {
     const requests = await prisma.adviserSf10AccessRequest.findMany({
       where: { adviserId: userId, sectionId },
