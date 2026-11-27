@@ -142,16 +142,6 @@ List<ScreenSearchDestination> screenSearchCatalog({required bool isAdviser}) {
         Icons.group_outlined,
       ),
       const ScreenSearchDestination(
-        'Advisory attendance',
-        '/adviser/advisory/attendance',
-        Icons.fact_check_outlined,
-      ),
-      const ScreenSearchDestination(
-        'Academic',
-        '/adviser/academic',
-        Icons.school_outlined,
-      ),
-      const ScreenSearchDestination(
         'ADM cases',
         '/adviser/adm-cases',
         Icons.folder_shared_outlined,

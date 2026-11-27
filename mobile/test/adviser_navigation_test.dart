@@ -119,10 +119,24 @@ void main() {
     },
   );
 
-  testWidgets('Bama is no longer a bottom destination', (tester) async {
-    await _mount(tester);
-    expect(find.byKey(const ValueKey('adviser-nav-Bama')), findsNothing);
-    expect(find.byTooltip('Chat with Bama'), findsNothing);
+  testWidgets('advisers get the Chat with Bama button beside the bar', (
+    tester,
+  ) async {
+    final router = await _mount(tester);
+    final bama = find.byKey(const ValueKey('adviser-nav-Bama'));
+    expect(bama, findsOneWidget);
+    expect(find.byTooltip('Chat with Bama'), findsOneWidget);
+    expect(tester.getSize(bama), const Size(60, 60));
+    final image = tester.widget<Image>(
+      find.descendant(of: bama, matching: find.byType(Image)),
+    );
+    expect(
+      (image.image as AssetImage).assetName,
+      'assets/mascots/bama-v2-nobg.png',
+    );
+    await tester.tap(bama);
+    await tester.pumpAndSettle();
+    expect(router.routeInformationProvider.value.uri.path, '/adviser/bama');
   });
 
   testWidgets('subject teachers share the four-desk bar', (tester) async {
@@ -131,6 +145,9 @@ void main() {
     for (final label in ['Overview', 'Class', 'Gradebook', 'Attendance']) {
       expect(find.byKey(ValueKey('adviser-nav-$label')), findsOneWidget);
     }
+    // Bama is adviser-only.
+    expect(find.byKey(const ValueKey('adviser-nav-Bama')), findsNothing);
+    expect(find.byTooltip('Chat with Bama'), findsNothing);
   });
 
   for (final role in ['adm_coordinator', 'student', 'parent']) {

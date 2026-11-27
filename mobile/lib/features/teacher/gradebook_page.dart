@@ -293,9 +293,10 @@ class _State extends ConsumerState<GradebookPage> {
             title: const Text('Grade Record'),
           ),
           bottomNavigationBar: ownNavigation
-              ? const AdviserBottomNavigation(
+              ? AdviserBottomNavigation(
                   selectedPath: '/workspace/classes',
                   rerouteOnSelect: true,
+                  isAdviser: isAdviser,
                 )
               : null,
           body: AdviserBamaAccess(
@@ -320,11 +321,13 @@ class _State extends ConsumerState<GradebookPage> {
                     key: const ValueKey('assessment-dial-anchor'),
                     right: 16,
                     bottom: 0,
-                    child: FloatingAdd(child: AssessmentActions(
-                      expanded: _expanded,
-                      onToggle: () => setState(() => _expanded = !_expanded),
-                      onAdd: _add,
-                    )),
+                    child: FloatingAdd(
+                      child: AssessmentActions(
+                        expanded: _expanded,
+                        onToggle: () => setState(() => _expanded = !_expanded),
+                        onAdd: _add,
+                      ),
+                    ),
                   ),
               ],
             ),
@@ -353,167 +356,178 @@ class _State extends ConsumerState<GradebookPage> {
       headerSliverBuilder: (context, innerBoxIsScrolled) => [
         SliverToBoxAdapter(
           child: Padding(
-              padding: const EdgeInsets.fromLTRB(12, 16, 12, 8),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  ZContentHeader(
-                    title: data.assignment['subjectName']?.toString() ?? widget.title,
-                    icon: LucideIcons.notebookPen,
-                    titleMetadata: [
-                      Text(
-                        'Manage assessments and scores.',
-                        style: const TextStyle(
-                          fontSize: 11,
-                          height: 1.3,
-                          color: Color(0xFF626B82),
-                        ),
+            padding: const EdgeInsets.fromLTRB(12, 16, 12, 8),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                ZContentHeader(
+                  title:
+                      data.assignment['subjectName']?.toString() ??
+                      widget.title,
+                  icon: LucideIcons.notebookPen,
+                  titleMetadata: [
+                    Text(
+                      'Manage assessments and scores.',
+                      style: const TextStyle(
+                        fontSize: 11,
+                        height: 1.3,
+                        color: Color(0xFF626B82),
                       ),
-                    ],
-                    titleTrailing: _audienceSwitch(),
-                  ),
-                  const SizedBox(height: 12),
-                  Wrap(
-                    spacing: 6,
-                    runSpacing: 6,
-                    children: [
-                      if (data.assignment['schoolYear'] != null)
-                        ZScopePill(
-                          text: data.assignment['schoolYear'].toString(),
-                          kind: ScopePillKind.schoolYear,
-                          compact: true,
-                        ),
-                      if (data.assignment['termNumber'] != null)
-                        ZScopePill(
-                          text: 'Term ${data.assignment['termNumber']}',
-                          kind: ScopePillKind.term,
-                          compact: true,
-                        ),
-                      if (data.assignment['gradeLevel'] != null || data.assignment['sectionName'] != null)
-                        ZScopePill(text: [
+                    ),
+                  ],
+                  titleTrailing: _audienceSwitch(),
+                ),
+                const SizedBox(height: 12),
+                Wrap(
+                  spacing: 6,
+                  runSpacing: 6,
+                  children: [
+                    if (data.assignment['schoolYear'] != null)
+                      ZScopePill(
+                        text: data.assignment['schoolYear'].toString(),
+                        kind: ScopePillKind.schoolYear,
+                        compact: true,
+                      ),
+                    if (data.assignment['termNumber'] != null)
+                      ZScopePill(
+                        text: 'Term ${data.assignment['termNumber']}',
+                        kind: ScopePillKind.term,
+                        compact: true,
+                      ),
+                    if (data.assignment['gradeLevel'] != null ||
+                        data.assignment['sectionName'] != null)
+                      ZScopePill(
+                        text: [
                           if (data.assignment['gradeLevel'] != null)
-                            data.assignment['gradeLevel'].toString().replaceFirst(
-                              RegExp(r'^Grade\s*', caseSensitive: false), 'G'),
+                            data.assignment['gradeLevel']
+                                .toString()
+                                .replaceFirst(
+                                  RegExp(r'^Grade\s*', caseSensitive: false),
+                                  'G',
+                                ),
                           if (data.assignment['sectionName'] != null)
                             data.assignment['sectionName'].toString(),
                         ].where((value) => value.isNotEmpty).join(' · '),
-                          kind: ScopePillKind.grade, label: 'Grade and section', compact: true),
-                    ],
-                  ),
-                  const SizedBox(height: 12),
-                  _gradingWeights(data),
-                  const SizedBox(height: 12),
-                  Row(
-                    children: [
-                      Expanded(
-                        flex: 3,
-                        child: SizedBox(
-                          height: 40,
-                          child: TextField(
-                            controller: _search,
-                            textAlignVertical: TextAlignVertical.center,
-                            textInputAction: TextInputAction.search,
-                            style: const TextStyle(fontSize: 12),
-                            decoration: InputDecoration(
-                              hintText: 'Search learner or LRN',
-                              prefixIcon: const Icon(Icons.search, size: 20),
-                              suffixIcon: _search.text.isEmpty
-                                  ? null
-                                  : IconButton(
-                                      tooltip: 'Clear search',
-                                      icon: const Icon(Icons.close, size: 16),
-                                      onPressed: () => setState(() {
-                                        _search.clear();
-                                        _query = '';
-                                      }),
-                                    ),
-                              suffixIconConstraints: const BoxConstraints(
-                                minWidth: 36,
-                                minHeight: 36,
-                              ),
-                              isDense: true,
-                              filled: true,
-                              fillColor: theme.colorScheme.surfaceContainerLow,
-                              contentPadding: const EdgeInsets.symmetric(
-                                vertical: 8,
-                                horizontal: 16,
-                              ),
-                              border: OutlineInputBorder(
-                                borderRadius: BorderRadius.circular(999),
-                                borderSide: BorderSide(
-                                  color: theme.colorScheme.outlineVariant,
-                                ),
-                              ),
-                              enabledBorder: OutlineInputBorder(
-                                borderRadius: BorderRadius.circular(999),
-                                borderSide: BorderSide(
-                                  color: theme.colorScheme.outlineVariant,
-                                ),
-                              ),
-                              focusedBorder: OutlineInputBorder(
-                                borderRadius: BorderRadius.circular(999),
-                                borderSide: BorderSide(
-                                  color: theme.colorScheme.primary,
-                                ),
-                              ),
-                            ),
-                            onChanged: (text) => setState(
-                              () => _query = text.trim().toLowerCase(),
-                            ),
-                          ),
-                        ),
+                        kind: ScopePillKind.grade,
+                        label: 'Grade and section',
+                        compact: true,
                       ),
-                    ],
-                  ),
-                  const SizedBox(height: 12),
-                  Row(
-                    children: [
-                      Expanded(
-                        child: Text(
-                          'Showing ${learners.length} ${learners.length == 1 ? 'record' : 'records'}',
-                          style: const TextStyle(
-                            fontSize: 12,
-                            color: Color(0xFF9999A6),
-                          ),
-                        ),
-                      ),
-                      TextButton.icon(
-                        onPressed: () =>
-                            setState(() => _descending = !_descending),
-                        icon: const Icon(LucideIcons.listFilter, size: 14),
-                        label: Text(
-                          _descending ? 'Name (Z-A)' : 'Name (A-Z)',
+                  ],
+                ),
+                const SizedBox(height: 12),
+                _gradingWeights(data),
+                const SizedBox(height: 12),
+                Row(
+                  children: [
+                    Expanded(
+                      flex: 3,
+                      child: SizedBox(
+                        height: 40,
+                        child: TextField(
+                          controller: _search,
+                          textAlignVertical: TextAlignVertical.center,
+                          textInputAction: TextInputAction.search,
                           style: const TextStyle(fontSize: 12),
-                        ),
-                        style: TextButton.styleFrom(
-                          foregroundColor: const Color(0xFF334155),
-                          padding: const EdgeInsets.symmetric(
-                            horizontal: 8,
-                            vertical: 0,
+                          decoration: InputDecoration(
+                            hintText: 'Search learner or LRN',
+                            prefixIcon: const Icon(Icons.search, size: 20),
+                            suffixIcon: _search.text.isEmpty
+                                ? null
+                                : IconButton(
+                                    tooltip: 'Clear search',
+                                    icon: const Icon(Icons.close, size: 16),
+                                    onPressed: () => setState(() {
+                                      _search.clear();
+                                      _query = '';
+                                    }),
+                                  ),
+                            suffixIconConstraints: const BoxConstraints(
+                              minWidth: 36,
+                              minHeight: 36,
+                            ),
+                            isDense: true,
+                            filled: true,
+                            fillColor: theme.colorScheme.surfaceContainerLow,
+                            contentPadding: const EdgeInsets.symmetric(
+                              vertical: 8,
+                              horizontal: 16,
+                            ),
+                            border: OutlineInputBorder(
+                              borderRadius: BorderRadius.circular(999),
+                              borderSide: BorderSide(
+                                color: theme.colorScheme.outlineVariant,
+                              ),
+                            ),
+                            enabledBorder: OutlineInputBorder(
+                              borderRadius: BorderRadius.circular(999),
+                              borderSide: BorderSide(
+                                color: theme.colorScheme.outlineVariant,
+                              ),
+                            ),
+                            focusedBorder: OutlineInputBorder(
+                              borderRadius: BorderRadius.circular(999),
+                              borderSide: BorderSide(
+                                color: theme.colorScheme.primary,
+                              ),
+                            ),
                           ),
-                          minimumSize: Size.zero,
-                          tapTargetSize: MaterialTapTargetSize.shrinkWrap,
-                          visualDensity: VisualDensity.compact,
+                          onChanged: (text) => setState(
+                            () => _query = text.trim().toLowerCase(),
+                          ),
                         ),
                       ),
-                    ],
-                  ),
-                  if (_queued.isNotEmpty) ...[
-                    const SizedBox(height: 6),
-                    Text(
-                      'Queued scores are waiting to sync; grades remain server-confirmed.',
-                      style: theme.textTheme.bodySmall,
                     ),
                   ],
-                  if (_refreshError != null)
-                    TextButton.icon(
-                      onPressed: () => _load(silent: true),
-                      icon: const Icon(Icons.refresh, size: 16),
-                      label: const Text('Could not refresh. Try again.'),
+                ),
+                const SizedBox(height: 12),
+                Row(
+                  children: [
+                    Expanded(
+                      child: Text(
+                        'Showing ${learners.length} ${learners.length == 1 ? 'record' : 'records'}',
+                        style: const TextStyle(
+                          fontSize: 12,
+                          color: Color(0xFF9999A6),
+                        ),
+                      ),
                     ),
+                    TextButton.icon(
+                      onPressed: () =>
+                          setState(() => _descending = !_descending),
+                      icon: const Icon(LucideIcons.listFilter, size: 14),
+                      label: Text(
+                        _descending ? 'Name (Z-A)' : 'Name (A-Z)',
+                        style: const TextStyle(fontSize: 12),
+                      ),
+                      style: TextButton.styleFrom(
+                        foregroundColor: const Color(0xFF334155),
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 8,
+                          vertical: 0,
+                        ),
+                        minimumSize: Size.zero,
+                        tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                        visualDensity: VisualDensity.compact,
+                      ),
+                    ),
+                  ],
+                ),
+                if (_queued.isNotEmpty) ...[
+                  const SizedBox(height: 6),
+                  Text(
+                    'Queued scores are waiting to sync; grades remain server-confirmed.',
+                    style: theme.textTheme.bodySmall,
+                  ),
                 ],
-              ),
+                if (_refreshError != null)
+                  TextButton.icon(
+                    onPressed: () => _load(silent: true),
+                    icon: const Icon(Icons.refresh, size: 16),
+                    label: const Text('Could not refresh. Try again.'),
+                  ),
+              ],
             ),
+          ),
         ),
         if (_refreshing)
           const SliverToBoxAdapter(
@@ -521,24 +535,30 @@ class _State extends ConsumerState<GradebookPage> {
           ),
       ],
       body: learners.isEmpty
-              ? SingleChildScrollView(
-                  padding: const EdgeInsets.fromLTRB(12, 4, 12, 120),
-                  child: ZEmpty(
-                    icon: _query.isNotEmpty ? LucideIcons.search : LucideIcons.users,
-                    title: _query.isNotEmpty ? 'No learners match'
-                        : _audience == 'adm' ? 'No ADM learners' : 'No learners yet',
-                    subtitle: _query.isNotEmpty ? 'Try another name or LRN.'
-                        : 'Learners in this group will appear here.',
-                  ),
-                )
-              : ClassRecordCards(
-                  key: ValueKey('${widget.classId}:$_scopeVersion:$_audience'),
-                  record: data,
-                  learners: learners,
-                  audience: _audience,
-                  queued: _queued,
-                  onOpen: (assessment) => _openAssessment(assessment.id),
-                ),
+          ? SingleChildScrollView(
+              padding: const EdgeInsets.fromLTRB(12, 4, 12, 120),
+              child: ZEmpty(
+                icon: _query.isNotEmpty
+                    ? LucideIcons.search
+                    : LucideIcons.users,
+                title: _query.isNotEmpty
+                    ? 'No learners match'
+                    : _audience == 'adm'
+                    ? 'No ADM learners'
+                    : 'No learners yet',
+                subtitle: _query.isNotEmpty
+                    ? 'Try another name or LRN.'
+                    : 'Learners in this group will appear here.',
+              ),
+            )
+          : ClassRecordCards(
+              key: ValueKey('${widget.classId}:$_scopeVersion:$_audience'),
+              record: data,
+              learners: learners,
+              audience: _audience,
+              queued: _queued,
+              onOpen: (assessment) => _openAssessment(assessment.id),
+            ),
     );
   }
 
@@ -558,13 +578,16 @@ class _State extends ConsumerState<GradebookPage> {
       shape: const StadiumBorder(),
       textStyle: const TextStyle(fontSize: 11, fontWeight: FontWeight.w600),
     ),
-    child: Row(mainAxisSize: MainAxisSize.min, children: [
-      const Icon(LucideIcons.users, size: 12),
-      const SizedBox(width: 4),
-      Text(_audience == 'regular' ? 'REG' : 'ADM'),
-      const SizedBox(width: 4),
-      const Icon(Icons.swap_horiz, size: 12),
-    ]),
+    child: Row(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        const Icon(LucideIcons.users, size: 12),
+        const SizedBox(width: 4),
+        Text(_audience == 'regular' ? 'REG' : 'ADM'),
+        const SizedBox(width: 4),
+        const Icon(Icons.swap_horiz, size: 12),
+      ],
+    ),
   );
 
   Widget _gradingWeights(ClassRecord data) {

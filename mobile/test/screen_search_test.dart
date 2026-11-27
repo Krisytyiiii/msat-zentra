@@ -256,14 +256,10 @@ void main() {
       expect(adviser.first, 'Overview');
       expect(
         adviser,
-        containsAll([
-          'Advisory list',
-          'Advisory attendance',
-          'Academic',
-          'Referrals',
-          'Attendance',
-        ]),
+        containsAll(['Advisory list', 'Referrals', 'Attendance']),
       );
+      expect(adviser, isNot(contains('Advisory attendance')));
+      expect(adviser, isNot(contains('Academic')));
       expect(adviser, isNot(contains('My schedule')));
       expect(adviser, isNot(contains('Class Schedule')));
       expect(adviser, isNot(contains('Chat with Bama')));
@@ -352,10 +348,10 @@ void main() {
     expect(find.text('PAGES'), findsNothing);
 
     final field = find.byKey(const ValueKey('screen-search-field'));
-    await tester.enterText(field, 'acad');
+    await tester.enterText(field, 'interv');
     await tester.pumpAndSettle();
     expect(find.text('PAGES'), findsOneWidget);
-    expect(find.text('Academic'), findsOneWidget);
+    expect(find.text('Interventions'), findsOneWidget);
     expect(
       find.descendant(
         of: find.byKey(const ValueKey('screen-search-results')),

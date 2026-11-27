@@ -860,8 +860,9 @@ void main() {
     expect(find.widgetWithText(ListTile, 'Advisory list'), findsOneWidget);
     expect(
       find.widgetWithText(ListTile, 'Advisory attendance'),
-      findsOneWidget,
+      findsNothing,
     );
+    expect(find.widgetWithText(ListTile, 'Academic'), findsNothing);
   });
   for (final adviser in [true, false]) {
     for (final verified in [true, false]) {

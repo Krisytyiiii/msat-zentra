@@ -25,40 +25,50 @@ import '../home/role_home.dart' show StaffShellScope;
 
 /// A reopened/deep-linked record resolves its real class through the current
 /// account's teaching load instead of trusting labels from a previous screen.
-final attendanceRecordPairProvider =
-    FutureProvider.autoDispose.family<AttendancePair, String>((ref, key) async {
+final attendanceRecordPairProvider = FutureProvider.autoDispose
+    .family<AttendancePair, String>((ref, key) async {
       ref.watch(authProvider);
       ref.watch(termProvider);
-      final access = await AttendanceService(ref.watch(apiClientProvider)).access();
+      final access = await AttendanceService(ref.watch(apiClientProvider))
+          .access();
       final pair = access.pairs.where((p) => p.key == key).firstOrNull;
       if (!access.entered || pair == null) {
-        throw ApiException('ACCESS_CHANGED', 'This class is no longer available. Return to Attendance.');
+        throw ApiException(
+          'ACCESS_CHANGED',
+          'This class is no longer available. Return to Attendance.',
+        );
       }
       return pair;
     });
 
 class AttendanceRecordRoute extends ConsumerWidget {
   const AttendanceRecordRoute({
-    super.key, required this.sectionId, required this.subjectId,
+    super.key,
+    required this.sectionId,
+    required this.subjectId,
   });
   final String sectionId, subjectId;
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final provider = attendanceRecordPairProvider('$sectionId|$subjectId');
-    return ref.watch(provider).when(
-      data: (pair) => AttendanceRecordPage(
-        key: ValueKey(pair.key), pair: pair,
-      ),
-      loading: () => Scaffold(
-        appBar: _recordHeader(context),
-        body: const LoadingView(layout: SkeletonLayout.attendance),
-      ),
-      error: (error, _) => Scaffold(
-        appBar: _recordHeader(context),
-        body: ErrorView(message: error, onRetry: () => ref.invalidate(provider)),
-      ),
-    );
+    return ref
+        .watch(provider)
+        .when(
+          data: (pair) =>
+              AttendanceRecordPage(key: ValueKey(pair.key), pair: pair),
+          loading: () => Scaffold(
+            appBar: _recordHeader(context),
+            body: const LoadingView(layout: SkeletonLayout.attendance),
+          ),
+          error: (error, _) => Scaffold(
+            appBar: _recordHeader(context),
+            body: ErrorView(
+              message: error,
+              onRetry: () => ref.invalidate(provider),
+            ),
+          ),
+        );
   }
 }
 
@@ -80,7 +90,8 @@ AppBar _recordHeader(BuildContext context) => AppBar(
   centerTitle: true,
   title: const Text('Attendance Record'),
   leading: ZBackButton(
-    tooltip: 'Back', icon: const Icon(Icons.chevron_left),
+    tooltip: 'Back',
+    icon: const Icon(Icons.chevron_left),
     onPressed: () => _closeRecord(context),
   ),
 );
@@ -382,13 +393,16 @@ class _AttendanceRecordPageState extends ConsumerState<AttendanceRecordPage>
             child: Scaffold(
               extendBody: ownNavigation,
               bottomNavigationBar: ownNavigation
-                  ? const AdviserBottomNavigation(
+                  ? AdviserBottomNavigation(
                       selectedPath: '/workspace/attendance',
                       rerouteOnSelect: true,
+                      isAdviser: isAdviser,
                     )
                   : null,
               appBar: AppBar(
-                shape: const Border(bottom: BorderSide(color: Color(0xFFEDF0F6))),
+                shape: const Border(
+                  bottom: BorderSide(color: Color(0xFFEDF0F6)),
+                ),
                 centerTitle: true,
                 backgroundColor: Colors.white,
                 leadingWidth: 64,
@@ -418,7 +432,8 @@ class _AttendanceRecordPageState extends ConsumerState<AttendanceRecordPage>
                             physics: const AlwaysScrollableScrollPhysics(),
                             padding: const EdgeInsets.fromLTRB(12, 16, 12, 168),
                             children: [
-                              ZContentHeader(title: widget.pair.subjectName,
+                              ZContentHeader(
+                                title: widget.pair.subjectName,
                                 icon: LucideIcons.calendarCheck,
                                 description: 'View the learners in this class.',
                               ),
@@ -439,15 +454,24 @@ class _AttendanceRecordPageState extends ConsumerState<AttendanceRecordPage>
                                       compact: true,
                                     ),
                                   ],
-                                  ZScopePill(text: [
-                                    if (widget.pair.gradeLevel != null) widget.pair.gradeLevel!,
-                                    widget.pair.sectionName,
-                                  ].where((value) => value.isNotEmpty).join(' · '),
-                                    kind: ScopePillKind.grade, label: 'Grade and section', compact: true),
+                                  ZScopePill(
+                                    text:
+                                        [
+                                              if (widget.pair.gradeLevel !=
+                                                  null)
+                                                widget.pair.gradeLevel!,
+                                              widget.pair.sectionName,
+                                            ]
+                                            .where((value) => value.isNotEmpty)
+                                            .join(' · '),
+                                    kind: ScopePillKind.grade,
+                                    label: 'Grade and section',
+                                    compact: true,
+                                  ),
                                 ],
                               ),
-                               const SizedBox(height: 4),
-                               Row(
+                              const SizedBox(height: 4),
+                              Row(
                                 children: [
                                   const Expanded(
                                     child: Text(
@@ -459,17 +483,17 @@ class _AttendanceRecordPageState extends ConsumerState<AttendanceRecordPage>
                                       ),
                                     ),
                                   ),
-                                   TextButton(
-                                     style: TextButton.styleFrom(
-                                       minimumSize: const Size(48, 32),
-                                       padding: const EdgeInsets.symmetric(
-                                         horizontal: 8,
-                                       ),
-                                       visualDensity: VisualDensity.compact,
-                                       tapTargetSize:
-                                           MaterialTapTargetSize.padded,
-                                     ),
-                                     onPressed: () =>
+                                  TextButton(
+                                    style: TextButton.styleFrom(
+                                      minimumSize: const Size(48, 32),
+                                      padding: const EdgeInsets.symmetric(
+                                        horizontal: 8,
+                                      ),
+                                      visualDensity: VisualDensity.compact,
+                                      tapTargetSize:
+                                          MaterialTapTargetSize.padded,
+                                    ),
+                                    onPressed: () =>
                                         Navigator.of(
                                           context,
                                           rootNavigator: true,
@@ -573,28 +597,28 @@ class _AttendanceRecordPageState extends ConsumerState<AttendanceRecordPage>
                                   ),
                                 ),
                               ),
-                               Row(
-                                 children: [
-                                   Expanded(
-                                     child: Text(
-                                       'Showing ${learners.length} records',
+                              Row(
+                                children: [
+                                  Expanded(
+                                    child: Text(
+                                      'Showing ${learners.length} records',
                                       style: const TextStyle(
                                         fontSize: 12,
                                         color: Color(0xFF9999A6),
                                       ),
                                     ),
                                   ),
-                                   TextButton.icon(
-                                     style: TextButton.styleFrom(
-                                       minimumSize: const Size(48, 32),
-                                       padding: const EdgeInsets.symmetric(
-                                         horizontal: 8,
-                                       ),
-                                       visualDensity: VisualDensity.compact,
-                                       tapTargetSize:
-                                           MaterialTapTargetSize.padded,
-                                     ),
-                                     onPressed: () => setState(
+                                  TextButton.icon(
+                                    style: TextButton.styleFrom(
+                                      minimumSize: const Size(48, 32),
+                                      padding: const EdgeInsets.symmetric(
+                                        horizontal: 8,
+                                      ),
+                                      visualDensity: VisualDensity.compact,
+                                      tapTargetSize:
+                                          MaterialTapTargetSize.padded,
+                                    ),
+                                    onPressed: () => setState(
                                       () => _descending = !_descending,
                                     ),
                                     icon: const Icon(
@@ -609,11 +633,15 @@ class _AttendanceRecordPageState extends ConsumerState<AttendanceRecordPage>
                               ),
                               if (learners.isEmpty)
                                 ZEmpty(
-                                  icon: query.isEmpty ? LucideIcons.users : LucideIcons.search,
+                                  icon: query.isEmpty
+                                      ? LucideIcons.users
+                                      : LucideIcons.search,
                                   title: query.isEmpty
                                       ? 'No learners in this class.'
                                       : 'No learners match your search.',
-                                  subtitle: query.isEmpty ? 'Learners in this class will appear here.' : 'Try another name or LRN.',
+                                  subtitle: query.isEmpty
+                                      ? 'Learners in this class will appear here.'
+                                      : 'Try another name or LRN.',
                                 ),
                               for (
                                 var index = 0;
@@ -641,11 +669,14 @@ class _AttendanceRecordPageState extends ConsumerState<AttendanceRecordPage>
                       key: const ValueKey('attendance-dial-anchor'),
                       right: 16,
                       bottom: 0,
-                      child: FloatingAdd(child: AttendanceActions(
-                        expanded: _expanded,
-                        onToggle: () => setState(() => _expanded = !_expanded),
-                        onSelect: _openAttendance,
-                      )),
+                      child: FloatingAdd(
+                        child: AttendanceActions(
+                          expanded: _expanded,
+                          onToggle: () =>
+                              setState(() => _expanded = !_expanded),
+                          onSelect: _openAttendance,
+                        ),
+                      ),
                     ),
                 ],
               ),

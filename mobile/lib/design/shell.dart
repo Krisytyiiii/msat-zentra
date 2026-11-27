@@ -233,6 +233,7 @@ class _ZentraShellState extends ConsumerState<ZentraShell> {
                     : AdviserBottomNavigation(
                         selectedPath: recordDestination ?? location,
                         rerouteOnSelect: recordDestination != null,
+                        isAdviser: isAdviser,
                       ))
               : null,
           body: SaveTaskHost(
@@ -479,20 +480,6 @@ class ZentraDrawer extends ConsumerWidget {
                         '/adviser/advisory',
                         _selected('/adviser/advisory') &&
                             !_selected('/adviser/advisory/attendance'),
-                      ),
-                      _item(
-                        context,
-                        Icons.fact_check_outlined,
-                        'Advisory attendance',
-                        '/adviser/advisory/attendance',
-                        _selected('/adviser/advisory/attendance'),
-                      ),
-                      _item(
-                        context,
-                        Icons.school_outlined,
-                        'Academic',
-                        '/adviser/academic',
-                        _selected('/adviser/academic'),
                       ),
                       _item(
                         context,

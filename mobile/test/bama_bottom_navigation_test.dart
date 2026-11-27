@@ -19,6 +19,7 @@ void main() {
           home: const Scaffold(
             bottomNavigationBar: AdviserBottomNavigation(
               selectedPath: '/workspace/overview',
+              isAdviser: true,
             ),
           ),
         ),
@@ -29,16 +30,15 @@ void main() {
       for (final label in ['Overview', 'Class', 'Gradebook', 'Attendance']) {
         expect(find.text(label), findsOneWidget);
         expect(
-          tester
-              .getSize(find.byKey(ValueKey('adviser-nav-$label')))
-              .height,
+          tester.getSize(find.byKey(ValueKey('adviser-nav-$label'))).height,
           greaterThanOrEqualTo(48),
         );
       }
-      // Bama is no longer a bottom destination.
-      expect(find.byKey(const ValueKey('adviser-nav-Bama')), findsNothing);
-      expect(find.byTooltip('Chat with Bama'), findsNothing);
-      expect(find.byType(FloatingActionButton), findsNothing);
+      // Bama is the circular special button beside the bar, not a 5th item.
+      final bama = find.byKey(const ValueKey('adviser-nav-Bama'));
+      expect(bama, findsOneWidget);
+      expect(find.byTooltip('Chat with Bama'), findsOneWidget);
+      expect(tester.getSize(bama), const Size(60, 60));
       expect(tester.takeException(), isNull);
     });
   }
