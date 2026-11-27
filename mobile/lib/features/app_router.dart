@@ -179,7 +179,11 @@ List<RouteBase> _portalRoutes() => [
       ),
       GoRoute(
         path: '/student/home',
-        builder: (context, _) => const StudentHomePage(),
+        redirect: (context, _) => '/student/overview',
+      ),
+      GoRoute(
+        path: '/student/overview',
+        builder: (context, _) => const StudentOverviewPage(),
       ),
       GoRoute(
         path: '/student/grades',
@@ -203,7 +207,11 @@ List<RouteBase> _portalRoutes() => [
       ),
       GoRoute(
         path: '/parent/home',
-        builder: (context, _) => const ParentHomePage(),
+        redirect: (context, _) => '/parent/overview',
+      ),
+      GoRoute(
+        path: '/parent/overview',
+        builder: (context, _) => const ParentOverviewPage(),
       ),
       GoRoute(
         path: '/parent/grades',
@@ -260,7 +268,7 @@ final routerProvider = Provider<GoRouter>((ref) {
         if (portal == 'student' || portal == 'parent') {
           if (loc == '/portal/notifications' || loc.startsWith('/$portal/'))
             return null;
-          return '/$portal/home';
+          return '/$portal/overview';
         }
         if (loc.startsWith('/student') ||
             loc.startsWith('/parent') ||

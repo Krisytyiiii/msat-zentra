@@ -55,8 +55,8 @@ Future<_TestAuth> _mount(
     routes: [
       GoRoute(path: '/', builder: (_, _) => const LoginPage()),
       for (final path in [
-        '/student/home',
-        '/parent/home',
+        '/student/overview',
+        '/parent/overview',
         '/coordinator/overview',
         '/term',
       ])

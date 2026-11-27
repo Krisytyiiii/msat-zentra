@@ -140,6 +140,15 @@ final parentChildrenProvider = FutureProvider.autoDispose<List<PortalChild>>((re
   return [for (final c in (data['children'] as List? ?? [])) PortalChild.fromJson(Map<String, dynamic>.from(c as Map))];
 });
 
+/// The guardian's own identity for the account panel (name/email only).
+final parentMeProvider = FutureProvider.autoDispose<PortalParent?>((ref) async {
+  final data = await _get(ref, '/api/parent/me');
+  final parent = data['parent'];
+  return parent is Map
+      ? PortalParent.fromJson(Map<String, dynamic>.from(parent))
+      : null;
+});
+
 /// Last child the parent picked, remembered per device. Cleared on logout with
 /// the rest of `zentra.portal`.
 final _storedChildIdProvider = StateProvider<String?>((ref) {

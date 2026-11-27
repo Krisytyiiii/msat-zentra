@@ -535,5 +535,5 @@ String portalNotificationTitle(ZNotification n) {
 /// learner-related lands on the portal home (where sessions are surfaced).
 String portalNotificationTarget(ZNotification n, String portal) {
   if (n.sourceTable == 'advisory_modules') return '/$portal/modules';
-  return '/$portal/home';
+  return '/$portal/overview';
 }

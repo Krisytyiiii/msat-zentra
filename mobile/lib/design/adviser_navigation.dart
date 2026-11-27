@@ -25,7 +25,7 @@ const _adviserDestinations = [
 ];
 
 const _studentDestinations = [
-  (path: '/student/home', label: 'Home', icon: LucideIcons.layoutDashboard),
+  (path: '/student/overview', label: 'Overview', icon: LucideIcons.layoutDashboard),
   (path: '/student/grades', label: 'Grades', icon: LucideIcons.award),
   (
     path: '/student/attendance',
@@ -36,7 +36,7 @@ const _studentDestinations = [
 ];
 
 const _parentDestinations = [
-  (path: '/parent/home', label: 'Home', icon: LucideIcons.layoutDashboard),
+  (path: '/parent/overview', label: 'Overview', icon: LucideIcons.layoutDashboard),
   (path: '/parent/grades', label: 'Grades', icon: LucideIcons.award),
   (
     path: '/parent/attendance',

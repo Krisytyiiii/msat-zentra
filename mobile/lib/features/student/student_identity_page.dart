@@ -86,7 +86,7 @@ class _IdentityState extends ConsumerState<StudentIdentityPage> {
             tooltip: 'Back',
             icon: const Icon(Icons.chevron_left),
             onPressed: () =>
-                context.canPop() ? context.pop() : context.go('/student/home'),
+                context.canPop() ? context.pop() : context.go('/student/overview'),
           ),
         ),
         body: learner.when(

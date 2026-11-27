@@ -19,6 +19,7 @@ import '../shared/widgets.dart';
 import 'adviser_navigation.dart';
 import 'brand.dart';
 import 'overview_theme.dart';
+import 'staff_profile.dart';
 import 'screen_search.dart'
     show
         ScreenSearchController,
@@ -163,7 +164,6 @@ class _PortalShellState extends ConsumerState<PortalShell> {
                 ),
                 title: _searchField(context, theme, spec),
                 actions: [
-                  _PortalBell(portal: widget.portal),
                   _PortalAvatar(portal: widget.portal),
                 ],
                 bottom: PreferredSize(
@@ -260,31 +260,6 @@ class _PortalShellState extends ConsumerState<PortalShell> {
   }
 }
 
-class _PortalBell extends ConsumerWidget {
-  final String portal;
-  const _PortalBell({required this.portal});
-
-  @override
-  Widget build(BuildContext context, WidgetRef ref) {
-    final unread = ref
-        .watch(notificationsProvider)
-        .maybeWhen(
-          data: (items) => items.where((n) => !n.isRead).length,
-          orElse: () => 0,
-        );
-    return IconButton(
-      key: const ValueKey('portal-notifications'),
-      tooltip: 'Notifications',
-      onPressed: () => context.push('/portal/notifications'),
-      icon: Badge(
-        isLabelVisible: unread > 0,
-        label: Text(unread > 99 ? '99+' : '$unread'),
-        child: const Icon(Icons.notifications_none, size: 22),
-      ),
-    );
-  }
-}
-
 class _PortalAvatar extends ConsumerWidget {
   final String portal;
   const _PortalAvatar({required this.portal});
@@ -292,21 +267,18 @@ class _PortalAvatar extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final theme = Theme.of(context);
-    final learner = portal == 'student'
-        ? ref.watch(studentMeProvider).asData?.value
-        : null;
-    final children = portal == 'parent'
-        ? ref.watch(parentChildrenProvider).asData?.value
-        : null;
-    final initial = (learner?.name ?? children?.firstOrNull?.name ?? '').trim();
+    final name = portal == 'student'
+        ? ref.watch(studentMeProvider).asData?.value.name
+        : ref.watch(parentMeProvider).asData?.value?.name;
+    final initial = (name ?? '').trim();
     return Padding(
       padding: const EdgeInsets.only(right: 12),
       child: Tooltip(
-        message: 'Account',
+        message: 'Profile',
         child: InkWell(
           key: const ValueKey('portal-account'),
           borderRadius: BorderRadius.circular(999),
-          onTap: () => _showAccount(context, ref, learner, children),
+          onTap: () => showPortalProfile(context, portal),
           child: Container(
             padding: const EdgeInsets.all(5),
             decoration: BoxDecoration(
@@ -337,92 +309,73 @@ class _PortalAvatar extends ConsumerWidget {
       ),
     );
   }
+}
 
-  void _showAccount(
-    BuildContext context,
-    WidgetRef ref,
-    PortalLearner? learner,
-    List<PortalChild>? children,
-  ) {
-    showModalBottomSheet<void>(
-      context: context,
-      showDragHandle: true,
-      backgroundColor: Theme.of(context).colorScheme.surface,
-      builder: (ctx) {
-        final theme = Theme.of(ctx);
-        final name = portal == 'student'
-            ? learner?.name
-            : (children?.length == 1 ? children!.first.name : null);
-        final meta = portal == 'student'
-            ? [
-                if (learner?.lrn.isNotEmpty == true) 'LRN ${learner!.lrn}',
-                if (learner?.sectionName != null) learner!.sectionName!,
-              ].join(' · ')
-            : (children?.length ?? 0) > 1
-            ? '${children!.length} linked learners'
-            : (children?.firstOrNull?.sectionName ?? '');
-        return SafeArea(
-          child: Padding(
-            padding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              crossAxisAlignment: CrossAxisAlignment.stretch,
-              children: [
-                Text(
-                  name?.isNotEmpty == true
-                      ? name!
-                      : (portal == 'parent' ? 'Parent account' : 'Learner'),
-                  style: theme.textTheme.titleMedium?.copyWith(
-                    fontWeight: FontWeight.w700,
-                  ),
-                ),
-                if (meta.isNotEmpty)
-                  Padding(
-                    padding: const EdgeInsets.only(top: 2),
-                    child: Text(meta, style: theme.textTheme.labelSmall),
-                  ),
-                const SizedBox(height: 12),
-                ListTile(
-                  shape: const StadiumBorder(),
-                  leading: const Icon(Icons.notifications_none),
-                  title: const Text('Notifications'),
-                  trailing: const Icon(Icons.chevron_right),
-                  onTap: () {
-                    Navigator.pop(ctx);
-                    context.push('/portal/notifications');
-                  },
-                ),
-                if (portal == 'student')
-                  ListTile(
-                    shape: const StadiumBorder(),
-                    leading: const Icon(Icons.person_outline),
-                    title: const Text('Profile'),
-                    trailing: const Icon(Icons.chevron_right),
-                    onTap: () {
-                      Navigator.pop(ctx);
-                      context.push('/student/profile');
-                    },
-                  ),
-                ListTile(
-                  shape: const StadiumBorder(),
-                  leading: Icon(Icons.logout, color: theme.colorScheme.error),
-                  title: Text(
-                    'Log out',
-                    style: TextStyle(color: theme.colorScheme.error),
-                  ),
-                  onTap: () async {
-                    Navigator.pop(ctx);
-                    await ref.read(authProvider.notifier).logout();
-                    if (context.mounted) context.go('/login');
-                  },
-                ),
-              ],
-            ),
-          ),
-        );
-      },
+/// Full-screen learner account panel, matching the adviser workspace profile:
+/// identity card, notification previews, appearance and logout. Portals have no
+/// settings desk, so that row is omitted.
+class PortalProfileScreen extends ConsumerWidget {
+  final String portal; // student | parent
+  const PortalProfileScreen({super.key, required this.portal});
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final isStudent = portal == 'student';
+    final learner =
+        isStudent ? ref.watch(studentMeProvider).asData?.value : null;
+    final parent =
+        !isStudent ? ref.watch(parentMeProvider).asData?.value : null;
+    final children =
+        !isStudent
+            ? ref.watch(parentChildrenProvider).asData?.value ??
+                  const <PortalChild>[]
+            : const <PortalChild>[];
+
+    final name = isStudent
+        ? (learner?.name ?? 'Learner')
+        : (parent?.name ?? 'Parent account');
+    final roleLabel = isStudent
+        ? [
+            'Learner',
+            if (learner?.lrn.isNotEmpty == true) 'LRN ${learner!.lrn}',
+            if (learner?.gradeLevel.isNotEmpty == true) learner!.gradeLevel,
+            if (learner?.sectionName != null) learner!.sectionName!,
+          ].join(' · ')
+        : [
+            'Parent / Guardian',
+            if (children.isNotEmpty)
+              '${children.length} linked learner${children.length == 1 ? '' : 's'}',
+          ].join(' · ');
+
+    return StaffProfileScreen(
+      data: StaffProfileData(
+        name: name,
+        photoUrl: learner?.photoUrl,
+        roleLabel: roleLabel,
+        inbox: ref.watch(notificationsProvider),
+        onSeeAll: (ctx) {
+          final router = GoRouter.of(ctx);
+          Navigator.of(ctx).pop();
+          router.go('/portal/notifications');
+        },
+        settingsPath: null,
+        notificationTitle: portalNotificationTitle,
+        notificationTarget: (n) => portalNotificationTarget(n, portal),
+        emptySubtitle: isStudent
+            ? 'Grade locks, module updates, and session reminders appear here.'
+            : 'Updates about your linked learners appear here.',
+      ),
     );
   }
+}
+
+void showPortalProfile(BuildContext context, String portal) {
+  Navigator.of(context, rootNavigator: true).push<void>(
+    MaterialPageRoute(
+      fullscreenDialog: true,
+      builder: (_) => PortalProfileScreen(portal: portal),
+    ),
+  );
 }
 
 class PortalDrawer extends ConsumerWidget {
@@ -471,37 +424,13 @@ class PortalDrawer extends ConsumerWidget {
                       ],
                     ),
                   ),
-                  if (portal == 'parent') ...[
-                    const _PortalChildPicker(),
-                    const SizedBox(height: 4),
-                  ],
                   const _PortalTermPicker(),
+                  if (portal == 'parent') ...[
+                    const SizedBox(height: 6),
+                    const _PortalChildPicker(),
+                  ],
                   const SizedBox(height: 4),
                   const _DrawerHeader('My learning'),
-                  _item(
-                    context,
-                    LucideIcons.layoutDashboard,
-                    'Home',
-                    '/$portal/home',
-                  ),
-                  _item(
-                    context,
-                    LucideIcons.award,
-                    'Grades',
-                    '/$portal/grades',
-                  ),
-                  _item(
-                    context,
-                    LucideIcons.clipboardCheck,
-                    'Attendance',
-                    '/$portal/attendance',
-                  ),
-                  _item(
-                    context,
-                    LucideIcons.calendar,
-                    'Schedule',
-                    '/$portal/schedule',
-                  ),
                   _item(
                     context,
                     LucideIcons.folderOpen,
@@ -514,20 +443,6 @@ class PortalDrawer extends ConsumerWidget {
                     'Sessions',
                     '/$portal/sessions',
                   ),
-                  const _DrawerHeader('Account'),
-                  _item(
-                    context,
-                    LucideIcons.bell,
-                    'Notifications',
-                    '/portal/notifications',
-                  ),
-                  if (portal == 'student')
-                    _item(
-                      context,
-                      LucideIcons.user,
-                      'Profile',
-                      '/student/profile',
-                    ),
                 ],
               ),
             ),
@@ -537,21 +452,8 @@ class PortalDrawer extends ConsumerWidget {
                 children: [
                   Divider(color: theme.colorScheme.outline),
                   _PortalIdentity(portal: portal),
-                  ListTile(
-                    shape: const StadiumBorder(),
-                    leading: Icon(
-                      LucideIcons.logOut,
-                      color: theme.colorScheme.error,
-                    ),
-                    title: Text(
-                      'Log out',
-                      style: TextStyle(color: theme.colorScheme.error),
-                    ),
-                    onTap: () async {
-                      await ref.read(authProvider.notifier).logout();
-                      if (context.mounted) context.go('/login');
-                    },
-                  ),
+                  const SizedBox(height: 6),
+                  _PortalWorkspacePill(portal: portal),
                 ],
               ),
             ),
@@ -615,43 +517,93 @@ class _PortalIdentity extends ConsumerWidget {
     final learner = portal == 'student'
         ? ref.watch(studentMeProvider).asData?.value
         : null;
+    final parent = portal == 'parent'
+        ? ref.watch(parentMeProvider).asData?.value
+        : null;
     final children = portal == 'parent'
         ? ref.watch(parentChildrenProvider).asData?.value
         : null;
     final title = portal == 'student'
         ? (learner?.name ?? 'Learner')
-        : (children?.length == 1 ? children!.first.name : 'Parent account');
+        : (parent?.name ?? 'Parent account');
     final subtitle = portal == 'student'
         ? [
+            'Learner',
             if (learner?.gradeLevel.isNotEmpty == true) learner!.gradeLevel,
             if (learner?.sectionName != null) learner!.sectionName!,
           ].join(' · ')
-        : '${children?.length ?? 0} linked learner${(children?.length ?? 0) == 1 ? '' : 's'}';
+        : [
+            'Parent / Guardian',
+            '${children?.length ?? 0} linked learner${(children?.length ?? 0) == 1 ? '' : 's'}',
+          ].join(' · ');
     return ListTile(
       contentPadding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-      leading: CircleAvatar(
-        radius: 20,
-        backgroundColor: theme.colorScheme.surfaceContainerLow,
-        child: Icon(
-          portal == 'parent' ? Icons.family_restroom : Icons.school_outlined,
-          size: 19,
-        ),
+      leading: TeacherAvatar(
+        photoUrl: portal == 'student' ? learner?.photoUrl : null,
+        radius: 21,
       ),
       title: Text(
         title,
         maxLines: 1,
         overflow: TextOverflow.ellipsis,
         style: theme.textTheme.bodyMedium?.copyWith(
+          color: theme.colorScheme.onSurface,
           fontSize: 14,
           fontWeight: FontWeight.w600,
         ),
       ),
-      subtitle: subtitle.isEmpty
-          ? null
-          : Text(
-              subtitle,
-              style: theme.textTheme.bodySmall?.copyWith(fontSize: 12),
+      subtitle: Text(
+        subtitle,
+        maxLines: 1,
+        overflow: TextOverflow.ellipsis,
+        style: theme.textTheme.bodySmall?.copyWith(
+          color: theme.colorScheme.onSurfaceVariant,
+          fontSize: 12,
+        ),
+      ),
+    );
+  }
+}
+
+/// The blue workspace label under the drawer identity, matching the adviser
+/// workspace drawer.
+class _PortalWorkspacePill extends StatelessWidget {
+  final String portal;
+  const _PortalWorkspacePill({required this.portal});
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final dark = theme.brightness == Brightness.dark;
+    final blue = dark ? const Color(0xFF7EB2FF) : const Color(0xFF2563EB);
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.symmetric(vertical: 14),
+      decoration: BoxDecoration(
+        color: dark
+            ? blue.withValues(alpha: 0.16)
+            : const Color(0xFFD9E6FC),
+        borderRadius: BorderRadius.circular(12),
+      ),
+      child: Row(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          Icon(
+            LucideIcons.briefcaseBusiness,
+            size: 18,
+            color: dark ? const Color(0xFFA9C9FF) : const Color(0xFF1855B5),
+          ),
+          const SizedBox(width: 8),
+          Text(
+            portal == 'parent' ? 'Parent workspace' : 'Learner workspace',
+            style: TextStyle(
+              color: dark ? const Color(0xFFA9C9FF) : const Color(0xFF1855B5),
+              fontSize: 13,
+              fontWeight: FontWeight.w600,
             ),
+          ),
+        ],
+      ),
     );
   }
 }
@@ -742,41 +694,111 @@ class _PortalTermPicker extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
+    final theme = Theme.of(context);
+    final scope = ref.watch(portalScopeProvider).asData?.value;
     final terms = ref.watch(portalTermsResultProvider);
-    final selected = ref.watch(portalTermIdProvider);
-    return terms.when(
-      loading: () => const Padding(
-        padding: EdgeInsets.symmetric(horizontal: 12),
-        child: SkeletonBox(height: 40),
-      ),
-      error: (e, _) => const SizedBox.shrink(),
-      data: (result) {
-        final valid =
-            selected != null && result.terms.any((t) => t.id == selected);
-        return Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 12),
-          child: DropdownButton<String>(
-            isExpanded: true,
-            value: valid ? selected : 'active',
-            items: [
-              const DropdownMenuItem(
-                value: 'active',
-                child: Text('Current term', style: TextStyle(fontSize: 13)),
+    final label = scope == null
+        ? 'Select term'
+        : '${scope.schoolYearName} · Term ${scope.termNumber}';
+    return Card(
+      margin: EdgeInsets.zero,
+      color: theme.colorScheme.surfaceContainerLow,
+      elevation: 0,
+      shape: const StadiumBorder(),
+      child: InkWell(
+        borderRadius: BorderRadius.circular(40),
+        onTap: terms.hasValue ? () => _open(context, ref) : null,
+        child: Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+          child: Row(
+            children: [
+              Icon(
+                LucideIcons.calendarDays,
+                size: 20,
+                color: theme.colorScheme.onSurfaceVariant,
               ),
-              for (final term in result.terms)
-                DropdownMenuItem(
-                  value: term.id,
-                  child: Text(
-                    term.label,
-                    style: const TextStyle(fontSize: 13),
-                    overflow: TextOverflow.ellipsis,
+              const SizedBox(width: 10),
+              Expanded(
+                child: Text(
+                  label,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: const TextStyle(
+                    fontSize: 13,
+                    fontWeight: FontWeight.w600,
                   ),
                 ),
+              ),
+              Icon(
+                LucideIcons.chevronRight,
+                size: 20,
+                color: theme.colorScheme.onSurfaceVariant,
+              ),
             ],
-            onChanged: (value) {
-              selectPortalTerm(ref, value == 'active' ? null : value);
-              ref.read(portalModulePageProvider.notifier).state = 1;
-            },
+          ),
+        ),
+      ),
+    );
+  }
+
+  void _open(BuildContext context, WidgetRef ref) {
+    final terms = ref.read(portalTermsResultProvider).asData?.value;
+    if (terms == null) return;
+    final selected = ref.read(portalTermIdProvider);
+    showModalBottomSheet<void>(
+      context: context,
+      showDragHandle: true,
+      backgroundColor: Theme.of(context).colorScheme.surface,
+      builder: (ctx) {
+        final theme = Theme.of(ctx);
+        void choose(String? id) {
+          selectPortalTerm(ref, id);
+          ref.read(portalModulePageProvider.notifier).state = 1;
+          Navigator.pop(ctx);
+        }
+
+        Widget option({
+          required String label,
+          required bool active,
+          required VoidCallback onTap,
+        }) => ListTile(
+          shape: const StadiumBorder(),
+          title: Text(label, style: const TextStyle(fontSize: 14)),
+          trailing: active
+              ? Icon(LucideIcons.check, size: 18, color: theme.colorScheme.primary)
+              : null,
+          onTap: onTap,
+        );
+
+        return SafeArea(
+          child: SingleChildScrollView(
+            padding: const EdgeInsets.fromLTRB(12, 0, 12, 16),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                Padding(
+                  padding: const EdgeInsets.fromLTRB(8, 0, 8, 8),
+                  child: Text(
+                    'Select term',
+                    style: theme.textTheme.titleMedium?.copyWith(
+                      fontWeight: FontWeight.w700,
+                    ),
+                  ),
+                ),
+                option(
+                  label: 'Current term',
+                  active: selected == null,
+                  onTap: () => choose(null),
+                ),
+                for (final term in terms.terms)
+                  option(
+                    label: term.label,
+                    active: selected == term.id,
+                    onTap: () => choose(term.id),
+                  ),
+              ],
+            ),
           ),
         );
       },

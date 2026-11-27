@@ -3,6 +3,9 @@
 
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:go_router/go_router.dart';
+import 'package:intl/intl.dart';
+import 'package:lucide_icons_flutter/lucide_icons.dart';
 import 'package:url_launcher/url_launcher.dart';
 
 import '../../design/overview_theme.dart';
@@ -13,17 +16,15 @@ import '../../shared/models.dart';
 import '../../shared/widgets.dart';
 import '../../services/portal_service.dart';
 import '../adviser/schedule_timing.dart';
+import '../home/overview_components.dart';
 
-class StudentHomePage extends ConsumerStatefulWidget {
-  const StudentHomePage({super.key});
+class StudentOverviewPage extends ConsumerStatefulWidget {
+  const StudentOverviewPage({super.key});
   @override
-  ConsumerState<StudentHomePage> createState() => _StudentHomeState();
+  ConsumerState<StudentOverviewPage> createState() => _StudentOverviewState();
 }
 
-class _StudentHomeState extends ConsumerState<StudentHomePage> {
-  String _lastQuery = '';
-  String _lastTerm = '';
-
+class _StudentOverviewState extends ConsumerState<StudentOverviewPage> {
   Future<void> _refresh() async {
     ref.invalidate(studentHomeProvider);
     try {
@@ -38,106 +39,205 @@ class _StudentHomeState extends ConsumerState<StudentHomePage> {
       data: theme,
       child: ColoredBox(
         color: theme.scaffoldBackgroundColor,
-        child: LayoutBuilder(
-          builder: (context, constraints) =>
-              _content(context, compact: constraints.maxHeight < 650),
+        child: RefreshIndicator(
+          onRefresh: _refresh,
+          child: ref.watch(studentHomeProvider).when(
+            loading: () => ListView(
+              physics: const AlwaysScrollableScrollPhysics(),
+              padding: const EdgeInsets.all(16),
+              children: const [ZSkeletonList()],
+            ),
+            error: (error, _) => ListView(
+              physics: const AlwaysScrollableScrollPhysics(),
+              padding: const EdgeInsets.all(16),
+              children: [
+                ErrorView(
+                  message: error,
+                  onRetry: () => ref.invalidate(studentHomeProvider),
+                ),
+              ],
+            ),
+            data: (home) => _body(context, home),
+          ),
         ),
       ),
     );
   }
 
-  Widget _content(BuildContext context, {required bool compact}) {
-    final term = portalScopeTerm(ref);
-    final termKey = '${term?.schoolYearId}:${term?.id}';
-    if (_lastTerm != termKey) {
-      _lastTerm = termKey;
-    }
+  Widget _body(BuildContext context, PortalHome home) {
     final query = (ScreenSearchScope.maybeOf(context)?.query ?? '')
         .trim()
         .toLowerCase();
-    if (_lastQuery != query) {
-      _lastQuery = query;
-    }
-    final homeAsync = ref.watch(studentHomeProvider);
-    return RefreshIndicator(
-      onRefresh: _refresh,
-      child: CustomScrollView(
-        physics: const AlwaysScrollableScrollPhysics(),
-        slivers: [
-          SliverToBoxAdapter(
-            child: Padding(
-              padding: const EdgeInsets.fromLTRB(12, 16, 12, 0),
-              child: _header(context, homeAsync, compact: compact),
-            ),
-          ),
-          homeAsync.when(
-            loading: () => const SliverToBoxAdapter(
-              child: Padding(
-                padding: EdgeInsets.all(16),
-                child: ZSkeletonList(),
+    final now = philippineTime(DateTime.now());
+    final dayConfig = SchoolDayConfig.tryFromJson(home.config);
+    final slots = home.todaySlots
+        .where((s) => query.isEmpty || s.subjectName.toLowerCase().contains(query))
+        .toList();
+    final sessions = home.upcomingSessions
+        .where((s) => query.isEmpty || s.sessionType.toLowerCase().contains(query))
+        .toList();
+
+    final inProgress = home.grades.where((g) => !g.isFinal).length;
+    final attention = <Widget>[
+      if (home.moduleCounts.overdue > 0)
+        OverviewAttentionRow(
+          icon: LucideIcons.folderOpen,
+          title:
+              '${home.moduleCounts.overdue} overdue module${home.moduleCounts.overdue == 1 ? '' : 's'}',
+          subtitle: 'Past the due date — submit as soon as you can.',
+          onTap: () => context.go('/student/modules'),
+        ),
+      if (home.attendance.hasMarks && home.attendance.isRisk)
+        OverviewAttentionRow(
+          icon: LucideIcons.clipboardCheck,
+          title: 'Attendance below 80%',
+          subtitle: 'Your term attendance is ${home.attendance.percent}%.',
+          onTap: () => context.go('/student/attendance'),
+        ),
+      if (inProgress > 0)
+        OverviewAttentionRow(
+          icon: LucideIcons.award,
+          title: '$inProgress grade${inProgress == 1 ? '' : 's'} in progress',
+          subtitle: 'Waiting for your teacher to finalize them.',
+          onTap: () => context.go('/student/grades'),
+        ),
+    ];
+
+    return SingleChildScrollView(
+      physics: const AlwaysScrollableScrollPhysics(),
+      padding: EdgeInsets.fromLTRB(
+        16,
+        16,
+        16,
+        112 + MediaQuery.paddingOf(context).bottom,
+      ),
+      child: Center(
+        child: ConstrainedBox(
+          constraints: const BoxConstraints(maxWidth: 760),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              _welcome(home),
+              const SizedBox(height: 16),
+              OverviewBoard(
+                icon: LucideIcons.bell,
+                title: 'Needs attention',
+                count: attention.isEmpty ? null : attention.length,
+                child: attention.isEmpty
+                    ? const OverviewAllClear(
+                        text: 'Nothing needs your attention right now.',
+                      )
+                    : Column(children: attention),
               ),
-            ),
-            error: (error, _) => SliverFillRemaining(
-              hasScrollBody: false,
-              child: ErrorView(
-                message: error,
-                onRetry: () => ref.invalidate(studentHomeProvider),
+              const SizedBox(height: 16),
+              OverviewBoard(
+                icon: LucideIcons.clock,
+                title: 'Up next',
+                action: 'View schedule',
+                onAction: () => context.go('/student/schedule'),
+                child: _upNext(context, home, slots, dayConfig, now),
               ),
-            ),
-            data: (home) => _body(context, home, query),
+              const SizedBox(height: 16),
+              OverviewBoard(
+                icon: LucideIcons.activity,
+                title: 'At a glance',
+                child: OverviewStatsGrid(
+                  columns: 2,
+                  items: [
+                    OverviewStatItem(
+                      label: 'Average',
+                      value: home.average?.round(),
+                      path: '/student/grades',
+                    ),
+                    OverviewStatItem(
+                      label: 'Attendance',
+                      value: home.attendance.hasMarks
+                          ? home.attendance.percent
+                          : null,
+                      path: '/student/attendance',
+                    ),
+                    OverviewStatItem(
+                      label: 'Overdue',
+                      value: home.moduleCounts.overdue,
+                      path: '/student/modules',
+                    ),
+                    OverviewStatItem(
+                      label: 'Classes',
+                      value: home.classCount,
+                      path: '/student/schedule',
+                    ),
+                  ],
+                  onOpen: (path) => context.go(path),
+                ),
+              ),
+              const SizedBox(height: 16),
+              OverviewBoard(
+                icon: LucideIcons.calendarCheck,
+                title: 'Upcoming sessions',
+                action: 'View all',
+                onAction: () => context.go('/student/sessions'),
+                child: sessions.isEmpty
+                    ? const OverviewBoardNote('No upcoming sessions.')
+                    : Column(
+                        children: [
+                          for (final session in sessions)
+                            _PortalSessionRow(
+                              session: session,
+                              onTap: () => context.go('/student/sessions'),
+                            ),
+                        ],
+                      ),
+              ),
+            ],
           ),
-          SliverToBoxAdapter(
-            child: SizedBox(height: 112 + MediaQuery.paddingOf(context).bottom),
-          ),
-        ],
+        ),
       ),
     );
   }
 
-  Widget _header(
-    BuildContext context,
-    AsyncValue<PortalHome> homeAsync, {
-    required bool compact,
-  }) {
-    final term = portalScopeTerm(ref);
-    final learner = homeAsync.asData?.value.learner;
+  Widget _welcome(PortalHome home) {
+    final theme = Theme.of(context);
+    final learner = home.learner;
+    final gradeSection = [
+      if (learner.gradeLevel.isNotEmpty)
+        learner.gradeLevel.replaceFirst(
+          RegExp(r'^Grade\s*', caseSensitive: false),
+          'G',
+        ),
+      if (learner.sectionName != null) learner.sectionName!,
+    ].join(' · ');
     return Column(
-      crossAxisAlignment: CrossAxisAlignment.stretch,
+      crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        if (!compact) ...[
-          ZContentHeader(
-            title: 'Home',
-            icon: Icons.home_outlined,
-            description: 'Your overview for this term.',
+        Text(
+          learner.name.trim().isEmpty
+              ? 'Welcome back.'
+              : 'Welcome back,\n${learner.name}.',
+          style: theme.textTheme.headlineSmall?.copyWith(
+            fontSize: 21,
+            fontWeight: FontWeight.w700,
+            letterSpacing: -0.3,
           ),
-          const SizedBox(height: 12),
-        ],
+        ),
+        const SizedBox(height: 6),
         Wrap(
           spacing: 6,
           runSpacing: 6,
+          crossAxisAlignment: WrapCrossAlignment.center,
           children: [
-            if (term != null) ...[
+            ZScopePill(
+              text: home.term.schoolYearName,
+              kind: ScopePillKind.schoolYear,
+              compact: true,
+            ),
+            ZScopePill(
+              text: 'Term ${home.term.termNumber}',
+              kind: ScopePillKind.term,
+              compact: true,
+            ),
+            if (gradeSection.isNotEmpty)
               ZScopePill(
-                text: term.schoolYearName,
-                kind: ScopePillKind.schoolYear,
-                compact: true,
-              ),
-              ZScopePill(
-                text: 'Term ${term.termNumber}',
-                kind: ScopePillKind.term,
-                compact: true,
-              ),
-            ],
-            if (learner != null)
-              ZScopePill(
-                text: [
-                  if (learner.gradeLevel.isNotEmpty)
-                    learner.gradeLevel.replaceFirst(
-                      RegExp(r'^Grade\s*', caseSensitive: false),
-                      'G',
-                    ),
-                  learner.sectionName ?? '',
-                ].where((v) => v.isNotEmpty).join(' · '),
+                text: gradeSection,
                 kind: ScopePillKind.grade,
                 label: 'Grade and section',
                 compact: true,
@@ -148,209 +248,192 @@ class _StudentHomeState extends ConsumerState<StudentHomePage> {
     );
   }
 
-  Widget _body(BuildContext context, PortalHome home, String query) {
-    final theme = Theme.of(context);
-    final l = home.learner;
-    final dayConfig = SchoolDayConfig.tryFromJson(home.config);
-    final grades = home.grades.where((g) => query.isEmpty || g.subjectName.toLowerCase().contains(query)).toList();
-    final todaySlots = home.todaySlots.where((s) => query.isEmpty || s.subjectName.toLowerCase().contains(query)).toList();
-    final sessions = home.upcomingSessions.where((s) => query.isEmpty || s.sessionType.toLowerCase().contains(query)).toList();
+  Widget _upNext(
+    BuildContext context,
+    PortalHome home,
+    List<PortalScheduleSlot> slots,
+    SchoolDayConfig? config,
+    DateTime now,
+  ) {
+    if (slots.isEmpty) {
+      final weekday = DateFormat('EEEE').format(now);
+      return ZEmpty(
+        icon: LucideIcons.calendarDays,
+        title: 'No classes',
+        subtitle: home.todaySlots.isEmpty
+            ? 'No scheduled classes on $weekday.'
+            : 'No classes match your search.',
+      );
+    }
+    final windows = <({PortalScheduleSlot slot, int start, int end})>[];
+    if (config != null) {
+      for (final slot in slots) {
+        if (slot.period < 0 || slot.period >= config.periods.length) continue;
+        final window = config.periods[slot.period];
+        windows.add((slot: slot, start: window.start, end: window.end));
+      }
+    }
+    windows.sort((a, b) => a.start.compareTo(b.start));
+    if (windows.isEmpty) {
+      // No timing config in the payload: still show the first class.
+      return _UpNextClass(slot: slots.first, live: false);
+    }
+    final minutes = now.hour * 60 + now.minute;
+    final next = windows.where((w) => w.end > minutes).firstOrNull;
+    if (next == null) {
+      return const OverviewBoardNote('No more scheduled classes today.');
+    }
+    return _UpNextClass(
+      slot: next.slot,
+      start: next.start,
+      end: next.end,
+      live: minutes >= next.start && minutes < next.end,
+    );
+  }
+}
 
-    return SliverMainAxisGroup(
-      slivers: [
-        SliverToBoxAdapter(
-          child: Padding(
-            padding: const EdgeInsets.fromLTRB(12, 16, 12, 0),
+class _UpNextClass extends StatelessWidget {
+  const _UpNextClass({
+    required this.slot,
+    this.start,
+    this.end,
+    required this.live,
+  });
+
+  final PortalScheduleSlot slot;
+  final int? start;
+  final int? end;
+  final bool live;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final accent = theme.colorScheme.primary;
+    final parts = start == null ? const <String>[] : clockLabel(start!).split(' ');
+    return Row(
+      children: [
+        if (parts.isNotEmpty) ...[
+          Container(
+            constraints: const BoxConstraints(minWidth: 66, minHeight: 64),
+            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 10),
+            decoration: BoxDecoration(
+              color: accent.withValues(alpha: 0.10),
+              borderRadius: BorderRadius.circular(12),
+              border: Border.all(color: accent.withValues(alpha: 0.30)),
+            ),
             child: Column(
-              crossAxisAlignment: CrossAxisAlignment.stretch,
+              mainAxisSize: MainAxisSize.min,
               children: [
-                ZCard(
-                  child: Row(
-                    children: [
-                      CircleAvatar(
-                        radius: 26,
-                        backgroundColor: theme.colorScheme.surfaceContainerLow,
-                        child: Text(
-                          l.name.isEmpty ? '?' : l.name.substring(0, 1).toUpperCase(),
-                          style: const TextStyle(fontSize: 20, fontWeight: FontWeight.w700),
-                        ),
-                      ),
-                      const SizedBox(width: 12),
-                      Expanded(
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Text(l.name, style: const TextStyle(fontWeight: FontWeight.w700, fontSize: 16)),
-                            Text(
-                              '${l.gradeLevel}${l.sectionName == null ? '' : ' · ${l.sectionName}'}',
-                              style: theme.textTheme.bodySmall,
-                            ),
-                            if (l.adviserName != null)
-                              Text('Adviser: ${l.adviserName}', style: theme.textTheme.labelSmall),
-                            Text(home.term.label, style: theme.textTheme.labelSmall),
-                          ],
-                        ),
-                      ),
-                    ],
+                Text(
+                  parts.first,
+                  style: theme.textTheme.titleSmall?.copyWith(
+                    color: accent,
+                    fontSize: 18,
+                    fontWeight: FontWeight.w700,
                   ),
                 ),
-                const SizedBox(height: 12),
-                Row(
-                  children: [
-                    Expanded(
-                      child: ZKpi(
-                        value: home.average == null ? '—' : home.average!.toStringAsFixed(1),
-                        label: 'Average',
-                        icon: Icons.grade_outlined,
-                      ),
-                    ),
-                    const SizedBox(width: 8),
-                    Expanded(
-                      child: ZKpi(
-                        value: home.attendance.hasMarks
-                            ? '${home.attendance.percent}%'
-                            : '—',
-                        label: 'Attendance',
-                        icon: Icons.fact_check_outlined,
-                        desc: !home.attendance.hasMarks
-                            ? 'No marks yet'
-                            : home.attendance.isRisk
-                            ? 'Below 80%'
-                            : null,
-                      ),
-                    ),
-                    const SizedBox(width: 8),
-                    Expanded(
-                      child: ZKpi(
-                        value: '${home.moduleCounts.overdue}',
-                        label: 'Overdue',
-                        icon: Icons.folder_off_outlined,
-                      ),
-                    ),
-                  ],
+                Text(
+                  live ? 'Now' : (parts.length > 1 ? parts[1] : ''),
+                  style: theme.textTheme.labelSmall?.copyWith(
+                    color: accent,
+                    fontSize: 12,
+                    fontWeight: FontWeight.w700,
+                    height: 1.1,
+                  ),
                 ),
               ],
             ),
           ),
+          const SizedBox(width: 12),
+        ],
+        Expanded(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                slot.subjectName,
+                style: theme.textTheme.titleSmall?.copyWith(
+                  fontWeight: FontWeight.w700,
+                ),
+              ),
+              const SizedBox(height: 2),
+              Text(
+                [
+                  if (slot.teacherName != null) slot.teacherName!,
+                  'Period ${slot.period + 1}',
+                  if (start != null && end != null)
+                    '${clockLabel(start!)} – ${clockLabel(end!)}',
+                ].join(' · '),
+                style: theme.textTheme.bodySmall?.copyWith(
+                  color: theme.colorScheme.onSurfaceVariant,
+                ),
+              ),
+            ],
+          ),
         ),
-        if (todaySlots.isNotEmpty) ...[
-          SliverToBoxAdapter(
-            child: Padding(
-              padding: const EdgeInsets.fromLTRB(12, 16, 12, 0),
-              child: Text("Today's classes", style: theme.textTheme.titleSmall?.copyWith(fontWeight: FontWeight.w700)),
-            ),
-          ),
-          SliverPadding(
-            padding: const EdgeInsets.fromLTRB(12, 8, 12, 0),
-            sliver: SliverList.separated(
-              itemCount: todaySlots.length,
-              separatorBuilder: (_, _) => const SizedBox(height: 8),
-              itemBuilder: (context, index) {
-                final slot = todaySlots[index];
-                return ZCard(
-                  padding: const EdgeInsets.symmetric(vertical: 4, horizontal: 12),
-                  child: ListTile(
-                    dense: true,
-                    leading: CircleAvatar(
-                      radius: 14,
-                      backgroundColor: theme.colorScheme.surfaceContainerLow,
-                      child: Text('${slot.period + 1}', style: const TextStyle(fontSize: 11)),
-                    ),
-                    title: Text(slot.subjectName, style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w600)),
-                    subtitle: Text(
-                      [
-                        slot.teacherName ?? slot.subjectCode,
-                        if (dayConfig != null &&
-                            slot.period >= 0 &&
-                            slot.period < dayConfig.periods.length)
-                          '${clockLabel(dayConfig.periods[slot.period].start)}–${clockLabel(dayConfig.periods[slot.period].end)}',
-                      ].join(' · '),
-                      style: const TextStyle(fontSize: 11),
-                    ),
-                  ),
-                );
-              },
-            ),
-          ),
-        ],
-        if (grades.isNotEmpty) ...[
-          SliverToBoxAdapter(
-            child: Padding(
-              padding: const EdgeInsets.fromLTRB(12, 16, 12, 0),
-              child: Text('Grades', style: theme.textTheme.titleSmall?.copyWith(fontWeight: FontWeight.w700)),
-            ),
-          ),
-          SliverPadding(
-            padding: const EdgeInsets.fromLTRB(12, 8, 12, 0),
-            sliver: SliverList.separated(
-              itemCount: grades.take(6).length,
-              separatorBuilder: (_, _) => const SizedBox(height: 8),
-              itemBuilder: (context, index) {
-                final g = grades[index];
-                return _GradeCard(grade: g, compact: true);
-              },
-            ),
-          ),
-        ] else ...[
-          SliverToBoxAdapter(
-            child: Padding(
-              padding: const EdgeInsets.fromLTRB(12, 16, 12, 0),
-              child: ZEmpty(icon: Icons.grade_outlined, title: 'No grades yet for this term', compact: true),
-            ),
-          ),
-        ],
-        if (sessions.isNotEmpty) ...[
-          SliverToBoxAdapter(
-            child: Padding(
-              padding: const EdgeInsets.fromLTRB(12, 16, 12, 0),
-              child: Text('Upcoming sessions', style: theme.textTheme.titleSmall?.copyWith(fontWeight: FontWeight.w700)),
-            ),
-          ),
-          SliverPadding(
-            padding: const EdgeInsets.fromLTRB(12, 8, 12, 0),
-            sliver: SliverList.separated(
-              itemCount: sessions.length,
-              separatorBuilder: (_, _) => const SizedBox(height: 8),
-              itemBuilder: (context, index) {
-                final s = sessions[index];
-                return ZCard(
-                  padding: const EdgeInsets.all(12),
-                  child: Row(
-                    children: [
-                      Icon(s.track == 'ADM' ? Icons.family_restroom : Icons.support_agent, size: 20),
-                      const SizedBox(width: 10),
-                      Expanded(
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Text(
-                              s.track == 'ADM' ? 'Parent conference' : s.sessionType.replaceAll('_', ' '),
-                              style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w600),
-                            ),
-                            Text(
-                              '${formatPortalDate(s.scheduledAt)} · ${s.venue.isEmpty ? 'Venue TBA' : s.venue}',
-                              style: theme.textTheme.labelSmall,
-                            ),
-                          ],
-                        ),
-                      ),
-                    ],
-                  ),
-                );
-              },
-            ),
-          ),
-        ],
       ],
     );
   }
+}
 
+class _PortalSessionRow extends StatelessWidget {
+  const _PortalSessionRow({required this.session, required this.onTap});
+
+  final PortalSession session;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final title = session.track == 'ADM'
+        ? 'Parent conference'
+        : session.sessionType.replaceAll('_', ' ');
+    return InkWell(
+      onTap: onTap,
+      borderRadius: BorderRadius.circular(12),
+      child: Padding(
+        padding: const EdgeInsets.symmetric(vertical: 8),
+        child: Row(
+          children: [
+            Icon(
+              session.track == 'ADM'
+                  ? Icons.family_restroom
+                  : Icons.support_agent,
+              size: 20,
+            ),
+            const SizedBox(width: 10),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    title,
+                    style: theme.textTheme.titleSmall?.copyWith(
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
+                  Text(
+                    '${formatPortalDate(session.scheduledAt)} · ${session.venue.isEmpty ? 'Venue TBA' : session.venue}',
+                    style: theme.textTheme.labelSmall,
+                  ),
+                ],
+              ),
+            ),
+            Icon(
+              LucideIcons.chevronRight,
+              size: 18,
+              color: theme.colorScheme.onSurfaceVariant,
+            ),
+          ],
+        ),
+      ),
+    );
+  }
 }
 
 class _GradeCard extends StatelessWidget {
   final PortalGrade grade;
-  final bool compact;
-  const _GradeCard({required this.grade, this.compact = false});
+  const _GradeCard({required this.grade});
 
   @override
   Widget build(BuildContext context) {
@@ -365,7 +448,7 @@ class _GradeCard extends StatelessWidget {
               children: [
                 Text(grade.subjectName, style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 13)),
                 Text(grade.subjectCode, style: theme.textTheme.labelSmall),
-                if (!compact && grade.remarks != null) Text(grade.remarks!, style: theme.textTheme.labelSmall),
+                if (grade.remarks != null) Text(grade.remarks!, style: theme.textTheme.labelSmall),
               ],
             ),
           ),

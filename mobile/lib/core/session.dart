@@ -39,8 +39,8 @@ String? mobilePortalForRole(String? role) => switch (role) {
 };
 
 String mobileLoginDestination(String? role) => switch (role) {
-  'student' => '/student/home',
-  'parent' => '/parent/home',
+  'student' => '/student/overview',
+  'parent' => '/parent/overview',
   'adm_coordinator' => '/coordinator/overview',
   'adviser' || 'subject_teacher' => '/term',
   _ => '/login',

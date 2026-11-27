@@ -38,9 +38,11 @@ ScreenSearchSpec screenSearchSpecFor(String location, [Uri? uri]) {
     // list it renders from `ScreenSearchScope`.
     case '/student/home':
     case '/parent/home':
+    case '/student/overview':
+    case '/parent/overview':
       return const ScreenSearchSpec.filter(
-        'Home',
-        'Search classes, grades, sessions',
+        'Overview',
+        'Search classes and sessions',
       );
     case '/student/grades':
     case '/parent/grades':

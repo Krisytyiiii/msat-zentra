@@ -1,5 +1,6 @@
 import { Router, type Request } from "express";
 import { requireAuth, requireRole } from "../../middleware/auth.js";
+import { prisma } from "../../lib/prisma.js";
 import { resolveActiveTermId } from "../../lib/term-resolve.js";
 import { validate } from "../../middleware/validate.js";
 import { studentModulesQuerySchema } from "../student/modules.schemas.js";
@@ -45,7 +46,14 @@ router.use(requireAuth, requireRole("parent"));
 
 router.get("/me", async (req, res, next) => {
   try {
-    res.json({ children: await listLinkedChildren(req.user!.id) });
+    const [parent, children] = await Promise.all([
+      prisma.user.findUnique({
+        where: { id: req.user!.id },
+        select: { fullName: true, email: true },
+      }),
+      listLinkedChildren(req.user!.id),
+    ]);
+    res.json({ parent, children });
   } catch (e) {
     next(e);
   }

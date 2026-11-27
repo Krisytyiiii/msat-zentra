@@ -382,6 +382,7 @@ export async function getLearnerHome(
     term,
     todaySlots,
     config: schedule.config,
+    classCount: schedule.classes.length,
     attendance: attendance.summary,
     grades: grades.grades,
     average: average == null ? null : Math.round(average * 100) / 100,

@@ -59,7 +59,7 @@ void main() {
       ScreenSkeleton.forPath('/workspace/attendance/records/a/b'),
       SkeletonLayout.attendance,
     );
-    expect(ScreenSkeleton.forPath('/student/home'), SkeletonLayout.overview);
+    expect(ScreenSkeleton.forPath('/student/overview'), SkeletonLayout.overview);
     expect(ScreenSkeleton.forPath('/parent/schedule'), SkeletonLayout.schedule);
     expect(
       ScreenSkeleton.forPath('/coordinator/referrals/a'),

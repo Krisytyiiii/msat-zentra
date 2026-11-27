@@ -241,6 +241,16 @@ class PortalLearner {
       );
 }
 
+class PortalParent {
+  final String name;
+  final String? email;
+  PortalParent({required this.name, this.email});
+  factory PortalParent.fromJson(Map<String, dynamic> j) => PortalParent(
+        name: j['fullName'] as String? ?? 'Parent account',
+        email: j['email'] as String?,
+      );
+}
+
 class PortalChild {
   final String studentId;
   final String name;
@@ -566,6 +576,9 @@ class PortalHome {
 
   /// Raw `ScheduleConfig` JSON for the term's day shape.
   final Map<String, dynamic>? config;
+
+  /// Distinct subjects in the learner's published timetable for this term.
+  final int classCount;
   final PortalAttendanceSummary attendance;
   final List<PortalGrade> grades;
   final double? average;
@@ -576,6 +589,7 @@ class PortalHome {
     required this.term,
     required this.todaySlots,
     this.config,
+    this.classCount = 0,
     required this.attendance,
     required this.grades,
     this.average,
@@ -587,6 +601,7 @@ class PortalHome {
         term: PortalTerm.fromJson(Map<String, dynamic>.from((j['term'] as Map?) ?? {})),
         todaySlots: [for (final x in (j['todaySlots'] as List? ?? [])) PortalScheduleSlot.fromJson(Map<String, dynamic>.from(x as Map))],
         config: j['config'] is Map ? Map<String, dynamic>.from(j['config'] as Map) : null,
+        classCount: (j['classCount'] ?? 0) as int,
         attendance: PortalAttendanceSummary.fromJson(Map<String, dynamic>.from((j['attendance'] as Map?) ?? {})),
         grades: [for (final x in (j['grades'] as List? ?? [])) PortalGrade.fromJson(Map<String, dynamic>.from(x as Map))],
         average: (j['average'] as num?)?.toDouble(),

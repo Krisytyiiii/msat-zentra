@@ -8,6 +8,8 @@ void main() {
     for (final path in [
       '/student/home',
       '/parent/home',
+      '/student/overview',
+      '/parent/overview',
       '/student/grades',
       '/parent/attendance',
       '/student/schedule',

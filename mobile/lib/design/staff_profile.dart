@@ -26,7 +26,7 @@ class StaffProfileData {
     required this.roleLabel,
     required this.inbox,
     required this.onSeeAll,
-    required this.settingsPath,
+    this.settingsPath,
     required this.notificationTitle,
     required this.notificationTarget,
     required this.emptySubtitle,
@@ -37,7 +37,9 @@ class StaffProfileData {
   final String roleLabel;
   final AsyncValue<List<ZNotification>> inbox;
   final void Function(BuildContext context) onSeeAll;
-  final String settingsPath;
+
+  /// Null for desks without a settings screen (learner portals).
+  final String? settingsPath;
   final String Function(ZNotification notification) notificationTitle;
   final String? Function(ZNotification notification) notificationTarget;
   final String emptySubtitle;
@@ -113,9 +115,11 @@ class StaffProfileScreen extends ConsumerWidget {
   }
 
   void _openSettings(BuildContext context) {
+    final path = data.settingsPath;
+    if (path == null) return;
     final router = GoRouter.maybeOf(context);
     Navigator.of(context).pop();
-    router?.go(data.settingsPath);
+    router?.go(path);
   }
 
   Future<void> _logout(BuildContext context, WidgetRef ref) async {
@@ -395,19 +399,21 @@ class StaffProfileScreen extends ConsumerWidget {
                           ),
                         ),
                         const Divider(),
-                        ListTile(
-                          onTap: () => _openSettings(context),
-                          leading: const Icon(LucideIcons.settings, size: 20),
-                          title: const Text(
-                            'Settings',
-                            style: TextStyle(fontSize: 14),
+                        if (data.settingsPath != null) ...[
+                          ListTile(
+                            onTap: () => _openSettings(context),
+                            leading: const Icon(LucideIcons.settings, size: 20),
+                            title: const Text(
+                              'Settings',
+                              style: TextStyle(fontSize: 14),
+                            ),
+                            trailing: const Icon(
+                              LucideIcons.chevronRight,
+                              size: 18,
+                            ),
                           ),
-                          trailing: const Icon(
-                            LucideIcons.chevronRight,
-                            size: 18,
-                          ),
-                        ),
-                        const Divider(),
+                          const Divider(),
+                        ],
                         ListTile(
                           key: const ValueKey('profile-logout'),
                           onTap: () => _logout(context, ref),
