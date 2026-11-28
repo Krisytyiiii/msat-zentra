@@ -213,11 +213,14 @@ List<RouteBase> _portalRoutes() => [
       ),
       GoRoute(
         path: '/student/modules',
-        builder: (context, _) => const StudentModulesPage(),
+        builder: (context, state) =>
+            StudentModulesPage(kind: state.uri.queryParameters['kind']),
       ),
       GoRoute(
         path: '/student/sessions',
-        builder: (context, _) => const StudentSessionsPage(),
+        builder: (context, state) => StudentSessionsPage(
+          admOnly: state.uri.queryParameters['track'] == 'adm',
+        ),
       ),
       GoRoute(
         path: '/parent/home',
@@ -326,6 +329,22 @@ final routerProvider = Provider<GoRouter>((ref) {
       GoRoute(
         path: '/student/attendance/:subjectId',
         builder: (context, state) => StudentSubjectAttendancePage(
+          subjectId: state.pathParameters['subjectId'] ?? '',
+          subjectName: state.extra is String ? state.extra as String : null,
+        ),
+      ),
+      GoRoute(
+        path: '/parent/children/:studentId/grades/:subjectId',
+        builder: (context, state) => StudentSubjectRecordPage(
+          childId: state.pathParameters['studentId'] ?? '',
+          subjectId: state.pathParameters['subjectId'] ?? '',
+          subjectName: state.extra is String ? state.extra as String : null,
+        ),
+      ),
+      GoRoute(
+        path: '/parent/children/:studentId/attendance/:subjectId',
+        builder: (context, state) => StudentSubjectAttendancePage(
+          childId: state.pathParameters['studentId'] ?? '',
           subjectId: state.pathParameters['subjectId'] ?? '',
           subjectName: state.extra is String ? state.extra as String : null,
         ),

@@ -183,7 +183,7 @@ class ZPill extends StatelessWidget {
   }
 }
 
-enum ScopePillKind { schoolYear, term, grade }
+enum ScopePillKind { schoolYear, term, grade, learner }
 
 /// Consistent content title, separate from the persistent navigation AppBar.
 class ZContentHeader extends StatelessWidget {
@@ -317,17 +317,22 @@ class ZScopePill extends StatelessWidget {
     required this.kind,
     this.label,
     this.compact = false,
+    this.maxLines,
+    this.overflow,
   });
   final String text;
   final ScopePillKind kind;
   final String? label;
   final bool compact;
+  /// Constrain long values (a learner name) to one line inside the capsule.
+  final int? maxLines;
+  final TextOverflow? overflow;
 
   @override
   Widget build(BuildContext context) {
     final dark = Theme.of(context).brightness == Brightness.dark;
     final amber = kind == ScopePillKind.term;
-    final violet = kind == ScopePillKind.grade;
+    final violet = kind == ScopePillKind.grade || kind == ScopePillKind.learner;
     final foreground = dark
         ? (amber
               ? const Color(0xFFFFC65C)
@@ -367,6 +372,7 @@ class ZScopePill extends StatelessWidget {
           ScopePillKind.schoolYear => 'School year',
           ScopePillKind.term => 'Term',
           ScopePillKind.grade => 'Grade level',
+          ScopePillKind.learner => 'Learner',
         };
     return Tooltip(
       message: fieldLabel,
@@ -390,6 +396,7 @@ class ZScopePill extends StatelessWidget {
                   ScopePillKind.schoolYear => LucideIcons.calendarDays,
                   ScopePillKind.term => LucideIcons.bookOpen,
                   ScopePillKind.grade => LucideIcons.graduationCap,
+                  ScopePillKind.learner => LucideIcons.userRound,
                 },
                 size: compact ? 11 : 13,
                 color: foreground,
@@ -399,6 +406,9 @@ class ZScopePill extends StatelessWidget {
             Flexible(
               child: Text(
                 text,
+                maxLines: maxLines,
+                overflow:
+                    overflow ?? (maxLines == null ? null : TextOverflow.ellipsis),
                 style: TextStyle(
                   fontSize: compact ? 11 : 12,
                   fontWeight: FontWeight.w600,

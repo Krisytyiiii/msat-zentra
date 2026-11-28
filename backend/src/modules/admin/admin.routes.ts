@@ -26,6 +26,12 @@ import {
   pendingAccountsQuerySchema,
   rejectSchema,
 } from "../auth/auth.schemas.js";
+import {
+  approveLearnerLink,
+  listAdminLinkRequests,
+  rejectLearnerLink,
+} from "../../services/parent/link.service.js";
+import { linkDecisionSchema } from "../parent/link.schemas.js";
 import type { GradeLevel } from "../../generated/prisma/client.js";
 
 const router = Router();
@@ -408,6 +414,52 @@ router.post(
           { userId: req.user!.id, role: req.user!.role },
           String(req.params.userId),
           (req.body as { reason: string }).reason,
+        ),
+      );
+    } catch (e) {
+      next(e);
+    }
+  },
+);
+
+/* ---- Guardian link requests ---------------------------------------------
+ * A parent files an LRN-based request from the parent workspace; the admin
+ * approves (stamps `ParentStudentLink.approvedBy`) or declines (row removed).
+ * Lives on the same approval desk as guardian sign-ups.
+ */
+router.get(
+  "/link-requests",
+  validate("query", paginationQuerySchema()),
+  async (req, res, next) => {
+    try {
+      const q = req.query as unknown as { page: number; pageSize: number; q: string };
+      res.json(
+        await listAdminLinkRequests({ page: q.page, pageSize: q.pageSize, q: q.q }),
+      );
+    } catch (e) {
+      next(e);
+    }
+  },
+);
+
+router.post("/link-requests/:id/approve", async (req, res, next) => {
+  try {
+    res.json(await approveLearnerLink(req.user!.id, String(req.params.id)));
+  } catch (e) {
+    next(e);
+  }
+});
+
+router.post(
+  "/link-requests/:id/reject",
+  validate("body", linkDecisionSchema),
+  async (req, res, next) => {
+    try {
+      res.json(
+        await rejectLearnerLink(
+          req.user!.id,
+          String(req.params.id),
+          (req.body as { reason?: string }).reason,
         ),
       );
     } catch (e) {

@@ -114,10 +114,16 @@ final studentSessionsProvider = FutureProvider.autoDispose<List<PortalSession>>(
   return [for (final s in (data['sessions'] as List? ?? [])) PortalSession.fromJson(Map<String, dynamic>.from(s as Map))];
 });
 
-final studentModulesProvider = FutureProvider.autoDispose<PortalModules>((ref) async {
+final studentModulesProvider =
+    FutureProvider.autoDispose.family<PortalModules, String?>((ref, kind) async {
   final page = ref.watch(portalModulePageProvider);
   return PortalModules.fromJson(
-    await _get(ref, '/api/student/modules', query: {..._termQuery(ref), 'page': page, 'pageSize': 15}),
+    await _get(ref, '/api/student/modules', query: {
+      ..._termQuery(ref),
+      'page': page,
+      'pageSize': 15,
+      'kind': ?kind,
+    }),
   );
 });
 
@@ -174,6 +180,49 @@ final parentChildrenProvider = FutureProvider.autoDispose<List<PortalChild>>((re
   return [for (final c in (data['children'] as List? ?? [])) PortalChild.fromJson(Map<String, dynamic>.from(c as Map))];
 });
 
+/// Pending LRN link requests filed by this guardian (approved links become
+/// children). Polled by the parent overview while a request is waiting.
+final parentLinkRequestsProvider =
+    FutureProvider.autoDispose<List<PortalLinkRequest>>((ref) async {
+  final data = await _get(ref, '/api/parent/link-requests');
+  return [
+    for (final r in (data['requests'] as List? ?? []))
+      PortalLinkRequest.fromJson(Map<String, dynamic>.from(r as Map)),
+  ];
+});
+
+/// File an LRN link request; the administrator approves it from the school
+/// desk, after which [parentChildrenProvider] starts returning the learner.
+Future<void> requestParentLink(
+  WidgetRef ref, {
+  required String lrn,
+  required String relationship,
+}) async {
+  final api = ref.read(apiClientProvider);
+  try {
+    await api.dio.post(
+      '/api/parent/link-requests',
+      data: {'lrn': lrn, 'relationship': relationship},
+    );
+  } on DioException catch (e) {
+    throw api.toApiException(e);
+  }
+  ref.invalidate(parentLinkRequestsProvider);
+  ref.invalidate(parentChildrenProvider);
+}
+
+/// Withdraw a pending link request.
+Future<void> cancelParentLink(WidgetRef ref, String id) async {
+  final api = ref.read(apiClientProvider);
+  try {
+    await api.dio.delete('/api/parent/link-requests/${Uri.encodeComponent(id)}');
+  } on DioException catch (e) {
+    throw api.toApiException(e);
+  }
+  ref.invalidate(parentLinkRequestsProvider);
+}
+
+
 /// The guardian's own identity for the account panel (name/email only).
 final parentMeProvider = FutureProvider.autoDispose<PortalParent?>((ref) async {
   final data = await _get(ref, '/api/parent/me');
@@ -196,9 +245,14 @@ final _storedChildIdProvider = StateProvider<String?>((ref) {
 /// a first login lands on a dashboard without an extra tap.
 final selectedChildProvider = Provider.autoDispose<String?>((ref) {
   final stored = ref.watch(_storedChildIdProvider);
-  final children =
-      ref.watch(parentChildrenProvider).asData?.value ?? const <PortalChild>[];
-  if (children.isEmpty) return stored;
+  final childrenAsync = ref.watch(parentChildrenProvider);
+  final children = childrenAsync.asData?.value;
+  // A loaded empty roster means nothing is linked: never keep pointing at a
+  // learner the guardian can no longer read (every desk then shows the link
+  // prompt instead of a 403 error). While the list is still loading, the
+  // remembered child is restored for a fast first paint.
+  if (children != null && children.isEmpty) return null;
+  if (children == null || children.isEmpty) return stored;
   if (stored != null && children.any((c) => c.studentId == stored)) {
     return stored;
   }
@@ -216,6 +270,37 @@ final parentHomeProvider = FutureProvider.autoDispose.family<PortalHome, String>
 
 final parentGradesProvider = FutureProvider.autoDispose.family<PortalGrades, String>((ref, childId) async {
   return PortalGrades.fromJson(await _get(ref, '/api/parent/children/$childId/grades', query: _termQuery(ref)));
+});
+
+/// Child + subject key for the shared Grade Record / Attendance Record screens.
+typedef ParentSubjectKey = ({String childId, String subjectId});
+
+/// One child's assessment record for a subject (read-only Grade Record).
+final parentSubjectRecordProvider =
+    FutureProvider.autoDispose.family<PortalSubjectRecord, ParentSubjectKey>(
+        (ref, key) async {
+  return PortalSubjectRecord.fromJson(
+    await _get(
+      ref,
+      '/api/parent/children/${Uri.encodeComponent(key.childId)}/subjects/'
+      '${Uri.encodeComponent(key.subjectId)}/record',
+      query: _termQuery(ref),
+    ),
+  );
+});
+
+/// One child's attendance record for a subject (summary, log, heatmap).
+final parentSubjectAttendanceProvider =
+    FutureProvider.autoDispose.family<PortalSubjectAttendanceDetail, ParentSubjectKey>(
+        (ref, key) async {
+  return PortalSubjectAttendanceDetail.fromJson(
+    await _get(
+      ref,
+      '/api/parent/children/${Uri.encodeComponent(key.childId)}/subjects/'
+      '${Uri.encodeComponent(key.subjectId)}/attendance',
+      query: _termQuery(ref),
+    ),
+  );
 });
 
 final parentAttendanceProvider = FutureProvider.autoDispose.family<PortalAttendance, String>((ref, childId) async {

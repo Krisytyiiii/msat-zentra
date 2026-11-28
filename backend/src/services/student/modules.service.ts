@@ -70,7 +70,7 @@ async function loadStudent(userId: string): Promise<StudentProfile> {
 /** Modules released to the learner's term section, with their own submission state. */
 export async function listStudentModules(
   ctx: StudentCtx,
-  query: { page: number; pageSize: number; status?: ModuleStatus },
+  query: { page: number; pageSize: number; status?: ModuleStatus; kind?: "adm" | "general" },
 ) {
   const profile = await loadStudent(ctx.userId);
   const sectionId = ctx.sectionId ?? profile.sectionId;
@@ -93,7 +93,11 @@ export async function listStudentModules(
         });
 
   const modules = await prisma.advisoryModule.findMany({
-    where: { sectionId, termId: ctx.termId },
+    where: {
+      sectionId,
+      termId: ctx.termId,
+      ...(query.kind ? { kind: query.kind } : {}),
+    },
     orderBy: [{ createdAt: "asc" }, { id: "asc" }],
   });
   const moduleIds = modules.map((m) => m.id);

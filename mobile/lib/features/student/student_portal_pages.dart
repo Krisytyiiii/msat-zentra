@@ -6,19 +6,18 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:intl/intl.dart';
 import 'package:lucide_icons_flutter/lucide_icons.dart';
-import 'package:url_launcher/url_launcher.dart';
 
 import '../../design/overview_theme.dart';
 import '../../design/screen_search.dart';
 import '../../design/status_palette.dart';
 import '../../features/student/module_submission.dart';
 import '../../shared/date_strip_selector.dart';
-import '../../shared/identity_tile.dart';
 import '../../shared/models.dart';
 import '../../shared/widgets.dart';
 import '../../services/portal_service.dart';
 import '../adviser/schedule_timing.dart';
 import '../home/overview_components.dart';
+import '../portal/portal_widgets.dart';
 
 class StudentOverviewPage extends ConsumerStatefulWidget {
   const StudentOverviewPage({super.key});
@@ -182,7 +181,7 @@ class _StudentOverviewState extends ConsumerState<StudentOverviewPage> {
                     : Column(
                         children: [
                           for (final session in sessions)
-                            _PortalSessionRow(
+                            PortalSessionRow(
                               session: session,
                               onTap: () => context.go('/student/sessions'),
                             ),
@@ -277,210 +276,18 @@ class _StudentOverviewState extends ConsumerState<StudentOverviewPage> {
     windows.sort((a, b) => a.start.compareTo(b.start));
     if (windows.isEmpty) {
       // No timing config in the payload: still show the first class.
-      return _UpNextClass(slot: slots.first, live: false);
+      return PortalUpNextClass(slot: slots.first, live: false);
     }
     final minutes = now.hour * 60 + now.minute;
     final next = windows.where((w) => w.end > minutes).firstOrNull;
     if (next == null) {
       return const OverviewBoardNote('No more scheduled classes today.');
     }
-    return _UpNextClass(
+    return PortalUpNextClass(
       slot: next.slot,
       start: next.start,
       end: next.end,
       live: minutes >= next.start && minutes < next.end,
-    );
-  }
-}
-
-class _UpNextClass extends StatelessWidget {
-  const _UpNextClass({
-    required this.slot,
-    this.start,
-    this.end,
-    required this.live,
-  });
-
-  final PortalScheduleSlot slot;
-  final int? start;
-  final int? end;
-  final bool live;
-
-  @override
-  Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-    final accent = theme.colorScheme.primary;
-    final parts = start == null ? const <String>[] : clockLabel(start!).split(' ');
-    return Row(
-      children: [
-        if (parts.isNotEmpty) ...[
-          Container(
-            constraints: const BoxConstraints(minWidth: 66, minHeight: 64),
-            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 10),
-            decoration: BoxDecoration(
-              color: accent.withValues(alpha: 0.10),
-              borderRadius: BorderRadius.circular(12),
-              border: Border.all(color: accent.withValues(alpha: 0.30)),
-            ),
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                Text(
-                  parts.first,
-                  style: theme.textTheme.titleSmall?.copyWith(
-                    color: accent,
-                    fontSize: 18,
-                    fontWeight: FontWeight.w700,
-                  ),
-                ),
-                Text(
-                  live ? 'Now' : (parts.length > 1 ? parts[1] : ''),
-                  style: theme.textTheme.labelSmall?.copyWith(
-                    color: accent,
-                    fontSize: 12,
-                    fontWeight: FontWeight.w700,
-                    height: 1.1,
-                  ),
-                ),
-              ],
-            ),
-          ),
-          const SizedBox(width: 12),
-        ],
-        Expanded(
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text(
-                slot.subjectName,
-                style: theme.textTheme.titleSmall?.copyWith(
-                  fontWeight: FontWeight.w700,
-                ),
-              ),
-              const SizedBox(height: 2),
-              Text(
-                [
-                  if (slot.teacherName != null) slot.teacherName!,
-                  'Period ${slot.period + 1}',
-                  if (start != null && end != null)
-                    '${clockLabel(start!)} – ${clockLabel(end!)}',
-                ].join(' · '),
-                style: theme.textTheme.bodySmall?.copyWith(
-                  color: theme.colorScheme.onSurfaceVariant,
-                ),
-              ),
-            ],
-          ),
-        ),
-      ],
-    );
-  }
-}
-
-class _PortalSessionRow extends StatelessWidget {
-  const _PortalSessionRow({required this.session, required this.onTap});
-
-  final PortalSession session;
-  final VoidCallback onTap;
-
-  @override
-  Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-    final title = session.track == 'ADM'
-        ? 'Parent conference'
-        : session.sessionType.replaceAll('_', ' ');
-    return InkWell(
-      onTap: onTap,
-      borderRadius: BorderRadius.circular(12),
-      child: Padding(
-        padding: const EdgeInsets.symmetric(vertical: 8),
-        child: Row(
-          children: [
-            Icon(
-              session.track == 'ADM'
-                  ? Icons.family_restroom
-                  : Icons.support_agent,
-              size: 20,
-            ),
-            const SizedBox(width: 10),
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    title,
-                    style: theme.textTheme.titleSmall?.copyWith(
-                      fontWeight: FontWeight.w600,
-                    ),
-                  ),
-                  Text(
-                    '${formatPortalDate(session.scheduledAt)} · ${session.venue.isEmpty ? 'Venue TBA' : session.venue}',
-                    style: theme.textTheme.labelSmall,
-                  ),
-                ],
-              ),
-            ),
-            Icon(
-              LucideIcons.chevronRight,
-              size: 18,
-              color: theme.colorScheme.onSurfaceVariant,
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-}
-
-class _GradeCard extends StatelessWidget {
-  final PortalGrade grade;
-  final VoidCallback? onTap;
-  const _GradeCard({required this.grade, this.onTap});
-
-  @override
-  Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-    return ZCard(
-      padding: const EdgeInsets.all(12),
-      onTap: onTap,
-      child: Row(
-        children: [
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(grade.subjectName, style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 13)),
-                Text(grade.subjectCode, style: theme.textTheme.labelSmall),
-                if (grade.teacherName != null && grade.teacherName!.isNotEmpty)
-                  Text(grade.teacherName!, style: theme.textTheme.labelSmall),
-                if (grade.remarks != null) Text(grade.remarks!, style: theme.textTheme.labelSmall),
-              ],
-            ),
-          ),
-          Column(
-            crossAxisAlignment: CrossAxisAlignment.end,
-            children: [
-              if (grade.isFinal)
-                Text(
-                  grade.transmutedGrade?.toStringAsFixed(0) ?? '—',
-                  style: TextStyle(
-                    fontWeight: FontWeight.w700,
-                    fontSize: 18,
-                    color: (grade.transmutedGrade ?? 100) < 75 ? theme.colorScheme.error : null,
-                  ),
-                )
-              else
-                const ZStatusPill(text: 'In progress', tone: StatusTone.amber),
-              Text(
-                grade.isFinal ? 'Final' : 'Not yet final',
-                style: theme.textTheme.labelSmall,
-              ),
-            ],
-          ),
-          const SizedBox(width: 4),
-          Icon(Icons.chevron_right, size: 18, color: theme.colorScheme.onSurfaceVariant),
-        ],
-      ),
     );
   }
 }
@@ -631,7 +438,7 @@ class _StudentGradesState extends ConsumerState<StudentGradesPage> {
         separatorBuilder: (_, _) => const SizedBox(height: 8),
         itemBuilder: (context, index) {
           final grade = grades[index];
-          return _GradeCard(
+          return PortalGradeCard(
             grade: grade,
             onTap: () => context.push(
               '/student/grades/${Uri.encodeComponent(grade.subjectId)}',
@@ -833,47 +640,28 @@ class _StudentAttendanceState extends ConsumerState<StudentAttendancePage> {
               separatorBuilder: (_, _) => const SizedBox(height: 8),
               itemBuilder: (context, index) {
                 final sub = bySubject[index];
-                return ZCard(
-                  padding: const EdgeInsets.all(12),
+                return PortalSubjectCard(
+                  seed: sub.subjectId,
+                  title: sub.subjectName,
+                  subtitle:
+                      sub.teacherName != null && sub.teacherName!.isNotEmpty
+                          ? sub.teacherName!
+                          : sub.subjectCode,
+                  trailing: ZStatusPill(
+                    text: sub.hasMarks ? '${sub.percent}%' : 'No marks',
+                    tone: !sub.hasMarks
+                        ? StatusTone.neutral
+                        : sub.percent < 80
+                            ? StatusTone.red
+                            : StatusTone.green,
+                    label: 'Present rate',
+                  ),
+                  footer: sub.hasMarks
+                      ? 'P ${sub.present} · A ${sub.absent} · L ${sub.late}'
+                      : 'No attendance marks yet',
                   onTap: () => context.push(
                     '/student/attendance/${Uri.encodeComponent(sub.subjectId)}',
                     extra: sub.subjectName,
-                  ),
-                  child: Row(
-                    children: [
-                      Expanded(
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Text(sub.subjectName, style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w600)),
-                            Text(
-                              [
-                                if (sub.subjectCode.isNotEmpty) sub.subjectCode,
-                                if (sub.teacherName != null && sub.teacherName!.isNotEmpty) sub.teacherName!,
-                              ].join(' · '),
-                              style: theme.textTheme.labelSmall,
-                            ),
-                            const SizedBox(height: 2),
-                            Text(
-                              sub.hasMarks
-                                  ? 'P ${sub.present} · A ${sub.absent} · L ${sub.late}'
-                                  : 'No attendance marks yet',
-                              style: theme.textTheme.labelSmall,
-                            ),
-                          ],
-                        ),
-                      ),
-                      const SizedBox(width: 8),
-                      Text(
-                        sub.hasMarks ? '${sub.percent}%' : 'No marks',
-                        style: TextStyle(
-                          fontWeight: FontWeight.w700,
-                          fontSize: sub.hasMarks ? 15 : 12,
-                          color: sub.hasMarks && sub.percent < 80 ? theme.colorScheme.error : theme.colorScheme.onSurfaceVariant,
-                        ),
-                      ),
-                      Icon(Icons.chevron_right, size: 18, color: theme.colorScheme.onSurfaceVariant),
-                    ],
                   ),
                 );
               },
@@ -1235,7 +1023,6 @@ class _StudentScheduleState extends ConsumerState<StudentSchedulePage> {
     PortalScheduleSlot slot,
     SchoolDayConfig? config,
   ) {
-    final theme = Theme.of(context);
     final window = config != null &&
             slot.period >= 0 &&
             slot.period < config.periods.length
@@ -1244,74 +1031,16 @@ class _StudentScheduleState extends ConsumerState<StudentSchedulePage> {
     final timing = window == null
         ? 'Time not configured'
         : '${clockLabel(window.start)} – ${clockLabel(window.end)}';
-    return Material(
-      color: theme.cardTheme.color,
-      shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(12),
-        side: BorderSide(
-          color: theme.colorScheme.outline.withValues(alpha: 0.72),
-        ),
+    return PortalSubjectCard(
+      seed: slot.subjectId,
+      title: slot.subjectName,
+      subtitle: slot.teacherName ?? slot.subjectCode,
+      trailing: ZStatusPill(
+        text: 'P${slot.period + 1}',
+        tone: StatusTone.blue,
+        label: 'Period',
       ),
-      clipBehavior: Clip.antiAlias,
-      elevation: 1,
-      shadowColor: Colors.black.withValues(
-        alpha: theme.brightness == Brightness.dark ? 0.4 : 0.06,
-      ),
-      child: Padding(
-        padding: const EdgeInsets.all(12),
-        child: Column(
-          children: [
-            Row(
-              children: [
-                ZIdentityTile(name: slot.subjectName, seed: slot.subjectId),
-                const SizedBox(width: 12),
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        slot.subjectName,
-                        style: theme.textTheme.titleSmall?.copyWith(
-                          fontSize: 13,
-                          fontWeight: FontWeight.w600,
-                        ),
-                      ),
-                      const SizedBox(height: 3),
-                      Text(
-                        slot.teacherName ?? slot.subjectCode,
-                        style: theme.textTheme.bodySmall?.copyWith(
-                          color: theme.colorScheme.onSurfaceVariant,
-                          fontFeatures: const [FontFeature.tabularFigures()],
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-                const SizedBox(width: 8),
-                ZStatusPill(
-                  text: 'P${slot.period + 1}',
-                  tone: StatusTone.blue,
-                  label: 'Period',
-                ),
-              ],
-            ),
-            const Padding(
-              padding: EdgeInsets.symmetric(vertical: 10),
-              child: Divider(height: 1),
-            ),
-            Align(
-              alignment: Alignment.centerLeft,
-              child: Text(
-                timing,
-                style: TextStyle(
-                  fontSize: 12,
-                  color: theme.colorScheme.onSurface,
-                ),
-              ),
-            ),
-          ],
-        ),
-      ),
+      footer: timing,
     );
   }
 }
@@ -1321,7 +1050,9 @@ class _StudentScheduleState extends ConsumerState<StudentSchedulePage> {
 // ---------------------------------------------------------------------------
 
 class StudentModulesPage extends ConsumerStatefulWidget {
-  const StudentModulesPage({super.key});
+  const StudentModulesPage({super.key, this.kind});
+  /// `adm` opens the ADM Modules desk (ADM learners only).
+  final String? kind;
   @override
   ConsumerState<StudentModulesPage> createState() => _StudentModulesState();
 }
@@ -1330,10 +1061,12 @@ class _StudentModulesState extends ConsumerState<StudentModulesPage> {
   String _lastQuery = '';
   String _lastTerm = '';
 
+  bool get _admOnly => widget.kind == 'adm';
+
   Future<void> _refresh() async {
     ref.invalidate(studentModulesProvider);
     try {
-      await ref.read(studentModulesProvider.future);
+      await ref.read(studentModulesProvider(widget.kind).future);
     } catch (_) {}
   }
 
@@ -1364,7 +1097,7 @@ class _StudentModulesState extends ConsumerState<StudentModulesPage> {
     if (_lastQuery != query) {
       _lastQuery = query;
     }
-    final modulesAsync = ref.watch(studentModulesProvider);
+    final modulesAsync = ref.watch(studentModulesProvider(widget.kind));
     return RefreshIndicator(
       onRefresh: _refresh,
       child: CustomScrollView(
@@ -1387,7 +1120,8 @@ class _StudentModulesState extends ConsumerState<StudentModulesPage> {
               hasScrollBody: false,
               child: ErrorView(
                 message: error,
-                onRetry: () => ref.invalidate(studentModulesProvider),
+                onRetry: () =>
+                    ref.invalidate(studentModulesProvider(widget.kind)),
               ),
             ),
             data: (data) => _list(context, data, query),
@@ -1411,9 +1145,11 @@ class _StudentModulesState extends ConsumerState<StudentModulesPage> {
       children: [
         if (!compact) ...[
           ZContentHeader(
-            title: 'Modules',
+            title: _admOnly ? 'ADM Modules' : 'Modules',
             icon: Icons.folder_shared_outlined,
-            description: 'Your learning modules for this term.',
+            description: _admOnly
+                ? 'Your ADM learning modules for this term.'
+                : 'Your learning modules for this term.',
           ),
           const SizedBox(height: 12),
         ],
@@ -1480,7 +1216,9 @@ class _StudentModulesState extends ConsumerState<StudentModulesPage> {
         child: Center(
           child: ZEmpty(
             icon: Icons.folder_shared_outlined,
-            title: data.modules.isEmpty ? 'No modules released yet' : 'No modules match',
+            title: data.modules.isEmpty
+                ? (_admOnly ? 'No ADM modules released yet' : 'No modules released yet')
+                : 'No modules match',
             subtitle: data.modules.isEmpty ? null : 'Try a different search.',
           ),
         ),
@@ -1495,7 +1233,17 @@ class _StudentModulesState extends ConsumerState<StudentModulesPage> {
             separatorBuilder: (_, _) => const SizedBox(height: 8),
             itemBuilder: (context, index) {
               final m = modules[index];
-              return _ModuleCard(module: m, canSubmit: canSubmit);
+              return PortalModuleCard(
+                module: m,
+                onSubmit: canSubmit
+                    ? () => showModalBottomSheet(
+                          context: context,
+                          isScrollControlled: true,
+                          showDragHandle: true,
+                          builder: (_) => ModuleSubmissionSheet(module: m),
+                        )
+                    : null,
+              );
             },
           ),
         ),
@@ -1530,97 +1278,14 @@ class _StudentModulesState extends ConsumerState<StudentModulesPage> {
   }
 }
 
-class _ModuleCard extends ConsumerWidget {
-  final PortalModule module;
-  final bool canSubmit;
-  const _ModuleCard({required this.module, this.canSubmit = false});
-
-  @override
-  Widget build(BuildContext context, WidgetRef ref) {
-    final theme = Theme.of(context);
-    return ZCard(
-      padding: const EdgeInsets.all(12),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
-            children: [
-              Expanded(child: Text(module.moduleName, style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w700))),
-              _status(theme, module.status),
-            ],
-          ),
-          if (module.description != null) ...[
-            const SizedBox(height: 4),
-            Text(module.description!, style: theme.textTheme.bodySmall),
-          ],
-          const SizedBox(height: 4),
-          Text(
-            module.dueDate == null ? 'No due date' : 'Due ${formatPortalDate(module.dueDate)}',
-            style: theme.textTheme.labelSmall,
-          ),
-          const SizedBox(height: 8),
-          Wrap(
-            spacing: 8,
-            runSpacing: 8,
-            crossAxisAlignment: WrapCrossAlignment.center,
-            children: [
-              if (module.moduleUrl != null)
-                OutlinedButton.icon(
-                  onPressed: () => _open(module.moduleUrl!),
-                  icon: const Icon(Icons.open_in_new, size: 14),
-                  label: const Text('Open module', style: TextStyle(fontSize: 12)),
-                ),
-              if (module.submitted)
-                Text('Submitted ${formatPortalDate(module.submittedAt)}', style: theme.textTheme.labelSmall)
-              else if (module.tracked)
-                Text('Not yet submitted', style: theme.textTheme.labelSmall),
-            ],
-          ),
-          if (canSubmit && module.tracked && module.moduleUrl != null) ...[
-            const SizedBox(height: 8),
-            TextButton.icon(
-              icon: const Icon(Icons.upload_outlined, size: 16),
-              label: Text(module.submitted ? 'Update answer' : 'Submit answer'),
-              onPressed: () => showModalBottomSheet(
-                context: context,
-                isScrollControlled: true,
-                showDragHandle: true,
-                builder: (_) => ModuleSubmissionSheet(module: module),
-              ),
-            ),
-          ],
-        ],
-      ),
-    );
-  }
-
-  Widget _status(ThemeData theme, String status) {
-    final color = switch (status) {
-      'submitted' => Colors.green,
-      'overdue' => theme.colorScheme.error,
-      'pending' => Colors.orange,
-      _ => theme.colorScheme.onSurfaceVariant,
-    };
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
-      decoration: BoxDecoration(color: color.withValues(alpha: 0.12), borderRadius: BorderRadius.circular(999)),
-      child: Text(status, style: TextStyle(fontSize: 11, color: color, fontWeight: FontWeight.w600)),
-    );
-  }
-
-  Future<void> _open(String url) async {
-    final uri = Uri.tryParse(url);
-    if (uri == null) return;
-    await launchUrl(uri, mode: LaunchMode.externalApplication);
-  }
-}
-
 // ---------------------------------------------------------------------------
 // Sessions Page
 // ---------------------------------------------------------------------------
 
 class StudentSessionsPage extends ConsumerStatefulWidget {
-  const StudentSessionsPage({super.key});
+  const StudentSessionsPage({super.key, this.admOnly = false});
+  /// ADM Sessions desk (ADM learners only).
+  final bool admOnly;
   @override
   ConsumerState<StudentSessionsPage> createState() => _StudentSessionsState();
 }
@@ -1710,9 +1375,11 @@ class _StudentSessionsState extends ConsumerState<StudentSessionsPage> {
       children: [
         if (!compact) ...[
           ZContentHeader(
-            title: 'Sessions',
+            title: widget.admOnly ? 'ADM Sessions' : 'Sessions',
             icon: Icons.event_available_outlined,
-            description: 'Your upcoming sessions.',
+            description: widget.admOnly
+                ? 'Your upcoming ADM meetings and conferences.'
+                : 'Your upcoming sessions.',
           ),
           const SizedBox(height: 12),
         ],
@@ -1739,15 +1406,22 @@ class _StudentSessionsState extends ConsumerState<StudentSessionsPage> {
   }
 
   Widget _list(BuildContext context, List<PortalSession> sessions, String query) {
-    final filtered = sessions.where((s) => query.isEmpty || s.sessionType.toLowerCase().contains(query)).toList();
+    final source = sessions
+        .where((s) => !widget.admOnly || s.track == 'ADM')
+        .toList();
+    final filtered = source
+        .where((s) => query.isEmpty || s.sessionType.toLowerCase().contains(query))
+        .toList();
     if (filtered.isEmpty) {
       return SliverFillRemaining(
         hasScrollBody: false,
         child: Center(
           child: ZEmpty(
             icon: Icons.event_available_outlined,
-            title: sessions.isEmpty ? 'No upcoming sessions' : 'No sessions match',
-            subtitle: sessions.isEmpty ? null : 'Try a different search.',
+            title: source.isNotEmpty
+                ? 'No ${widget.admOnly ? 'ADM ' : ''}sessions match'
+                : 'No upcoming ${widget.admOnly ? 'ADM ' : ''}sessions',
+            subtitle: source.isNotEmpty ? 'Try a different search.' : null,
           ),
         ),
       );

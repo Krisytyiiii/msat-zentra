@@ -7,6 +7,7 @@ import { ShimmerGroup } from "@/components/ui/shimmer-skeleton";
 import { StatDeck } from "@/components/ui/stat-deck";
 import { PendingAccountsQueue } from "@/components/registry/account-approvals/PendingAccountsQueue";
 import { PendingStaffQueue } from "@/components/registry/account-approvals/PendingStaffQueue";
+import { LinkRequestsQueue } from "@/components/registry/account-approvals/LinkRequestsQueue";
 import { usePendingApprovalCounts } from "@/components/registry/account-approvals/api";
 
 type Tab = "student" | "parent" | "staff";
@@ -100,7 +101,10 @@ export function AccountApprovals() {
           <PendingAccountsQueue key="student" kind="student" filterTabs={filterTabs} />
         ) : null}
         {tab === "parent" ? (
-          <PendingAccountsQueue key="parent" kind="parent" filterTabs={filterTabs} />
+          <div className="flex flex-col gap-3">
+            <PendingAccountsQueue key="parent" kind="parent" filterTabs={filterTabs} />
+            <LinkRequestsQueue />
+          </div>
         ) : null}
         {tab === "staff" ? <PendingStaffQueue key="staff" filterTabs={filterTabs} /> : null}
       </div>

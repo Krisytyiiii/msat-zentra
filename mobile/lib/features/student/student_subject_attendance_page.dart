@@ -18,10 +18,13 @@ class StudentSubjectAttendancePage extends ConsumerStatefulWidget {
     super.key,
     required this.subjectId,
     this.subjectName,
+    this.childId,
   });
 
   final String subjectId;
   final String? subjectName;
+  /// Set when a guardian opens a linked child's attendance from the parent desk.
+  final String? childId;
 
   @override
   ConsumerState<StudentSubjectAttendancePage> createState() =>
@@ -30,25 +33,47 @@ class StudentSubjectAttendancePage extends ConsumerStatefulWidget {
 
 class _StudentSubjectAttendanceState
     extends ConsumerState<StudentSubjectAttendancePage> {
+  bool get _isParent => widget.childId != null;
+
+  ParentSubjectKey? get _parentKey => _isParent
+      ? (childId: widget.childId!, subjectId: widget.subjectId)
+      : null;
+
+  AsyncValue<PortalSubjectAttendanceDetail> _watchRecord() => _isParent
+      ? ref.watch(parentSubjectAttendanceProvider(_parentKey!))
+      : ref.watch(studentSubjectAttendanceProvider(widget.subjectId));
+
+  void _invalidate() {
+    if (_isParent) {
+      ref.invalidate(parentSubjectAttendanceProvider(_parentKey!));
+    } else {
+      ref.invalidate(studentSubjectAttendanceProvider(widget.subjectId));
+    }
+  }
+
+  Future<PortalSubjectAttendanceDetail> _future() => _isParent
+      ? ref.read(parentSubjectAttendanceProvider(_parentKey!).future)
+      : ref.read(studentSubjectAttendanceProvider(widget.subjectId).future);
+
   void _close() {
     if (context.canPop()) {
       context.pop();
     } else {
-      context.go('/student/attendance');
+      context.go(_isParent ? '/parent/attendance' : '/student/attendance');
     }
   }
 
   Future<void> _refresh() async {
-    ref.invalidate(studentSubjectAttendanceProvider(widget.subjectId));
+    _invalidate();
     try {
-      await ref.read(studentSubjectAttendanceProvider(widget.subjectId).future);
+      await _future();
     } catch (_) {}
   }
 
   @override
   Widget build(BuildContext context) {
     final theme = overviewScreenTheme(Theme.of(context));
-    final record = ref.watch(studentSubjectAttendanceProvider(widget.subjectId));
+    final record = _watchRecord();
     return Theme(
       data: theme,
       child: Scaffold(
@@ -71,8 +96,7 @@ class _StudentSubjectAttendanceState
           loading: () => const LoadingView(layout: SkeletonLayout.record),
           error: (error, _) => ErrorView(
             message: error,
-            onRetry: () =>
-                ref.invalidate(studentSubjectAttendanceProvider(widget.subjectId)),
+            onRetry: _invalidate,
           ),
           data: (data) => RefreshIndicator(
             onRefresh: _refresh,
@@ -96,7 +120,9 @@ class _StudentSubjectAttendanceState
               ? (widget.subjectName ?? 'Subject')
               : record.subjectName,
           icon: Icons.fact_check_outlined,
-          description: 'Your present and absent record for this class.',
+          description: _isParent
+              ? "Your child's present and absent record for this class."
+              : 'Your present and absent record for this class.',
         ),
         const SizedBox(height: 12),
         Wrap(
@@ -210,7 +236,9 @@ class _StudentSubjectAttendanceState
           if (!summary.hasMarks) ...[
             const SizedBox(height: 8),
             Text(
-              'Marks appear here after your teacher records this class.',
+              _isParent
+                  ? 'Marks appear here after the teacher records this class.'
+                  : 'Marks appear here after your teacher records this class.',
               textAlign: TextAlign.center,
               style: TextStyle(fontSize: 11, color: theme.colorScheme.onSurfaceVariant),
             ),

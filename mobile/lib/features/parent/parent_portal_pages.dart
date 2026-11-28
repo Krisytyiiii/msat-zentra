@@ -6,16 +6,18 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:intl/intl.dart';
 import 'package:lucide_icons_flutter/lucide_icons.dart';
-import 'package:url_launcher/url_launcher.dart';
 
 import '../../design/overview_theme.dart';
 import '../../design/screen_search.dart';
 import '../../design/status_palette.dart';
+import '../../shared/date_strip_selector.dart';
 import '../../shared/models.dart';
 import '../../shared/widgets.dart';
 import '../../services/portal_service.dart';
 import '../adviser/schedule_timing.dart';
 import '../home/overview_components.dart';
+import '../portal/portal_widgets.dart';
+import 'parent_link_prompt.dart';
 
 // ---------------------------------------------------------------------------
 // Parent Home Page (Dashboard)
@@ -31,6 +33,8 @@ class _ParentOverviewState extends ConsumerState<ParentOverviewPage> {
   Future<void> _refresh() async {
     final childId = ref.read(selectedChildProvider);
     ref.invalidate(parentChildrenProvider);
+    ref.invalidate(parentLinkRequestsProvider);
+    ref.invalidate(parentMeProvider);
     if (childId != null) {
       ref.invalidate(parentHomeProvider(childId));
       try {
@@ -67,20 +71,7 @@ class _ParentOverviewState extends ConsumerState<ParentOverviewPage> {
               ),
             ],
           ),
-          data: (list) => ListView(
-            physics: const AlwaysScrollableScrollPhysics(),
-            padding: const EdgeInsets.all(16),
-            children: [
-              const SizedBox(height: 48),
-              ZEmpty(
-                icon: Icons.family_restroom_outlined,
-                title: list.isEmpty ? 'No linked learners' : 'Select a learner',
-                subtitle: list.isEmpty
-                    ? 'Ask the school office to link your child to this account.'
-                    : 'Choose a child from the menu to view their overview.',
-              ),
-            ],
-          ),
+          data: (_) => _noChildBody(),
         ),
       );
     }
@@ -109,7 +100,25 @@ class _ParentOverviewState extends ConsumerState<ParentOverviewPage> {
     );
   }
 
+  /// No approved child yet: the same link prompt every parent desk shows.
+  /// Approval makes [parentChildrenProvider] return the learner on the next
+  /// poll, which auto-selects them and loads their overview.
+  Widget _noChildBody() {
+    return RefreshIndicator(
+      onRefresh: _refresh,
+      child: ListView(
+        physics: const AlwaysScrollableScrollPhysics(),
+        padding: const EdgeInsets.all(16),
+        children: const [
+          SizedBox(height: 24),
+          ParentLinkPrompt(),
+        ],
+      ),
+    );
+  }
+
   Widget _body(BuildContext context, PortalHome home) {
+    final parent = ref.watch(parentMeProvider).asData?.value;
     final query = (ScreenSearchScope.maybeOf(context)?.query ?? '')
         .trim()
         .toLowerCase();
@@ -162,7 +171,7 @@ class _ParentOverviewState extends ConsumerState<ParentOverviewPage> {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
-              _welcome(home),
+              _welcome(home, parent),
               const SizedBox(height: 16),
               OverviewBoard(
                 icon: LucideIcons.bell,
@@ -226,7 +235,7 @@ class _ParentOverviewState extends ConsumerState<ParentOverviewPage> {
                     : Column(
                         children: [
                           for (final session in sessions)
-                            _PortalSessionRow(
+                            PortalSessionRow(
                               session: session,
                               onTap: () => context.go('/parent/sessions'),
                             ),
@@ -240,9 +249,10 @@ class _ParentOverviewState extends ConsumerState<ParentOverviewPage> {
     );
   }
 
-  Widget _welcome(PortalHome home) {
+  Widget _welcome(PortalHome home, PortalParent? parent) {
     final theme = Theme.of(context);
     final learner = home.learner;
+    final parentName = parent?.name.trim() ?? '';
     final gradeSection = [
       if (learner.gradeLevel.isNotEmpty)
         learner.gradeLevel.replaceFirst(
@@ -255,14 +265,35 @@ class _ParentOverviewState extends ConsumerState<ParentOverviewPage> {
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         Text(
-          learner.name.trim().isEmpty
-              ? 'Welcome back.'
-              : 'Welcome back,\n${learner.name}.',
+          parentName.isEmpty ? 'Welcome back.' : 'Welcome back,\n$parentName.',
           style: theme.textTheme.headlineSmall?.copyWith(
             fontSize: 21,
             fontWeight: FontWeight.w700,
             letterSpacing: -0.3,
           ),
+        ),
+        const SizedBox(height: 8),
+        Row(
+          children: [
+            Text(
+              'Monitoring',
+              style: TextStyle(
+                fontSize: 12,
+                fontWeight: FontWeight.w600,
+                color: theme.colorScheme.onSurfaceVariant,
+              ),
+            ),
+            const SizedBox(width: 8),
+            Flexible(
+              child: ZScopePill(
+                text: learner.name,
+                kind: ScopePillKind.learner,
+                label: 'Learner',
+                compact: true,
+                maxLines: 1,
+              ),
+            ),
+          ],
         ),
         const SizedBox(height: 6),
         Wrap(
@@ -321,204 +352,18 @@ class _ParentOverviewState extends ConsumerState<ParentOverviewPage> {
     windows.sort((a, b) => a.start.compareTo(b.start));
     if (windows.isEmpty) {
       // No timing config in the payload: still show the first class.
-      return _UpNextClass(slot: slots.first, live: false);
+      return PortalUpNextClass(slot: slots.first, live: false);
     }
     final minutes = now.hour * 60 + now.minute;
     final next = windows.where((w) => w.end > minutes).firstOrNull;
     if (next == null) {
       return const OverviewBoardNote('No more scheduled classes today.');
     }
-    return _UpNextClass(
+    return PortalUpNextClass(
       slot: next.slot,
       start: next.start,
       end: next.end,
       live: minutes >= next.start && minutes < next.end,
-    );
-  }
-}
-
-class _UpNextClass extends StatelessWidget {
-  const _UpNextClass({
-    required this.slot,
-    this.start,
-    this.end,
-    required this.live,
-  });
-
-  final PortalScheduleSlot slot;
-  final int? start;
-  final int? end;
-  final bool live;
-
-  @override
-  Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-    final accent = theme.colorScheme.primary;
-    final parts = start == null ? const <String>[] : clockLabel(start!).split(' ');
-    return Row(
-      children: [
-        if (parts.isNotEmpty) ...[
-          Container(
-            constraints: const BoxConstraints(minWidth: 66, minHeight: 64),
-            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 10),
-            decoration: BoxDecoration(
-              color: accent.withValues(alpha: 0.10),
-              borderRadius: BorderRadius.circular(12),
-              border: Border.all(color: accent.withValues(alpha: 0.30)),
-            ),
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                Text(
-                  parts.first,
-                  style: theme.textTheme.titleSmall?.copyWith(
-                    color: accent,
-                    fontSize: 18,
-                    fontWeight: FontWeight.w700,
-                  ),
-                ),
-                Text(
-                  live ? 'Now' : (parts.length > 1 ? parts[1] : ''),
-                  style: theme.textTheme.labelSmall?.copyWith(
-                    color: accent,
-                    fontSize: 12,
-                    fontWeight: FontWeight.w700,
-                    height: 1.1,
-                  ),
-                ),
-              ],
-            ),
-          ),
-          const SizedBox(width: 12),
-        ],
-        Expanded(
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text(
-                slot.subjectName,
-                style: theme.textTheme.titleSmall?.copyWith(
-                  fontWeight: FontWeight.w700,
-                ),
-              ),
-              const SizedBox(height: 2),
-              Text(
-                [
-                  if (slot.teacherName != null) slot.teacherName!,
-                  'Period ${slot.period + 1}',
-                  if (start != null && end != null)
-                    '${clockLabel(start!)} – ${clockLabel(end!)}',
-                ].join(' · '),
-                style: theme.textTheme.bodySmall?.copyWith(
-                  color: theme.colorScheme.onSurfaceVariant,
-                ),
-              ),
-            ],
-          ),
-        ),
-      ],
-    );
-  }
-}
-
-class _PortalSessionRow extends StatelessWidget {
-  const _PortalSessionRow({required this.session, required this.onTap});
-
-  final PortalSession session;
-  final VoidCallback onTap;
-
-  @override
-  Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-    final title = session.track == 'ADM'
-        ? 'Parent conference'
-        : session.sessionType.replaceAll('_', ' ');
-    return InkWell(
-      onTap: onTap,
-      borderRadius: BorderRadius.circular(12),
-      child: Padding(
-        padding: const EdgeInsets.symmetric(vertical: 8),
-        child: Row(
-          children: [
-            Icon(
-              session.track == 'ADM'
-                  ? Icons.family_restroom
-                  : Icons.support_agent,
-              size: 20,
-            ),
-            const SizedBox(width: 10),
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    title,
-                    style: theme.textTheme.titleSmall?.copyWith(
-                      fontWeight: FontWeight.w600,
-                    ),
-                  ),
-                  Text(
-                    '${formatPortalDate(session.scheduledAt)} · ${session.venue.isEmpty ? 'Venue TBA' : session.venue}',
-                    style: theme.textTheme.labelSmall,
-                  ),
-                ],
-              ),
-            ),
-            Icon(
-              LucideIcons.chevronRight,
-              size: 18,
-              color: theme.colorScheme.onSurfaceVariant,
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-}
-
-class _GradeCard extends StatelessWidget {
-  final PortalGrade grade;
-  const _GradeCard({required this.grade});
-
-  @override
-  Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-    return ZCard(
-      padding: const EdgeInsets.all(12),
-      child: Row(
-        children: [
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(grade.subjectName, style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 13)),
-                Text(grade.subjectCode, style: theme.textTheme.labelSmall),
-                if (grade.remarks != null) Text(grade.remarks!, style: theme.textTheme.labelSmall),
-              ],
-            ),
-          ),
-          Column(
-            crossAxisAlignment: CrossAxisAlignment.end,
-            children: [
-              if (grade.isFinal)
-                Text(
-                  grade.transmutedGrade?.toStringAsFixed(0) ?? '—',
-                  style: TextStyle(
-                    fontWeight: FontWeight.w700,
-                    fontSize: 18,
-                    color: (grade.transmutedGrade ?? 100) < 75 ? theme.colorScheme.error : null,
-                  ),
-                )
-              else
-                const ZStatusPill(text: 'In progress', tone: StatusTone.amber),
-              Text(
-                grade.isFinal ? 'Final' : 'Not yet final',
-                style: theme.textTheme.labelSmall,
-              ),
-            ],
-          ),
-        ],
-      ),
     );
   }
 }
@@ -536,7 +381,6 @@ class ParentGradesPage extends ConsumerStatefulWidget {
 class _ParentGradesState extends ConsumerState<ParentGradesPage> {
   String _lastQuery = '';
   String _lastTerm = '';
-  String? _lastChildId;
 
   Future<void> _refresh() async {
     final selectedChildId = ref.read(selectedChildProvider);
@@ -567,9 +411,6 @@ class _ParentGradesState extends ConsumerState<ParentGradesPage> {
       _lastTerm = termKey;
     }
     final selectedChildId = ref.watch(selectedChildProvider);
-    if (_lastChildId != selectedChildId) {
-      _lastChildId = selectedChildId;
-    }
     final query = (ScreenSearchScope.maybeOf(context)?.query ?? '')
         .trim()
         .toLowerCase();
@@ -590,15 +431,10 @@ class _ParentGradesState extends ConsumerState<ParentGradesPage> {
                 child: _header(context, const AsyncValue.data(null), compact: compact),
               ),
             ),
-            SliverFillRemaining(
-              hasScrollBody: false,
-              child: Center(
-                child: ZEmpty(
-                  icon: Icons.family_restroom_outlined,
-                  title: 'Select a child',
-                  subtitle: 'Choose a child from the menu to view their grades.',
-                  compact: true,
-                ),
+            SliverToBoxAdapter(
+              child: Padding(
+                padding: const EdgeInsets.fromLTRB(12, 8, 12, 0),
+                child: ParentLinkPrompt(),
               ),
             ),
             SliverToBoxAdapter(
@@ -651,24 +487,6 @@ class _ParentGradesState extends ConsumerState<ParentGradesPage> {
     required bool compact,
   }) {
     final term = portalScopeTerm(ref);
-    final selectedChildId = ref.watch(selectedChildProvider);
-    final children = ref.watch(parentChildrenProvider);
-    PortalChild? child;
-    if (selectedChildId != null) {
-      child = children.when(
-        data: (list) {
-          try {
-            return list.firstWhere((c) => c.studentId == selectedChildId);
-          } catch (_) {
-            return null;
-          }
-        },
-        loading: () => null,
-        error: (_, _) => null,
-      );
-    } else {
-      child = null;
-    }
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -677,7 +495,7 @@ class _ParentGradesState extends ConsumerState<ParentGradesPage> {
           ZContentHeader(
             title: 'Grades',
             icon: Icons.grade_outlined,
-            description: 'Subject grades for ${child?.name ?? 'your child'}.',
+            description: 'All subjects for your child this term. Tap one to see assessment scores.',
           ),
           const SizedBox(height: 12),
         ],
@@ -697,17 +515,6 @@ class _ParentGradesState extends ConsumerState<ParentGradesPage> {
                 compact: true,
               ),
             ],
-            if (child != null)
-              ZScopePill(
-                text: [
-                  if (child.gradeLevel.isNotEmpty)
-                    child.gradeLevel.replaceFirst(RegExp(r'^Grade\s*', caseSensitive: false), 'G'),
-                  child.sectionName ?? '',
-                ].where((v) => v.isNotEmpty).join(' · '),
-                kind: ScopePillKind.grade,
-                label: 'Grade and section',
-                compact: true,
-              ),
           ],
         ),
       ],
@@ -722,8 +529,10 @@ class _ParentGradesState extends ConsumerState<ParentGradesPage> {
         child: Center(
           child: ZEmpty(
             icon: Icons.grade_outlined,
-            title: data.grades.isEmpty ? 'No grades for this term' : 'No grades match',
-            subtitle: data.grades.isEmpty ? null : 'Try a different search.',
+            title: data.grades.isEmpty ? 'No subjects for this term' : 'No subjects match',
+            subtitle: data.grades.isEmpty
+                ? 'The class load appears here once the section is linked.'
+                : 'Try a different search.',
           ),
         ),
       );
@@ -733,7 +542,20 @@ class _ParentGradesState extends ConsumerState<ParentGradesPage> {
       sliver: SliverList.separated(
         itemCount: grades.length,
         separatorBuilder: (_, _) => const SizedBox(height: 8),
-        itemBuilder: (context, index) => _GradeCard(grade: grades[index]),
+        itemBuilder: (context, index) {
+          final grade = grades[index];
+          final childId = ref.read(selectedChildProvider);
+          return PortalGradeCard(
+            grade: grade,
+            onTap: childId == null
+                ? null
+                : () => context.push(
+                      '/parent/children/${Uri.encodeComponent(childId)}/grades/'
+                      '${Uri.encodeComponent(grade.subjectId)}',
+                      extra: grade.subjectName,
+                    ),
+          );
+        },
       ),
     );
   }
@@ -752,7 +574,6 @@ class ParentAttendancePage extends ConsumerStatefulWidget {
 class _ParentAttendanceState extends ConsumerState<ParentAttendancePage> {
   String _lastQuery = '';
   String _lastTerm = '';
-  String? _lastChildId;
 
   Future<void> _refresh() async {
     final selectedChildId = ref.read(selectedChildProvider);
@@ -783,9 +604,6 @@ class _ParentAttendanceState extends ConsumerState<ParentAttendancePage> {
       _lastTerm = termKey;
     }
     final selectedChildId = ref.watch(selectedChildProvider);
-    if (_lastChildId != selectedChildId) {
-      _lastChildId = selectedChildId;
-    }
     final query = (ScreenSearchScope.maybeOf(context)?.query ?? '')
         .trim()
         .toLowerCase();
@@ -806,15 +624,10 @@ class _ParentAttendanceState extends ConsumerState<ParentAttendancePage> {
                 child: _header(context, const AsyncValue.data(null), compact: compact),
               ),
             ),
-            SliverFillRemaining(
-              hasScrollBody: false,
-              child: Center(
-                child: ZEmpty(
-                  icon: Icons.family_restroom_outlined,
-                  title: 'Select a child',
-                  subtitle: 'Choose a child from the menu to view their attendance.',
-                  compact: true,
-                ),
+            SliverToBoxAdapter(
+              child: Padding(
+                padding: const EdgeInsets.fromLTRB(12, 8, 12, 0),
+                child: ParentLinkPrompt(),
               ),
             ),
             SliverToBoxAdapter(
@@ -867,24 +680,6 @@ class _ParentAttendanceState extends ConsumerState<ParentAttendancePage> {
     required bool compact,
   }) {
     final term = portalScopeTerm(ref);
-    final selectedChildId = ref.watch(selectedChildProvider);
-    final children = ref.watch(parentChildrenProvider);
-    PortalChild? child;
-    if (selectedChildId != null) {
-      child = children.when(
-        data: (list) {
-          try {
-            return list.firstWhere((c) => c.studentId == selectedChildId);
-          } catch (_) {
-            return null;
-          }
-        },
-        loading: () => null,
-        error: (_, _) => null,
-      );
-    } else {
-      child = null;
-    }
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -893,7 +688,7 @@ class _ParentAttendanceState extends ConsumerState<ParentAttendancePage> {
           ZContentHeader(
             title: 'Attendance',
             icon: Icons.fact_check_outlined,
-            description: 'Attendance summary for ${child?.name ?? 'your child'}.',
+            description: "Your child's attendance by class. Tap a class to see its log and heatmap.",
           ),
           const SizedBox(height: 12),
         ],
@@ -913,17 +708,6 @@ class _ParentAttendanceState extends ConsumerState<ParentAttendancePage> {
                 compact: true,
               ),
             ],
-            if (child != null)
-              ZScopePill(
-                text: [
-                  if (child.gradeLevel.isNotEmpty)
-                    child.gradeLevel.replaceFirst(RegExp(r'^Grade\s*', caseSensitive: false), 'G'),
-                  child.sectionName ?? '',
-                ].where((v) => v.isNotEmpty).join(' · '),
-                kind: ScopePillKind.grade,
-                label: 'Grade and section',
-                compact: true,
-              ),
           ],
         ),
       ],
@@ -986,7 +770,7 @@ class _ParentAttendanceState extends ConsumerState<ParentAttendancePage> {
           SliverToBoxAdapter(
             child: Padding(
               padding: const EdgeInsets.fromLTRB(12, 16, 12, 0),
-              child: Text('By subject', style: theme.textTheme.titleSmall?.copyWith(fontWeight: FontWeight.w700)),
+              child: Text('Classes', style: theme.textTheme.titleSmall?.copyWith(fontWeight: FontWeight.w700)),
             ),
           ),
           SliverPadding(
@@ -996,23 +780,33 @@ class _ParentAttendanceState extends ConsumerState<ParentAttendancePage> {
               separatorBuilder: (_, _) => const SizedBox(height: 8),
               itemBuilder: (context, index) {
                 final sub = bySubject[index];
-                return ZCard(
-                  padding: const EdgeInsets.all(12),
-                  child: Row(
-                    children: [
-                      Expanded(child: Text(sub.subjectName, style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w600))),
-                      Text(
-                        sub.hasMarks ? '${sub.percent}%' : 'No marks',
-                        style: TextStyle(
-                          fontWeight: FontWeight.w700,
-                          fontSize: sub.hasMarks ? 15 : 12,
-                          color: sub.hasMarks && sub.percent < 80
-                              ? theme.colorScheme.error
-                              : theme.colorScheme.onSurfaceVariant,
-                        ),
-                      ),
-                    ],
+                return PortalSubjectCard(
+                  seed: sub.subjectId,
+                  title: sub.subjectName,
+                  subtitle: sub.teacherName != null && sub.teacherName!.isNotEmpty
+                      ? sub.teacherName!
+                      : sub.subjectCode,
+                  trailing: ZStatusPill(
+                    text: sub.hasMarks ? '${sub.percent}%' : 'No marks',
+                    tone: !sub.hasMarks
+                        ? StatusTone.neutral
+                        : sub.percent < 80
+                            ? StatusTone.red
+                            : StatusTone.green,
+                    label: 'Present rate',
                   ),
+                  footer: sub.hasMarks
+                      ? 'P ${sub.present} · A ${sub.absent} · L ${sub.late}'
+                      : 'No attendance marks yet',
+                  onTap: () {
+                    final childId = ref.read(selectedChildProvider);
+                    if (childId == null) return;
+                    context.push(
+                      '/parent/children/${Uri.encodeComponent(childId)}/attendance/'
+                      '${Uri.encodeComponent(sub.subjectId)}',
+                      extra: sub.subjectName,
+                    );
+                  },
                 );
               },
             ),
@@ -1093,13 +887,50 @@ class ParentSchedulePage extends ConsumerStatefulWidget {
 class _ParentScheduleState extends ConsumerState<ParentSchedulePage> {
   String _lastQuery = '';
   String _lastTerm = '';
-  String? _lastChildId;
+  late final DateTime _dateAnchor;
+  late DateTime _selectedDate;
+  String _classFilter = 'All';
+
+  @override
+  void initState() {
+    super.initState();
+    final now = philippineTime(DateTime.now());
+    _dateAnchor = DateTime.utc(now.year, now.month, now.day);
+    _selectedDate = _dateAnchor;
+    _lastTerm = '';
+  }
+
+  (DateTime, DateTime) _bounds(PortalTerm? term) {
+    var first = _dateAnchor.subtract(const Duration(days: 10000));
+    var last = DateTime.utc(9999, 12, 31);
+    final start = term?.startDate;
+    final end = term?.endDate;
+    if (start != null) {
+      final parsed = DateTime.tryParse(start);
+      if (parsed != null) first = DateTime.utc(parsed.year, parsed.month, parsed.day);
+    }
+    if (end != null) {
+      final parsed = DateTime.tryParse(end);
+      if (parsed != null) last = DateTime.utc(parsed.year, parsed.month, parsed.day);
+    }
+    return (first, last);
+  }
+
+  void _syncTerm(PortalTerm? term) {
+    final (first, last) = _bounds(term);
+    var target = _dateAnchor;
+    if (target.isBefore(first)) target = first;
+    if (target.isAfter(last)) target = last;
+    _selectedDate = target;
+  }
 
   Future<void> _refresh() async {
     final selectedChildId = ref.read(selectedChildProvider);
-    if (selectedChildId != null) {
-      ref.invalidate(parentScheduleProvider(selectedChildId));
-    }
+    if (selectedChildId == null) return;
+    ref.invalidate(parentScheduleProvider(selectedChildId));
+    try {
+      await ref.read(parentScheduleProvider(selectedChildId).future);
+    } catch (_) {}
   }
 
   @override
@@ -1122,10 +953,8 @@ class _ParentScheduleState extends ConsumerState<ParentSchedulePage> {
     final termKey = '${term?.schoolYearId}:${term?.id}';
     if (_lastTerm != termKey) {
       _lastTerm = termKey;
-    }
-    final selectedChildId = ref.watch(selectedChildProvider);
-    if (_lastChildId != selectedChildId) {
-      _lastChildId = selectedChildId;
+      _syncTerm(term);
+      _classFilter = 'All';
     }
     final query = (ScreenSearchScope.maybeOf(context)?.query ?? '')
         .trim()
@@ -1133,8 +962,8 @@ class _ParentScheduleState extends ConsumerState<ParentSchedulePage> {
     if (_lastQuery != query) {
       _lastQuery = query;
     }
+    final selectedChildId = ref.watch(selectedChildProvider);
 
-    // Show child selection prompt when no child is selected
     if (selectedChildId == null) {
       return RefreshIndicator(
         onRefresh: _refresh,
@@ -1147,15 +976,10 @@ class _ParentScheduleState extends ConsumerState<ParentSchedulePage> {
                 child: _header(context, const AsyncValue.data(null), compact: compact),
               ),
             ),
-            SliverFillRemaining(
-              hasScrollBody: false,
-              child: Center(
-                child: ZEmpty(
-                  icon: Icons.family_restroom_outlined,
-                  title: 'Select a child',
-                  subtitle: 'Choose a child from the menu to view their schedule.',
-                  compact: true,
-                ),
+            const SliverToBoxAdapter(
+              child: Padding(
+                padding: EdgeInsets.fromLTRB(12, 8, 12, 0),
+                child: ParentLinkPrompt(),
               ),
             ),
             SliverToBoxAdapter(
@@ -1208,33 +1032,15 @@ class _ParentScheduleState extends ConsumerState<ParentSchedulePage> {
     required bool compact,
   }) {
     final term = portalScopeTerm(ref);
-    final selectedChildId = ref.watch(selectedChildProvider);
-    final children = ref.watch(parentChildrenProvider);
-    PortalChild? child;
-    if (selectedChildId != null) {
-      child = children.when(
-        data: (list) {
-          try {
-            return list.firstWhere((c) => c.studentId == selectedChildId);
-          } catch (_) {
-            return null;
-          }
-        },
-        loading: () => null,
-        error: (_, _) => null,
-      );
-    } else {
-      child = null;
-    }
-
+    final sectionName = scheduleAsync.asData?.value?.sectionName;
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
         if (!compact) ...[
           ZContentHeader(
             title: 'Class Schedule',
-            icon: Icons.calendar_month_outlined,
-            description: 'Designated classes for ${child?.name ?? 'your child'}.',
+            icon: LucideIcons.bookOpen,
+            description: "Your child's classes and weekly schedule.",
           ),
           const SizedBox(height: 12),
         ],
@@ -1254,15 +1060,11 @@ class _ParentScheduleState extends ConsumerState<ParentSchedulePage> {
                 compact: true,
               ),
             ],
-            if (child != null)
+            if (sectionName != null)
               ZScopePill(
-                text: [
-                  if (child.gradeLevel.isNotEmpty)
-                    child.gradeLevel.replaceFirst(RegExp(r'^Grade\s*', caseSensitive: false), 'G'),
-                  child.sectionName ?? '',
-                ].where((v) => v.isNotEmpty).join(' · '),
+                text: sectionName,
                 kind: ScopePillKind.grade,
-                label: 'Grade and section',
+                label: 'Section',
                 compact: true,
               ),
           ],
@@ -1273,117 +1075,148 @@ class _ParentScheduleState extends ConsumerState<ParentSchedulePage> {
 
   Widget _list(BuildContext context, PortalSchedule data, String query) {
     final theme = Theme.of(context);
-    SchoolDayConfig? config;
-    try {
-      if (data.config != null) {
-        config = SchoolDayConfig.fromJson(data.config!);
-      }
-    } catch (_) {
-      config = null;
-    }
-    final slots = data.slots
+    final today = _dateAnchor;
+    final now = philippineTime(DateTime.now());
+    final nowMinute = now.hour * 60 + now.minute;
+    final day = _selectedDate.weekday;
+    final config = SchoolDayConfig.tryFromJson(data.config);
+    final (first, last) = _bounds(portalScopeTerm(ref));
+
+    final searchMatches = data.slots
         .where((s) => query.isEmpty || s.subjectName.toLowerCase().contains(query))
         .toList();
-    if (slots.isEmpty) {
-      return SliverFillRemaining(
-        hasScrollBody: false,
-        child: Center(
-          child: ZEmpty(
-            icon: Icons.calendar_month_outlined,
-            title: data.slots.isEmpty ? 'No schedule published yet' : 'No classes match',
-            subtitle: data.slots.isEmpty ? null : 'Try a different search.',
-          ),
-        ),
-      );
+    final daySlots = searchMatches.where((s) => s.day == day).toList()
+      ..sort((a, b) => a.period.compareTo(b.period));
+
+    bool completed(PortalScheduleSlot slot) {
+      final window = config != null &&
+              slot.period >= 0 &&
+              slot.period < config.periods.length
+          ? config.periods[slot.period]
+          : null;
+      if (window == null) return _selectedDate.isBefore(today);
+      if (_selectedDate.isBefore(today)) return true;
+      return _selectedDate.isAtSameMomentAs(today) && nowMinute >= window.end;
     }
-    final byDay = <int, List<PortalScheduleSlot>>{};
-    for (final s in slots) {
-      byDay.putIfAbsent(s.day, () => []).add(s);
-    }
-    final days = byDay.keys.toList()..sort();
-    return SliverPadding(
-      padding: const EdgeInsets.fromLTRB(12, 16, 12, 0),
-      sliver: SliverList.separated(
-        itemCount: days.length,
-        separatorBuilder: (_, _) => const SizedBox(height: 16),
-        itemBuilder: (context, dayIndex) {
-          final day = days[dayIndex];
-          final daySlots = byDay[day]!;
-          return Column(
-            crossAxisAlignment: CrossAxisAlignment.stretch,
-            children: [
-              Text(_dayName(day), style: theme.textTheme.titleSmall?.copyWith(fontWeight: FontWeight.w700)),
-              const SizedBox(height: 8),
-              Column(
-                children: [
-                  for (final slot in daySlots)
-                    Builder(
-                      builder: (context) {
-                        final window =
-                            config != null &&
-                                slot.period >= 0 &&
-                                slot.period < config.periods.length
-                            ? config.periods[slot.period]
-                            : null;
-                        final time = window == null
-                            ? null
-                            : '${clockLabel(window.start)} – ${clockLabel(window.end)}';
-                        return Padding(
-                          padding: const EdgeInsets.only(bottom: 8),
-                          child: ZCard(
-                            padding: const EdgeInsets.all(12),
-                            child: Row(
-                              children: [
-                                CircleAvatar(
-                                  radius: 14,
-                                  backgroundColor:
-                                      theme.colorScheme.surfaceContainerLow,
-                                  child: Text(
-                                    '${slot.period + 1}',
-                                    style: const TextStyle(fontSize: 11),
-                                  ),
-                                ),
-                                const SizedBox(width: 10),
-                                Expanded(
-                                  child: Column(
-                                    crossAxisAlignment:
-                                        CrossAxisAlignment.start,
-                                    children: [
-                                      Text(
-                                        slot.subjectName,
-                                        style: const TextStyle(
-                                          fontSize: 13,
-                                          fontWeight: FontWeight.w600,
-                                        ),
-                                      ),
-                                      Text(
-                                        slot.teacherName ?? slot.subjectCode,
-                                        style: theme.textTheme.labelSmall,
-                                      ),
-                                    ],
-                                  ),
-                                ),
-                                if (time != null)
-                                  Text(
-                                    time,
-                                    style: theme.textTheme.labelSmall,
-                                  ),
-                              ],
-                            ),
-                          ),
-                        );
-                      },
-                    ),
-                ],
+
+    final filtered = daySlots.where((slot) {
+      if (_classFilter == 'All') return true;
+      final done = completed(slot);
+      return _classFilter == 'Completed' ? done : !done;
+    }).toList();
+    final count = filtered.length;
+
+    return SliverToBoxAdapter(
+      child: Padding(
+        padding: const EdgeInsets.fromLTRB(12, 8, 12, 0),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            DateStripSelector(
+              selectedDate: _selectedDate,
+              today: today,
+              firstDate: first,
+              lastDate: last,
+              stripKey: const ValueKey('parent-class-date-selector'),
+              pickerHelpText: 'Choose class date',
+              hasEvent: (date) =>
+                  data.slots.any((slot) => slot.day == date.weekday),
+              onChanged: (date) => setState(
+                () => _selectedDate = DateTime.utc(date.year, date.month, date.day),
               ),
-            ],
-          );
-        },
+            ),
+            const SizedBox(height: 8),
+            Row(
+              children: [
+                Expanded(
+                  child: Text(
+                    'Showing $count ${count == 1 ? 'class' : 'classes'}',
+                    style: TextStyle(
+                      fontSize: 12,
+                      color: theme.colorScheme.onSurfaceVariant,
+                    ),
+                  ),
+                ),
+                TextButton.icon(
+                  onPressed: () => setState(() {
+                    const options = ['All', 'Completed', 'Pending'];
+                    _classFilter =
+                        options[(options.indexOf(_classFilter) + 1) %
+                            options.length];
+                  }),
+                  icon: const Icon(LucideIcons.listFilter, size: 14),
+                  label: Text(
+                    _classFilter,
+                    style: const TextStyle(fontSize: 12),
+                  ),
+                  style: TextButton.styleFrom(
+                    foregroundColor: theme.colorScheme.onSurface,
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 8,
+                      vertical: 0,
+                    ),
+                    minimumSize: Size.zero,
+                    tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                    visualDensity: VisualDensity.compact,
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 12),
+            if (count == 0)
+              ZEmpty(
+                icon: LucideIcons.calendarDays,
+                title: data.slots.isEmpty
+                    ? 'No classes yet'
+                    : query.isNotEmpty
+                        ? 'No classes match'
+                        : _classFilter == 'All'
+                            ? 'No classes'
+                            : 'No ${_classFilter.toLowerCase()} classes',
+                subtitle: data.slots.isEmpty
+                    ? "No published classes for this term. Ask the school office to check your child's section schedule."
+                    : query.isNotEmpty
+                        ? 'Try a different search.'
+                        : _classFilter != 'All'
+                            ? 'No ${_classFilter.toLowerCase()} classes for this date.'
+                            : 'No scheduled classes on ${const ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'][day - 1]}.',
+              )
+            else
+              for (final slot in filtered) ...[
+                _classCard(context, slot, config),
+                const SizedBox(height: 12),
+              ],
+          ],
+        ),
       ),
     );
   }
 
-  String _dayName(int day) => const ['', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'][day.clamp(0, 7)];
+  Widget _classCard(
+    BuildContext context,
+    PortalScheduleSlot slot,
+    SchoolDayConfig? config,
+  ) {
+    final window = config != null &&
+            slot.period >= 0 &&
+            slot.period < config.periods.length
+        ? config.periods[slot.period]
+        : null;
+    final timing = window == null
+        ? 'Time not configured'
+        : '${clockLabel(window.start)} – ${clockLabel(window.end)}';
+    return PortalSubjectCard(
+      seed: slot.subjectId,
+      title: slot.subjectName,
+      subtitle: slot.teacherName ?? slot.subjectCode,
+      trailing: ZStatusPill(
+        text: 'P${slot.period + 1}',
+        tone: StatusTone.blue,
+        label: 'Period',
+      ),
+      footer: timing,
+    );
+  }
 }
 
 // ---------------------------------------------------------------------------
@@ -1399,7 +1232,6 @@ class ParentModulesPage extends ConsumerStatefulWidget {
 class _ParentModulesState extends ConsumerState<ParentModulesPage> {
   String _lastQuery = '';
   String _lastTerm = '';
-  String? _lastChildId;
 
   Future<void> _refresh() async {
     final selectedChildId = ref.read(selectedChildProvider);
@@ -1430,9 +1262,6 @@ class _ParentModulesState extends ConsumerState<ParentModulesPage> {
       _lastTerm = termKey;
     }
     final selectedChildId = ref.watch(selectedChildProvider);
-    if (_lastChildId != selectedChildId) {
-      _lastChildId = selectedChildId;
-    }
     final query = (ScreenSearchScope.maybeOf(context)?.query ?? '')
         .trim()
         .toLowerCase();
@@ -1453,15 +1282,10 @@ class _ParentModulesState extends ConsumerState<ParentModulesPage> {
                 child: _header(context, const AsyncValue.data(null), compact: compact),
               ),
             ),
-            SliverFillRemaining(
-              hasScrollBody: false,
-              child: Center(
-                child: ZEmpty(
-                  icon: Icons.family_restroom_outlined,
-                  title: 'Select a child',
-                  subtitle: 'Choose a child from the menu to view their modules.',
-                  compact: true,
-                ),
+            SliverToBoxAdapter(
+              child: Padding(
+                padding: const EdgeInsets.fromLTRB(12, 8, 12, 0),
+                child: ParentLinkPrompt(),
               ),
             ),
             SliverToBoxAdapter(
@@ -1514,24 +1338,6 @@ class _ParentModulesState extends ConsumerState<ParentModulesPage> {
     required bool compact,
   }) {
     final term = portalScopeTerm(ref);
-    final selectedChildId = ref.watch(selectedChildProvider);
-    final children = ref.watch(parentChildrenProvider);
-    PortalChild? child;
-    if (selectedChildId != null) {
-      child = children.when(
-        data: (list) {
-          try {
-            return list.firstWhere((c) => c.studentId == selectedChildId);
-          } catch (_) {
-            return null;
-          }
-        },
-        loading: () => null,
-        error: (_, _) => null,
-      );
-    } else {
-      child = null;
-    }
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -1540,7 +1346,7 @@ class _ParentModulesState extends ConsumerState<ParentModulesPage> {
           ZContentHeader(
             title: 'Modules',
             icon: Icons.folder_shared_outlined,
-            description: 'Learning modules for ${child?.name ?? 'your child'}.',
+            description: "Your child's learning modules for this term.",
           ),
           const SizedBox(height: 12),
         ],
@@ -1560,17 +1366,6 @@ class _ParentModulesState extends ConsumerState<ParentModulesPage> {
                 compact: true,
               ),
             ],
-            if (child != null)
-              ZScopePill(
-                text: [
-                  if (child.gradeLevel.isNotEmpty)
-                    child.gradeLevel.replaceFirst(RegExp(r'^Grade\s*', caseSensitive: false), 'G'),
-                  child.sectionName ?? '',
-                ].where((v) => v.isNotEmpty).join(' · '),
-                kind: ScopePillKind.grade,
-                label: 'Grade and section',
-                compact: true,
-              ),
           ],
         ),
         const SizedBox(height: 12),
@@ -1630,7 +1425,7 @@ class _ParentModulesState extends ConsumerState<ParentModulesPage> {
             separatorBuilder: (_, _) => const SizedBox(height: 8),
             itemBuilder: (context, index) {
               final m = modules[index];
-              return _ModuleCard(module: m);
+              return PortalModuleCard(module: m);
             },
           ),
         ),
@@ -1665,77 +1460,6 @@ class _ParentModulesState extends ConsumerState<ParentModulesPage> {
   }
 }
 
-class _ModuleCard extends StatelessWidget {
-  final PortalModule module;
-  const _ModuleCard({required this.module});
-
-  @override
-  Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-    return ZCard(
-      padding: const EdgeInsets.all(12),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
-            children: [
-              Expanded(child: Text(module.moduleName, style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w700))),
-              _status(theme, module.status),
-            ],
-          ),
-          if (module.description != null) ...[
-            const SizedBox(height: 4),
-            Text(module.description!, style: theme.textTheme.bodySmall),
-          ],
-          const SizedBox(height: 4),
-          Text(
-            module.dueDate == null ? 'No due date' : 'Due ${formatPortalDate(module.dueDate)}',
-            style: theme.textTheme.labelSmall,
-          ),
-          const SizedBox(height: 8),
-          Wrap(
-            spacing: 8,
-            runSpacing: 8,
-            crossAxisAlignment: WrapCrossAlignment.center,
-            children: [
-              if (module.moduleUrl != null)
-                OutlinedButton.icon(
-                  onPressed: () => _open(module.moduleUrl!),
-                  icon: const Icon(Icons.open_in_new, size: 14),
-                  label: const Text('Open module', style: TextStyle(fontSize: 12)),
-                ),
-              if (module.submitted)
-                Text('Submitted ${formatPortalDate(module.submittedAt)}', style: theme.textTheme.labelSmall)
-              else if (module.tracked)
-                Text('Not yet submitted', style: theme.textTheme.labelSmall),
-            ],
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _status(ThemeData theme, String status) {
-    final color = switch (status) {
-      'submitted' => Colors.green,
-      'overdue' => theme.colorScheme.error,
-      'pending' => Colors.orange,
-      _ => theme.colorScheme.onSurfaceVariant,
-    };
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
-      decoration: BoxDecoration(color: color.withValues(alpha: 0.12), borderRadius: BorderRadius.circular(999)),
-      child: Text(status, style: TextStyle(fontSize: 11, color: color, fontWeight: FontWeight.w600)),
-    );
-  }
-
-  Future<void> _open(String url) async {
-    final uri = Uri.tryParse(url);
-    if (uri == null) return;
-    await launchUrl(uri, mode: LaunchMode.externalApplication);
-  }
-}
-
 // ---------------------------------------------------------------------------
 // Parent Sessions Page
 // ---------------------------------------------------------------------------
@@ -1749,7 +1473,6 @@ class ParentSessionsPage extends ConsumerStatefulWidget {
 class _ParentSessionsState extends ConsumerState<ParentSessionsPage> {
   String _lastQuery = '';
   String _lastTerm = '';
-  String? _lastChildId;
 
   Future<void> _refresh() async {
     final selectedChildId = ref.read(selectedChildProvider);
@@ -1780,9 +1503,6 @@ class _ParentSessionsState extends ConsumerState<ParentSessionsPage> {
       _lastTerm = termKey;
     }
     final selectedChildId = ref.watch(selectedChildProvider);
-    if (_lastChildId != selectedChildId) {
-      _lastChildId = selectedChildId;
-    }
     final query = (ScreenSearchScope.maybeOf(context)?.query ?? '')
         .trim()
         .toLowerCase();
@@ -1803,15 +1523,10 @@ class _ParentSessionsState extends ConsumerState<ParentSessionsPage> {
                 child: _header(context, const AsyncValue.data(null), compact: compact),
               ),
             ),
-            SliverFillRemaining(
-              hasScrollBody: false,
-              child: Center(
-                child: ZEmpty(
-                  icon: Icons.family_restroom_outlined,
-                  title: 'Select a child',
-                  subtitle: 'Choose a child from the menu to view their sessions.',
-                  compact: true,
-                ),
+            SliverToBoxAdapter(
+              child: Padding(
+                padding: const EdgeInsets.fromLTRB(12, 8, 12, 0),
+                child: ParentLinkPrompt(),
               ),
             ),
             SliverToBoxAdapter(
@@ -1864,24 +1579,6 @@ class _ParentSessionsState extends ConsumerState<ParentSessionsPage> {
     required bool compact,
   }) {
     final term = portalScopeTerm(ref);
-    final selectedChildId = ref.watch(selectedChildProvider);
-    final children = ref.watch(parentChildrenProvider);
-    PortalChild? child;
-    if (selectedChildId != null) {
-      child = children.when(
-        data: (list) {
-          try {
-            return list.firstWhere((c) => c.studentId == selectedChildId);
-          } catch (_) {
-            return null;
-          }
-        },
-        loading: () => null,
-        error: (_, _) => null,
-      );
-    } else {
-      child = null;
-    }
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -1890,7 +1587,7 @@ class _ParentSessionsState extends ConsumerState<ParentSessionsPage> {
           ZContentHeader(
             title: 'Sessions',
             icon: Icons.event_available_outlined,
-            description: 'Upcoming sessions for ${child?.name ?? 'your child'}.',
+            description: "Your child's upcoming sessions.",
           ),
           const SizedBox(height: 12),
         ],
@@ -1910,17 +1607,6 @@ class _ParentSessionsState extends ConsumerState<ParentSessionsPage> {
                 compact: true,
               ),
             ],
-            if (child != null)
-              ZScopePill(
-                text: [
-                  if (child.gradeLevel.isNotEmpty)
-                    child.gradeLevel.replaceFirst(RegExp(r'^Grade\s*', caseSensitive: false), 'G'),
-                  child.sectionName ?? '',
-                ].where((v) => v.isNotEmpty).join(' · '),
-                kind: ScopePillKind.grade,
-                label: 'Grade and section',
-                compact: true,
-              ),
           ],
         ),
       ],

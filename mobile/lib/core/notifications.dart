@@ -528,6 +528,12 @@ String portalNotificationTitle(ZNotification n) {
   if (n.type == 'module_released' || n.sourceTable == 'advisory_modules') {
     return 'New module released';
   }
+  if (n.sourceTable == 'parent_student_links') {
+    final msg = n.message.toLowerCase();
+    if (msg.contains('not approved')) return 'Link request declined';
+    if (msg.contains('now linked')) return 'Child linked';
+    return 'Link request update';
+  }
   return teacherNotificationTitle(n);
 }
 

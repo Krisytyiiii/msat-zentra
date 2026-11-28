@@ -13,6 +13,7 @@ import 'package:lucide_icons_flutter/lucide_icons.dart';
 
 import '../core/notifications.dart';
 import '../core/session.dart';
+import '../features/parent/parent_link_prompt.dart';
 import '../services/portal_service.dart';
 import '../shared/models.dart';
 import '../shared/widgets.dart';
@@ -389,6 +390,8 @@ class PortalDrawer extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final theme = Theme.of(context);
     final dark = theme.brightness == Brightness.dark;
+    final learner =
+        portal == 'student' ? ref.watch(studentMeProvider).asData?.value : null;
     return Drawer(
       backgroundColor: dark
           ? theme.colorScheme.surface
@@ -439,6 +442,21 @@ class PortalDrawer extends ConsumerWidget {
                     'Sessions',
                     '/$portal/sessions',
                   ),
+                  if (learner?.isAdm == true) ...[
+                    const _DrawerHeader('ADM'),
+                    _item(
+                      context,
+                      LucideIcons.folderOpen,
+                      'ADM Modules',
+                      '/student/modules?kind=adm',
+                    ),
+                    _item(
+                      context,
+                      LucideIcons.calendarCheck,
+                      'ADM Sessions',
+                      '/student/sessions?track=adm',
+                    ),
+                  ],
                 ],
               ),
             ),
@@ -620,15 +638,9 @@ class _PortalChildPicker extends ConsumerWidget {
       error: (e, _) => const SizedBox.shrink(),
       data: (list) {
         if (list.isEmpty) {
-          return Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 12),
-            child: ZEmpty(
-              compact: true,
-              icon: Icons.people_outline,
-              title: 'No linked learners',
-              subtitle:
-                  'Ask the school office to link your child to this account.',
-            ),
+          return const Padding(
+            padding: EdgeInsets.symmetric(horizontal: 12),
+            child: ParentLinkPrompt(),
           );
         }
         if (list.length == 1) {

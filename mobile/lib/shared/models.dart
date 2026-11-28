@@ -228,6 +228,8 @@ class PortalLearner {
   final String? sectionId;
   final String? sectionName;
   final String? adviserName;
+  final bool isAdm;
+  final String? admStage;
   PortalLearner({
     required this.studentId,
     required this.name,
@@ -238,6 +240,8 @@ class PortalLearner {
     this.sectionId,
     this.sectionName,
     this.adviserName,
+    this.isAdm = false,
+    this.admStage,
   });
   factory PortalLearner.fromJson(Map<String, dynamic> j) => PortalLearner(
         studentId: j['studentId'] as String? ?? '',
@@ -249,6 +253,8 @@ class PortalLearner {
         sectionId: j['sectionId'] as String?,
         sectionName: j['sectionName'] as String?,
         adviserName: j['adviserName'] as String?,
+        isAdm: (j['isAdm'] ?? false) as bool,
+        admStage: j['admStage'] as String?,
       );
 }
 
@@ -285,6 +291,45 @@ class PortalChild {
         sectionName: j['sectionName'] as String?,
         relationship: j['relationship'] as String?,
       );
+}
+
+/// A guardian's pending request to be linked to a learner by LRN. Approved
+/// links stop appearing here and show up as [PortalChild] instead.
+class PortalLinkRequest {
+  final String id;
+  final String relationship;
+  final bool approved;
+  final String requestedAt;
+  final String studentId;
+  final String studentName;
+  final String lrn;
+  final String gradeLevel;
+  final String? sectionName;
+  PortalLinkRequest({
+    required this.id,
+    required this.relationship,
+    required this.approved,
+    required this.requestedAt,
+    required this.studentId,
+    required this.studentName,
+    required this.lrn,
+    required this.gradeLevel,
+    this.sectionName,
+  });
+  factory PortalLinkRequest.fromJson(Map<String, dynamic> j) {
+    final student = (j['student'] as Map?)?.cast<String, dynamic>() ?? const {};
+    return PortalLinkRequest(
+      id: j['id'] as String? ?? '',
+      relationship: j['relationship'] as String? ?? 'Guardian',
+      approved: j['approved'] as bool? ?? false,
+      requestedAt: j['requestedAt'] as String? ?? '',
+      studentId: student['studentId'] as String? ?? '',
+      studentName: student['name'] as String? ?? '',
+      lrn: student['lrn'] as String? ?? '',
+      gradeLevel: student['gradeLevel'] as String? ?? '',
+      sectionName: student['sectionName'] as String?,
+    );
+  }
 }
 
 class PortalGrade {

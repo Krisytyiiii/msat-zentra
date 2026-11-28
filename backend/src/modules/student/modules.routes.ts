@@ -77,12 +77,14 @@ router.get(
         page: number;
         pageSize: number;
         status?: ModuleStatus;
+        kind?: "adm" | "general";
       };
       res.json(
         await listStudentModules(await ctxOf(req), {
           page: query.page,
           pageSize: query.pageSize,
           status: query.status,
+          kind: query.kind,
         }),
       );
     } catch (e) {

@@ -35,6 +35,7 @@ void main() {
                   ),
                   ZScopePill(text: 'Term 2', kind: ScopePillKind.term),
                   ZScopePill(text: 'G7', kind: ScopePillKind.grade),
+                  ZScopePill(text: 'Juan Dela Cruz', kind: ScopePillKind.learner),
                   ZStatusPill(text: 'Pending'),
                 ],
               ),
@@ -45,9 +46,11 @@ void main() {
       expect(find.byIcon(LucideIcons.calendarDays), findsOneWidget);
       expect(find.byIcon(LucideIcons.bookOpen), findsOneWidget);
       expect(find.byIcon(LucideIcons.graduationCap), findsOneWidget);
+      expect(find.byIcon(LucideIcons.userRound), findsOneWidget);
       expect(find.byTooltip('School year'), findsOneWidget);
       expect(find.byTooltip('Term'), findsOneWidget);
       expect(find.byTooltip('Grade level'), findsOneWidget);
+      expect(find.byTooltip('Learner'), findsOneWidget);
       for (final capsule in tester.widgetList<ZScopePill>(
         find.byType(ZScopePill),
       )) {
@@ -67,12 +70,14 @@ void main() {
           dark
               ? (capsule.kind == ScopePillKind.term
                     ? const Color(0x29FFB900)
-                    : capsule.kind == ScopePillKind.grade
+                    : capsule.kind == ScopePillKind.grade ||
+                          capsule.kind == ScopePillKind.learner
                     ? const Color(0x298E51FF)
                     : const Color(0x292B7FFF))
               : (capsule.kind == ScopePillKind.term
                     ? const Color(0xFFFFF6E5)
-                    : capsule.kind == ScopePillKind.grade
+                    : capsule.kind == ScopePillKind.grade ||
+                          capsule.kind == ScopePillKind.learner
                     ? const Color(0xFFF5F3FF)
                     : const Color(0xFFEAF2FF)),
         );
@@ -81,12 +86,14 @@ void main() {
           dark
               ? (capsule.kind == ScopePillKind.term
                     ? const Color(0x66FFB900)
-                    : capsule.kind == ScopePillKind.grade
+                    : capsule.kind == ScopePillKind.grade ||
+                          capsule.kind == ScopePillKind.learner
                     ? const Color(0x668E51FF)
                     : const Color(0x662B7FFF))
               : (capsule.kind == ScopePillKind.term
                     ? const Color(0xFFFDE6B0)
-                    : capsule.kind == ScopePillKind.grade
+                    : capsule.kind == ScopePillKind.grade ||
+                          capsule.kind == ScopePillKind.learner
                     ? const Color(0xFFDDD6FE)
                     : const Color(0xFFD4E4FF)),
         );
@@ -101,7 +108,7 @@ void main() {
             dark ? const Color(0xFF8FB6F5) : const Color(0xFF2563EB),
           ScopePillKind.term =>
             dark ? const Color(0xFFFFC65C) : const Color(0xFFB45309),
-          ScopePillKind.grade =>
+          ScopePillKind.grade || ScopePillKind.learner =>
             dark ? const Color(0xFFC4B5FD) : const Color(0xFF7C3AED),
         });
       }

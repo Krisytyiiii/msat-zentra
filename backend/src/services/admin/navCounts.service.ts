@@ -73,9 +73,17 @@ export async function getAdminNavQueues(): Promise<AdminNavQueues> {
       pending AS (
         SELECT 'pending'::text AS q, 'pending'::text AS id,
                COUNT(*)::text || ':' ||
-               COALESCE(MAX(xmin::text::bigint)::text, '0') AS v
-        FROM "User"
-        WHERE status = 'pending'
+               COALESCE(MAX(version)::text, '0') AS v
+        FROM (
+          SELECT xmin::text::bigint AS version
+          FROM "User"
+          WHERE status = 'pending'
+          UNION ALL
+          -- Guardian learner link requests waiting on the same approval desk.
+          SELECT xmin::text::bigint AS version
+          FROM "ParentStudentLink"
+          WHERE "approvedBy" IS NULL
+        ) AS pending_rows
       ),
       audit AS (
         SELECT 'audit'::text AS q, 'audit'::text AS id,

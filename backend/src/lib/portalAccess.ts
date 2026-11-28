@@ -1,5 +1,6 @@
 import { prisma } from "./prisma.js";
 import { AppError } from "./errors.js";
+import { admCaseSnapshot } from "../services/adm/attendancePolicy.js";
 import type { AuthUser } from "../middleware/auth.js";
 
 /**
@@ -20,6 +21,20 @@ export interface PortalLearner {
   sectionId: string | null;
   sectionName: string | null;
   adviserName: string | null;
+  /** The learner has an ADM case in the viewed term (any stage). */
+  isAdm: boolean;
+  admStage: string | null;
+}
+
+/** ADM nav flag: any case in the viewed term marks the learner as "on ADM". */
+async function admPortalFlag(
+  studentId: string,
+  term?: { id: string; schoolYearId: string },
+): Promise<{ isAdm: boolean; admStage: string | null }> {
+  if (!term) return { isAdm: false, admStage: null };
+  const cases = await admCaseSnapshot(term.id, [studentId]);
+  const current = cases.get(studentId);
+  return { isAdm: current != null, admStage: current?.stage ?? null };
 }
 
 export async function loadPortalLearner(
@@ -78,6 +93,7 @@ export async function loadPortalLearner(
     sectionId,
     sectionName,
     adviserName,
+    ...(await admPortalFlag(studentId, term)),
   };
 }
 

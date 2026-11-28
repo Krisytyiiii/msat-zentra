@@ -55,10 +55,13 @@ class StudentSubjectRecordPage extends ConsumerStatefulWidget {
     super.key,
     required this.subjectId,
     this.subjectName,
+    this.childId,
   });
 
   final String subjectId;
   final String? subjectName;
+  /// Set when a guardian opens a linked child's record from the parent desk.
+  final String? childId;
 
   @override
   ConsumerState<StudentSubjectRecordPage> createState() =>
@@ -66,25 +69,47 @@ class StudentSubjectRecordPage extends ConsumerStatefulWidget {
 }
 
 class _StudentSubjectRecordState extends ConsumerState<StudentSubjectRecordPage> {
+  bool get _isParent => widget.childId != null;
+
+  ({String childId, String subjectId})? get _parentKey => _isParent
+      ? (childId: widget.childId!, subjectId: widget.subjectId)
+      : null;
+
+  AsyncValue<PortalSubjectRecord> _watchRecord() => _isParent
+      ? ref.watch(parentSubjectRecordProvider(_parentKey!))
+      : ref.watch(studentSubjectRecordProvider(widget.subjectId));
+
+  void _invalidate() {
+    if (_isParent) {
+      ref.invalidate(parentSubjectRecordProvider(_parentKey!));
+    } else {
+      ref.invalidate(studentSubjectRecordProvider(widget.subjectId));
+    }
+  }
+
+  Future<PortalSubjectRecord> _future() => _isParent
+      ? ref.read(parentSubjectRecordProvider(_parentKey!).future)
+      : ref.read(studentSubjectRecordProvider(widget.subjectId).future);
+
   void _close() {
     if (context.canPop()) {
       context.pop();
     } else {
-      context.go('/student/grades');
+      context.go(_isParent ? '/parent/grades' : '/student/grades');
     }
   }
 
   Future<void> _refresh() async {
-    ref.invalidate(studentSubjectRecordProvider(widget.subjectId));
+    _invalidate();
     try {
-      await ref.read(studentSubjectRecordProvider(widget.subjectId).future);
+      await _future();
     } catch (_) {}
   }
 
   @override
   Widget build(BuildContext context) {
     final theme = overviewScreenTheme(Theme.of(context));
-    final record = ref.watch(studentSubjectRecordProvider(widget.subjectId));
+    final record = _watchRecord();
     return Theme(
       data: theme,
       child: Scaffold(
@@ -107,8 +132,7 @@ class _StudentSubjectRecordState extends ConsumerState<StudentSubjectRecordPage>
           loading: () => const LoadingView(layout: SkeletonLayout.record),
           error: (error, _) => ErrorView(
             message: error,
-            onRetry: () =>
-                ref.invalidate(studentSubjectRecordProvider(widget.subjectId)),
+            onRetry: _invalidate,
           ),
           data: (data) => RefreshIndicator(
             onRefresh: _refresh,
@@ -186,7 +210,9 @@ class _StudentSubjectRecordState extends ConsumerState<StudentSubjectRecordPage>
         _finalCard(context, record),
         const SizedBox(height: 8),
         Text(
-          'Scores are entered by your teacher. Your term grade becomes official once it is finalized.',
+          _isParent
+              ? 'Scores are entered by the teacher. The term grade becomes official once it is finalized.'
+              : 'Scores are entered by your teacher. Your term grade becomes official once it is finalized.',
           style: theme.textTheme.labelSmall,
         ),
       ],

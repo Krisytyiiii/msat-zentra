@@ -14,6 +14,8 @@ const answeredUrlSchema = z
 
 export const studentModulesQuerySchema = paginationQuerySchema().extend({
   status: z.enum(MODULE_STATUSES).optional(),
+  /** Narrow to one module family (ADM Modules desk). */
+  kind: z.enum(["adm", "general"]).optional(),
   /** Browse a historical term; defaults to the active one server-side. */
   termId: z.string().trim().min(1).optional(),
 });

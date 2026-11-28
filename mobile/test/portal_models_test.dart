@@ -278,4 +278,48 @@ void main() {
     expect(term.endDate, '2026-12-18T00:00:00.000Z');
     expect(term.label, 'SY 2026-2027 · Term 2');
   });
+
+  test('portal learner exposes the ADM menu flag and stage', () {
+    final adm = PortalLearner.fromJson({
+      'studentId': 's1',
+      'name': 'ADM Learner',
+      'lrn': '136130990001',
+      'gradeLevel': 'G7',
+      'sectionName': 'Rizal',
+      'isAdm': true,
+      'admStage': 'enrollment_monitoring',
+    });
+    final regular = PortalLearner.fromJson({
+      'studentId': 's2',
+      'name': 'Regular Learner',
+      'lrn': '136130990002',
+      'gradeLevel': 'G7',
+    });
+    expect(adm.isAdm, isTrue);
+    expect(adm.admStage, 'enrollment_monitoring');
+    expect(regular.isAdm, isFalse);
+    expect(regular.admStage, isNull);
+  });
+
+  test('pending learner link requests parse the learner the guardian asked for', () {
+    final request = PortalLinkRequest.fromJson({
+      'id': 'link-1',
+      'relationship': 'Mother',
+      'approved': false,
+      'requestedAt': '2026-11-28T00:00:00.000Z',
+      'student': {
+        'studentId': 's1',
+        'name': 'Juan Dela Cruz',
+        'lrn': '136130990001',
+        'gradeLevel': 'G7',
+        'sectionName': 'Rizal',
+      },
+    });
+    expect(request.id, 'link-1');
+    expect(request.relationship, 'Mother');
+    expect(request.approved, isFalse);
+    expect(request.studentName, 'Juan Dela Cruz');
+    expect(request.lrn, '136130990001');
+    expect(request.sectionName, 'Rizal');
+  });
 }

@@ -92,3 +92,50 @@ export function usePendingApprovalCounts(): PendingApprovalCounts {
     isLoading: student.isPending || parent.isPending || staff.isPending,
   };
 }
+
+/* ---- Guardian learner link requests -------------------------------------- */
+
+export const LINK_REQUESTS_BASE = "/api/admin/link-requests";
+export const LINK_REQUESTS_KEY = ["admin", "link-requests"] as const;
+
+export interface AdminLinkRequest {
+  id: string;
+  relationship: string;
+  requestedAt: string;
+  parent: { id: string; name: string; email: string };
+  student: {
+    studentId: string;
+    name: string;
+    lrn: string;
+    gradeLevel: string;
+    sectionName: string | null;
+  };
+}
+
+export interface AdminLinkRequestsResponse {
+  data: AdminLinkRequest[];
+  total: number;
+  page: number;
+  pageSize: number;
+  totalPages: number;
+}
+
+export function fetchLinkRequests(page: number, pageSize: number, signal?: AbortSignal) {
+  return apiClient
+    .get<AdminLinkRequestsResponse>(LINK_REQUESTS_BASE, {
+      params: { page, pageSize },
+      signal,
+    })
+    .then((res) => res.data);
+}
+
+export function approveLinkRequest(id: string): Promise<void> {
+  return apiClient.post(`${LINK_REQUESTS_BASE}/${id}/approve`, {}).then(() => undefined);
+}
+
+export function rejectLinkRequest(id: string, reason?: string): Promise<void> {
+  return apiClient
+    .post(`${LINK_REQUESTS_BASE}/${id}/reject`, reason ? { reason } : {})
+    .then(() => undefined);
+}
+
