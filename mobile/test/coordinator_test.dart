@@ -328,7 +328,10 @@ void main() {
       );
       await repo.cases((desk: 'deviceCandidates', page: 2, q: '', filter: ''));
       expect(api.requests.last.path, '/api/adm/approvals');
-      expect(api.requests.last.queryParameters, {'all': '1'});
+      expect(api.requests.last.queryParameters, {
+        'all': '1',
+        'eligible': 'devices',
+      });
       await repo.monitoring('name/with space');
       expect(api.requests.last.path, '/api/adm/cases/name%2Fwith%20space');
       await repo.caseFile('referral:ref-1');
@@ -471,6 +474,12 @@ void main() {
         'Good',
       );
       expect(api.writes.single.path, '/api/adm/devices/issue');
+      expect(
+        api.requests
+            .firstWhere((r) => r.path == '/api/adm/approvals')
+            .queryParameters['eligible'],
+        'devices',
+      );
       expect(api.writes.single.data, {
         'admLearnerProfileId': 'profile-1',
         'deviceType': 'Tablet',
@@ -798,7 +807,14 @@ void main() {
       findsOneWidget,
     );
     expect(find.byType(FloatingActionButton), findsOneWidget);
-    expect(find.text('Issue device'), findsNothing);
+    // Empty ledger explains the state like web and offers the same action:
+    // the one principal-approved candidate still needs a device.
+    expect(find.text('No devices issued yet'), findsOneWidget);
+    expect(
+      find.text('1 principal-approved case still needs a device.'),
+      findsOneWidget,
+    );
+    expect(find.text('Issue device'), findsOneWidget);
     expect(tester.takeException(), isNull);
   });
 

@@ -111,6 +111,9 @@ export const admReferralsQuerySchema = paginationQuerySchema().extend({
 export const admApprovalsQuerySchema = paginationQuerySchema().extend({
   // Full-cohort mode for desks that render the approved list without paging.
   all: z.enum(["1"]).optional(),
+  // Issue-device picker mode: principal-approved learners still without a
+  // device, minus the ones their adviser archived.
+  eligible: z.enum(["devices"]).optional(),
 });
 
 export const admDevicesQuerySchema = paginationQuerySchema().extend({

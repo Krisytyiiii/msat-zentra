@@ -1069,6 +1069,18 @@ class _ListState extends ConsumerState<CoordinatorListPage>
                           AsyncError() => const SizedBox.shrink(),
                           _ => const SkeletonBox(height: 92),
                         }
+                      else if (widget.desk == 'devices')
+                        switch (ref.watch(coordinatorDevicesProvider(query))) {
+                          AsyncData(:final value) => AdmCaseCounters(
+                            counts: [
+                              ('Issued', value.issued),
+                              ('Returned', value.returned),
+                              ('Total', value.issued + value.returned),
+                            ],
+                          ),
+                          AsyncError() => const SizedBox.shrink(),
+                          _ => const SkeletonBox(height: 44),
+                        }
                       else
                         ref
                             .watch(coordinatorDashboardProvider)
@@ -1113,22 +1125,71 @@ class _ListState extends ConsumerState<CoordinatorListPage>
                           value: ref.watch(coordinatorDevicesProvider(query)),
                           retry: refresh,
                           builder: (data) {
+                            final filtered =
+                                _query.trim().isNotEmpty || _filter.isNotEmpty;
+                            final needs = ref
+                                    .watch(
+                                      coordinatorListProvider((
+                                        desk: 'deviceCandidates',
+                                        page: 1,
+                                        q: '',
+                                        filter: '',
+                                      )),
+                                    )
+                                    .asData
+                                    ?.value
+                                    .rows
+                                    .where(
+                                      (r) =>
+                                          r.devicesIssued == 0 &&
+                                          r.approvedBy.isNotEmpty,
+                                    )
+                                    .length ??
+                                0;
+                            final needsText = needs == 1
+                                ? '1 principal-approved case still needs a device.'
+                                : '$needs principal-approved cases still need a device.';
                             return Column(
+                              crossAxisAlignment: CrossAxisAlignment.stretch,
                               children: [
                                 _recordCount(data.total),
                                 if (data.rows.isEmpty)
-                                  const ZEmpty(
+                                  ZEmpty(
                                     icon: Icons.devices_outlined,
-                                    title: 'No matching devices.',
-                                  ),
-                                for (final row in _sortedDevices(data.rows))
-                                  Padding(
-                                    padding: const EdgeInsets.only(bottom: 8),
-                                    child: CoordinatorDeviceCard(
-                                      key: ValueKey(row.id),
-                                      device: row,
+                                    title: filtered
+                                        ? 'No matching devices.'
+                                        : 'No devices issued yet',
+                                    subtitle: filtered
+                                        ? null
+                                        : needs > 0
+                                        ? needsText
+                                        : 'Devices you issue to principal-approved cases will appear here.',
+                                    actionLabel: !filtered && needs > 0
+                                        ? 'Issue device'
+                                        : null,
+                                    onAction: !filtered && needs > 0
+                                        ? _issueDevice
+                                        : null,
+                                  )
+                                else ...[
+                                  if (needs > 0)
+                                    Padding(
+                                      padding: const EdgeInsets.only(
+                                        bottom: 8,
+                                      ),
+                                      child: _NeedsDeviceNote(text: needsText),
                                     ),
-                                  ),
+                                  for (final row in _sortedDevices(data.rows))
+                                    Padding(
+                                      padding: const EdgeInsets.only(
+                                        bottom: 8,
+                                      ),
+                                      child: CoordinatorDeviceCard(
+                                        key: ValueKey(row.id),
+                                        device: row,
+                                      ),
+                                    ),
+                                ],
                               ],
                             );
                           },
@@ -1258,6 +1319,39 @@ class _ListState extends ConsumerState<CoordinatorListPage>
             minimumSize: Size.zero,
             tapTargetSize: MaterialTapTargetSize.shrinkWrap,
             visualDensity: VisualDensity.compact,
+          ),
+        ),
+      ],
+    ),
+  );
+}
+
+/// Inline "cases still need a device" note above the ledger, the mobile twin
+/// of the web devices callout.
+class _NeedsDeviceNote extends StatelessWidget {
+  const _NeedsDeviceNote({required this.text});
+  final String text;
+
+  @override
+  Widget build(BuildContext context) => Container(
+    padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+    decoration: BoxDecoration(
+      color: zWash(context, const Color(0xFFEFF6FF)),
+      borderRadius: BorderRadius.circular(12),
+      border: Border.all(color: zWash(context, const Color(0xFFBFDBFE))),
+    ),
+    child: Row(
+      children: [
+        Icon(
+          LucideIcons.tabletSmartphone,
+          size: 15,
+          color: zLift(context, const Color(0xFF2563EB)),
+        ),
+        const SizedBox(width: 8),
+        Expanded(
+          child: Text(
+            text,
+            style: TextStyle(fontSize: 12, color: zInk(context)),
           ),
         ),
       ],

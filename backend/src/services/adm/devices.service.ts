@@ -4,7 +4,6 @@ import { AppError } from "../../lib/errors.js";
 import { writeAudit } from "../../lib/audit.js";
 import { fanoutNotification, fanoutToRole } from "../../lib/notify.js";
 import { actorName, GRADE_LABEL } from "../../modules/adm/adm.repository.js";
-import { archivedAdvisoryLearnerIds } from "../../lib/learnerVisibility.js";
 import type { AdmContext } from "./adm.types.js";
 
 export interface IssueDeviceInput {
@@ -146,15 +145,10 @@ export async function listDevices(query: DeviceLedgerQuery) {
   const { q, statusParam, limit, page, orderOldest } = query;
   const skip = limit > 0 ? (page - 1) * limit : 0;
 
-  // Devices of adviser-archived learners stay off the ledger until restored.
-  const archivedLearners = await archivedAdvisoryLearnerIds();
-  const notArchivedDevice: Prisma.AdmDeviceWhereInput =
-    archivedLearners.studentIds.length > 0
-      ? { admLearnerProfile: { studentId: { notIn: archivedLearners.studentIds } } }
-      : {};
-
+  /* School property stays on the ledger: an adviser archiving a learner only
+     hides that learner from the advisory desks, never the device the school
+     issued to them. */
   const where: Prisma.AdmDeviceWhereInput = {
-    ...notArchivedDevice,
     ...(statusParam === "issued"
       ? { returnedDate: null }
       : statusParam === "returned"
@@ -199,12 +193,8 @@ export async function listDevices(query: DeviceLedgerQuery) {
       ...(limit > 0 ? { skip, take: limit } : {}),
     }),
     prisma.admDevice.count({ where }),
-    prisma.admDevice.count({
-      where: { ...notArchivedDevice, returnedDate: null },
-    }),
-    prisma.admDevice.count({
-      where: { ...notArchivedDevice, returnedDate: { not: null } },
-    }),
+    prisma.admDevice.count({ where: { returnedDate: null } }),
+    prisma.admDevice.count({ where: { returnedDate: { not: null } } }),
   ]);
   const rows = devices.map((d) => ({
     id: d.id,
@@ -223,7 +213,7 @@ export async function listDevices(query: DeviceLedgerQuery) {
     status: d.returnedDate ? ("returned" as const) : ("issued" as const),
   }));
 
-  const unfiltered = await prisma.admDevice.count({ where: notArchivedDevice });
+  const unfiltered = await prisma.admDevice.count();
   return {
     rows,
     total,

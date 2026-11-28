@@ -71,7 +71,12 @@ router.get(
       res.json(
         await listApprovals(
           { userId: req.user!.id, role: req.user!.role, termId },
-          { page, limit, q: search },
+          {
+            page,
+            limit,
+            q: search,
+            deviceCandidates: q.eligible === "devices",
+          },
         ),
       );
     } catch (e) {

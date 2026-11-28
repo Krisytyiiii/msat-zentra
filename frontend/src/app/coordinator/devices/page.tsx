@@ -112,7 +112,11 @@ function CoordinatorDevicesPageInner() {
   const needsQuery = useQuery({
     queryKey: ["coordinator-devices", "preview", "needs-device"],
     queryFn: ({ signal }) =>
-      fetchCoordinatorApprovals(1, { limit: PAGE_SIZE, signal }),
+      fetchCoordinatorApprovals(1, {
+        limit: PAGE_SIZE,
+        eligibleDevices: true,
+        signal,
+      }),
     placeholderData: keepPreviousData,
     staleTime: 30_000,
   });

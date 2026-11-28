@@ -45,7 +45,13 @@ export async function fetchCoordinatorReferrals(
 
 export async function fetchCoordinatorApprovals(
   page = 1,
-  opts?: { q?: string; limit?: number; signal?: AbortSignal },
+  opts?: {
+    q?: string;
+    limit?: number;
+    signal?: AbortSignal;
+    /** Issue-device picker: only learners who can still receive a device. */
+    eligibleDevices?: boolean;
+  },
 ): Promise<AdmApprovalsPage> {
   const res = await apiClient.get<AdmApprovalsPage>("/api/adm/approvals", {
     params: {
@@ -54,6 +60,7 @@ export async function fetchCoordinatorApprovals(
         ? { pageSize: opts.limit, limit: opts.limit }
         : {}),
       ...(opts?.q?.trim() ? { q: opts.q.trim() } : {}),
+      ...(opts?.eligibleDevices ? { eligible: "devices" } : {}),
     },
     signal: opts?.signal,
   });

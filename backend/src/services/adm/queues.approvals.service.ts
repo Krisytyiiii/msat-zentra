@@ -2,20 +2,35 @@ import { prisma } from "../../lib/prisma.js";
 import type { Prisma } from "../../generated/prisma/client.js";
 import { GRADE_LABEL } from "../../modules/adm/adm.repository.js";
 import { AppError } from "../../lib/errors.js";
+import { archivedAdvisoryLearnerIds } from "../../lib/learnerVisibility.js";
 import type { AdmContext } from "./adm.types.js";
 
 export interface ApprovalsQuery {
   page: number;
   limit: number;
   q: string;
+  /** Issue-device picker: only learners who can actually receive one. */
+  deviceCandidates?: boolean;
 }
 
 export async function listApprovals(ctx: AdmContext, query: ApprovalsQuery) {
-  const { page, limit, q } = query;
+  const { page, limit, q, deviceCandidates = false } = query;
   const skip = (page - 1) * limit;
 
+  /* The device picker mirrors the ledger: a learner their adviser archived,
+     or one who already holds an issued device, is not offered again. Every
+     other desk keeps the full approved list (Files/certifications included). */
+  const archived = deviceCandidates ? await archivedAdvisoryLearnerIds() : null;
   const where: Prisma.AdmLearnerProfileWhereInput = {
     approvedBy: { not: null },
+    ...(deviceCandidates
+      ? {
+          devices: { none: {} },
+          ...(archived && archived.studentIds.length > 0
+            ? { studentId: { notIn: archived.studentIds } }
+            : {}),
+        }
+      : {}),
     ...(q
       ? {
           OR: [

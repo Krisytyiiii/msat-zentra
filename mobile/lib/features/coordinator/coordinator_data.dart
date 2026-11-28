@@ -206,6 +206,9 @@ class CoordinatorRepository {
         // no desk pages any more.
         'all': '1',
         if (query.q.trim().isNotEmpty) 'q': query.q.trim(),
+        // Device picker parity with the ledger: principal-approved learners
+        // with no device yet, minus the ones their adviser archived.
+        if (candidates) 'eligible': 'devices',
         if (!approved && query.filter.isNotEmpty) 'stage': query.filter,
       }),
       AdmCaseRow.fromJson,

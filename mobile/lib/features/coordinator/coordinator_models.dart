@@ -106,10 +106,15 @@ class AdmPage<T> {
     required this.page,
     required this.totalPages,
     this.stageCounts = const {},
+    this.issued = 0,
+    this.returned = 0,
   });
   final List<T> rows;
   final int total, page, totalPages;
   final Map<String, int> stageCounts;
+
+  /// Device ledger counts (`/api/adm/devices`); 0 on the case lists.
+  final int issued, returned;
 
   factory AdmPage.fromJson(Object? data, T Function(AdmJson) parse) {
     final j = admMap(data);
@@ -120,6 +125,8 @@ class AdmPage<T> {
       totalPages: admInt(j['totalPages']) < 1 ? 1 : admInt(j['totalPages']),
       stageCounts: admMap(j['stageCounts'])
           .map((k, v) => MapEntry(k, admInt(v))),
+      issued: admInt(j['issued']),
+      returned: admInt(j['returned']),
     );
   }
 }

@@ -60,8 +60,10 @@ function mergeEntries(...groups: CoordinatorNavEntry[][]): CoordinatorNavEntry[]
  *    and pre-profile referrals the same desks forwarded but that have no
  *    profile yet;
  *  - `listApprovals` shows every principal-approved profile;
- *  - `listDevices` shows the device ledger (archived learners excluded).
- * Archive rows for adviser-removed learners are filtered out like the boards.
+ *  - `listDevices` shows the device ledger (school property, archived
+ *    learners' issued devices included).
+ * Archive rows for adviser-removed learners are filtered out like the
+ * referral boards do.
  */
 export async function getCoordinatorNavQueues(
   ctx: CoordinatorNavContext,
@@ -85,14 +87,6 @@ export async function getCoordinatorNavQueues(
               : Prisma.empty
           })`
       : Prisma.empty;
-  const archivedDeviceSql =
-    archived.studentIds.length > 0
-      ? Prisma.sql`AND d."admLearnerProfileId" NOT IN (
-          SELECT a.id FROM "AdmLearnerProfile" a
-          WHERE a."studentId" IN (${Prisma.join(archived.studentIds)})
-        )`
-      : Prisma.empty;
-
   const rows = await prisma.$queryRaw<{ q: string; id: string; v: string }[]>(
     Prisma.sql`
       WITH visible AS (
@@ -148,8 +142,6 @@ export async function getCoordinatorNavQueues(
       devices AS (
         SELECT d.id, d.xmin::text AS v
         FROM "AdmDevice" d
-        WHERE TRUE
-          ${archivedDeviceSql}
       )
       SELECT 'overview'::text AS q, id, base AS v FROM versions
       UNION ALL SELECT 'overview', id, v FROM notifications

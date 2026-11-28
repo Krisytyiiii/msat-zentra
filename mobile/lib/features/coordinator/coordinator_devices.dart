@@ -839,35 +839,41 @@ class _IssueState extends ConsumerState<CoordinatorIssueDevicePage> {
                 AdmAsync(
                   value: ref.watch(coordinatorListProvider(query)),
                   retry: () => ref.invalidate(coordinatorListProvider(query)),
-                  builder: (data) => Column(
-                    crossAxisAlignment: CrossAxisAlignment.stretch,
-                    children: [
-                      Text(
-                        'Showing ${data.total} ${data.total == 1 ? 'learner' : 'learners'}',
-                        style: TextStyle(
-                          fontSize: 12,
-                          color: zMutedInk(context),
-                        ),
-                      ),
-                      const SizedBox(height: 8),
-                      if (data.rows.isEmpty)
-                        const ZEmpty(
-                          icon: LucideIcons.users,
-                          title: 'No approved learners found',
-                          subtitle: 'Approved learners without an issued device appear here.',
-                        ),
-                      for (final row in data.rows)
-                        _LearnerCandidateCard(
-                          key: ValueKey('device-candidate-${row.id}'),
-                          row: row,
-                          onTap:
+                  builder: (data) {
+                    final candidates = data.rows
+                        .where(
+                          (row) =>
                               row.devicesIssued == 0 &&
-                                  row.approvedBy.isNotEmpty
-                              ? () => _pick(row)
-                              : null,
+                              row.approvedBy.isNotEmpty,
+                        )
+                        .toList(growable: false);
+                    return Column(
+                      crossAxisAlignment: CrossAxisAlignment.stretch,
+                      children: [
+                        Text(
+                          'Showing ${candidates.length} ${candidates.length == 1 ? 'learner' : 'learners'}',
+                          style: TextStyle(
+                            fontSize: 12,
+                            color: zMutedInk(context),
+                          ),
                         ),
-                    ],
-                  ),
+                        const SizedBox(height: 8),
+                        if (candidates.isEmpty)
+                          const ZEmpty(
+                            icon: LucideIcons.users,
+                            title: 'No approved learners found',
+                            subtitle:
+                                'Approved learners without an issued device appear here.',
+                          ),
+                        for (final row in candidates)
+                          _LearnerCandidateCard(
+                            key: ValueKey('device-candidate-${row.id}'),
+                            row: row,
+                            onTap: () => _pick(row),
+                          ),
+                      ],
+                    );
+                  },
                 ),
               ],
             ),
