@@ -1,5 +1,5 @@
 import type { OcrSubjectPayload } from "./records.service.js";
-import { SF10_JHS_LAYOUT, applySf10JhsLook, applySf10PrintSetup, assignSubjectRows, renderSf10Pdf, writeJhsBlockHeader } from "./template-file.service.js";
+import { SF10_JHS_LAYOUT, applySf10JhsLook, applySf10PrintSetup, assignSubjectRows, patchShsRecordWorkbook, renderSf10Pdf, writeJhsBlockHeader } from "./template-file.service.js";
 import { detectQuarterHeader, isXlsxUpload } from "./ocr-text.service.js";
 import { extractPdfTextRuns, groupPdfLines, stripPdfTextSpans, type PdfLine } from "./pdf-text.service.js";
 import {
@@ -132,6 +132,27 @@ export async function patchSf10Workbook(
   const ExcelJS = await excelJs();
   const wb = new ExcelJS.Workbook();
   await wb.xlsx.load(original as unknown as ArrayBuffer);
+
+  // DepEd's SHS record has its own fixed semester tables (FRONT = G11, BACK =
+  // G12). Patch those rows and return — the JHS block matcher below knows only
+  // the JHS layout and would leave an SHS upload untouched, so a G12 auto-fill
+  // silently printed the registrar's blank form.
+  const patchedShs = patchShsRecordWorkbook(
+    wb,
+    filled.map((f) => ({
+      norm: f.norm,
+      ...(f.rawName ? { rawName: f.rawName } : {}),
+      gradeLevel: f.gradeLevel,
+      quarters: f.quarters ?? null,
+      rating: f.rating ?? null,
+      remarks: f.remarks ?? null,
+    })),
+    {
+      sectionName: header?.sectionName ?? null,
+      schoolYear: header?.schoolYear ?? null,
+    },
+  );
+  if (patchedShs) return Buffer.from(await wb.xlsx.writeBuffer());
 
   // Only the learner's own grade block gets the current scholastic header —
   // school, grade, section, school year and adviser — so a registry upload that

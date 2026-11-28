@@ -24,6 +24,8 @@ export interface GradeFact {
   subjectName: string;
   termNumber: number;
   rating: number;
+  /** Stored Core/Applied/Specialized tag, carried through to the SF10 form. */
+  category?: string;
 }
 
 export interface AutofillSkip {
@@ -38,6 +40,7 @@ export interface AutofillRow {
   rating: number;
   quarters: Array<number | null>;
   remarks: "PASSED" | "FAILED";
+  category?: string;
 }
 
 export interface AutofillRowBuild {
@@ -62,9 +65,13 @@ export function buildAutofillRows(
   requiredTermNumbers: number[],
 ): AutofillRowBuild {
   const clean = ratingsOf(facts);
-  const bySubject = new Map<string, { name: string; byTerm: Map<number, number> }>();
+  const bySubject = new Map<string, { name: string; category?: string; byTerm: Map<number, number> }>();
   for (const f of clean) {
-    const entry = bySubject.get(f.subjectId) ?? { name: f.subjectName, byTerm: new Map() };
+    const entry = bySubject.get(f.subjectId) ?? {
+      name: f.subjectName,
+      category: f.category,
+      byTerm: new Map(),
+    };
     entry.byTerm.set(f.termNumber, f.rating);
     bySubject.set(f.subjectId, entry);
   }
@@ -89,6 +96,7 @@ export function buildAutofillRows(
       rating,
       quarters,
       remarks: rating >= 75 ? "PASSED" : "FAILED",
+      category: entry.category,
     });
   }
   rows.sort((a, b) => a.subject.localeCompare(b.subject));
@@ -380,7 +388,7 @@ async function loadContext(
         transmutedGrade: true,
         computedAverage: true,
         term: { select: { termNumber: true } },
-        subject: { select: { name: true } },
+        subject: { select: { name: true, category: true } },
       },
     }),
   ]);
@@ -408,6 +416,7 @@ async function loadContext(
       subjectName: f.subject.name,
       termNumber: f.term.termNumber,
       rating,
+      category: f.subject.category,
     });
     factsByLrn.set(lrn, list);
   }
@@ -554,6 +563,7 @@ async function renderTemplateWorkbook(
       quarters: r.quarters,
       rating: r.rating,
       remarks: r.remarks,
+      category: r.category,
     })),
   });
 }
@@ -690,6 +700,9 @@ export async function runAutofill(
           },
           // Grade 7 / Grade 11 skip the registry grant on their own sections.
           skipAdviserAccessCheck: fillsWithoutGrant(student.gradeLevel),
+          // The caller already proved they advise this section; the record's
+          // stored grade (G11 on the SHS form) is not the grade being filled.
+          skipGradeBandCheck: true,
         },
       );
       if (write.wasVerified) {
@@ -888,6 +901,7 @@ export async function generateTemplateFile(
     {
       generatedFileUrl: fileUrl,
       skipAdviserAccessCheck: fillsWithoutGrant(grade),
+      skipGradeBandCheck: true,
     },
   );
 

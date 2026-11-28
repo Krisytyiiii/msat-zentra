@@ -476,12 +476,14 @@ router.patch(
   },
 );
 
+const SUBJECT_CATEGORIES = ["CORE", "APPLIED", "SPECIALIZED"] as const;
+
 const subjectSchema = z.object({
   name: z.string().min(1).max(120),
   /** Optional: the system mints one from the name when omitted. */
   code: z.string().min(1).max(24).optional(),
   gradeLevel: z.enum(["G7", "G8", "G9", "G10", "G11", "G12"]),
-  category: z.enum(["CORE", "ELECTIVE"]).optional().default("CORE"),
+  category: z.enum(SUBJECT_CATEGORIES).optional().default("CORE"),
 });
 
 router.post("/subjects", validate("body", subjectSchema), async (req, res, next) => {
@@ -490,7 +492,7 @@ router.post("/subjects", validate("body", subjectSchema), async (req, res, next)
       name: string;
       code?: string;
       gradeLevel: "G7" | "G8" | "G9" | "G10" | "G11" | "G12";
-      category: "CORE" | "ELECTIVE";
+      category: "CORE" | "APPLIED" | "SPECIALIZED";
     };
     const subject = await createSubject(ctxOf(req), { name, code, gradeLevel, category });
     await invalidateTags(SCHEDULE_TAGS);
@@ -502,14 +504,14 @@ router.post("/subjects", validate("body", subjectSchema), async (req, res, next)
 
 const subjectUpdateSchema = z.object({
   name: z.string().min(1).max(120).optional(),
-  category: z.enum(["CORE", "ELECTIVE"]).optional(),
+  category: z.enum(SUBJECT_CATEGORIES).optional(),
 });
 
 router.patch("/subjects/:id", validate("body", subjectUpdateSchema), async (req, res, next) => {
   try {
     const { name, category } = req.body as {
       name?: string;
-      category?: "CORE" | "ELECTIVE";
+      category?: "CORE" | "APPLIED" | "SPECIALIZED";
     };
     const subject = await updateSubject(ctxOf(req), req.params.id as string, { name, category });
     await invalidateTags(SCHEDULE_TAGS);

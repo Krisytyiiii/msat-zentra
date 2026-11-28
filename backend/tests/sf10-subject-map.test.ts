@@ -12,7 +12,11 @@ import {
 } from "../src/services/sf10/subject-aliases.js";
 import { buildDeficiencyMap, buildSubjectMap, isTaken } from "../src/services/sf10/subject-map.service.js";
 import { evaluateFormula } from "../src/services/sf10/formula.service.js";
-import { extractXlsxSubjects, extractXlsxText } from "../src/services/sf10/ocr-text.service.js";
+import {
+  extractSubjectsFromGridShs,
+  extractXlsxSubjects,
+  extractXlsxText,
+} from "../src/services/sf10/ocr-text.service.js";
 import {
   extractIdentityFromCells,
   extractIdentityFromText,
@@ -268,7 +272,7 @@ describe("SF10 taken policy (any score counts; 0/blank = not taken)", () => {
 describe("SF10 per-year deficiency (strict per-grade, no cross-grade credit)", () => {
   const catalog = [
     { code: "MATH8", name: "Mathematics", gradeLevel: "G8", category: "CORE" },
-    { code: "MAPEH8", name: "MAPEH", gradeLevel: "G8", category: "ELECTIVE" },
+    { code: "MAPEH8", name: "MAPEH", gradeLevel: "G8", category: "SPECIALIZED" },
     { code: "MATH9", name: "Mathematics", gradeLevel: "G9", category: "CORE" },
     { code: "ENG9", name: "English", gradeLevel: "G9", category: "CORE" },
   ];
@@ -330,7 +334,7 @@ describe("SF10 per-year deficiency (strict per-grade, no cross-grade credit)", (
 
   it("does not credit a G9 elective toward a G8 deficiency", () => {
     const result = buildDeficiencyMap(
-      [{ code: "MAPEH8", name: "MAPEH", gradeLevel: "G8", category: "ELECTIVE" }],
+      [{ code: "MAPEH8", name: "MAPEH", gradeLevel: "G8", category: "SPECIALIZED" }],
       [{ rawName: "MAPEH", norm: "mapeh", rating: 90, gradeLevel: "G9" }],
       "G9",
     );
@@ -353,7 +357,7 @@ describe("SF10 per-year deficiency (strict per-grade, no cross-grade credit)", (
   it("sends untagged rows to add-ons, never into grade tables", () => {
     const result = buildDeficiencyMap(
       [
-        { code: "MAPEH8", name: "MAPEH", gradeLevel: "G8", category: "ELECTIVE" },
+        { code: "MAPEH8", name: "MAPEH", gradeLevel: "G8", category: "SPECIALIZED" },
         { code: "ENG9", name: "English", gradeLevel: "G9", category: "CORE" },
       ],
       [{ rawName: "English", norm: "english", rating: 88, gradeLevel: null, quarters: null, remarks: "PASSED" }],
@@ -403,7 +407,7 @@ describe("SF10 per-year deficiency (strict per-grade, no cross-grade credit)", (
     const result = buildDeficiencyMap(
       [
         { code: "MATH8", name: "Mathematics", gradeLevel: "G8", category: "CORE" },
-        { code: "MAPEH8", name: "MAPEH", gradeLevel: "G8", category: "ELECTIVE" },
+        { code: "MAPEH8", name: "MAPEH", gradeLevel: "G8", category: "SPECIALIZED" },
       ],
       subjects,
       "G8",
@@ -603,5 +607,70 @@ describe("SF10 unknown learning areas (kept as on record)", () => {
       remarks: "PASSED",
     });
     expect(subjects.length).toBe(1);
+  });
+
+  it("reads real JHS rows and never treats the school name as a subject", async () => {
+    const { extractSubjectsFromGrid } = await import("../src/services/sf10/ocr-text.service.js");
+    const header = new Array<string>(56).fill("");
+    header[1] = "LEARNING AREAS";
+    header[20] = "Quarterly Rating";
+    header[35] = "FINAL RATING";
+    header[41] = "REMARKS";
+    const quarters = new Array<string>(56).fill("");
+    for (let i = 21; i <= 24; i++) quarters[i] = "1";
+    for (let i = 25; i <= 28; i++) quarters[i] = "2";
+    for (let i = 29; i <= 32; i++) quarters[i] = "3";
+    for (let i = 33; i <= 35; i++) quarters[i] = "4";
+    quarters[35] = "FINAL RATING";
+    const schoolRow = new Array<string>(56).fill("");
+    schoolRow[1] = "School:";
+    for (let i = 4; i <= 15; i++) schoolRow[i] = "MATI SCHOOL OF ARTS AND TRADES";
+    const classRow = new Array<string>(56).fill("");
+    classRow[1] = "Classified as Grade:";
+    classRow[8] = "7";
+    const subjectRow = new Array<string>(56).fill("");
+    for (let i = 1; i <= 19; i++) subjectRow[i] = "Aral Pan";
+    for (let i = 25; i <= 28; i++) subjectRow[i] = "100";
+    for (let i = 35; i <= 40; i++) subjectRow[i] = "100";
+    for (let i = 41; i <= 54; i++) subjectRow[i] = "PASSED";
+
+    const subjects = extractSubjectsFromGrid([schoolRow, classRow, header, quarters, subjectRow]);
+    expect(subjects.map((s) => s.norm)).toEqual(["araling panlipunan"]);
+    expect(subjects[0]).toMatchObject({ rawName: "Aral Pan", gradeLevel: "G7", rating: 100 });
+  });
+});
+
+describe("SF10 SHS grid extraction", () => {
+  it("keeps real subject rows and ignores header/identity rows", () => {
+    const row = (fill: Record<number, string>) => {
+      const cells = new Array<string>(61).fill("");
+      for (const [i, v] of Object.entries(fill)) cells[Number(i)] = v;
+      return cells;
+    };
+    // School header row: merged school name spills into the name column and
+    // the block's grade ("11") sits in the quarter columns.
+    const schoolFields: Record<number, string> = { 1: "SCHOOL:", 9: "MATI SCHOOL OF ARTS AND TRADES" };
+    for (let i = 46; i <= 50; i++) schoolFields[i] = "11";
+    const schoolRow = row(schoolFields);
+
+    const gradeRow = row({ 9: "GRADE LEVEL:", 45: "11" });
+    const headerRow = row({ 9: "SUBJECTS", 46: "Quarter", 56: "SEM FINAL GRADE" });
+    const mathRow = row({ 9: "MATH", 52: "100" });
+    // Identity row that previously looked like a subject with grade "10".
+    const nameRow = row({ 9: "sdfsdf, sgsgsg", 60: "10" });
+
+    const subjects = extractSubjectsFromGridShs([
+      schoolRow,
+      gradeRow,
+      headerRow,
+      mathRow,
+      nameRow,
+    ]);
+    expect(subjects.map((s) => s.norm)).toEqual(["mathematics"]);
+    expect(subjects[0]).toMatchObject({
+      rawName: "MATH",
+      gradeLevel: "G11",
+      rating: 100,
+    });
   });
 });

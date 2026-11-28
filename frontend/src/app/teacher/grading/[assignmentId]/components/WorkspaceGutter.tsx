@@ -16,6 +16,7 @@ import {
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { gradeLabel } from "@/services/teacher/grading.compute";
+import { subjectCategoryLabel } from "@/lib/labels/subject-category";
 import { gradebookSlug } from "@/lib/gradebookSlug";
 import type {
   ClassAssignment,
@@ -564,7 +565,7 @@ export function WorkspaceToolPanel({
       { label: "Subject code", value: assignment.subjectCode, icon: Hash },
       {
         label: "Subject type",
-        value: assignment.subjectCategory === "ELECTIVE" ? "Elective" : "Core",
+        value: subjectCategoryLabel(assignment.subjectCategory),
         icon: Layers,
       },
       {
@@ -757,7 +758,7 @@ export function WorkspaceToolPanel({
     { label: "Subject code", value: assignment.subjectCode, icon: Hash },
     {
       label: "Subject type",
-      value: assignment.subjectCategory === "ELECTIVE" ? "Elective" : "Core",
+      value: subjectCategoryLabel(assignment.subjectCategory),
       icon: Layers,
     },
     {

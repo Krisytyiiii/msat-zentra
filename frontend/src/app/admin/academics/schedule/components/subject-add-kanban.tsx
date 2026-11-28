@@ -7,6 +7,7 @@ import { Input } from "@/components/ui/input";
 import { FilterTabs } from "@/components/ui/filter-tabs";
 import { SelectionCard } from "@/components/ui/selection-card";
 import { useTerm } from "@/lib/term/TermContext";
+import { subjectCategoryLabel } from "@/lib/labels/subject-category";
 import { useAddSubjects, type SubjectCreateProgress } from "./use-add-subjects";
 import styles from "./add-section-kanban.module.css";
 
@@ -16,7 +17,8 @@ const GRADE_LEVELS = ["G7", "G8", "G9", "G10", "G11", "G12"] as const;
 
 const CATEGORIES = [
   { value: "CORE", label: "Core" },
-  { value: "ELECTIVE", label: "Elective" },
+  { value: "APPLIED", label: "Applied" },
+  { value: "SPECIALIZED", label: "Specialized" },
 ] as const;
 
 interface Props {
@@ -151,7 +153,7 @@ export function SubjectAddKanban({ onClose, onProgress }: Props) {
               label="Category"
               variant="tags"
               options={CATEGORIES.map((c) => ({ value: c.value, label: c.label, tone: "neutral" as const }))}
-              value={category === "ELECTIVE" ? "ELECTIVE" : "CORE"}
+              value={category === "ELECTIVE" ? "SPECIALIZED" : category}
               onChange={(next) => setCategory(next)}
               className="self-start"
             />
@@ -223,7 +225,7 @@ export function SubjectAddKanban({ onClose, onProgress }: Props) {
                 {filled.length || rows.length} subject{(filled.length || rows.length) === 1 ? "" : "s"}
               </span>{" "}
               for <span className="font-medium text-foreground">{gradeLabel(gradeLevel)}</span> ·{" "}
-              {category === "ELECTIVE" ? "Elective" : "Core"}. Every one is usable in the term&apos;s
+              {subjectCategoryLabel(category)}. Every one is usable in the term&apos;s
               timetable right away.
             </p>
           </div>

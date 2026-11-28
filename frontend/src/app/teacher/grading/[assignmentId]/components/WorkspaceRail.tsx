@@ -2,6 +2,7 @@
 
 import { ChevronRight, FileText, Pencil, Plus } from "lucide-react";
 import { gradeLabel } from "@/services/teacher/grading.compute";
+import { subjectCategoryLabel } from "@/lib/labels/subject-category";
 import type {
   ClassAssignment,
   ClassComponent,
@@ -85,7 +86,7 @@ export function WorkspaceRail({
             ZENTRA GRADEBOOK
           </span>
           <span className="rounded-full border border-white/25 px-2.5 py-0.5 text-[12px] font-semibold tracking-wider text-white uppercase">
-            {assignment.subjectCategory === "ELECTIVE" ? "Elective" : "Core"}
+            {subjectCategoryLabel(assignment.subjectCategory)}
           </span>
         </div>
         <p className="relative mt-3 text-lg font-semibold tracking-wide">

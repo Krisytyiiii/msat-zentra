@@ -251,37 +251,83 @@ function buildFontMaps(objects: PdfObject[]): Map<string, PdfFontMap> {
       cmaps.set(o.num, parseCMap(o.text));
     }
   }
-  const fontToCMap = new Map<number, number>();
+  const byNum = new Map(objects.map((o) => [o.num, o]));
+  // Font dictionaries are often indirect: `/Resources 554 0 R` → `/Font 553 0 R`
+  // → `/F1 537 0 R`. Only scanning literal `/Font <<...>>` headers (Chrome/
+  // Word exports keep them indirect) missed every glyph and decoded the text as
+  // raw cipher codes, so the LRN was never found. Resolve the references.
+  const fontDicts: string[] = [];
   for (const o of objects) {
-    if (/\/BaseFont/.test(o.header)) {
-      const t = o.header.match(/\/ToUnicode\s+(\d+)\s+0\s+R/);
-      if (t) fontToCMap.set(o.num, Number(t[1]));
+    for (const m of o.header.matchAll(/\/Font\s*<<([^>]*?)>>/g)) fontDicts.push(m[1]);
+    const ref = o.header.match(/\/Font\s+(\d+)\s+0\s+R/);
+    if (ref) {
+      const target = byNum.get(Number(ref[1]));
+      if (target) fontDicts.push(target.header);
     }
   }
   const out = new Map<string, PdfFontMap>();
-  const whole = objects.map((o) => o.header).join("\n");
-  const resRe = /\/Font\s*<<([^>]*?)>>/g;
-  let rm: RegExpExecArray | null;
-  while ((rm = resRe.exec(whole)) !== null) {
-    const pairRe = /\/(\S+)\s+(\d+)\s+0\s+R/g;
-    let pm: RegExpExecArray | null;
-    while ((pm = pairRe.exec(rm[1])) !== null) {
-      const cmapNum = fontToCMap.get(Number(pm[2]));
-      const cmap = cmapNum !== undefined ? cmaps.get(cmapNum) : undefined;
+  for (const dict of fontDicts) {
+    for (const pm of dict.matchAll(/\/([A-Za-z0-9_.+-]+)\s+(\d+)\s+0\s+R/g)) {
+      const font = byNum.get(Number(pm[2]));
+      const toUni = font?.header.match(/\/ToUnicode\s+(\d+)\s+0\s+R/);
+      const cmap = toUni ? cmaps.get(Number(toUni[1])) : undefined;
       if (cmap) out.set("/" + pm[1], cmap);
     }
   }
   return out;
 }
 
-/** Decode one content stream to row-shaped lines.
- * Sheets-style PDFs put every cell in its own BT..ET block positioned by Tm,
- * so cells are grouped into rows by their Y (tolerance 3 units), sorted
- * left-to-right by X, and joined — yielding one line per table row
- * ("English 77 82 99 90 87 PASSED") for the subject parser. Blocks without
- * positioning keep their own line. Fonts track across blocks in stream order.
+/**
+ * Device position of the first text shown in a BT…ET block.
+ * Word/LibreOffice exports place each cell with `Td` off an identity `Tm`
+ * (`BT 378.7 1074.7 Td … Tj ET`), so reading only `Tm` left every cell
+ * unpositioned — each one became its own line and subject rows never carried
+ * their quarterly ratings. Track Td/TD/T* (and TL for T*) as well.
  */
-function decodeContentText(content: string, fonts: Map<string, PdfFontMap>): string[] {
+function blockTextPosition(body: string): { x: number; y: number } | null {
+  const n = "(-?\\d+(?:\\.\\d+)?)";
+  const opRe = new RegExp(
+    `${n}\\s+${n}\\s+${n}\\s+${n}\\s+${n}\\s+${n}\\s+Tm` +
+      `|${n}\\s+${n}\\s+(?:Td|TD)` +
+      `|${n}\\s+TL` +
+      `|(T\\*)` +
+      `|(?:\\((?:\\\\[\\s\\S]|[^\\\\()])*\\)|<[0-9A-Fa-f\\s]+>)`,
+    "g",
+  );
+  let x = 0;
+  let y = 0;
+  let leading = 0;
+  let m: RegExpExecArray | null;
+  while ((m = opRe.exec(body)) !== null) {
+    if (m[1] !== undefined) {
+      x = Number(m[5]);
+      y = Number(m[6]);
+    } else if (m[7] !== undefined) {
+      x += Number(m[7]);
+      y += Number(m[8]);
+    } else if (m[9] !== undefined) {
+      leading = Number(m[9]);
+    } else if (m[10] !== undefined) {
+      y -= leading;
+    } else {
+      return { x, y };
+    }
+  }
+  return null;
+}
+
+interface PdfCell {
+  x: number | null;
+  y: number | null;
+  text: string;
+}
+
+/**
+ * Decode one content stream to positioned text cells.
+ * Sheets-style PDFs put every cell in its own BT..ET block, so a cell keeps
+ * its device x/y for row grouping and (later) column mapping.
+ */
+function decodeContentCells(content: string, fonts: Map<string, PdfFontMap>): PdfCell[] {
   const fontOf = (text: string, fallback: PdfFontMap | undefined): PdfFontMap | undefined => {
     const hits = [
       ...text.matchAll(/\/([A-Za-z][A-Za-z0-9+]*)\s+-?\d+(?:\.\d+)?\s+Tf/g),
@@ -292,8 +338,7 @@ function decodeContentText(content: string, fonts: Map<string, PdfFontMap>): str
   };
   const tokenRe = /\((?:\\.|[^\\()])*\)|<[0-9A-Fa-f\s]+>|-?\d+(?:\.\d+)?/g;
   const blockRe = /\bBT\b([\s\S]*?)\bET\b/g;
-  type Cell = { x: number | null; y: number | null; text: string };
-  const cells: Cell[] = [];
+  const cells: PdfCell[] = [];
   let current: PdfFontMap | undefined;
   let cursor = 0;
   let bm: RegExpExecArray | null;
@@ -301,7 +346,7 @@ function decodeContentText(content: string, fonts: Map<string, PdfFontMap>): str
     current = fontOf(content.slice(cursor, bm.index), current);
     const body = bm[1];
     current = fontOf(body, current);
-    const tm = [...body.matchAll(/(-?\d+(?:\.\d+)?)\s+(-?\d+(?:\.\d+)?)\s+(-?\d+(?:\.\d+)?)\s+(-?\d+(?:\.\d+)?)\s+(-?\d+(?:\.\d+)?)\s+(-?\d+(?:\.\d+)?)\s+Tm/g)].pop();
+    const pos = blockTextPosition(body);
     let buf = "";
     let gap = false;
     tokenRe.lastIndex = 0;
@@ -324,15 +369,19 @@ function decodeContentText(content: string, fonts: Map<string, PdfFontMap>): str
     const line = buf.replace(/\s+/g, " ").trim();
     if (line) {
       cells.push({
-        x: tm ? Number(tm[5]) : null,
-        y: tm ? Number(tm[6]) : null,
+        x: pos ? pos.x : null,
+        y: pos ? pos.y : null,
         text: line,
       });
     }
     cursor = bm.index + bm[0].length;
   }
-  // Group positioned cells into rows; unpositioned cells keep their own line.
-  const rows: Array<{ y: number | null; cells: Cell[] }> = [];
+  return cells;
+}
+
+/** Group cells into visual rows; unpositioned cells keep their own row. */
+function groupCells(cells: PdfCell[]): Array<{ y: number | null; cells: PdfCell[] }> {
+  const rows: Array<{ y: number | null; cells: PdfCell[] }> = [];
   for (const c of cells) {
     if (c.x === null || c.y === null) {
       rows.push({ y: null, cells: [c] });
@@ -345,11 +394,16 @@ function decodeContentText(content: string, fonts: Map<string, PdfFontMap>): str
     }
     row.cells.push(c);
   }
-  return rows.map((r) => {
-    if (r.y === null) return r.cells[0].text;
-    r.cells.sort((a, b) => (a.x as number) - (b.x as number));
-    return r.cells.map((c) => c.text).join("  ");
-  });
+  for (const row of rows) {
+    if (row.y !== null) row.cells.sort((a, b) => (a.x as number) - (b.x as number));
+  }
+  return rows;
+}
+
+function decodeContentText(content: string, fonts: Map<string, PdfFontMap>): string[] {
+  return groupCells(decodeContentCells(content, fonts)).map((r) =>
+    r.cells.map((c) => c.text).join("  "),
+  );
 }
 
 /**
@@ -358,31 +412,35 @@ function decodeContentText(content: string, fonts: Map<string, PdfFontMap>): str
  * font through its own ToUnicode CMap, so custom-subset exports (Google
  * Sheets / Excel, ArialNarrow…) come out as real words instead of glyph-id
  * garbage. WinAnsi and UTF-16BE byte strings still decode without a map.
- * Cells are grouped into rows by their Tm position, so table rows stay
- * row-shaped for the subject parser. Scanned-image PDFs have no text ops
+ * Cells are grouped into rows by their device position (Tm/Td), so table rows
+ * stay row-shaped for the subject parser. Scanned-image PDFs have no text ops
  * and still return "" (needs-review path).
  */
+/** Page content streams only (/Type /Page → /Contents); other streams that
+ * carry text ops (patterns, annotations) are layout noise, not rows. */
+function pageContentStreams(objects: PdfObject[]): string[] {
+  const contentNums = new Set<number>();
+  for (const o of objects) {
+    if (!/\/Type\s*\/Page(?!s)/.test(o.header)) continue;
+    const arr = o.header.match(/\/Contents\s*\[([^\]]*)\]/);
+    if (arr) {
+      for (const r of arr[1].matchAll(/(\d+)\s+0\s+R/g)) contentNums.add(Number(r[1]));
+    } else {
+      const single = o.header.match(/\/Contents\s+(\d+)\s+0\s+R/);
+      if (single) contentNums.add(Number(single[1]));
+    }
+  }
+  const pool = contentNums.size > 0 ? objects.filter((o) => contentNums.has(o.num)) : objects;
+  return pool
+    .map((o) => o.text)
+    .filter((t): t is string => !!t && (t.includes("BT") || /\bTj\b|\bTJ\b/.test(t)));
+}
+
 export function extractPdfText(buffer: Buffer): string {
   try {
     const latin = buffer.toString("latin1");
     const objects = readPdfObjects(latin);
-    // Page content streams only (/Type /Page → /Contents): other streams
-    // carrying text ops (patterns, annotations) are layout noise, not rows.
-    const contentNums = new Set<number>();
-    for (const o of objects) {
-      if (!/\/Type\s*\/Page(?!s)/.test(o.header)) continue;
-      const arr = o.header.match(/\/Contents\s*\[([^\]]*)\]/);
-      if (arr) {
-        for (const r of arr[1].matchAll(/(\d+)\s+0\s+R/g)) contentNums.add(Number(r[1]));
-      } else {
-        const single = o.header.match(/\/Contents\s+(\d+)\s+0\s+R/);
-        if (single) contentNums.add(Number(single[1]));
-      }
-    }
-    const pool = contentNums.size > 0 ? objects.filter((o) => contentNums.has(o.num)) : objects;
-    const contents = pool
-      .map((o) => o.text)
-      .filter((t): t is string => !!t && (t.includes("BT") || /\bTj\b|\bTJ\b/.test(t)));
+    const contents = pageContentStreams(objects);
     const lines: string[] = [];
     let total = 0;
     if (contents.length > 0) {
@@ -406,6 +464,157 @@ export function extractPdfText(buffer: Buffer): string {
   } catch {
     return "";
   }
+}
+
+export interface PdfRowCell {
+  x: number;
+  y: number;
+  text: string;
+}
+
+export interface PdfRow {
+  y: number;
+  cells: PdfRowCell[];
+}
+
+/** Positioned rows (x/y per cell) for column-aware grade mapping. */
+export function extractPdfRows(buffer: Buffer): PdfRow[] {
+  try {
+    const latin = buffer.toString("latin1");
+    const objects = readPdfObjects(latin);
+    const contents = pageContentStreams(objects);
+    if (contents.length === 0) return [];
+    const fonts = buildFontMaps(objects);
+    const rows: PdfRow[] = [];
+    for (const content of contents) {
+      for (const row of groupCells(decodeContentCells(content, fonts))) {
+        if (row.y === null) continue;
+        rows.push({
+          y: row.y,
+          cells: row.cells
+            .filter((c) => c.x !== null && c.y !== null)
+            .map((c) => ({ x: c.x as number, y: c.y as number, text: c.text })),
+        });
+      }
+    }
+    return rows;
+  } catch {
+    return [];
+  }
+}
+
+const QUARTER_TOLERANCE = 24;
+const FINAL_TOLERANCE = 28;
+const HEADER_LOOKBACK = 26;
+
+/**
+ * Map flat-text subjects onto their real SF10 columns using cell positions.
+ * Flat text cannot tell Q4 from FINAL RATING (a row with values in Q1–Q3 and
+ * FINAL reads as four numbers in order), so the positioned rows are the
+ * source of truth: quarter anchors come from the block's own "1 2 3 4" header
+ * row, and each rating cell is assigned to the anchor it sits under.
+ */
+export function applyPdfColumnRatings(
+  subjects: RatedSubjectCandidate[],
+  rows: PdfRow[],
+): RatedSubjectCandidate[] {
+  if (subjects.length === 0 || rows.length === 0) return subjects;
+  const byNorm = new Map<string, RatedSubjectCandidate[]>();
+  for (const s of subjects) {
+    const key = s.norm || normalizeSubjectName(s.rawName);
+    const list = byNorm.get(key) ?? [];
+    list.push(s);
+    byNorm.set(key, list);
+  }
+
+  let currentGrade: string | null = null;
+  let anchors: { quarters: number[]; final: number } | null = null;
+
+  const headerNearby = (index: number, y: number): boolean => {
+    for (let i = index - 1; i >= 0 && index - i <= 3; i -= 1) {
+      const row = rows[i];
+      if (Math.abs(row.y - y) > HEADER_LOOKBACK) continue;
+      const text = row.cells.map((c) => c.text).join(" ");
+      if (/LEARNING AREAS|Quarterly Rating|REMARKS/i.test(text)) return true;
+    }
+    return false;
+  };
+
+  for (let i = 0; i < rows.length; i += 1) {
+    const row = rows[i];
+    if (row.cells.length === 0) continue;
+    const joined = row.cells.map((c) => c.text).join(" ");
+    const gradeLabel = joined.match(/Classified\s+as\s+Grade:?\s*(\d{1,2})/i);
+    if (gradeLabel) {
+      currentGrade = `G${gradeLabel[1]}`;
+      anchors = null;
+      continue;
+    }
+    // Quarter header row: cells "1" "2" "3" "4" in order, next to a table head.
+    const marks = ["1", "2", "3", "4"].map((n) =>
+      row.cells.find((c) => c.text.trim() === n),
+    );
+    if (marks.every((m): m is PdfRowCell => !!m) && headerNearby(i, row.y)) {
+      const quarters = marks.map((m) => (m as PdfRowCell).x).sort((a, b) => a - b);
+      const tail = row.cells
+        .filter((c) => c.x > quarters[3] + 5 && /[A-Za-z]/.test(c.text))
+        .sort((a, b) => a.x - b.x)[0];
+      const spacing = (quarters[3] - quarters[0]) / 3 || 44;
+      anchors = {
+        quarters,
+        final: tail ? tail.x : quarters[3] + spacing,
+      };
+      continue;
+    }
+    if (!anchors) continue;
+
+    const first = row.cells.reduce((a, b) => (a.x <= b.x ? a : b));
+    if (/^\d/.test(first.text.trim())) continue;
+    const norm = normalizeSubjectName(first.text);
+    if (!norm) continue;
+    const candidates = byNorm.get(norm);
+    if (!candidates || candidates.length === 0) continue;
+    const subject =
+      candidates.find((s) => s.gradeLevel === currentGrade) ??
+      candidates.find((s) => s.gradeLevel == null) ??
+      candidates[0];
+
+    const quarters: Array<number | null> = [null, null, null, null];
+    let final: number | null = null;
+    let hits = 0;
+    for (const cell of row.cells) {
+      if (cell === first) continue;
+      const value = parseRating(cell.text);
+      if (value === null) continue;
+      let bestIndex = -1;
+      let bestDistance = Number.POSITIVE_INFINITY;
+      anchors.quarters.forEach((x, qi) => {
+        const d = Math.abs(cell.x - x);
+        if (d < bestDistance) {
+          bestDistance = d;
+          bestIndex = qi;
+        }
+      });
+      const finalDistance = Math.abs(cell.x - anchors.final);
+      if (finalDistance < bestDistance) {
+        bestIndex = 4;
+        bestDistance = finalDistance;
+      }
+      const limit = bestIndex === 4 ? FINAL_TOLERANCE : QUARTER_TOLERANCE;
+      if (bestDistance > limit) continue;
+      if (bestIndex === 4) {
+        final = value;
+        hits += 1;
+      } else {
+        quarters[bestIndex] = value;
+        hits += 1;
+      }
+    }
+    if (hits === 0) continue;
+    if (quarters.some((q) => q !== null)) subject.quarters = quarters;
+    if (final !== null) subject.rating = final;
+  }
+  return subjects;
 }
 
 export async function tryWorker(
@@ -728,9 +937,11 @@ export function extractSubjectsFromGrid(grid: string[][]): RatedSubjectCandidate
     const key = `${currentGrade ?? "?"}|${(hit as { norm: string }).norm}|${((hit as unknown as { rawName: string }).rawName || "").toUpperCase()}`;
     const existing = found.get(key);
     if (unknownName) {
-      // Unknown rows need real quarterly grades, not a lone number.
+      // Unknown rows need at least one real grade — a lone number is usually
+      // a date/section. A printed FINAL RATING is enough on its own (a learner
+      // may have only one quarter filled), otherwise require real quarterlies.
       const qCount = (quarters ?? []).filter((q): q is number => typeof q === "number").length;
-      if (rating === null || qCount < 3) continue;
+      if (rating === null && qCount < 3) continue;
     }
     const candidate: RatedSubjectCandidate = {
       rawName: (hit as { rawName: string }).rawName,
@@ -787,36 +998,39 @@ export function extractSubjectsFromGridShs(grid: string[][]): RatedSubjectCandid
     }
     if (/general ave|remarks:|prepared by|certified true/i.test(line)) continue;
 
-    // A subject row carries a category in its leading cells.
-    const category = cells.slice(1, 9).find((c) => /^(core|applied|specialized)$/i.test(c));
-    if (!category) continue;
-
+    // A subject row may carry a category in its leading cells, but manually
+    // filled forms (and DepEd's own workbook) often leave it blank — the
+    // subject name + grades below are what identify the row, so the category
+    // is optional.
     const subjectName = cells[9];
     if (!subjectName || !/[a-zA-Z]{2,}/.test(subjectName)) continue;
-    if (isNonSubjectRow(subjectName) || isBlockedUnknownRow(subjectName)) continue;
+    if (/^(subjects?|learning\s*areas?)$/i.test(subjectName.trim())) continue;
+    if (isBlockedUnknownRow(subjectName)) continue;
+    if (/general\s*ave|semester|remarks|prepared|certified|adviser|signature|track|strand|section|school\s*(id|year)?:|division|district|region:/i.test(subjectName)) continue;
+
+    // DepEd grades are transmuted 60–100. Anything outside that range in the
+    // grade cells is a header/label/identity number that drifted into this
+    // column (e.g. the SCHOOL row's "11", an LRN fragment, "1ST"/"2ND"), not a
+    // mark — without this every SHS form invented subjects from its headers.
+    const plausible = (v: number | null): v is number => v !== null && v >= 60 && v <= 100;
 
     // Quarter grades: two quarters (5 cells each, merged) at 46-50 and 51-55;
     // sem final grade at 56-60 (5 merged cells).
-    const quarterVals: Array<number | null> = [];
-    for (let i = 46; i <= 50; i++) quarterVals.push(parseRating(cells[i]));
-    const q2: Array<number | null> = [];
-    for (let i = 51; i <= 55; i++) q2.push(parseRating(cells[i]));
+    const q1 = [...cells.slice(46, 51).map(parseRating)].find(plausible) ?? null;
+    const q2v = [...cells.slice(51, 56).map(parseRating)].find(plausible) ?? null;
     let semFinal: number | null = null;
     for (let i = 56; i <= 60; i++) {
       const v = parseRating(cells[i]);
-      if (v !== null) {
+      if (plausible(v)) {
         semFinal = v;
         break;
       }
     }
     if (semFinal === null) {
-      const nums = cells.slice(46).map(parseRating).filter((v): v is number => v !== null);
-      if (nums.length > 0) semFinal = nums[nums.length - 1];
+      const marks = cells.slice(46).map(parseRating).filter(plausible);
+      if (marks.length > 0) semFinal = marks[marks.length - 1];
     }
     if (semFinal === null) continue;
-
-    const q1 = quarterVals.find((v) => v !== null) ?? null;
-    const q2v = q2.find((v) => v !== null) ?? null;
     const isSecondSem = currentSem === "2ND";
     const semIdx = isSecondSem ? 1 : 0;
     const slot0 = isSecondSem ? 2 : 0;

@@ -117,7 +117,7 @@ const SUBJECTS: {
   code: string;
   name: string;
   gradeLevel: "G11" | "G12";
-  category: "CORE" | "ELECTIVE";
+  category: "CORE" | "APPLIED" | "SPECIALIZED";
   weights: WeightProfile;
 }[] = [
   { code: "ORALCOMM11", name: "Oral Communication in Context", gradeLevel: "G11", category: "CORE", weights: "LANG" },

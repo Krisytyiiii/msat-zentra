@@ -197,6 +197,13 @@ function latinDecoder(bytes: Buffer): string {
   return bytes.toString("latin1");
 }
 
+/** Code width declared by a ToUnicode CMap's codespace range (default 1). */
+function cmapCodeWidth(cmap: string): 1 | 2 {
+  const block = /begincodespacerange([\s\S]*?)endcodespacerange/.exec(cmap)?.[1];
+  const first = block?.match(/<([0-9a-fA-F]+)>/)?.[1];
+  return first && first.length > 2 ? 2 : 1;
+}
+
 function fontDecoder(objs: Map<number, PdfObject>, fontId: number | null): Decoder {
   if (fontId == null) return latinDecoder;
   const font = objs.get(fontId);
@@ -207,12 +214,24 @@ function fontDecoder(objs: Map<number, PdfObject>, fontId: number | null): Decod
   const map = cmap ? parseToUnicode(cmap) : null;
   if (subtype === "Type0" || map) {
     const table = map;
+    // A map does not imply two-byte codes: subset TrueType/Type1 fonts use a
+    // one-byte codespace (`<00> <FF>`) and map single codes to glyphs. Reading
+    // those as pairs dropped every glyph (zero runs) on Chrome/Word-printed
+    // SF10s, so the code width comes from the CMap, with Type0 as the fallback.
+    const twoByte = cmap ? cmapCodeWidth(cmap) === 2 : subtype === "Type0";
+    if (twoByte) {
+      return (bytes) => {
+        let out = "";
+        for (let i = 0; i + 1 < bytes.length; i += 2) {
+          const code = (bytes[i] << 8) | bytes[i + 1];
+          out += table?.get(code) ?? "";
+        }
+        return out;
+      };
+    }
     return (bytes) => {
       let out = "";
-      for (let i = 0; i + 1 < bytes.length; i += 2) {
-        const code = (bytes[i] << 8) | bytes[i + 1];
-        out += table?.get(code) ?? "";
-      }
+      for (const code of bytes) out += table?.get(code) ?? "";
       return out;
     };
   }

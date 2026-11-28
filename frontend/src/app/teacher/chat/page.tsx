@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import { BamaChat } from "./components/BamaChat";
 import { TeacherEmptyCard } from "../components/TeacherEmptyCard";
 import { Skeleton } from "@/components/ui/skeleton";
+import { useHydrated } from "@/lib/hooks/useHydrated";
 import chatStyles from "./components/bama-chat.module.css";
 import { MessageSquareOff } from "lucide-react";
 import { useTeacherOverview } from "@/services/teacher/overview.service";
@@ -22,13 +23,21 @@ function TeacherChatGate() {
   const overview = useTeacherOverview();
   const isAdviser = overview.data?.isAdviser ?? false;
 
+  // The session lives in localStorage, so the server can never resolve it: it
+  // always renders the loading skeleton. Gating on `useHydrated()` keeps the
+  // first client render on that same branch (a cached overview would otherwise
+  // render the chat immediately and hydration would mismatch); the loaded desk
+  // appears on the render right after hydration.
+  const hydrated = useHydrated();
+
   useEffect(() => {
+    if (!hydrated) return;
     if (!overview.isPending && overview.data && !overview.data.isAdviser) {
       router.replace("/teacher/overview");
     }
-  }, [overview.isPending, overview.data, router]);
+  }, [hydrated, overview.isPending, overview.data, router]);
 
-  if (overview.isPending || overview.isError || !overview.data) {
+  if (!hydrated || overview.isPending || overview.isError || !overview.data) {
     return (
       <section className={chatStyles.page} aria-busy="true" aria-label="Loading chat">
         <div className={chatStyles.layout}>

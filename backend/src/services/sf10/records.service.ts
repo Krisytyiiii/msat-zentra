@@ -12,6 +12,8 @@ import {
 } from "../../lib/learnerVisibility.js";
 import { getEnv } from "../../config/env.js";
 import {
+  applyPdfColumnRatings,
+  extractPdfRows,
   extractPdfText,
   extractSubjectsFromGrid,
   extractSubjectsFromGridShs,
@@ -514,7 +516,13 @@ export async function buildLocalPayload(file: {
   if (file.mimetype === "application/pdf") {
     const rawText = extractPdfText(file.buffer);
     const { extractRatedSubjectsFromText } = await import("./subject-aliases.js");
-    const subjects = extractRatedSubjectsFromText(rawText).map((s) => ({
+    // Flat text loses the column a grade sits in (Q4 vs FINAL RATING), so the
+    // positioned rows re-assign every value to its real quarter/final column.
+    const rated = applyPdfColumnRatings(
+      extractRatedSubjectsFromText(rawText),
+      extractPdfRows(file.buffer),
+    );
+    const subjects = rated.map((s) => ({
       rawName: s.rawName,
       norm: s.norm,
       grade: s.rating,
@@ -1063,7 +1071,9 @@ export async function uploadAuto(
   const fileGrade = detectedGrade;
   const learnerName =
     learner.fullName ?? student?.user.fullName ?? rosterRow?.fullName ?? null;
-  const gradeLevel = fileGrade ?? (student ? String(student.gradeLevel) : null);
+  const gradeLevel =
+    fileGrade ??
+    (student ? String(student.gradeLevel) : rosterRow ? String(rosterRow.gradeLevel) : null);
 
   const isRegistrar = ctx.role === "registrar";
   const source = isRegistrar ? "manual" : "ocr_upload";
@@ -1360,6 +1370,13 @@ export async function applyAutoFilledSubjects(
      */
     skipAdviserAccessCheck?: boolean;
     /**
+     * The caller is the section's adviser (verified by the advisory flow) and
+     * the record grade may not match the section being filled — the SHS form is
+     * filed as G11 while the G12 year is written. Skip the registry grade-band
+     * gate; advisory access is still enforced by the LRN grant below.
+     */
+    skipGradeBandCheck?: boolean;
+    /**
      * Build the printed form from the current template instead of patching the
      * record's stored upload. Passed for records this flow created itself
      * (`source: auto_populated`): their upload is an older render of our own
@@ -1376,8 +1393,15 @@ export async function applyAutoFilledSubjects(
     header?: { sectionName: string; schoolYear: string; adviserName: string | null };
   },
 ): Promise<AutoFillWriteResult> {
-  const record = await assertRecordAccess(recordId, ctx);
-  if (ctx.role === "adviser" && !options?.skipAdviserAccessCheck) {
+  const record = await assertRecordAccess(recordId, ctx, {
+    skipGradeBand: options?.skipGradeBandCheck === true,
+  });
+  // Advisory desks (role `adviser`, or a `subject_teacher` who advises the
+  // section) are authorized by the LRN grant, never by a grade band.
+  if (
+    !options?.skipAdviserAccessCheck &&
+    (ctx.role === "adviser" || ctx.role === "subject_teacher")
+  ) {
     await assertAdviserSf10Access(ctx.userId, recordId);
   }
   if (record.status === "released") {
@@ -1556,10 +1580,12 @@ export async function getSubjectMap(ctx: Sf10Context, recordId: string) {
         }))
       : [];
   // Current-grade view only: rows tagged with the record's grade. Other
-  // years belong to their grade sections; untagged rows are add-ons.
+  // years belong to their grade sections; untagged rows are add-ons — but
+  // when the form never printed a grade level, the untagged rows ARE the
+  // current view, so still show what was read instead of an empty board.
   const currentGradeSubjects = gradeLevel
     ? ocrSubjects.filter((s) => s.gradeLevel === gradeLevel)
-    : [];
+    : ocrSubjects.filter((s) => !s.gradeLevel);
   const map = buildSubjectMap(schoolSubjects, currentGradeSubjects);
   // Per-year deficiency: catalog for every grade up to the record's grade
   // (strict per-grade match, no cross-grade credit; rating null/0 = not

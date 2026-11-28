@@ -570,9 +570,13 @@ model TermRosterConfirmation {
   @@index([termId])
 }
 
+/// DepEd Senior High School subject classification: Core, Applied (applied
+/// track subjects), or Specialized (strand-specific). JHS subjects are Core or
+/// Specialized.
 enum SubjectCategory {
   CORE
-  ELECTIVE
+  APPLIED
+  SPECIALIZED
 }
 
 model Subject {

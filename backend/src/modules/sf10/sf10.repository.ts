@@ -30,6 +30,7 @@ export async function assertDeskAccess(
   recordDesk: string,
   user: { userId: string; role: string },
   recordGrade: string | null,
+  opts?: { skipGradeBand?: boolean },
 ) {
   const desk = deskForRole(user.role);
   if (desk) {
@@ -41,6 +42,15 @@ export async function assertDeskAccess(
   // A stored file may not classify a grade (a partial/blank form). The band
   // can then only be judged by the desk the file was filed under, so skip.
   if (!recordGrade) return;
+  // An adviser (role `adviser` or a `subject_teacher` who advises the section)
+  // is gated by the LRN grant (`assertAdviserSf10Access`), never by a grade
+  // band: the record is filed under whichever registry desk owns its stored
+  // grade, and that stored grade can differ from the section being filled (the
+  // SHS form is filed as G11 while the G12 year is being written). Band-gating
+  // here made the G12 advisory auto-fill preview fine (grant present) and then
+  // fail every write with GRADE_SCOPE.
+  if (opts?.skipGradeBand) return;
+  if (user.role === "adviser") return;
   const band = await resolveGradeBand(user.role, user.userId);
   if (band.length > 0 && !band.includes(recordGrade)) {
     throw new AppError(403, "GRADE_SCOPE", "You do not handle this record's grade level");
@@ -48,7 +58,11 @@ export async function assertDeskAccess(
 }
 
 /** Load a record and enforce desk-scoped access in one step. */
-export async function assertRecordAccess(recordId: string, user: { userId: string; role: string }) {
+export async function assertRecordAccess(
+  recordId: string,
+  user: { userId: string; role: string },
+  opts?: { skipGradeBand?: boolean },
+) {
   const record = await prisma.sf10Record.findUnique({
     where: { id: recordId },
     select: {
@@ -65,7 +79,12 @@ export async function assertRecordAccess(recordId: string, user: { userId: strin
     },
   });
   if (!record) throw new AppError(404, "NOT_FOUND", "SF10 record not found");
-  await assertDeskAccess(record.desk, user, record.gradeLevel ? String(record.gradeLevel) : null);
+  await assertDeskAccess(
+    record.desk,
+    user,
+    record.gradeLevel ? String(record.gradeLevel) : null,
+    opts,
+  );
   return record;
 }
 

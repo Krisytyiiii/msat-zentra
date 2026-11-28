@@ -78,7 +78,7 @@ export const subjectSchema = z.object({
   name: z.string().min(1).max(120),
   code: z.string().min(1).max(24),
   gradeLevel: z.enum(["G7", "G8", "G9", "G10", "G11", "G12"]),
-  category: z.enum(["CORE", "ELECTIVE"]).optional().default("CORE"),
+  category: z.enum(["CORE", "APPLIED", "SPECIALIZED"]).optional().default("CORE"),
 });
 
 /** Teacher overview + attendance-sheet query validation (sub-lists capped at 15). */
