@@ -66,6 +66,7 @@ export async function getCaseFile(id: string) {
       lrn: string;
       gradeLevel: string;
       user: { fullName: string };
+      section: { name: string } | null;
     };
     preparedByUser: { fullName: string };
     approvedByUser: { fullName: string } | null;
@@ -84,7 +85,12 @@ export async function getCaseFile(id: string) {
     profile = await prisma.admLearnerProfile.findUnique({
       where: { id: raw },
       include: {
-        student: { include: { user: { select: { fullName: true } } } },
+        student: {
+          include: {
+            user: { select: { fullName: true } },
+            section: { select: { name: true } },
+          },
+        },
         preparedByUser: { select: { fullName: true } },
         approvedByUser: { select: { fullName: true } },
         forms: { orderBy: { uploadedAt: "desc" } },
@@ -119,6 +125,7 @@ export async function getCaseFile(id: string) {
               lrn: true,
               gradeLevel: true,
               user: { select: { fullName: true } },
+              section: { select: { name: true } },
             },
           },
           roster: {
@@ -147,7 +154,12 @@ export async function getCaseFile(id: string) {
     const linked = await prisma.admLearnerProfile.findFirst({
       where: { referralId },
       include: {
-        student: { include: { user: { select: { fullName: true } } } },
+        student: {
+          include: {
+            user: { select: { fullName: true } },
+            section: { select: { name: true } },
+          },
+        },
         preparedByUser: { select: { fullName: true } },
         approvedByUser: { select: { fullName: true } },
         forms: { orderBy: { uploadedAt: "desc" } },
@@ -211,6 +223,11 @@ export async function getCaseFile(id: string) {
     referral?.student?.gradeLevel ??
     referral?.roster?.gradeLevel ??
     "";
+  const sectionName =
+    profile?.student.section?.name ??
+    referral?.student?.section?.name ??
+    anecdotal?.section?.name ??
+    "";
   const rowId = profile ? profile.id : `referral:${referralId}`;
 
   return {
@@ -221,6 +238,7 @@ export async function getCaseFile(id: string) {
     student: studentName,
     lrn,
     grade: GRADE_LABEL[gradeRaw] ?? gradeRaw,
+    section: sectionName,
     stage: profile?.stage ?? "consultation",
     eligibilityStatus: profile?.eligibilityStatus ?? "pending",
     preparedBy:

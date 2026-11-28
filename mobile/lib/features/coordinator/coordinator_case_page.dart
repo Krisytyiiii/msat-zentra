@@ -386,12 +386,19 @@ class _CaseState extends ConsumerState<CoordinatorCasePage>
       dotColor: dot,
       meta: [
         if (d.grade.isNotEmpty)
-          ZScopePill(text: d.grade, kind: ScopePillKind.grade, compact: true),
-        ZStatusPill(
+          ZScopePill(
+            text: [d.grade, d.section].where((v) => v.isNotEmpty).join(' · '),
+            kind: ScopePillKind.grade,
+            compact: true,
+            label: d.section.isEmpty ? 'Grade level' : 'Grade level · Section',
+          ),
+        // One pipeline pill only: the derived status already humanises the
+        // stage, so the exact stage rides its tooltip instead of a duplicate.
+        AdmStatusCapsule(
           text: d.status.label,
           tone: admCaseStatusTone(d.status.key),
+          label: 'Stage: ${admLabel(d.stage)}',
         ),
-        StudentTonePill(text: admLabel(d.stage), tone: StudentTone.neutral),
       ],
       onCopyLrn: () => _copyLrn(d.lrn),
     );
@@ -1539,6 +1546,13 @@ class _AnecdotalDocumentState
             PopupMenuButton<String>(
               tooltip: 'Document actions',
               enabled: bytes != null,
+              // Same circular outline as the screen Back button.
+              style: IconButton.styleFrom(
+                foregroundColor: zInk(context),
+                side: BorderSide(color: zLine(context)),
+                minimumSize: const Size(42, 42),
+                shape: const CircleBorder(),
+              ),
               icon: const Icon(LucideIcons.moreVertical),
               onSelected: (value) {
                 if (bytes == null) return;

@@ -14,6 +14,7 @@ import 'package:zentra_mobile/core/notifications.dart';
 import 'package:zentra_mobile/core/session.dart';
 import 'package:zentra_mobile/design/theme.dart';
 import 'package:zentra_mobile/features/app_router.dart';
+import 'package:zentra_mobile/features/adviser/adm_case_card.dart';
 import 'package:zentra_mobile/features/coordinator/coordinator_case_page.dart';
 import 'package:zentra_mobile/features/coordinator/coordinator_data.dart';
 import 'package:zentra_mobile/features/coordinator/coordinator_forms.dart';
@@ -698,33 +699,28 @@ void main() {
     expect(tester.takeException(), isNull);
   });
 
-  testWidgets('ADM case counters use whole-desk stage counts', (
-    tester,
-  ) async {
-    final api = CoordinatorApi();
-    api.stageCounts = const {
-      'anecdotal': 1,
-      'consultation': 2,
-      'meeting_parents': 3,
-      'home_visitation': 4,
-      'certification': 5,
-      'principal_approval': 6,
-      'enrollment_monitoring': 7,
-      'completion': 8,
-    };
+  testWidgets('ADM case counters summarise the whole desk', (tester) async {
+    final api = CoordinatorApi()
+      ..listRows = [
+        {...listRow('profile-1'), 'stage': 'consultation', 'approvedBy': ''},
+        {
+          ...listRow('profile-2'),
+          'stage': 'meeting_parents',
+          'meeting': meetingJson(),
+        },
+        listRow('profile-3'),
+      ];
     await mount(
       tester,
       api,
       const Scaffold(body: CoordinatorListPage(desk: 'referrals')),
     );
-    expect(find.text('Needs review'), findsOneWidget);
-    expect(find.text('Parent meeting'), findsOneWidget);
-    expect(find.text('Home visit'), findsOneWidget);
-    expect(find.text('Certification'), findsOneWidget);
-    expect(find.text('Principal'), findsOneWidget);
-    expect(find.text('In ADM'), findsOneWidget);
-    expect(find.text('3'), findsNWidgets(2)); // needs review + parent meeting
-    expect(find.text('15'), findsOneWidget); // monitoring + completion
+    final counters = tester.widget<AdmCaseCounters>(
+      find.byType(AdmCaseCounters),
+    );
+    expect(counters.counts, [('Total', 3), ('Needs review', 1), ('Booked', 1)]);
+    expect(find.text('Home visit'), findsNothing);
+    expect(find.text('In ADM'), findsNothing);
     expect(tester.takeException(), isNull);
   });
 
@@ -815,6 +811,34 @@ void main() {
       findsOneWidget,
     );
     expect(find.text('Issue device'), findsOneWidget);
+    expect(tester.takeException(), isNull);
+  });
+
+  testWidgets('files counters follow the merged cohort lanes', (tester) async {
+    final api = CoordinatorApi()
+      ..listRows = [
+        listRow('profile-1'), // approved
+        {...listRow('profile-2'), 'approvedBy': '', 'stage': 'certification'},
+        {
+          ...listRow('profile-3'),
+          'approvedBy': '',
+          'stage': 'principal_approval',
+        },
+      ];
+    await mount(
+      tester,
+      api,
+      const Scaffold(body: CoordinatorListPage(desk: 'certifications')),
+    );
+    final counters = tester.widget<AdmCaseCounters>(
+      find.byType(AdmCaseCounters),
+    );
+    expect(counters.counts, [
+      ('Prepared', 1),
+      ('Awaiting', 1),
+      ('Approved', 1),
+    ]);
+    expect(find.text('Needs revision'), findsNothing);
     expect(tester.takeException(), isNull);
   });
 

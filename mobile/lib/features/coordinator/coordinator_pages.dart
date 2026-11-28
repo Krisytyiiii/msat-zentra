@@ -760,51 +760,24 @@ class _ListState extends ConsumerState<CoordinatorListPage>
 
   /// Web `CoordinatorReferralsFigures`: six board figures over the desk's
   /// whole-cohort stage counts, not the currently loaded rows.
-  Widget _referralFigures(Map<String, int> stageCounts) {
-    int total(List<String> stages) => stages.fold(
-      0,
-      (sum, stage) => sum + (stageCounts[stage] ?? 0),
-    );
-    return AdmCaseFigures(
-      figures: [
-        (
-          label: 'Needs review',
-          value: total(const ['anecdotal', 'consultation']),
-          attention: true,
-          positive: false,
-        ),
-        (
-          label: 'Parent meeting',
-          value: total(const ['meeting_parents']),
-          attention: false,
-          positive: false,
-        ),
-        (
-          label: 'Home visit',
-          value: total(const ['home_visitation']),
-          attention: true,
-          positive: false,
-        ),
-        (
-          label: 'Certification',
-          value: total(const ['certification']),
-          attention: true,
-          positive: false,
-        ),
-        (
-          label: 'Principal',
-          value: total(const ['principal_approval']),
-          attention: false,
-          positive: false,
-        ),
-        (
-          label: 'In ADM',
-          value: total(const ['enrollment_monitoring', 'completion']),
-          attention: false,
-          positive: true,
-        ),
-      ],
-    );
+  /// ADM Cases counters: the desk's whole cohort, not the stage ledger.
+  ///  - Total        — every case on the board (closed ones still listed)
+  ///  - Needs review — filed/consultation cases waiting on the coordinator
+  ///  - Booked       — parent meetings scheduled but not yet attended
+  List<(String, int)> _caseCounts(List<AdmCaseRow> rows) {
+    var needsReview = 0, booked = 0;
+    for (final row in rows) {
+      if (row.stage == 'anecdotal' || row.status.key == 'need_review') {
+        needsReview += 1;
+      }
+      final meeting = row.meeting;
+      if (meeting != null && !meeting.attended) booked += 1;
+    }
+    return [
+      ('Total', rows.length),
+      ('Needs review', needsReview),
+      ('Booked', booked),
+    ];
   }
 
   List<(String, int)> _counterValues(AdmJson dashboard) {
@@ -852,6 +825,29 @@ class _ListState extends ConsumerState<CoordinatorListPage>
       ('In progress', inProgress),
       ('Complete', complete),
       ('Not released', notReleased),
+    ];
+  }
+
+  /// Files (certifications) lanes, derived from the same merged cohort the
+  /// desk lists — and classified with the exact rule the card pill uses — so
+  /// the strip always adds up to the visible cards. Preparation/revision also
+  /// holds returned cases (their stage went back to certification).
+  List<(String, int)> _certificationCounts(List<AdmCaseRow> rows) {
+    var prepared = 0, awaiting = 0, approved = 0;
+    for (final row in rows) {
+      switch (_certificationStatus(row).$1) {
+        case 'Approved':
+          approved += 1;
+        case 'Awaiting principal':
+          awaiting += 1;
+        default:
+          prepared += 1;
+      }
+    }
+    return [
+      ('Prepared', prepared),
+      ('Awaiting', awaiting),
+      ('Approved', approved),
     ];
   }
 
@@ -1061,13 +1057,35 @@ class _ListState extends ConsumerState<CoordinatorListPage>
                           AsyncError() => const SizedBox.shrink(),
                           _ => const SkeletonBox(height: 44),
                         }
-                      else if (widget.desk == 'referrals')
-                        switch (ref.watch(coordinatorListProvider(query))) {
-                          AsyncData(:final value) => _referralFigures(
-                            value.stageCounts,
+                      else if (widget.desk == 'certifications')
+                        switch (ref.watch(
+                          coordinatorListProvider((
+                            desk: 'certifications',
+                            page: 1,
+                            q: '',
+                            filter: '',
+                          )),
+                        )) {
+                          AsyncData(:final value) => AdmCaseCounters(
+                            counts: _certificationCounts(value.rows),
                           ),
                           AsyncError() => const SizedBox.shrink(),
-                          _ => const SkeletonBox(height: 92),
+                          _ => const SkeletonBox(height: 44),
+                        }
+                      else if (widget.desk == 'referrals')
+                        switch (ref.watch(
+                          coordinatorListProvider((
+                            desk: 'referrals',
+                            page: 1,
+                            q: '',
+                            filter: '',
+                          )),
+                        )) {
+                          AsyncData(:final value) => AdmCaseCounters(
+                            counts: _caseCounts(value.rows),
+                          ),
+                          AsyncError() => const SizedBox.shrink(),
+                          _ => const SkeletonBox(height: 44),
                         }
                       else if (widget.desk == 'devices')
                         switch (ref.watch(coordinatorDevicesProvider(query))) {

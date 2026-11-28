@@ -148,9 +148,10 @@ class _CoordinatorCaseSheetState extends State<CoordinatorCaseSheet> {
               style: TextStyle(fontSize: 12, color: zMutedInk(context)),
             ),
             const SizedBox(height: 4),
-            ZStatusPill(
+            AdmStatusCapsule(
               text: row.status.label,
               tone: admCaseStatusTone(row.status.key),
+              label: 'Stage: ${admLabel(row.stage)}',
             ),
           ],
         ),
@@ -175,11 +176,13 @@ class _CoordinatorCaseSheetState extends State<CoordinatorCaseSheet> {
     crossAxisAlignment: WrapCrossAlignment.center,
     children: [
       ZScopePill(
-        text: row.grade.isEmpty ? '—' : row.grade,
+        text: [row.grade.isEmpty ? '—' : row.grade, row.section]
+            .where((v) => v.isNotEmpty)
+            .join(' · '),
         kind: ScopePillKind.grade,
         compact: true,
+        label: row.section.isEmpty ? 'Grade level' : 'Grade level · Section',
       ),
-      _chip(admLabel(row.stage), StatusTone.neutral),
       _chip(
         row.eligibilityLabel,
         switch (row.eligibility) {
@@ -212,7 +215,9 @@ class _CoordinatorCaseSheetState extends State<CoordinatorCaseSheet> {
         ),
       ],
       [
-        ('Section', row.section.isEmpty ? '—' : row.section, null),
+        // Section now rides the grade capsule; the exact stage lives here
+        // (the status pill keeps it as a tooltip).
+        ('Stage', admLabel(row.stage), null),
         (
           'Modules',
           '${row.modulesSubmitted} / ${row.modulesTotal} submitted',

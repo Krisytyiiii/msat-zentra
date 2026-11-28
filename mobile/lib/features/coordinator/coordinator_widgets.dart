@@ -42,6 +42,51 @@ String admDate(String value) {
       : '${DateFormat('MMM d, y · h:mm a').format(admSchoolTime(date))} PHT';
 }
 
+/// Stadium status capsule for the ADM case identity rows: same shape, fill and
+/// hairline edge as [ZScopePill]'s grade capsule, tinted by the case status.
+/// The shared status chips stay rectangular — never restyle them globally.
+class AdmStatusCapsule extends StatelessWidget {
+  const AdmStatusCapsule({
+    super.key,
+    required this.text,
+    required this.tone,
+    this.label,
+  });
+
+  final String text;
+  final StatusTone tone;
+
+  /// Long-press tooltip (e.g. "Stage: Enrollment monitoring").
+  final String? label;
+
+  @override
+  Widget build(BuildContext context) {
+    final colors = statusColors(tone, Theme.of(context));
+    final pill = Container(
+      padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 3),
+      decoration: BoxDecoration(
+        color: colors.background,
+        border: Border.all(color: colors.foreground.withValues(alpha: 0.28)),
+        borderRadius: BorderRadius.circular(999),
+      ),
+      child: Text(
+        text,
+        style: TextStyle(
+          fontSize: 11,
+          fontWeight: FontWeight.w600,
+          color: colors.foreground,
+        ),
+      ),
+    );
+    if (label == null) return pill;
+    return Tooltip(
+      message: label!,
+      triggerMode: TooltipTriggerMode.longPress,
+      child: pill,
+    );
+  }
+}
+
 mixin CoordinatorRefresh<T extends ConsumerStatefulWidget>
     on ConsumerState<T>, WidgetsBindingObserver {
   Timer? _poll;
