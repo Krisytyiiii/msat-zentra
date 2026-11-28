@@ -25,6 +25,7 @@ class PortalSubjectCard extends StatelessWidget {
     required this.subtitle,
     required this.trailing,
     required this.footer,
+    this.footerValue,
     this.onTap,
   });
 
@@ -33,6 +34,7 @@ class PortalSubjectCard extends StatelessWidget {
   final String subtitle;
   final Widget trailing;
   final String footer;
+  final String? footerValue;
   final VoidCallback? onTap;
 
   @override
@@ -78,13 +80,36 @@ class PortalSubjectCard extends StatelessWidget {
           ),
           Align(
             alignment: Alignment.centerLeft,
-            child: Text(
-              footer,
-              style: TextStyle(
-                fontSize: 12,
-                color: theme.colorScheme.onSurface,
-              ),
-            ),
+            child: footerValue == null
+                ? Text(
+                    footer,
+                    style: TextStyle(
+                      fontSize: 12,
+                      color: theme.colorScheme.onSurface,
+                    ),
+                  )
+                : Row(
+                    children: [
+                      Expanded(
+                        child: Text(
+                          footer,
+                          style: TextStyle(
+                            fontSize: 12,
+                            color: theme.colorScheme.onSurface,
+                          ),
+                        ),
+                      ),
+                      const SizedBox(width: 8),
+                      Text(
+                        footerValue!,
+                        style: TextStyle(
+                          fontSize: 12,
+                          fontWeight: FontWeight.w600,
+                          color: theme.colorScheme.onSurface,
+                        ),
+                      ),
+                    ],
+                  ),
           ),
         ],
       ),
@@ -133,7 +158,7 @@ class PortalGradeCard extends StatelessWidget {
             'Final grade',
             if (grade.remarks != null && grade.remarks!.isNotEmpty) grade.remarks!,
           ].join(' · ')
-        : 'Not yet final — assessment scores are still in progress';
+        : 'Term Grade';
     return PortalSubjectCard(
       seed: grade.subjectId,
       title: grade.subjectName,
@@ -142,6 +167,7 @@ class PortalGradeCard extends StatelessWidget {
           : grade.subjectCode,
       trailing: ZStatusPill(text: title, tone: tone, label: 'Term grade'),
       footer: bottom,
+      footerValue: grade.isFinal ? null : '—',
       onTap: onTap,
     );
   }

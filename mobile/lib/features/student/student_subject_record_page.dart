@@ -69,6 +69,10 @@ class StudentSubjectRecordPage extends ConsumerStatefulWidget {
 }
 
 class _StudentSubjectRecordState extends ConsumerState<StudentSubjectRecordPage> {
+  /// Assembled category keys (WRITTEN_WORK, PERFORMANCE_TASK, EXAM) whose
+  /// assessment rows are showing. Assessment groups start collapsed.
+  final Set<String> _expandedComponents = <String>{};
+
   bool get _isParent => widget.childId != null;
 
   ({String childId, String subjectId})? get _parentKey => _isParent
@@ -144,7 +148,6 @@ class _StudentSubjectRecordState extends ConsumerState<StudentSubjectRecordPage>
   }
 
   Widget _body(BuildContext context, PortalSubjectRecord record) {
-    final theme = Theme.of(context);
     final term = record.term ?? portalScopeTerm(ref);
     return ListView(
       physics: const AlwaysScrollableScrollPhysics(),
@@ -188,12 +191,6 @@ class _StudentSubjectRecordState extends ConsumerState<StudentSubjectRecordPage>
                 label: 'Grade and section',
                 compact: true,
               ),
-            if (record.subjectCode.isNotEmpty)
-              ZPill(
-                label: 'Subject code',
-                tone: StatusTone.neutral,
-                child: Text(record.subjectCode),
-              ),
           ],
         ),
         const SizedBox(height: 16),
@@ -204,17 +201,16 @@ class _StudentSubjectRecordState extends ConsumerState<StudentSubjectRecordPage>
             context,
             category,
             _componentOf(record.components, category.$1),
+            expanded: _expandedComponents.contains(category.$1),
+            onToggle: () => setState(() {
+              if (!_expandedComponents.remove(category.$1)) {
+                _expandedComponents.add(category.$1);
+              }
+            }),
           ),
           const SizedBox(height: 12),
         ],
         _finalCard(context, record),
-        const SizedBox(height: 8),
-        Text(
-          _isParent
-              ? 'Scores are entered by the teacher. The term grade becomes official once it is finalized.'
-              : 'Scores are entered by your teacher. Your term grade becomes official once it is finalized.',
-          style: theme.textTheme.labelSmall,
-        ),
       ],
     );
   }
@@ -286,8 +282,10 @@ class _StudentSubjectRecordState extends ConsumerState<StudentSubjectRecordPage>
   Widget _componentCard(
     BuildContext context,
     (String, String, Color, Color) category,
-    PortalSubjectComponent? component,
-  ) {
+    PortalSubjectComponent? component, {
+    required bool expanded,
+    required VoidCallback onToggle,
+  }) {
     final theme = Theme.of(context);
     final accent = category.$3;
     final label = _categoryLabels[category.$1] ?? component?.label ?? category.$1;
@@ -295,32 +293,57 @@ class _StudentSubjectRecordState extends ConsumerState<StudentSubjectRecordPage>
     final weight = component?.weight ?? 0;
     final earned = component?.earned ?? 0;
     final possible = component?.possible ?? 0;
+    final canExpand = assessments.isNotEmpty;
+    final open = canExpand && expanded;
     return ZCard(
       key: ValueKey('student-record-component-${category.$1}'),
       padding: const EdgeInsets.all(14),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Row(
-            children: [
-              Container(
-                width: 8,
-                height: 8,
-                decoration: BoxDecoration(color: accent, shape: BoxShape.circle),
-              ),
-              const SizedBox(width: 8),
-              Expanded(
-                child: Text(
-                  label,
-                  style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w700),
+          Semantics(
+            button: canExpand,
+            expanded: canExpand ? open : null,
+            child: InkWell(
+              borderRadius: BorderRadius.circular(8),
+              onTap: canExpand ? onToggle : null,
+              child: Padding(
+                padding: const EdgeInsets.symmetric(vertical: 2),
+                child: Row(
+                  children: [
+                    Container(
+                      width: 8,
+                      height: 8,
+                      decoration: BoxDecoration(color: accent, shape: BoxShape.circle),
+                    ),
+                    const SizedBox(width: 8),
+                    Expanded(
+                      child: Text(
+                        label,
+                        style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w700),
+                      ),
+                    ),
+                    ZPill(
+                      label: 'Weight',
+                      tone: StatusTone.neutral,
+                      child: Text('${_number(weight)}%'),
+                    ),
+                    if (canExpand) ...[
+                      const SizedBox(width: 6),
+                      AnimatedRotation(
+                        turns: open ? 0.5 : 0,
+                        duration: const Duration(milliseconds: 160),
+                        child: Icon(
+                          Icons.keyboard_arrow_down,
+                          size: 20,
+                          color: theme.colorScheme.onSurfaceVariant,
+                        ),
+                      ),
+                    ],
+                  ],
                 ),
               ),
-              ZPill(
-                label: 'Weight',
-                tone: StatusTone.neutral,
-                child: Text('${_number(weight)}%'),
-              ),
-            ],
+            ),
           ),
           const SizedBox(height: 8),
           if (assessments.isEmpty)
@@ -331,7 +354,7 @@ class _StudentSubjectRecordState extends ConsumerState<StudentSubjectRecordPage>
                 color: theme.colorScheme.onSurfaceVariant,
               ),
             )
-          else
+          else if (open)
             for (final assessment in assessments) ...[
               _assessmentRow(context, assessment),
               if (assessment != assessments.last)
