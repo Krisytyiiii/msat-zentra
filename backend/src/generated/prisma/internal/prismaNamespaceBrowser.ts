@@ -268,7 +268,10 @@ export const StudentRosterScalarFieldEnum = {
   attendanceFlag: 'attendanceFlag',
   behavioralFlag: 'behavioralFlag',
   createdAt: 'createdAt',
-  enlistedTermId: 'enlistedTermId'
+  enlistedTermId: 'enlistedTermId',
+  linkCode: 'linkCode',
+  linkCodeIssuedAt: 'linkCodeIssuedAt',
+  linkCodeRevokedAt: 'linkCodeRevokedAt'
 } as const
 
 export type StudentRosterScalarFieldEnum = (typeof StudentRosterScalarFieldEnum)[keyof typeof StudentRosterScalarFieldEnum]

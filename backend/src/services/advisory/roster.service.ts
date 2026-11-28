@@ -6,6 +6,8 @@ import { fanoutNotification } from "../../lib/notify.js";
 import { clearArchivedLearnerCache } from "../../lib/learnerVisibility.js";
 import { bumpRiskCohortVersion } from "../../lib/riskCohortCache.js";
 import { mascotForUnique, sectionTakenMascots } from "../mascot.js";
+import { linkProfileToRoster } from "../learnerLink.js";
+import { mintUniqueLearnerLinkCode } from "../../modules/academics/learnerCode.js";
 import {
   adviserSectionsOr404,
   teachableSectionIds,
@@ -57,30 +59,58 @@ export async function enlistRoster(
   if (existing) {
     throw new AppError(409, "LRN_ENLISTED", "This LRN is already enlisted");
   }
-  const alreadyRegistered = await prisma.studentProfile.findUnique({
+  const registeredProfile = await prisma.studentProfile.findUnique({
     where: { lrn: input.lrn },
-    select: { userId: true, user: { select: { email: true } } },
+    select: {
+      userId: true,
+      sectionId: true,
+      section: { select: { schoolYearId: true, name: true } },
+      user: { select: { email: true } },
+    },
   });
-  // The advisory list is ungated: an LRN saved only as an SF10-upload
-  // placeholder account is not a real enrollment, so it never blocks
-  // enlistment. Only a real (non-provisioned) account does.
-  if (alreadyRegistered && !isSf10ProvisionedEmail(alreadyRegistered.user.email)) {
-    throw new AppError(409, "LRN_REGISTERED", "This LRN already has an account");
+  // An account may already exist for this LRN (approved before enlistment, or
+  // a legacy SF10 placeholder). Linking it is the point of enlistment now —
+  // but never relocate a learner who is already placed in this school year.
+  const realAccount =
+    registeredProfile && !isSf10ProvisionedEmail(registeredProfile.user.email)
+      ? registeredProfile
+      : null;
+  if (
+    realAccount?.sectionId &&
+    realAccount.section?.schoolYearId === yearId
+  ) {
+    throw new AppError(
+      409,
+      "LRN_REGISTERED",
+      `This LRN already has an account in ${realAccount.section?.name ?? "another section"}`,
+    );
   }
 
+  const linkCode = await mintUniqueLearnerLinkCode();
   const taken = await sectionTakenMascots(prisma, section.id);
-  const entry = await prisma.studentRoster.create({
-    data: {
-      lrn: input.lrn,
-      fullName: input.fullName,
-      mascot: mascotForUnique(input.fullName, input.lrn, taken),
-      gradeLevel: section.gradeLevel,
-      sectionId: section.id,
-      schoolYearId: yearId,
-      enlistedTermId: ctx.termId ?? null,
-      learnerType: input.learnerType ?? "regular",
-    },
-    include: { section: { select: { name: true } } },
+  const entry = await prisma.$transaction(async (tx) => {
+    const created = await tx.studentRoster.create({
+      data: {
+        lrn: input.lrn,
+        fullName: input.fullName,
+        mascot: mascotForUnique(input.fullName, input.lrn, taken),
+        gradeLevel: section.gradeLevel,
+        sectionId: section.id,
+        schoolYearId: yearId,
+        enlistedTermId: ctx.termId ?? null,
+        learnerType: input.learnerType ?? "regular",
+        linkCode,
+        linkCodeIssuedAt: new Date(),
+      },
+      include: { section: { select: { name: true } } },
+    });
+    if (registeredProfile) {
+      await linkProfileToRoster(tx, registeredProfile.userId, input.lrn, {
+        sectionId: section.id,
+        gradeLevel: section.gradeLevel,
+      });
+    }
+    return created;
   });
 
   const response = {
@@ -98,9 +128,11 @@ export async function enlistRoster(
     confidentialityTiers: [],
     hasOpenFlag: false,
     openFlagCount: 0,
-    hasAccount: false,
+    hasAccount: Boolean(registeredProfile),
     learnerType: entry.learnerType,
     admExempt: false,
+    linkCode: entry.linkCode,
+    linkCodeIssuedAt: entry.linkCodeIssuedAt?.toISOString() ?? null,
   };
   // Cache bust on the response path: the desk refetches the roster the moment
   // this call settles, so the list read must not hit the pre-enlist cache entry.
@@ -128,6 +160,43 @@ export async function enlistRoster(
     }
   })();
   return response;
+}
+
+/**
+ * Mint a fresh learner link code for one roster row in the adviser's section.
+ * The previous code stops resolving immediately (unique column overwritten) —
+ * the family must use the new slip.
+ */
+export async function rotateLearnerLinkCode(
+  ctx: AdvisoryContext,
+  lrn: string,
+  yearId: string | null,
+) {
+  if (!yearId) {
+    throw new AppError(409, "NO_ACTIVE_YEAR", "No active school year");
+  }
+  const sections = await adviserSectionsOr404(ctx.userId, yearId);
+  const entry = await prisma.studentRoster.findUnique({
+    where: { lrn_schoolYearId: { lrn, schoolYearId: yearId } },
+    select: { id: true, sectionId: true, section: { select: { name: true } } },
+  });
+  if (!entry || !sections.some((s) => s.id === entry.sectionId)) {
+    throw new AppError(404, "ADVISEE_NOT_FOUND", "This student is not in your advisory");
+  }
+  const linkCode = await mintUniqueLearnerLinkCode();
+  await prisma.studentRoster.update({
+    where: { id: entry.id },
+    data: { linkCode, linkCodeIssuedAt: new Date(), linkCodeRevokedAt: null },
+  });
+  await invalidateTags(ADVISORY_CACHE_TAGS);
+  await writeAudit({
+    userId: ctx.userId,
+    actionType: "update",
+    sourceTable: "student_roster",
+    sourceId: entry.id,
+    reason: `Rotated learner link code for ${lrn} in ${entry.section.name}`,
+  });
+  return { lrn, linkCode, section: entry.section.name };
 }
 
 export interface UpdateRosterInput {

@@ -15,6 +15,7 @@ import '../design/shell.dart';
 import '../design/portal_shell.dart';
 import 'student/student_identity_page.dart';
 import 'student/student_portal_pages.dart';
+import 'student/student_subject_record_page.dart';
 import 'parent/parent_portal_pages.dart';
 import 'portal/portal_settings_page.dart';
 import 'portal/portal_views.dart';
@@ -313,6 +314,13 @@ final routerProvider = Provider<GoRouter>((ref) {
       GoRoute(
         path: '/student/profile/qr',
         builder: (context, _) => const StudentIdentityPage(qr: true),
+      ),
+      GoRoute(
+        path: '/student/grades/:subjectId',
+        builder: (context, state) => StudentSubjectRecordPage(
+          subjectId: state.pathParameters['subjectId'] ?? '',
+          subjectName: state.extra is String ? state.extra as String : null,
+        ),
       ),
       ...persistentStaffRoutes([
       GoRoute(path: '/login', builder: (context, _) => const LoginPage()),

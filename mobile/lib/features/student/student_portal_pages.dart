@@ -432,13 +432,15 @@ class _PortalSessionRow extends StatelessWidget {
 
 class _GradeCard extends StatelessWidget {
   final PortalGrade grade;
-  const _GradeCard({required this.grade});
+  final VoidCallback? onTap;
+  const _GradeCard({required this.grade, this.onTap});
 
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     return ZCard(
       padding: const EdgeInsets.all(12),
+      onTap: onTap,
       child: Row(
         children: [
           Expanded(
@@ -447,6 +449,8 @@ class _GradeCard extends StatelessWidget {
               children: [
                 Text(grade.subjectName, style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 13)),
                 Text(grade.subjectCode, style: theme.textTheme.labelSmall),
+                if (grade.teacherName != null && grade.teacherName!.isNotEmpty)
+                  Text(grade.teacherName!, style: theme.textTheme.labelSmall),
                 if (grade.remarks != null) Text(grade.remarks!, style: theme.textTheme.labelSmall),
               ],
             ),
@@ -471,6 +475,8 @@ class _GradeCard extends StatelessWidget {
               ),
             ],
           ),
+          const SizedBox(width: 4),
+          Icon(Icons.chevron_right, size: 18, color: theme.colorScheme.onSurfaceVariant),
         ],
       ),
     );
@@ -574,7 +580,7 @@ class _StudentGradesState extends ConsumerState<StudentGradesPage> {
           ZContentHeader(
             title: 'Grades',
             icon: Icons.grade_outlined,
-            description: 'Your subject grades for this term.',
+            description: 'All your subjects this term. Tap one to see assessment scores.',
           ),
           const SizedBox(height: 12),
         ],
@@ -608,8 +614,10 @@ class _StudentGradesState extends ConsumerState<StudentGradesPage> {
         child: Center(
           child: ZEmpty(
             icon: Icons.grade_outlined,
-            title: data.grades.isEmpty ? 'No grades for this term' : 'No grades match',
-            subtitle: data.grades.isEmpty ? null : 'Try a different search.',
+            title: data.grades.isEmpty ? 'No subjects for this term' : 'No subjects match',
+            subtitle: data.grades.isEmpty
+                ? 'Your class load appears here once your section is linked.'
+                : 'Try a different search.',
           ),
         ),
       );
@@ -619,7 +627,16 @@ class _StudentGradesState extends ConsumerState<StudentGradesPage> {
       sliver: SliverList.separated(
         itemCount: grades.length,
         separatorBuilder: (_, _) => const SizedBox(height: 8),
-        itemBuilder: (context, index) => _GradeCard(grade: grades[index]),
+        itemBuilder: (context, index) {
+          final grade = grades[index];
+          return _GradeCard(
+            grade: grade,
+            onTap: () => context.push(
+              '/student/grades/${Uri.encodeComponent(grade.subjectId)}',
+              extra: grade.subjectName,
+            ),
+          );
+        },
       ),
     );
   }

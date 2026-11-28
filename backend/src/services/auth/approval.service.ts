@@ -5,6 +5,7 @@ import { fanoutNotification } from "../../lib/notify.js";
 import { invalidateTags } from "../../lib/cache.js";
 import { mascotForUnique, sectionTakenMascots } from "../mascot.js";
 import { decryptContact } from "../../lib/contact-crypto.js";
+import { linkProfileToRoster } from "../learnerLink.js";
 import type { GradeLevel, Role } from "../../generated/prisma/client.js";
 import type { AuthContext } from "./auth.types.js";
 
@@ -25,7 +26,6 @@ export async function approveAccount(ctx: AuthContext, targetUserId: string) {
   if (target.status === "active") throw new AppError(409, "ALREADY_ACTIVE", "User already active");
 
   let provisionRoster: { gradeLevel: GradeLevel; sectionId: string } | null = null;
-  let carryoverRosterIds: string[] = [];
   if (target.role === "student" && target.lrn) {
 
     const lrnTaken = await prisma.studentProfile.findUnique({
@@ -49,16 +49,7 @@ export async function approveAccount(ctx: AuthContext, targetUserId: string) {
         orderBy: { schoolYearId: "desc" },
         select: { gradeLevel: true, sectionId: true },
       });
-      if (roster) {
-        provisionRoster = roster;
-
-        carryoverRosterIds = (
-          await prisma.studentRoster.findMany({
-            where: { lrn: target.lrn },
-            select: { id: true },
-          })
-        ).map((r) => r.id);
-      }
+      if (roster) provisionRoster = roster;
     }
   }
 
@@ -82,29 +73,8 @@ export async function approveAccount(ctx: AuthContext, targetUserId: string) {
           sectionId: provisionRoster.sectionId,
         },
       });
-      if (carryoverRosterIds.length > 0) {
-        const carry = { studentId: target.id, rosterId: null };
-        await tx.studentGrade.updateMany({
-          where: { rosterId: { in: carryoverRosterIds } },
-          data: carry,
-        });
-        await tx.finalGrade.updateMany({
-          where: { rosterId: { in: carryoverRosterIds } },
-          data: carry,
-        });
-        await tx.attendanceRecord.updateMany({
-          where: { rosterId: { in: carryoverRosterIds } },
-          data: carry,
-        });
-        await tx.anecdotalRecord.updateMany({
-          where: { rosterId: { in: carryoverRosterIds } },
-          data: carry,
-        });
-        await tx.referral.updateMany({
-          where: { rosterId: { in: carryoverRosterIds } },
-          data: carry,
-        });
-      }
+      // Same five-table carryover used by roster linking (one implementation).
+      await linkProfileToRoster(tx, target.id, target.lrn, provisionRoster);
     }
     return u;
   });

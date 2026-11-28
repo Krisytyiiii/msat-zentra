@@ -51,7 +51,17 @@ Future<Map<String, dynamic>> _get(Ref ref, String path, {Map<String, dynamic>? q
 
 final studentMeProvider = FutureProvider.autoDispose<PortalLearner>((ref) async {
   final data = await _get(ref, '/api/student/me', query: _termQuery(ref));
-  return PortalLearner.fromJson(Map<String, dynamic>.from(data['learner'] as Map));
+  final learner = data['learner'];
+  if (learner is! Map) {
+    // Active account with no class yet (or no learner profile at all). The
+    // backend reports this as a placement state instead of a 404.
+    throw ApiException(
+      'NOT_PLACED',
+      'Your account is not linked to a class yet. Ask your adviser for your class code.',
+      statusCode: 409,
+    );
+  }
+  return PortalLearner.fromJson(Map<String, dynamic>.from(learner));
 });
 
 final studentTermsProvider = FutureProvider.autoDispose<List<PortalTerm>>((ref) async {
@@ -65,6 +75,18 @@ final studentHomeProvider = FutureProvider.autoDispose<PortalHome>((ref) async {
 
 final studentGradesProvider = FutureProvider.autoDispose<PortalGrades>((ref) async {
   return PortalGrades.fromJson(await _get(ref, '/api/student/grades', query: _termQuery(ref)));
+});
+
+/// One subject's assessment record (read-only Grade Record).
+final studentSubjectRecordProvider =
+    FutureProvider.autoDispose.family<PortalSubjectRecord, String>((ref, subjectId) async {
+  return PortalSubjectRecord.fromJson(
+    await _get(
+      ref,
+      '/api/student/subjects/${Uri.encodeComponent(subjectId)}/record',
+      query: _termQuery(ref),
+    ),
+  );
 });
 
 final studentAttendanceProvider = FutureProvider.autoDispose<PortalAttendance>((ref) async {

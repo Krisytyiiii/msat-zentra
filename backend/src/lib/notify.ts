@@ -102,6 +102,7 @@ const TYPE_MAP: Record<string, string> = {
   "grade_flags:resolve": "grade_flag_resolved",
   "grade_flags:resolve_self": "grade_flag_resolved_self",
   "advisory_module_submissions:submit": "module_submitted",
+  "student_roster:link": "account_linked",
 };
 
 export function deriveNotifType(sourceTable: string, action: string): string {

@@ -532,6 +532,13 @@ model StudentRoster {
   // Term the learner was enlisted in. Null = legacy row created before this
   // column existed; treated as "not newly enlisted", never as "new this term".
   enlistedTermId String?
+  // School-issued link code (e.g. LNK-7K2Q9), shown to the adviser/registry
+  // desk and handed to the learner's family. Not consumed on first use: the
+  // learner redeems it for placement and each guardian redeems it for a link
+  // request. Revoking sets `linkCodeRevokedAt`; minting again clears it.
+  linkCode          String?   @unique
+  linkCodeIssuedAt  DateTime?
+  linkCodeRevokedAt DateTime?
   section      Section    @relation(fields: [sectionId], references: [id], onDelete: Cascade)
   enlistedTerm Term?      @relation("RosterEnlistTerm", fields: [enlistedTermId], references: [id])
   schoolYear   SchoolYear @relation(fields: [schoolYearId], references: [id], onDelete: Cascade)

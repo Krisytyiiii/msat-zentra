@@ -41,6 +41,8 @@ import adminRoutes from "./modules/admin/admin.routes.js";
 import adminScheduleRoutes from "./modules/admin/schedule.routes.js";
 import sessionsRoutes from "./modules/sessions/sessions.routes.js";
 import studentRoutes from "./modules/student/modules.routes.js";
+import studentPortalRoutes from "./modules/student/portal.routes.js";
+import parentPortalRoutes from "./modules/parent/portal.routes.js";
 
 export function createApp() {
   const env = getEnv();
@@ -117,6 +119,8 @@ app.use("/api/teacher", termContextRoutes);
   app.use("/api/admin/schedule", adminScheduleRoutes);
   app.use("/api/my-sessions", sessionsRoutes);
   app.use("/api/student", studentRoutes);
+  app.use("/api/student", studentPortalRoutes);
+  app.use("/api/parent", parentPortalRoutes);
 
   app.use(notFound);
   app.use(errorHandler);

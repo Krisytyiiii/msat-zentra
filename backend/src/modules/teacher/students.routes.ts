@@ -16,6 +16,7 @@ import {
   getStudentDetail,
   getStudents,
 } from "../../services/advisory/students.service.js";
+import { rotateLearnerLinkCode } from "../../services/advisory/roster.service.js";
 
 const router = Router();
 
@@ -78,6 +79,22 @@ router.get(
         view === "list"
           ? await getAdvisoryIdentityList(ctx)
           : await getStudents(ctx),
+      );
+    } catch (e) {
+      next(e);
+    }
+  }
+);
+
+router.post(
+  "/students/:lrn/link-code",
+  requireAuth,
+  requireRole(...TEACHER_ROLES),
+  async (req, res, next) => {
+    try {
+      const ctx = await schoolYearCtxOf(req);
+      res.json(
+        await rotateLearnerLinkCode(ctx, String(req.params.lrn ?? "").trim(), ctx.schoolYearId),
       );
     } catch (e) {
       next(e);

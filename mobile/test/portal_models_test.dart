@@ -106,4 +106,86 @@ void main() {
     expect(summary.hasMarks, isFalse);
     expect(summary.percent, 100, reason: 'rate stays 1 for legacy payloads');
   });
+
+  test('grades list carries every subject, including ones with no final yet', () {
+    final grades = PortalGrades.fromJson({
+      'term': {'id': 't1', 'termNumber': 2, 'schoolYearId': 'y1', 'schoolYearName': 'SY 2026-2027'},
+      'grades': [
+        {
+          'id': 'subject:sub-2',
+          'subjectId': 'sub-2',
+          'subjectName': 'Math',
+          'subjectCode': 'MATH7',
+          'teacherName': 'Cindy Senso',
+          'lockStatus': 'unlocked',
+          'isFinal': false,
+        },
+        {
+          'id': 'g1',
+          'subjectId': 'sub-1',
+          'subjectName': 'Aral Pan',
+          'subjectCode': 'AP7',
+          'transmutedGrade': 91,
+          'lockStatus': 'locked',
+          'isFinal': true,
+        },
+      ],
+    });
+    expect(grades.grades, hasLength(2));
+    expect(grades.grades.first.teacherName, 'Cindy Senso');
+    expect(grades.grades.first.isFinal, isFalse);
+    expect(grades.grades.last.transmutedGrade, 91);
+  });
+
+  test('subject record parses components, scores and final state', () {
+    final record = PortalSubjectRecord.fromJson({
+      'subject': {'id': 'sub-1', 'name': 'Aral Pan', 'code': 'AP7'},
+      'section': {'id': 'sec-1', 'name': 'Rizal', 'gradeLevel': 'G7'},
+      'term': {'id': 't1', 'termNumber': 2, 'schoolYearId': 'y1', 'schoolYearName': 'SY 2026-2027'},
+      'components': [
+        {
+          'id': 'c1',
+          'type': 'WRITTEN_WORK',
+          'label': 'WW',
+          'weight': 15,
+          'earned': 38,
+          'possible': 50,
+          'percentage': 76,
+          'assessments': [
+            {
+              'id': 'a1',
+              'title': 'Quiz 1',
+              'maxScore': 20,
+              'dateGiven': '2026-11-20T00:00:00.000Z',
+              'rawScore': 18,
+              'percentage': 90,
+            },
+            {
+              'id': 'a2',
+              'title': 'Quiz 2',
+              'maxScore': 30,
+              'dateGiven': null,
+              'rawScore': null,
+              'percentage': null,
+            },
+          ],
+        },
+      ],
+      'final': {
+        'computedAverage': 88.5,
+        'transmutedGrade': 90,
+        'remarks': 'Passed',
+        'lockStatus': 'locked',
+        'isFinal': true,
+      },
+    });
+
+    expect(record.subjectName, 'Aral Pan');
+    expect(record.sectionName, 'Rizal');
+    expect(record.components.single.assessments, hasLength(2));
+    expect(record.components.single.assessments.first.rawScore, 18);
+    expect(record.components.single.assessments.last.rawScore, isNull);
+    expect(record.isFinal, isTrue);
+    expect(record.transmutedGrade, 90);
+  });
 }

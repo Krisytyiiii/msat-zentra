@@ -56,6 +56,8 @@ export async function getStudents(ctx: AdvisoryContext) {
           sectionId: true,
           learnerType: true,
           createdAt: true,
+          linkCode: true,
+          linkCodeRevokedAt: true,
           section: { select: { name: true } },
         },
         orderBy: { fullName: "asc" },
@@ -93,6 +95,11 @@ export async function getStudents(ctx: AdvisoryContext) {
   const visibleRosterEntries = rosterEntries.filter((r) => !archivedRosterIds.has(r.id));
   const registeredLrns = new Set(visibleAdvisees.map((s) => s.lrn));
   const rosterOnly = visibleRosterEntries.filter((r) => !registeredLrns.has(r.lrn));
+  // The code lives on the roster row; an account row shows the same slip so a
+  // learner who is already placed can still share it with a guardian later.
+  const linkCodeByLrn = new Map(
+    visibleRosterEntries.map((r) => [r.lrn, r.linkCode ?? null]),
+  );
   const rosterIds = rosterOnly.map((r) => r.id);
   const profileIds = visibleAdvisees.map((s) => s.userId);
 
@@ -271,6 +278,7 @@ export async function getStudents(ctx: AdvisoryContext) {
         studentId: s.userId,
         name: s.user.fullName,
         lrn: s.lrn,
+        linkCode: linkCodeByLrn.get(s.lrn) ?? null,
         mascot: s.mascot ?? null,
         birthdate: s.birthdate,
         gender: s.gender,
@@ -323,6 +331,7 @@ export async function getStudents(ctx: AdvisoryContext) {
         studentId: key,
         name: r.fullName,
         lrn: r.lrn,
+        linkCode: r.linkCode ?? null,
         mascot: r.mascot ?? null,
         birthdate: null,
         gender: null,
@@ -403,6 +412,7 @@ export async function getAdvisoryIdentityList(ctx: AdvisoryContext) {
         mascot: true,
         sectionId: true,
         learnerType: true,
+        linkCode: true,
         section: { select: { name: true } },
       },
       orderBy: { fullName: "asc" },
@@ -427,11 +437,15 @@ export async function getAdvisoryIdentityList(ctx: AdvisoryContext) {
 
   // The risk/grade fields are intentionally blank: the insight panel loads the
   // selected learner's live figures from its own endpoint.
+  const linkCodeByLrn = new Map(
+    visibleRosterEntries.map((r) => [r.lrn, r.linkCode ?? null]),
+  );
   const students = [
     ...visibleAdvisees.map((s) => ({
       studentId: s.userId,
       name: s.user.fullName,
       lrn: s.lrn,
+      linkCode: linkCodeByLrn.get(s.lrn) ?? null,
       mascot: s.mascot ?? null,
       birthdate: s.birthdate,
       gender: s.gender,
@@ -453,6 +467,7 @@ export async function getAdvisoryIdentityList(ctx: AdvisoryContext) {
       studentId: `roster:${r.id}`,
       name: r.fullName,
       lrn: r.lrn,
+      linkCode: r.linkCode ?? null,
       mascot: r.mascot ?? null,
       birthdate: null,
       gender: null,

@@ -281,6 +281,7 @@ class PortalGrade {
   final String subjectId;
   final String subjectName;
   final String subjectCode;
+  final String? teacherName;
   final double? computedAverage;
   final double? transmutedGrade;
   final String? remarks;
@@ -291,6 +292,7 @@ class PortalGrade {
     required this.subjectId,
     required this.subjectName,
     required this.subjectCode,
+    this.teacherName,
     this.computedAverage,
     this.transmutedGrade,
     this.remarks,
@@ -302,6 +304,7 @@ class PortalGrade {
         subjectId: j['subjectId'] as String? ?? '',
         subjectName: j['subjectName'] as String? ?? '',
         subjectCode: j['subjectCode'] as String? ?? '',
+        teacherName: j['teacherName'] as String?,
         computedAverage: (j['computedAverage'] as num?)?.toDouble(),
         transmutedGrade: (j['transmutedGrade'] as num?)?.toDouble(),
         remarks: j['remarks'] as String?,
@@ -618,6 +621,117 @@ class PortalGrades {
         term: j['term'] is Map ? PortalTerm.fromJson(Map<String, dynamic>.from(j['term'] as Map)) : null,
         grades: [for (final x in (j['grades'] as List? ?? [])) PortalGrade.fromJson(Map<String, dynamic>.from(x as Map))],
       );
+}
+
+// ---------------------------------------------------------------------------
+// Learner subject record (assessment scores) — GET /api/student/subjects/:id/record
+// ---------------------------------------------------------------------------
+
+class PortalSubjectAssessment {
+  final String id;
+  final String title;
+  final double maxScore;
+  final String? dateGiven;
+  final double? rawScore;
+  final double? percentage;
+
+  PortalSubjectAssessment({
+    required this.id,
+    required this.title,
+    required this.maxScore,
+    this.dateGiven,
+    this.rawScore,
+    this.percentage,
+  });
+
+  factory PortalSubjectAssessment.fromJson(Map<String, dynamic> j) => PortalSubjectAssessment(
+        id: j['id'] as String? ?? '',
+        title: j['title'] as String? ?? '',
+        maxScore: (j['maxScore'] as num?)?.toDouble() ?? 0,
+        dateGiven: j['dateGiven'] as String?,
+        rawScore: (j['rawScore'] as num?)?.toDouble(),
+        percentage: (j['percentage'] as num?)?.toDouble(),
+      );
+}
+
+class PortalSubjectComponent {
+  final String id;
+  final String type;
+  final String label;
+  final double weight;
+  final double earned;
+  final double possible;
+  final double? percentage;
+  final List<PortalSubjectAssessment> assessments;
+
+  PortalSubjectComponent({
+    required this.id,
+    required this.type,
+    required this.label,
+    required this.weight,
+    required this.earned,
+    required this.possible,
+    this.percentage,
+    required this.assessments,
+  });
+
+  factory PortalSubjectComponent.fromJson(Map<String, dynamic> j) => PortalSubjectComponent(
+        id: j['id'] as String? ?? '',
+        type: j['type'] as String? ?? '',
+        label: j['label'] as String? ?? '',
+        weight: (j['weight'] as num?)?.toDouble() ?? 0,
+        earned: (j['earned'] as num?)?.toDouble() ?? 0,
+        possible: (j['possible'] as num?)?.toDouble() ?? 0,
+        percentage: (j['percentage'] as num?)?.toDouble(),
+        assessments: [
+          for (final x in (j['assessments'] as List? ?? []))
+            PortalSubjectAssessment.fromJson(Map<String, dynamic>.from(x as Map)),
+        ],
+      );
+}
+
+class PortalSubjectRecord {
+  final String subjectId;
+  final String subjectName;
+  final String subjectCode;
+  final String? sectionName;
+  final String? gradeLevel;
+  final PortalTerm? term;
+  final List<PortalSubjectComponent> components;
+  final Map<String, dynamic>? finalGrade;
+
+  PortalSubjectRecord({
+    required this.subjectId,
+    required this.subjectName,
+    required this.subjectCode,
+    this.sectionName,
+    this.gradeLevel,
+    this.term,
+    required this.components,
+    this.finalGrade,
+  });
+
+  bool get isFinal => finalGrade?['isFinal'] == true;
+  double? get transmutedGrade => (finalGrade?['transmutedGrade'] as num?)?.toDouble();
+  double? get computedAverage => (finalGrade?['computedAverage'] as num?)?.toDouble();
+
+  factory PortalSubjectRecord.fromJson(Map<String, dynamic> j) {
+    final subject = j['subject'] is Map ? Map<String, dynamic>.from(j['subject'] as Map) : const <String, dynamic>{};
+    final section = j['section'] is Map ? Map<String, dynamic>.from(j['section'] as Map) : const <String, dynamic>{};
+    return PortalSubjectRecord(
+      subjectId: subject['id']?.toString() ?? '',
+      subjectName: subject['name']?.toString() ?? '',
+      subjectCode: subject['code']?.toString() ?? '',
+      sectionName: section['name']?.toString(),
+      gradeLevel: section['gradeLevel']?.toString(),
+      term: j['term'] is Map ? PortalTerm.fromJson(Map<String, dynamic>.from(j['term'] as Map)) : null,
+      components: [
+        for (final x in (j['components'] as List? ?? []))
+          PortalSubjectComponent.fromJson(Map<String, dynamic>.from(x as Map)),
+      ],
+      finalGrade: j['final'] is Map ? Map<String, dynamic>.from(j['final'] as Map) : null,
+    );
+  }
 }
 
 class PortalSchedule {

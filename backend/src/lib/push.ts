@@ -103,6 +103,7 @@ export function pushTitle(type: string, sourceTable?: string | null): string {
     sf10_access_decision: "SF10 access decision",
     account_approval: "Account approved",
     account_pending: "New account awaiting approval",
+    account_linked: "Learner linked to a class",
     finals_ready: "Finals ready",
     grade_locked: "Grades locked",
     grade_flag_opened: "Grade flag opened",

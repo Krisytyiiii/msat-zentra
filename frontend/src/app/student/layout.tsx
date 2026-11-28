@@ -2,7 +2,7 @@
 
 import * as React from "react";
 import Link from "next/link";
-import { useRouter } from "next/navigation";
+import { usePathname, useRouter } from "next/navigation";
 import { useQueryClient } from "@tanstack/react-query";
 import { LogOut } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -10,12 +10,24 @@ import { Pill } from "@/components/ui/pill";
 import { Skeleton } from "@/components/ui/skeleton";
 import { logout } from "@/lib/api/client";
 import { useRoleGuard } from "@/lib/auth/useRoleGuard";
+import { useStudentMe } from "@/services/student/portal.service";
 
 const STUDENT_ROLES = ["student"] as const;
 
 function StudentShell({ children }: { children: React.ReactNode }) {
   const router = useRouter();
+  const pathname = usePathname();
   const queryClient = useQueryClient();
+  const me = useStudentMe();
+  const isConnect = pathname === "/student/connect";
+  // An active account with no class yet is sent to the code gate instead of
+  // rendering empty desks. A failed /me (e.g. 403) never blocks the page.
+  const unplaced = !isConnect && me.data != null && me.data.placement.state !== "placed";
+  const waitingForPlacement = !isConnect && (me.isPending || unplaced);
+
+  React.useEffect(() => {
+    if (unplaced) router.replace("/student/connect");
+  }, [unplaced, router]);
 
   const handleLogout = () => {
     void logout();
@@ -51,7 +63,16 @@ function StudentShell({ children }: { children: React.ReactNode }) {
           </div>
         </div>
       </header>
-      <main className="mx-auto w-full max-w-5xl flex-1 px-4 py-5">{children}</main>
+      <main className="mx-auto w-full max-w-5xl flex-1 px-4 py-5">
+        {waitingForPlacement ? (
+          <div className="flex flex-col gap-3" aria-busy="true">
+            <Skeleton className="h-7 w-40" />
+            <Skeleton className="h-40 w-full rounded-md" />
+          </div>
+        ) : (
+          children
+        )}
+      </main>
     </div>
   );
 }

@@ -47,27 +47,66 @@ export async function getLearnerMe(studentId: string) {
 }
 
 export async function getLearnerGrades(studentId: string, term: PortalTerm) {
-  const rows = await prisma.finalGrade.findMany({
-    where: { studentId, termId: term.id },
-    orderBy: { subject: { name: "asc" } },
-    select: {
-      id: true,
-      computedAverage: true,
-      transmutedGrade: true,
-      remarks: true,
-      lockStatus: true,
-      finalizedAt: true,
-      adviserApprovedAt: true,
-      subject: { select: { id: true, name: true, code: true } },
-    },
-  });
-  return {
-    term,
-    grades: rows.map((g) => ({
+  const sectionId = await learnerSectionForTerm(studentId, term);
+  const [rows, grid] = await Promise.all([
+    prisma.finalGrade.findMany({
+      where: { studentId, termId: term.id },
+      orderBy: { subject: { name: "asc" } },
+      select: {
+        id: true,
+        computedAverage: true,
+        transmutedGrade: true,
+        remarks: true,
+        lockStatus: true,
+        finalizedAt: true,
+        adviserApprovedAt: true,
+        subject: { select: { id: true, name: true, code: true } },
+      },
+    }),
+    // Every subject the learner actually has this term, not only those with a
+    // final row: the learner's Grades desk lists the whole class load.
+    sectionId
+      ? prisma.sectionTimetableEntry.findMany({
+          where: { sectionId, termId: term.id, status: "APPROVED" },
+          select: {
+            subjectId: true,
+            subject: { select: { id: true, name: true, code: true } },
+            teacherName: { select: { name: true } },
+          },
+        })
+      : Promise.resolve([]),
+  ]);
+
+  const teacherBySubject = new Map<string, string | null>();
+  for (const entry of grid) {
+    teacherBySubject.set(entry.subjectId, entry.teacherName?.name ?? null);
+  }
+
+  const bySubject = new Map<
+    string,
+    {
+      id: string;
+      subjectId: string;
+      subjectName: string;
+      subjectCode: string;
+      teacherName: string | null;
+      computedAverage: number | null;
+      transmutedGrade: number | null;
+      remarks: string | null;
+      lockStatus: string;
+      isFinal: boolean;
+      finalizedAt: string | null;
+      adviserApprovedAt: string | null;
+    }
+  >();
+
+  for (const g of rows) {
+    bySubject.set(g.subject.id, {
       id: g.id,
       subjectId: g.subject.id,
       subjectName: g.subject.name,
       subjectCode: g.subject.code,
+      teacherName: teacherBySubject.get(g.subject.id) ?? null,
       computedAverage: g.computedAverage,
       transmutedGrade: g.transmutedGrade,
       remarks: g.remarks,
@@ -76,7 +115,31 @@ export async function getLearnerGrades(studentId: string, term: PortalTerm) {
       isFinal: isFinalLock(g.lockStatus),
       finalizedAt: iso(g.finalizedAt),
       adviserApprovedAt: iso(g.adviserApprovedAt),
-    })),
+    });
+  }
+  for (const entry of grid) {
+    if (bySubject.has(entry.subjectId)) continue;
+    bySubject.set(entry.subjectId, {
+      id: `subject:${entry.subjectId}`,
+      subjectId: entry.subject.id,
+      subjectName: entry.subject.name,
+      subjectCode: entry.subject.code,
+      teacherName: entry.teacherName?.name ?? null,
+      computedAverage: null,
+      transmutedGrade: null,
+      remarks: null,
+      lockStatus: "unlocked",
+      isFinal: false,
+      finalizedAt: null,
+      adviserApprovedAt: null,
+    });
+  }
+
+  return {
+    term,
+    grades: [...bySubject.values()].sort((a, b) =>
+      a.subjectName.localeCompare(b.subjectName),
+    ),
   };
 }
 
