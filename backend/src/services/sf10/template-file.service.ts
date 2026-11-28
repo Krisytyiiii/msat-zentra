@@ -25,6 +25,7 @@ import { fileURLToPath } from "node:url";
 
 import { logger } from "../../lib/pino.js";
 import { classifyShsSubject, normalizeSubjectCategory, shsCategoryTag } from "./subject-category.js";
+import { matchSingleSubject } from "./subject-aliases.js";
 import { convertXlsxToPdf } from "./xlsx-to-pdf.service.js";
 
 type ExcelJSModule = typeof import("exceljs");
@@ -861,6 +862,175 @@ function writeShsSemester(
     writeCell(ws, row, SHS_QUARTER_COLS[0], filled.quarters[quarterOffset] ?? null);
     writeCell(ws, row, SHS_QUARTER_COLS[1], filled.quarters[quarterOffset + 1] ?? null);
   }
+}
+
+/* --------------------------- SHS workbook patch --------------------------- */
+
+/** One grade-bearing row an auto-fill run wants written into an SHS record. */
+export interface ShsPatchRow {
+  norm: string;
+  rawName?: string;
+  gradeLevel: string;
+  quarters?: Array<number | null> | null;
+  rating?: number | null;
+  remarks?: string | null;
+  category?: string | null;
+}
+
+export interface ShsPatchHeader {
+  sectionName?: string | null;
+  schoolYear?: string | null;
+}
+
+/** True when the workbook is DepEd's SF10-SHS form (FRONT/BACK record sheets). */
+export function isShsRecordWorkbook(wb: Workbook): boolean {
+  const front = wb.getWorksheet("FRONT");
+  const back = wb.getWorksheet("BACK");
+  if (!front || !back) return false;
+  const marker = [
+    cellText(front.getCell(1, 60).value),
+    cellText(back.getCell(1, 60).value),
+    cellText(front.getCell(2, 1).value),
+  ].join(" ");
+  return /SF10-SHS|SENIOR HIGH SCHOOL/i.test(marker);
+}
+
+/**
+ * Patch an already-loaded SF10-SHS workbook the way an adviser's auto-fill
+ * should: add/refresh only the current run's subject rows on their own grade
+ * sheet and semester, and leave every existing grade row (and every formula)
+ * exactly as it was. Registry uploads of the SHS form are the official blank
+ * template, so a name-matched block never exists — rows are placed in the next
+ * empty subject line of the semester being written.
+ *
+ * The SHS book is formula-driven and ships cached sample results (100s in SEM
+ * FINAL GRADE / ACTION TAKEN); drop every cached result and flag a full
+ * recalc so the printer computes the learner's totals instead of the sample.
+ *
+ * Returns false when the workbook is not the SHS form or nothing was written.
+ */
+export function patchShsRecordWorkbook(
+  wb: Workbook,
+  filled: ShsPatchRow[],
+  header?: ShsPatchHeader,
+): boolean {
+  if (!isShsRecordWorkbook(wb)) return false;
+  let changed = false;
+
+  // The template's generic sample rows are never the learner's data; a student
+  // who already has an earlier grade (G11) on the form must not print the
+  // template's phantom "SUBJECTS" row beside it.
+  for (const sheet of Object.values(SHS_RECORD_SHEETS)) {
+    const ws = wb.getWorksheet(sheet.sheet);
+    if (!ws) continue;
+    for (const block of sheet.semesters) clearShsPlaceholderRows(ws, block);
+  }
+
+  for (const [gradeKey, sheet] of Object.entries(SHS_RECORD_SHEETS)) {
+    const rows = filled.filter((r) => r.gradeLevel === gradeKey);
+    if (rows.length === 0) continue;
+    const ws = wb.getWorksheet(sheet.sheet);
+    if (!ws) continue;
+
+    for (const row of rows) {
+      const quarters = row.quarters ?? [];
+      // Terms 1–2 are the first semester (Q1/Q2), term 3 the second (Q3);
+      // Q4 stays blank on a trimestral record.
+      const block =
+        quarters[0] != null || quarters[1] != null
+          ? sheet.semesters[0]
+          : quarters[2] != null
+            ? sheet.semesters[1]
+            : null;
+      if (!block) continue;
+      const offset = block.semester === "1ST" ? 0 : 2;
+
+      writeShsPatchHeader(ws, block, sheet, header);
+
+      let target = -1;
+      for (let i = 0; i < block.subjectRows; i += 1) {
+        const rowNumber = block.subjectStart + i;
+        const text = cellText(ws.getCell(rowNumber, SHS_SUBJECT_COL).value);
+        if (!text) continue;
+        const hit = matchSingleSubject(text);
+        if ((hit?.norm ?? text.toLowerCase()) === row.norm) {
+          target = rowNumber;
+          break;
+        }
+      }
+      if (target < 0) {
+        for (let i = 0; i < block.subjectRows; i += 1) {
+          const rowNumber = block.subjectStart + i;
+          if (!cellText(ws.getCell(rowNumber, SHS_SUBJECT_COL).value)) {
+            target = rowNumber;
+            break;
+          }
+        }
+      }
+      // The semester's 12 subject lines are full — never shift rows, that
+      // breaks the form's shared formulas.
+      if (target < 0) continue;
+
+      const subjectName = (row.rawName || row.norm).trim();
+      if (subjectName && !cellText(ws.getCell(target, SHS_SUBJECT_COL).value)) {
+        writeCell(ws, target, SHS_SUBJECT_COL, subjectName);
+      }
+      if (!cellText(ws.getCell(target, SHS_TAG_COL).value)) {
+        const category =
+          normalizeSubjectCategory(row.category) ?? classifyShsSubject(subjectName);
+        writeCell(ws, target, SHS_TAG_COL, shsCategoryTag(category));
+      }
+      const first = quarters[offset];
+      const second = quarters[offset + 1];
+      if (first != null) writeCell(ws, target, SHS_QUARTER_COLS[0], first);
+      if (second != null) writeCell(ws, target, SHS_QUARTER_COLS[1], second);
+      changed = true;
+    }
+  }
+
+  if (!changed) return false;
+  applyShsPrintSetup(wb);
+  for (const sheet of wb.worksheets) dropFormulaResults(sheet);
+  wb.calcProperties.fullCalcOnLoad = true;
+  return true;
+}
+
+/**
+ * The official SHS template ships sample subject rows ("MATH", "SUBJECTS")
+ * with sample grades. They are not the learner's data, so a semester table the
+ * patch writes into must not print them as phantom rows. Only the generic
+ * placeholder label is cleared — a real subject row (e.g. MATH) is kept.
+ */
+function clearShsPlaceholderRows(ws: Worksheet, block: ShsSemesterBlock): void {
+  for (let i = 0; i < block.subjectRows; i += 1) {
+    const rowNumber = block.subjectStart + i;
+    const text = cellText(ws.getCell(rowNumber, SHS_SUBJECT_COL).value).trim().toUpperCase();
+    if (text !== "SUBJECTS" && text !== "SUBJECT") continue;
+    writeCell(ws, rowNumber, SHS_TAG_COL, null);
+    writeCell(ws, rowNumber, SHS_SUBJECT_COL, null);
+    writeCell(ws, rowNumber, SHS_QUARTER_COLS[0], null);
+    writeCell(ws, rowNumber, SHS_QUARTER_COLS[1], null);
+  }
+}
+
+/** Fill a semester block's scholastic header where the upload left it blank. */
+function writeShsPatchHeader(
+  ws: Worksheet,
+  block: ShsSemesterBlock,
+  sheet: ShsRecordSheet,
+  header?: ShsPatchHeader,
+): void {
+  const fill = (row: number, col: number, value: string | null | undefined) => {
+    if (!value) return;
+    if (cellText(ws.getCell(row, col).value)) return;
+    writeCell(ws, row, col, value);
+  };
+  fill(block.headerRow, SHS_HEADER_CELLS.school, SCHOOL_NAME);
+  fill(block.headerRow, SHS_HEADER_CELLS.schoolId, SCHOOL_ID);
+  fill(block.headerRow, SHS_HEADER_CELLS.gradeLevel, sheet.gradeNumber);
+  fill(block.headerRow, SHS_HEADER_CELLS.schoolYear, header?.schoolYear ?? null);
+  fill(block.headerRow, SHS_HEADER_CELLS.semester, block.semester);
+  fill(block.trackRow, SHS_HEADER_CELLS.section, header?.sectionName ?? null);
 }
 
 /* ----------------------------- SHS print setup ---------------------------- */

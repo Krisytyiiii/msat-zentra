@@ -17,7 +17,7 @@ const ALIAS_TO_CANONICAL: Array<[canonical: string, aliases: string[]]> = [
   ["earth and life science", ["earth and life science"]],
   ["earth science", ["earth science"]],
   ["physical science", ["physical science"]],
-  ["araling panlipunan", ["araling panlipunan", "ap"]],
+  ["araling panlipunan", ["araling panlipunan", "aral pan", "aralpan", "ap"]],
   ["understanding culture society and politics", ["understanding culture society and politics", "ucsp"]],
   ["contemporary philippine arts", ["contemporary philippine arts"]],
   ["edukasyon sa pagpapakatao", ["edukasyon sa pagpapakatao", "esp", "edukasyon sa pagpapahalaga"]],
@@ -92,8 +92,10 @@ export function extractRemark(text: string): string | null {
 /**
  * Split an ordered number list (column order) into quarterlies + final:
  * - 5+: quarters = first 4, final = 5th.
+ * - exactly 4: quarters = all 4, final unknown (the FINAL RATING column is
+ *   blank on forms whose quarters are all the learner has).
  * - exactly 1: quarters unknown (null), final = it.
- * - 2–4: quarters unknown (null), final = last.
+ * - 2–3: quarters unknown (null), final = last.
  */
 export function splitQuartersFinal(numbers: number[]): {
   quarters: Array<number | null> | null;
@@ -102,6 +104,7 @@ export function splitQuartersFinal(numbers: number[]): {
   if (numbers.length === 0) return { quarters: null, final: null };
   if (numbers.length === 1) return { quarters: null, final: numbers[0] };
   if (numbers.length >= 5) return { quarters: numbers.slice(0, 4), final: numbers[4] };
+  if (numbers.length === 4) return { quarters: numbers.slice(), final: null };
   return { quarters: null, final: numbers[numbers.length - 1] };
 }
 
@@ -251,7 +254,7 @@ export function isNonSubjectRow(text: string): boolean {
  * carry numbers (IDs, dates) but are never learning areas.
  */
 const UNKNOWN_SUBJECT_BLOCK =
-  /classified\s*as\s*grade|school|section|adviser|signature|division|district|region|address|certif|principal|republic|department/i;
+  /classified\s*as\s*grade|school|section|adviser|signature|division|district|region|address|certif|principal|republic|department|^page\s+\d|sf\s*-?\s*10/i;
 
 export function isBlockedUnknownRow(text: string): boolean {
   return isNonSubjectRow(text) || UNKNOWN_SUBJECT_BLOCK.test(text);
@@ -277,8 +280,11 @@ export function matchSingleSubjectSpan(
   text: string,
 ): { label: string; norm: string; index: number; length: number } | null {
   const lowered = ` ${text.toLowerCase()} `;
-  // Skip obvious non-subject rows.
-  if (isNonSubjectRow(text)) {
+  // Skip obvious non-subject rows AND administrative metadata (school name,
+  // address, section, adviser…). Without this a school name such as
+  // "MATI SCHOOL OF ARTS AND TRADES" reads as MAPEH because of the "ARTS"
+  // alias, polluting every upload with a phantom subject.
+  if (isBlockedUnknownRow(text)) {
     return null;
   }
   for (const p of getSubjectPatterns()) {
@@ -372,13 +378,6 @@ export function extractRatedSubjectsFromText(text: string): RatedSubjectCandidat
       afterSubject = line.slice(numAt + (gradeTail ? gradeTail[0].length : 0));
     }
     const hit = { rawName, norm };
-    // Unknown learning areas need real quarterly grades, not a lone number.
-    if (!span) {
-      const probe = (afterSubject.match(/\d{1,3}(?:\.\d+)?/g) ?? [])
-        .map((n) => parseRating(n))
-        .filter((v): v is number => v !== null);
-      if (probe.length < 3) continue;
-    }
     const withoutGrade = afterSubject.replace(/20\d{2}(\s*[-–]\s*\d{2,4})?/g, " ");
     const numbers = (withoutGrade.match(/\d{1,3}(?:\.\d+)?/g) ?? [])
       .map((n) => parseRating(n))
@@ -391,6 +390,13 @@ export function extractRatedSubjectsFromText(text: string): RatedSubjectCandidat
     if (numbers.length === 1 && currentGrade) {
       const only = numbers[0];
       if (only === Number(currentGrade.slice(1))) parsed = { quarters: null, final: null };
+    }
+    // Unknown learning areas need at least one real grade: a printed FINAL
+    // RATING is enough (one quarter may be all the learner has), otherwise
+    // require real quarterlies. Never accept a lone date/section number.
+    if (!span) {
+      const qCount = (parsed.quarters ?? []).filter((q): q is number => typeof q === "number").length;
+      if (parsed.final === null && qCount < 3) continue;
     }
     const key = `${currentGrade ?? "?"}|${hit.norm}|${hit.rawName.toUpperCase()}`;
     const existing = found.get(key);

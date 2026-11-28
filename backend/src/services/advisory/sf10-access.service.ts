@@ -159,6 +159,35 @@ interface LrnMatch {
   } | null;
 }
 
+interface Sf10RecordPick {
+  lrn: string;
+  desk: string;
+}
+
+/**
+ * The record the advisory desk should read for a section: the one filed by the
+ * desk that owns the section's grade band (G7–10 → record keeper, G11–12 →
+ * registrar). The SF10 store is keyed by `[lrn, desk]`, so a learner can carry
+ * a record on both desks (a legacy/manual upload on the other desk) — reading
+ * "the first one" showed a stale record with no auto-fill renders while Bama
+ * filed versions on the banded record. Same rule as `recordFor` in
+ * `sf10-autofill.service.ts`, so the desk and the autofill always agree.
+ */
+function pickRecordForGrade<T extends Sf10RecordPick>(
+  records: T[],
+  gradeLevel: string | null | undefined,
+): T | null {
+  if (records.length === 0) return null;
+  if (gradeLevel) {
+    const desk = (GRADE_BAND_7_10 as string[]).includes(gradeLevel)
+      ? "record_keeper"
+      : "registrar";
+    const match = records.find((r) => r.desk === desk);
+    if (match) return match;
+  }
+  return records[0] ?? null;
+}
+
 /**
  * LRN-first matching: advisory LRNs come from the section (profiles + roster),
  * but the SF10 lookup runs by LRN across ALL profiles — a record counts even
@@ -169,6 +198,7 @@ async function matchAdvisoryLrns(
   sectionId: string,
   onlyLrns: Set<string>,
   sectionName: string,
+  sectionGradeLevel?: string | null,
 ): Promise<LrnMatch[]> {
   const archivedLearners = await archivedAdvisoryLearnerIds();
   const [sectionProfiles, rosterEntries] = await Promise.all([
@@ -212,6 +242,7 @@ async function matchAdvisoryLrns(
       select: {
         lrn: true,
         id: true,
+        desk: true,
         source: true,
         status: true,
         uploadedFileUrl: true,
@@ -231,15 +262,18 @@ async function matchAdvisoryLrns(
     }),
   ]);
   const byGlobal = new Map(global.map((g) => [g.lrn, g]));
-  const recByLrn = new Map<string, (typeof records)[number]>();
+  const recordsByLrn = new Map<string, (typeof records)[number][]>();
   for (const rec of records) {
-    if (!recByLrn.has(rec.lrn)) recByLrn.set(rec.lrn, rec);
+    const list = recordsByLrn.get(rec.lrn) ?? [];
+    list.push(rec);
+    recordsByLrn.set(rec.lrn, list);
   }
 
   return lrns.sort().map((lrn) => {
     const ident = identity.get(lrn)!;
     const g = byGlobal.get(lrn);
-    const rec = recByLrn.get(lrn) ?? null;
+    const rec =
+      pickRecordForGrade(recordsByLrn.get(lrn) ?? [], sectionGradeLevel) ?? null;
     return {
       lrn,
       name: ident.name ?? g?.user.fullName ?? lrn,
@@ -461,13 +495,18 @@ export async function createAccessRequest(
 export async function listOwnedFirstSf10(userId: string): Promise<{ hasSf10: HasRow[] }> {
   const sections = await prisma.section.findMany({
     where: { adviserId: userId, gradeLevel: { in: ["G7", "G11"] } },
-    select: { id: true, name: true },
+    select: { id: true, name: true, gradeLevel: true },
     orderBy: { name: "asc" },
   });
   const hasSf10: HasRow[] = [];
   const seen = new Set<string>();
   for (const section of sections) {
-    const rows = await matchAdvisoryLrns(section.id, new Set(), section.name);
+    const rows = await matchAdvisoryLrns(
+      section.id,
+      new Set(),
+      section.name,
+      String(section.gradeLevel),
+    );
     for (const row of rows) {
       if (!row.rec || seen.has(row.lrn)) continue;
       seen.add(row.lrn);
@@ -591,7 +630,12 @@ export async function getMySf10History(
     if (!granted) throw new AppError(403, "FORBIDDEN", "SF10 access for this learner is not approved");
   }
 
-  const rows = await matchAdvisoryLrns(section.id, new Set([lrn]), section.name);
+  const rows = await matchAdvisoryLrns(
+    section.id,
+    new Set([lrn]),
+    section.name,
+    String(section.gradeLevel),
+  );
   const row = rows[0];
   if (!row) throw new AppError(404, "NOT_FOUND", "Learner is not on this advisory section");
 
@@ -671,7 +715,12 @@ export async function getMyVerification(userId: string, requestId: string): Prom
       ).get(request.section.schoolYearId) ?? []
     : [];
 
-  const rows = await matchAdvisoryLrns(sectionId, picked, sectionName);
+  const rows = await matchAdvisoryLrns(
+    sectionId,
+    picked,
+    sectionName,
+    String(request.gradeLevel),
+  );
   const hasSf10: HasRow[] = [];
   const missingSf10: MissingRow[] = [];
 

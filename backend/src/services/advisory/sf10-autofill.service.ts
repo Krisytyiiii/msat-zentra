@@ -700,6 +700,9 @@ export async function runAutofill(
           },
           // Grade 7 / Grade 11 skip the registry grant on their own sections.
           skipAdviserAccessCheck: fillsWithoutGrant(student.gradeLevel),
+          // The caller already proved they advise this section; the record's
+          // stored grade (G11 on the SHS form) is not the grade being filled.
+          skipGradeBandCheck: true,
         },
       );
       if (write.wasVerified) {
@@ -898,6 +901,7 @@ export async function generateTemplateFile(
     {
       generatedFileUrl: fileUrl,
       skipAdviserAccessCheck: fillsWithoutGrant(grade),
+      skipGradeBandCheck: true,
     },
   );
 
