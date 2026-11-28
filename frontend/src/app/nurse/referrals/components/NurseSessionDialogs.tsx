@@ -11,7 +11,7 @@ import { apiErrorMessage } from "@/lib/api/errors";
 import { toast } from "@/components/ui/sonner";
 import { useDock } from "@/components/dock/dock-store";
 import { markSelfNotified } from "@/lib/realtime/nurseChannel";
-import { SESSION_KIND_OPTIONS } from "@/lib/labels/sessions";
+import { SESSION_KIND_OPTIONS, sessionTypeLabel } from "@/lib/labels/sessions";
 import {
   formatActionTime,
   formatDate,
@@ -271,6 +271,11 @@ export function FinishSessionDialog({
       onClose={handleClose}
       onSubmit={(fields) => void save(fields)}
       description="Record what happened. Photos are optional — file them now or later from the session list."
+      sessionMeta={{
+        type: sessionTypeLabel(session.sessionType),
+        when: `${formatDate(session.date)} · ${formatTime(session.scheduledAt)}`,
+        ...(session.venue ? { venue: session.venue } : {}),
+      }}
       showSessionType={false}
       showFollowUpVenue={false}
       docsSection={

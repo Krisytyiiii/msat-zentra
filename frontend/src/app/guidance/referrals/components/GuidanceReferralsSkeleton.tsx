@@ -7,12 +7,17 @@ import tableStyles from "./guidance-referrals-table.module.css";
 
 export function GuidanceReferralsSkeleton({
   lockType = false,
+  table = false,
 }: {
   lockType?: boolean;
+  /** Locked ADM desk renders a data list, not the folder-card board. */
+  table?: boolean;
 }) {
-  /* The locked ADM / Counseling desks are kanban boards: mirror the real
-     board (action tabs + search, 4×4 folder-card grid, pager), same as the
-     nurse ADM skeleton. */
+  /* The locked ADM desk is a data list (same anatomy as /guidance/alerts);
+     the counseling desk keeps the 4×4 folder-card board. */
+  if (lockType && table) return <GuidanceTableSkeleton />;
+  /* Locked Counseling: mirror the real board (action tabs + search, 4×4
+     folder-card grid, pager), same as the nurse ADM skeleton. */
   if (lockType) return <GuidanceBoardSkeleton />;
 
   const sideGroups: { label: string; rows: number }[] = [
@@ -106,6 +111,66 @@ export function GuidanceReferralsSkeleton({
             ))}
           </div>
         ))}
+      </div>
+    </div>
+  );
+}
+
+/* Mirrors the real ADM data list: the action-tab bar, the column head, a
+   handful of hairline rows and the shared pager. The desk head and figure
+   strip are rendered by the page itself, so they are not repeated here. */
+function GuidanceTableSkeleton() {
+  const columns = [140, 240, 150, 110, 150, 120, 44];
+  return (
+    <div
+      className={tableStyles.layout}
+      aria-busy="true"
+      aria-label="Loading your cases"
+    >
+      <div className={`${tableStyles.feed} ${tableStyles.feedWide}`}>
+        <div className="flex flex-wrap items-center gap-1.5" aria-hidden="true">
+          {Array.from({ length: 7 }).map((_, index) => (
+            <Skeleton
+              key={index}
+              className="h-[1.875rem] w-[6.5rem] rounded-full"
+            />
+          ))}
+        </div>
+        <div className={tableStyles.tableWrap} aria-hidden="true">
+          <div className="flex items-center gap-3 border-b border-border px-4 py-3">
+            {columns.map((width, index) => (
+              <Skeleton
+                key={index}
+                className="h-3"
+                style={{ width: `${Math.min(width, 120)}px` }}
+              />
+            ))}
+          </div>
+          {Array.from({ length: 8 }).map((_, row) => (
+            <div
+              key={row}
+              className="flex items-center gap-3 border-b border-border/60 px-4 py-3 last:border-b-0"
+            >
+              <Skeleton className="h-5 w-20 rounded-md" />
+              <span className="flex min-w-0 items-center gap-2">
+                <Skeleton className="size-7 shrink-0 rounded-full" />
+                <span className="flex flex-col gap-1">
+                  <Skeleton className="h-3 w-28" />
+                  <Skeleton className="h-2.5 w-20" />
+                </span>
+              </span>
+              <span className="hidden flex-col gap-1 sm:flex">
+                <Skeleton className="h-3 w-12" />
+                <Skeleton className="h-2.5 w-16" />
+              </span>
+              <Skeleton className="hidden h-3 w-14 md:block" />
+              <Skeleton className="h-3 w-16" />
+              <Skeleton className="hidden h-5 w-16 rounded-md lg:block" />
+              <Skeleton className="ml-auto size-4 rounded-full" />
+            </div>
+          ))}
+        </div>
+        <ZentraPaginationSkeleton />
       </div>
     </div>
   );

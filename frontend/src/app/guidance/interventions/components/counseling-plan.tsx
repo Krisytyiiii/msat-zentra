@@ -290,16 +290,8 @@ export function CounselingPlan({
                 type="button"
                 size="sm"
                 variant="default"
-                disabled={
-                  locked ||
-                  isActionPending ||
-                  new Date(upcoming.scheduledAt).getTime() > now
-                }
-                title={
-                  new Date(upcoming.scheduledAt).getTime() > now
-                    ? "You can mark it done once the scheduled time arrives"
-                    : undefined
-                }
+                disabled={locked || isActionPending}
+                title="Record what happened and mark this booking done — works even before the scheduled time"
                 onClick={() => onSession(upcoming, "finish")}
                 className="h-8 rounded-lg px-3 text-[13px] font-semibold"
               >

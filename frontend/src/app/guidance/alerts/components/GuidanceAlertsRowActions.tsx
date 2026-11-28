@@ -19,7 +19,7 @@ import { Button } from "@/components/ui/button";
 import { toast } from "@/components/ui/sonner";
 import { apiErrorMessage } from "@/lib/api/errors";
 import { SESSION_KIND_OPTIONS } from "@/lib/labels/sessions";
-import { fetchDaySchedule } from "@/services/guidance/sessions.service";
+import { fetchDaySchedule, scheduleSession } from "@/services/guidance/sessions.service";
 import {
   scheduleFollowUpSession,
   startFollowUp,
@@ -28,6 +28,7 @@ import type {
   AtRiskStudentItem,
   CounselingSessionType,
 } from "@/services/guidance/interventions.types";
+import type { GuidanceReferralItem } from "@/services/guidance/guidance.types";
 import styles from "./guidance-alerts-table.module.css";
 
 function studentCardOf(item: AtRiskStudentItem): BookSessionStudentCard {
@@ -211,6 +212,140 @@ export function GuidanceBookedSessionButton({
           hasActiveSession={hasActiveSession}
           busy={busy}
           idPrefix="alerts-book"
+          variant="board"
+        />
+      </div>
+    </>
+  );
+}
+
+/**
+ * Booking control for a referral case shown on the alerts drawer. Referrals
+ * are booked through the referrals API (the intervention-based button above
+ * only serves engine follow-ups), so ADM and counseling cases get their own
+ * "Book session" action when no session exists yet.
+ */
+export function GuidanceReferralBookSessionButton({
+  referral,
+  onBeforeOpen,
+}: {
+  referral: GuidanceReferralItem;
+  /** Called on confirm so the surrounding drawer closes and the dock shows. */
+  onBeforeOpen?: () => void;
+}) {
+  const queryClient = useQueryClient();
+  const dock = useDock();
+  const [open, setOpen] = React.useState(false);
+  const [busy, setBusy] = React.useState(false);
+
+  const hasActiveSession = referral.sessions.some((s) => s.status === "scheduled");
+  if (hasActiveSession) return null;
+
+  const studentCard: BookSessionStudentCard = {
+    name: referral.student,
+    sub: [referral.grade, referral.section].filter(Boolean).join(" · "),
+    lrn: referral.lrn,
+    section: referral.section,
+    grade: referral.grade,
+  };
+
+  const submit = async (fields: BookSessionFields) => {
+    setBusy(true);
+    setOpen(false);
+    // Confirm dismisses the drawer under the booking board so the shared task
+    // dock (bottom-right) is visible while the session is being saved.
+    onBeforeOpen?.();
+
+    let taskId: string | null = null;
+    try {
+      taskId = dock.startTask({
+        kind: "generic",
+        title: "Booking session",
+        description: `${referral.student} · ${new Date(fields.scheduledAt).toLocaleString("en-US", {
+          month: "short",
+          day: "numeric",
+          hour: "numeric",
+          minute: "2-digit",
+        })}`,
+      });
+    } catch {
+      taskId = null;
+    }
+
+    try {
+      await scheduleSession(referral.id, {
+        scheduledAt: fields.scheduledAt,
+        sessionType: (fields.sessionType || "individual") as CounselingSessionType,
+        ...(fields.venue ? { venue: fields.venue } : {}),
+      });
+      if (taskId) dock.completeTask(taskId, "Session booked.");
+      toast.success({
+        title: "Session booked",
+        description: `${referral.student}'s session is now on the guidance schedule.`,
+      });
+      await queryClient.invalidateQueries({ queryKey: ["guidance-alerts"] });
+      await queryClient.invalidateQueries({ queryKey: ["guidance-referrals"] });
+      await queryClient.invalidateQueries({ queryKey: ["guidance-referrals-highlight"] });
+      await queryClient.invalidateQueries({ queryKey: ["guidance-interventions"] });
+    } catch (error) {
+      const message = apiErrorMessage(
+        error,
+        "We couldn't book this session. Please try again.",
+      );
+      if (taskId) dock.failTask(taskId, message);
+      toast.error({
+        title: "Couldn't book the session",
+        description: message,
+      });
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  return (
+    <>
+      <Button
+        type="button"
+        size="xs"
+        variant="default"
+        className="h-6 shrink-0 gap-1 px-2 text-[12px] font-semibold"
+        onClick={(event) => {
+          event.stopPropagation();
+          setOpen(true);
+        }}
+        aria-label={`Book a session for ${referral.student}`}
+      >
+        <CalendarPlus size={13} aria-hidden />
+        Book session
+      </Button>
+      {/*
+        The board dialog portals to <body>, but React still bubbles its clicks
+        through this tree — stop them here so picking a date/time never reaches
+        the drawer's own handlers.
+      */}
+      <div
+        style={{ display: "contents" }}
+        onClick={(event) => event.stopPropagation()}
+        onKeyDown={(event) => event.stopPropagation()}
+      >
+        <BookSessionDialog
+          open={open}
+          onClose={() => {
+            if (busy) return;
+            setOpen(false);
+          }}
+          onSubmit={submit}
+          title="Book session"
+          description={`Schedule a counseling session for ${referral.student}.`}
+          studentCard={studentCard}
+          fetchTakenTimes={(dateKey, signal) => fetchDaySchedule(dateKey, { signal })}
+          venueHint="Held at the guidance office unless another venue is given."
+          venuePlaceholder="Guidance office"
+          showSessionType
+          sessionTypeOptions={SESSION_KIND_OPTIONS}
+          hasActiveSession={hasActiveSession}
+          busy={busy}
+          idPrefix="alerts-ref-book"
           variant="board"
         />
       </div>

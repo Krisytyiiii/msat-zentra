@@ -34,36 +34,48 @@ export function GuidanceOverviewSkeleton() {
           <div className={styles.mainCol}>
             {/* Grade levels needing attention */}
             <KanbanBoardSkeleton
+              bare
               titleWidth="14rem"
               rows={0}
               showDescription
               actions={<Skeleton className="h-4 w-12 shrink-0" />}
             >
-              <ul className={styles.caseList} aria-hidden="true">
+              <div className={styles.tableWrap} aria-hidden="true">
+                <div className="flex items-center gap-4 border-b border-border px-4 py-3">
+                  {[200, 260, 90, 80, 100, 130].map((width, i) => (
+                    <Skeleton
+                      key={i}
+                      className="h-3 shrink-0"
+                      style={{ width, maxWidth: "100%" }}
+                    />
+                  ))}
+                </div>
                 {Array.from({ length: GRADE_ROWS }).map((_, index) => (
-                  <li
+                  <div
                     key={index}
-                    className={styles.caseRow}
-                    style={{ animationDelay: `${450 + Math.min(index, 11) * 140}ms` }}
+                    className="flex items-center gap-4 border-b border-border/40 px-4 py-3 last:border-b-0"
+                    style={{
+                      animationDelay: `${450 + Math.min(index, 11) * 140}ms`,
+                    }}
                   >
-                    <div className={styles.rowLink}>
-                      <div className={styles.caseInfo}>
-                        <Skeleton className="h-4 w-20" />
-                        <Skeleton className="h-5 w-16 shrink-0 rounded-md" />
-                      </div>
-                      <div className={styles.sectionGroup}>
-                        <Skeleton className="h-5 w-20 shrink-0 rounded-md" />
-                        <Skeleton className="h-5 w-20 shrink-0 rounded-md" />
-                      </div>
-                      <div className={styles.cellActions}>
-                        <Skeleton className="h-5 w-16 rounded-md" />
-                        <Skeleton className="h-5 w-20 rounded-md" />
-                        <Skeleton className="size-4 rounded-sm" />
+                    <div className="flex w-[200px] shrink-0 items-center gap-2">
+                      <Skeleton className="size-8 shrink-0 rounded-full" />
+                      <div className="flex min-w-0 flex-col gap-1">
+                        <Skeleton className="h-3.5 w-20" />
+                        <Skeleton className="h-3 w-14" />
                       </div>
                     </div>
-                  </li>
+                    <div className="flex w-[260px] shrink-0 gap-1">
+                      <Skeleton className="h-5 w-20 rounded-md" />
+                      <Skeleton className="h-5 w-20 rounded-md" />
+                    </div>
+                    <Skeleton className="h-3 w-8 shrink-0" />
+                    <Skeleton className="h-3 w-8 shrink-0" />
+                    <Skeleton className="h-3 w-10 shrink-0" />
+                    <Skeleton className="h-3 w-16 shrink-0" />
+                  </div>
                 ))}
-              </ul>
+              </div>
             </KanbanBoardSkeleton>
 
             {/* Risk section — risk-level donut + two gauge boards */}

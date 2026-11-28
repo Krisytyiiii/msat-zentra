@@ -35,9 +35,10 @@ function FolderCardSkeleton() {
           <Skeleton className="size-7 shrink-0 rounded-full" />
           <span className="flex min-w-0 flex-col items-start gap-1">
             <Skeleton className="h-[0.875rem] w-28 max-w-full" />
-            <span className="flex gap-1">
-              <Skeleton className="h-[1.125rem] w-20 rounded-md" />
-              <Skeleton className="h-[1.125rem] w-16 rounded-md" />
+            <span className="flex flex-wrap gap-x-3 gap-y-1">
+              <Skeleton className="h-3 w-24" />
+              <Skeleton className="h-3 w-16" />
+              <Skeleton className="h-3 w-20" />
             </span>
           </span>
         </div>
@@ -60,26 +61,17 @@ export function GuidanceAnecdotalSkeleton() {
         <div className={`${pageStyles.main} flex min-w-0 flex-col`}>
           <div className={folderStyles.panel}>
             <div className={folderStyles.header}>
-              <div className={folderStyles.headerText}>
-                <div className={folderStyles.titleRow}>
-                  <Skeleton className="h-4 w-48" />
-                  <Skeleton className="size-6 shrink-0 rounded-full" />
-                </div>
-                <Skeleton className="mt-1.5 h-3 w-[22rem] max-w-full" />
-              </div>
-
-              <div className={folderStyles.headerCenter} aria-hidden="true">
-                <div className="flex flex-wrap items-center gap-1">
-                  {TYPE_TAB_WIDTHS.map((width) => (
-                    <Skeleton key={width} className="h-5 rounded-md" style={{ width }} />
-                  ))}
-                </div>
+              <div className="flex flex-wrap items-center gap-1" aria-hidden="true">
+                {TYPE_TAB_WIDTHS.map((width) => (
+                  <Skeleton key={width} className="h-5 rounded-md" style={{ width }} />
+                ))}
               </div>
 
               <div className={folderStyles.headerActions}>
                 <div className={filtersStyles.searchWrap}>
                   <Skeleton className={filtersStyles.search} />
                 </div>
+                <Skeleton className="size-6 shrink-0 rounded-full" />
               </div>
             </div>
 

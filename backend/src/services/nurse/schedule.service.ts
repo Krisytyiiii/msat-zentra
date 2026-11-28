@@ -1,9 +1,10 @@
 import { prisma } from "../../lib/prisma.js";
 import { AppError } from "../../lib/errors.js";
 import { INTERNAL_AGGREGATE_ROW_CAP } from "../../lib/pagination.js";
+import { GRADE_LABELS } from "../../lib/grades.js";
 import {
   archivedAdvisoryLearnerIds,
-  type ArchivedLearnerIds,
+  excludeArchivedReferences,
 } from "../../lib/learnerVisibility.js";
 
 /** A month grid can span six weeks; two months of padding is plenty. */
@@ -22,6 +23,8 @@ export interface NurseCalendarEvent {
   track: NurseCalendarTrack;
   learner: string;
   lrn: string;
+  /** Display label ("Grade 11"), so the drawer card needs no extra lookup. */
+  grade: string;
   section: string;
   /** Stored sprite mascot, so the card matches every other desk surface. */
   mascot: string | null;
@@ -36,6 +39,12 @@ export interface NurseCalendarEvent {
   admProfileId: string | null;
   /** Parent meetings only: is this nurse one of the booking's invitees? */
   invited: boolean | null;
+  /**
+   * False once the booking can no longer move: the session is done/cancelled,
+   * its case is resolved/dismissed or the ADM consultation was endorsed (the
+   * case is with the coordinator). Mirrors the server-side guards.
+   */
+  reschedulable: boolean;
 }
 
 export interface NurseCalendarQuery {
@@ -51,8 +60,27 @@ export interface NurseCalendarData {
   events: NurseCalendarEvent[];
 }
 
+/** ADM meetings may only move before the case is certified. */
+const PRE_CERT_STAGES = new Set(["anecdotal", "consultation", "meeting_parents"]);
+
+/** Only a booked session on a live, unendorsed case can still be moved. */
+function sessionReschedulable(
+  status: string,
+  referral: {
+    status: string;
+    consultReviewedAt: Date | null;
+    admProfiles: { approvedBy: string | null }[];
+  } | null,
+): boolean {
+  if (status !== "scheduled" || !referral) return false;
+  if (referral.status === "resolved" || referral.status === "dismissed") return false;
+  if (referral.consultReviewedAt) return false;
+  return referral.admProfiles.every((profile) => !profile.approvedBy);
+}
+
 const STUDENT_SELECT = {
   lrn: true,
+  gradeLevel: true,
   mascot: true,
   user: { select: { fullName: true } },
   section: { select: { name: true } },
@@ -60,6 +88,7 @@ const STUDENT_SELECT = {
 
 const ROSTER_SELECT = {
   lrn: true,
+  gradeLevel: true,
   fullName: true,
   mascot: true,
   section: { select: { name: true } },
@@ -68,11 +97,18 @@ const ROSTER_SELECT = {
 type LearnerHolder = {
   student?: {
     lrn: string;
+    gradeLevel: string;
     mascot: string | null;
     user: { fullName: string } | null;
     section: { name: string } | null;
   } | null;
-  roster?: { lrn: string; fullName: string; mascot: string | null; section: { name: string } | null } | null;
+  roster?: {
+    lrn: string;
+    gradeLevel: string;
+    fullName: string;
+    mascot: string | null;
+    section: { name: string } | null;
+  } | null;
 };
 
 /** The nurse desk scope, mirrored from `listQueue` in `queues.desk.service.ts`. */
@@ -86,28 +122,22 @@ const NURSE_REFERRAL_SCOPE = {
 
 /**
  * Learners an adviser removed from their advisory list are hidden from every
- * desk board; the nurse calendar honours the same archive filter.
+ * desk board; the nurse calendar honours the same null-safe archive filter
+ * (a roster-only row must not be dropped because its studentId is NULL).
  */
-function excludeArchivedLearners(
-  ids: ArchivedLearnerIds,
-  holders: ("referral" | "admLearnerProfile")[],
-): { NOT?: any } {
-  const branches: any[] = [];
-  for (const holder of holders) {
-    if (ids.studentIds.length > 0) {
-      branches.push({ [holder]: { studentId: { in: ids.studentIds } } });
-    }
-    if (ids.rosterIds.length > 0 && holder !== "admLearnerProfile") {
-      branches.push({ [holder]: { rosterId: { in: ids.rosterIds } } });
-    }
-  }
-  return branches.length > 0 ? { NOT: { OR: branches } } : {};
-}
+const SESSION_LEARNER_REFS = [{ relation: "referral", fk: "referralId" }] as const;
+
+const MEETING_LEARNER_REFS = [
+  { relation: "referral", fk: "referralId" },
+  { relation: "admLearnerProfile", fk: "admLearnerProfileId", roster: false, studentNullable: false },
+] as const;
 
 function learnerOf(holder: LearnerHolder | null | undefined) {
   return {
     learner: holder?.student?.user?.fullName ?? holder?.roster?.fullName ?? "Unknown learner",
     lrn: holder?.student?.lrn ?? holder?.roster?.lrn ?? "",
+    grade:
+      GRADE_LABELS[holder?.student?.gradeLevel ?? holder?.roster?.gradeLevel ?? ""] ?? "",
     section: holder?.student?.section?.name ?? holder?.roster?.section?.name ?? "",
     mascot: holder?.student?.mascot ?? holder?.roster?.mascot ?? null,
   };
@@ -153,7 +183,7 @@ export async function getNurseCalendar(
       ...(scheduledOnly ? [{ status: "scheduled" }] : []),
       ...(ctx.termId ? [{ referral: { termId: ctx.termId } }] : []),
       { referral: { OR: NURSE_REFERRAL_SCOPE.OR } },
-      excludeArchivedLearners(archived, ["referral"]),
+      excludeArchivedReferences(archived, SESSION_LEARNER_REFS),
     ],
   };
 
@@ -178,7 +208,7 @@ export async function getNurseCalendar(
           { invitees: { some: { userId: ctx.userId } } },
         ],
       },
-      excludeArchivedLearners(archived, ["referral", "admLearnerProfile"]),
+      excludeArchivedReferences(archived, MEETING_LEARNER_REFS),
     ],
   };
 
@@ -199,6 +229,9 @@ export async function getNurseCalendar(
             id: true,
             referredToRole: true,
             escalatedTo: true,
+            status: true,
+            consultReviewedAt: true,
+            admProfiles: { select: { approvedBy: true } },
             student: { select: STUDENT_SELECT },
             roster: { select: ROSTER_SELECT },
           },
@@ -217,6 +250,8 @@ export async function getNurseCalendar(
         referral: {
           select: {
             id: true,
+            status: true,
+            consultReviewer: true,
             student: { select: STUDENT_SELECT },
             roster: { select: ROSTER_SELECT },
           },
@@ -224,8 +259,10 @@ export async function getNurseCalendar(
         admLearnerProfile: {
           select: {
             id: true,
+            approvedBy: true,
+            stage: true,
             student: { select: STUDENT_SELECT },
-            referral: { select: { id: true } },
+            referral: { select: { id: true, status: true, consultReviewer: true } },
           },
         },
         invitees: { select: { userId: true } },
@@ -253,12 +290,19 @@ export async function getNurseCalendar(
       interventionId: null,
       admProfileId: null,
       invited: null,
+      reschedulable: sessionReschedulable(s.status, s.referral),
     });
   }
 
   for (const m of meetings) {
     const holder = m.referral ?? m.admLearnerProfile;
     if (!holder) continue;
+    const ref = m.referral ?? m.admLearnerProfile?.referral ?? null;
+    const profile = m.admLearnerProfile;
+    const underReview =
+      ref?.status === "pending" &&
+      (ref.consultReviewer === "nurse" ||
+        ref.consultReviewer === "guidance_counselor");
     events.push({
       id: `meeting:${m.id}`,
       track: "adm_meeting",
@@ -272,6 +316,12 @@ export async function getNurseCalendar(
       interventionId: null,
       admProfileId: m.admLearnerProfile?.id ?? null,
       invited: m.invitees.some((i) => i.userId === ctx.userId),
+      reschedulable:
+        !m.attended &&
+        (!ref || (ref.status !== "resolved" && ref.status !== "dismissed")) &&
+        !underReview &&
+        (!profile ||
+          (!profile.approvedBy && PRE_CERT_STAGES.has(profile.stage))),
     });
   }
 

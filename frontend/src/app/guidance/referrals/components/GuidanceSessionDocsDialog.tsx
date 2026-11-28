@@ -1,11 +1,10 @@
 "use client";
 
 import * as React from "react";
-import { Loader2 } from "lucide-react";
+import { Images, Info, Loader2, Paperclip, Trash2, Upload } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { KanbanOverlay } from "@/components/ui/kanban-overlay";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
+import { KanbanBoard, KanbanBoardEmpty } from "@/components/ui/kanban-board";
 import {
   deleteSessionAttachment,
   sessionAttachmentError,
@@ -16,10 +15,16 @@ import type {
   CounselingSessionItem,
 } from "@/services/guidance/guidance.types";
 import { useGuidanceMutation } from "../../overview/components/use-guidance-mutation";
-import styles from "./GuidanceReferralDialogs.module.css";
+import { cn } from "@/lib/utils";
 
 import { useActiveNowTick } from "@/lib/clock";
 
+/**
+ * Session documentation — the same filed-photos + attach boards used by the
+ * nurse and intervention desks, so documentation looks identical everywhere.
+ * Photos file on pick (the shared Dock reports the outcome); the overlay
+ * stays open so the filed grid updates in place.
+ */
 export function SessionDocsDialog({
   referralId,
   session,
@@ -35,6 +40,8 @@ export function SessionDocsDialog({
 }) {
   const [docs, setDocs] = React.useState<CounselingSessionAttachment[]>(session.attachments ?? []);
   const [error, setError] = React.useState<string | null>(null);
+  const [dragging, setDragging] = React.useState(false);
+  const inputRef = React.useRef<HTMLInputElement | null>(null);
   const now = useActiveNowTick(open);
   const uploadMutation = useGuidanceMutation({
     mutationFn: (picked: File[]) =>
@@ -74,6 +81,7 @@ export function SessionDocsDialog({
     },
   });
   const uploading = uploadMutation.isPending;
+  const busy = uploading || removeMutation.isPending;
   const removingId = removeMutation.isPending
     ? ((removeMutation.variables as string | undefined) ?? null)
     : null;
@@ -108,92 +116,199 @@ export function SessionDocsDialog({
     removeMutation.mutate(id);
   }
 
+  const dropDisabled = uploading || docsLocked;
+
   return (
     <KanbanOverlay
       open={open}
       onClose={() => {
-        if (uploading || removeMutation.isPending) return;
+        if (busy) return;
         onClose();
         setError(null);
       }}
-      dismissable={!uploading && !removeMutation.isPending}
-      busy={uploading || removeMutation.isPending}
+      dismissable={!busy}
+      busy={busy}
       width="lg"
       title="Session documentation"
-      description="Optional photos for this session — JPG/PNG/WEBP, 5 MB each."
+      icon={
+        <span className="text-primary" aria-hidden>
+          <Paperclip size={14} />
+        </span>
+      }
+      description="Optional photos for this session — JPG, PNG or WEBP, 5 MB each."
       footer={
-        <div className="flex items-center justify-end gap-1.5 px-1 pb-1">
+        <div className="flex flex-wrap items-center justify-between gap-2 px-1 pb-1">
+          <p className="text-[12px] text-muted-foreground">
+            {docs.length === 0
+              ? "No photos filed yet"
+              : `${docs.length} photo${docs.length === 1 ? "" : "s"} filed`}
+          </p>
           <Button
             variant="outline"
             onClick={onClose}
-            disabled={uploading || removeMutation.isPending}
+            disabled={busy}
           >
             Done
           </Button>
         </div>
       }
     >
+      <div className="flex flex-col gap-3 px-1 pb-1" aria-busy={busy || undefined}>
         {docsLocked ? (
-          <div className={styles.errorBlock} role="alert">
-            <p className={styles.errorText}>
-              This session hasn&apos;t started yet — filing unlocks once the scheduled time arrives. Filed photos below stay viewable.
-            </p>
+          <div
+            className="flex items-start gap-2 rounded-lg border border-amber-500/30 bg-amber-500/10 px-3 py-2 text-[12px] leading-4 text-amber-800 dark:text-amber-200"
+            role="status"
+          >
+            <Info className="mt-px size-3.5 shrink-0" aria-hidden />
+            <span>
+              This session hasn&apos;t started yet — filing unlocks once the scheduled
+              time arrives. Filed photos below stay viewable.
+            </span>
           </div>
         ) : null}
-        {docs.length === 0 ? (
-          <p style={{ fontSize: "0.875rem", opacity: 0.75 }}>No photos filed yet.</p>
-        ) : (
-          <ul style={{ display: "grid", gap: "0.5rem", gridTemplateColumns: "repeat(auto-fill, minmax(7rem, 1fr))", listStyle: "none", padding: 0, margin: 0 }}>
-            {docs.map((d) => (
-              <li key={d.id} style={{ border: "1px solid var(--border, #e5e7eb)", borderRadius: "0.5rem", overflow: "hidden" }}>
-                <a href={d.fileUrl} target="_blank" rel="noreferrer" aria-label={`Open ${d.fileName}`}>
-                  {/* eslint-disable-next-line @next/next/no-img-element */}
-                  <img src={d.fileUrl} alt={d.fileName} style={{ width: "100%", height: "5.5rem", objectFit: "cover", display: "block" }} />
-                </a>
-                <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: "0.25rem", padding: "0.25rem 0.375rem" }}>
-                  <span style={{ fontSize: "0.75rem", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }} title={d.fileName}>
-                    {d.fileName}
-                  </span>
+
+        <KanbanBoard
+          title="Filed photos"
+          icon={
+            <span className="text-muted-foreground" aria-hidden>
+              <Images size={14} />
+            </span>
+          }
+          count={docs.length}
+        >
+          {docs.length === 0 ? (
+            <KanbanBoardEmpty>No photos filed yet — attach the first one below.</KanbanBoardEmpty>
+          ) : (
+            <div className="grid grid-cols-2 gap-2 px-1 sm:grid-cols-3">
+              {docs.map((d) => (
+                <figure
+                  key={d.id}
+                  className="group relative flex min-w-0 flex-col overflow-hidden rounded-md border border-border bg-card"
+                >
+                  <a
+                    href={d.fileUrl}
+                    target="_blank"
+                    rel="noreferrer"
+                    className="block"
+                    aria-label={`Open ${d.fileName}`}
+                  >
+                    {/* eslint-disable-next-line @next/next/no-img-element */}
+                    <img
+                      src={d.fileUrl}
+                      alt={d.fileName}
+                      loading="lazy"
+                      className="h-24 w-full object-cover"
+                    />
+                  </a>
                   <Button
                     type="button"
-                    size="xs"
-                    variant="ghost"
-                    disabled={removingId === d.id}
+                    size="icon-sm"
+                    variant="outline"
+                    disabled={removingId === d.id || uploading}
                     onClick={() => void onRemove(d.id)}
                     aria-label={`Remove ${d.fileName}`}
+                    title={`Remove ${d.fileName}`}
+                    className="absolute right-1 top-1 size-7 rounded-md bg-card/90 opacity-0 shadow-sm transition-opacity focus-visible:opacity-100 group-hover:opacity-100"
                   >
-                    {removingId === d.id ? <Loader2 className="animate-spin" aria-hidden /> : null}
-                    Remove
+                    {removingId === d.id ? (
+                      <Loader2 className="animate-spin" aria-hidden />
+                    ) : (
+                      <Trash2 aria-hidden />
+                    )}
                   </Button>
-                </div>
-              </li>
-            ))}
-          </ul>
-        )}
-        <div className={styles.formGrid}>
-          <div className={styles.formFull}>
-            <Label htmlFor={`guidance-docs-${session.id}`}>Attach photos (optional)</Label>
-            <Input
+                  <figcaption
+                    className="truncate border-t border-border px-2 py-1 text-[12px] text-muted-foreground"
+                    title={d.fileName}
+                  >
+                    {d.fileName}
+                  </figcaption>
+                </figure>
+              ))}
+            </div>
+          )}
+        </KanbanBoard>
+
+        <KanbanBoard
+          title="Attach photos (optional)"
+          icon={
+            <span className="text-muted-foreground" aria-hidden>
+              <Paperclip size={14} />
+            </span>
+          }
+          description={
+            docsLocked
+              ? "This session hasn't started yet — filing unlocks once the scheduled time arrives."
+              : "Up to 5 images at a time."
+          }
+        >
+          <div className="px-1 pb-1">
+            <button
+              type="button"
+              disabled={dropDisabled}
+              onClick={() => inputRef.current?.click()}
+              onDragOver={(e) => {
+                e.preventDefault();
+                if (!dropDisabled) setDragging(true);
+              }}
+              onDragLeave={() => setDragging(false)}
+              onDrop={(e) => {
+                e.preventDefault();
+                setDragging(false);
+                onPick(e.dataTransfer.files);
+              }}
+              aria-label="Choose photos to attach"
+              className={cn(
+                "flex w-full flex-col items-center gap-1 rounded-lg border border-dashed px-4 py-4 transition-colors",
+                dragging
+                  ? "border-primary bg-primary/5"
+                  : "border-border hover:border-primary/50 hover:bg-muted/40",
+                dropDisabled && "cursor-not-allowed opacity-50 hover:border-border hover:bg-transparent",
+              )}
+            >
+              <Upload className="size-4 text-primary" aria-hidden />
+              <span className="text-[13px]">
+                <span className="font-semibold text-primary">Choose files</span>{" "}
+                <span className="text-muted-foreground">or drag and drop</span>
+              </span>
+              <span className="text-[12px] text-muted-foreground">
+                JPG, PNG or WEBP · up to 5 photos · 5 MB each
+              </span>
+            </button>
+            <input
+              ref={inputRef}
               id={`guidance-docs-${session.id}`}
               type="file"
               accept="image/jpeg,image/png,image/webp"
               multiple
-              disabled={uploading || docsLocked}
-              onChange={(e) => void onPick(e.target.files)}
+              disabled={dropDisabled}
+              onChange={(e) => {
+                onPick(e.target.files);
+                e.target.value = "";
+              }}
+              className="sr-only"
+              tabIndex={-1}
             />
+            {uploading ? (
+              <p
+                className="mt-2 inline-flex items-center gap-1.5 text-[12px] text-muted-foreground"
+                role="status"
+                aria-live="polite"
+              >
+                <Loader2 className="size-3.5 animate-spin" aria-hidden />
+                Uploading photos…
+              </p>
+            ) : null}
+            {displayError ? (
+              <p
+                className="mt-2 text-[12px] leading-4 text-red-600 dark:text-red-400"
+                role="alert"
+              >
+                {displayError}
+              </p>
+            ) : null}
           </div>
-        </div>
-        {uploading ? (
-            <p
-              style={{ display: "inline-flex", alignItems: "center", gap: "0.375rem", fontSize: "0.8125rem", opacity: 0.9 }}
-              role="status"
-              aria-live="polite"
-            >
-              <Loader2 className="animate-spin" aria-hidden />
-              Uploading photos…
-            </p>
-          ) : null}
-          {displayError ? (<div className={styles.errorBlock} role="alert"><p className={styles.errorText}>{displayError}</p></div>) : null}
+        </KanbanBoard>
+      </div>
     </KanbanOverlay>
   );
 }

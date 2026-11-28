@@ -18,7 +18,7 @@ export function homeForRole(role: string): string {
       return "/coordinator/overview";
     case "subject_teacher":
     case "adviser":
-      return "/teacher/overview";
+      return "/teacher/classes";
     case "student":
       return "/student";
     case "parent":

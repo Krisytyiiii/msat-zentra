@@ -42,6 +42,23 @@ export async function rescheduleSession(
   return data;
 }
 
+/**
+ * Move an ADM parent meeting from the desk calendar. The coordinator owns
+ * these bookings; guidance may move one on a case it oversees unless the
+ * referral is closed or the meeting is already attended/locked.
+ */
+export async function rescheduleAdmMeeting(
+  meetingId: string,
+  meetingDatetime: string,
+  venue: "school" | "home"
+): Promise<unknown> {
+  const { data } = await apiClient.patch(
+    `/api/adm/meetings/${meetingId}/reschedule`,
+    { meetingDatetime, venue }
+  );
+  return data;
+}
+
 export async function cancelSession(
   id: string,
   sessionId: string,

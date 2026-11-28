@@ -1,124 +1,74 @@
 "use client";
 
-import {
-  addDays,
-  format,
-  isSameMonth,
-  isToday,
-  startOfMonth,
-  startOfWeek,
-} from "date-fns";
-import type { CalendarEvent } from "./calendar-utils";
+import { Calendar, CalendarDayButton } from "@/components/ui/calendar";
 import styles from "./guidance-calendar.module.css";
 import {
   dateKey,
   eventsOnDay,
   formatTime,
-  isClosed,
   groupByDay,
-  sessionTypeLabel,
 } from "./calendar-utils";
 
-const MAX_CHIPS = 3;
-
+/**
+ * Month view built on the shared shadcn `Calendar`, with the exact same
+ * card-fitting geometry and classNames the administrator's no-class-days desk
+ * uses. A declared day carries its bookings' track dots and a clamped summary
+ * line (mirroring the admin desk's reason text); clicking any date opens that
+ * day's drawer, where a booking jumps to its case desk.
+ */
 export function CalendarMonth({
   cursor,
-  selectedKey,
   grouped,
   onSelectDay,
-  onSelectEvent,
+  onMonthChange,
 }: {
   cursor: Date;
-  selectedKey: string | null;
   grouped: ReturnType<typeof groupByDay>;
   onSelectDay: (key: string) => void;
-  onSelectEvent: (event: CalendarEvent) => void;
+  onMonthChange: (month: Date) => void;
 }) {
-  const monthStart = startOfMonth(cursor);
-  const gridStart = startOfWeek(monthStart, { weekStartsOn: 1 });
-  const weeks = Array.from({ length: 6 }, (_, week) =>
-    Array.from({ length: 7 }, (_, day) => addDays(gridStart, week * 7 + day)),
-  );
-
   return (
-    <>
-      <div className={styles.weekdayRow} aria-hidden="true">
-        {["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"].map((name) => (
-          <div key={name} className={styles.weekday}>
-            {name}
-          </div>
-        ))}
-      </div>
-      <div className={styles.monthGrid}>
-        {weeks.map((week) => (
-          <div key={dateKey(week[0])} className={styles.weekRow}>
-            {week.map((day) => {
-              const key = dateKey(day);
-              const events = eventsOnDay(grouped, key);
-              const visible = events.slice(0, MAX_CHIPS);
-              const hidden = events.length - visible.length;
-              const outside = !isSameMonth(day, monthStart);
-              return (
-                <div
-                  key={key}
-                  className={[
-                    styles.dayCell,
-                    outside ? styles.dayCellOut : "",
-                    key === selectedKey ? styles.dayCellSelected : "",
-                  ]
-                    .filter(Boolean)
-                    .join(" ")}
-                  onClick={() => onSelectDay(key)}
-                  role="button"
-                  tabIndex={0}
-                  onKeyDown={(e) => {
-                    if (e.key === "Enter" || e.key === " ") {
-                      e.preventDefault();
-                      onSelectDay(key);
-                    }
-                  }}
-                  aria-label={format(day, "EEEE, MMMM d")}
-                >
-                  <div className={styles.dayNumberRow}>
-                    <span className={isToday(day) ? styles.dayNumberToday : undefined}>
-                      {format(day, "d")}
-                    </span>
-                  </div>
-                  {visible.map((event) => (
-                    <button
-                      key={event.id}
-                      type="button"
-                      className={`${styles.chip} ${isClosed(event) ? styles.chipCancelled : ""}`}
-                      data-track={event.track}
-                      title={`${formatTime(event.start)} · ${sessionTypeLabel(event.sessionType)} · ${event.learner}`}
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        onSelectEvent(event);
-                      }}
-                    >
-                      <span className={styles.chipDot} aria-hidden="true" />
-                      <span className={styles.chipTime}>{formatTime(event.start)}</span>
-                      <span className={styles.chipName}>{event.learner}</span>
-                    </button>
+    <Calendar
+      month={cursor}
+      onMonthChange={onMonthChange}
+      onDayClick={(day) => onSelectDay(dateKey(day))}
+      className={`${styles.calendar} w-full p-0 bg-transparent`}
+      classNames={{
+        root: "w-full",
+        months: "relative flex w-full flex-1 flex-col",
+        month: "relative flex w-full flex-1 flex-col gap-4",
+        month_caption: "pointer-events-none flex h-12 w-full items-center justify-center px-12",
+        month_grid: "w-full flex-1",
+        weekdays: "w-full",
+        weekday: "py-2 text-center select-none",
+        week: "w-full",
+        day: "aspect-auto w-auto p-0 align-middle h-full",
+      }}
+      components={{
+        DayButton: ({ children, ...props }) => {
+          const events = eventsOnDay(grouped, dateKey(props.day.date));
+          const tracks = [...new Set(events.map((event) => event.track))];
+          const summary =
+            events.length === 0
+              ? ""
+              : events.length === 1
+                ? `${formatTime(events[0].start)} ${events[0].learner}`
+                : `${events.length} bookings`;
+          return (
+            <CalendarDayButton {...props}>
+              {children}
+              {summary ? <div className={styles.daySummary}>{summary}</div> : null}
+              {tracks.length ? (
+                <div className={styles.dayDots} aria-hidden="true">
+                  {tracks.map((track) => (
+                    <span key={track} className={styles.dayDot} data-track={track} />
                   ))}
-                  {hidden > 0 ? (
-                    <button
-                      type="button"
-                      className={styles.moreChip}
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        onSelectDay(key);
-                      }}
-                    >
-                      +{hidden} more
-                    </button>
-                  ) : null}
                 </div>
-              );
-            })}
-          </div>
-        ))}
-      </div>
-    </>
+              ) : null}
+            </CalendarDayButton>
+          );
+        },
+      }}
+    />
   );
 }

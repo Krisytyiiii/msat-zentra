@@ -1,12 +1,10 @@
 "use client";
 
 import * as React from "react";
-import Link from "next/link";
 import { useQuery } from "@tanstack/react-query";
-import { ArrowUpRight, FolderOpen, Loader2 } from "lucide-react";
+import { FolderOpen, Loader2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
-import { PolaroidStackSkeleton } from "@/components/aicanvas/polaroid-stack";
 import { ShimmerGroup } from "@/components/ui/shimmer-skeleton";
 import { ZentraPaginationSkeleton } from "@/components/shared/zentra-skeletons/ZentraSkeletons";
 import { GuidanceEmptyCard } from "../components/GuidanceEmptyCard";
@@ -20,6 +18,7 @@ import type {
 import { useTerm } from "@/lib/term/TermContext";
 import { liveQueryOptions } from "@/lib/api/live";
 import styles from "@/app/guidance/anecdotal/components/guidance-anecdotal.module.css";
+import gridStyles from "./components/guidance-session-documents-folders.module.css";
 import { useUrlPager } from "@/components/shared/pagination/useUrlPager";
 import { useSearchParams } from "next/navigation";
 
@@ -112,10 +111,43 @@ function GuidanceSessionDocumentsPageInner() {
       <section className={styles.page} aria-busy="true" aria-label="Loading session documents">
         <ShimmerGroup>
           <div className="flex flex-col gap-4">
-            <div className="flex flex-wrap items-center justify-end gap-2">
+            <div className="flex flex-wrap items-center justify-between gap-2">
+              <div className="flex flex-wrap items-center gap-1">
+                <Skeleton className="h-5 w-[4.4rem] rounded-md" />
+                <Skeleton className="h-5 w-[7.6rem] rounded-md" />
+                <Skeleton className="h-5 w-[5.4rem] rounded-md" />
+              </div>
               <Skeleton className="h-8 w-56 max-w-full shrink-0 rounded-[16px]" />
             </div>
-            <PolaroidStackSkeleton />
+            <div className={gridStyles.studentGrid}>
+              {[0, 1, 2, 3, 4].map((card) => (
+                <div
+                  key={card}
+                  className="flex min-w-0 flex-1 flex-col gap-2 rounded-xl border border-border bg-muted/60 p-2.5 dark:bg-muted/20"
+                >
+                  <div className="-mx-2.5 flex min-w-0 items-center gap-1.5 border-b border-border px-3.5 pb-2">
+                    <Skeleton className="size-3.5 rounded" />
+                    <Skeleton className="h-[0.8125rem] w-24" />
+                  </div>
+                  <div className="flex min-w-0 flex-col gap-2 rounded-lg border bg-white p-3 shadow-sm dark:bg-card">
+                    <div className="flex min-w-0 items-center gap-1.5">
+                      <Skeleton className="size-7 shrink-0 rounded-full" />
+                      <span className="flex min-w-0 flex-col items-start gap-1">
+                        <Skeleton className="h-[0.875rem] w-28 max-w-full" />
+                        <span className="flex flex-wrap gap-x-3 gap-y-1">
+                          <Skeleton className="h-3 w-24" />
+                          <Skeleton className="h-3 w-16" />
+                          <Skeleton className="h-3 w-20" />
+                        </span>
+                      </span>
+                    </div>
+                    <span className="flex w-full justify-center">
+                      <Skeleton className="h-[100px] w-[120px] rounded-md" />
+                    </span>
+                  </div>
+                </div>
+              ))}
+            </div>
             <ZentraPaginationSkeleton />
           </div>
         </ShimmerGroup>
@@ -154,14 +186,6 @@ function GuidanceSessionDocumentsPageInner() {
           hint="Images attached to counseling sessions — on referrals or interventions — will appear here."
           label="Session documents"
           centered
-          action={
-            <Button asChild size="sm" variant="outline" className="gap-1">
-              <Link href="/guidance/referrals">
-                <ArrowUpRight className="size-3.5" aria-hidden="true" />
-                View referrals
-              </Link>
-            </Button>
-          }
         />
       </section>
     );

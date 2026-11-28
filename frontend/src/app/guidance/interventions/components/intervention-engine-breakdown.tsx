@@ -4,6 +4,7 @@ import { Fragment } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { ChevronRight, Users } from "lucide-react";
 import { Skeleton } from "@/components/ui/skeleton";
+import { ShimmerGroup } from "@/components/ui/shimmer-skeleton";
 import {
   Tooltip,
   TooltipContent,
@@ -96,45 +97,42 @@ interface EngineBreakdownProps {
 
 function EngineSkeleton() {
   return (
-    <div aria-busy="true" aria-label="Loading risk breakdown" className="space-y-3">
-      {/* Same risk trail strip as the loaded engine: eyebrow + level pill per
-          step, separated by the chevron. */}
-      <div className="flex items-center rounded-xl border border-slate-200 px-4 py-3 dark:border-white/10">
-        {[0, 1, 2].map((i) => (
-          <Fragment key={i}>
-            {i > 0 && (
-              <ChevronRight
-                className="size-[18px] shrink-0 text-slate-300 dark:text-slate-600"
-                aria-hidden
-              />
-            )}
-            <div className={cn("flex min-w-0 flex-1 flex-col items-start gap-1.5", i > 0 && "pl-4")}>
-              <Skeleton style={{ width: "3.5rem", height: "0.7rem" }} />
-              <Skeleton style={{ width: "4rem", height: "1.25rem" }} className="rounded-md" />
-            </div>
-          </Fragment>
-        ))}
-      </div>
-      {/* Same three factor cards: title + level pill, big value, detail line. */}
-      <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
-        {[0, 1, 2].map((i) => (
-          <div
-            key={i}
-            className="flex min-w-0 flex-col gap-2.5 rounded-xl border border-slate-200 p-3.5 dark:border-white/10"
-          >
-            <div className="flex min-w-0 items-center justify-between gap-2">
+    <ShimmerGroup>
+      <div aria-busy="true" aria-label="Loading risk breakdown" className="space-y-3">
+        {/* Same risk trail strip as the loaded engine: eyebrow + level pill per
+            step, separated by the chevron. */}
+        <div className="flex items-center rounded-xl border border-slate-200 px-4 py-3 dark:border-white/10">
+          {[0, 1, 2].map((i) => (
+            <Fragment key={i}>
+              {i > 0 && (
+                <ChevronRight
+                  className="size-[18px] shrink-0 text-slate-300 dark:text-slate-600"
+                  aria-hidden
+                />
+              )}
+              <div className={cn("flex min-w-0 flex-1 flex-col items-start gap-1.5", i > 0 && "pl-4")}>
+                <Skeleton style={{ width: "3.5rem", height: "0.7rem" }} />
+                <Skeleton style={{ width: "4rem", height: "1.25rem" }} className="rounded-md" />
+              </div>
+            </Fragment>
+          ))}
+        </div>
+        {/* Same three factor cards: title, big value, detail lines. */}
+        <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
+          {[0, 1, 2].map((i) => (
+            <div
+              key={i}
+              className="flex min-w-0 flex-col gap-2.5 rounded-xl border border-slate-200 p-3.5 dark:border-white/10"
+            >
               <Skeleton style={{ width: "50%", height: "0.875rem" }} />
-              <Skeleton
-                style={{ width: "3.25rem", height: "1.25rem" }}
-                className="shrink-0 rounded-md"
-              />
+              <Skeleton style={{ width: "3.5rem", height: "2.125rem" }} className="rounded-md" />
+              <Skeleton style={{ width: "85%", height: "0.8rem" }} />
+              <Skeleton style={{ width: "60%", height: "0.8rem" }} />
             </div>
-            <Skeleton style={{ width: "3.5rem", height: "2.125rem" }} className="rounded-md" />
-            <Skeleton style={{ width: "85%", height: "0.8rem" }} />
-          </div>
-        ))}
+          ))}
+        </div>
       </div>
-    </div>
+    </ShimmerGroup>
   );
 }
 
@@ -262,6 +260,12 @@ export function EngineBreakdown({
   const attendanceOn = data.live.attendance;
   const behavioralOn = data.live.behavioral;
 
+  // Uniform grading for the factor values: red when that factor is flagged by
+  // the engine, green when it is healthy — independent of the learner's
+  // overall risk level (a High learner can still have a healthy attendance
+  // card, and vice versa).
+  const factorLevel = (on: boolean): Level => (on ? "high" : "low");
+
   const cards: {
     id: string;
     title: string;
@@ -276,7 +280,7 @@ export function EngineBreakdown({
     {
       id: "academic",
       title: "Academic",
-      level: normalizeLevel(academicOn ? data.live.level : "Low"),
+      level: factorLevel(academicOn),
       on: academicOn,
       value:
         data.academic.transmutedAverage === null
@@ -295,7 +299,7 @@ export function EngineBreakdown({
     {
       id: "attendance",
       title: "Attendance",
-      level: normalizeLevel(attendanceOn ? data.live.level : "Low"),
+      level: factorLevel(attendanceOn),
       on: attendanceOn,
       value:
         data.attendance.rate === null ? "—" : `${Math.round(data.attendance.rate * 100)}%`,
@@ -312,7 +316,7 @@ export function EngineBreakdown({
     {
       id: "anecdotal",
       title: "Anecdotal",
-      level: normalizeLevel(behavioralOn ? data.live.level : "Low"),
+      level: factorLevel(behavioralOn),
       on: behavioralOn,
       value: `${data.behavioral.count}`,
       valueLabel: `${data.behavioral.count} anecdotal reports`,
@@ -331,11 +335,8 @@ export function EngineBreakdown({
       <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
         {cards.map((c) => (
           <div key={c.id} className="flex min-w-0 flex-col gap-2.5 rounded-xl border border-slate-200 p-3.5 dark:border-white/10">
-            <div className="flex min-w-0 items-center justify-between gap-2">
+            <div className="flex min-w-0 items-center gap-2">
               <span className="min-w-0 flex-1 truncate text-sm font-semibold leading-5 dark:text-slate-100">{c.title}</span>
-              <span className="shrink-0">
-                <LevelPill level={c.level} />
-              </span>
             </div>
             <div
               className={cn(
@@ -347,7 +348,7 @@ export function EngineBreakdown({
               {c.value}
             </div>
             {c.message ? (
-              <p className="text-[12px] italic leading-[18px] text-red-600 dark:text-red-400">
+              <p className="text-[12px] italic leading-[18px] text-slate-500 dark:text-slate-400">
                 {c.message}
               </p>
             ) : null}

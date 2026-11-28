@@ -3,9 +3,10 @@ import { AppError } from "../../lib/errors.js";
 import { INTERNAL_AGGREGATE_ROW_CAP } from "../../lib/pagination.js";
 import {
   archivedAdvisoryLearnerIds,
+  excludeArchivedReferences,
   excludeArchivedSessionLearners,
-  type ArchivedLearnerIds,
 } from "../../lib/learnerVisibility.js";
+import { GRADE_LABELS } from "../../lib/grades.js";
 import type { GuidanceContext } from "./guidance.types.js";
 
 const DATE_KEY = /^\d{4}-\d{2}-\d{2}$/;
@@ -74,6 +75,8 @@ export interface GuidanceCalendarEvent {
   track: GuidanceCalendarTrack;
   learner: string;
   lrn: string;
+  /** Display label ("Grade 11"), so the drawer card needs no extra lookup. */
+  grade: string;
   section: string;
   /** Stored sprite mascot, so the card matches every other desk surface. */
   mascot: string | null;
@@ -88,6 +91,13 @@ export interface GuidanceCalendarEvent {
   admProfileId: string | null;
   /** Parent meetings only: is this counselor one of the booking's invitees? */
   invited: boolean | null;
+  /**
+   * False once the booking can no longer move: the session is done/cancelled,
+   * its case is resolved/dismissed, an ADM consultation was endorsed (the case
+   * is with the coordinator), or the ADM case was signed off. The calendar
+   * drawer hides Reschedule instead of letting the action fail server-side.
+   */
+  reschedulable: boolean;
 }
 
 export interface GuidanceCalendarQuery {
@@ -106,8 +116,39 @@ export interface GuidanceCalendarData {
   events: GuidanceCalendarEvent[];
 }
 
+/** ADM meetings may only move before the case is certified. */
+const PRE_CERT_STAGES = new Set(["anecdotal", "consultation", "meeting_parents"]);
+
+/** Only a booked session on a live case can still be moved. */
+function sessionReschedulable(
+  status: string,
+  referral: {
+    status: string;
+    consultReviewedAt: Date | null;
+    admProfiles: { approvedBy: string | null }[];
+  } | null,
+  intervention: {
+    outcomeStatus: string;
+    approvalStatus: string;
+  } | null,
+): boolean {
+  if (status !== "scheduled") return false;
+  if (intervention) {
+    return (
+      intervention.outcomeStatus !== "resolved" &&
+      intervention.approvalStatus !== "rejected"
+    );
+  }
+  if (!referral) return false;
+  if (referral.status === "resolved" || referral.status === "dismissed") return false;
+  // An endorsed ADM consultation now belongs to the coordinator.
+  if (referral.consultReviewedAt) return false;
+  return referral.admProfiles.every((profile) => !profile.approvedBy);
+}
+
 const STUDENT_SELECT = {
   lrn: true,
+  gradeLevel: true,
   mascot: true,
   user: { select: { fullName: true } },
   section: { select: { name: true } },
@@ -115,6 +156,7 @@ const STUDENT_SELECT = {
 
 const ROSTER_SELECT = {
   lrn: true,
+  gradeLevel: true,
   fullName: true,
   mascot: true,
   section: { select: { name: true } },
@@ -123,42 +165,43 @@ const ROSTER_SELECT = {
 type LearnerHolder = {
   student?: {
     lrn: string;
+    gradeLevel: string;
     mascot: string | null;
     user: { fullName: string } | null;
     section: { name: string } | null;
   } | null;
-  roster?: { lrn: string; fullName: string; mascot: string | null; section: { name: string } | null } | null;
+  roster?: {
+    lrn: string;
+    gradeLevel: string;
+    fullName: string;
+    mascot: string | null;
+    section: { name: string } | null;
+  } | null;
 };
 
 /**
  * Learners an adviser removed from their advisory list are hidden from every
  * desk board — the calendar must honour that too, or a deleted learner keeps
- * showing up as if they were still enrolled.
- *
- * Sessions ride either a referral (adviser-referred case) or an intervention
- * (risk follow-up); meetings ride a referral or an ADM learner profile. The
- * branch list is flattened so `NOT: { OR: [...] }` covers every pipeline.
+ * showing up as if they were still enrolled. `excludeArchivedReferences`
+ * keeps roster-only rows (NULL on one identity side) from being dropped by
+ * SQL three-valued logic.
  */
-function excludeArchivedLearners(
-  ids: ArchivedLearnerIds,
-  holders: ("referral" | "intervention" | "admLearnerProfile")[],
-): { NOT?: any } {
-  const branches: any[] = [];
-  for (const holder of holders) {
-    if (ids.studentIds.length > 0) {
-      branches.push({ [holder]: { studentId: { in: ids.studentIds } } });
-    }
-    if (ids.rosterIds.length > 0 && holder !== "admLearnerProfile") {
-      branches.push({ [holder]: { rosterId: { in: ids.rosterIds } } });
-    }
-  }
-  return branches.length > 0 ? { NOT: { OR: branches } } : {};
-}
+const SESSION_LEARNER_REFS = [
+  { relation: "referral", fk: "referralId" },
+  { relation: "intervention", fk: "interventionId" },
+] as const;
+
+const MEETING_LEARNER_REFS = [
+  { relation: "referral", fk: "referralId" },
+  { relation: "admLearnerProfile", fk: "admLearnerProfileId", roster: false, studentNullable: false },
+] as const;
 
 function learnerOf(holder: LearnerHolder | null | undefined) {
   return {
     learner: holder?.student?.user?.fullName ?? holder?.roster?.fullName ?? "Unknown learner",
     lrn: holder?.student?.lrn ?? holder?.roster?.lrn ?? "",
+    grade:
+      GRADE_LABELS[holder?.student?.gradeLevel ?? holder?.roster?.gradeLevel ?? ""] ?? "",
     section: holder?.student?.section?.name ?? holder?.roster?.section?.name ?? "",
     mascot: holder?.student?.mascot ?? holder?.roster?.mascot ?? null,
   };
@@ -225,7 +268,7 @@ export async function getCalendar(
           { referral: { OR: deskScope.OR } },
         ],
       },
-      excludeArchivedLearners(archived, ["referral", "intervention"]),
+      excludeArchivedReferences(archived, SESSION_LEARNER_REFS),
     ],
   };
 
@@ -249,7 +292,7 @@ export async function getCalendar(
           { admLearnerProfile: { referral: { OR: deskScope.OR } } },
         ],
       },
-      excludeArchivedLearners(archived, ["referral", "admLearnerProfile"]),
+      excludeArchivedReferences(archived, MEETING_LEARNER_REFS),
     ],
   };
 
@@ -270,6 +313,9 @@ export async function getCalendar(
             id: true,
             referredToRole: true,
             escalatedTo: true,
+            status: true,
+            consultReviewedAt: true,
+            admProfiles: { select: { approvedBy: true } },
             student: { select: STUDENT_SELECT },
             roster: { select: ROSTER_SELECT },
           },
@@ -277,6 +323,8 @@ export async function getCalendar(
         intervention: {
           select: {
             id: true,
+            outcomeStatus: true,
+            approvalStatus: true,
             student: { select: STUDENT_SELECT },
             roster: { select: ROSTER_SELECT },
           },
@@ -295,6 +343,8 @@ export async function getCalendar(
         referral: {
           select: {
             id: true,
+            status: true,
+            consultReviewer: true,
             student: { select: STUDENT_SELECT },
             roster: { select: ROSTER_SELECT },
           },
@@ -302,10 +352,12 @@ export async function getCalendar(
         admLearnerProfile: {
           select: {
             id: true,
+            approvedBy: true,
+            stage: true,
             student: { select: STUDENT_SELECT },
             // Profile-side bookings carry the case's referral here, so the
             // calendar can still deep-link to the ADM case desk.
-            referral: { select: { id: true } },
+            referral: { select: { id: true, status: true, consultReviewer: true } },
           },
         },
         invitees: { select: { userId: true } },
@@ -330,6 +382,7 @@ export async function getCalendar(
         interventionId: s.intervention.id,
         admProfileId: null,
         invited: null,
+        reschedulable: sessionReschedulable(s.status, null, s.intervention),
       });
       continue;
     }
@@ -350,12 +403,19 @@ export async function getCalendar(
       interventionId: null,
       admProfileId: null,
       invited: null,
+      reschedulable: sessionReschedulable(s.status, s.referral, null),
     });
   }
 
   for (const m of meetings) {
     const holder = m.referral ?? m.admLearnerProfile;
     if (!holder) continue;
+    const ref = m.referral ?? m.admLearnerProfile?.referral ?? null;
+    const profile = m.admLearnerProfile;
+    const underReview =
+      ref?.status === "pending" &&
+      (ref.consultReviewer === "nurse" ||
+        ref.consultReviewer === "guidance_counselor");
     events.push({
       id: `meeting:${m.id}`,
       track: "adm_meeting",
@@ -370,6 +430,14 @@ export async function getCalendar(
       interventionId: null,
       admProfileId: m.admLearnerProfile?.id ?? null,
       invited: m.invitees.some((i) => i.userId === ctx.userId),
+      // Mirrors `rescheduleMeeting`: attended, closed, still-in-review and
+      // certified cases can never move.
+      reschedulable:
+        !m.attended &&
+        (!ref || (ref.status !== "resolved" && ref.status !== "dismissed")) &&
+        !underReview &&
+        (!profile ||
+          (!profile.approvedBy && PRE_CERT_STAGES.has(profile.stage))),
     });
   }
 

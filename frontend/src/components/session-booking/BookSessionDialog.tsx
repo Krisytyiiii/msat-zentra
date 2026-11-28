@@ -538,9 +538,9 @@ export function BookSessionDialog({
 
   const summaryDateTime =
     date && effectiveTime && selectedSlot
-      ? `${formatSummaryDate(date)} · ${selectedSlot.label}`
+      ? `${formatSummaryDate(date)} | ${selectedSlot.label}`
       : date && effectiveTime
-        ? `${formatSummaryDate(date)} · ${formatTimeKey(effectiveTime)}`
+        ? `${formatSummaryDate(date)} | ${formatTimeKey(effectiveTime)}`
         : "Pick a date and time";
 
   if (boardMode) {
@@ -600,17 +600,38 @@ export function BookSessionDialog({
                 />
                 <div className={board.caseText}>
                   <span className={board.caseName}>{studentCard.name}</span>
-                  <div className={board.casePills}>
-                    {studentCard.lrn ? <Pill label="LRN">{studentCard.lrn}</Pill> : null}
-                    {(studentCard.section ?? studentCard.grade) ? (
-                      <Pill
-                        label={studentCard.grade ?? "Section"}
-                        tone="amber"
-                      >
-                        {studentCard.section ?? studentCard.grade}
-                      </Pill>
+                  <p className={board.caseMeta}>
+                    {studentCard.lrn ? (
+                      <span className={board.caseMetaItem}>
+                        <span className={board.caseMetaLabel}>LRN:</span>
+                        <span className={board.caseMetaValue}>{studentCard.lrn}</span>
+                      </span>
                     ) : null}
-                  </div>
+                    {studentCard.grade && studentCard.section ? (
+                      <>
+                        <span className={board.caseMetaSep} aria-hidden>
+                          |
+                        </span>
+                        <span className={board.caseMetaItem}>
+                          <span className={board.caseMetaLabel}>Grade level:</span>
+                          <span className={board.caseMetaValue}>{studentCard.grade}</span>
+                        </span>
+                      </>
+                    ) : null}
+                    {studentCard.section || studentCard.grade ? (
+                      <>
+                        <span className={board.caseMetaSep} aria-hidden>
+                          |
+                        </span>
+                        <span className={board.caseMetaItem}>
+                          <span className={board.caseMetaLabel}>Section:</span>
+                          <span className={board.caseMetaValue}>
+                            {studentCard.section ?? studentCard.grade}
+                          </span>
+                        </span>
+                      </>
+                    ) : null}
+                  </p>
                 </div>
               </div>
             ) : null}
@@ -628,54 +649,27 @@ export function BookSessionDialog({
                 </div>
                 <div className={board.laneCards}>
                   <div className={styles.field}>
-                    <span
-                      id={`${idPrefix}-board-date-label`}
-                      className={styles.fieldLabel}
-                    >
-                      Date
+                    <ClinicDatePicker
+                      id={`${idPrefix}-board-date`}
+                      label="Date"
+                      value={date}
+                      onChange={pickCustomDate}
+                      min={today}
+                      popoverClassName="z-[70]"
+                    />
+                  </div>
+                  <div className={board.pickBanner} aria-live="polite">
+                    <span className={board.pickBannerIcon} aria-hidden="true">
+                      <CalendarDays />
                     </span>
-                    <div
-                      className={board.dayStack}
-                      role="group"
-                      aria-labelledby={`${idPrefix}-board-date-label`}
-                    >
-                      {dayCards.map((d) => {
-                        const selected = !useCustomDate && date === d.key;
-                        return (
-                          <button
-                            key={d.key}
-                            type="button"
-                            className={`${styles.dayCard}${selected ? ` ${styles.daySelected} ${board.chipSelected}` : ""}`}
-                            aria-pressed={selected}
-                            onClick={() => pickDay(d.key)}
-                          >
-                            <span className={styles.dayDow}>{d.dow}</span>
-                            <span className={styles.dayLabel}>{d.label}</span>
-                          </button>
-                        );
-                      })}
-                      <button
-                        type="button"
-                        className={`${styles.dayCard}${useCustomDate ? ` ${styles.daySelected} ${board.chipSelected}` : ""}`}
-                        aria-pressed={useCustomDate}
-                        onClick={() => setUseCustomDate(true)}
+                    <span className={board.pickBannerText}>
+                      <span className={board.pickBannerLabel}>Selected date</span>
+                      <span
+                        className={`${board.pickBannerValue}${date ? "" : ` ${board.pickBannerEmpty}`}`}
                       >
-                        <CalendarDays className={styles.dayIcon} aria-hidden="true" />
-                        <span className={styles.dayLabel}>Other date</span>
-                      </button>
-                    </div>
-                    {useCustomDate ? (
-                      <div className={styles.customDate}>
-                        <ClinicDatePicker
-                          id={`${idPrefix}-board-date`}
-                          label="Custom date"
-                          value={date}
-                          onChange={pickCustomDate}
-                          min={today}
-                          popoverClassName="z-[70]"
-                        />
-                      </div>
-                    ) : null}
+                        {date ? formatSummaryDate(date) : "No date picked yet"}
+                      </span>
+                    </span>
                   </div>
                 </div>
               </section>
@@ -707,6 +701,21 @@ export function BookSessionDialog({
                       popoverClassName="z-[70]"
                       minTime={timeFloor}
                     />
+                  </div>
+                  <div className={board.pickBanner} aria-live="polite">
+                    <span className={board.pickBannerIcon} aria-hidden="true">
+                      <Clock />
+                    </span>
+                    <span className={board.pickBannerText}>
+                      <span className={board.pickBannerLabel}>Selected time</span>
+                      <span
+                        className={`${board.pickBannerValue}${effectiveTime ? "" : ` ${board.pickBannerEmpty}`}`}
+                      >
+                        {effectiveTime
+                          ? (selectedSlot?.label ?? formatTimeKey(effectiveTime))
+                          : "No time picked yet"}
+                      </span>
+                    </span>
                   </div>
                 </div>
               </section>
@@ -867,29 +876,30 @@ export function BookSessionDialog({
           ) : null}
 
           <div className={board.footer}>
-            <div className={styles.summary}>
-              <div className={board.summaryPills}>
-                {date ? (
-                  <span className={board.summaryPill}>{formatSummaryDate(date)}</span>
-                ) : null}
-                {effectiveTime ? (
-                  <span className={board.summaryPill}>
-                    {selectedSlot?.label ?? formatTimeKey(effectiveTime)}
-                  </span>
-                ) : null}
-                {!date && !effectiveTime ? (
-                  <span className={board.summaryEmpty}>Pick a date and time</span>
-                ) : null}
-              </div>
-              <div className={board.summaryPills}>
-                {showSessionType ? <Pill label="Session kind">{kindLabel}</Pill> : null}
-                <Pill label="Venue">{venue.trim() || "No venue set"}</Pill>
-              </div>
+            <div className={board.summary}>
+              <span className={board.summaryIcon} aria-hidden="true">
+                <CalendarDays />
+              </span>
+              <span className={board.summaryText}>
+                <span
+                  className={
+                    date && effectiveTime
+                      ? board.summaryMain
+                      : board.summaryEmpty
+                  }
+                >
+                  {summaryDateTime}
+                </span>
+                <span className={board.summarySub}>
+                  {showSessionType ? `${kindLabel} | ` : ""}
+                  {venue.trim() || "No venue set"}
+                </span>
+              </span>
             </div>
             <div className={board.actions}>
               <Button
                 onClick={save}
-                disabled={busy}
+                disabled={busy || !date || !effectiveTime}
                 aria-busy={busy || undefined}
                 className={board.footerBtn}
               >
@@ -1199,7 +1209,7 @@ export function BookSessionDialog({
           <div className={styles.summary}>
             <p className={styles.summaryMain}>{summaryDateTime}</p>
             <p className={styles.summarySub}>
-              {showSessionType ? `${kindLabel} · ` : ""}
+              {showSessionType ? `${kindLabel} | ` : ""}
               {venue.trim() || "No venue set"}
             </p>
           </div>

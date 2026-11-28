@@ -6,6 +6,7 @@ import { GuidancePageHeader } from "../components/GuidancePageHeader";
 import { ZentraPageHeaderSkeleton, KanbanBoardSkeleton, IconRailSkeleton } from "@/components/shared/zentra-skeletons/ZentraSkeletons";
 import { ProfileCard } from "./components/ProfileCard";
 import { PasswordCard } from "./components/PasswordCard";
+import { TermScopeCard } from "@/components/settings/TermScopeCard";
 import { guidanceSettingsSections } from "./components/SettingsNav";
 import { SettingsRail } from "./components/SettingsRail";
 import { useTheme } from "@/components/providers";
@@ -63,7 +64,7 @@ export default function GuidanceSettingsPage() {
         <ZentraPageHeaderSkeleton />
         <div className={sectionStyles.layout}>
           <div className={`flex w-full min-w-0 flex-col gap-3 ${sectionStyles.stack}`}>
-            {Array.from({ length: 3 }).map((_, i) => (
+            {Array.from({ length: 4 }).map((_, i) => (
               <KanbanBoardSkeleton
                 key={i}
                 rows={i === 1 ? 2 : 3}
@@ -81,11 +82,12 @@ export default function GuidanceSettingsPage() {
     <section className={`mx-auto flex w-full max-w-3xl flex-col gap-3 ${sectionStyles.page}`}>
       <GuidancePageHeader
         title="Settings"
-        description="Your profile, appearance, and account security."
+        description="Your profile, school year scope, appearance, and account security."
       />
       <div className={sectionStyles.layout}>
         <div className={`flex w-full min-w-0 flex-col gap-3 ${sectionStyles.stack}`}>
           <ProfileCard />
+          <TermScopeCard />
           <div id="section-appearance" className={sectionStyles.boardWrap}>
             <KanbanBoard
               title="Appearance"

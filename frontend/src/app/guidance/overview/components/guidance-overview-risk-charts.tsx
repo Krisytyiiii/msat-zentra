@@ -64,7 +64,7 @@ export function GuidanceOverviewRiskCharts({
     <div className={styles.threeCol}>
       <GuidanceDonutPanel
         title="Risk levels"
-        description="Live recompute · High ≥ 2 flags, Moderate = 1, Low = 0."
+        description="Live recompute | High ≥ 2 flags, Moderate = 1, Low = 0."
         rows={levelRows}
         unit="students"
         emptyTitle="No students enrolled"

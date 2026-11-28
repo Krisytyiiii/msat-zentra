@@ -62,6 +62,7 @@ export function KanbanBoardSkeleton({
   footer,
   className,
   style,
+  bare = false,
 }: {
   titleWidth?: string;
   rows?: number;
@@ -76,9 +77,12 @@ export function KanbanBoardSkeleton({
   footer?: ReactNode;
   className?: string;
   style?: CSSProperties;
+  /** Drop the wrapper card, matching a `bare` <KanbanBoard/>. */
+  bare?: boolean;
 }) {
   return (
     <KanbanBoard
+      bare={bare}
       title={<Skeleton className={styles.boardTitle} style={{ width: titleWidth }} />}
       count={showCount ? <Skeleton className={styles.boardCount} /> : undefined}
       actions={actions}

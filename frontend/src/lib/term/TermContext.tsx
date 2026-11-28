@@ -31,7 +31,7 @@ export interface SchoolYearOption {
   terms: TermOption[];
 }
 
-/** The term a term-steering role selected (teachers, principal). */
+/** The term a term-steering role selected (teachers and staff desks). */
 export type ActiveTerm = StoredTerm;
 
 /** Server-marked active school year (from `/api/academics/school-years`). */

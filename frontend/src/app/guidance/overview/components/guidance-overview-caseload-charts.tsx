@@ -3,7 +3,7 @@
 import { Inbox, School } from "lucide-react";
 import {
   GuidanceDonutPanel,
-  GuidanceSectionsLinePanel,
+  GuidanceSectionsAreaPanel,
 } from "./guidance-overview-panels";
 import type {
   GuidanceReferralTypeRow,
@@ -17,7 +17,7 @@ interface GuidanceOverviewCaseloadChartsProps {
 }
 
 /**
- * Caseload section — a wide stacked-bar board for sections needing attention
+ * Caseload section — a wide area-chart board for sections needing attention
  * plus the referred-cases donut, in the same 2-up grid as the nurse trends
  * boards. Top 6 sections by risk, amber palette.
  */
@@ -62,9 +62,9 @@ export function GuidanceOverviewCaseloadCharts({
 
   return (
     <div className={styles.twoCol}>
-      <GuidanceSectionsLinePanel
+      <GuidanceSectionsAreaPanel
         title="Sections needing attention"
-        description="High-risk students per section · top 6 sections."
+        description="High + moderate risk students per section | top 6 sections."
         rows={sectionRows}
         emptyTitle="No sections need attention"
         emptyText="No section has at-risk students right now."

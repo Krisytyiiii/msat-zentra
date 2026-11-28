@@ -1,8 +1,9 @@
 "use client";
 
 import * as React from "react";
-import Link from "next/link";
+import { useRouter } from "next/navigation";
 import {
+  ChevronRight,
   ClipboardList,
   HeartPulse,
   type LucideIcon,
@@ -25,8 +26,16 @@ import {
   YAxis,
 } from "recharts";
 import { KanbanBoard } from "@/components/ui/kanban-board";
-import { Pill } from "@/components/ui/pill";
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "@/components/ui/table";
 import { StudentMascot } from "@/components/student-mascot/StudentMascot";
+import cascade from "@/components/shared/desk-cascade.module.css";
 import {
   interpretCategoryMix,
   interpretCategoryTrend,
@@ -44,6 +53,7 @@ import { useGuidanceAdmRiskData } from "./use-guidance-adm-risk-data";
 import { GuidanceAdmRiskSkeleton } from "./GuidanceAdmSkeleton";
 import reportStyles from "./guidance-adm-reports.module.css";
 import styles from "./guidance-adm.module.css";
+import alertsStyles from "../../alerts/components/guidance-alerts-table.module.css";
 
 const TOOLTIP_STYLE: React.CSSProperties = {
   borderRadius: 8,
@@ -59,14 +69,6 @@ const LEVEL_COLORS: Record<RiskLevelBucket, string> = {
   Low: AMBER_STEPS[2],
   Unassessed: AMBER_STEPS[3],
 };
-
-const SECTION_PILL = "max-w-[7rem] truncate";
-
-function typeTone(kind: string | null | undefined): "blue" | "violet" | "neutral" {
-  if (kind === "ADM") return "blue";
-  if (kind === "Counseling") return "violet";
-  return "neutral";
-}
 
 function BoardIcon({ icon: Icon }: { icon: LucideIcon }) {
   return (
@@ -89,7 +91,6 @@ function StudentsByLevel({
     <KanbanBoard
       title="Students by risk level"
       icon={<BoardIcon icon={HeartPulse} />}
-      count={totalStudents}
       description="Live levels for learners with a case on the guidance desk."
       className="flex-1"
       footer={<GuidanceAdmInterpretation>{interpretation}</GuidanceAdmInterpretation>}
@@ -195,7 +196,6 @@ function RiskCasesByCategory({
     <KanbanBoard
       title="Risk cases by category"
       icon={<BoardIcon icon={ClipboardList} />}
-      count={total}
       description="What the guidance desk cases are about."
       className="flex-1"
       footer={<GuidanceAdmInterpretation>{interpretation}</GuidanceAdmInterpretation>}
@@ -288,7 +288,6 @@ function RiskTrend({
     <KanbanBoard
       title="Referrals by category over time"
       icon={<BoardIcon icon={TrendingUp} />}
-      count={trend.total}
       description="Cases per week by category — last 12 weeks."
       className="flex-1"
       footer={<GuidanceAdmInterpretation>{interpretation}</GuidanceAdmInterpretation>}
@@ -396,6 +395,7 @@ function watchSummary(data: RiskWatchData): string {
 }
 
 function WhoNeedsAttention({ data }: { data: RiskWatchData }) {
+  const router = useRouter();
   const known = data.urgent + data.watch + data.okay;
   const interpretation =
     known === 0
@@ -409,7 +409,6 @@ function WhoNeedsAttention({ data }: { data: RiskWatchData }) {
     <KanbanBoard
       title="Who needs attention first"
       icon={<BoardIcon icon={ShieldAlert} />}
-      count={data.watchlist.length}
       description="High-risk students in plain words — names open their timeline."
       className="flex-1"
       footer={<GuidanceAdmInterpretation>{interpretation}</GuidanceAdmInterpretation>}
@@ -417,62 +416,100 @@ function WhoNeedsAttention({ data }: { data: RiskWatchData }) {
       <p className="px-1 text-[12px] leading-relaxed text-foreground">
         {watchSummary(data)}
       </p>
-      {data.watchlist.length === 0 ? null : (
-        <ol className={styles.bottleneckList}>
-          {data.watchlist.map((s) => (
-            <li key={s.studentId}>
-              <Link
-                className={styles.bottleneckRow}
-                href={`/guidance/referrals/${
+      {data.watchlist.length > 0 ? (
+        <div className={alertsStyles.tableWrap}>
+          <Table className={`${cascade.table} w-full table-fixed`}>
+            <TableHeader>
+              <TableRow className="bg-muted/50 [&>th]:border-t-0">
+                <TableHead className="h-10 truncate">Learner</TableHead>
+                <TableHead style={{ width: 170 }} className="h-10 truncate">
+                  Section
+                </TableHead>
+                <TableHead style={{ width: 90 }} className="h-10 truncate">
+                  Risk
+                </TableHead>
+                <TableHead style={{ width: 220 }} className="h-10 truncate">
+                  Flagged concerns
+                </TableHead>
+                <TableHead style={{ width: 44 }} className="h-10" aria-hidden />
+              </TableRow>
+            </TableHeader>
+            <TableBody>
+              {data.watchlist.map((s, index) => {
+                const href = `/guidance/referrals/${
                   s.kind === "ADM" ? "adm" : "counseling"
-                }?highlight=${s.referralId}`}
-              >
-                <span className={styles.bottleneckMain}>
-                  <span className={styles.bottleneckName}>
-                    {s.kind ? (
-                      <Pill
-                        tone={typeTone(s.kind)}
-                        label="Referral type"
-                        className="shrink-0 uppercase tracking-wide"
+                }?highlight=${s.referralId}`;
+                const open = () => router.push(href);
+                return (
+                  <TableRow
+                    key={s.studentId}
+                    onClick={open}
+                    onKeyDown={(e) => {
+                      if (e.key === "Enter" || e.key === " ") {
+                        e.preventDefault();
+                        open();
+                      }
+                    }}
+                    tabIndex={0}
+                    aria-label={`Open the case for ${s.student}`}
+                    className={alertsStyles.alertRow}
+                    style={{ animationDelay: `${Math.min(index, 5) * 120}ms` }}
+                  >
+                    <TableCell className="truncate">
+                      <span className="flex min-w-0 items-center gap-2">
+                        <StudentMascot
+                          name={s.student}
+                          seed={s.student}
+                          size={28}
+                        />
+                        <span className="min-w-0">
+                          <span
+                            className="block truncate text-[13px] font-semibold text-primary"
+                            title={s.student}
+                          >
+                            {s.student}
+                          </span>
+                          <span className="mt-0.5 block truncate text-[12px] text-muted-foreground">
+                            {s.kind || "Referral"}
+                          </span>
+                        </span>
+                      </span>
+                    </TableCell>
+                    <TableCell className="truncate">
+                      <span className="block truncate text-[12px] font-medium text-foreground">
+                        {s.section || "—"}
+                      </span>
+                    </TableCell>
+                    <TableCell className="truncate">
+                      <span
+                        className="text-[12px] font-semibold text-red-600 dark:text-red-400"
+                        title="Risk level"
                       >
-                        {s.kind}
-                      </Pill>
-                    ) : null}
-                    <span className="shrink-0" aria-hidden>
-                      <StudentMascot
-                        name={s.student}
-                        seed={s.student}
-                        size={28}
+                        High
+                      </span>
+                    </TableCell>
+                    <TableCell className="truncate">
+                      <span
+                        className="block truncate text-[12px] text-muted-foreground"
+                        title={s.drivers.join(", ")}
+                      >
+                        {s.drivers.length > 0 ? s.drivers.join(", ") : "—"}
+                      </span>
+                    </TableCell>
+                    <TableCell className="truncate">
+                      <ChevronRight
+                        size={15}
+                        className="text-muted-foreground"
+                        aria-hidden
                       />
-                    </span>
-                    <span
-                      className="min-w-0 max-w-[10rem] truncate text-[13px] font-semibold text-foreground"
-                      title={s.student}
-                    >
-                      {s.student}
-                    </span>
-                    {s.section ? (
-                      <Pill
-                        tone="neutral"
-                        label="Section"
-                        className={SECTION_PILL}
-                        title={s.section}
-                      >
-                        {s.section}
-                      </Pill>
-                    ) : null}
-                  </span>
-                  {s.drivers.length > 0 ? (
-                    <span className={styles.bottleneckReason}>
-                      {s.drivers.join(" · ")}
-                    </span>
-                  ) : null}
-                </span>
-              </Link>
-            </li>
-          ))}
-        </ol>
-      )}
+                    </TableCell>
+                  </TableRow>
+                );
+              })}
+            </TableBody>
+          </Table>
+        </div>
+      ) : null}
       {data.topDriver ? (
         <p className="px-1 text-xs text-muted-foreground">
           Most flagged concern:{" "}

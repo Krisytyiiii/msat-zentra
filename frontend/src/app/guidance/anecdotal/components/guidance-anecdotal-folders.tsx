@@ -157,29 +157,18 @@ export function GuidanceAnecdotalFolders({
     <>
       <div className={styles.panel}>
         <div className={styles.header}>
-          <div className={styles.headerText}>
-            <div className={styles.titleRow}>
-              <h2 className={styles.sectionTitle}>Referred GCForm-01 case files</h2>
-              <button
-                type="button"
-                className={styles.helpBtn}
-                onClick={() => setHelpOpen(true)}
-                aria-label="Why can't I open some reports?"
-                title="Why can't I open some reports?"
-              >
-                <HelpCircle aria-hidden="true" />
-              </button>
-            </div>
-            <p className={styles.sectionDesc}>
-              Every ADM and counseling case referred to you — {total} in all. Open a folder to
-              read its GCForm-01.
-            </p>
-          </div>
-          <div className={styles.headerCenter}>
-            <GuidanceAnecdotalTypeTabs type={type} onTypeChange={onTypeChange} />
-          </div>
+          <GuidanceAnecdotalTypeTabs type={type} onTypeChange={onTypeChange} />
           <div className={styles.headerActions}>
             <GuidanceAnecdotalSearch query={query} onQueryChange={onQueryChange} />
+            <button
+              type="button"
+              className={styles.helpBtn}
+              onClick={() => setHelpOpen(true)}
+              aria-label="Why can't I open some reports?"
+              title="Why can't I open some reports?"
+            >
+              <HelpCircle aria-hidden="true" />
+            </button>
           </div>
         </div>
         <div className={styles.content}>
@@ -207,11 +196,11 @@ export function GuidanceAnecdotalFolders({
                       plainName
                       mascotSeed={record.lrn}
                       mascotCharacter={record.mascot ?? undefined}
-                      lrn={record.lrn}
-                      metaText={record.section}
-                      metaTitle={`Section ${record.section}`}
-                      metaLabel={record.grade || "Grade level"}
-                      metaTone="amber"
+                      facts={[
+                        { label: "LRN", value: record.lrn || "—" },
+                        { label: "Grade level", value: record.grade || "—" },
+                        { label: "Section", value: record.section || "—" },
+                      ]}
                       fileName={`GCForm-01_${record.date}`}
                       fileTag={`${humanizeCategory(record.category)} • ${timeAgo(record.date)}`}
                       headerRight={

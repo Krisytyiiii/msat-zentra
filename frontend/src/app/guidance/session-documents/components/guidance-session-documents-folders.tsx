@@ -3,6 +3,7 @@
 import * as React from "react";
 import { ArrowLeft, HelpCircle } from "lucide-react";
 import { PolaroidStack } from "@/components/aicanvas/polaroid-stack";
+import { AnecdotalRecordKanbanCard } from "@/components/anecdotal/anecdotal-record-kanban-card";
 import { ImageViewer } from "@/components/image-viewer/ImageViewer";
 import { PrivacyNoticeDialog } from "@/components/privacy-notice-dialog";
 import { Button } from "@/components/ui/button";
@@ -16,14 +17,17 @@ import {
   type TypeFilter,
 } from "@/app/guidance/anecdotal/components/guidance-anecdotal-filters";
 import { docSlipsFor } from "./session-doc-slips";
-import {
-  SessionDocumentPhotoPolaroid,
-  SessionDocumentPolaroid,
-} from "./SessionDocumentPolaroid";
+import { SessionDocumentPhotoPolaroid } from "./SessionDocumentPolaroid";
 import styles from "./guidance-session-documents-folders.module.css";
 
 function isEndorsedCase(type: string | undefined, status: string): boolean {
   return type === "ADM" && status === "in_progress";
+}
+
+function caseTypeLabel(record: GuidanceAnecdotalRecord): string {
+  if (record.referralType === "ADM") return "ADM consultation";
+  if (record.hasInterventionDocs) return "Intervention";
+  return "Counseling";
 }
 
 interface GuidanceSessionDocumentsFoldersProps {
@@ -136,29 +140,18 @@ export function GuidanceSessionDocumentsFolders({
     body = (
       <section aria-label="Session documents" className="flex flex-col gap-4">
         <div className={styles.header}>
-          <div className={styles.headerText}>
-            <div className={styles.titleRow}>
-              <h2 className={styles.sectionTitle}>Filed session images</h2>
-              <button
-                type="button"
-                className={styles.helpBtn}
-                onClick={() => setHelpOpen(true)}
-                aria-label="Why can't I open some folders?"
-                title="Why can't I open some folders?"
-              >
-                <HelpCircle aria-hidden="true" />
-              </button>
-            </div>
-            <p className={styles.sectionDesc}>
-              Images counselors filed on sessions — {total} folder
-              {total === 1 ? "" : "s"} in all. Click a folder to fan out its photos.
-            </p>
-          </div>
-          <div className={styles.headerCenter}>
-            <GuidanceAnecdotalTypeTabs type={type} onTypeChange={onTypeChange} />
-          </div>
+          <GuidanceAnecdotalTypeTabs type={type} onTypeChange={onTypeChange} />
           <div className={styles.headerActions}>
             <GuidanceAnecdotalSearch query={query} onQueryChange={onQueryChange} />
+            <button
+              type="button"
+              className={styles.helpBtn}
+              onClick={() => setHelpOpen(true)}
+              aria-label="Why can't I open some folders?"
+              title="Why can't I open some folders?"
+            >
+              <HelpCircle aria-hidden="true" />
+            </button>
           </div>
         </div>
 
@@ -176,20 +169,34 @@ export function GuidanceSessionDocumentsFolders({
           </div>
         ) : (
           <>
-            <PolaroidStack
-              align="left"
-              items={records.map((record) => ({
-                ...record,
-                id: record.referralId,
-              }))}
-              ariaLabel="Session document folders"
-              labelFor={(record) =>
-                `${record.student} — ${record.referralType ?? "Counseling"} session documents`
-              }
-              renderCard={(record) => <SessionDocumentPolaroid record={record} />}
-              onActivate={openRecord}
-              hint="Click a record to fan out its photos."
-            />
+            <div className={styles.scrollArea}>
+              <div className={styles.studentGrid}>
+                {records.map((record) => {
+                  const photoCount = docSlipsFor(record, 50).length;
+                  return (
+                    <AnecdotalRecordKanbanCard
+                      key={record.referralId}
+                      category={record.category}
+                      studentName={record.student}
+                      plainName
+                      mascotSeed={record.lrn}
+                      mascotCharacter={record.mascot ?? undefined}
+                      facts={[
+                        { label: "LRN", value: record.lrn || "—" },
+                        { label: "Grade level", value: record.grade || "—" },
+                        { label: "Section", value: record.section || "—" },
+                      ]}
+                      fileName={`SessionDocs_${record.date}`}
+                      fileTag={`${photoCount} photo${photoCount === 1 ? "" : "s"} • ${caseTypeLabel(
+                        record,
+                      )}`}
+                      openLabel={`Open session photos for ${record.student}`}
+                      onOpen={() => openRecord(record)}
+                    />
+                  );
+                })}
+              </div>
+            </div>
             <ZentraPagination
               currentPage={page}
               totalItems={total}

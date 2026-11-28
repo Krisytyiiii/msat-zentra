@@ -89,7 +89,6 @@ function CasesByCategory({ data }: { data: GuidanceAdmInsightsData }) {
     <KanbanBoard
       title="Cases by category"
       icon={<BoardIcon icon={ClipboardList} />}
-      count={data.total}
       description="What the referred anecdotes were filed as."
       className="flex-1"
       footer={
@@ -147,7 +146,6 @@ function ReferredActions({ data }: { data: GuidanceAdmReferralsData }) {
     <KanbanBoard
       title="Referred actions"
       icon={<BoardIcon icon={PieChartIcon} />}
-      count={total}
       description="What happened with each case referred to you."
       className="flex-1"
       footer={
@@ -259,7 +257,6 @@ function ReferralTrend({ data }: { data: GuidanceAdmReferralsData }) {
     <KanbanBoard
       title="Referrals over time"
       icon={<BoardIcon icon={TrendingUp} />}
-      count={total}
       description="Cases referred to you per week — last 12 weeks."
       className="flex-1"
       footer={

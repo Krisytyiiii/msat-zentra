@@ -41,6 +41,8 @@ export interface InterventionTableViewProps {
   onQueryChange: (value: string) => void;
   status: InterventionStatusFilter;
   onStatusChange: (value: InterventionStatusFilter) => void;
+  /** Per-tab totals, rendered as the count chip on each filter tag. */
+  statusCounts: Record<InterventionStatusFilter, number>;
   isNavigating: boolean;
   expandedKey: string | null;
   onToggleDetails: (key: string) => void;
@@ -71,6 +73,7 @@ export function InterventionTableView({
   onQueryChange,
   status,
   onStatusChange,
+  statusCounts,
   isNavigating,
   expandedKey,
   onToggleDetails,
@@ -98,16 +101,7 @@ export function InterventionTableView({
         isEmpty ? ` ${styles.emptyFill}` : ""
       }`}
     >
-      <div className="flex w-full flex-wrap items-center justify-between gap-2">
-        <div className={`${styles.filterRow} ${styles.filterRowScroll}`}>
-          <FilterTabs
-            label="Filter cases by status"
-            variant="tags"
-            options={STATUS_OPTIONS}
-            value={status}
-            onChange={onStatusChange}
-          />
-        </div>
+      <div className="flex w-full flex-col gap-2">
         <div className="flex flex-wrap items-center justify-end gap-2">
           <SearchField
             className="w-60"
@@ -115,6 +109,18 @@ export function InterventionTableView({
             value={query}
             onChange={(next) => onQueryChange(next)}
             aria-label="Search at-risk students"
+          />
+        </div>
+        <div className={`${styles.filterRow} ${styles.filterRowScroll}`}>
+          <FilterTabs
+            label="Filter cases by status"
+            variant="tags"
+            options={STATUS_OPTIONS.map((option) => ({
+              ...option,
+              count: statusCounts[option.value],
+            }))}
+            value={status}
+            onChange={onStatusChange}
           />
         </div>
       </div>

@@ -49,9 +49,12 @@ export function GuidanceReferralsView({
   highlightId?: string | null;
 }) {
   const locked = lockedType !== "";
-  const isKanban =
+  /* Both locked desks (ADM + Counseling) are data lists now — the same
+     anatomy as /guidance/alerts — while keeping the board chrome: desk head,
+     figure strip and action tabs. */
+  const isBoard =
     lockedType === "ADM" || lockedType === "Counseling";
-  const pageSize = isKanban ? GUIDANCE_BOARD_PAGE_SIZE : GUIDANCE_REFERRALS_PAGE_SIZE;
+  const pageSize = isBoard ? GUIDANCE_BOARD_PAGE_SIZE : GUIDANCE_REFERRALS_PAGE_SIZE;
   const searchParams = useSearchParams();
   const { activeTerm, termReady } = useTerm();
   const termKey = `${activeTerm?.schoolYearId ?? ""}:${activeTerm?.termId ?? ""}`;
@@ -192,7 +195,7 @@ export function GuidanceReferralsView({
     lockedType === "ADM" ? "ADM" : "Counseling";
   const searchPlaceholder =
     boardTrack === "ADM" ? "Search ADM cases…" : "Search counseling cases…";
-  const deskHead = isKanban ? (
+  const deskHead = isBoard ? (
     <GuidanceBoardDeskHead
       track={boardTrack}
       title={title}
@@ -206,12 +209,12 @@ export function GuidanceReferralsView({
   if (isPending) {
     return (
       <section className={styles.page} aria-busy="true" aria-label="Loading your cases">
-        {isKanban ? (
+        {isBoard ? (
           <>
             {deskHead}
             <ShimmerGroup>
               <GuidanceBoardFigures track={boardTrack} loading />
-              <GuidanceReferralsSkeleton lockType />
+              <GuidanceReferralsSkeleton lockType table={isBoard} />
             </ShimmerGroup>
           </>
         ) : (
@@ -286,7 +289,7 @@ export function GuidanceReferralsView({
       aria-busy={refreshing}
       aria-label={headerCopy.title}
     >
-      {isKanban ? (
+      {isBoard ? (
         <>
           {deskHead}
           {isTrueEmpty ? null : (
@@ -331,7 +334,7 @@ export function GuidanceReferralsView({
         isRetrying={isRefetching}
         lockType={locked}
         title={title}
-        layout={isKanban ? "kanban" : "list"}
+        layout={isBoard ? "table" : "list"}
         highlightId={highlightId}
       />
       )}

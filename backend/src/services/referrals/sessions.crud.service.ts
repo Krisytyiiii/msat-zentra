@@ -157,6 +157,30 @@ export async function rescheduleSession(
 ) {
   const referral = await getSessionReferral(referralId, ctx.role, ctx.termId);
   ensureOpen(referral);
+  const admTrack =
+    referral.referredToRole === "adm_coordinator" ||
+    referral.escalatedTo === "adm_coordinator";
+  if (admTrack && referral.consultReviewedAt) {
+    // Once the consultation is endorsed the case belongs to the coordinator —
+    // the originating desk must not move its sessions any more.
+    throw new AppError(
+      409,
+      "CASE_ENDORSED",
+      "This ADM case has already been endorsed — its sessions can no longer be rescheduled here",
+    );
+  }
+  if (admTrack) {
+    const signed = await prisma.admLearnerProfile.count({
+      where: { referralId: referral.id, approvedBy: { not: null } },
+    });
+    if (signed > 0) {
+      throw new AppError(
+        409,
+        "CASE_SIGNED",
+        "This ADM case has been signed off — its sessions can no longer be rescheduled",
+      );
+    }
+  }
   const session = await getSession(referral.id, sessionId);
   if (session.status !== "scheduled") {
     throw new AppError(400, "INVALID_ACTION", "Only an upcoming session can be moved");

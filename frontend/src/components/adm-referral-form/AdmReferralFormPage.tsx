@@ -19,7 +19,7 @@ import {
 import {
   type GcForm03Data,
 } from "@/services/guidance/gcform03.types";
-import { GcForm03PreviewDialog } from "@/app/guidance/adm/components/GcForm03PreviewDialog";
+import { GcForm03LivePreview } from "./GcForm03LivePreview";
 import { AdmReferralFormFields } from "./adm-referral-form-fields";
 import {
   defaultGcFormSigner,
@@ -92,7 +92,6 @@ export function AdmReferralFormSheet({
   });
   const report = reportQuery.data ?? null;
 
-  const [step, setStep] = React.useState<1 | 2>(1);
   const [form, setForm] = React.useState<GcForm03Data | null>(null);
   const [sessionDate, setSessionDate] = React.useState("");
   const [sessionTime, setSessionTime] = React.useState("");
@@ -169,6 +168,29 @@ export function AdmReferralFormSheet({
     return () => window.clearTimeout(t);
   }, [form, referralId, mounted]);
 
+  // The auto-filled baseline: what the form looks like before any edit, so the
+  // Confirm action stays disabled until the counselor actually changes something.
+  const baseline = React.useMemo(
+    () =>
+      activeCase
+        ? buildGcForm03Data(
+            activeCase.adapter,
+            report,
+            initialDraft.recommendation,
+            counselorName || defaultSignerName
+          )
+        : null,
+    [activeCase, report, initialDraft.recommendation, counselorName, defaultSignerName]
+  );
+  const baselineDate = initialDraft.scheduledAt?.slice(0, 10) ?? "";
+  const baselineTime = initialDraft.scheduledAt?.slice(11, 16) ?? "";
+  const changed =
+    !!form &&
+    !!baseline &&
+    (JSON.stringify(form) !== JSON.stringify(baseline) ||
+      sessionDate !== baselineDate ||
+      sessionTime !== baselineTime);
+
   function resolveSession(): string | undefined {
     if (!showClinicSession) return undefined;
     if (!sessionDate && !sessionTime) return undefined;
@@ -210,7 +232,6 @@ export function AdmReferralFormSheet({
         title: "Referral confirmed",
         description: confirmToastDescription,
       });
-      setStep(1);
       onConfirmed();
     },
   });
@@ -234,7 +255,6 @@ export function AdmReferralFormSheet({
       <section className={pageStyles.page} aria-busy="true">
         <div className={pageStyles.header}>
           <div>
-            <p className={pageStyles.eyebrow}>ADM · Referral form</p>
             <h1 className={pageStyles.title}>GCForm-03</h1>
             <p className={pageStyles.lede}>Loading the case and its anecdotal report…</p>
           </div>
@@ -260,7 +280,6 @@ export function AdmReferralFormSheet({
       <section className={pageStyles.page}>
         <div className={pageStyles.header}>
           <div>
-            <p className={pageStyles.eyebrow}>ADM · Referral form</p>
             <h1 className={pageStyles.title}>GCForm-03</h1>
           </div>
         </div>
@@ -278,27 +297,19 @@ export function AdmReferralFormSheet({
     );
   }
 
-  // Render the preview in place of the sheet (not nested inside it): the
-  // sheet is a Radix Dialog whose scroll lock would block wheel scrolling in
-  // a separately portaled modal. Swapping keeps the preview scrollable.
-  if (form && step === 2) {
-    return (
-      <GcForm03PreviewDialog
-        open
-        data={form}
-        confirming={confirmMutation.isPending}
-        onClose={() => setStep(1)}
-        onConfirm={() => confirmMutation.mutate()}
-      />
-    );
-  }
-
   return (
-    <FormSheet onClose={onClose}>
+    <FormSheet
+      onClose={onClose}
+      aside={
+        <GcForm03LivePreview
+          data={form}
+          title={`GCForm-03 — ${activeCase.adapter.student}`}
+        />
+      }
+    >
     <section className={pageStyles.page}>
       <div className={pageStyles.header}>
         <div>
-          <p className={pageStyles.eyebrow}>ADM · Referral form</p>
           <h1 className={pageStyles.title}>GCForm-03 — {activeCase.adapter.student}</h1>
           <p className={pageStyles.lede}>
             Answer the form&rsquo;s questions — names, dates, and the anecdotal detail are already filled in.
@@ -344,8 +355,15 @@ export function AdmReferralFormSheet({
           activeCase={activeCase}
           staffSectionTitle={staffSectionTitle}
           signerLabel={signerLabel}
-          onPreview={() => setStep(2)}
           onReset={handleReset}
+          onConfirm={() => confirmMutation.mutate()}
+          confirming={confirmMutation.isPending}
+          changed={changed}
+          confirmDisabledReason={
+            activeCase?.hasActiveSession
+              ? "Finish or cancel the upcoming session (or follow-up) first."
+              : null
+          }
         />
       ) : null}
     </section>

@@ -73,7 +73,6 @@ export function InsightsHeatmap({
     <KanbanBoard
       title="Section × outcome heatmap"
       icon={<BoardIcon icon={Grid3X3} />}
-      count={<span className={styles.heatRate}>{totals.total}</span>}
       description={`Where intervention cases cluster and how they closed — ${termLabel}. Darker amber cells mean more follow-ups.`}
       className={styles.boardIn}
     >
@@ -111,7 +110,7 @@ export function InsightsHeatmap({
                     <th
                       scope="row"
                       className={styles.heatRowHead}
-                      title={`${row.section} · ${row.grade}`}
+                      title={`${row.section} | ${row.grade}`}
                     >
                       <span className={styles.heatSectionCell}>
                         <span className={styles.heatSectionAvatar} aria-hidden="true">
@@ -140,7 +139,7 @@ export function InsightsHeatmap({
                             </TooltipTrigger>
                             <TooltipContent>
                               <span className="block text-xs font-semibold">
-                                {row.section} · {column.label}
+                                {row.section} | {column.label}
                               </span>
                               <span className="block text-[12px] opacity-80">
                                 {count} follow-up{count === 1 ? "" : "s"}

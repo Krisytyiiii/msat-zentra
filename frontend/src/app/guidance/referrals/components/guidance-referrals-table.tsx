@@ -20,6 +20,7 @@ import {
   GuidanceReferralEntry,
 } from "./GuidanceReferralEntry";
 import { GuidanceCaseKanbanCard } from "./GuidanceCaseKanbanCard";
+import { GuidanceCasesTable } from "./guidance-cases-table";
 import { GuidanceActionTabs } from "./GuidanceActionTabs";
 import type { AdmReviewDraft } from "@/components/adm-review/AdmReviewDialog";
 import { GuidanceActionMenu } from "./GuidanceActionMenu";
@@ -137,6 +138,10 @@ export function GuidanceReferralsTable({
 
   const goToPage = (next: number) => onPageChange?.(next);
   const isKanban = layout === "kanban";
+  /* ADM is a data list now; it keeps the board chrome (desk head, figures,
+     action tabs) but renders rows instead of folder cards. */
+  const isTable = layout === "table";
+  const isBoard = isKanban || isTable;
   const hasActiveFilters =
     query.trim() !== "" || action !== "" || (!lockType && typeFilter !== "");
 
@@ -153,9 +158,9 @@ export function GuidanceReferralsTable({
   return (
     <div className={styles.layout}>
       <div
-        className={`${styles.feed} ${styles.layoutFeed}${isKanban ? ` ${styles.feedWide}` : ""}`}
+        className={`${styles.feed} ${styles.layoutFeed}${isBoard ? ` ${styles.feedWide}` : ""}`}
       >
-        {isKanban ? null : <h1 className={styles.srOnly}>Cases sent to guidance</h1>}
+        {isBoard ? null : <h1 className={styles.srOnly}>Cases sent to guidance</h1>}
         {!lockType && (
           <GuidanceReferralsToolbar
             title={title}
@@ -171,7 +176,7 @@ export function GuidanceReferralsTable({
           />
         )}
 
-        {isKanban ? (
+        {isBoard ? (
           <div className="flex flex-wrap items-center justify-between gap-2">
             <GuidanceActionTabs
               action={action}
@@ -221,6 +226,23 @@ export function GuidanceReferralsTable({
             hint="New cases sent to you by advisers will appear here."
           />
         )
+      ) : isTable ? (
+        <GuidanceCasesTable
+          referrals={referrals}
+          now={now}
+          highlightId={highlightId}
+          actionPending={isActionPending}
+          onBookSession={(row) => openDialog(row.id, "schedule")}
+          onPreview={setPreviewId}
+          onPrivacy={setPrivacyFor}
+          onEndorsedNotice={setEndorsedFor}
+          onOpenSession={(referralId, session, dialog) =>
+            openSessionDialog(referralId, session, dialog)
+          }
+          onChanged={() => {
+            invalidateGuidance();
+          }}
+        />
       ) : isKanban ? (
         <div className={styles.kanbanGrid} role="list" aria-label={title}>
           {referrals.map((row) => (
@@ -284,7 +306,7 @@ export function GuidanceReferralsTable({
       )}
       </div>
 
-      {isKanban ? null : (
+      {isBoard ? null : (
         <GuidanceActionMenu
           action={action}
           summary={summary}
@@ -356,7 +378,7 @@ interface GuidanceReferralsTableProps {
   lockType?: boolean;
   title?: string;
 
-  layout?: "list" | "kanban";
+  layout?: "list" | "kanban" | "table";
 
   highlightId?: string | null;
 

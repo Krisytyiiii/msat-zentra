@@ -1,6 +1,11 @@
-/* Principal settings — term & school year picker.
+/* Staff settings — shared term & school year picker.
    Same card language as the rest of the settings board: amber selection
    ring, thin amber scrollbar, 1px borders, 160ms micro-motion. */
+
+.boardWrap {
+  min-width: 0;
+  scroll-margin-top: 6rem;
+}
 
 .sectionLabel {
   margin: 0 0 0.5rem;

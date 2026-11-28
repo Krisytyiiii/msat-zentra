@@ -127,104 +127,79 @@
   flex: 1 1 100%;
 }
 
-.cellMain {
-  margin: 0;
-  max-width: 100%;
-  min-width: 0;
-  font-size: 0.875rem;
-  font-weight: 600;
-  color: var(--primary);
-  white-space: nowrap;
+/* Grade attention table — same bordered board + row language as the teacher
+   advisory roster (advisory-list.module.css): a muted header row, fixed
+   columns and clickable rows that slide in with the shared desk cascade. */
+.tableWrap {
   overflow: hidden;
-  text-overflow: ellipsis;
+  border-radius: var(--radius-md);
+  border: 1px solid var(--border);
+  background-color: var(--card);
 }
 
-/* Flat board rows — one line per grade inside the kanban shell (no per-row
-   card chrome), highest-risk grade first. Same as the nurse case rows. */
-.caseList {
-  display: flex;
-  flex-direction: column;
-  margin: 0;
-  padding: 0;
-  list-style: none;
-  min-width: 0;
+/* Dark mode: no card fill — the rows sit straight on the desk canvas. */
+:global(html.dark) .tableWrap {
+  background-color: transparent;
+  border-color: color-mix(in oklch, var(--border) 60%, transparent);
 }
 
-.caseRow {
-  border-bottom: 1px solid color-mix(in oklch, var(--foreground), transparent 94%);
-  min-width: 0;
+.tableWrap [data-slot="table-container"] {
+  border-radius: inherit;
+  scrollbar-width: thin;
+  scrollbar-color: color-mix(in oklch, #f59e0b 65%, transparent) transparent;
 }
 
-.caseRow:last-child {
+.tableWrap [data-slot="table-container"]::-webkit-scrollbar {
+  width: 3px;
+  height: 3px;
+}
+
+.tableWrap [data-slot="table-container"]::-webkit-scrollbar-thumb {
+  background: color-mix(in oklch, #f59e0b 65%, transparent);
+  border-radius: 999px;
+}
+
+.tableWrap th,
+.tableWrap td {
+  padding: 0.75rem 1rem;
+}
+
+.tableWrap thead th {
+  font-size: 0.75rem;
+  font-weight: 500;
+  letter-spacing: 0.02em;
+  color: var(--muted-foreground);
+  border-bottom: 1px solid var(--border);
+  background-color: transparent;
+  white-space: nowrap;
+}
+
+.tableWrap tbody td {
+  font-size: 0.8125rem;
+  border-bottom: 1px solid color-mix(in oklch, var(--border), transparent 35%);
+}
+
+.tableWrap tbody tr:last-child td {
   border-bottom: none;
 }
 
-.caseInfo {
-  display: flex;
-  align-items: center;
-  gap: 0.5rem;
-  flex: 1;
-  min-width: 0;
-}
-
-/* Whole row is a link to the work queue. Three columns keep the section pills
-   centered in the row: grade identity left, section pills center, metrics right. */
-.rowLink {
-  display: grid;
-  grid-template-columns: minmax(0, 1fr) minmax(0, 2fr) minmax(0, 1fr);
-  align-items: center;
-  gap: 0.75rem;
-  padding: 0.625rem 0.375rem;
-  min-width: 0;
-  text-decoration: none;
-  color: inherit;
-  border-radius: var(--radius-md);
+/* Clickable grade rows — opens the interventions queue. */
+.gradeRow {
+  cursor: pointer;
   transition: background-color 140ms ease-out;
 }
 
-@media (max-width: 1100px) {
-  .rowLink {
-    grid-template-columns: minmax(0, 1fr) auto;
-  }
-
-  .caseInfo {
-    grid-column: 1;
-    grid-row: 1;
-  }
-
-  .cellActions {
-    grid-column: 2;
-    grid-row: 1;
-  }
-
-  .sectionGroup {
-    grid-column: 1 / -1;
-    grid-row: 2;
-    justify-content: flex-start;
-  }
+.gradeRow:hover {
+  background-color: color-mix(in oklch, var(--primary) 6%, transparent);
 }
 
-.sectionGroup {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  justify-content: center;
-  gap: 0.375rem;
-  min-width: 0;
+.gradeRow:focus-visible {
+  outline: none;
+  box-shadow: inset 0 0 0 2px var(--ring);
 }
 
-.rowLink:hover {
-  background-color: color-mix(in oklch, var(--muted-foreground), transparent 94%);
-}
-
-.rowLink:focus-visible {
-  outline: 2px solid var(--primary);
-  outline-offset: -2px;
-}
-
-/* Board entrance + row cascade — same motion as the record-keeper academics
-   table (and the coordinator's enrolled monitoring board): the board slides
-   in, then each row rises in turn via the inline animationDelay. */
+/* Board entrance — the board slides in, then each row rises in turn via the
+   shared desk-cascade `table` class + inline animationDelay. */
 .boardIn {
   animation: board-in 0.9s cubic-bezier(0.22, 1, 0.36, 1) backwards;
   /* Clip the entrance motion so translated rows can't spurt past the board
@@ -243,24 +218,8 @@
   }
 }
 
-@keyframes case-row-in {
-  from {
-    opacity: 0;
-    transform: translateY(8px);
-  }
-  to {
-    opacity: 1;
-    transform: translateY(0);
-  }
-}
-
-.caseList > .caseRow {
-  animation: case-row-in 1s cubic-bezier(0.22, 1, 0.36, 1) backwards;
-}
-
 @media (prefers-reduced-motion: reduce) {
-  .boardIn,
-  .caseList > .caseRow {
+  .boardIn {
     animation: none;
   }
 }
@@ -422,6 +381,26 @@
   line-height: 1.4;
   position: relative;
   z-index: 50;
+  /* Smooth entrance: the tooltip fades and lifts into place instead of
+     popping in when the pointer crosses a slice, arc or data point. */
+  animation: chart-tooltip-in 140ms cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+
+@keyframes chart-tooltip-in {
+  from {
+    opacity: 0;
+    transform: translateY(4px) scale(0.98);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .chartTooltip {
+    animation: none;
+  }
 }
 
 .chartTooltipLabel {
@@ -479,7 +458,7 @@
   font-size: 0.75rem;
 }
 
-/* Section line chart — same theme-aware text, raised above neighbouring
+/* Section area chart — same theme-aware text, raised above neighbouring
    boards so the tooltip is never clipped. */
 .lineChart {
   width: 100%;
@@ -590,6 +569,28 @@
   z-index: 50;
   transform: translate(-50%, calc(-100% - 0.5rem));
   pointer-events: none;
+  /* Glide between arcs with the same 400ms ease motion Recharts gives the
+     Risk-levels tooltip (transform 400ms ease). */
+  transition:
+    left 400ms ease,
+    top 400ms ease;
+}
+
+/* Gauge tooltips drop in from above (top → down) instead of rising from
+   below like the chart tooltips. */
+.gaugeTip .chartTooltip {
+  animation-name: gauge-tooltip-in;
+}
+
+@keyframes gauge-tooltip-in {
+  from {
+    opacity: 0;
+    transform: translateY(-4px) scale(0.98);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
 }
 
 .gaugeValue {
@@ -656,6 +657,10 @@
 
 @media (prefers-reduced-motion: reduce) {
   .gaugeSegment {
+    transition: none;
+  }
+
+  .gaugeTip {
     transition: none;
   }
 }

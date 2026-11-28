@@ -24,10 +24,20 @@ export const TEACHER_ROLES: Role[] = ["subject_teacher", "adviser"];
 
 /**
  * Roles allowed to steer the term scope of their own requests. Teachers pick
- * per-desk; the principal picks once in Settings and every principal page
- * follows it (see `termScope.ts`).
+ * per-desk; every staff desk picks once in Settings and all of its pages
+ * follow it (see `termScope.ts`). Registry desks are included so a record
+ * keeper / registrar can work a past school year's records.
  */
-export const TERM_STEERING_ROLES: Role[] = [...TEACHER_ROLES, "principal", "admin"];
+export const TERM_STEERING_ROLES: Role[] = [
+  ...TEACHER_ROLES,
+  "nurse",
+  "adm_coordinator",
+  "guidance_counselor",
+  "record_keeper",
+  "registrar",
+  "principal",
+  "admin",
+];
 
 export function canSteerTerm(role?: string | null): boolean {
   return role != null && (TERM_STEERING_ROLES as string[]).includes(role);

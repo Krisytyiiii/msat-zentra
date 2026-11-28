@@ -96,6 +96,7 @@
 }
 
 .calendar table td {
+  display: flex;
   min-width: 0;
 }
 
@@ -111,21 +112,31 @@
 
 .calendar button[data-day] {
   aspect-ratio: auto;
+  flex: 1;
   width: 100%;
-  height: 100%;
+  height: auto;
   min-height: 3.75rem;
   min-width: 0;
-  padding-bottom: 1rem;
+  padding-bottom: 0.5rem;
+  /* Keep the date number dead-centre in every cell whether or not the date is
+     declared — the reason text is taken out of flow and pinned to the bottom. */
+  align-items: center;
+  justify-content: center;
+  text-align: center;
 }
 
 /* Reason text inside a declared date cell — clamped so a long note never
-   stretches the month grid. The scope dot still sits on the bottom edge. */
+   stretches the month grid. Taken out of flow so it never pushes the date off
+   centre; the scope dot still sits on the bottom edge. */
 .dayReason {
+  position: absolute;
+  right: 0.125rem;
+  bottom: 0.75rem;
+  left: 0.125rem;
   display: -webkit-box;
   -webkit-box-orient: vertical;
   -webkit-line-clamp: 2;
   overflow: hidden;
-  max-width: 100%;
   padding-inline: 0.25rem;
   font-size: 0.75rem;
   font-weight: 400;

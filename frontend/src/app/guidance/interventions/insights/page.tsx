@@ -8,7 +8,6 @@ import {
   TrendingUp,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { Pill } from "@/components/ui/pill";
 import { KanbanBoard } from "@/components/ui/kanban-board";
 import { GuidancePageHeader } from "../../components/GuidancePageHeader";
 import { fetchGuidanceInterventionInsights } from "@/services/guidance/insights.service";
@@ -72,18 +71,7 @@ export default function GuidanceInterventionInsightsPage() {
       aria-busy={refreshing}
       aria-label="Intervention insights"
     >
-      <GuidancePageHeader
-        title="Intervention insights"
-        description={`Aggregated intervention performance for ${data.termLabel} — openings, resolutions, session delivery, success by risk and grade, and section-level outcomes.`}
-        actions={
-          <Pill
-            tone="green"
-            label="Live term — figures update as intervention cases and sessions are recorded"
-          >
-            Live · {data.termLabel}
-          </Pill>
-        }
-      />
+      <GuidancePageHeader title="Intervention insights" />
 
       <InsightsKpis kpis={data.kpis} />
 

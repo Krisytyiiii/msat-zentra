@@ -3,9 +3,20 @@
 import type * as React from "react";
 import { Skeleton } from "@/components/ui/skeleton";
 import { ShimmerGroup } from "@/components/ui/shimmer-skeleton";
+import { StatDeck } from "@/components/ui/stat-deck";
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "@/components/ui/table";
 import { KanbanBoardSkeleton } from "@/components/shared/zentra-skeletons/ZentraSkeletons";
+import cascade from "@/components/shared/desk-cascade.module.css";
 import reportStyles from "./guidance-adm-reports.module.css";
 import styles from "./guidance-adm.module.css";
+import alertsStyles from "../../alerts/components/guidance-alerts-table.module.css";
 
 /**
  * Loading skeleton for /guidance/reports — one shimmer board per live board, in
@@ -111,7 +122,6 @@ function DonutBoard({ legendRows = 5 }: { legendRows?: number }) {
   return (
     <KanbanBoardSkeleton
       titleWidth="56%"
-      showCount
       showDescription
       className="flex-1"
       footer={<InterpSkeleton />}
@@ -129,7 +139,6 @@ function BottleneckBoard() {
   return (
     <KanbanBoardSkeleton
       titleWidth="55%"
-      showCount
       showDescription
       className="flex-1"
       footer={<InterpSkeleton />}
@@ -143,18 +152,64 @@ function BottleneckBoard() {
   );
 }
 
-/** Who needs attention first — summary line + watchlist rows. */
+/** Who needs attention first — summary line + the watchlist data table. */
 function AttentionBoard() {
   return (
     <KanbanBoardSkeleton
       titleWidth="48%"
-      showCount
       showDescription
       className="flex-1"
       footer={<InterpSkeleton />}
     >
       <Skeleton className="h-4 w-3/4" />
-      <ListRowsSkeleton rows={3} />
+      <div className={alertsStyles.tableWrap} aria-hidden="true">
+        <Table className={`${cascade.table} w-full table-fixed`}>
+          <TableHeader>
+            <TableRow className="bg-muted/50 [&>th]:border-t-0">
+              <TableHead className="h-10 truncate">
+                <Skeleton className="h-3 w-14" />
+              </TableHead>
+              <TableHead style={{ width: 170 }} className="h-10 truncate">
+                <Skeleton className="h-3 w-16" />
+              </TableHead>
+              <TableHead style={{ width: 90 }} className="h-10 truncate">
+                <Skeleton className="h-3 w-8" />
+              </TableHead>
+              <TableHead style={{ width: 220 }} className="h-10 truncate">
+                <Skeleton className="h-3 w-28" />
+              </TableHead>
+              <TableHead style={{ width: 44 }} className="h-10" aria-hidden />
+            </TableRow>
+          </TableHeader>
+          <TableBody>
+            {[0, 1, 2].map((row) => (
+              <TableRow key={row}>
+                <TableCell className="truncate">
+                  <span className="flex min-w-0 items-center gap-2">
+                    <Skeleton className="size-7 shrink-0 rounded-full" />
+                    <span className="min-w-0 flex-1">
+                      <Skeleton className="h-3 w-28" />
+                      <Skeleton className="mt-1 h-3 w-16" />
+                    </span>
+                  </span>
+                </TableCell>
+                <TableCell className="truncate">
+                  <Skeleton className="h-3 w-20" />
+                </TableCell>
+                <TableCell className="truncate">
+                  <Skeleton className="h-3 w-10" />
+                </TableCell>
+                <TableCell className="truncate">
+                  <Skeleton className="h-3 w-32" />
+                </TableCell>
+                <TableCell className="truncate">
+                  <Skeleton className="size-3.5" />
+                </TableCell>
+              </TableRow>
+            ))}
+          </TableBody>
+        </Table>
+      </div>
     </KanbanBoardSkeleton>
   );
 }
@@ -172,7 +227,6 @@ export function GuidanceAdmRiskSkeleton() {
           <DonutBoard legendRows={4} />
           <KanbanBoardSkeleton
             titleWidth="60%"
-            showCount
             showDescription
             className="flex-1"
             footer={<InterpSkeleton />}
@@ -183,7 +237,6 @@ export function GuidanceAdmRiskSkeleton() {
 
         <KanbanBoardSkeleton
           titleWidth="52%"
-          showCount
           showDescription
           className="flex-1"
           footer={<InterpSkeleton />}
@@ -206,25 +259,20 @@ export function GuidanceAdmSkeleton(): React.ReactElement {
         aria-busy="true"
         aria-label="Loading referrals report"
       >
-      {/* Key findings — four KPI boards. */}
-      <div className={styles.findings} aria-hidden="true">
-        {[0, 1, 2, 3].map((i) => (
-          <KanbanBoardSkeleton
-            key={i}
-            titleWidth="62%"
-            showDescription
-            className="flex-1"
-          >
-            <Skeleton className="h-8 w-16" />
-          </KanbanBoardSkeleton>
-        ))}
+      {/* Key findings — the same stat deck the live page renders, loading. */}
+      <div aria-hidden="true">
+        <StatDeck
+          columns={4}
+          loading
+          items={[]}
+          ariaLabel="Key findings"
+        />
       </div>
 
       {/* Report row — category bars, referred-actions donut, referral trend. */}
       <div className={reportStyles.threeCol} aria-hidden="true">
         <KanbanBoardSkeleton
           titleWidth="58%"
-          showCount
           showDescription
           className="flex-1"
           footer={<InterpSkeleton />}
@@ -236,7 +284,6 @@ export function GuidanceAdmSkeleton(): React.ReactElement {
 
         <KanbanBoardSkeleton
           titleWidth="60%"
-          showCount
           showDescription
           className="flex-1"
           footer={<InterpSkeleton />}
@@ -250,7 +297,6 @@ export function GuidanceAdmSkeleton(): React.ReactElement {
         <BottleneckBoard />
         <KanbanBoardSkeleton
           titleWidth="58%"
-          showCount
           showDescription
           className="flex-1"
         >

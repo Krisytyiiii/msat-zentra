@@ -230,6 +230,7 @@ export function DetectionFlowPanel({
   unitMany = "advisees",
   emptyHint = "No advisees enlisted this term.",
   footNote = " Point at a lane to isolate it; click to filter the board.",
+  separator = "·",
 }: {
   rows: DetectionFlowRow[];
   summary: DetectionFlowSummary;
@@ -244,6 +245,8 @@ export function DetectionFlowPanel({
   emptyHint?: string;
   /** Tail copy after the idle summary line. */
   footNote?: string;
+  /** Separator in the caption/foot lines. Defaults to a middle dot. */
+  separator?: string;
 }) {
   const lanes = React.useMemo<LaneStat[]>(() => {
     return LANES.map((def) => {
@@ -497,7 +500,7 @@ export function DetectionFlowPanel({
           <p className={styles.totalLabel}>{scopeLabel}</p>
           <p className={styles.totalValue}>{headlineCount.toLocaleString()}</p>
           <p className={styles.totalCaption}>
-            {flaggedCount} flagged · {summary.ongoing} in follow-up
+            {flaggedCount} flagged {separator} {summary.ongoing} in follow-up
           </p>
         </div>
 
@@ -506,10 +509,10 @@ export function DetectionFlowPanel({
             <>
               <strong className={styles.footStrong}>{lit.def.label}</strong> — {lit.count}{" "}
               {lit.count === 1 ? unitOne : unitMany}
-              {scope !== null ? ` of ${scope} ${unitMany}` : ""} · newest{" "}
+              {scope !== null ? ` of ${scope} ${unitMany}` : ""} {separator} newest{" "}
               {elapsed(lit.detectedAt, now)}
-              {lit.status ? ` · ${lit.status.fullLabel}` : ""}
-              {activeLane === lit.def.id ? " · filtering" : ""}
+              {lit.status ? ` ${separator} ${lit.status.fullLabel}` : ""}
+              {activeLane === lit.def.id ? ` ${separator} filtering` : ""}
             </>
           ) : headline === 0 ? (
             emptyHint

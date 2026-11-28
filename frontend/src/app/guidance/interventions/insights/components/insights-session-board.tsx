@@ -30,14 +30,12 @@ export function InsightsSessionBoard({
 }: {
   rows: InterventionInsightSessionTypeRow[];
 }) {
-  const total = rows.reduce((n, r) => n + r.total, 0);
   const visible = rows.filter((r) => r.total > 0);
 
   return (
     <KanbanBoard
       title="Sessions by type"
       icon={<BoardIcon icon={MessagesSquare} />}
-      count={<span className={styles.heatRate}>{total}</span>}
       description="How the term's counseling sessions were delivered and whether they pushed through."
       className={`flex-1 ${styles.boardIn}`}
     >

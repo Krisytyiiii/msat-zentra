@@ -195,7 +195,7 @@ export async function getInterventionInsights(
   ]);
 
   const termLabel = term
-    ? `${term.schoolYear.name.split(" ")[0]} · Term ${term.termNumber}`
+    ? `${term.schoolYear.name.split(" ")[0]} | Term ${term.termNumber}`
     : "No active term";
 
   // The interventions board lists the live risk cohort, so a learner flagged

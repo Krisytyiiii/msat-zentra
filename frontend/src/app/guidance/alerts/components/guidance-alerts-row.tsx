@@ -52,7 +52,7 @@ export function RiskBadge({ level }: { level: GuidanceRiskLevel | undefined }) {
 
 /** Row type lead — the Case column's rectangle pill, blue for ADM/Counseling,
     amber for Intervention (same recipe as the nurse board's ADM | Clinic). */
-function RowTypeLabel({ type }: { type: "ADM" | "Counseling" | "Intervention" }) {
+export function RowTypeLabel({ type }: { type: "ADM" | "Counseling" | "Intervention" }) {
   const admLike = type === "ADM" || type === "Counseling";
   return (
     <span
@@ -121,7 +121,7 @@ function actionTone(label: string): string {
 }
 
 /** Referral status variant → Pill tone (guidance referrals palette). */
-function statusPillTone(
+export function statusPillTone(
   variant: string,
 ): PillTone {
   switch (variant) {
@@ -141,7 +141,7 @@ function statusPillTone(
 }
 
 /** Pipeline status variant (interventions desk) → Pill tone. */
-function pipelinePillTone(variant: string): PillTone {
+export function pipelinePillTone(variant: string): PillTone {
   switch (variant) {
     case "green":
     case "success":
@@ -161,7 +161,7 @@ function pipelinePillTone(variant: string): PillTone {
 }
 
 /** Concern chip for an auto-detected intervention — its active risk factors. */
-function factorConcern(item: AtRiskStudentItem): { label: string; title: string } {
+export function factorConcern(item: AtRiskStudentItem): { label: string; title: string } {
   const labels: string[] = [];
   if (item.factors.academic) labels.push("Academic");
   if (item.factors.attendance) labels.push("Attendance");

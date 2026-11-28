@@ -131,6 +131,10 @@ export async function getAlertCases(ctx: GuidanceContext, query: AlertCasesQuery
   const referralRows = (referralsResult.referrals ?? []) as unknown as RawReferral[];
   const interventionRows = (interventionsResult.students ?? []) as unknown as RawIntervention[];
 
+  // `getCases` already attaches each referral's ADM parent meetings
+  // (`AdmParentMeeting`), so the alerts drawer can render bookings that do not
+  // live in `CounselingSession`.
+
   // Risk levels come from the live cohort, so every row is graded — not just
   // the first fifteen student ids the old client-side batch call could cover.
   const riskByStudent: Record<string, string> = {};

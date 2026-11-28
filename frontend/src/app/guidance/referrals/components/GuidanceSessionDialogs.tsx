@@ -104,10 +104,16 @@ export function GuidanceSessionDialogs({
                 : {}),
             });
           }}
-          description={
+          sessionMeta={
             activeSession
-              ? `${sessionTypeLabel(activeSession.sessionType)} · ${formatDateTime(activeSession.scheduledAt)}${activeSession.venue ? ` · ${activeSession.venue}` : ""}`
-              : "Record what happened in this session."
+              ? {
+                  type: sessionTypeLabel(activeSession.sessionType),
+                  when: formatDateTime(activeSession.scheduledAt),
+                  ...(activeSession.venue
+                    ? { venue: activeSession.venue }
+                    : {}),
+                }
+              : undefined
           }
           followUpTitle="Book a follow-up session (optional)"
           followUpHint="If this needs another talk, book it now so it stays on the plan."

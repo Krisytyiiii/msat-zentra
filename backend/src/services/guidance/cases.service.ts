@@ -321,6 +321,48 @@ export async function getCases(ctx: GuidanceContext, query: CasesQuery) {
   }));
 
   const refIds = mapped.map((r) => r.id);
+
+  // ADM parent meetings are `AdmParentMeeting` rows, not counseling sessions,
+  // so a case drawer that only lists sessions looked empty even when the
+  // coordinator had booked a conference. A pre-profile booking carries
+  // `referralId`; a profile-side booking carries it via the profile.
+  if (refIds.length > 0) {
+    const meetings = await prisma.admParentMeeting.findMany({
+      where: {
+        OR: [
+          { referralId: { in: refIds } },
+          { admLearnerProfile: { referralId: { in: refIds } } },
+        ],
+      },
+      orderBy: { meetingDatetime: "asc" },
+      select: {
+        id: true,
+        referralId: true,
+        meetingDatetime: true,
+        venue: true,
+        attended: true,
+        admLearnerProfile: { select: { referralId: true } },
+      },
+    });
+    const byReferral = new Map<string, unknown[]>();
+    for (const meeting of meetings) {
+      const referralId = meeting.referralId ?? meeting.admLearnerProfile?.referralId;
+      if (!referralId) continue;
+      const list = byReferral.get(referralId) ?? [];
+      list.push({
+        id: meeting.id,
+        scheduledAt: meeting.meetingDatetime.toISOString(),
+        date: meeting.meetingDatetime.toISOString().slice(0, 10),
+        venue: meeting.venue ?? "",
+        attended: meeting.attended,
+      });
+      byReferral.set(referralId, list);
+    }
+    for (const row of mapped) {
+      (row as Record<string, unknown>).meetings = byReferral.get(row.id) ?? [];
+    }
+  }
+
   const dismissedByRole = new Map<string, string>();
   if (refIds.length > 0) {
     const dismissalLogs = await prisma.auditLog.findMany({

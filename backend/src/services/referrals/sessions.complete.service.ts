@@ -3,7 +3,7 @@ import { AppError } from "../../lib/errors.js";
 import { writeAudit } from "../../lib/audit.js";
 import { fanoutNotification } from "../../lib/notify.js";
 import { assertSessionSlotFree } from "../../lib/sessionConflict.js";
-import { ensureNoActiveSession, ensureOpen, ensureSessionStarted, formatSession, formatWhen, getSession, getSessionReferral, isSessionType, parseScheduledAt, referralCard } from "../../modules/referrals/referrals.repository.js";
+import { ensureNoActiveSession, ensureOpen, formatSession, formatWhen, getSession, getSessionReferral, isSessionType, parseScheduledAt, referralCard } from "../../modules/referrals/referrals.repository.js";
 import type { ReferralContext } from "./referral.types.js";
 
 export interface CompleteSessionInput {
@@ -25,7 +25,9 @@ export async function completeSession(
     throw new AppError(400, "INVALID_ACTION", "Only an upcoming session can be marked done");
   }
 
-  ensureSessionStarted(session);
+  // A session may be marked done before its booked time (a learner shows up
+  // early, or the desk closes the booking from the record). Completing it is
+  // what makes the booking count — there is no separate "start" step.
   if (input.followUpSession && !isSessionType(input.followUpSession.sessionType)) {
     throw new AppError(400, "INVALID_ACTION", "Unknown follow-up session type");
   }

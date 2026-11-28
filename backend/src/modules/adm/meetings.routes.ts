@@ -90,7 +90,9 @@ router.post(
 router.patch(
   "/meetings/:meetingId/reschedule",
   requireAuth,
-  requireRole("adm_coordinator"),
+  // The ADM coordinator owns parent-meeting bookings; guidance files and
+  // reviews those cases and moves a meeting from its own schedule calendar.
+  requireRole("adm_coordinator", "guidance_counselor"),
   validate("body", meetingRescheduleSchema),
   async (req, res, next) => {
     try {

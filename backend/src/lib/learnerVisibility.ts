@@ -14,22 +14,73 @@ const TTL_MS = 10_000;
 let cache: { at: number; ids: ArchivedLearnerIds } | null = null;
 
 /**
+ * A to-one relation a learner can ride on a desk row, plus its nullable FK.
+ * `roster: false` means the related model has no `rosterId` column (e.g.
+ * `AdmLearnerProfile`, which only links a registered learner).
+ */
+export interface ArchivedReference {
+  relation: string;
+  fk: string;
+  /** Does the related model carry the roster identity too? Defaults to true. */
+  roster?: boolean;
+  /**
+   * Is the related model's `studentId` nullable? `AdmLearnerProfile.studentId`
+   * is required (every ADM case is a registered learner), so its filter must
+   * not ask for `studentId: null`.
+   */
+  studentNullable?: boolean;
+}
+
+/**
+ * Null-safe Prisma fragment that hides rows whose learner was archived by
+ * their adviser, for models that reach the learner through a to-one relation
+ * (`referral`, `intervention`, `admLearnerProfile`).
+ *
+ * A plain `NOT: { OR: [{ intervention: { studentId: { in: ids } } }, …] }`
+ * looks right but drops rows on SQL three-valued logic: a roster-only
+ * intervention has `studentId = NULL`, so `NOT (NULL IN (…))` is `NULL`, not
+ * true — which hid every intervention booking from the guidance/nurse
+ * calendars whenever any archived profile learner existed. Negate each
+ * identity side *inside* the relation and explicitly let NULL through, and
+ * also let rows with no such relation through (a null relation filter is
+ * false, so `{ intervention: … }` alone would drop referral-only sessions).
+ */
+export function excludeArchivedReferences(
+  ids: ArchivedLearnerIds,
+  refs: readonly ArchivedReference[],
+): any {
+  const clauses: any[] = [];
+  for (const ref of refs) {
+    const outside: any[] = [];
+    if (ids.studentIds.length > 0) {
+      outside.push(
+        ref.studentNullable === false
+          ? { studentId: { notIn: ids.studentIds } }
+          : { OR: [{ studentId: null }, { studentId: { notIn: ids.studentIds } }] },
+      );
+    }
+    if (ref.roster !== false && ids.rosterIds.length > 0) {
+      outside.push({ OR: [{ rosterId: null }, { rosterId: { notIn: ids.rosterIds } }] });
+    }
+    if (outside.length === 0) continue;
+    clauses.push({
+      OR: [{ [ref.fk]: null }, { [ref.relation]: { AND: outside } }],
+    });
+  }
+  return clauses.length > 0 ? { AND: clauses } : {};
+}
+
+/**
  * Prisma `where` fragment that hides counseling sessions belonging to
  * archived (adviser-removed) learners. Sessions ride either a referral or an
  * intervention, so both pipelines have to be covered — otherwise a deleted
  * learner keeps blocking slots on the counselor's booking calendar.
  */
 export function excludeArchivedSessionLearners(ids: ArchivedLearnerIds): any {
-  const branches: any[] = [];
-  if (ids.studentIds.length > 0) {
-    branches.push({ referral: { studentId: { in: ids.studentIds } } });
-    branches.push({ intervention: { studentId: { in: ids.studentIds } } });
-  }
-  if (ids.rosterIds.length > 0) {
-    branches.push({ referral: { rosterId: { in: ids.rosterIds } } });
-    branches.push({ intervention: { rosterId: { in: ids.rosterIds } } });
-  }
-  return branches.length > 0 ? { NOT: { OR: branches } } : {};
+  return excludeArchivedReferences(ids, [
+    { relation: "referral", fk: "referralId" },
+    { relation: "intervention", fk: "interventionId" },
+  ]);
 }
 
 /**

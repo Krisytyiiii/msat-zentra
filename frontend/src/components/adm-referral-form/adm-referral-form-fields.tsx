@@ -22,6 +22,9 @@ import pageStyles from "@/app/guidance/pages.module.css";
 import styles from "@/app/guidance/adm/components/guidance-adm.module.css";
 import formStyles from "@/app/guidance/adm/components/referral-form-dialog.module.css";
 
+/** The printed form only has room for five referrer actions. */
+const MAX_REFERRER_ACTIONS = 5;
+
 export function AdmReferralFormFields({
   form,
   patch,
@@ -34,8 +37,11 @@ export function AdmReferralFormFields({
   activeCase,
   staffSectionTitle,
   signerLabel,
-  onPreview,
   onReset,
+  onConfirm,
+  confirming,
+  confirmDisabledReason,
+  changed,
 }: {
   form: GcForm03Data;
   patch: (p: Partial<GcForm03Data>) => void;
@@ -48,8 +54,13 @@ export function AdmReferralFormFields({
   activeCase: AdmReferralFormPageCase;
   staffSectionTitle: string;
   signerLabel: string;
-  onPreview: () => void;
   onReset: () => void;
+  onConfirm: () => void;
+  confirming: boolean;
+  /** Tooltip when confirming is blocked (e.g. a session is still open). */
+  confirmDisabledReason?: string | null;
+  /** False while the form still matches the auto-filled baseline. */
+  changed: boolean;
 }) {
   const signersQuery = useGcFormSigners();
   const signers = signersQuery.data ?? [];
@@ -176,20 +187,32 @@ export function AdmReferralFormFields({
                       ) : null}
                     </div>
                   ))}
-                  <div>
-                    <Button
-                      type="button"
-                      size="sm"
-                      variant="outline"
-                      onClick={() =>
-                        patch({
-                          referrerActions: [...form.referrerActions, { date: "", action: "" }],
-                        })
-                      }
+                  {form.referrerActions.length < MAX_REFERRER_ACTIONS ? (
+                    <div>
+                      <Button
+                        type="button"
+                        size="sm"
+                        variant="outline"
+                        onClick={() =>
+                          patch({
+                            referrerActions: [
+                              ...form.referrerActions,
+                              { date: "", action: "" },
+                            ],
+                          })
+                        }
+                      >
+                        Add action
+                      </Button>
+                    </div>
+                  ) : (
+                    <p
+                      className={formStyles.mt}
+                      style={{ fontSize: "0.8125rem", opacity: 0.75 }}
                     >
-                      Add action
-                    </Button>
-                  </div>
+                      Up to {MAX_REFERRER_ACTIONS} referrer actions.
+                    </p>
+                  )}
                 </fieldset>
 
                 <fieldset className={formStyles.group}>
@@ -401,17 +424,28 @@ export function AdmReferralFormFields({
                   className={styles.actions}
                   style={{ display: "flex", gap: "0.5rem", flexWrap: "wrap", justifyContent: "flex-end" }}
                 >
-                <Button className="h-6" disabled={!form} onClick={onPreview}>
-                  Preview filled form
-                </Button>
                 <Button
                   className="h-6"
                   type="button"
                   variant="outline"
-                  disabled={!form}
+                  disabled={!form || !changed}
+                  title={!changed ? "The form still matches the auto-filled values." : undefined}
                   onClick={onReset}
                 >
                   Reset to auto-filled
+                </Button>
+                <Button
+                  className="h-6"
+                  type="button"
+                  disabled={!form || confirming || !!confirmDisabledReason || !changed}
+                  aria-busy={confirming || undefined}
+                  title={
+                    confirmDisabledReason ??
+                    (!changed ? "Edit the form before confirming it." : undefined)
+                  }
+                  onClick={onConfirm}
+                >
+                  {confirming ? "Confirming…" : "Confirm referral"}
                 </Button>
                 </div>
               </div>

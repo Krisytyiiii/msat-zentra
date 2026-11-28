@@ -11,6 +11,7 @@ import {
 } from "@/components/shared/zentra-skeletons/ZentraSkeletons";
 import { ProfileCard } from "./components/ProfileCard";
 import { PasswordCard } from "./components/PasswordCard";
+import { TermScopeCard } from "@/components/settings/TermScopeCard";
 import { coordinatorSettingsSections } from "./components/SettingsNav";
 import { SettingsRail } from "./components/SettingsRail";
 import { useTheme } from "@/components/providers";
@@ -70,7 +71,7 @@ export default function CoordinatorSettingsPage() {
         <ZentraPageHeaderSkeleton />
         <div className={sectionStyles.layout}>
           <div className={`flex w-full min-w-0 flex-col gap-3 ${sectionStyles.stack}`}>
-            {Array.from({ length: 3 }).map((_, i) => (
+            {Array.from({ length: 4 }).map((_, i) => (
               <KanbanBoardSkeleton
                 key={i}
                 rows={i === 0 ? 3 : 2}
@@ -79,7 +80,7 @@ export default function CoordinatorSettingsPage() {
               />
             ))}
           </div>
-          <IconRailSkeleton count={3} />
+          <IconRailSkeleton count={4} />
         </div>
       </section>
     );
@@ -89,11 +90,12 @@ export default function CoordinatorSettingsPage() {
     <section className={`mx-auto flex w-full max-w-3xl flex-col gap-3 ${sectionStyles.page}`}>
       <CoordinatorPageHeader
         title="Settings"
-        description="Your profile, appearance, and account security."
+        description="Your profile, school year scope, appearance, and account security."
       />
       <div className={sectionStyles.layout}>
         <div className={`flex w-full min-w-0 flex-col gap-3 ${sectionStyles.stack}`}>
           <ProfileCard />
+          <TermScopeCard />
           <div id="section-appearance" className={sectionStyles.boardWrap}>
             <KanbanBoard
               title="Appearance"

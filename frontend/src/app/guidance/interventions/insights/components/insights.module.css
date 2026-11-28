@@ -169,16 +169,25 @@
   text-align: left;
   font-weight: 600;
   color: var(--foreground);
-  background-color: var(--card);
+  /* Invisible against the board it sits on — the frozen column must read as
+     part of the card, not a separate slab (the card is transparent glass on
+     the dark desk, so painting --card here left a visible block). */
+  background-color: transparent;
   padding: 0.375rem 0.875rem 0.375rem 0.25rem;
   white-space: nowrap;
   max-width: 15rem;
   overflow: hidden;
   text-overflow: ellipsis;
   vertical-align: middle;
-  /* Soft edge so the frozen section column reads as pinned while the
-     outcome columns scroll horizontally underneath. */
-  box-shadow: 6px 0 8px -8px rgb(0 0 0 / 0.28);
+}
+
+/* Below the table's 34rem min-width the board scrolls horizontally; a frozen
+   transparent column would let cells slide under the section names, so let it
+   scroll with the table there. */
+@media (max-width: 767px) {
+  .heatRowHead {
+    position: static;
+  }
 }
 
 /* Section lockup — monogram, name, grade. Replaces the bare two-line stack
@@ -240,10 +249,6 @@
 
 .heatTable tbody tr:hover {
   background-color: color-mix(in oklch, var(--primary), transparent 96%);
-}
-
-.heatTable tbody tr:hover .heatRowHead {
-  background-color: color-mix(in oklch, var(--card), var(--primary) 4%);
 }
 
 @media (prefers-reduced-motion: reduce) {

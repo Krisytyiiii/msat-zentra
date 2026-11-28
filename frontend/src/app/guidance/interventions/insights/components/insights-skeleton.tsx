@@ -13,7 +13,7 @@ import styles from "./insights.module.css";
 /**
  * Loading skeleton for /guidance/interventions/insights — one shimmer sweep
  * over an exact copy of the live page so nothing shifts when the data lands:
- * header + live pill → four-figure stat deck → pipeline-trend and
+ * header → four-figure stat deck → pipeline-trend and
  * sessions-by-type charts → success-by-risk bars and success-by-grade donut →
  * section × outcome heatmap. Every placeholder reuses the same shell, grid and
  * CSS module the live boards use, so paddings, chart heights, legends and the
@@ -60,7 +60,6 @@ function TrendBoardSkeleton() {
   return (
     <KanbanBoardSkeleton
       titleWidth="8rem"
-      showCount
       showDescription
       className="flex-1"
       footer={<CalloutSkeleton />}
@@ -78,7 +77,6 @@ function SessionBoardSkeleton() {
   return (
     <KanbanBoardSkeleton
       titleWidth="9rem"
-      showCount
       showDescription
       className="flex-1"
       footer={<CalloutSkeleton />}
@@ -96,7 +94,6 @@ function OutcomeBarsSkeleton() {
   return (
     <KanbanBoardSkeleton
       titleWidth="10rem"
-      showCount
       showDescription
       className="flex-1"
       footer={<CalloutSkeleton />}
@@ -125,7 +122,6 @@ function OutcomeDonutSkeleton() {
   return (
     <KanbanBoardSkeleton
       titleWidth="9rem"
-      showCount
       showDescription
       className="flex-1"
       footer={<CalloutSkeleton />}
@@ -144,7 +140,6 @@ function HeatmapSkeleton() {
   return (
     <KanbanBoardSkeleton
       titleWidth="12rem"
-      showCount
       showDescription
       className="flex-1"
     >
@@ -216,7 +211,7 @@ export function InsightsSkeleton() {
       aria-label="Loading intervention insights"
     >
       <ShimmerGroup>
-        <ZentraPageHeaderSkeleton withActions actionCount={1} />
+        <ZentraPageHeaderSkeleton />
 
         <StatDeckSkeleton />
 

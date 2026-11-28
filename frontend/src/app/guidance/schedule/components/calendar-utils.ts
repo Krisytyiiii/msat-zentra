@@ -9,13 +9,15 @@ import type {
 /**
  * Shared event shape for the desk calendars. The guidance payload extends it
  * (its `track` is a narrower union), and the nurse calendar reuses the same
- * grids/week/rail with its own track family.
+ * card/grids with its own track family.
  */
 export interface CalendarEvent {
   id: string;
   track: string;
   learner: string;
   lrn: string;
+  /** Display label ("Grade 11"), supplied by the calendar API. */
+  grade: string;
   section: string;
   /** Stored sprite mascot (roster/profile); null falls back to the derived one. */
   mascot?: string | null;
@@ -29,6 +31,12 @@ export interface CalendarEvent {
   interventionId: string | null;
   admProfileId: string | null;
   invited: boolean | null;
+  /**
+   * Server-computed: can this booking still move? False once the session is
+   * done/cancelled, the case is resolved/dismissed, an ADM consultation was
+   * endorsed, the meeting was attended, or the ADM case was certified.
+   */
+  reschedulable?: boolean;
 }
 
 /** Per-desk track family: order, labels, pill tones and case deep-links. */

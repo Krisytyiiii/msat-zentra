@@ -15,6 +15,8 @@ export interface GuidanceCalendarEvent {
   track: GuidanceCalendarTrack;
   learner: string;
   lrn: string;
+  /** Display label ("Grade 11"), supplied by the calendar API. */
+  grade: string;
   section: string;
   /** Stored sprite mascot (roster/profile); null falls back to the derived one. */
   mascot: string | null;
@@ -29,6 +31,8 @@ export interface GuidanceCalendarEvent {
   admProfileId: string | null;
   /** Parent meetings only: is this counselor one of the booking's invitees? */
   invited: boolean | null;
+  /** Server-computed: false once the booking can no longer move. */
+  reschedulable: boolean;
 }
 
 export interface GuidanceCalendarData {

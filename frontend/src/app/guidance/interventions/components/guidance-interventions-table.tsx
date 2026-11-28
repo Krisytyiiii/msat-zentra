@@ -26,6 +26,7 @@ export function GuidanceInterventionsTable({
   onQueryChange,
   status,
   onStatusChange,
+  statusCounts,
   isNavigating,
   highlightId = null,
 }: GuidanceInterventionsTableProps) {
@@ -99,6 +100,7 @@ export function GuidanceInterventionsTable({
         onQueryChange={onQueryChange}
         status={status}
         onStatusChange={onStatusChange}
+        statusCounts={statusCounts}
         isNavigating={isNavigating}
         highlightId={highlightId}
         expandedKey={expandedKey}
@@ -300,6 +302,8 @@ interface GuidanceInterventionsTableProps {
   onQueryChange: (value: string) => void;
   status: InterventionStatusFilter;
   onStatusChange: (value: InterventionStatusFilter) => void;
+  /** Per-tab totals, rendered as the count chip on each filter tag. */
+  statusCounts: Record<InterventionStatusFilter, number>;
   isNavigating: boolean;
   highlightId?: string | null;
 }

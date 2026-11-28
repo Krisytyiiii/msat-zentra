@@ -3,15 +3,23 @@
 import { Skeleton } from "@/components/ui/skeleton";
 import { ShimmerGroup } from "@/components/ui/shimmer-skeleton";
 import { ZentraPaginationSkeleton } from "@/components/shared/zentra-skeletons/ZentraSkeletons";
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "@/components/ui/table";
+import cascade from "@/components/shared/desk-cascade.module.css";
 import pageStyles from "./guidance-alerts.module.css";
 import rowStyles from "./guidance-alerts-table.module.css";
 
 /**
- * Loading shell for /guidance/alerts. It renders the same board chrome as the
- * loaded page — the full-width type/risk tabs + search toolbar, the column
- * head, the hairline case rows and the pager — so nothing moves when the
- * merged desk data lands. The whole tree shimmer-sweeps together (same
- * treatment as /nurse/alerts).
+ * Loading shell for /guidance/alerts. It renders the same chrome as the loaded
+ * page — the type tabs + search toolbar, then the case data table (same column
+ * widths, header tint and hairline rows) and the pager — so nothing moves when
+ * the merged desk data lands. The whole tree shimmer-sweeps together.
  */
 
 const ROWS = 6;
@@ -33,47 +41,41 @@ function HeaderToolbarSkeleton() {
   );
 }
 
-/** One placeholder case row on the real `.caseRow` grid tracks. */
+/** One placeholder case row on the real table's column tracks. */
 function CaseRowSkeleton() {
   return (
-    <li className={rowStyles.skeletonRow} aria-hidden="true">
-      <div className={`${rowStyles.cell} ${rowStyles.cellType}`}>
-        <Skeleton className={rowStyles.skelTypePill} />
-      </div>
-      <div className={`${rowStyles.cell} ${rowStyles.cellLearner}`}>
-        <Skeleton className={rowStyles.skelAvatar} />
-        <div className={rowStyles.caseIdentity}>
-          <Skeleton className={rowStyles.skelCaseName} />
-          <div className={rowStyles.cellSub}>
-            <Skeleton className={rowStyles.skelPillShort} />
-          </div>
-        </div>
-      </div>
-      <div className={`${rowStyles.cell} ${rowStyles.cellStack} ${rowStyles.colGrade}`}>
-        <Skeleton className={rowStyles.skelLine} />
-        <Skeleton className={rowStyles.skelLineShort} />
-      </div>
-      <div className={`${rowStyles.cell} ${rowStyles.colConcern}`}>
-        <Skeleton className={rowStyles.skelConcernPill} />
-      </div>
-      <div className={`${rowStyles.cell} ${rowStyles.cellStatus}`}>
-        <Skeleton className={rowStyles.skelPill} />
-      </div>
-      <div className={`${rowStyles.cell} ${rowStyles.colRisk}`}>
-        <Skeleton className={rowStyles.skelPillShort} />
-      </div>
-      <div className={`${rowStyles.cell} ${rowStyles.cellStack} ${rowStyles.colSessions}`}>
-        <Skeleton className={rowStyles.skelLineShort} />
-        <Skeleton className={rowStyles.skelLineShort} />
-      </div>
-      <div className={`${rowStyles.cell} ${rowStyles.colReferred}`}>
-        <Skeleton className={rowStyles.skelTimePill} />
-      </div>
-      <div className={rowStyles.caseActions}>
-        <Skeleton className={rowStyles.skelBookPill} />
-        <Skeleton className={rowStyles.skelBtnSm} />
-      </div>
-    </li>
+    <TableRow aria-hidden="true">
+      <TableCell>
+        <Skeleton className="h-5 w-16 rounded-md" />
+      </TableCell>
+      <TableCell>
+        <span className="flex min-w-0 items-center gap-2">
+          <Skeleton className="size-7 shrink-0 rounded-full" />
+          <span className="flex min-w-0 flex-col gap-1">
+            <Skeleton className="h-3 w-28" />
+            <Skeleton className="h-2.5 w-20" />
+          </span>
+        </span>
+      </TableCell>
+      <TableCell>
+        <span className="flex min-w-0 flex-col gap-1">
+          <Skeleton className="h-3 w-14" />
+          <Skeleton className="h-2.5 w-16" />
+        </span>
+      </TableCell>
+      <TableCell>
+        <Skeleton className="h-3 w-20" />
+      </TableCell>
+      <TableCell>
+        <Skeleton className="h-3 w-12" />
+      </TableCell>
+      <TableCell>
+        <Skeleton className="h-5 w-20 rounded-md" />
+      </TableCell>
+      <TableCell>
+        <Skeleton className="size-4 rounded-sm" />
+      </TableCell>
+    </TableRow>
   );
 }
 
@@ -83,23 +85,37 @@ export function GuidanceAlertsSkeleton() {
       <ShimmerGroup>
         <div className={`flex min-w-0 flex-col gap-3 ${rowStyles.boardIn}`}>
           <HeaderToolbarSkeleton />
-          <div className={rowStyles.listPanel}>
-            <div className={rowStyles.listHead} aria-hidden="true">
-              <Skeleton className={rowStyles.skelHeadLabel} />
-              <Skeleton className={rowStyles.skelHeadLabel} />
-              <Skeleton className={`${rowStyles.skelHeadLabel} ${rowStyles.colGrade}`} />
-              <Skeleton className={`${rowStyles.skelHeadLabel} ${rowStyles.colConcern}`} />
-              <Skeleton className={rowStyles.skelHeadLabel} />
-              <Skeleton className={rowStyles.skelHeadLabel} />
-              <Skeleton className={`${rowStyles.skelHeadLabel} ${rowStyles.colSessions}`} />
-              <Skeleton className={`${rowStyles.skelHeadLabel} ${rowStyles.colReferred}`} />
-              <Skeleton className={rowStyles.skelHeadLabel} />
-            </div>
-            <ul className={rowStyles.caseList}>
-              {Array.from({ length: ROWS }, (_, i) => (
-                <CaseRowSkeleton key={i} />
-              ))}
-            </ul>
+          <div className={rowStyles.tableWrap}>
+            <Table className={`${cascade.table} w-full table-fixed`}>
+              <TableHeader>
+                <TableRow className="bg-muted/50 [&>th]:border-t-0">
+                  <TableHead style={{ width: 120 }} className="h-10">
+                    <Skeleton className="h-3 w-10" />
+                  </TableHead>
+                  <TableHead style={{ width: 240 }} className="h-10">
+                    <Skeleton className="h-3 w-14" />
+                  </TableHead>
+                  <TableHead style={{ width: 150 }} className="h-10">
+                    <Skeleton className="h-3 w-24" />
+                  </TableHead>
+                  <TableHead style={{ width: 150 }} className="h-10">
+                    <Skeleton className="h-3 w-14" />
+                  </TableHead>
+                  <TableHead style={{ width: 100 }} className="h-10">
+                    <Skeleton className="h-3 w-10" />
+                  </TableHead>
+                  <TableHead style={{ width: 120 }} className="h-10">
+                    <Skeleton className="h-3 w-16" />
+                  </TableHead>
+                  <TableHead style={{ width: 44 }} className="h-10" aria-hidden />
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {Array.from({ length: ROWS }, (_, i) => (
+                  <CaseRowSkeleton key={i} />
+                ))}
+              </TableBody>
+            </Table>
           </div>
           <ZentraPaginationSkeleton />
         </div>

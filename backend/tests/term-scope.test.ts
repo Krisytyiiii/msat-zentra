@@ -32,6 +32,9 @@ vi.mock("../src/lib/jwt.js", () => ({
     if (token === "nurse-token") {
       return { sub: "nurse-1", role: "nurse", type: "access" };
     }
+    if (token === "student-token") {
+      return { sub: "student-1", role: "student", type: "access" };
+    }
     throw new Error("invalid token");
   },
 }));
@@ -82,7 +85,7 @@ describe("resolveTermScope role gating", () => {
       },
     });
 
-    const scope = await resolveTermScope(req, "nurse");
+    const scope = await resolveTermScope(req, "student");
 
     expect(scope?.termId).toBe("server-term");
     expect(scope?.schoolYearId).toBe("y-active");
@@ -303,7 +306,7 @@ describe("attachTermScope middleware", () => {
 
   it("does not leak a teacher term header into a non-steering desk request", async () => {
     const req = await run({
-      authorization: "Bearer nurse-token",
+      authorization: "Bearer student-token",
       "x-term-id": "teacher-picked-term",
       "x-school-year-id": "teacher-picked-year",
     });

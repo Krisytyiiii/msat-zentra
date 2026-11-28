@@ -64,24 +64,33 @@
   }
 }
 
-/* Compact board header — muted title, like the KanbanBoard header. */
+/* Compact board header — icon tile + strong title, like the KanbanBoard
+   header, with the description as a quiet second line. */
 .header {
   position: relative;
   display: flex;
   align-items: center;
-  gap: 0.5rem;
-  padding: 0.625rem 0.875rem;
+  gap: 0.625rem;
+  padding: 0.75rem 1rem;
   border-bottom: 1px solid var(--border);
+  background-color: color-mix(in oklch, var(--muted), transparent 65%);
 }
 
 .headIcon {
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  width: 1.125rem;
-  height: 1.125rem;
+  width: 2rem;
+  height: 2rem;
   flex-shrink: 0;
-  color: var(--muted-foreground);
+  border-radius: var(--radius-md);
+  background-color: color-mix(in oklch, var(--amber), transparent 88%);
+  color: var(--amber);
+}
+
+.headIcon svg {
+  width: 0.9375rem;
+  height: 0.9375rem;
 }
 
 .headText {
@@ -89,17 +98,19 @@
   min-width: 0;
   display: flex;
   flex-direction: column;
+  gap: 0.0625rem;
 }
 
 .title {
   margin: 0;
-  font-size: 0.8125rem;
+  font-size: 0.9375rem;
   font-weight: 600;
-  color: var(--muted-foreground);
+  line-height: 1.3;
+  color: var(--foreground);
 }
 
 .description {
-  margin: 0.125rem 0 0;
+  margin: 0;
   font-size: 0.75rem;
   line-height: 1.4;
   color: var(--muted-foreground);
@@ -138,7 +149,7 @@
   position: relative;
   min-height: 0;
   overflow-y: auto;
-  padding: 0.875rem;
+  padding: 1rem;
   /* Thin amber scrollbar — hidden until the lane is hovered. */
   scrollbar-width: thin;
   scrollbar-color: transparent transparent;
@@ -170,7 +181,11 @@
   align-items: center;
   gap: 0.625rem;
   min-width: 0;
-  margin-bottom: 0.875rem;
+  margin-bottom: 1rem;
+  padding: 0.625rem 0.75rem;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  background-color: color-mix(in oklch, var(--muted), transparent 45%);
 }
 
 .caseText {
@@ -195,12 +210,47 @@
   gap: 0.375rem;
 }
 
-/* Schedule over Time in the wider left column; Details is the narrow right rail. */
+/* Inline identity line: "LRN: … | Grade level: … | Section: …". */
+.caseMeta {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.375rem;
+  margin: 0;
+  font-size: 0.75rem;
+  line-height: 1.4;
+  color: var(--muted-foreground);
+}
+
+.caseMetaItem {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.25rem;
+  min-width: 0;
+}
+
+.caseMetaLabel {
+  color: var(--muted-foreground);
+}
+
+.caseMetaValue {
+  font-weight: 600;
+  color: var(--foreground);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.caseMetaSep {
+  color: var(--border);
+}
+
+/* Three lanes on one row: Schedule, Time, Details — all the same height. */
 .lanes {
   display: grid;
-  grid-template-columns: minmax(0, 1.25fr) minmax(0, 1fr);
+  grid-template-columns: repeat(3, minmax(0, 1fr));
   gap: 0.75rem;
-  align-items: start;
+  align-items: stretch;
 }
 .lanes > :nth-child(1) {
   grid-column: 1;
@@ -208,18 +258,18 @@
 }
 
 .lanes > :nth-child(2) {
-  grid-column: 1;
-  grid-row: 2;
+  grid-column: 2;
+  grid-row: 1;
 }
 
 .lanes > :nth-child(3) {
-  grid-column: 2;
-  grid-row: 1 / span 2;
+  grid-column: 3;
+  grid-row: 1;
 }
 
-/* Details lane hidden (moving a session): one full-width column. */
+/* Details lane hidden (moving a session): date and time share the row. */
 .lanesSingle {
-  grid-template-columns: minmax(0, 1fr);
+  grid-template-columns: repeat(2, minmax(0, 1fr));
 }
 
 @media (max-width: 900px) {
@@ -238,24 +288,24 @@
 .lane {
   display: flex;
   flex-direction: column;
-  gap: 0.625rem;
+  gap: 0.75rem;
   min-width: 0;
-  padding: 0.625rem;
+  padding: 0.75rem;
   border: 1px solid var(--border);
   border-radius: var(--radius-lg);
-  background-color: color-mix(in oklch, var(--muted), transparent 55%);
+  background-color: var(--card);
 }
 
 .laneHead {
   display: flex;
-  align-items: baseline;
+  align-items: center;
   justify-content: space-between;
   gap: 0.5rem;
   min-width: 0;
-  /* Full-bleed divider — cancels the lane's 0.625rem side padding so the
+  /* Full-bleed divider — cancels the lane's 0.75rem side padding so the
      rule runs edge to edge instead of stopping at the lane gutters. */
-  margin: 0 -0.625rem;
-  padding: 0 0.625rem 0.375rem;
+  margin: 0 -0.75rem;
+  padding: 0 0.75rem 0.5rem;
   border-bottom: 1px solid color-mix(in oklch, var(--foreground), transparent 92%);
 }
 
@@ -263,14 +313,14 @@
   display: inline-flex;
   align-items: center;
   gap: 0.375rem;
-  font-size: 0.75rem;
+  font-size: 0.8125rem;
   font-weight: 600;
   color: var(--foreground);
 }
 
 .laneIcon {
-  width: 0.875rem;
-  height: 0.875rem;
+  width: 0.9375rem;
+  height: 0.9375rem;
   color: var(--muted-foreground);
   flex-shrink: 0;
 }
@@ -297,8 +347,73 @@
 .laneCards {
   display: flex;
   flex-direction: column;
-  gap: 0.625rem;
+  gap: 0.75rem;
   min-width: 0;
+  flex: 1 1 auto;
+}
+
+/* Bottom banner inside the Date / Time lanes — shows the current pick in the
+   otherwise empty space once the lane stretches to the row height. */
+.pickBanner {
+  margin-top: auto;
+  display: flex;
+  align-items: center;
+  gap: 0.625rem;
+  padding: 0.75rem;
+  border: 1px solid color-mix(in oklch, var(--amber), transparent 72%);
+  border-radius: var(--radius-md);
+  background-image: linear-gradient(
+    135deg,
+    color-mix(in oklch, var(--amber), transparent 90%),
+    transparent 65%
+  );
+  background-color: color-mix(in oklch, var(--muted), transparent 55%);
+}
+
+.pickBannerIcon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  width: 2rem;
+  height: 2rem;
+  border-radius: 9999px;
+  background-color: color-mix(in oklch, var(--amber), transparent 82%);
+  color: var(--amber);
+}
+
+.pickBannerIcon svg {
+  width: 0.9375rem;
+  height: 0.9375rem;
+}
+
+.pickBannerText {
+  display: flex;
+  flex-direction: column;
+  gap: 0.0625rem;
+  min-width: 0;
+}
+
+.pickBannerLabel {
+  font-size: 0.75rem;
+  color: var(--muted-foreground);
+}
+
+.pickBannerValue {
+  font-size: 1rem;
+  font-weight: 600;
+  line-height: 1.3;
+  color: var(--foreground);
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.pickBannerEmpty {
+  font-size: 0.875rem;
+  font-weight: 500;
+  color: var(--muted-foreground);
 }
 
 /* Selected picker chips read amber (coordinator accent) instead of the desk
@@ -455,10 +570,31 @@
   gap: 0.5rem;
 }
 
-.timeStack {
+.timeSlots {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
   gap: 0.5rem;
+}
+
+.lane .dayCard {
+  padding: 0.75rem 0.5rem;
+  gap: 0.1875rem;
+}
+
+.lane .dayCard:hover {
+  border-color: color-mix(in oklch, var(--amber), transparent 45%);
+  background-color: color-mix(in oklch, var(--amber), transparent 94%);
+}
+
+.lane .timePill {
+  padding: 0.5rem 0.375rem;
+}
+
+.lane .timeSelected {
+  border-color: var(--amber);
+  background-color: color-mix(in oklch, var(--amber), transparent 90%);
+  color: var(--amber);
+  font-weight: 700;
 }
 
 .errorWrap {
@@ -473,9 +609,9 @@
   justify-content: space-between;
   flex-wrap: wrap;
   gap: 1rem;
-  padding: 0.625rem 0.875rem;
+  padding: 0.75rem 1rem;
   border-top: 1px solid var(--border);
-  background-color: var(--card);
+  background-color: color-mix(in oklch, var(--muted), transparent 65%);
 }
 
 .actions {
@@ -491,25 +627,56 @@
   font-size: 0.8125rem;
 }
 
-/* Footer summary — picked date and time as separate amber pills. */
-.summaryPills {
+/* Footer summary — a calendar tile, the picked moment on one strong line and
+   the session kind / venue underneath. */
+.summary {
   display: flex;
-  flex-wrap: wrap;
   align-items: center;
-  gap: 0.375rem;
+  gap: 0.625rem;
+  min-width: 0;
 }
 
-.summaryPill {
+.summaryIcon {
   display: inline-flex;
   align-items: center;
-  padding: 0.125rem 0.5rem;
-  border: 1px solid color-mix(in oklch, var(--amber), transparent 55%);
+  justify-content: center;
+  flex-shrink: 0;
+  width: 2rem;
+  height: 2rem;
   border-radius: var(--radius-md);
-  background-color: color-mix(in oklch, var(--amber), transparent 88%);
-  color: var(--amber);
-  font-size: 0.75rem;
+  background-color: var(--muted);
+  color: var(--muted-foreground);
+}
+
+.summaryIcon svg {
+  width: 0.9375rem;
+  height: 0.9375rem;
+}
+
+.summaryText {
+  display: flex;
+  flex-direction: column;
+  gap: 0.0625rem;
+  min-width: 0;
+}
+
+.summaryMain {
+  font-size: 0.875rem;
   font-weight: 600;
+  color: var(--foreground);
+  font-variant-numeric: tabular-nums;
   white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.summarySub {
+  font-size: 0.75rem;
+  color: var(--muted-foreground);
+  max-width: 18rem;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
 .summaryEmpty {

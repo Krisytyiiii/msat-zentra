@@ -23,7 +23,7 @@ export default function GuidanceCounselingReferralsPage() {
     <React.Suspense
       fallback={
         <section className={styles.page}>
-          <GuidanceReferralsSkeleton lockType />
+          <GuidanceReferralsSkeleton lockType table />
         </section>
       }
     >

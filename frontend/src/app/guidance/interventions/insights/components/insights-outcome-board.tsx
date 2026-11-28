@@ -87,7 +87,6 @@ export function InsightsOutcomeBoard({
     <KanbanBoard
       title={title}
       icon={<BoardIcon icon={icon} />}
-      count={<span className={styles.heatRate}>{total}</span>}
       description={description}
       className={`flex-1 ${styles.boardIn}`}
     >

@@ -2,6 +2,8 @@
    sheet body scrolls without ever showing a scrollbar. */
 
 .scrollBody {
+  flex: 1;
+  min-width: 0;
   height: 100%;
   overflow-y: auto;
   scrollbar-width: none;
@@ -13,4 +15,29 @@
 
 .scrollBody::-webkit-scrollbar {
   display: none;
+}
+
+/* Two columns when a live preview rides along: preview on the left, fill-up
+   fields on the right. Both live inside the sheet, so the preview scrolls
+   with the mouse wheel like any other panel. */
+.split {
+  display: flex;
+  height: 100%;
+  min-height: 0;
+}
+
+.livePanel {
+  display: flex;
+  width: 50%;
+  min-width: 0;
+  flex-direction: column;
+  overflow: hidden;
+  background: var(--muted);
+  border-right: 1px solid var(--border);
+}
+
+@media (max-width: 899px) {
+  .livePanel {
+    display: none;
+  }
 }

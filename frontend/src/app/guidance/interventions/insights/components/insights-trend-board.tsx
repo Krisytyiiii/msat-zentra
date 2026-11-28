@@ -40,7 +40,6 @@ export function InsightsTrendBoard({
     <KanbanBoard
       title="Pipeline trend"
       icon={<BoardIcon icon={TrendingUp} />}
-      count={<span className={styles.heatRate}>{totalOpened}</span>}
       description={`Monthly follow-ups opened vs. resolved and counseling sessions held — ${termLabel}.`}
       className={`flex-1 ${styles.boardIn}`}
     >

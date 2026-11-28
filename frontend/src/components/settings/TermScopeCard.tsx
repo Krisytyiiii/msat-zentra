@@ -12,8 +12,7 @@ import {
   type ActiveTerm,
   type SchoolYearOption,
 } from "@/lib/term/TermContext";
-import sectionStyles from "./settings-section.module.css";
-import styles from "./settings-term.module.css";
+import styles from "./term-scope.module.css";
 
 function formatRange(start: string | null, end: string | null): string {
   if (!start || !end) return "Dates not set";
@@ -37,13 +36,12 @@ function termStatus(start: string | null, end: string | null): string | null {
 }
 
 /**
- * School-wide term scope for the principal desk. Unlike a teacher's per-desk
- * pick, this one is stored on the principal's account and carried on every
- * principal request (see the api client's term headers), so every principal
- * page — overview, honor roll, risk, ADM, academics — reads the same term.
- *
- * With nothing stored the desk follows the school default: the active school
- * year and the term whose dates cover today (same rule the server uses).
+ * School-wide term scope for a staff desk. Stored on the signed-in account
+ * and carried on every request (see the api client's term headers), so every
+ * page of that desk — overview, queues, reports, schedule — reads the same
+ * school year and term. With nothing stored the desk follows the school
+ * default: the active school year and the term whose dates cover today (same
+ * rule the server uses).
  */
 export function TermScopeCard() {
   const queryClient = useQueryClient();
@@ -114,12 +112,12 @@ export function TermScopeCard() {
     : "No school year";
 
   return (
-    <div id="section-term" className={sectionStyles.boardWrap}>
+    <div id="section-term" className={styles.boardWrap}>
       <KanbanBoard
         title="Term & school year"
         icon={<CalendarDays size={14} aria-hidden="true" />}
         count={selectedTerm ? `Term ${selectedTerm.termNumber}` : "—"}
-        description="Every principal page follows this scope. Pick a school year, then a term."
+        description="Every page in this desk follows this scope. Pick a school year, then a term."
         ariaLabel="Term and school year settings"
         footer={
           <div className="flex flex-wrap items-center justify-between gap-2 px-1 pb-1">

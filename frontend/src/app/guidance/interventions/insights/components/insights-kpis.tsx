@@ -27,7 +27,7 @@ export function InsightsKpis({ kpis }: { kpis: InterventionInsightKpis }) {
           label: "Follow-ups this term",
           unit: "cases",
           value: kpis.total,
-          hint: `${kpis.ongoing} ongoing · ${kpis.resolved} resolved · ${kpis.unresolved} unresolved`,
+          hint: `${kpis.ongoing} ongoing | ${kpis.resolved} resolved | ${kpis.unresolved} unresolved`,
         },
         {
           key: "success",

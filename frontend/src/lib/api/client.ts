@@ -15,8 +15,9 @@ apiClient.interceptors.request.use((config) => {
   if (token) {
     config.headers.Authorization = `Bearer ${token}`;
   }
-  // Only term-steering roles (teachers + principal) carry a term. Every other
-  // desk is scoped server-side, so its requests must never send term headers.
+  // Only term-steering roles (teachers + staff desks that picked a school
+  // year/term in Settings) carry a term. Every other desk is scoped
+  // server-side, so its requests must never send term headers.
   const identity = decodeTokenIdentity(token);
   if (identity && canSteerTermRole(identity.role)) {
     const scope = getActiveTermScope();

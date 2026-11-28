@@ -11,9 +11,11 @@ beforeAll(() => {
 });
 
 describe("Admin timetable ownership", () => {
-  it("lets the administrator steer the term scope", () => {
+  it("lets staff desks steer the term scope", () => {
     expect(canSteerTerm("admin")).toBe(true);
-    expect(canSteerTerm("nurse")).toBe(false);
+    expect(canSteerTerm("nurse")).toBe(true);
+    expect(canSteerTerm("guidance_counselor")).toBe(true);
+    expect(canSteerTerm("student")).toBe(false);
   });
 
   it("guards the admin schedule workspace behind auth", async () => {

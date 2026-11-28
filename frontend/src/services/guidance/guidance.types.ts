@@ -43,13 +43,22 @@ export interface CounselingSessionItem {
   attachments: CounselingSessionAttachment[];
 }
 
+export interface GuidanceReferralMeeting {
+  id: string;
+  /** ISO instant. */
+  scheduledAt: string;
+  /** `YYYY-MM-DD` in the server's calendar day. */
+  date: string;
+  venue: string;
+  attended: boolean;
+}
+
 export interface GuidanceReferralItem {
   id: string;
   student: string;
   lrn: string;
   section: string;
   grade: string;
-
   studentId: string | null;
 
   /** Persisted sprite mascot; null falls back to the `${name}:${lrn}` pick. */
@@ -76,6 +85,8 @@ export interface GuidanceReferralItem {
   acceptedAt: string;
   resolutionSummary: string;
   sessions: CounselingSessionItem[];
+  /** ADM parent meetings booked against this case (coordinator-owned). */
+  meetings?: GuidanceReferralMeeting[];
   completedSessions: number;
 
   /** When the referral was filed (null for legacy rows with no audit trail). */

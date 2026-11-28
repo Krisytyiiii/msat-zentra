@@ -92,8 +92,23 @@ export function sf10StatusLabel(status: string): string {
   return status ? status.charAt(0).toUpperCase() + status.slice(1) : status;
 }
 
-/** Intervention outcome / plan status. */
-export function outcomeTone(status: string): PillTone {
+/** Booked counseling/clinic session status (calendar drawer cards). */
+export const BOOKING_STATUS_TONE: Record<string, PillTone> = {
+  scheduled: "blue",
+  completed: "green",
+  cancelled: "red",
+};
+
+export function bookingStatusTone(status: string): PillTone {
+  return BOOKING_STATUS_TONE[status] ?? "neutral";
+}
+
+export function bookingStatusLabel(status: string): string {
+  if (!status) return "Scheduled";
+  return status.charAt(0).toUpperCase() + status.slice(1);
+}
+
+/** Intervention outcome / plan status. */export function outcomeTone(status: string): PillTone {
   if (status === "resolved") return "green";
   if (status === "unresolved") return "red";
   if (status === "ongoing") return "blue";

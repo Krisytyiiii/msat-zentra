@@ -41,17 +41,14 @@ function GuidanceInterventionsView({ highlightId }: { highlightId: string | null
   // Filters live in the URL so refresh/back-forward keep them, but the board
   // filters the already-loaded queue locally — typing never triggers a fetch.
   const [query, setQueryInput] = React.useState(() => searchParams.get("q") ?? "");
-  // One status filter for the whole board; "No action yet" is where the desk
-  // starts, since those are the cases still waiting to be picked up. Search and
-  // highlight deep links start unfiltered so the learner they point at is never
-  // hidden by the default bucket.
+  // One status filter for the whole board; "All" is the default so the desk
+  // opens on the full queue and every tab count is reachable in one click.
   const [status, setStatusState] = React.useState<InterventionStatusFilter>(() => {
     const fromUrl = searchParams.get("status");
     if (fromUrl && STATUS_QUERY.test(fromUrl)) {
       return fromUrl as InterventionStatusFilter;
     }
-    const deepLinked = (searchParams.get("q") ?? "").trim() !== "" || !!highlightId;
-    return deepLinked ? "all" : "no_action";
+    return "all";
   });
 
   // One request set for the whole queue, then search / tabs / paging are all
@@ -74,6 +71,25 @@ function GuidanceInterventionsView({ highlightId }: { highlightId: string | null
     () => (Array.isArray(data?.students) ? data.students : []),
     [data],
   );
+
+  // Per-tab totals for the filter tags (same pattern as the teacher referral
+  // tabs): the whole queue is already loaded, so every count is one pass.
+  const statusCounts = React.useMemo(() => {
+    const counts: Record<InterventionStatusFilter, number> = {
+      all: allStudents.length,
+      no_action: 0,
+      booked: 0,
+      session_done: 0,
+      follow_up: 0,
+      done: 0,
+      discontinued: 0,
+      risk_cleared: 0,
+    };
+    for (const learner of allStudents) {
+      counts[interventionStatusKey(learner)] += 1;
+    }
+    return counts;
+  }, [allStudents]);
 
   const filtered = React.useMemo(() => {
     const needle = query.trim().toLowerCase();
@@ -111,7 +127,7 @@ function GuidanceInterventionsView({ highlightId }: { highlightId: string | null
 
   const handleStatusChange = (value: InterventionStatusFilter) => {
     setStatusState(value);
-    pager.setFilters({ status: value === "no_action" ? undefined : value });
+    pager.setFilters({ status: value === "all" ? undefined : value });
   };
 
   const handlePageChange = (next: number) => {
@@ -163,9 +179,12 @@ function GuidanceInterventionsView({ highlightId }: { highlightId: string | null
           <ShimmerGroup>
             <div className="flex min-w-0 flex-col gap-3">
               <div
-                className="flex w-full flex-wrap items-center justify-between gap-2"
+                className="flex w-full flex-col gap-2"
                 aria-hidden="true"
               >
+                <div className="flex flex-wrap items-center justify-end gap-2">
+                  <Skeleton className="h-8 w-60 max-w-full rounded-2xl" />
+                </div>
                 <div className={`${styles.filterRow} ${styles.filterRowScroll}`}>
                   <Skeleton className={styles.skelTab} />
                   <Skeleton className={styles.skelTab} />
@@ -173,7 +192,6 @@ function GuidanceInterventionsView({ highlightId }: { highlightId: string | null
                   <Skeleton className={styles.skelTab} />
                   <Skeleton className={styles.skelTab} />
                 </div>
-                <Skeleton className="h-8 w-60 max-w-full rounded-2xl" />
               </div>
               <div className={styles.caseList}>
                 {[0, 1, 2, 3, 4, 5, 6, 7].map((card) => (
@@ -246,6 +264,7 @@ function GuidanceInterventionsView({ highlightId }: { highlightId: string | null
           onQueryChange={handleQueryChange}
           status={status}
           onStatusChange={handleStatusChange}
+          statusCounts={statusCounts}
           isNavigating={false}
           highlightId={highlightId}
         />

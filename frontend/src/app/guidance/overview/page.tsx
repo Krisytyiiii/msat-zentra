@@ -202,7 +202,7 @@ export default function GuidanceOverviewPage() {
             label: "ADM hand-offs",
             unit: "cases",
             value: data.kpis.admHandoffs,
-            hint: "Endorsed · with coordinator",
+            hint: "Endorsed | with coordinator",
             href: "/guidance/reports",
             tone: "green",
           },
@@ -236,6 +236,7 @@ export default function GuidanceOverviewPage() {
               scopeLabel="Students"
               unitOne="student"
               unitMany="students"
+              separator="|"
               emptyHint="No students flagged this term."
               footNote=" Point at a lane to isolate it; click to open the interventions desk."
             />

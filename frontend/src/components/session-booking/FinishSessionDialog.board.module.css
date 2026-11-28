@@ -7,8 +7,100 @@
   display: flex;
   flex-direction: column;
   gap: 0.75rem;
-  padding-bottom: 0.25rem;
+  min-width: 0;
+  min-height: 0;
+  flex: 1 1 auto;
   font-family: var(--font-sans), system-ui, sans-serif;
+}
+
+/* Only the lane stack scrolls — the header and the action row stay put, so
+   the primary action is always in view however long the notes get. */
+.scroll {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+  min-height: 0;
+  overflow-y: auto;
+  padding-right: 0.125rem;
+  overscroll-behavior: contain;
+}
+
+/* Session identity strip — type / booked time / venue as quiet chips, so the
+   dialog leads with the booking it is closing instead of a sentence. */
+.meta {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.375rem;
+  min-width: 0;
+  padding: 0.5rem 0.5rem;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  background-color: color-mix(in oklch, var(--muted), transparent 55%);
+}
+
+.metaItem {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.3125rem;
+  min-width: 0;
+  padding: 0.125rem 0.4375rem;
+  border-radius: var(--radius-sm);
+  background-color: var(--card);
+  font-size: 0.75rem;
+  font-weight: 500;
+  line-height: 1.35;
+  color: var(--muted-foreground);
+  white-space: nowrap;
+  max-width: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.metaItem svg {
+  flex-shrink: 0;
+  color: color-mix(in oklch, var(--foreground), transparent 45%);
+}
+
+.metaType {
+  color: var(--foreground);
+  font-weight: 600;
+}
+
+.notice {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.5rem;
+  padding: 0.5rem 0.625rem;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  font-size: 0.75rem;
+  line-height: 1.45;
+}
+
+.noticeIcon {
+  flex-shrink: 0;
+  margin-top: 0.0625rem;
+}
+
+.noticeError {
+  border-color: color-mix(in oklch, oklch(0.637 0.237 25.331), transparent 55%);
+  background-color: color-mix(in oklch, oklch(0.637 0.237 25.331), transparent 92%);
+  color: oklch(0.505 0.19 25.331);
+}
+
+.noticeWarn {
+  border-color: color-mix(in oklch, oklch(0.769 0.188 70.08), transparent 55%);
+  background-color: color-mix(in oklch, oklch(0.769 0.188 70.08), transparent 90%);
+  color: oklch(0.555 0.15 70.08);
+}
+
+.charCount {
+  margin-top: -0.125rem;
+  text-align: right;
+  font-size: 0.75rem;
+  font-variant-numeric: tabular-nums;
+  color: var(--muted-foreground);
 }
 
 /* Two lanes side by side when there is room, stacked under 640px. */
@@ -132,6 +224,7 @@
   align-items: center;
   justify-content: space-between;
   flex-wrap: wrap;
+  flex-shrink: 0;
   gap: 0.75rem;
   padding: 0.75rem 0.125rem 0.25rem;
   border-top: 1px solid var(--border);

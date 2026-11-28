@@ -6,7 +6,7 @@ import { PrincipalPageHeader } from "../components/PrincipalPageHeader";
 import { ZentraPageHeaderSkeleton, KanbanBoardSkeleton, IconRailSkeleton } from "@/components/shared/zentra-skeletons/ZentraSkeletons";
 import { ProfileCard } from "./components/ProfileCard";
 import { PasswordCard } from "./components/PasswordCard";
-import { TermScopeCard } from "./components/TermScopeCard";
+import { TermScopeCard } from "@/components/settings/TermScopeCard";
 import { principalSettingsSections } from "./components/SettingsNav";
 import { SettingsRail } from "./components/SettingsRail";
 import { useTheme } from "@/components/providers";

@@ -96,7 +96,7 @@ function TeacherChrome({
     <BreadcrumbExtraProvider>
     <div className={styles.wrapper}>
       <header className={styles.topbar}>
-        <Link href="/teacher/overview" className={styles.brand}>
+        <Link href="/teacher/classes" className={styles.brand}>
           <span className={styles.brandText}>Zentra</span>
         </Link>
 

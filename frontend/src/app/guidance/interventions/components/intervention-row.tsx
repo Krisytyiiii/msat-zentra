@@ -1,36 +1,23 @@
 "use client";
 import * as React from "react";
-import { CalendarCheck, CalendarPlus, Check, Clock } from "lucide-react";
 import { formatElapsedShort, msSinceDate as msSinceAction } from "@/lib/clock";
-import {
-  Tooltip,
-  TooltipContent,
-  TooltipProvider,
-  TooltipTrigger,
-} from "@/components/ui/tooltip";
 import { StudentMascot } from "@/components/student-mascot/StudentMascot";
 import { Button } from "@/components/ui/button";
-import { Pill, type PillTone } from "@/components/ui/pill";
+import { type PillTone } from "@/components/ui/pill";
 import type {
   AtRiskStudentItem,
   CounselingSessionItem,
 } from "@/services/guidance/interventions.types";
 import { useInterventionEngine } from "./intervention-engine-breakdown";
 import { ImageViewer } from "@/components/image-viewer/ImageViewer";
-import { ActionGlyph } from "./intervention-action-glyph";
 import { interventionLatestAction, pipelineStatus } from "./intervention-row-helpers";
 import { useRowViewer } from "./use-row-viewer";
 import { GuidanceCaseDetailDialog } from "../../components/GuidanceCaseDetailDialog";
 import type { CaseDetailSession } from "../../components/GuidanceCaseDetailDialog";
 import { InterventionSessionDocsDialog } from "./InterventionSessionDocsDialog";
-import { SessionListDialog } from "./session-list-dialog";
 import styles from "./guidance-interventions.module.css";
 export { interventionLatestAction } from "./intervention-row-helpers";
 
-const ACTION_PRIMARY =
-  "inline-flex h-6 items-center gap-1.5 rounded-md bg-primary px-2.5 text-xs font-semibold text-primary-foreground transition-colors hover:bg-primary/90 disabled:pointer-events-none disabled:opacity-50";
-const ACTION_SECONDARY =
-  "inline-flex h-6 items-center gap-1.5 rounded-md border border-border px-2.5 text-xs font-medium text-foreground transition-colors hover:bg-muted disabled:pointer-events-none disabled:opacity-50";
 interface InterventionTableRowProps {
   row: AtRiskStudentItem;
   index?: number;
@@ -64,7 +51,6 @@ export function InterventionTableRow({
   now,
   onChange,
   onOutcome,
-  onMarkDone,
   onSchedule,
   onSession,
   onReview,
@@ -73,7 +59,6 @@ export function InterventionTableRow({
   const followUp = row.intervention;
   const engine = useInterventionEngine(row.studentKey, expanded);
   const displayLevel = engine.data?.live.level ?? row.riskLevel;
-  const [sessionsOpen, setSessionsOpen] = React.useState(false);
   const { viewer, setViewer } = useRowViewer(followUp);
   const closed = !!followUp && followUp.outcomeStatus === "resolved";
   const workable =
@@ -81,40 +66,40 @@ export function InterventionTableRow({
     followUp.outcomeStatus !== "resolved" &&
     followUp.approvalStatus !== "rejected";
   const latest = interventionLatestAction(row);
-  const actionMs = latest.time ? msSinceAction(latest.time, now) : null;
   const doneCount = followUp?.completedSessions ?? 0;
   const scheduledCount =
     followUp?.sessions.filter((s) => s.status === "scheduled").length ?? 0;
   const status = pipelineStatus(row, followUp, scheduledCount, doneCount);
   const isUnbooked =
     !!followUp && !closed && followUp.sessions.length === 0;
-  const hasSessions = (followUp?.sessions.length ?? 0) > 0;
   const hasUpcoming = scheduledCount > 0;
   const upcomingHint = "Finish or cancel the upcoming session first";
-  // Mark-as-done is enabled for ongoing plans except when there is
-  // nothing actionable yet: no sessions booked ("No action yet") or a
-  // booked session that hasn't started. The outcome dialog + backend
-  // enforce the remaining rules (reviewed, closing note) with clear errors.
-  const hasFutureBooking = (followUp?.sessions ?? []).some(
-    (s) =>
-      s.status === "scheduled" &&
-      (() => {
-        const t = new Date(s.scheduledAt).getTime();
-        return !Number.isFinite(t) || t > now;
-      })()
-  );
-  const markDoneHint = !followUp
-    ? "Start a follow-up first"
-    : followUp.outcomeStatus === "resolved"
-      ? "Already done"
-      : followUp.outcomeStatus !== "ongoing"
-        ? "Already closed"
-        : followUp.sessions.length === 0
-          ? "Book a session first"
-          : hasFutureBooking
-            ? "The booked session hasn't started yet"
-            : null;
-  const canMarkDone = markDoneHint === null && !locked && !isActionPending;
+  // Countdown to the next booked slot so the card says how long until the
+  // session is live instead of a flat "upcoming".
+  const nextSessionAt =
+    followUp?.sessions
+      .filter((s) => s.status === "scheduled")
+      .map((s) => new Date(s.scheduledAt).getTime())
+      .filter(Number.isFinite)
+      .sort((a, b) => a - b)[0] ?? null;
+  const sessionInMs = nextSessionAt === null ? null : nextSessionAt - now;
+  // Fourth card metric: how long until the booked session is live.
+  const liveInValue = !hasUpcoming
+    ? "—"
+    : sessionInMs === null
+      ? "—"
+      : sessionInMs > 0
+        ? sessionInMs < 60_000
+          ? "<1m"
+          : formatElapsedShort(sessionInMs)
+        : "Live";
+  const liveInHint = !hasUpcoming
+    ? "no booking"
+    : sessionInMs === null
+      ? "upcoming"
+      : sessionInMs > 0
+        ? "until session"
+        : "now";
   const detectedAt = row.detectedAt ?? followUp?.createdAt ?? null;
   const detectedMs = detectedAt ? msSinceAction(detectedAt, now) : null;
   const detectedElapsed =
@@ -168,151 +153,82 @@ export function InterventionTableRow({
           <StudentMascot name={row.student} seed={row.lrn} character={row.mascot ?? undefined} size={36} />
           <div className={styles.caseCardId}>
             <p className={styles.caseCardName}>{row.student}</p>
-            <div className={styles.caseCardMeta}>
-              <Pill label="LRN" className="tabular-nums">
-                {row.lrn || "—"}
-              </Pill>
-              <Pill
-                tone="amber"
-                aria-label={`Section ${row.section}`}
-                label={row.grade || "Grade level"}
-              >
-                {row.section || "—"}
-              </Pill>
-            </div>
+            <dl className={styles.caseCardHeadFacts}>
+              <div className={styles.caseCardFact}>
+                <dt>Risk</dt>
+                <dd data-tone={riskTone}>{displayLevel}</dd>
+              </div>
+              <div className={styles.caseCardFact}>
+                <dt>Case</dt>
+                <dd>Intervention</dd>
+              </div>
+            </dl>
           </div>
-          <Pill tone={riskTone} label="Risk level">
-            {displayLevel}
-          </Pill>
+          <span className={styles.caseCardStatus} data-tone={statusTone}>
+            {status.label}
+          </span>
         </div>
 
-        <div className={styles.caseCardPills}>
-          <Pill tone="amber" label="Case type">
-            Intervention
-          </Pill>
-          <Pill tone={statusTone} label="Status">
-            {status.label}
-          </Pill>
-          {doneCount > 0 && !closed ? (
-            <Pill label="Sessions completed">
-              {doneCount} session{doneCount === 1 ? "" : "s"} done
-            </Pill>
-          ) : null}
+        <div className={styles.caseCardMetrics}>
+          <div className={styles.caseCardMetric}>
+            <span className={styles.caseCardMetricLabel}>Sessions</span>
+            <span className={styles.caseCardMetricValue}>{doneCount}</span>
+            <span className={styles.caseCardMetricHint}>completed</span>
+          </div>
+          <div className={styles.caseCardMetric}>
+            <span className={styles.caseCardMetricLabel}>Booked</span>
+            <span className={styles.caseCardMetricValue}>{scheduledCount}</span>
+            <span className={styles.caseCardMetricHint}>
+              {hasUpcoming ? "upcoming" : "none"}
+            </span>
+          </div>
+          <div className={styles.caseCardMetric}>
+            <span className={styles.caseCardMetricLabel}>Live in</span>
+            <span
+              className={`${styles.caseCardMetricValue} ${styles.caseCardMetricValueText} ${
+                hasUpcoming ? styles.caseCardMetricValueLive : ""
+              }`}
+            >
+              {liveInValue}
+            </span>
+            <span className={styles.caseCardMetricHint}>{liveInHint}</span>
+          </div>
+          <div className={styles.caseCardMetric}>
+            <span className={styles.caseCardMetricLabel}>Detected</span>
+            <span
+              className={`${styles.caseCardMetricValue} ${styles.caseCardMetricValueText}`}
+            >
+              {detectedElapsed}
+            </span>
+            <span className={styles.caseCardMetricHint}>{latest.label}</span>
+          </div>
         </div>
 
         <div className={styles.caseCardFoot}>
-          <Pill label="Detected at" className="tabular-nums">
-            <Clock size={11} aria-hidden />
-            {detectedElapsed}
-          </Pill>
-
-          <div
-            className={styles.caseActions}
-            onClick={(event) => event.stopPropagation()}
-            onKeyDown={(event) => event.stopPropagation()}
-          >
-            <TooltipProvider delayDuration={100}>
-              <Tooltip>
-                <TooltipTrigger asChild>
-                  <span className={styles.actionIconButton} aria-label={latest.label} tabIndex={0}>
-                    <ActionGlyph label={latest.label} className={styles.actionIcon} />
-                  </span>
-                </TooltipTrigger>
-                <TooltipContent side="top" sideOffset={6}>
-                  <span className="font-medium">{latest.label}</span>
-                  {actionMs === null ? null : (
-                    <span className="opacity-60">{formatElapsedShort(actionMs)} ago</span>
-                  )}
-                </TooltipContent>
-              </Tooltip>
-            </TooltipProvider>
-
-            {hasSessions ? (
-              <TooltipProvider delayDuration={100}>
-                <Tooltip>
-                  <TooltipTrigger asChild>
-                    <button
-                      type="button"
-                      className={styles.actionIconButton}
-                      aria-label={`Booked sessions for ${row.student}`}
-                      onClick={() => setSessionsOpen(true)}
-                    >
-                      <CalendarCheck className={styles.actionIcon} aria-hidden />
-                    </button>
-                  </TooltipTrigger>
-                  <TooltipContent side="top" sideOffset={6}>
-                    <span className="font-medium">Booked session</span>
-                    <span className="opacity-60">
-                      {followUp?.sessions.length ?? 0} session
-                      {(followUp?.sessions.length ?? 0) === 1 ? "" : "s"}
-                    </span>
-                  </TooltipContent>
-                </Tooltip>
-              </TooltipProvider>
-            ) : null}
-
-            {(!followUp || (workable && !hasUpcoming)) && (
-              <Button
-                type="button"
-                size="xs"
-                variant="default"
-                className="h-6 gap-1 px-2 text-[12px] font-semibold"
-                disabled={
-                  locked ||
-                  isActionPending ||
-                  (!!followUp && isBusy("schedule"))
-                }
-                title={
-                  followUp && !workable
-                    ? "This follow-up is closed"
-                    : "Book a counseling session"
-                }
-                onClick={onSchedule}
-              >
-                <CalendarPlus size={11} aria-hidden />
-                Book session
-              </Button>
-            )}
-
-            {closed ? (
-              <Pill tone="green" label="Outcome">
-                <Check size={11} aria-hidden />
-                Done
-              </Pill>
-            ) : (
-              <Button
-                type="button"
-                size="xs"
-                variant="outline"
-                className="h-6 px-2 text-[12px] font-medium"
-                disabled={!canMarkDone || isBusy("outcome")}
-                title={markDoneHint ?? "Record the outcome as resolved"}
-                aria-label={
-                  canMarkDone
-                    ? `Mark ${row.student}'s intervention as done`
-                    : `Cannot mark ${row.student}'s intervention as done: ${markDoneHint}`
-                }
-                onClick={onMarkDone}
-              >
-                {isBusy("outcome") ? "Saving…" : "Mark done"}
-              </Button>
-            )}
-          </div>
-          <SessionListDialog
-            row={row}
-            followUp={followUp}
-            open={sessionsOpen}
-            onClose={() => setSessionsOpen(false)}
-            now={now}
-          />
+          <dl className={styles.caseCardInfo}>
+            <div className={styles.caseCardFact}>
+              <dt>LRN</dt>
+              <dd>{row.lrn || "—"}</dd>
+            </div>
+            <div className={styles.caseCardFact}>
+              <dt>Grade level</dt>
+              <dd>{row.grade || "—"}</dd>
+            </div>
+            <div className={styles.caseCardFact}>
+              <dt>Section</dt>
+              <dd>{row.section || "—"}</dd>
+            </div>
+          </dl>
         </div>
       </li>
       {expanded ? (
         <GuidanceCaseDetailDialog
+          presentation="drawer"
           row={{ kind: "intervention", item: row }}
           riskLevel={riskLevel}
           onClose={onToggleDetails}
           showOpenFullCase={false}
+          sessionNotice="Mark done works even before a booking's scheduled time — doing so closes that booking."
           sessionActions={(session) => (
             <CaseSessionActions
               session={session}
@@ -419,7 +335,7 @@ export function InterventionTableRow({
                     onOutcome();
                   }}
                 >
-                  Record outcome…
+                  Mark done
                 </Button>
               )}
               {followUp && closed && (
@@ -457,8 +373,8 @@ export function InterventionTableRow({
 }
 
 /**
- * Per-session actions inside the shared case overlay — mirrors the old
- * counseling-plan controls (finish / reschedule / cancel / docs).
+ * Per-session actions inside the shared case drawer — reschedule / cancel the
+ * booking, plus the session's documentary images (shared `Button`).
  */
 function CaseSessionActions({
   session,
@@ -468,7 +384,6 @@ function CaseSessionActions({
   closed,
   locked,
   isActionPending,
-  isBusy,
   onSession,
   onDocsChanged,
 }: {
@@ -499,50 +414,53 @@ function CaseSessionActions({
   if (!actionable && !docsUnlocked) return null;
 
   return (
-    <div className="flex flex-wrap items-center gap-2">
+    <div className="flex flex-wrap items-center justify-end gap-2">
       {actionable && (
         <>
-          <button
+          <Button
             type="button"
-            className={ACTION_PRIMARY}
-            disabled={locked || isActionPending || target > now}
-            title={
-              target > now
-                ? "You can mark it done once the scheduled time arrives"
-                : undefined
-            }
-            onClick={() => onSession(fullSession, "finish")}
-          >
-            {isBusy("finish") ? "Saving…" : "Mark done"}
-          </button>
-          <button
-            type="button"
-            className={ACTION_SECONDARY}
+            variant="outline"
+            size="sm"
+            className="h-6 px-2.5 text-xs"
             disabled={locked || isActionPending}
             onClick={() => onSession(fullSession, "move")}
           >
             Reschedule
-          </button>
-          <button
+          </Button>
+          <Button
             type="button"
-            className={ACTION_SECONDARY}
+            variant="outline"
+            size="sm"
+            className="h-6 px-2.5 text-xs"
             disabled={locked || isActionPending}
             onClick={() => onSession(fullSession, "cancelSess")}
           >
             Cancel
-          </button>
+          </Button>
+          <Button
+            type="button"
+            size="sm"
+            className="h-6 px-2.5 text-xs"
+            disabled={locked || isActionPending}
+            title="Record what happened and mark this booking done — works even before the scheduled time"
+            onClick={() => onSession(fullSession, "finish")}
+          >
+            Mark done
+          </Button>
         </>
       )}
       {docsUnlocked && (
         <>
-          <button
+          <Button
             type="button"
-            className={ACTION_SECONDARY}
+            variant="outline"
+            size="sm"
+            className="h-6 px-2.5 text-xs"
             disabled={locked || isActionPending}
             onClick={() => setDocsOpen(true)}
           >
             {docsCount > 0 ? "See attached images" : "Add docs"}
-          </button>
+          </Button>
           {docsOpen && followUpId ? (
             <InterventionSessionDocsDialog
               followUpId={followUpId}

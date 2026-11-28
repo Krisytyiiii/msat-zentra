@@ -47,8 +47,6 @@ function BoardIcon({ icon: Icon }: { icon: LucideIcon }) {
 export function GuidanceAdmStats({ data }: { data: GuidanceAdmInsightsData }) {
   return (
     <StatDeck
-      title="Key findings"
-      icon={Activity}
       ariaLabel="Key findings"
       className={styles.statsDeck}
       items={data.findings.map((f) => {
@@ -89,7 +87,6 @@ function Bottlenecks({ data }: { data: GuidanceAdmInsightsData }) {
           <Hourglass size={14} />
         </span>
       }
-      count={data.bottlenecks.length}
       description="Longest-waiting cases still needing action, counseling and ADM."
       className="flex-1"
       footer={
@@ -195,7 +192,6 @@ function Recommendations({ data }: { data: GuidanceAdmInsightsData }) {
     <KanbanBoard
       title="Recommended actions"
       icon={<BoardIcon icon={ListChecks} />}
-      count={data.recommendations.length}
       description="What to do next, derived from your live guidance caseload."
       className="flex-1"
     >

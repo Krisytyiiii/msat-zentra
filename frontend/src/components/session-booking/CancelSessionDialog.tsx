@@ -3,7 +3,7 @@
 import * as React from "react";
 import { Ban, Loader2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { KanbanOverlay } from "@/components/ui/kanban-overlay";
+import { MessageOverlay } from "@/components/ui/message-overlay";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import styles from "./BookSessionDialog.module.css";
@@ -23,6 +23,8 @@ interface CancelSessionDialogProps {
   idPrefix?: string;
 }
 
+/** Shared destructive confirmation for dropping a booked session — rendered on
+ *  the one message-overlay surface so every desk asks the same way. */
 export function CancelSessionDialog({
   open,
   onClose,
@@ -51,21 +53,22 @@ export function CancelSessionDialog({
   if (!open) return null;
 
   return (
-    <KanbanOverlay
-      open
-      onClose={() => {
+    <MessageOverlay
+      role="alertdialog"
+      tone="danger"
+      icon={<Ban size={16} aria-hidden="true" />}
+      title={title}
+      description={description}
+      width="md"
+      dismissable={!busy}
+      onDismiss={() => {
         if (busy) return;
         onClose();
         setError(null);
       }}
-      dismissable={!busy}
-      busy={busy}
-      width="md"
-      title={title}
-      icon={<Ban className="size-3.5" aria-hidden="true" />}
-      description={description}
-      footer={
-        <div className="flex flex-col-reverse gap-2 px-1 pb-1 sm:flex-row sm:justify-end">
+      footerHint="Esc to close"
+      actions={
+        <>
           <Button
             variant="outline"
             className="h-6 px-2.5 text-xs"
@@ -89,26 +92,25 @@ export function CancelSessionDialog({
             ) : null}
             {busy ? "Cancelling…" : submitLabel}
           </Button>
-        </div>
+        </>
       }
     >
-      <div className={styles.formGrid}>
-        <div className={styles.formFull}>
-          <Label htmlFor={`${idPrefix}-reason`}>{reasonLabel}</Label>
-          <Textarea
-            id={`${idPrefix}-reason`}
-            value={reason}
-            onChange={(e) => setReason(e.target.value)}
-            placeholder={reasonPlaceholder}
-            maxLength={500}
-          />
-        </div>
+      <div className="flex min-w-0 flex-col gap-1.5">
+        <Label htmlFor={`${idPrefix}-reason`}>{reasonLabel}</Label>
+        <Textarea
+          id={`${idPrefix}-reason`}
+          value={reason}
+          onChange={(e) => setReason(e.target.value)}
+          placeholder={reasonPlaceholder}
+          rows={3}
+          maxLength={500}
+        />
       </div>
       {error || serverError ? (
         <div className={styles.errorBlock} role="alert">
           <p className={styles.errorText}>{error ?? serverError}</p>
         </div>
       ) : null}
-    </KanbanOverlay>
+    </MessageOverlay>
   );
 }

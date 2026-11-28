@@ -2,13 +2,13 @@
 
 import * as React from "react";
 import {
+  Area,
+  AreaChart,
   Bar,
   BarChart,
   CartesianGrid,
   Cell,
   LabelList,
-  Line,
-  LineChart,
   Pie,
   PieChart,
   ResponsiveContainer,
@@ -74,6 +74,14 @@ function BoardIcon({ icon: Icon }: { icon: LucideIcon }) {
 
 const TOOLTIP_Z_INDEX = { zIndex: 50 };
 
+/** Tooltip copy starts in upper case ("students" → "Students") without
+    touching acronyms, grade codes or already-capitalised names. */
+function capitalizeLabel(value: string): string {
+  const trimmed = value.trim();
+  if (!trimmed) return trimmed;
+  return trimmed.charAt(0).toUpperCase() + trimmed.slice(1);
+}
+
 /**
  * Custom tooltip shared by every chart on the page. Uses the popover surface
  * tokens so it reads correctly in both themes (white card in light mode, dark
@@ -103,7 +111,9 @@ function GuidanceChartTooltip({
   return (
     <div className={styles.chartTooltip} role="tooltip">
       {label !== undefined && label !== null && label !== "" ? (
-        <p className={styles.chartTooltipLabel}>{label}</p>
+        <p className={styles.chartTooltipLabel}>
+          {capitalizeLabel(String(label))}
+        </p>
       ) : null}
       <ul className={styles.chartTooltipList}>
         {items.map((item, index) => {
@@ -121,7 +131,11 @@ function GuidanceChartTooltip({
                 style={{ background: fill }}
                 aria-hidden="true"
               />
-              <span className={styles.chartTooltipName}>{item.name}</span>
+              <span className={styles.chartTooltipName}>
+                {item.name !== undefined && item.name !== null
+                  ? capitalizeLabel(String(item.name))
+                  : null}
+              </span>
               <span className={styles.chartTooltipValue}>{item.value}</span>
             </li>
           );
@@ -468,9 +482,9 @@ export interface SectionLineRow {
   moderate: number;
 }
 
-/** Line chart board — high (solid amber) and moderate (dashed amber) risk per
+/** Area chart board — high (solid amber) and moderate (dashed amber) risk per
     section, used by "Sections needing attention". */
-export function GuidanceSectionsLinePanel({
+export function GuidanceSectionsAreaPanel({
   title,
   description,
   rows,
@@ -519,7 +533,7 @@ export function GuidanceSectionsLinePanel({
               .join(", ")}`}
           >
             <ResponsiveContainer width="100%" height={210}>
-              <LineChart
+              <AreaChart
                 data={ordered}
                 margin={{ top: 8, right: 12, bottom: 4, left: 0 }}
               >
@@ -545,26 +559,30 @@ export function GuidanceSectionsLinePanel({
                   content={<GuidanceChartTooltip />}
                   wrapperStyle={TOOLTIP_Z_INDEX}
                 />
-                <Line
+                <Area
                   type="monotone"
                   dataKey="high"
                   name="High"
                   stroke={highColor}
                   strokeWidth={2}
+                  fill={highColor}
+                  fillOpacity={0.32}
                   dot={{ r: 3, fill: highColor, strokeWidth: 0 }}
                   activeDot={{ r: 5 }}
                 />
-                <Line
+                <Area
                   type="monotone"
                   dataKey="moderate"
                   name="Moderate"
                   stroke={moderateColor}
                   strokeWidth={2}
                   strokeDasharray="6 3"
+                  fill={moderateColor}
+                  fillOpacity={0.18}
                   dot={{ r: 3, fill: moderateColor, strokeWidth: 0 }}
                   activeDot={{ r: 5 }}
                 />
-              </LineChart>
+              </AreaChart>
             </ResponsiveContainer>
           </div>
           <ul className={styles.legend}>

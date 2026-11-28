@@ -33,6 +33,7 @@
     "prisma:seed:honor-roll-5": "tsx prisma/seed-honor-roll-5.ts",
     "prisma:seed:pending-students-5": "tsx prisma/seed-pending-student-accounts-5.ts",
     "prisma:seed:pending-students-split-5": "tsx prisma/seed-pending-students-split-5.ts",
+    "prisma:seed:student": "tsx prisma/seed-one-student.ts",
     "prisma:seed:rk-overview-demo": "tsx prisma/seed-rk-overview-demo.ts",
     "prisma:seed:rk-adviser-access-2": "tsx prisma/seed-rk-adviser-access-2.ts",
     "prisma:seed:registrar-demo": "tsx prisma/seed-registrar-demo.ts",

@@ -38,7 +38,7 @@ export interface AnecdotalRecordKanbanCardProps {
   headerTitle?: string;
   studentName: string;
   /** Second pill text — section on overview, LRN in folders. */
-  metaText: string;
+  metaText?: string;
   /** Second pill tooltip. Defaults to metaText. */
   metaTitle?: string;
   /** Second pill field name shown on hover (e.g. "LRN", "Section"). */
@@ -49,6 +49,12 @@ export interface AnecdotalRecordKanbanCardProps {
   metaTone?: PillTone;
   /** Optional LRN pill rendered before the meta pill. */
   lrn?: string;
+  /**
+   * Plain "Label: value" facts under the student name (LRN, grade level,
+   * section) — same treatment as the guidance intervention cards. Replaces the
+   * `lrn`/`meta*` pills when provided.
+   */
+  facts?: { label: string; value: string }[];
   /** Render the student name as 14px text instead of an amber pill. */
   plainName?: boolean;
   /** Stack the meta pill(s) under the student name instead of inline. */
@@ -100,6 +106,7 @@ export function AnecdotalRecordKanbanCard({
   metaClassName,
   metaTone,
   lrn,
+  facts,
   plainName = false,
   stackIdentity = false,
   plainMeta = false,
@@ -126,7 +133,7 @@ export function AnecdotalRecordKanbanCard({
   const spriteSize = mascotSize ?? (folderLeft ? 44 : 28);
   const bodyFill = variant === "glass" ? glassStyles.glassBody : "bg-white dark:bg-card";
   const identityColumnClass =
-    mascotSeed || stackIdentity
+    mascotSeed || stackIdentity || facts
       ? `flex min-w-0 flex-col items-start gap-1${
           folderLeft ? " flex-1" : " max-w-full"
         }`
@@ -214,6 +221,23 @@ export function AnecdotalRecordKanbanCard({
                 {studentName}
               </span>
             )}
+            {facts ? (
+              <dl className="flex min-w-0 max-w-full flex-wrap items-baseline gap-x-3 gap-y-1">
+                {facts.map((fact) => (
+                  <div
+                    key={fact.label}
+                    className="flex min-w-0 items-baseline gap-1"
+                  >
+                    <dt className="whitespace-nowrap text-[12px] text-muted-foreground after:content-[':']">
+                      {fact.label}
+                    </dt>
+                    <dd className="m-0 min-w-0 truncate text-[12px] font-semibold tabular-nums">
+                      {fact.value}
+                    </dd>
+                  </div>
+                ))}
+              </dl>
+            ) : (
             <span
               className={
                 mascotSeed || stackIdentity
@@ -247,6 +271,7 @@ export function AnecdotalRecordKanbanCard({
                 </Pill>
               )}
             </span>
+            )}
           </span>
         </span>
         {folderLeft ? null : (
