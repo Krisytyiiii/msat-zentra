@@ -181,6 +181,36 @@ class PortalGradeCard extends StatelessWidget {
   }
 }
 
+/// "G7 · Rizal" scope pill shared by the learner/guardian Grades, Attendance
+/// and Schedule headers. Renders nothing until a grade or section is known.
+class PortalGradeSectionPill extends StatelessWidget {
+  const PortalGradeSectionPill({super.key, this.gradeLevel, this.sectionName});
+
+  final String? gradeLevel;
+  final String? sectionName;
+
+  @override
+  Widget build(BuildContext context) {
+    final grade = gradeLevel?.trim() ?? '';
+    final section = sectionName?.trim() ?? '';
+    final text = [
+      if (grade.isNotEmpty)
+        grade.replaceFirst(
+          RegExp(r'^Grade\s*', caseSensitive: false),
+          'G',
+        ),
+      if (section.isNotEmpty) section,
+    ].join(' · ');
+    if (text.isEmpty) return const SizedBox.shrink();
+    return ZScopePill(
+      text: text,
+      kind: ScopePillKind.grade,
+      label: 'Grade and section',
+      compact: true,
+    );
+  }
+}
+
 /// Per-class Present / Absent / Late / Excused indicator for the Attendance
 /// desk cards: a status dot, the count and its label, wrapping on narrow
 /// screens.

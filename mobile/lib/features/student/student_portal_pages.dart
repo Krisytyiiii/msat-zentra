@@ -383,6 +383,7 @@ class _StudentGradesState extends ConsumerState<StudentGradesPage> {
     required bool compact,
   }) {
     final term = portalScopeTerm(ref);
+    final learner = ref.watch(studentMeProvider).asData?.value;
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
@@ -410,6 +411,10 @@ class _StudentGradesState extends ConsumerState<StudentGradesPage> {
                 compact: true,
               ),
             ],
+            PortalGradeSectionPill(
+              gradeLevel: learner?.gradeLevel,
+              sectionName: learner?.sectionName,
+            ),
           ],
         ),
       ],
@@ -591,6 +596,7 @@ class _StudentAttendanceState extends ConsumerState<StudentAttendancePage> {
     required bool compact,
   }) {
     final term = portalScopeTerm(ref);
+    final learner = ref.watch(studentMeProvider).asData?.value;
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
@@ -618,6 +624,10 @@ class _StudentAttendanceState extends ConsumerState<StudentAttendancePage> {
                 compact: true,
               ),
             ],
+            PortalGradeSectionPill(
+              gradeLevel: learner?.gradeLevel,
+              sectionName: learner?.sectionName,
+            ),
           ],
         ),
       ],
@@ -861,6 +871,7 @@ class _StudentScheduleState extends ConsumerState<StudentSchedulePage> {
     required bool compact,
   }) {
     final term = portalScopeTerm(ref);
+    final learner = ref.watch(studentMeProvider).asData?.value;
     final sectionName = scheduleAsync.asData?.value.sectionName;
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -889,13 +900,10 @@ class _StudentScheduleState extends ConsumerState<StudentSchedulePage> {
                 compact: true,
               ),
             ],
-            if (sectionName != null)
-              ZScopePill(
-                text: sectionName,
-                kind: ScopePillKind.grade,
-                label: 'Section',
-                compact: true,
-              ),
+            PortalGradeSectionPill(
+              gradeLevel: learner?.gradeLevel,
+              sectionName: sectionName ?? learner?.sectionName,
+            ),
           ],
         ),
       ],

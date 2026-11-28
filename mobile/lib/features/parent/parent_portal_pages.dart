@@ -488,6 +488,13 @@ class _ParentGradesState extends ConsumerState<ParentGradesPage> {
     required bool compact,
   }) {
     final term = portalScopeTerm(ref);
+    final childId = ref.watch(selectedChildProvider);
+    final child = ref
+        .watch(parentChildrenProvider)
+        .asData
+        ?.value
+        .where((c) => c.studentId == childId)
+        .firstOrNull;
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -516,6 +523,10 @@ class _ParentGradesState extends ConsumerState<ParentGradesPage> {
                 compact: true,
               ),
             ],
+            PortalGradeSectionPill(
+              gradeLevel: child?.gradeLevel,
+              sectionName: child?.sectionName,
+            ),
           ],
         ),
       ],
@@ -730,6 +741,13 @@ class _ParentAttendanceState extends ConsumerState<ParentAttendancePage> {
     required bool compact,
   }) {
     final term = portalScopeTerm(ref);
+    final childId = ref.watch(selectedChildProvider);
+    final child = ref
+        .watch(parentChildrenProvider)
+        .asData
+        ?.value
+        .where((c) => c.studentId == childId)
+        .firstOrNull;
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -758,6 +776,10 @@ class _ParentAttendanceState extends ConsumerState<ParentAttendancePage> {
                 compact: true,
               ),
             ],
+            PortalGradeSectionPill(
+              gradeLevel: child?.gradeLevel,
+              sectionName: child?.sectionName,
+            ),
           ],
         ),
       ],
@@ -1036,6 +1058,13 @@ class _ParentScheduleState extends ConsumerState<ParentSchedulePage> {
   }) {
     final term = portalScopeTerm(ref);
     final sectionName = scheduleAsync.asData?.value?.sectionName;
+    final childId = ref.watch(selectedChildProvider);
+    final child = ref
+        .watch(parentChildrenProvider)
+        .asData
+        ?.value
+        .where((c) => c.studentId == childId)
+        .firstOrNull;
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
@@ -1063,13 +1092,10 @@ class _ParentScheduleState extends ConsumerState<ParentSchedulePage> {
                 compact: true,
               ),
             ],
-            if (sectionName != null)
-              ZScopePill(
-                text: sectionName,
-                kind: ScopePillKind.grade,
-                label: 'Section',
-                compact: true,
-              ),
+            PortalGradeSectionPill(
+              gradeLevel: child?.gradeLevel,
+              sectionName: sectionName ?? child?.sectionName,
+            ),
           ],
         ),
       ],

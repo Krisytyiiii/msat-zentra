@@ -13,6 +13,7 @@ import 'package:lucide_icons_flutter/lucide_icons.dart';
 
 import '../core/notifications.dart';
 import '../core/session.dart';
+import '../features/parent/link_learner_sheet.dart';
 import '../features/parent/parent_link_prompt.dart';
 import '../services/portal_service.dart';
 import '../shared/models.dart';
@@ -425,7 +426,8 @@ class PortalDrawer extends ConsumerWidget {
                   ),
                   const _PortalTermPicker(),
                   if (portal == 'parent') ...[
-                    const SizedBox(height: 6),
+                    const SizedBox(height: 2),
+                    const _DrawerHeader('Link Student'),
                     const _PortalChildPicker(),
                   ],
                   if (portal == 'student' && learner?.isAdm == true) ...[
@@ -445,22 +447,6 @@ class PortalDrawer extends ConsumerWidget {
                       LucideIcons.calendarCheck,
                       'ADM Sessions',
                       '/student/sessions?track=adm',
-                    ),
-                  ],
-                  if (portal == 'parent') ...[
-                    const SizedBox(height: 4),
-                    const _DrawerHeader('My learning'),
-                    _item(
-                      context,
-                      LucideIcons.folderOpen,
-                      'Modules',
-                      '/parent/modules',
-                    ),
-                    _item(
-                      context,
-                      LucideIcons.calendarCheck,
-                      'Sessions',
-                      '/parent/sessions',
                     ),
                   ],
                 ],
@@ -633,7 +619,6 @@ class _PortalChildPicker extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final theme = Theme.of(context);
     final children = ref.watch(parentChildrenProvider);
     final selected = ref.watch(selectedChildProvider);
     return children.when(
@@ -649,55 +634,75 @@ class _PortalChildPicker extends ConsumerWidget {
             child: ParentLinkPrompt(),
           );
         }
-        if (list.length == 1) {
-          return Card(
-            margin: EdgeInsets.zero,
-            elevation: 0,
-            color: theme.colorScheme.surfaceContainerLow,
-            shape: const StadiumBorder(),
-            child: ListTile(
-              dense: true,
-              leading: const Icon(Icons.person_outline, size: 20),
-              title: Text(
-                list.first.name,
-                maxLines: 1,
-                overflow: TextOverflow.ellipsis,
-                style: const TextStyle(fontSize: 13),
+        final activeId = selected ?? list.first.studentId;
+        return Column(
+          children: [
+            for (final child in list)
+              _childItem(
+                context,
+                ref,
+                child,
+                active: child.studentId == activeId,
               ),
-              subtitle: Text(
-                list.first.sectionName ?? list.first.gradeLevel,
-                style: theme.textTheme.labelSmall,
+            ListTile(
+              minTileHeight: 48,
+              contentPadding: const EdgeInsets.symmetric(horizontal: 12),
+              horizontalTitleGap: 12,
+              leading: const Icon(Icons.add, size: 20),
+              title: const Text(
+                'Link another student',
+                style: TextStyle(fontSize: 14),
               ),
+              shape: const StadiumBorder(),
+              onTap: () {
+                // Shot from the navigator's own context: this row's context is
+                // gone once the drawer closes.
+                final navigator = Navigator.of(context);
+                navigator.pop();
+                showLinkLearnerSheet(navigator.context);
+              },
             ),
-          );
-        }
-        return Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 12),
-          child: DropdownButton<String>(
-            isExpanded: true,
-            value: selected != null && list.any((c) => c.studentId == selected)
-                ? selected
-                : list.first.studentId,
-            items: [
-              for (final child in list)
-                DropdownMenuItem(
-                  value: child.studentId,
-                  child: Text(
-                    '${child.name} · ${child.gradeLevel}',
-                    style: const TextStyle(fontSize: 13),
-                    overflow: TextOverflow.ellipsis,
-                  ),
-                ),
-            ],
-            onChanged: (value) {
-              if (value == null) return;
-              selectPortalChild(ref, value);
-              // Another learner has another term history — go back to current.
-              selectPortalTerm(ref, null);
-              ref.read(portalModulePageProvider.notifier).state = 1;
-            },
-          ),
+          ],
         );
+      },
+    );
+  }
+
+  /// One linked learner as a drawer destination: same shape, tint and selected
+  /// palette as [_PortalDrawer._item].
+  Widget _childItem(
+    BuildContext context,
+    WidgetRef ref,
+    PortalChild child, {
+    required bool active,
+  }) {
+    final theme = Theme.of(context);
+    return ListTile(
+      minTileHeight: 48,
+      contentPadding: const EdgeInsets.symmetric(horizontal: 12),
+      horizontalTitleGap: 12,
+      leading: const Icon(Icons.person_outline, size: 20),
+      title: Text(
+        child.name,
+        maxLines: 1,
+        overflow: TextOverflow.ellipsis,
+        style: TextStyle(
+          fontSize: 14,
+          fontWeight: active ? FontWeight.w700 : FontWeight.w400,
+        ),
+      ),
+      selected: active,
+      selectedColor: theme.colorScheme.primary,
+      selectedTileColor: theme.colorScheme.primary.withValues(alpha: 0.12),
+      shape: const StadiumBorder(),
+      onTap: () {
+        if (!active) {
+          selectPortalChild(ref, child.studentId);
+          // Another learner has another term history — go back to current.
+          selectPortalTerm(ref, null);
+          ref.read(portalModulePageProvider.notifier).state = 1;
+        }
+        Navigator.pop(context);
       },
     );
   }
