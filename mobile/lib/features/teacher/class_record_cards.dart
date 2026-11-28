@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 
+import '../../shared/identity_tile.dart';
 import 'gradebook_data.dart';
 
 String _twoDecimals(num value) {
@@ -35,14 +36,6 @@ class ClassRecordCards extends StatelessWidget {
       final learner = learners[index];
       final grade = learner.finalGrade?['transmutedGrade'];
       final hasGrade = grade is num;
-      final words = learner.displayName
-          .split(RegExp(r'[\s,]+'))
-          .where((w) => w.isNotEmpty)
-          .toList();
-      final initials = words.isEmpty
-          ? '?'
-          : '${words.first.characters.first}${words.length > 1 ? words.last.characters.first : ''}'
-                .toUpperCase();
       final hasQueued = record.assessments.any(
         (a) =>
             a.audience == audience &&
@@ -70,29 +63,9 @@ class ClassRecordCards extends StatelessWidget {
             Row(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                CircleAvatar(
-                  radius: 19,
-                  backgroundColor: index.isEven
-                      ? (dark
-                            ? const Color(0x298E51FF)
-                            : const Color(0xFFEDE9FF))
-                      : (dark
-                            ? const Color(0x2900C950)
-                            : const Color(0xFFDCFCE7)),
-                  foregroundColor: index.isEven
-                      ? (dark
-                            ? const Color(0xFFC4B5FD)
-                            : const Color(0xFF6435E9))
-                      : (dark
-                            ? const Color(0xFF7BE3A2)
-                            : const Color(0xFF438466)),
-                  child: Text(
-                    initials,
-                    style: const TextStyle(
-                      fontSize: 12,
-                      fontWeight: FontWeight.w600,
-                    ),
-                  ),
+                ZIdentityTile(
+                  name: learner.displayName,
+                  seed: learner.id,
                 ),
                 const SizedBox(width: 12),
                 Expanded(

@@ -11,6 +11,7 @@ import '../../design/shell.dart';
 import '../../design/screen_search.dart';
 import '../../design/status_palette.dart';
 import '../../shared/widgets.dart';
+import '../../shared/identity_tile.dart';
 import '../home/overview_data.dart';
 import 'interventions_data.dart';
 import '../../design/desk_theme.dart';
@@ -519,52 +520,13 @@ class _InterventionsPageState extends ConsumerState<InterventionsPage>
                             children: [
                               Builder(
                                 builder: (_) {
-                                  final words = row.name
-                                      .trim()
-                                      .split(RegExp(r'\s+'))
-                                      .where((word) => word.isNotEmpty)
-                                      .toList();
                                   final identity =
                                       row.text('studentId').isNotEmpty
                                       ? row.text('studentId')
                                       : row.key;
-                                  return CircleAvatar(
-                                    radius: 19,
-                                    backgroundColor:
-                                        [
-                                          zSoft(context),
-                                          zWash(
-                                            context,
-                                            const Color(0xFFEFF6FF),
-                                          ),
-                                          zWash(
-                                            context,
-                                            const Color(0xFFFFFBEB),
-                                          ),
-                                          zWash(
-                                            context,
-                                            const Color(0xFFFAF5FF),
-                                          ),
-                                          zWash(
-                                            context,
-                                            const Color(0xFFFFF1F2),
-                                          ),
-                                        ][identity.codeUnits.fold(
-                                              0,
-                                              (a, b) => a + b,
-                                            ) %
-                                            5],
-                                    foregroundColor: zMutedInk(context),
-                                    child: Text(
-                                      words.isEmpty
-                                          ? '?'
-                                          : '${words.first.characters.first}${words.length > 1 ? words.last.characters.first : ''}'
-                                                .toUpperCase(),
-                                      style: const TextStyle(
-                                        fontSize: 12,
-                                        fontWeight: FontWeight.w600,
-                                      ),
-                                    ),
+                                  return ZIdentityTile(
+                                    name: row.name,
+                                    seed: identity,
                                   );
                                 },
                               ),

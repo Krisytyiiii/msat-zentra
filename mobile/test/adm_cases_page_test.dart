@@ -97,7 +97,7 @@ void main() {
     (tester) async {
       await mount(tester);
       expect(find.byType(ExpansionTile), findsNothing);
-      expect(find.byType(CircleAvatar), findsNWidgets(3));
+      expect(find.byKey(const ValueKey('adm-avatar')), findsNWidgets(3));
       final container = ProviderScope.containerOf(
         tester.element(find.byType(AdmCasesPage)),
       );

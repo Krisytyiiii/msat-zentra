@@ -14,19 +14,8 @@ import '../../design/overview_theme.dart';
 import '../../design/status_palette.dart';
 import '../../shared/models.dart';
 import '../../shared/widgets.dart';
+import '../../shared/identity_tile.dart';
 import '../auth/link_classes_card.dart';
-
-String _initials(String name) {
-  final parts = name
-      .trim()
-      .split(RegExp(r'\s+'))
-      .where((p) => p.isNotEmpty)
-      .toList();
-  if (parts.isEmpty) return '?';
-  final first = parts[0][0];
-  final second = parts.length > 1 ? parts.last[0] : '';
-  return '$first$second'.toUpperCase();
-}
 
 class GradebookDashboardPage extends ConsumerStatefulWidget {
   const GradebookDashboardPage({super.key});
@@ -369,20 +358,9 @@ class _GradebookCard extends StatelessWidget {
               Row(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  CircleAvatar(
-                    radius: 19,
-                    backgroundColor: _avatarFill(
-                      theme,
-                      slot.id.codeUnits.fold(0, (a, b) => a + b) % 5,
-                    ),
-                    foregroundColor: theme.colorScheme.onSurfaceVariant,
-                    child: Text(
-                      _initials(slot.subject),
-                      style: const TextStyle(
-                        fontSize: 12,
-                        fontWeight: FontWeight.w600,
-                      ),
-                    ),
+                  ZIdentityTile(
+                    name: slot.subject,
+                    seed: slot.id,
                   ),
                   const SizedBox(width: 12),
                   Expanded(
@@ -469,21 +447,6 @@ class _GradebookCard extends StatelessWidget {
       ),
     );
   }
-}
-
-const _avatarFills = [
-  Color(0xFFF1F5F9),
-  Color(0xFFEFF6FF),
-  Color(0xFFFFFBEB),
-  Color(0xFFFAF5FF),
-  Color(0xFFFFF1F2),
-];
-
-Color _avatarFill(ThemeData theme, int index) {
-  final fill = _avatarFills[index];
-  if (theme.brightness != Brightness.dark) return fill;
-  final hsl = HSLColor.fromColor(fill);
-  return HSLColor.fromAHSL(0.16, hsl.hue, 0.45, 0.5).toColor();
 }
 
 extension _FirstOrNull<T> on List<T> {

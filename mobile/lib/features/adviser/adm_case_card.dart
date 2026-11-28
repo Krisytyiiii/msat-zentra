@@ -7,6 +7,7 @@ import 'package:flutter/material.dart';
 import 'package:lucide_icons_flutter/lucide_icons.dart';
 
 import '../../shared/widgets.dart';
+import '../../shared/identity_tile.dart';
 import '../../design/status_palette.dart';
 import '../../design/desk_theme.dart';
 
@@ -77,17 +78,10 @@ class AdmCaseCard extends StatelessWidget {
                     ? CrossAxisAlignment.center
                     : CrossAxisAlignment.start,
                 children: [
-                  CircleAvatar(
-                    radius: 19,
-                    backgroundColor: zWash(context, const Color(0xFFEFF6FF)),
-                    foregroundColor: zMutedInk(context),
-                    child: Text(
-                      _initials(name),
-                      style: const TextStyle(
-                        fontSize: 12,
-                        fontWeight: FontWeight.w600,
-                      ),
-                    ),
+                  ZIdentityTile(
+                    key: const ValueKey('adm-avatar'),
+                    name: name,
+                    seed: lrn.isEmpty ? name : lrn,
                   ),
                   const SizedBox(width: 12),
                   Expanded(
@@ -171,17 +165,6 @@ class AdmCaseCard extends StatelessWidget {
       ),
     );
   }
-}
-
-String _initials(String name) {
-  final words = name
-      .trim()
-      .split(RegExp(r'\s+'))
-      .where((s) => s.isNotEmpty)
-      .toList();
-  if (words.isEmpty) return '?';
-  return '${words.first.characters.first}${words.length > 1 ? words.last.characters.first : ''}'
-      .toUpperCase();
 }
 
 /// The adviser ADM Cases counters strip: three centred figures over labels.
@@ -445,22 +428,13 @@ class AdmCaseDetails extends StatelessWidget {
             Row(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Container(
-                  width: 46,
-                  height: 46,
-                  alignment: Alignment.center,
-                  decoration: BoxDecoration(
-                    color: zLift(context, const Color(0xFF2563EB)),
-                    borderRadius: BorderRadius.circular(13),
-                  ),
-                  child: Text(
-                    _initials(name),
-                    style: TextStyle(
-                      fontSize: 15,
-                      fontWeight: FontWeight.w700,
-                      color: zCard(context),
-                    ),
-                  ),
+                ZIdentityTile(
+                  name: name,
+                  seed: (caseData['lrn']?.toString().isNotEmpty ?? false)
+                      ? caseData['lrn'].toString()
+                      : name,
+                  size: 46,
+                  fontSize: 15,
                 ),
                 const SizedBox(width: 12),
                 Expanded(

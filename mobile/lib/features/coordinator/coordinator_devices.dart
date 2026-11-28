@@ -6,6 +6,7 @@ import 'package:lucide_icons_flutter/lucide_icons.dart';
 import '../../design/overview_theme.dart';
 import '../../design/status_palette.dart';
 import '../../shared/widgets.dart';
+import '../../shared/identity_tile.dart';
 
 import 'coordinator_data.dart';
 import 'coordinator_forms.dart';
@@ -74,17 +75,9 @@ class _DeviceState extends ConsumerState<CoordinatorDeviceCard> {
               Row(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  CircleAvatar(
-                    radius: 19,
-                    backgroundColor: zWash(context, const Color(0xFFEFF6FF)),
-                    foregroundColor: zMutedInk(context),
-                    child: Text(
-                      _initials(name),
-                      style: const TextStyle(
-                        fontSize: 12,
-                        fontWeight: FontWeight.w600,
-                      ),
-                    ),
+                  ZIdentityTile(
+                    name: name,
+                    seed: d.lrn.isEmpty ? d.id : d.lrn,
                   ),
                   const SizedBox(width: 12),
                   Expanded(
@@ -154,17 +147,6 @@ class _DeviceState extends ConsumerState<CoordinatorDeviceCard> {
       ),
     );
   }
-}
-
-String _initials(String name) {
-  final words = name
-      .trim()
-      .split(RegExp(r'\s+'))
-      .where((s) => s.isNotEmpty)
-      .toList();
-  if (words.isEmpty) return '?';
-  return '${words.first.characters.first}${words.length > 1 ? words.last.characters.first : ''}'
-      .toUpperCase();
 }
 
 class CoordinatorDeviceDetailPage extends ConsumerStatefulWidget {
@@ -929,17 +911,9 @@ class _LearnerCandidateCard extends StatelessWidget {
               Row(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  CircleAvatar(
-                    radius: 19,
-                    backgroundColor: zWash(context, const Color(0xFFEFF6FF)),
-                    foregroundColor: zMutedInk(context),
-                    child: Text(
-                      _initials(name),
-                      style: const TextStyle(
-                        fontSize: 12,
-                        fontWeight: FontWeight.w600,
-                      ),
-                    ),
+                  ZIdentityTile(
+                    name: name,
+                    seed: row.lrn.isEmpty ? row.id : row.lrn,
                   ),
                   const SizedBox(width: 12),
                   Expanded(

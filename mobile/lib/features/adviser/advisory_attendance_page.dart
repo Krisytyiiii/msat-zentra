@@ -21,6 +21,7 @@ import '../../design/tokens.dart';
 import '../../shared/names.dart';
 import '../../shared/models.dart' show Term;
 import '../../shared/widgets.dart';
+import '../../shared/identity_tile.dart';
 import 'advisory_attendance_board.dart';
 import 'advisory_attendance_data.dart';
 import 'advisory_attendance_detail_page.dart';
@@ -489,15 +490,12 @@ class _AdvisoryAttendanceState extends ConsumerState<AdvisoryAttendancePage>
         children: [
           Row(
             children: [
-              CircleAvatar(
-                radius: 23,
-                backgroundColor: zWash(context, const Color(0xFFDBEAFE)),
-                foregroundColor: zLift(context, const Color(0xFF2563EB)),
-                child: Text(
-                  student.name.trim().isEmpty
-                      ? '?'
-                      : student.name.trim().substring(0, 1).toUpperCase(),
-                ),
+              ZIdentityTile(
+                name: student.name,
+                seed: student.studentId.isEmpty
+                    ? student.lrn
+                    : student.studentId,
+                size: 46,
               ),
               const SizedBox(width: 12),
               Expanded(

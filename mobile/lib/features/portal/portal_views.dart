@@ -10,6 +10,7 @@ import '../../core/notifications.dart';
 import '../../core/session.dart';
 import '../../shared/models.dart';
 import '../../shared/widgets.dart';
+import '../../shared/identity_tile.dart';
 import '../../services/portal_service.dart';
 import '../student/module_submission.dart';
 
@@ -46,13 +47,11 @@ class PortalHomeBody extends StatelessWidget {
         ZCard(
           child: Row(
             children: [
-              CircleAvatar(
-                radius: 26,
-                backgroundColor: theme.colorScheme.surfaceContainerLow,
-                child: Text(
-                  l.name.isEmpty ? '?' : l.name.substring(0, 1).toUpperCase(),
-                  style: const TextStyle(fontSize: 20, fontWeight: FontWeight.w700),
-                ),
+              ZIdentityTile(
+                name: l.name,
+                seed: l.name,
+                size: 52,
+                fontSize: 18,
               ),
               const SizedBox(width: 12),
               Expanded(

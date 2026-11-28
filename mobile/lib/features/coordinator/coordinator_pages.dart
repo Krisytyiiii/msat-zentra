@@ -687,7 +687,7 @@ class _ListState extends ConsumerState<CoordinatorListPage>
     if (widget.desk == 'referrals') {
       if (_sheetOpen) return;
       _sheetOpen = true;
-      var openCase = false, book = false;
+      var book = false;
       final navigation = ref.read(staffNavigationHiddenProvider.notifier);
       navigation.state = true;
       try {
@@ -695,7 +695,6 @@ class _ListState extends ConsumerState<CoordinatorListPage>
           context,
           row,
           onBook: () => book = true,
-          onOpenCase: () => openCase = true,
         );
       } finally {
         navigation.state = false;
@@ -704,8 +703,6 @@ class _ListState extends ConsumerState<CoordinatorListPage>
       if (!mounted) return;
       if (book) {
         await _bookMeeting(row);
-      } else if (openCase) {
-        await _openCase(row);
       } else {
         await refresh();
       }
@@ -978,25 +975,30 @@ class _ListState extends ConsumerState<CoordinatorListPage>
   }
 
   Widget _certificationFooter(AdmCaseRow row) {
-    final approved = row.approvedBy.isNotEmpty;
-    final awaiting = row.stage == 'principal_approval';
-    final (label, tone) = approved
-        ? ('Approved', StatusTone.green)
-        : awaiting
-        ? ('Awaiting principal', StatusTone.blue)
-        : ('Prepared', StatusTone.amber);
-    return Row(
-      children: [
-        if (row.grade.isNotEmpty)
-          ZScopePill(
-            text: row.grade,
-            kind: ScopePillKind.grade,
-            compact: true,
-          ),
-        const Spacer(),
-        ZStatusPill(text: label, tone: tone),
-      ],
+    if (row.grade.isEmpty) return const SizedBox.shrink();
+    return Align(
+      alignment: Alignment.centerRight,
+      child: ZScopePill(
+        text: row.grade,
+        kind: ScopePillKind.grade,
+        compact: true,
+      ),
     );
+  }
+
+  /// Files cards carry the certification state in the top-right corner, like
+  /// the ADM Cases status badge (it used to sit in the footer).
+  (String, StatusTone) _certificationStatus(AdmCaseRow row) {
+    if (row.approvedBy.isNotEmpty) return ('Approved', StatusTone.green);
+    if (row.stage == 'principal_approval') {
+      return ('Awaiting principal', StatusTone.blue);
+    }
+    return ('Prepared', StatusTone.amber);
+  }
+
+  Widget _certificationStatusPill(AdmCaseRow row) {
+    final (label, tone) = _certificationStatus(row);
+    return ZStatusPill(text: label, tone: tone);
   }
 
   Future<void> _issueDevice() async {
@@ -1163,16 +1165,19 @@ class _ListState extends ConsumerState<CoordinatorListPage>
                                       key: ValueKey(row.id),
                                       caseData: _caseJson(row),
                                       showStatusPill:
-                                          widget.desk != 'enrolled' &&
-                                          widget.desk != 'certifications',
-                                      topRight: widget.desk == 'referrals'
-                                          ? ZStatusPill(
-                                              text: row.status.label,
-                                              tone: admCaseStatusTone(
-                                                row.status.key,
-                                              ),
-                                            )
-                                          : null,
+                                          widget.desk == 'referrals' ||
+                                          widget.desk == 'certifications',
+                                      topRight: switch (widget.desk) {
+                                        'referrals' => ZStatusPill(
+                                          text: row.status.label,
+                                          tone: admCaseStatusTone(
+                                            row.status.key,
+                                          ),
+                                        ),
+                                        'certifications' =>
+                                          _certificationStatusPill(row),
+                                        _ => null,
+                                      },
                                       footer: switch (widget.desk) {
                                         'enrolled' => _progressFooter(row),
                                         'certifications' =>

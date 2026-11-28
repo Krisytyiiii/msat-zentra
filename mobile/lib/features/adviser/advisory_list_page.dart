@@ -10,6 +10,7 @@ import '../../design/screen_search.dart';
 import '../../design/status_palette.dart';
 import '../../design/theme.dart';
 import '../../shared/widgets.dart';
+import '../../shared/identity_tile.dart';
 import 'advisory_list_data.dart';
 import '../../design/desk_theme.dart';
 
@@ -438,15 +439,6 @@ class _AdvisoryListState extends ConsumerState<AdvisoryListPage> {
             separatorBuilder: (_, _) => const SizedBox(height: 8),
             itemBuilder: (context, index) {
               final student = shown[index];
-              final words = student.name
-                  .trim()
-                  .split(RegExp(r'\s+'))
-                  .where((word) => word.isNotEmpty)
-                  .toList();
-              final initials = words.isEmpty
-                  ? '?'
-                  : '${words.first[0]}${words.length > 1 ? words.last[0] : ''}'
-                        .toUpperCase();
               return _LearnerCard(
                 key: ValueKey('active-${student.studentId}'),
                 onTap: () => context.push(
@@ -457,28 +449,9 @@ class _AdvisoryListState extends ConsumerState<AdvisoryListPage> {
                   children: [
                     Row(
                       children: [
-                        CircleAvatar(
-                          radius: 19,
-                          backgroundColor:
-                              [
-                                zSoft(context),
-                                zWash(context, const Color(0xFFEFF6FF)),
-                                zWash(context, const Color(0xFFFFFBEB)),
-                                zWash(context, const Color(0xFFFAF5FF)),
-                                zWash(context, const Color(0xFFFFF1F2)),
-                              ][student.studentId.codeUnits.fold(
-                                    0,
-                                    (a, b) => a + b,
-                                  ) %
-                                  5],
-                          foregroundColor: zMutedInk(context),
-                          child: Text(
-                            initials,
-                            style: const TextStyle(
-                              fontSize: 12,
-                              fontWeight: FontWeight.w600,
-                            ),
-                          ),
+                        ZIdentityTile(
+                          name: student.name,
+                          seed: student.studentId,
                         ),
                         const SizedBox(width: 12),
                         Expanded(

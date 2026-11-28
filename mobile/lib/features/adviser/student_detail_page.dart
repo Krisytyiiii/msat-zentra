@@ -18,6 +18,7 @@ import '../../design/tokens.dart';
 import '../../shared/models.dart';
 import '../../design/status_palette.dart';
 import '../../shared/widgets.dart';
+import '../../shared/identity_tile.dart';
 import '../../design/desk_theme.dart';
 
 // --- attendance models (unchanged) ---
@@ -570,18 +571,6 @@ class _StudentDetailState extends ConsumerState<StudentDetailPage> {
   }
 }
 
-String _initials(String name) {
-  final parts = name
-      .trim()
-      .split(RegExp(r'\s+'))
-      .where((p) => p.isNotEmpty)
-      .toList();
-  if (parts.isEmpty) return '?';
-  final first = parts.first.characters.first;
-  final last = parts.length > 1 ? parts.last.characters.first : '';
-  return '$first$last'.toUpperCase();
-}
-
 // --- content building blocks -------------------------------------------------
 
 enum _Tone { neutral, red, green, amber, blue }
@@ -825,22 +814,11 @@ class _IdentityCard extends StatelessWidget {
                   Stack(
                     clipBehavior: Clip.none,
                     children: [
-                      Container(
-                        width: 46,
-                        height: 46,
-                        alignment: Alignment.center,
-                        decoration: BoxDecoration(
-                          color: zInk(context),
-                          borderRadius: BorderRadius.circular(13),
-                        ),
-                        child: Text(
-                          _initials(name),
-                          style: TextStyle(
-                            fontSize: 15,
-                            fontWeight: FontWeight.w700,
-                            color: zCard(context),
-                          ),
-                        ),
+                      ZIdentityTile(
+                        name: name,
+                        seed: lrn.isEmpty ? name : lrn,
+                        size: 46,
+                        fontSize: 15,
                       ),
                       Positioned(
                         left: -2,

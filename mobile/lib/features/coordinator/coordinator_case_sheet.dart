@@ -11,16 +11,16 @@ import '../../design/desk_theme.dart';
 import '../../design/overview_theme.dart';
 import '../../design/status_palette.dart';
 import '../../shared/widgets.dart';
+import '../../shared/identity_tile.dart';
 import 'coordinator_models.dart';
 import 'coordinator_widgets.dart';
 
-/// Half-sheet record for one ADM case. Book/Reschedule and Open case close the
-/// sheet and hand the action back to the caller (the routed desk page).
+/// Half-sheet record for one ADM case. Book/Reschedule closes the sheet and
+/// hands the action back to the caller (the routed desk page).
 Future<void> showCoordinatorCaseSheet(
   BuildContext context,
   AdmCaseRow row, {
   required VoidCallback onBook,
-  VoidCallback? onOpenCase,
 }) => showModalBottomSheet<void>(
   context: context,
   isScrollControlled: true,
@@ -37,7 +37,6 @@ Future<void> showCoordinatorCaseSheet(
         child: CoordinatorCaseSheet(
           row: row,
           onBook: onBook,
-          onOpenCase: onOpenCase,
         ),
       ),
     ),
@@ -49,11 +48,9 @@ class CoordinatorCaseSheet extends StatefulWidget {
     super.key,
     required this.row,
     required this.onBook,
-    this.onOpenCase,
   });
   final AdmCaseRow row;
   final VoidCallback onBook;
-  final VoidCallback? onOpenCase;
 
   @override
   State<CoordinatorCaseSheet> createState() => _CoordinatorCaseSheetState();
@@ -65,67 +62,56 @@ class _CoordinatorCaseSheetState extends State<CoordinatorCaseSheet> {
     final row = widget.row;
     return ColoredBox(
       color: zCard(context),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.stretch,
+      child: ListView(
+        padding: const EdgeInsets.fromLTRB(16, 12, 16, 16),
         children: [
-          Expanded(
-            child: ListView(
-              padding: const EdgeInsets.fromLTRB(16, 12, 16, 16),
-              children: [
-                _identity(row),
-                Padding(
-                  padding: const EdgeInsets.symmetric(vertical: 12),
-                  child: Divider(height: 1, color: zSoft(context)),
-                ),
-                Text(
-                  'ADM details',
-                  style: TextStyle(
-                    fontSize: 12,
-                    fontWeight: FontWeight.w700,
-                    color: zInk(context),
-                  ),
-                ),
-                const SizedBox(height: 8),
-                _chips(row),
-                const SizedBox(height: 14),
-                _facts(row),
-                const SizedBox(height: 12),
-                _meeting(row),
-                const SizedBox(height: 10),
-                _latest(row),
-                if (row.forms.isNotEmpty) ...[
-                  const SizedBox(height: 10),
-                  _forms(row),
-                ],
-              ],
+          _identity(row),
+          Padding(
+            padding: const EdgeInsets.symmetric(vertical: 12),
+            child: Divider(height: 1, color: zSoft(context)),
+          ),
+          Text(
+            'ADM details',
+            style: TextStyle(
+              fontSize: 12,
+              fontWeight: FontWeight.w700,
+              color: zInk(context),
             ),
           ),
-          Container(
-            padding: const EdgeInsets.fromLTRB(16, 10, 16, 14),
-            decoration: BoxDecoration(
-              color: zCard(context),
-              border: Border(top: BorderSide(color: zLine(context))),
+          const SizedBox(height: 8),
+          _chips(row),
+          const SizedBox(height: 14),
+          _facts(row),
+          const SizedBox(height: 12),
+          _meeting(row),
+          const SizedBox(height: 10),
+          _latest(row),
+          if (row.forms.isNotEmpty) ...[
+            const SizedBox(height: 10),
+            _forms(row),
+          ],
+          const SizedBox(height: 16),
+          FilledButton.icon(
+            key: const ValueKey('coordinator-case-book'),
+            onPressed: !row.bookable
+                ? null
+                : () {
+                    Navigator.pop(context);
+                    widget.onBook();
+                  },
+            icon: Icon(
+              row.meeting == null
+                  ? LucideIcons.calendarPlus
+                  : LucideIcons.calendarClock,
+              size: 16,
             ),
-            child: FilledButton.icon(
-              key: const ValueKey('coordinator-case-book'),
-              onPressed: !row.bookable
-                  ? null
-                  : () {
-                      Navigator.pop(context);
-                      widget.onBook();
-                    },
-              icon: Icon(
-                row.meeting == null
-                    ? LucideIcons.calendarPlus
-                    : LucideIcons.calendarClock,
-                size: 16,
-              ),
-              label: Text(
-                row.meeting == null ? 'Book meeting' : 'Reschedule meeting',
-              ),
-              style: FilledButton.styleFrom(
-                minimumSize: const Size.fromHeight(46),
-              ),
+            label: Text(
+              row.meeting == null ? 'Book meeting' : 'Reschedule meeting',
+            ),
+            style: FilledButton.styleFrom(
+              backgroundColor: zLift(context, const Color(0xFF2563EB)),
+              foregroundColor: Colors.white,
+              minimumSize: const Size.fromHeight(46),
             ),
           ),
         ],
@@ -137,22 +123,11 @@ class _CoordinatorCaseSheetState extends State<CoordinatorCaseSheet> {
   Widget _identity(AdmCaseRow row) => Row(
     crossAxisAlignment: CrossAxisAlignment.start,
     children: [
-      Container(
-        width: 46,
-        height: 46,
-        alignment: Alignment.center,
-        decoration: BoxDecoration(
-          color: zLift(context, const Color(0xFF2563EB)),
-          borderRadius: BorderRadius.circular(13),
-        ),
-        child: Text(
-          _initials(row.student),
-          style: TextStyle(
-            fontSize: 15,
-            fontWeight: FontWeight.w700,
-            color: zCard(context),
-          ),
-        ),
+      ZIdentityTile(
+        name: row.student,
+        seed: row.lrn.isEmpty ? row.student : row.lrn,
+        size: 46,
+        fontSize: 15,
       ),
       const SizedBox(width: 12),
       Expanded(
@@ -168,33 +143,18 @@ class _CoordinatorCaseSheetState extends State<CoordinatorCaseSheet> {
               ),
             ),
             const SizedBox(height: 4),
-            ZStatusPill(
-              text: row.status.label,
-              tone: admCaseStatusTone(row.status.key),
-            ),
-            const SizedBox(height: 4),
             Text(
               'LRN ${row.lrn.isEmpty ? '—' : row.lrn}',
               style: TextStyle(fontSize: 12, color: zMutedInk(context)),
             ),
+            const SizedBox(height: 4),
+            ZStatusPill(
+              text: row.status.label,
+              tone: admCaseStatusTone(row.status.key),
+            ),
           ],
         ),
       ),
-      if (widget.onOpenCase != null)
-        IconButton(
-          tooltip: 'Open full case',
-          style: IconButton.styleFrom(
-            foregroundColor: zMutedInk(context),
-            side: BorderSide(color: zLine(context)),
-            minimumSize: const Size(42, 42),
-            shape: const CircleBorder(),
-          ),
-          onPressed: () {
-            Navigator.pop(context);
-            widget.onOpenCase!();
-          },
-          icon: const Icon(LucideIcons.arrowUpRight, size: 20),
-        ),
       IconButton(
         tooltip: 'Close ADM details',
         style: IconButton.styleFrom(
@@ -498,16 +458,4 @@ class _CoordinatorCaseSheetState extends State<CoordinatorCaseSheet> {
     if (diff.inHours < 24) return '${diff.inHours}h ago';
     return '${diff.inDays}d ago';
   }
-}
-
-String _initials(String name) {
-  final words = name
-      .trim()
-      .split(RegExp(r'\s+'))
-      .where((word) => word.isNotEmpty)
-      .toList();
-  if (words.isEmpty) return '?';
-  return '${words.first.characters.first}'
-          '${words.length > 1 ? words.last.characters.first : ''}'
-      .toUpperCase();
 }

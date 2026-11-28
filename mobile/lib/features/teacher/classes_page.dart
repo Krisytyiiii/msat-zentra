@@ -9,6 +9,7 @@ import '../../core/session.dart';
 import '../../design/overview_theme.dart';
 import '../../design/status_palette.dart';
 import '../../shared/widgets.dart';
+import '../../shared/identity_tile.dart';
 import '../../shared/date_strip_selector.dart';
 import '../adviser/schedule_timing.dart';
 import '../auth/link_classes_card.dart';
@@ -285,32 +286,8 @@ class _ClassesPageState extends ConsumerState<ClassesPage>
     );
   }
 
-  static const _avatarFills = [
-    Color(0xFFF1F5F9),
-    Color(0xFFEFF6FF),
-    Color(0xFFFFFBEB),
-    Color(0xFFFAF5FF),
-    Color(0xFFFFF1F2),
-  ];
-
-  Color _avatarFill(ThemeData theme, int index) {
-    final fill = _avatarFills[index];
-    if (theme.brightness != Brightness.dark) return fill;
-    final hsl = HSLColor.fromColor(fill);
-    return HSLColor.fromAHSL(0.16, hsl.hue, 0.45, 0.5).toColor();
-  }
-
   Widget _classCard(BuildContext context, TeachingClass entry, String timing) {
     final theme = Theme.of(context);
-    final words = entry.subject
-        .trim()
-        .split(RegExp(r'\s+'))
-        .where((word) => word.isNotEmpty)
-        .toList();
-    final initials = words.isEmpty
-        ? '?'
-        : '${words.first.characters.first}${words.length > 1 ? words.last.characters.first : ''}'
-              .toUpperCase();
     return Material(
       color: theme.cardTheme.color,
       shape: RoundedRectangleBorder(
@@ -337,22 +314,9 @@ class _ClassesPageState extends ConsumerState<ClassesPage>
             children: [
               Row(
                 children: [
-                  CircleAvatar(
-                    radius: 19,
-                    backgroundColor: _avatarFill(
-                      Theme.of(context),
-                      entry.id.codeUnits.fold(0, (a, b) => a + b) % 5,
-                    ),
-                    foregroundColor: Theme.of(context)
-                        .colorScheme
-                        .onSurfaceVariant,
-                    child: Text(
-                      initials,
-                      style: const TextStyle(
-                        fontSize: 12,
-                        fontWeight: FontWeight.w600,
-                      ),
-                    ),
+                  ZIdentityTile(
+                    name: entry.subject,
+                    seed: entry.id,
                   ),
                   const SizedBox(width: 12),
                   Expanded(

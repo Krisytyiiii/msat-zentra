@@ -22,6 +22,7 @@ import '../../design/screen_search.dart';
 import '../../design/tokens.dart';
 import '../../shared/user_messages.dart';
 import '../../shared/widgets.dart';
+import '../../shared/identity_tile.dart';
 import '../../shared/floating_add.dart';
 import '../../design/shell.dart';
 import '../../design/status_palette.dart';
@@ -582,7 +583,6 @@ class _ReferralCardState extends State<_ReferralCard> {
     final name = (r['studentName']?.toString().isNotEmpty ?? false)
         ? r['studentName'].toString()
         : 'Referral';
-    final words = name.trim().split(RegExp(r'\s+'));
     return Card(
       key: ValueKey('referral-card-${r['id']}'),
       margin: const EdgeInsets.only(bottom: 4),
@@ -603,18 +603,11 @@ class _ReferralCardState extends State<_ReferralCard> {
               Row(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  CircleAvatar(
-                    radius: 19,
-                    backgroundColor: zWash(context, const Color(0xFFEFF6FF)),
-                    foregroundColor: zMutedInk(context),
-                    child: Text(
-                      '${words.first.characters.first}${words.length > 1 ? words.last.characters.first : ''}'
-                          .toUpperCase(),
-                      style: const TextStyle(
-                        fontSize: 12,
-                        fontWeight: FontWeight.w600,
-                      ),
-                    ),
+                  ZIdentityTile(
+                    name: name,
+                    seed: (r['studentId']?.toString().isNotEmpty ?? false)
+                        ? r['studentId'].toString()
+                        : (r['lrn'] ?? '').toString(),
                   ),
                   const SizedBox(width: 12),
                   Expanded(

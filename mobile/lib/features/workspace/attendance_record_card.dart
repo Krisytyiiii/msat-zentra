@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import '../../design/status_palette.dart';
 import 'attendance_data.dart';
 import '../../design/desk_theme.dart';
+import '../../shared/identity_tile.dart';
 
 class AttendanceRecordCard extends StatelessWidget {
   const AttendanceRecordCard({
@@ -18,14 +19,6 @@ class AttendanceRecordCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final words = learner.name
-        .split(RegExp(r'[\s,]+'))
-        .where((word) => word.isNotEmpty)
-        .toList();
-    final initials = words.isEmpty
-        ? '?'
-        : '${words.first.characters.first}${words.length > 1 ? words.last.characters.first : ''}'
-              .toUpperCase();
     final data = summary;
     final colors = statusColors(
       learner.exempt || data == null
@@ -57,18 +50,9 @@ class AttendanceRecordCard extends StatelessWidget {
           Row(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              CircleAvatar(
-                radius: 19,
-                backgroundColor: index.isEven
-                    ? zWash(context, Color(0xFFEDE9FF))
-                    : zWash(context, Color(0xFFDCFCE7)),
-                foregroundColor: index.isEven
-                    ? zLift(context, Color(0xFF6435E9))
-                    : zLift(context, Color(0xFF438466)),
-                child: Text(
-                  initials,
-                  style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600),
-                ),
+              ZIdentityTile(
+                name: learner.name,
+                seed: learner.lrn.isEmpty ? learner.id : learner.lrn,
               ),
               SizedBox(width: 12),
               Expanded(

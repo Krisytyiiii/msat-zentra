@@ -17,6 +17,7 @@ import '../../design/overview_theme.dart';
 import '../../shared/models.dart';
 import '../../shared/user_messages.dart';
 import '../../shared/widgets.dart';
+import '../../shared/identity_tile.dart';
 import 'gradebook_data.dart';
 import 'score_saves.dart';
 
@@ -1083,15 +1084,6 @@ class _ScoreState extends ConsumerState<AssessmentScorePage> {
         : _saved.containsKey(learner.id)
         ? 'Saved'
         : 'Missing';
-    final words = learner.name
-        .trim()
-        .split(RegExp(r'\s+'))
-        .where((s) => s.isNotEmpty)
-        .toList();
-    final initials = words.isEmpty
-        ? '?'
-        : '${words.first.characters.first}${words.length > 1 ? words.last.characters.first : ''}'
-              .toUpperCase();
     return Container(
       padding: const EdgeInsets.all(14),
       decoration: BoxDecoration(
@@ -1108,25 +1100,9 @@ class _ScoreState extends ConsumerState<AssessmentScorePage> {
         children: [
           Row(
             children: [
-              CircleAvatar(
-                radius: 19,
-                backgroundColor: _wash(
-                  const [
-                    Color(0xFFF1F5F9),
-                    Color(0xFFEFF6FF),
-                    Color(0xFFFFFBEB),
-                    Color(0xFFFAF5FF),
-                    Color(0xFFFFF1F2),
-                  ][learner.id.codeUnits.fold(0, (a, b) => a + b) % 5],
-                ),
-                foregroundColor: Theme.of(context).colorScheme.onSurfaceVariant,
-                child: Text(
-                  initials,
-                  style: const TextStyle(
-                    fontSize: 12,
-                    fontWeight: FontWeight.w600,
-                  ),
-                ),
+              ZIdentityTile(
+                name: learner.displayName,
+                seed: learner.id,
               ),
               const SizedBox(width: 12),
               Expanded(

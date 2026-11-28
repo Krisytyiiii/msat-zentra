@@ -11,6 +11,7 @@ import '../../design/status_palette.dart';
 import '../../design/overview_theme.dart';
 import '../../shared/models.dart';
 import '../../shared/widgets.dart';
+import '../../shared/identity_tile.dart';
 import '../adviser/schedule_timing.dart';
 import '../auth/link_classes_card.dart';
 import 'attendance_data.dart';
@@ -432,15 +433,6 @@ class _AttendanceState extends ConsumerState<WorkspaceAttendancePage>
                       final pair = pairs[i];
                       final state = _cardState(pair, access, now);
                       final theme = Theme.of(context);
-                      final words = pair.subjectName
-                          .trim()
-                          .split(RegExp(r'\s+'))
-                          .where((word) => word.isNotEmpty)
-                          .toList();
-                      final initials = words.isEmpty
-                          ? '?'
-                          : '${words.first.characters.first}${words.length > 1 ? words.last.characters.first : ''}'
-                                .toUpperCase();
                       final identity = '${pair.subjectId}|${pair.sectionId}';
                       return Tooltip(
                         message: state.message,
@@ -467,42 +459,9 @@ class _AttendanceState extends ConsumerState<WorkspaceAttendancePage>
                                 children: [
                                   Row(
                                     children: [
-                                      CircleAvatar(
-                                        radius: 19,
-                                        backgroundColor:
-                                            [
-                                              zSoft(context),
-                                              zWash(
-                                                context,
-                                                const Color(0xFFEFF6FF),
-                                              ),
-                                              zWash(
-                                                context,
-                                                const Color(0xFFFFFBEB),
-                                              ),
-                                              zWash(
-                                                context,
-                                                const Color(0xFFFAF5FF),
-                                              ),
-                                              zWash(
-                                                context,
-                                                const Color(0xFFFFF1F2),
-                                              ),
-                                            ][identity.codeUnits.fold(
-                                                  0,
-                                                  (a, b) => a + b,
-                                                ) %
-                                                5],
-                                        foregroundColor: const Color(
-                                          0xFF52627C,
-                                        ),
-                                        child: Text(
-                                          initials,
-                                          style: const TextStyle(
-                                            fontSize: 12,
-                                            fontWeight: FontWeight.w600,
-                                          ),
-                                        ),
+                                      ZIdentityTile(
+                                        name: pair.subjectName,
+                                        seed: identity,
                                       ),
                                       const SizedBox(width: 12),
                                       Expanded(

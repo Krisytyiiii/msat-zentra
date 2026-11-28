@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import '../../design/status_palette.dart';
 import 'attendance_data.dart';
 import '../../design/desk_theme.dart';
+import '../../shared/identity_tile.dart';
 
 /// Marking-only card; saved, queued and implied marks remain distinct.
 class AttendanceMarkCard extends StatelessWidget {
@@ -25,14 +26,6 @@ class AttendanceMarkCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final words = learner.name
-        .split(RegExp(r'[\s,]+'))
-        .where((word) => word.isNotEmpty)
-        .toList();
-    final initials = words.isEmpty
-        ? '?'
-        : '${words.first.characters.first}${words.length > 1 ? words.last.characters.first : ''}'
-              .toUpperCase();
     final badge = statusColors(
       recordState == 'Unsaved' || recordState == 'Queued'
           ? StatusTone.amber
@@ -40,11 +33,6 @@ class AttendanceMarkCard extends StatelessWidget {
       Theme.of(context),
       badge: true,
     );
-    final avatarColors = [
-      (Color(0xFFF0EDFF), Color(0xFF5440D8)),
-      (Color(0xFFECFDF3), zLift(context, Color(0xFF438466))),
-      (zWash(context, const Color(0xFFEFF6FF)), Color(0xFF3563AC)),
-    ][index % 3];
     return Container(
       padding: const EdgeInsets.all(14),
       decoration: BoxDecoration(
@@ -66,17 +54,10 @@ class AttendanceMarkCard extends StatelessWidget {
           Row(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              CircleAvatar(
-                radius: 18,
-                backgroundColor: avatarColors.$1,
-                foregroundColor: avatarColors.$2,
-                child: Text(
-                  initials,
-                  style: const TextStyle(
-                    fontSize: 12,
-                    fontWeight: FontWeight.w700,
-                  ),
-                ),
+              ZIdentityTile(
+                name: learner.name,
+                seed: learner.lrn.isEmpty ? learner.id : learner.lrn,
+                size: 36,
               ),
               const SizedBox(width: 10),
               Expanded(

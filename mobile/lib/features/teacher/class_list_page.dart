@@ -10,6 +10,7 @@ import '../../core/session.dart';
 import '../../design/overview_theme.dart';
 import '../../design/status_palette.dart';
 import '../../shared/widgets.dart';
+import '../../shared/identity_tile.dart';
 import '../../shared/floating_add.dart';
 import 'gradebook_data.dart';
 
@@ -450,15 +451,10 @@ class _ClassListState extends ConsumerState<ClassListPage>
               ),
               child: Row(
                 children: [
-                  CircleAvatar(
-                    backgroundColor: Theme.of(context)
-                        .colorScheme
-                        .surfaceContainerLow,
-                    child: Text(
-                      learner.name.isEmpty
-                          ? '?'
-                          : learner.name.characters.first.toUpperCase(),
-                    ),
+                  ZIdentityTile(
+                    name: learner.name,
+                    seed: learner.lrn,
+                    size: 40,
                   ),
                   const SizedBox(width: 12),
                   Expanded(

@@ -733,7 +733,20 @@ void main() {
     await tester.tap(find.text('Mira Learner'));
     await settle(tester);
     expect(find.text('ADM details'), findsOneWidget);
-    expect(find.byKey(const ValueKey('coordinator-case-book')), findsOneWidget);
+    // Book/Reschedule rides at the bottom of the scrolling record instead of a
+    // pinned footer, so it is reached by scrolling the sheet content.
+    final bookButton = find.byKey(const ValueKey('coordinator-case-book'));
+    final sheetList = find.descendant(
+      of: find.byType(BottomSheet),
+      matching: find.byType(ListView),
+    );
+    await tester.drag(sheetList, const Offset(0, -400));
+    await settle(tester);
+    expect(bookButton, findsOneWidget);
+    expect(
+      find.descendant(of: sheetList, matching: bookButton),
+      findsOneWidget,
+    );
     await tester.pumpWidget(const SizedBox.shrink());
     api.dio.close();
   });
