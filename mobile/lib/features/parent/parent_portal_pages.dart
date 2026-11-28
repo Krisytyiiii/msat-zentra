@@ -1002,10 +1002,13 @@ class _ParentAttendanceState extends ConsumerState<ParentAttendancePage> {
                     children: [
                       Expanded(child: Text(sub.subjectName, style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w600))),
                       Text(
-                        '${sub.percent}%',
+                        sub.hasMarks ? '${sub.percent}%' : 'No marks',
                         style: TextStyle(
                           fontWeight: FontWeight.w700,
-                          color: sub.percent < 80 ? theme.colorScheme.error : null,
+                          fontSize: sub.hasMarks ? 15 : 12,
+                          color: sub.hasMarks && sub.percent < 80
+                              ? theme.colorScheme.error
+                              : theme.colorScheme.onSurfaceVariant,
                         ),
                       ),
                     ],

@@ -352,35 +352,126 @@ class PortalSubjectAttendance {
   final String subjectId;
   final String subjectName;
   final String subjectCode;
+  final String? teacherName;
   final int present;
   final int absent;
   final int late;
   final int excused;
   final int total;
   final double rate;
+  final bool hasMarks;
   PortalSubjectAttendance({
     required this.subjectId,
     required this.subjectName,
     required this.subjectCode,
+    this.teacherName,
     required this.present,
     required this.absent,
     required this.late,
     required this.excused,
     required this.total,
     required this.rate,
+    this.hasMarks = true,
   });
   factory PortalSubjectAttendance.fromJson(Map<String, dynamic> j) => PortalSubjectAttendance(
         subjectId: j['subjectId'] as String? ?? '',
         subjectName: j['subjectName'] as String? ?? '',
         subjectCode: j['subjectCode'] as String? ?? '',
+        teacherName: j['teacherName'] as String?,
         present: (j['present'] ?? 0) as int,
         absent: (j['absent'] ?? 0) as int,
         late: (j['late'] ?? 0) as int,
         excused: (j['excused'] ?? 0) as int,
         total: (j['total'] ?? 0) as int,
-        rate: (j['rate'] as num?)?.toDouble() ?? 1,
+        rate: (j['rate'] as num?)?.toDouble() ?? 0,
+        hasMarks: (j['hasMarks'] ?? ((j['total'] ?? 0) as int) > 0) as bool,
       );
   int get percent => (rate * 100).round();
+}
+
+class PortalAttendanceLogEntry {
+  final String id;
+  final String date;
+  final int slot;
+  final String session;
+  final String status;
+  PortalAttendanceLogEntry({
+    required this.id,
+    required this.date,
+    required this.slot,
+    required this.session,
+    required this.status,
+  });
+  factory PortalAttendanceLogEntry.fromJson(Map<String, dynamic> j) => PortalAttendanceLogEntry(
+        id: j['id'] as String? ?? '',
+        date: j['date'] as String? ?? '',
+        slot: (j['slot'] ?? 0) as int,
+        session: j['session'] as String? ?? 'AM',
+        status: j['status'] as String? ?? '',
+      );
+}
+
+class PortalAttendanceHeatDay {
+  final String date;
+  final String state;
+  PortalAttendanceHeatDay({required this.date, required this.state});
+  factory PortalAttendanceHeatDay.fromJson(Map<String, dynamic> j) => PortalAttendanceHeatDay(
+        date: j['date'] as String? ?? '',
+        state: j['state'] as String? ?? 'none',
+      );
+}
+
+class PortalSubjectAttendanceDetail {
+  final String subjectId;
+  final String subjectName;
+  final String subjectCode;
+  final String? sectionName;
+  final String? gradeLevel;
+  final PortalTerm? term;
+  final PortalAttendanceSummary summary;
+  final List<PortalAttendanceLogEntry> log;
+  final List<PortalAttendanceHeatDay> days;
+  final String? heatStart;
+  final String? heatEnd;
+
+  PortalSubjectAttendanceDetail({
+    required this.subjectId,
+    required this.subjectName,
+    required this.subjectCode,
+    this.sectionName,
+    this.gradeLevel,
+    this.term,
+    required this.summary,
+    required this.log,
+    required this.days,
+    this.heatStart,
+    this.heatEnd,
+  });
+
+  factory PortalSubjectAttendanceDetail.fromJson(Map<String, dynamic> j) {
+    final subject = j['subject'] is Map ? Map<String, dynamic>.from(j['subject'] as Map) : const <String, dynamic>{};
+    final section = j['section'] is Map ? Map<String, dynamic>.from(j['section'] as Map) : const <String, dynamic>{};
+    final heatmap = j['heatmap'] is Map ? Map<String, dynamic>.from(j['heatmap'] as Map) : const <String, dynamic>{};
+    return PortalSubjectAttendanceDetail(
+      subjectId: subject['id']?.toString() ?? '',
+      subjectName: subject['name']?.toString() ?? '',
+      subjectCode: subject['code']?.toString() ?? '',
+      sectionName: section['name']?.toString(),
+      gradeLevel: section['gradeLevel']?.toString(),
+      term: j['term'] is Map ? PortalTerm.fromJson(Map<String, dynamic>.from(j['term'] as Map)) : null,
+      summary: PortalAttendanceSummary.fromJson(Map<String, dynamic>.from((j['summary'] as Map?) ?? {})),
+      log: [
+        for (final x in (j['log'] as List? ?? []))
+          PortalAttendanceLogEntry.fromJson(Map<String, dynamic>.from(x as Map)),
+      ],
+      days: [
+        for (final x in (heatmap['days'] as List? ?? []))
+          PortalAttendanceHeatDay.fromJson(Map<String, dynamic>.from(x as Map)),
+      ],
+      heatStart: heatmap['startDate']?.toString(),
+      heatEnd: heatmap['endDate']?.toString(),
+    );
+  }
 }
 
 class PortalAttendanceRecord {

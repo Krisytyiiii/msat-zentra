@@ -14,6 +14,7 @@ import {
   redeemLearnerCode,
 } from "../../services/learnerLink.js";
 import { getLearnerSubjectRecord } from "../../services/portal/learnerRecord.service.js";
+import { getLearnerSubjectAttendance } from "../../services/portal/learnerAttendance.service.js";
 import {
   getLearnerAttendance,
   getLearnerGrades,
@@ -99,6 +100,18 @@ router.get("/subjects/:subjectId/record", async (req, res, next) => {
     if (!subjectId) throw new AppError(400, "SUBJECT_REQUIRED", "A subject is required");
     res.json(
       await getLearnerSubjectRecord(req.user!.id, subjectId, await termFor(req)),
+    );
+  } catch (e) {
+    next(e);
+  }
+});
+
+router.get("/subjects/:subjectId/attendance", async (req, res, next) => {
+  try {
+    const subjectId = String(req.params.subjectId ?? "").trim();
+    if (!subjectId) throw new AppError(400, "SUBJECT_REQUIRED", "A subject is required");
+    res.json(
+      await getLearnerSubjectAttendance(req.user!.id, subjectId, await termFor(req)),
     );
   } catch (e) {
     next(e);

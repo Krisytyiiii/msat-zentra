@@ -188,4 +188,80 @@ void main() {
     expect(record.isFinal, isTrue);
     expect(record.transmutedGrade, 90);
   });
+
+  test('attendance classes carry teacher, marks flag and counts', () {
+    final withMarks = PortalSubjectAttendance.fromJson({
+      'subjectId': 'sub-1',
+      'subjectName': 'Aral Pan',
+      'subjectCode': 'AP7',
+      'teacherName': 'Alan Gatdula',
+      'present': 18,
+      'absent': 2,
+      'late': 1,
+      'excused': 0,
+      'total': 21,
+      'hasMarks': true,
+      'rate': 0.857,
+    });
+    final noMarks = PortalSubjectAttendance.fromJson({
+      'subjectId': 'sub-2',
+      'subjectName': 'Math',
+      'subjectCode': 'MATH7',
+      'present': 0,
+      'absent': 0,
+      'late': 0,
+      'excused': 0,
+      'total': 0,
+      'rate': 0,
+    });
+
+    expect(withMarks.teacherName, 'Alan Gatdula');
+    expect(withMarks.hasMarks, isTrue);
+    expect(withMarks.percent, 86);
+    expect(noMarks.hasMarks, isFalse, reason: 'legacy payload infers hasMarks from total');
+    expect(noMarks.percent, 0);
+  });
+
+  test('subject attendance record parses summary, log and heatmap', () {
+    final record = PortalSubjectAttendanceDetail.fromJson({
+      'subject': {'id': 'sub-1', 'name': 'Aral Pan', 'code': 'AP7'},
+      'section': {'id': 'sec-1', 'name': 'Rizal', 'gradeLevel': 'G7'},
+      'term': {'id': 't1', 'termNumber': 2, 'schoolYearId': 'y1', 'schoolYearName': 'SY 2026-2027'},
+      'summary': {
+        'present': 3,
+        'absent': 1,
+        'late': 0,
+        'excused': 0,
+        'total': 4,
+        'hasMarks': true,
+        'rate': 0.75,
+        'isRisk': true,
+      },
+      'log': [
+        {'id': 'r1', 'date': '2026-11-24T00:00:00.000Z', 'slot': 0, 'session': 'AM', 'status': 'absent'},
+        {'id': 'r2', 'date': '2026-11-23T00:00:00.000Z', 'slot': 2, 'session': 'AM', 'status': 'present'},
+      ],
+      'heatmap': {
+        'startDate': '2026-09-16',
+        'endDate': '2026-12-18',
+        'today': '2026-11-28',
+        'days': [
+          {'date': '2026-11-23', 'state': 'present'},
+          {'date': '2026-11-24', 'state': 'absent'},
+          {'date': '2026-11-25', 'state': 'no-class'},
+          {'date': '2026-11-26', 'state': 'missing'},
+          {'date': '2026-11-27', 'state': 'upcoming'},
+        ],
+      },
+    });
+
+    expect(record.subjectName, 'Aral Pan');
+    expect(record.summary.hasMarks, isTrue);
+    expect(record.summary.percent, 75);
+    expect(record.log, hasLength(2));
+    expect(record.log.first.status, 'absent');
+    expect(record.log.last.slot, 2);
+    expect(record.days.map((d) => d.state), ['present', 'absent', 'no-class', 'missing', 'upcoming']);
+    expect(record.heatStart, '2026-09-16');
+  });
 }

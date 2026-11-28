@@ -93,6 +93,18 @@ final studentAttendanceProvider = FutureProvider.autoDispose<PortalAttendance>((
   return PortalAttendance.fromJson(await _get(ref, '/api/student/attendance', query: _termQuery(ref)));
 });
 
+/// One subject's attendance record (summary, log, heatmap).
+final studentSubjectAttendanceProvider =
+    FutureProvider.autoDispose.family<PortalSubjectAttendanceDetail, String>((ref, subjectId) async {
+  return PortalSubjectAttendanceDetail.fromJson(
+    await _get(
+      ref,
+      '/api/student/subjects/${Uri.encodeComponent(subjectId)}/attendance',
+      query: _termQuery(ref),
+    ),
+  );
+});
+
 final studentScheduleProvider = FutureProvider.autoDispose<PortalSchedule>((ref) async {
   return PortalSchedule.fromJson(await _get(ref, '/api/student/schedule', query: _termQuery(ref)));
 });

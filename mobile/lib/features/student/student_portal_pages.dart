@@ -739,7 +739,7 @@ class _StudentAttendanceState extends ConsumerState<StudentAttendancePage> {
           ZContentHeader(
             title: 'Attendance',
             icon: Icons.fact_check_outlined,
-            description: 'Your attendance summary and records for this term.',
+            description: 'Your attendance by class. Tap a class to see its log and heatmap.',
           ),
           const SizedBox(height: 12),
         ],
@@ -821,7 +821,7 @@ class _StudentAttendanceState extends ConsumerState<StudentAttendancePage> {
           SliverToBoxAdapter(
             child: Padding(
               padding: const EdgeInsets.fromLTRB(12, 16, 12, 0),
-              child: Text('By subject', style: theme.textTheme.titleSmall?.copyWith(fontWeight: FontWeight.w700)),
+              child: Text('Classes', style: theme.textTheme.titleSmall?.copyWith(fontWeight: FontWeight.w700)),
             ),
           ),
           SliverPadding(
@@ -833,16 +833,44 @@ class _StudentAttendanceState extends ConsumerState<StudentAttendancePage> {
                 final sub = bySubject[index];
                 return ZCard(
                   padding: const EdgeInsets.all(12),
+                  onTap: () => context.push(
+                    '/student/attendance/${Uri.encodeComponent(sub.subjectId)}',
+                    extra: sub.subjectName,
+                  ),
                   child: Row(
                     children: [
-                      Expanded(child: Text(sub.subjectName, style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w600))),
-                      Text(
-                        '${sub.percent}%',
-                        style: TextStyle(
-                          fontWeight: FontWeight.w700,
-                          color: sub.percent < 80 ? theme.colorScheme.error : null,
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(sub.subjectName, style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w600)),
+                            Text(
+                              [
+                                if (sub.subjectCode.isNotEmpty) sub.subjectCode,
+                                if (sub.teacherName != null && sub.teacherName!.isNotEmpty) sub.teacherName!,
+                              ].join(' · '),
+                              style: theme.textTheme.labelSmall,
+                            ),
+                            const SizedBox(height: 2),
+                            Text(
+                              sub.hasMarks
+                                  ? 'P ${sub.present} · A ${sub.absent} · L ${sub.late}'
+                                  : 'No attendance marks yet',
+                              style: theme.textTheme.labelSmall,
+                            ),
+                          ],
                         ),
                       ),
+                      const SizedBox(width: 8),
+                      Text(
+                        sub.hasMarks ? '${sub.percent}%' : 'No marks',
+                        style: TextStyle(
+                          fontWeight: FontWeight.w700,
+                          fontSize: sub.hasMarks ? 15 : 12,
+                          color: sub.hasMarks && sub.percent < 80 ? theme.colorScheme.error : theme.colorScheme.onSurfaceVariant,
+                        ),
+                      ),
+                      Icon(Icons.chevron_right, size: 18, color: theme.colorScheme.onSurfaceVariant),
                     ],
                   ),
                 );

@@ -145,7 +145,7 @@ export async function getLearnerGrades(studentId: string, term: PortalTerm) {
 
 export async function getLearnerAttendance(studentId: string, term: PortalTerm) {
   const sectionId = await learnerSectionForTerm(studentId, term);
-  const [summary, bySubject, recent, subjectAverage, section] = await Promise.all([
+  const [summary, bySubject, recent, subjectAverage, section, grid] = await Promise.all([
     computeAttendanceRate(studentId, term.id),
     prisma.attendanceRecord.groupBy({
       by: ["subjectId", "status"],
@@ -171,6 +171,17 @@ export async function getLearnerAttendance(studentId: string, term: PortalTerm) 
           select: { id: true, name: true, gradeLevel: true },
         })
       : Promise.resolve(null),
+    // Every class the learner has this term, so a subject with no marks yet
+    // still appears on the Attendance desk (same load as the Grades desk).
+    sectionId
+      ? prisma.sectionTimetableEntry.findMany({
+          where: { sectionId, termId: term.id, status: "APPROVED" },
+          select: {
+            subject: { select: { id: true, name: true, code: true } },
+            teacherName: { select: { name: true } },
+          },
+        })
+      : Promise.resolve([]),
   ]);
 
   const subjectIds = [...new Set(bySubject.map((r) => r.subjectId).filter((v): v is string => !!v))];
@@ -181,6 +192,13 @@ export async function getLearnerAttendance(studentId: string, term: PortalTerm) 
       })
     : [];
   const subjectById = new Map(subjects.map((s) => [s.id, s]));
+  const teacherBySubject = new Map<string, string | null>();
+  for (const entry of grid) {
+    teacherBySubject.set(entry.subject.id, entry.teacherName?.name ?? null);
+    if (!subjectById.has(entry.subject.id)) {
+      subjectById.set(entry.subject.id, entry.subject);
+    }
+  }
   const grouped = new Map<string, { present: number; absent: number; late: number; excused: number; total: number }>();
   for (const row of bySubject) {
     if (!row.subjectId) continue;
@@ -188,6 +206,11 @@ export async function getLearnerAttendance(studentId: string, term: PortalTerm) 
     cell[row.status] += row._count._all;
     cell.total += row._count._all;
     grouped.set(row.subjectId, cell);
+  }
+  for (const entry of grid) {
+    if (!grouped.has(entry.subject.id)) {
+      grouped.set(entry.subject.id, { present: 0, absent: 0, late: 0, excused: 0, total: 0 });
+    }
   }
 
   // The portal shows the same term presence the adviser boards and the risk
@@ -198,6 +221,7 @@ export async function getLearnerAttendance(studentId: string, term: PortalTerm) 
     term,
     sectionId,
     sectionName: section?.name ?? null,
+    sectionGradeLevel: section?.gradeLevel ?? null,
     summary: {
       rate,
       recordedRate: summary.rate,
@@ -209,15 +233,19 @@ export async function getLearnerAttendance(studentId: string, term: PortalTerm) 
       late: summary.late,
       excused: summary.excused,
       total: summary.total,
-      isRisk: rate < 0.8,
+      isRisk: summary.total > 0 && rate < 0.8,
     },
-    bySubject: [...grouped.entries()].map(([subjectId, c]) => ({
-      subjectId,
-      subjectName: subjectById.get(subjectId)?.name ?? "Subject",
-      subjectCode: subjectById.get(subjectId)?.code ?? "",
-      ...c,
-      rate: c.total === 0 ? 1 : c.present / c.total,
-    })),
+    bySubject: [...grouped.entries()]
+      .map(([subjectId, c]) => ({
+        subjectId,
+        subjectName: subjectById.get(subjectId)?.name ?? "Subject",
+        subjectCode: subjectById.get(subjectId)?.code ?? "",
+        teacherName: teacherBySubject.get(subjectId) ?? null,
+        ...c,
+        hasMarks: c.total > 0,
+        rate: c.total === 0 ? 0 : c.present / c.total,
+      }))
+      .sort((a, b) => a.subjectName.localeCompare(b.subjectName)),
     recent: recent.map((r) => ({
       id: r.id,
       date: r.date.toISOString(),
