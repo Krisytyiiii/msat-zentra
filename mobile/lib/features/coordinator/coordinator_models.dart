@@ -31,6 +31,74 @@ String admLabel(String value) =>
         )
         .join(' ');
 
+const _admActionLabels = {
+  'anecdotal_edit': 'Anecdotal record',
+  'referral_status_change': 'Referral update',
+  'referral_adm_initiated': 'Forwarded to ADM',
+  'referral_accepted': 'Referral accepted',
+  'referral_escalated': 'Referral escalated',
+  'referral_reassigned': 'Referral reassigned',
+  'referral_note_added': 'Referral note',
+  'referral_follow_up': 'Referral follow-up',
+  'referral_dismissed': 'Referral dismissed',
+  'referral_referred_specialist': 'Referred to specialist',
+  'adm_edit': 'ADM update',
+  'intervention_approval': 'Intervention approval',
+  'account_approval': 'Account approval',
+};
+
+/// Web `friendlyActionType` — the case timeline's action wording.
+String admActionLabel(String actionType) =>
+    _admActionLabels[actionType] ?? admLabel(actionType);
+
+/// One case's workflow status, derived exactly like web
+/// `deriveAdmCaseStatus` (`frontend/src/services/coordinator/labels.ts`): the
+/// closed referral wins over the stage, so a cancelled case never reads as
+/// "Consultation" / "Pending".
+class AdmCaseStatus {
+  const AdmCaseStatus(this.key, this.label);
+  final String key, label;
+}
+
+AdmCaseStatus admCaseStatus({
+  required String stage,
+  required String eligibility,
+  required String approvedBy,
+  required String referralStatus,
+}) {
+  if (referralStatus == 'dismissed') {
+    return const AdmCaseStatus('cancelled', 'Cancelled');
+  }
+  if (referralStatus == 'resolved') {
+    return const AdmCaseStatus('resolved_case', 'Resolved');
+  }
+  switch (stage) {
+    case 'consultation':
+      return const AdmCaseStatus('need_review', 'Need review by ADM');
+    case 'meeting_parents':
+      return const AdmCaseStatus('parent_meeting', 'Parent meeting');
+    case 'home_visitation':
+      return const AdmCaseStatus('home_visit', 'Home visitation');
+    case 'certification':
+      return eligibility == 'eligible'
+          ? const AdmCaseStatus('ready_to_endorse', 'Ready to endorse')
+          : const AdmCaseStatus('for_certification', 'For certification');
+    case 'principal_approval':
+      if (approvedBy.isNotEmpty) {
+        return const AdmCaseStatus('endorsed', 'Endorsed');
+      }
+      return eligibility == 'eligible'
+          ? const AdmCaseStatus('endorsed', 'Endorsed to Principal')
+          : const AdmCaseStatus('needs_revision', 'Needs revision');
+    case 'enrollment_monitoring':
+      return const AdmCaseStatus('monitoring', 'Monitoring');
+    case 'completion':
+      return const AdmCaseStatus('completed', 'Completed');
+    default:
+      return const AdmCaseStatus('filed', 'Anecdotal filed');
+  }
+}
+
 class AdmPage<T> {
   const AdmPage({
     required this.rows,
@@ -68,6 +136,14 @@ class AdmCaseRow {
       approvedBy = admText(j['approvedBy']),
       approvalDate = admText(j['approvalDate']),
       returnReason = admText(j['returnReason']),
+      referralStatus = admText(j['referralStatus']),
+      preparedBy = admText(j['preparedBy']),
+      datePrepared = admText(j['datePrepared']),
+      consultReviewer = admText(j['consultReviewer']),
+      endorsedAt = admText(j['endorsedAt']),
+      lastActionType = admText(j['lastActionType']),
+      lastActionAt = admText(j['lastActionAt']),
+      forms = admMaps(j['forms']),
       devicesIssued = admInt(j['devicesIssued']),
       modulesSubmitted = admInt(j['modulesSubmitted']),
       modulesTotal = admInt(j['modulesTotal']),
@@ -83,9 +159,62 @@ class AdmCaseRow {
       eligibility,
       approvedBy,
       approvalDate,
-      returnReason;
+      returnReason,
+      referralStatus,
+      preparedBy,
+      datePrepared,
+      consultReviewer,
+      endorsedAt,
+      lastActionType,
+      lastActionAt;
+  final List<AdmJson> forms;
   final int devicesIssued, modulesSubmitted, modulesTotal;
   final AdmMeeting? meeting;
+
+  AdmCaseStatus get status => admCaseStatus(
+    stage: stage,
+    eligibility: eligibility,
+    approvedBy: approvedBy,
+    referralStatus: referralStatus,
+  );
+
+  bool get closed => referralStatus == 'dismissed' || referralStatus == 'resolved';
+
+  /// Web `isBookableRow`: a closed case never books; an endorsed hand-off
+  /// (`referral:<id>`) books until intake, a case file while at the parent
+  /// meeting stage.
+  bool get bookable =>
+      !closed && (id.startsWith('referral:') || stage == 'meeting_parents');
+
+  String get eligibilityLabel => switch (eligibility) {
+    'eligible' => 'Eligible',
+    'ineligible' => 'Ineligible',
+    _ => 'For review',
+  };
+
+  String get meetingType => meeting == null
+      ? '—'
+      : (meeting!.venue == 'home' ? 'Home visit' : 'In school');
+
+  String get latestUpdateLabel => lastActionType.isNotEmpty
+      ? admActionLabel(lastActionType)
+      : meeting != null
+      ? (meeting!.attended ? 'Parent meeting attended' : 'Parent meeting booked')
+      : endorsedAt.isNotEmpty
+      ? 'Referred for ADM'
+      : datePrepared.isNotEmpty
+      ? 'Case filed'
+      : '—';
+
+  String? get latestUpdateAt => lastActionAt.isNotEmpty
+      ? lastActionAt
+      : meeting != null
+      ? meeting!.datetime?.toIso8601String()
+      : endorsedAt.isNotEmpty
+      ? endorsedAt
+      : datePrepared.isNotEmpty
+      ? datePrepared
+      : null;
 }
 
 class AdmMeeting {
@@ -148,6 +277,13 @@ class AdmCaseDetail {
 
   bool get hasAttendedMeeting => meetings.any((m) => m.attended);
   bool get closed => ['dismissed', 'resolved'].contains(referral?['status']);
+  String get referralStatus => admText(referral?['status']);
+  AdmCaseStatus get status => admCaseStatus(
+    stage: stage,
+    eligibility: eligibility,
+    approvedBy: approvedBy,
+    referralStatus: referralStatus,
+  );
   bool get underReview =>
       referral?['status'] == 'pending' &&
       ['nurse', 'guidance_counselor'].contains(referral?['consultReviewer']);

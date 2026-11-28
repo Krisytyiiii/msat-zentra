@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:go_router/go_router.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:lucide_icons_flutter/lucide_icons.dart';
 import 'package:pdfrx/pdfrx.dart';
@@ -19,8 +20,15 @@ import 'coordinator_widgets.dart';
 import '../../design/desk_theme.dart';
 
 class CoordinatorCasePage extends ConsumerStatefulWidget {
-  const CoordinatorCasePage({super.key, required this.caseId});
+  const CoordinatorCasePage({
+    super.key,
+    required this.caseId,
+    this.title,
+  });
   final String caseId;
+
+  /// Optional screen name; Files opens this as "Student Files".
+  final String? title;
   @override
   ConsumerState<CoordinatorCasePage> createState() => _CaseState();
 }
@@ -28,6 +36,7 @@ class CoordinatorCasePage extends ConsumerStatefulWidget {
 class _CaseState extends ConsumerState<CoordinatorCasePage>
     with WidgetsBindingObserver, CoordinatorRefresh<CoordinatorCasePage> {
   bool _busy = false;
+  String _filter = 'all';
   @override
   Future<void> reload() async {
     final data = ref.read(coordinatorCaseProvider(widget.caseId)).asData?.value;
@@ -77,12 +86,23 @@ class _CaseState extends ConsumerState<CoordinatorCasePage>
     AdmMeeting? meeting,
     bool outcome = false,
   }) async {
+    if (!outcome) {
+      final meetingId = meeting?.id;
+      final query = meetingId == null || meetingId.isEmpty
+          ? ''
+          : '?meetingId=${Uri.encodeComponent(meetingId)}';
+      await context.push(
+        '/coordinator/referrals/${Uri.encodeComponent(d.id)}/meeting$query',
+      );
+      if (mounted) await refresh();
+      return;
+    }
     await admPush<bool>(
       context,
       CoordinatorMeetingForm(
         detail: d,
         meeting: meeting,
-        outcome: outcome,
+        outcome: true,
         repository: ref.read(coordinatorRepositoryProvider),
       ),
     );
@@ -203,14 +223,21 @@ class _CaseState extends ConsumerState<CoordinatorCasePage>
             shape: Border(bottom: BorderSide(color: zLine(context))),
             centerTitle: true,
             leadingWidth: 64,
-            title: Text(data.asData?.value.student ?? 'ADM case'),
+            title: Text(
+              widget.title ?? data.asData?.value.student ?? 'ADM case',
+            ),
             leading: ZBackButton(
               tooltip: 'Back',
               icon: const Icon(LucideIcons.chevronLeft),
               padding: EdgeInsets.zero,
               onPressed: _busy
                   ? null
-                  : () => admClose(context, '/coordinator/referrals'),
+                  : () => admClose(
+                      context,
+                      widget.title == 'Student Files'
+                          ? '/coordinator/files'
+                          : '/coordinator/referrals',
+                    ),
             ),
           ),
           body: AdmBody(
@@ -230,17 +257,90 @@ class _CaseState extends ConsumerState<CoordinatorCasePage>
   }
 
   Widget _content(AdmCaseDetail d) => LayoutBuilder(
-    builder: (context, constraints) => Column(
-      crossAxisAlignment: CrossAxisAlignment.stretch,
+    builder: (context, constraints) {
+      final filter = widget.title == 'Student Files' ? _filter : 'all';
+      return Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          _identity(d),
+          if (widget.title == 'Student Files') _contentFilter(),
+          if (filter == 'all') ...[
+            ..._board(d, constraints.maxWidth),
+            _eligibility(d),
+            _sessions(d),
+            _history(d),
+          ] else ...[
+            switch (filter) {
+              'referral' => _referralCard(d),
+              'anecdotal' => _anecdotalCard(d),
+              'meetings' => _meetings(d),
+              'evidence' => _evidence(d),
+              'certify' => _certification(d),
+              'eligibility' => _eligibility(d),
+              'sessions' => _sessions(d),
+              'history' => _history(d),
+              _ => const SizedBox.shrink(),
+            },
+          ],
+        ],
+      );
+    },
+  );
+
+  static const _filters = [
+    ('all', 'All'),
+    ('referral', 'Referral'),
+    ('anecdotal', 'Anecdotal'),
+    ('meetings', 'Meetings'),
+    ('evidence', 'Evidence'),
+    ('certify', 'Certify'),
+    ('eligibility', 'Eligibility'),
+    ('sessions', 'Sessions'),
+    ('history', 'History'),
+  ];
+
+  Widget _contentFilter() => SingleChildScrollView(
+    scrollDirection: Axis.horizontal,
+    padding: const EdgeInsets.only(top: 14, bottom: 2),
+    child: Row(
       children: [
-        _identity(d),
-        ..._board(d, constraints.maxWidth),
-        _eligibility(d),
-        _sessions(d),
-        _history(d),
+        for (var i = 0; i < _filters.length; i++) ...[
+          if (i > 0) const SizedBox(width: 6),
+          _filterPill(_filters[i].$1, _filters[i].$2),
+        ],
       ],
     ),
   );
+
+  Widget _filterPill(String key, String label) {
+    final active = _filter == key;
+    const blue = Color(0xFF2563EB);
+    return Material(
+      color: active ? zWash(context, const Color(0xFFEFF6FF)) : zCard(context),
+      shape: StadiumBorder(
+        side: BorderSide(
+          color: active ? zWash(context, const Color(0xFFBFDBFE)) : zLine(context),
+        ),
+      ),
+      child: InkWell(
+        customBorder: const StadiumBorder(),
+        onTap: () => setState(() => _filter = key),
+        child: Container(
+          constraints: const BoxConstraints(minHeight: 36),
+          padding: const EdgeInsets.symmetric(horizontal: 13),
+          alignment: Alignment.center,
+          child: Text(
+            label,
+            style: TextStyle(
+              fontSize: 12,
+              fontWeight: FontWeight.w600,
+              color: active ? blue : zMutedInk(context),
+            ),
+          ),
+        ),
+      ),
+    );
+  }
 
   List<Widget> _board(AdmCaseDetail d, double width) {
     final referral = _referralCard(d);
@@ -287,14 +387,11 @@ class _CaseState extends ConsumerState<CoordinatorCasePage>
       meta: [
         if (d.grade.isNotEmpty)
           ZScopePill(text: d.grade, kind: ScopePillKind.grade, compact: true),
-        StudentTonePill(
-          text: admLabel(d.stage),
-          tone: d.closed
-              ? StudentTone.neutral
-              : d.approvedBy.isNotEmpty
-              ? StudentTone.green
-              : StudentTone.blue,
+        ZStatusPill(
+          text: d.status.label,
+          tone: admCaseStatusTone(d.status.key),
         ),
+        StudentTonePill(text: admLabel(d.stage), tone: StudentTone.neutral),
       ],
       onCopyLrn: () => _copyLrn(d.lrn),
     );

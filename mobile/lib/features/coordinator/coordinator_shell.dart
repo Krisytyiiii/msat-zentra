@@ -139,9 +139,14 @@ class _CoordinatorShellState extends ConsumerState<CoordinatorShell>
     );
     final query = _search.query.trim().toLowerCase();
     final isSettings = widget.path == '/coordinator/settings';
+    // Routed records (parent-meeting book/reschedule) keep the adviser Grade
+    // Record pattern: their own white Back header, the shell's floating bar.
+    final isRecord = widget.path.endsWith('/meeting');
     final isOverview = widget.path == '/coordinator/overview';
     final showBottomBar =
-        !isSettings && !ref.watch(staffNavigationHiddenProvider);
+        !isSettings &&
+        !isRecord &&
+        !ref.watch(staffNavigationHiddenProvider);
     final showingPages =
         spec.mode == ScreenSearchMode.pages && query.isNotEmpty;
     final destinations = showingPages
@@ -169,7 +174,7 @@ class _CoordinatorShellState extends ConsumerState<CoordinatorShell>
           // content; keep the same overlay behavior here (pages keep bottom
           // clearance). Half-height detail sheets hide it, like referrals.
           extendBody: showBottomBar,
-          appBar: isSettings
+          appBar: isSettings || isRecord
               ? null
               : PreferredSize(
                   preferredSize: const Size.fromHeight(73),
@@ -197,7 +202,7 @@ class _CoordinatorShellState extends ConsumerState<CoordinatorShell>
                     ),
                   ),
                 ),
-          drawer: isSettings ? null : _CoordinatorDrawer(name: name),
+          drawer: isSettings || isRecord ? null : _CoordinatorDrawer(name: name),
           bottomNavigationBar: showBottomBar
               ? CoordinatorBottomNavigation(selectedPath: widget.path)
               : null,

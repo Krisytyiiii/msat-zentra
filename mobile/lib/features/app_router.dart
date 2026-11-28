@@ -53,6 +53,7 @@ import 'coordinator/coordinator_pages.dart';
 import 'coordinator/coordinator_case_page.dart';
 import 'coordinator/coordinator_devices.dart';
 import 'coordinator/coordinator_models.dart' show AdmDevice;
+import 'coordinator/coordinator_meeting_form.dart';
 import 'coordinator/coordinator_monitoring.dart';
 import 'coordinator/coordinator_settings.dart';
 import 'coordinator/coordinator_notifications.dart';
@@ -103,6 +104,16 @@ List<RouteBase> _coordinatorDeskRoute() => [
             child: CoordinatorListPage(desk: desk.desk),
           ),
         ),
+      GoRoute(
+        path: '/coordinator/referrals/:caseId/meeting',
+        pageBuilder: (_, state) => NoTransitionPage<void>(
+          key: state.pageKey,
+          child: CoordinatorMeetingPage(
+            caseId: state.pathParameters['caseId']!,
+            meetingId: state.uri.queryParameters['meetingId'],
+          ),
+        ),
+      ),
       GoRoute(
         path: '/coordinator/settings',
         pageBuilder: (_, state) => NoTransitionPage<void>(
@@ -316,6 +327,16 @@ final routerProvider = Provider<GoRouter>((ref) {
           CoordinatorCasePage(
             key: ValueKey(state.pathParameters['id']),
             caseId: state.pathParameters['id']!,
+          ),
+        ),
+      ),
+      GoRoute(
+        path: '/coordinator/files/:id',
+        builder: (_, state) => _coordinatorView(
+          CoordinatorCasePage(
+            key: ValueKey(state.pathParameters['id']),
+            caseId: state.pathParameters['id']!,
+            title: 'Student Files',
           ),
         ),
       ),

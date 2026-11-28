@@ -145,6 +145,7 @@ class CoordinatorApi extends ApiClient {
               'total': 17,
               'page': o.queryParameters['page'] ?? 1,
               'totalPages': 2,
+              'stageCounts': stageCounts,
             };
           } else if (o.path == '/api/adm/devices' && o.method == 'GET') {
             data = {'rows': [], 'total': 0, 'page': 1, 'totalPages': 1};
@@ -190,6 +191,7 @@ class CoordinatorApi extends ApiClient {
   bool failWrites = false, failReads = false;
   AdmJson? monitoringData;
   List<AdmJson>? listRows;
+  Map<String, int> stageCounts = const {};
   Completer<void>? pending;
   Iterable<RequestOptions> get writes =>
       requests.where((o) => o.method != 'GET');
@@ -604,6 +606,25 @@ void main() {
     expect(tester.takeException(), isNull);
   });
 
+  testWidgets('student files screen keeps the dedicated name', (
+    tester,
+  ) async {
+    final api = CoordinatorApi();
+    await mount(
+      tester,
+      api,
+      const CoordinatorCasePage(caseId: 'profile-1', title: 'Student Files'),
+    );
+    expect(find.text('Student Files'), findsOneWidget);
+    expect(find.text('Mira Learner'), findsOneWidget);
+    expect(find.text('REFERRAL'), findsOneWidget);
+    await tester.tap(find.text('Referral'));
+    await settle(tester);
+    expect(find.text('REFERRAL'), findsOneWidget);
+    expect(find.text('ANECDOTAL'), findsNothing);
+    expect(tester.takeException(), isNull);
+  });
+
   testWidgets('failed certification preserves text and shows safe error', (
     tester,
   ) async {
@@ -666,6 +687,88 @@ void main() {
     await settle(tester);
     expect(api.requests.last.queryParameters['stage'], 'meeting_parents');
     expect(tester.takeException(), isNull);
+  });
+
+  testWidgets('ADM case counters use whole-desk stage counts', (
+    tester,
+  ) async {
+    final api = CoordinatorApi();
+    api.stageCounts = const {
+      'anecdotal': 1,
+      'consultation': 2,
+      'meeting_parents': 3,
+      'home_visitation': 4,
+      'certification': 5,
+      'principal_approval': 6,
+      'enrollment_monitoring': 7,
+      'completion': 8,
+    };
+    await mount(
+      tester,
+      api,
+      const Scaffold(body: CoordinatorListPage(desk: 'referrals')),
+    );
+    expect(find.text('Needs review'), findsOneWidget);
+    expect(find.text('Parent meeting'), findsOneWidget);
+    expect(find.text('Home visit'), findsOneWidget);
+    expect(find.text('Certification'), findsOneWidget);
+    expect(find.text('Principal'), findsOneWidget);
+    expect(find.text('In ADM'), findsOneWidget);
+    expect(find.text('3'), findsNWidgets(2)); // needs review + parent meeting
+    expect(find.text('15'), findsOneWidget); // monitoring + completion
+    expect(tester.takeException(), isNull);
+  });
+
+  testWidgets('ADM case card shows meeting facts and opens the record sheet', (
+    tester,
+  ) async {
+    final api = CoordinatorApi();
+    await mount(
+      tester,
+      api,
+      const Scaffold(body: CoordinatorListPage(desk: 'referrals')),
+    );
+    expect(find.textContaining('Book: Not booked'), findsOneWidget);
+    expect(find.textContaining('Type: '), findsOneWidget);
+    await tester.tap(find.text('Mira Learner'));
+    await settle(tester);
+    expect(find.text('ADM details'), findsOneWidget);
+    expect(find.byKey(const ValueKey('coordinator-case-book')), findsOneWidget);
+    await tester.pumpWidget(const SizedBox.shrink());
+    api.dio.close();
+  });
+
+  testWidgets('routed meeting screen uses the Grade Record chrome', (
+    tester,
+  ) async {
+    final api = CoordinatorApi();
+    await mount(
+      tester,
+      api,
+      const CoordinatorMeetingPage(caseId: 'profile-1', meetingId: 'meeting-1'),
+    );
+    expect(find.text('Reschedule meeting'), findsOneWidget);
+    expect(find.text('Save meeting'), findsOneWidget);
+    expect(find.byTooltip('Back'), findsOneWidget);
+    expect(tester.takeException(), isNull);
+  });
+
+  test('derived ADM case status mirrors the web labels', () {
+    AdmCaseRow row(String stage, {String status = 'in_progress'}) =>
+        AdmCaseRow.fromJson({
+          ...listRow(),
+          'stage': stage,
+          'referralStatus': status,
+        });
+    expect(row('consultation').status.label, 'Need review by ADM');
+    expect(row('meeting_parents').status.label, 'Parent meeting');
+    expect(row('principal_approval').status.label, 'Endorsed');
+    expect(
+      row('principal_approval', status: 'dismissed').status.label,
+      'Cancelled',
+    );
+    expect(row('completion', status: 'resolved').status.label, 'Resolved');
+    expect(row('enrollment_monitoring').status.label, 'Monitoring');
   });
 
   testWidgets('devices desk floats the issue-device add button', (
@@ -877,6 +980,27 @@ void main() {
     );
     expect(shellTheme.brightness, Brightness.light);
     expect(shellTheme.scaffoldBackgroundColor, Colors.white);
+    expect(tester.takeException(), isNull);
+  });
+
+  testWidgets('meeting record hides the shell header and bottom navigation', (
+    tester,
+  ) async {
+    final api = CoordinatorApi();
+    await mount(
+      tester,
+      api,
+      const CoordinatorShell(
+        path: '/coordinator/referrals/profile-1/meeting',
+        child: CoordinatorMeetingPage(
+          caseId: 'profile-1',
+          meetingId: 'meeting-1',
+        ),
+      ),
+    );
+    expect(find.byKey(const ValueKey('coordinator-nav-bar')), findsNothing);
+    expect(find.byKey(const ValueKey('coordinator-logo')), findsNothing);
+    expect(find.text('Reschedule meeting'), findsOneWidget);
     expect(tester.takeException(), isNull);
   });
 

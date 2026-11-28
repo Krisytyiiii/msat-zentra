@@ -1,16 +1,119 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
+import 'package:lucide_icons_flutter/lucide_icons.dart';
 
 import '../../core/session.dart';
+import '../../design/desk_theme.dart';
+import '../../design/overview_theme.dart';
+import '../../design/status_palette.dart';
 import '../../shared/user_messages.dart';
 import '../../shared/models.dart';
 import '../../shared/skeletons.dart';
-import '../../shared/widgets.dart' show ZEmpty, ZBackButton;
+import '../../shared/widgets.dart'
+    show
+        ErrorView,
+        LoadingView,
+        ScopePillKind,
+        ZBackButton,
+        ZContentHeader,
+        ZEmpty,
+        ZScopePill,
+        ZStatusPill;
+import '../adviser/student_profile_components.dart';
 import 'coordinator_data.dart';
 import 'coordinator_forms.dart';
 import 'coordinator_models.dart';
 import 'coordinator_widgets.dart';
+
+/// Dedicated, routed meeting screen (book or reschedule). It lives inside the
+/// persistent coordinator shell like the adviser Grade Record, so the shell
+/// hides its own header and keeps the floating desk navigation.
+class CoordinatorMeetingPage extends ConsumerWidget {
+  const CoordinatorMeetingPage({
+    super.key,
+    required this.caseId,
+    this.meetingId,
+  });
+  final String caseId;
+  final String? meetingId;
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final detail = ref.watch(coordinatorCaseProvider(caseId));
+    final title = meetingId == null ? 'Book parent meeting' : 'Reschedule meeting';
+    return Theme(
+      data: overviewScreenTheme(Theme.of(context)),
+      child: detail.when(
+        loading: () => _shell(
+          context,
+          title,
+          const LoadingView(layout: SkeletonLayout.record),
+        ),
+        error: (error, _) => _shell(
+          context,
+          title,
+          ErrorView(
+            message: error,
+            onRetry: () => ref.invalidate(coordinatorCaseProvider(caseId)),
+          ),
+        ),
+        data: (data) {
+          final meeting = meetingId == null
+              ? null
+              : data.meetings
+                    .where((item) => item.id == meetingId)
+                    .firstOrNull;
+          if (meetingId != null && meeting == null) {
+            return _shell(
+              context,
+              title,
+              ErrorView(
+                message: 'That meeting is no longer available.',
+                onRetry: () =>
+                    ref.invalidate(coordinatorCaseProvider(caseId)),
+              ),
+            );
+          }
+          return CoordinatorMeetingForm(
+            detail: data,
+            meeting: meeting,
+            repository: ref.read(coordinatorRepositoryProvider),
+          );
+        },
+      ),
+    );
+  }
+
+  Widget _shell(BuildContext context, String title, Widget body) => Builder(
+    builder: (context) => Scaffold(
+      backgroundColor: Theme.of(context).scaffoldBackgroundColor,
+      appBar: _meetingAppBar(context, title),
+      body: body,
+    ),
+  );
+}
+
+PreferredSizeWidget _meetingAppBar(
+  BuildContext context,
+  String title, {
+  VoidCallback? onBack,
+}) => AppBar(
+  backgroundColor: Theme.of(context).scaffoldBackgroundColor,
+  surfaceTintColor: Colors.transparent,
+  scrolledUnderElevation: 0,
+  shape: Border(bottom: BorderSide(color: Theme.of(context).colorScheme.outline)),
+  centerTitle: true,
+  leadingWidth: 64,
+  leading: ZBackButton(
+    icon: const Icon(Icons.chevron_left),
+    tooltip: 'Back',
+    padding: EdgeInsets.zero,
+    onPressed: onBack ?? () => Navigator.maybePop(context),
+  ),
+  title: Text(title),
+);
 
 class CoordinatorMeetingForm extends ConsumerStatefulWidget {
   const CoordinatorMeetingForm({
@@ -185,206 +288,558 @@ class _MeetingFormState extends ConsumerState<CoordinatorMeetingForm> {
     super.dispose();
   }
 
+  Future<void> _copyLrn() async {
+    if (widget.detail.lrn.isEmpty) return;
+    await Clipboard.setData(ClipboardData(text: widget.detail.lrn));
+    if (!mounted) return;
+    ScaffoldMessenger.of(
+      context,
+    ).showSnackBar(const SnackBar(content: Text('LRN copied.')));
+  }
+
   @override
   Widget build(BuildContext context) {
     final auth = ref.watch(authProvider);
     if (!auth.loggedIn || auth.role != 'adm_coordinator') {
       return const Scaffold(body: Center(child: Text('Please sign in again.')));
     }
-    return PopScope(
-      canPop: _allowPop || (!_busy && !_dirty),
-      onPopInvokedWithResult: (didPop, _) {
-        if (!didPop) _close();
-      },
-      child: Scaffold(
-        appBar: AppBar(
-          title: Text(
-            widget.outcome
-                ? 'Meeting outcome'
-                : widget.meeting == null
-                ? 'Book parent meeting'
-                : 'Reschedule meeting',
-          ),
-          leading: ZBackButton(
-            tooltip: 'Back',
-            onPressed: _busy ? null : _close,
-            icon: const Icon(Icons.arrow_back),
-          ),
-        ),
-        body: AdmBody(
-          children: [
-            Text(
-              widget.detail.student,
-              style: Theme.of(context).textTheme.titleMedium,
+    final title = widget.outcome
+        ? 'Meeting outcome'
+        : widget.meeting == null
+        ? 'Book parent meeting'
+        : 'Reschedule meeting';
+    final scope = ref.watch(coordinatorScopeProvider).asData?.value;
+    final detail = widget.detail;
+    return Theme(
+      data: overviewScreenTheme(Theme.of(context)),
+      child: Builder(
+        builder: (context) => PopScope(
+          canPop: _allowPop || (!_busy && !_dirty),
+          onPopInvokedWithResult: (didPop, _) {
+            if (!didPop) _close();
+          },
+          child: Scaffold(
+            backgroundColor: Theme.of(context).scaffoldBackgroundColor,
+            appBar: _meetingAppBar(
+              context,
+              title,
+              onBack: _busy ? null : _close,
             ),
-            Form(
-              key: _form,
-              onChanged: () => setState(() => _dirty = true),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.stretch,
-                children: [
-                  if (!widget.outcome) ...[
-                    OutlinedButton.icon(
-                      onPressed: _busy ? null : _pickTime,
-                      icon: const Icon(Icons.calendar_month),
-                      label: Text(
-                        '${DateFormat('MMM d, y · h:mm a').format(_date)} PHT',
+            body: Column(
+              children: [
+                Expanded(
+                  child: Align(
+                    alignment: Alignment.topCenter,
+                    child: ConstrainedBox(
+                constraints: const BoxConstraints(maxWidth: 760),
+                child: Form(
+                  key: _form,
+                  onChanged: () => setState(() => _dirty = true),
+                  child: ListView(
+                    padding: const EdgeInsets.fromLTRB(12, 16, 12, 32),
+                    children: [
+                      ZContentHeader(
+                        title: widget.outcome
+                            ? 'Meeting outcome'
+                            : 'Meeting details',
+                        icon: LucideIcons.calendarClock,
+                        description: widget.outcome
+                            ? 'Record attendance, minutes and the logbook reference for this parent meeting.'
+                            : widget.meeting == null
+                            ? 'Set the parent meeting schedule, venue and staff invitees. Times use Philippine time.'
+                            : 'Move the booked parent meeting to a new date, time or venue.',
                       ),
-                    ),
-                    const SizedBox(height: 12),
-                    DropdownButtonFormField<String>(
-                      initialValue: _venue,
-                      decoration: const InputDecoration(labelText: 'Venue'),
-                      items: const [
-                        DropdownMenuItem(
-                          value: 'school',
-                          child: Text('In school'),
-                        ),
-                        DropdownMenuItem(
-                          value: 'home',
-                          child: Text('Home visitation'),
-                        ),
+                      const SizedBox(height: 12),
+                      Wrap(
+                        spacing: 6,
+                        runSpacing: 6,
+                        children: [
+                          if (scope != null && scope.schoolYearName.isNotEmpty)
+                            ZScopePill(
+                              text: scope.schoolYearName,
+                              kind: ScopePillKind.schoolYear,
+                              compact: true,
+                            ),
+                          if (scope?.termNumber != null)
+                            ZScopePill(
+                              text: 'Term ${scope!.termNumber}',
+                              kind: ScopePillKind.term,
+                              compact: true,
+                            ),
+                        ],
+                      ),
+                      const SizedBox(height: 16),
+                      StudentIdentityCard(
+                        name: detail.student.isEmpty
+                            ? 'ADM case'
+                            : detail.student,
+                        lrn: detail.lrn,
+                        subtitle: 'Parent meeting · ${admLabel(detail.stage)}',
+                        onCopyLrn: _copyLrn,
+                        meta: [
+                          if (detail.grade.isNotEmpty)
+                            ZScopePill(
+                              text: detail.grade,
+                              kind: ScopePillKind.grade,
+                              compact: true,
+                            ),
+                          ZStatusPill(
+                            text: detail.status.label,
+                            tone: admCaseStatusTone(detail.status.key),
+                          ),
+                        ],
+                      ),
+                      if (widget.meeting != null) ...[
+                        const SizedBox(height: 12),
+                        _currentMeetingCard(context),
                       ],
-                      onChanged: _busy
-                          ? null
-                          : (v) => setState(() {
-                              _venue = v!;
-                              _dirty = true;
-                            }),
-                    ),
-                    const SizedBox(height: 12),
-                    FutureBuilder<List<AdmJson>>(
-                      future: _staff,
-                      builder: (context, snapshot) {
-                        if (snapshot.hasError) {
-                          return const Text(
-                            'Staff could not be loaded. Reopen this form to try again.',
-                          );
-                        }
-                        if (!snapshot.hasData) {
-                          return const ScreenSkeleton(
-                            layout: SkeletonLayout.notifications,
-                            label: 'Loading staff',
-                            section: true,
-                            count: 2,
-                          );
-                        }
-                        return Column(
-                          crossAxisAlignment: CrossAxisAlignment.stretch,
-                          children: [
-                            const Text('Invite staff (up to 10)'),
-                            if (snapshot.data!.isEmpty)
-                              const ZEmpty(compact: true, icon: Icons.people_outline,
-                                title: 'No available staff.'),
-                            for (final person in snapshot.data!)
-                              CheckboxListTile(
-                                title: Text(admText(person['fullName'])),
-                                subtitle: Text(
-                                  admLabel(admText(person['role'])),
+                      if (!widget.outcome) ...[
+                        const StudentSectionHeader(
+                          icon: LucideIcons.calendarDays,
+                          title: 'Schedule',
+                        ),
+                        StudentSectionCard(
+                          padded: true,
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.stretch,
+                            children: [
+                              InkWell(
+                                onTap: _busy ? null : _pickTime,
+                                borderRadius: BorderRadius.circular(12),
+                                child: Container(
+                                  padding: const EdgeInsets.symmetric(
+                                    horizontal: 12,
+                                    vertical: 11,
+                                  ),
+                                  decoration: BoxDecoration(
+                                    color: zSoft(context),
+                                    borderRadius: BorderRadius.circular(12),
+                                    border: Border.all(color: zLine(context)),
+                                  ),
+                                  child: Row(
+                                    children: [
+                                      Icon(
+                                        LucideIcons.calendarDays,
+                                        size: 18,
+                                        color: zMutedInk(context),
+                                      ),
+                                      const SizedBox(width: 10),
+                                      Expanded(
+                                        child: Text(
+                                          '${DateFormat('MMM d, y · h:mm a').format(_date)} PHT',
+                                          style: TextStyle(
+                                            fontSize: 13,
+                                            fontWeight: FontWeight.w600,
+                                            color: zInk(context),
+                                          ),
+                                        ),
+                                      ),
+                                      Icon(
+                                        Icons.chevron_right,
+                                        size: 18,
+                                        color: zMutedInk(context),
+                                      ),
+                                    ],
+                                  ),
                                 ),
-                                value: _invitees.contains(
-                                  admText(person['id']),
+                              ),
+                              const SizedBox(height: 12),
+                              Container(
+                                padding: const EdgeInsets.symmetric(
+                                  horizontal: 12,
+                                  vertical: 6,
                                 ),
+                                decoration: BoxDecoration(
+                                  color: zSoft(context),
+                                  borderRadius: BorderRadius.circular(12),
+                                  border: Border.all(color: zLine(context)),
+                                ),
+                                child: Row(
+                                  children: [
+                                    Icon(
+                                      LucideIcons.mapPin,
+                                      size: 18,
+                                      color: zMutedInk(context),
+                                    ),
+                                    const SizedBox(width: 10),
+                                    Expanded(
+                                      child: DropdownButtonHideUnderline(
+                                        child: DropdownButton<String>(
+                                          value: _venue,
+                                          isExpanded: true,
+                                          isDense: true,
+                                          borderRadius: BorderRadius.circular(12),
+                                          dropdownColor: zCard(context),
+                                          icon: Icon(
+                                            LucideIcons.chevronDown,
+                                            size: 16,
+                                            color: zMutedInk(context),
+                                          ),
+                                          style: TextStyle(
+                                            fontSize: 13,
+                                            fontWeight: FontWeight.w600,
+                                            color: zInk(context),
+                                          ),
+                                          items: const [
+                                            DropdownMenuItem(
+                                              value: 'school',
+                                              child: Text('In school'),
+                                            ),
+                                            DropdownMenuItem(
+                                              value: 'home',
+                                              child: Text('Home visitation'),
+                                            ),
+                                          ],
+                                          onChanged: _busy
+                                              ? null
+                                              : (v) => setState(() {
+                                                  _venue = v!;
+                                                  _dirty = true;
+                                                }),
+                                        ),
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                        const StudentSectionHeader(
+                          icon: LucideIcons.users,
+                          title: 'Staff invitees',
+                        ),
+                        StudentSectionCard(
+                          padded: true,
+                          child: FutureBuilder<List<AdmJson>>(
+                            future: _staff,
+                            builder: (context, snapshot) {
+                              if (snapshot.hasError) {
+                                return Text(
+                                  'Staff could not be loaded. Reopen this screen to try again.',
+                                  style: TextStyle(
+                                    fontSize: 12,
+                                    color: zMutedInk(context),
+                                  ),
+                                );
+                              }
+                              if (!snapshot.hasData) {
+                                return const ScreenSkeleton(
+                                  layout: SkeletonLayout.notifications,
+                                  label: 'Loading staff',
+                                  section: true,
+                                  count: 2,
+                                );
+                              }
+                              return Material(
+                                type: MaterialType.transparency,
+                                child: Column(
+                                  crossAxisAlignment:
+                                      CrossAxisAlignment.stretch,
+                                  children: [
+                                  Row(
+                                    children: [
+                                      Expanded(
+                                        child: Text(
+                                          'Invite up to 10 staff',
+                                          style: TextStyle(
+                                            fontSize: 12,
+                                            color: zMutedInk(context),
+                                          ),
+                                        ),
+                                      ),
+                                      Text(
+                                        '${_invitees.length}/10',
+                                        style: TextStyle(
+                                          fontSize: 11,
+                                          fontWeight: FontWeight.w600,
+                                          color: zMutedInk(context),
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                  if (snapshot.data!.isEmpty)
+                                    const ZEmpty(
+                                      compact: true,
+                                      icon: Icons.people_outline,
+                                      title: 'No available staff.',
+                                    ),
+                                  for (final person in snapshot.data!)
+                                    CheckboxListTile(
+                                      dense: true,
+                                      contentPadding: EdgeInsets.zero,
+                                      controlAffinity:
+                                          ListTileControlAffinity.leading,
+                                      title: Text(
+                                        admText(person['fullName']),
+                                        style: const TextStyle(fontSize: 13),
+                                      ),
+                                      subtitle: Text(
+                                        admLabel(admText(person['role'])),
+                                        style: const TextStyle(fontSize: 11),
+                                      ),
+                                      value: _invitees.contains(
+                                        admText(person['id']),
+                                      ),
+                                      onChanged: _busy
+                                          ? null
+                                          : (checked) => setState(() {
+                                              final id = admText(person['id']);
+                                              if (checked == true &&
+                                                  _invitees.length < 10) {
+                                                _invitees.add(id);
+                                              } else if (checked != true) {
+                                                _invitees.remove(id);
+                                              }
+                                              _dirty = true;
+                                            }),
+                                    ),
+                                ],
+                                ),
+                              );
+                            },
+                          ),
+                        ),
+                        const StudentSectionHeader(
+                          icon: LucideIcons.notebookPen,
+                          title: 'Logbook',
+                        ),
+                        StudentSectionCard(
+                          padded: true,
+                          child: TextFormField(
+                            controller: _logbook,
+                            enabled: !_busy,
+                            maxLength: 200,
+                            decoration: const InputDecoration(
+                              labelText: 'Attendance logbook reference',
+                              border: OutlineInputBorder(),
+                            ),
+                            validator: (v) =>
+                                widget.outcome &&
+                                    _attended &&
+                                    (v?.trim().isEmpty ?? true)
+                                ? 'Enter the attendance logbook reference.'
+                                : null,
+                          ),
+                        ),
+                      ] else ...[
+                        const StudentSectionHeader(
+                          icon: LucideIcons.clipboardCheck,
+                          title: 'Attendance',
+                        ),
+                        StudentSectionCard(
+                          padded: true,
+                          child: Material(
+                            type: MaterialType.transparency,
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.stretch,
+                              children: [
+                                SwitchListTile(
+                                contentPadding: EdgeInsets.zero,
+                                title: const Text(
+                                  'Parent / guardian attended',
+                                  style: TextStyle(fontSize: 13),
+                                ),
+                                value: _attended,
                                 onChanged: _busy
                                     ? null
-                                    : (checked) => setState(() {
-                                        final id = admText(person['id']);
-                                        if (checked == true &&
-                                            _invitees.length < 10) {
-                                          _invitees.add(id);
-                                        } else if (checked != true) {
-                                          _invitees.remove(id);
-                                        }
+                                    : (v) => setState(() {
+                                        _attended = v;
                                         _dirty = true;
                                       }),
                               ),
-                          ],
-                        );
-                      },
-                    ),
-                  ] else ...[
-                    SwitchListTile(
-                      title: const Text('Parent / guardian attended'),
-                      value: _attended,
-                      onChanged: _busy
-                          ? null
-                          : (v) => setState(() {
-                              _attended = v;
-                              _dirty = true;
-                            }),
-                    ),
-                    if (!_attended)
-                      const Text(
-                        'After recording the no-show, reschedule this meeting with Home visitation as the venue.',
-                      ),
-                    TextFormField(
-                      controller: _minutes,
-                      enabled: !_busy,
-                      minLines: 4,
-                      maxLines: 8,
-                      maxLength: 5000,
-                      decoration: const InputDecoration(
-                        labelText: 'Minutes / outcome notes',
-                      ),
-                      validator: (v) => _attended && (v?.trim().isEmpty ?? true)
-                          ? 'Record the meeting minutes.'
-                          : null,
-                    ),
-                    for (var i = 0; i < _attendees.length; i++) _attendeeRow(i),
-                    if (_attendees.length < 20)
-                      TextButton.icon(
-                        onPressed: _busy
-                            ? null
-                            : () => setState(() {
-                                _attendees.add((
-                                  name: TextEditingController(),
-                                  role: 'parent_guardian',
-                                ));
-                                _dirty = true;
-                              }),
-                        icon: const Icon(Icons.person_add_alt),
-                        label: const Text('Add attendee'),
-                      ),
-                  ],
-                  const SizedBox(height: 12),
-                  TextFormField(
-                    controller: _logbook,
-                    enabled: !_busy,
-                    maxLength: 200,
-                    decoration: const InputDecoration(
-                      labelText: 'Attendance logbook reference',
-                    ),
-                    validator: (v) =>
-                        widget.outcome &&
-                            _attended &&
-                            (v?.trim().isEmpty ?? true)
-                        ? 'Enter the attendance logbook reference.'
-                        : null,
+                              if (!_attended)
+                                Container(
+                                  margin: const EdgeInsets.only(bottom: 12),
+                                  padding: const EdgeInsets.all(10),
+                                  decoration: BoxDecoration(
+                                    color: zWash(
+                                      context,
+                                      const Color(0xFFFFFAEF),
+                                    ),
+                                    borderRadius: BorderRadius.circular(10),
+                                  ),
+                                  child: Text(
+                                    'After recording the no-show, reschedule this meeting with Home visitation as the venue.',
+                                    style: TextStyle(
+                                      fontSize: 12,
+                                      height: 1.4,
+                                      color: zMutedInk(context),
+                                    ),
+                                  ),
+                                ),
+                              TextFormField(
+                                controller: _minutes,
+                                enabled: !_busy,
+                                minLines: 4,
+                                maxLines: 8,
+                                maxLength: 5000,
+                                decoration: const InputDecoration(
+                                  labelText: 'Minutes / outcome notes',
+                                  border: OutlineInputBorder(),
+                                ),
+                                validator: (v) =>
+                                    _attended &&
+                                        (v?.trim().isEmpty ?? true)
+                                    ? 'Record the meeting minutes.'
+                                    : null,
+                              ),
+                              for (var i = 0; i < _attendees.length; i++)
+                                _attendeeRow(i),
+                              if (_attendees.length < 20)
+                                Align(
+                                  alignment: Alignment.centerLeft,
+                                  child: TextButton.icon(
+                                    onPressed: _busy
+                                        ? null
+                                        : () => setState(() {
+                                            _attendees.add((
+                                              name: TextEditingController(),
+                                              role: 'parent_guardian',
+                                            ));
+                                            _dirty = true;
+                                          }),
+                                    icon: const Icon(
+                                      Icons.person_add_alt,
+                                      size: 18,
+                                    ),
+                                    label: const Text('Add attendee'),
+                                  ),
+                                ),
+                            ],
+                            ),
+                          ),
+                        ),
+                        const StudentSectionHeader(
+                          icon: LucideIcons.notebookPen,
+                          title: 'Logbook',
+                        ),
+                        StudentSectionCard(
+                          padded: true,
+                          child: TextFormField(
+                            controller: _logbook,
+                            enabled: !_busy,
+                            maxLength: 200,
+                            decoration: const InputDecoration(
+                              labelText: 'Attendance logbook reference',
+                              border: OutlineInputBorder(),
+                            ),
+                            validator: (v) =>
+                                widget.outcome &&
+                                    _attended &&
+                                    (v?.trim().isEmpty ?? true)
+                                ? 'Enter the attendance logbook reference.'
+                                : null,
+                          ),
+                        ),
+                      ],
+                    ],
                   ),
+                ),
+              ),
+            ),
+                  ),
+                  _footer(context),
                 ],
               ),
             ),
-            if (_error != null)
-              Semantics(
-                liveRegion: true,
-                child: Text(
-                  _error!,
-                  style: TextStyle(color: Theme.of(context).colorScheme.error),
+          ),
+        ),
+    );
+  }
+
+  Widget _footer(BuildContext context) => Container(
+    decoration: BoxDecoration(
+      color: zCard(context),
+      border: Border(top: BorderSide(color: zLine(context))),
+    ),
+    padding: const EdgeInsets.fromLTRB(16, 10, 16, 12),
+    child: SafeArea(
+      top: false,
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          if (_error != null) ...[
+            Container(
+              margin: const EdgeInsets.only(bottom: 8),
+              padding: const EdgeInsets.all(10),
+              decoration: BoxDecoration(
+                color: zWash(context, const Color(0xFFFFF5F5)),
+                borderRadius: BorderRadius.circular(10),
+                border: Border.all(
+                  color: zWash(context, const Color(0xFFFBD5D5)),
                 ),
               ),
-            FilledButton(
-              onPressed: _busy ? null : _save,
               child: Text(
-                _busy
-                    ? 'Saving…'
-                    : widget.outcome
-                    ? 'Record outcome'
-                    : 'Save meeting',
+                _error!,
+                style: TextStyle(
+                  fontSize: 12,
+                  height: 1.4,
+                  color: zDangerText(Theme.of(context)),
+                ),
               ),
             ),
-            const Text('Online only. Meeting times use Philippine time.'),
           ],
-        ),
+          FilledButton(
+            onPressed: _busy ? null : _save,
+            style: FilledButton.styleFrom(
+              backgroundColor: zLift(context, const Color(0xFF2563EB)),
+              foregroundColor: Colors.white,
+              minimumSize: const Size.fromHeight(46),
+            ),
+            child: Text(
+              _busy
+                  ? 'Saving…'
+                  : widget.outcome
+                  ? 'Record outcome'
+                  : 'Save meeting',
+            ),
+          ),
+        ],
+      ),
+    ),
+  );
+
+  Widget _currentMeetingCard(BuildContext context) {
+    final meeting = widget.meeting!;
+    return Container(
+      padding: const EdgeInsets.all(12),
+      decoration: BoxDecoration(
+        color: zSoft(context),
+        borderRadius: BorderRadius.circular(14),
+        border: Border.all(color: zLine(context)),
+      ),
+      child: Row(
+        children: [
+          Icon(LucideIcons.calendarClock, size: 18, color: zMutedInk(context)),
+          const SizedBox(width: 10),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  'CURRENTLY BOOKED',
+                  style: TextStyle(
+                    fontSize: 10,
+                    fontWeight: FontWeight.w700,
+                    letterSpacing: 0.5,
+                    color: zMutedInk(context),
+                  ),
+                ),
+                const SizedBox(height: 3),
+                Text(
+                  '${admDate(meeting.datetime?.toIso8601String() ?? '')} · ${meeting.venue == 'home' ? 'Home visitation' : 'In school'}',
+                  style: TextStyle(
+                    fontSize: 12,
+                    fontWeight: FontWeight.w600,
+                    color: zInk(context),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ],
       ),
     );
   }
@@ -401,17 +856,25 @@ class _MeetingFormState extends ConsumerState<CoordinatorMeetingForm> {
       'other',
     ];
     final attendee = _attendees[index];
-    return Card(
+    return Container(
       key: ValueKey(attendee.name),
-      child: Padding(
-        padding: const EdgeInsets.all(12),
-        child: Column(
+      margin: const EdgeInsets.only(top: 10),
+      padding: const EdgeInsets.all(12),
+      decoration: BoxDecoration(
+        color: zSoft(context),
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: zLine(context)),
+      ),
+      child: Column(
           children: [
             TextFormField(
               controller: attendee.name,
               enabled: !_busy,
               maxLength: 100,
-              decoration: const InputDecoration(labelText: 'Attendee name'),
+              decoration: const InputDecoration(
+                labelText: 'Attendee name',
+                border: OutlineInputBorder(),
+              ),
               validator: (v) => (v?.trim().isEmpty ?? true)
                   ? 'Enter a name or remove this attendee.'
                   : null,
@@ -421,7 +884,10 @@ class _MeetingFormState extends ConsumerState<CoordinatorMeetingForm> {
                   ? attendee.role
                   : 'other',
               isExpanded: true,
-              decoration: const InputDecoration(labelText: 'Role'),
+              decoration: const InputDecoration(
+                labelText: 'Role',
+                border: OutlineInputBorder(),
+              ),
               items: [
                 for (final role in roles)
                   DropdownMenuItem(value: role, child: Text(admLabel(role))),
@@ -433,22 +899,24 @@ class _MeetingFormState extends ConsumerState<CoordinatorMeetingForm> {
                       _dirty = true;
                     }),
             ),
-            TextButton(
-              onPressed: _busy
-                  ? null
-                  : () => setState(() {
-                      // Dispose after the old text field has left the tree.
-                      final removed = _attendees.removeAt(index);
-                      WidgetsBinding.instance.addPostFrameCallback(
-                        (_) => removed.name.dispose(),
-                      );
-                      _dirty = true;
-                    }),
-              child: const Text('Remove attendee'),
+            Align(
+              alignment: Alignment.centerLeft,
+              child: TextButton(
+                onPressed: _busy
+                    ? null
+                    : () => setState(() {
+                        // Dispose after the old text field has left the tree.
+                        final removed = _attendees.removeAt(index);
+                        WidgetsBinding.instance.addPostFrameCallback(
+                          (_) => removed.name.dispose(),
+                        );
+                        _dirty = true;
+                      }),
+                child: const Text('Remove attendee'),
+              ),
             ),
           ],
         ),
-      ),
     );
   }
 }

@@ -8,12 +8,14 @@ import 'package:lucide_icons_flutter/lucide_icons.dart';
 
 import '../../design/overview_theme.dart';
 import '../../design/screen_search.dart';
+import '../../design/shell.dart' show staffNavigationHiddenProvider;
 import '../../design/status_palette.dart';
 import '../../shared/floating_add.dart';
 import '../../shared/widgets.dart';
 import '../adviser/adm_case_card.dart';
 import '../home/overview_components.dart';
 import 'coordinator_data.dart';
+import 'coordinator_case_sheet.dart';
 import 'coordinator_devices.dart';
 import 'coordinator_models.dart';
 import 'coordinator_widgets.dart';
@@ -629,6 +631,7 @@ class _ListState extends ConsumerState<CoordinatorListPage>
       : '';
   String _query = '', _rawQuery = '';
   bool _descending = false;
+  bool _sheetOpen = false;
   Timer? _debounce;
   AdmListQuery get query =>
       (desk: widget.desk, page: 1, q: _query, filter: _filter);
@@ -681,7 +684,55 @@ class _ListState extends ConsumerState<CoordinatorListPage>
     _ => {'': 'All stages', ...admStages},
   };
   Future<void> _open(AdmCaseRow row) async {
-    final path = widget.desk == 'enrolled' ? 'enrolled' : 'referrals';
+    if (widget.desk == 'referrals') {
+      if (_sheetOpen) return;
+      _sheetOpen = true;
+      var openCase = false, book = false;
+      final navigation = ref.read(staffNavigationHiddenProvider.notifier);
+      navigation.state = true;
+      try {
+        await showCoordinatorCaseSheet(
+          context,
+          row,
+          onBook: () => book = true,
+          onOpenCase: () => openCase = true,
+        );
+      } finally {
+        navigation.state = false;
+        _sheetOpen = false;
+      }
+      if (!mounted) return;
+      if (book) {
+        await _bookMeeting(row);
+      } else if (openCase) {
+        await _openCase(row);
+      } else {
+        await refresh();
+      }
+      return;
+    }
+    await _openCase(row);
+  }
+
+  /// Dedicated routed meeting screen inside the persistent coordinator shell
+  /// (same chrome as the adviser Grade Record), not a pushed overlay.
+  Future<void> _bookMeeting(AdmCaseRow row) async {
+    final meetingId = row.meeting?.id;
+    final query = meetingId == null || meetingId.isEmpty
+        ? ''
+        : '?meetingId=${Uri.encodeComponent(meetingId)}';
+    await context.push(
+      '/coordinator/referrals/${Uri.encodeComponent(row.id)}/meeting$query',
+    );
+    if (mounted) await refresh();
+  }
+
+  Future<void> _openCase(AdmCaseRow row) async {
+    final path = switch (widget.desk) {
+      'enrolled' => 'enrolled',
+      'certifications' => 'files',
+      _ => 'referrals',
+    };
     await context.push('/coordinator/$path/${Uri.encodeComponent(row.id)}');
     if (mounted) await refresh();
   }
@@ -709,6 +760,55 @@ class _ListState extends ConsumerState<CoordinatorListPage>
   };
 
   String get _filterLabel => widget.desk == 'referrals' ? 'Stage' : 'Status';
+
+  /// Web `CoordinatorReferralsFigures`: six board figures over the desk's
+  /// whole-cohort stage counts, not the currently loaded rows.
+  Widget _referralFigures(Map<String, int> stageCounts) {
+    int total(List<String> stages) => stages.fold(
+      0,
+      (sum, stage) => sum + (stageCounts[stage] ?? 0),
+    );
+    return AdmCaseFigures(
+      figures: [
+        (
+          label: 'Needs review',
+          value: total(const ['anecdotal', 'consultation']),
+          attention: true,
+          positive: false,
+        ),
+        (
+          label: 'Parent meeting',
+          value: total(const ['meeting_parents']),
+          attention: false,
+          positive: false,
+        ),
+        (
+          label: 'Home visit',
+          value: total(const ['home_visitation']),
+          attention: true,
+          positive: false,
+        ),
+        (
+          label: 'Certification',
+          value: total(const ['certification']),
+          attention: true,
+          positive: false,
+        ),
+        (
+          label: 'Principal',
+          value: total(const ['principal_approval']),
+          attention: false,
+          positive: false,
+        ),
+        (
+          label: 'In ADM',
+          value: total(const ['enrollment_monitoring', 'completion']),
+          attention: false,
+          positive: true,
+        ),
+      ],
+    );
+  }
 
   List<(String, int)> _counterValues(AdmJson dashboard) {
     final kpis = admMap(dashboard['kpis']);
@@ -765,13 +865,66 @@ class _ListState extends ConsumerState<CoordinatorListPage>
     'stage': row.stage,
     'stageLabel': admLabel(row.stage),
     'eligibilityStatus': admLabel(row.eligibility),
+    'referralStatus': row.referralStatus,
     'modulesSubmitted': row.modulesSubmitted,
     'modulesTotal': row.modulesTotal,
     'approved': row.approvedBy.isNotEmpty,
   };
 
-  Widget _progressFooter(AdmCaseRow row) {
-    final completed = row.stage == 'completion';
+  /// ADM Cases card footer: booking + meeting type on the left, grade chip on
+  /// the right (the Files cards' grade capsule placement).
+  Widget _caseFooter(AdmCaseRow row) {
+    final meeting = row.meeting;
+    return Row(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Expanded(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              _cardFact(
+                'Book',
+                meeting == null
+                    ? 'Not booked'
+                    : admDate(meeting.datetime?.toIso8601String() ?? ''),
+              ),
+              const SizedBox(height: 4),
+              _cardFact('Type', row.meetingType),
+            ],
+          ),
+        ),
+        if (row.grade.isNotEmpty) ...[
+          const SizedBox(width: 8),
+          ZScopePill(
+            text: row.grade,
+            kind: ScopePillKind.grade,
+            compact: true,
+          ),
+        ],
+      ],
+    );
+  }
+
+  Widget _cardFact(String label, String value) => Text.rich(
+    TextSpan(
+      text: '$label: ',
+      style: TextStyle(fontSize: 12, color: zMutedInk(context)),
+      children: [
+        TextSpan(
+          text: value,
+          style: TextStyle(
+            fontSize: 12,
+            fontWeight: FontWeight.w600,
+            color: zInk(context),
+          ),
+        ),
+      ],
+    ),
+    maxLines: 2,
+    overflow: TextOverflow.ellipsis,
+  );
+
+  Widget _progressFooter(AdmCaseRow row) {    final completed = row.stage == 'completion';
     final pillColor = completed
         ? zLift(context, const Color(0xFF15803D))
         : zLift(context, const Color(0xFF2563EB));
@@ -906,6 +1059,14 @@ class _ListState extends ConsumerState<CoordinatorListPage>
                           AsyncError() => const SizedBox.shrink(),
                           _ => const SkeletonBox(height: 44),
                         }
+                      else if (widget.desk == 'referrals')
+                        switch (ref.watch(coordinatorListProvider(query))) {
+                          AsyncData(:final value) => _referralFigures(
+                            value.stageCounts,
+                          ),
+                          AsyncError() => const SizedBox.shrink(),
+                          _ => const SkeletonBox(height: 92),
+                        }
                       else
                         ref
                             .watch(coordinatorDashboardProvider)
@@ -1004,10 +1165,19 @@ class _ListState extends ConsumerState<CoordinatorListPage>
                                       showStatusPill:
                                           widget.desk != 'enrolled' &&
                                           widget.desk != 'certifications',
+                                      topRight: widget.desk == 'referrals'
+                                          ? ZStatusPill(
+                                              text: row.status.label,
+                                              tone: admCaseStatusTone(
+                                                row.status.key,
+                                              ),
+                                            )
+                                          : null,
                                       footer: switch (widget.desk) {
                                         'enrolled' => _progressFooter(row),
                                         'certifications' =>
                                           _certificationFooter(row),
+                                        'referrals' => _caseFooter(row),
                                         _ => null,
                                       },
                                       onTap: () => _open(row),
