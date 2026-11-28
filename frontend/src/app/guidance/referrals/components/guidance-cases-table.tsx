@@ -1,7 +1,7 @@
 "use client";
 
 import * as React from "react";
-import { ChevronRight, Clock, FileText } from "lucide-react";
+import { CalendarPlus, ChevronRight, Clock, FileText } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import type { PillTone } from "@/components/ui/pill";
 import {
@@ -124,6 +124,16 @@ export function GuidanceCasesTable({
   );
 
   const closeDrawer = () => setActiveId(null);
+
+  /* A case still takes a booking while it is open, not done and has no live
+     session. The alerts drawer offers exactly this, so the locked desks match. */
+  const canBookSession = (row: GuidanceReferralItem) =>
+    !isWithdrawn(row) &&
+    !isEndorsed(row.type, row.status) &&
+    row.status !== "resolved" &&
+    row.status !== "dismissed" &&
+    !isCaseDone(row) &&
+    !hasScheduledSession(row.sessions);
 
   return (
     <>
@@ -332,11 +342,7 @@ export function GuidanceCasesTable({
                   Create referral
                 </Button>
               ) : null}
-              {!isWithdrawn(activeRow) &&
-              activeRow.status !== "resolved" &&
-              activeRow.status !== "dismissed" &&
-              !isCaseDone(activeRow) &&
-              !hasScheduledSession(activeRow.sessions) ? (
+              {activeRow.sessions.length > 0 && canBookSession(activeRow) ? (
                 <Button
                   type="button"
                   size="sm"
@@ -353,6 +359,25 @@ export function GuidanceCasesTable({
               ) : null}
             </>
           ) : null
+        }
+        emptySessionAction={
+          activeRow && activeRow.sessions.length === 0 && canBookSession(activeRow) ? (
+            <Button
+              type="button"
+              size="xs"
+              className="h-6 shrink-0 gap-1 px-2 text-[12px] font-semibold"
+              disabled={actionPending}
+              aria-label={`Book a session for ${activeRow.student}`}
+              onClick={() => {
+                const row = activeRow;
+                closeDrawer();
+                onBookSession(row);
+              }}
+            >
+              <CalendarPlus size={13} aria-hidden />
+              Book session
+            </Button>
+          ) : undefined
         }
         sessionActions={
           activeRow

@@ -203,7 +203,20 @@ export async function listQueue(ctx: ReferralContext, query: QueueListQuery) {
     const pageRows = await prisma.referral.findMany({
       where: { id: { in: pageIds } },
       include: {
-        anecdotalRecord: { select: { id: true, observationDatetime: true, descriptionOfIncident: true, category: true } },
+        anecdotalRecord: {
+          select: {
+            id: true,
+            observationDatetime: true,
+            descriptionOfIncident: true,
+            descriptionOfLocation: true,
+            notesRecommendationsActions: true,
+            classPerformance: true,
+            attendanceSummary: true,
+            category: true,
+            confidentialityLevel: true,
+          },
+        },
+        referredByUser: { select: { fullName: true } },
         student: { select: { userId: true, lrn: true, gradeLevel: true, user: { select: { fullName: true } }, section: { select: { name: true } } } },
         roster: { select: { id: true, fullName: true, lrn: true, gradeLevel: true, mascot: true, section: { select: { name: true } } } },
 

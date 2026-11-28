@@ -19,6 +19,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { KanbanBoard } from "@/components/ui/kanban-board";
+import { Dialog, DialogContent, DialogDescription, DialogTitle } from "@/components/ui/dialog";
 import { FormDropdown } from "@/app/guidance/referrals/components/form-dropdown";
 import {
   ClinicDatePicker,
@@ -210,6 +211,8 @@ export function FinishSessionDialog({
   }, [open, busy, onClose]);
 
   if (!open) return null;
+  // Portals need a document; render nothing during prerender.
+  if (typeof document === "undefined") return null;
 
   const canSave = !busy && !notStarted && notes.trim() !== "";
 
@@ -278,21 +281,26 @@ export function FinishSessionDialog({
   }
 
   return (
-    <div
-      className="whitespace-normal fixed inset-0 z-50 flex items-center justify-center overflow-y-auto p-4"
-      role="dialog"
-      aria-modal="true"
-      aria-label="Mark session done"
-      aria-busy={busy || undefined}
+    /* A real Radix dialog, not a hand-rolled overlay: the case drawer this
+       opens from is itself a modal, and its focus trap swallows keystrokes in
+       anything portaled outside it. Registering this as a nested dialog keeps
+       focus (and the scrim) on the topmost layer. */
+    <Dialog
+      open
+      onOpenChange={(next) => {
+        if (!next && !busy) closeDialog();
+      }}
     >
-      <button
-        type="button"
-        aria-label="Close dialog"
-        onClick={closeDialog}
-        disabled={busy}
-        className="absolute inset-0 cursor-default bg-black/55 backdrop-blur-[2px] animate-in fade-in-0 duration-150 dark:bg-black/70"
-      />
-      <div className="relative w-full max-w-2xl animate-in fade-in-0 zoom-in-95 duration-150">
+      <DialogContent
+        showCloseButton={false}
+        overlayClassName="bg-black/55 backdrop-blur-[2px] dark:bg-black/70"
+        className="max-h-[90vh] gap-0 rounded-xl border-0 bg-transparent p-0 whitespace-normal shadow-none sm:max-w-2xl"
+        aria-busy={busy || undefined}
+      >
+        <DialogTitle className="sr-only">Mark session done</DialogTitle>
+        <DialogDescription className="sr-only">
+          {description ?? "Record what happened in this session."}
+        </DialogDescription>
         <KanbanBoard
           className={`flex max-h-[90vh] flex-col overflow-hidden bg-card shadow-2xl [&>div:first-of-type]:shrink-0`}
           title="Mark session done"
@@ -513,7 +521,7 @@ export function FinishSessionDialog({
             </div>
           </div>
         </KanbanBoard>
-      </div>
-    </div>
+      </DialogContent>
+    </Dialog>
   );
 }

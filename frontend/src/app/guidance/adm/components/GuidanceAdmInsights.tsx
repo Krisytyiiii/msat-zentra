@@ -69,7 +69,38 @@ function formatDays(days: number | null): string {
   return days === null ? "—" : `${days.toFixed(1)}d`;
 }
 
-function Bottlenecks({ data }: { data: GuidanceAdmInsightsData }) {
+/** Desks that share this board set. */
+type DeskScope = "guidance" | "clinic";
+
+export interface DeskLinks {
+  /** Referrals queue root, e.g. "/guidance/referrals". */
+  basePath: string;
+  /** Queue segment for every non-ADM case ("counseling" / "clinic"). */
+  otherSegment: string;
+  /** Word used in copy for non-ADM cases ("counseling" / "clinic"). */
+  otherLabel: string;
+  /** Word used for the desk ("guidance" / "clinic"). */
+  scopeLabel: DeskScope;
+}
+
+const GUIDANCE_LINKS: DeskLinks = {
+  basePath: "/guidance/referrals",
+  otherSegment: "counseling",
+  otherLabel: "counseling",
+  scopeLabel: "guidance",
+};
+
+function scopeTitle(scope: DeskScope): string {
+  return scope === "guidance" ? "Guidance" : "Clinic";
+}
+
+function Bottlenecks({
+  data,
+  links,
+}: {
+  data: GuidanceAdmInsightsData;
+  links: DeskLinks;
+}) {
   const { longestDays, avgDays, measured } = data.response;
   const message =
     (measured === 0
@@ -87,7 +118,7 @@ function Bottlenecks({ data }: { data: GuidanceAdmInsightsData }) {
           <Hourglass size={14} />
         </span>
       }
-      description="Longest-waiting cases still needing action, counseling and ADM."
+      description={`Longest-waiting cases still needing action, ${links.otherLabel} and ADM.`}
       className="flex-1"
       footer={
         <GuidanceAdmInterpretation>{message}</GuidanceAdmInterpretation>
@@ -96,7 +127,7 @@ function Bottlenecks({ data }: { data: GuidanceAdmInsightsData }) {
       <div
         className={styles.responseStats}
         role="status"
-        aria-label="Guidance response times"
+        aria-label={`${scopeTitle(links.scopeLabel)} response times`}
       >
         <div className={styles.responseStat}>
           <span className={styles.responseValue}>{formatDays(longestDays)}</span>
@@ -115,7 +146,7 @@ function Bottlenecks({ data }: { data: GuidanceAdmInsightsData }) {
             <li key={b.id}>
               <a
                 className={styles.bottleneckRow}
-                href={`/guidance/referrals/${b.kind === "ADM" ? "adm" : "counseling"}?highlight=${b.id}`}
+                href={`${links.basePath}/${b.kind === "ADM" ? "adm" : links.otherSegment}?highlight=${b.id}`}
               >
                 <span className={styles.bottleneckMain}>
                   <span className={styles.bottleneckName}>
@@ -187,12 +218,18 @@ function RecommendationRow({ rec }: { rec: GuidanceAdmRecommendation }) {
   );
 }
 
-function Recommendations({ data }: { data: GuidanceAdmInsightsData }) {
+function Recommendations({
+  data,
+  links,
+}: {
+  data: GuidanceAdmInsightsData;
+  links: DeskLinks;
+}) {
   return (
     <KanbanBoard
       title="Recommended actions"
       icon={<BoardIcon icon={ListChecks} />}
-      description="What to do next, derived from your live guidance caseload."
+      description={`What to do next, derived from your live ${links.scopeLabel} caseload.`}
       className="flex-1"
     >
       {data.recommendations.length === 0 ? (
@@ -212,12 +249,22 @@ function Recommendations({ data }: { data: GuidanceAdmInsightsData }) {
   );
 }
 
-/** Bottlenecks + recommendations — the boards below the report charts. */
-export function GuidanceAdmInsights({ data }: { data: GuidanceAdmInsightsData }) {
+/**
+ * Bottlenecks + recommendations — the boards below the report charts. Both the
+ * guidance and nurse reports pages render this set; only the links and the
+ * desk wording change.
+ */
+export function GuidanceAdmInsights({
+  data,
+  links = GUIDANCE_LINKS,
+}: {
+  data: GuidanceAdmInsightsData;
+  links?: DeskLinks;
+}) {
   return (
     <div className={styles.insightsGrid}>
-      <Bottlenecks data={data} />
-      <Recommendations data={data} />
+      <Bottlenecks data={data} links={links} />
+      <Recommendations data={data} links={links} />
     </div>
   );
 }

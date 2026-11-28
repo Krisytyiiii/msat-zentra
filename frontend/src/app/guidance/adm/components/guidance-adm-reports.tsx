@@ -19,16 +19,44 @@ import {
   TrendingUp,
 } from "lucide-react";
 import { KanbanBoard } from "@/components/ui/kanban-board";
-import type {
-  GuidanceAdmInsightsData,
-  GuidanceAdmReferralsData,
-  GuidanceAdmReportActionCount,
-} from "@/services/guidance/adm.reports";
 import { AMBER_STEPS } from "./guidance-adm-palette";
 import { GuidanceAdmInterpretation } from "./guidance-adm-interpretation";
 import { GuidanceAdmValuePill } from "./guidance-adm-value-pill";
 import styles from "./guidance-adm-reports.module.css";
 import boardStyles from "./guidance-adm.module.css";
+
+/* Structural shapes for the chart row, so each desk's own report builder
+   (guidance `buildGuidanceAdmReferrals` / nurse `buildNurseAdmReferrals`) can
+   feed this one board set without sharing a service-level type. */
+export interface DeskReportActionCount {
+  action: string;
+  label: string;
+  count: number;
+}
+
+export interface DeskReportTrendWeek {
+  week: string;
+  label: string;
+  count: number;
+}
+
+export interface DeskReportChartsData {
+  total: number;
+  actions: DeskReportActionCount[];
+  trend: DeskReportTrendWeek[];
+}
+
+export interface DeskReportCategorySlice {
+  key: string;
+  label: string;
+  count: number;
+  share: number;
+}
+
+export interface DeskReportCategoriesData {
+  total: number;
+  categories: DeskReportCategorySlice[];
+}
 
 const TOOLTIP_STYLE: React.CSSProperties = {
   borderRadius: 8,
@@ -59,7 +87,7 @@ const ACTION_TAKEAWAYS: Record<string, string> = {
 };
 
 function interpretActions(
-  actions: GuidanceAdmReportActionCount[],
+  actions: DeskReportActionCount[],
   total: number,
 ): string {
   if (total === 0) {
@@ -83,7 +111,7 @@ function BoardIcon({ icon: Icon }: { icon: React.ElementType }) {
   );
 }
 
-function CasesByCategory({ data }: { data: GuidanceAdmInsightsData }) {
+function CasesByCategory({ data }: { data: DeskReportCategoriesData }) {
   const top = data.categories[0] ?? null;
   return (
     <KanbanBoard
@@ -139,7 +167,7 @@ function CasesByCategory({ data }: { data: GuidanceAdmInsightsData }) {
   );
 }
 
-function ReferredActions({ data }: { data: GuidanceAdmReferralsData }) {
+function ReferredActions({ data }: { data: DeskReportChartsData }) {
   const { actions, total } = data;
 
   return (
@@ -185,7 +213,7 @@ function ReferredActions({ data }: { data: GuidanceAdmReferralsData }) {
                   content={({ active, payload }) => {
                     const row = active
                       ? (payload?.[0]?.payload as
-                          | GuidanceAdmReportActionCount
+                          | DeskReportActionCount
                           | undefined)
                       : undefined;
                     if (!row) return null;
@@ -245,7 +273,7 @@ function ReferredActions({ data }: { data: GuidanceAdmReferralsData }) {
   );
 }
 
-function ReferralTrend({ data }: { data: GuidanceAdmReferralsData }) {
+function ReferralTrend({ data }: { data: DeskReportChartsData }) {
   const weeks = data.trend;
   const total = weeks.reduce((m, w) => m + w.count, 0);
   const peak = weeks.reduce(
@@ -322,8 +350,8 @@ export function GuidanceAdmReports({
   data,
   insights,
 }: {
-  data: GuidanceAdmReferralsData;
-  insights: GuidanceAdmInsightsData;
+  data: DeskReportChartsData;
+  insights: DeskReportCategoriesData;
 }) {
   return (
     <div className={styles.threeCol}>

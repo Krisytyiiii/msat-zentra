@@ -620,14 +620,26 @@ export function useTeacherRealtime(enabled = true) {
               // adviser's own section, so a frame here is always their advisee.
               const change = payload as unknown as {
                 eventType?: string;
-                new?: { status?: unknown };
+                new?: { status?: unknown; interventionId?: unknown };
               };
+              // Only intervention sessions ring the intervention clips off the
+              // row. Referral sessions (`interventionId` null) are clinic or
+              // guidance-counseling sessions on a referral the teacher filed;
+              // the notification fanout knows which desk cancelled them and
+              // rings the matching clinic clip, so ringing the intervention
+              // "cancelled" clip here made a nurse's clinic cancellation sound
+              // like a dropped guidance intervention.
               const status = change.new?.status;
-              if (status === "scheduled") {
-                if (change.eventType === "INSERT") ringAdviserSession();
-                else if (change.eventType === "UPDATE") ringAdviserSessionResched();
-              } else if (status === "cancelled" && change.eventType === "UPDATE") {
-                ringAdviserSessionCancelled();
+              const isInterventionSession =
+                typeof change.new?.interventionId === "string" &&
+                change.new.interventionId.length > 0;
+              if (isInterventionSession) {
+                if (status === "scheduled") {
+                  if (change.eventType === "INSERT") ringAdviserSession();
+                  else if (change.eventType === "UPDATE") ringAdviserSessionResched();
+                } else if (status === "cancelled" && change.eventType === "UPDATE") {
+                  ringAdviserSessionCancelled();
+                }
               }
               void invalidate(scopesForRealtimeTable("CounselingSession"));
             },

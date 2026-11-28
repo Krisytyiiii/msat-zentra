@@ -1,10 +1,7 @@
 "use client";
 
-import * as React from "react";
-import { Loader2 } from "lucide-react";
-import { Button } from "@/components/ui/button";
-import { KanbanOverlay } from "@/components/ui/kanban-overlay";
-import styles from "./BookSessionDialog.module.css";
+import { Trash2 } from "lucide-react";
+import { ConfirmDialog } from "@/components/ui/confirm-dialog";
 
 interface DeleteSessionDialogProps {
   open: boolean;
@@ -18,6 +15,15 @@ interface DeleteSessionDialogProps {
   serverError?: string | null;
 }
 
+/**
+ * Confirm deleting a cancelled session. Renders the shared message overlay
+ * (`ConfirmDialog` → `MessageOverlay`) so it matches every other destructive
+ * confirmation: red icon tile, one-sentence consequence, 32px actions.
+ *
+ * While `busy` the overlay stays up, both actions are disabled and the confirm
+ * button shows "Deleting…", so a second click can never fire the same delete
+ * twice.
+ */
 export function DeleteSessionDialog({
   open,
   onClose,
@@ -29,53 +35,30 @@ export function DeleteSessionDialog({
   busy = false,
   serverError = null,
 }: DeleteSessionDialogProps) {
-  const [error, setError] = React.useState<string | null>(null);
-
-  const openKey = open ? "open" : null;
-  const [prevOpenKey, setPrevOpenKey] = React.useState<string | null>(null);
-  if (openKey !== prevOpenKey) {
-    setPrevOpenKey(openKey);
-    setError(null);
-  }
-
   if (!open) return null;
 
   return (
-    <KanbanOverlay
-      open
-      onClose={() => {
-        if (busy) return;
-        onClose();
-        setError(null);
-      }}
-      dismissable={!busy}
-      busy={busy}
-      width="md"
+    <ConfirmDialog
+      tone="danger"
       title={title}
       description={description}
-      footer={
-        <div className="flex items-center justify-end gap-1.5 px-1 pb-1">
-          <Button variant="outline" onClick={onClose} disabled={busy}>
-            {keepLabel}
-          </Button>
-          <Button
-            variant="destructive"
-            className={styles.btnRed}
-            onClick={onConfirm}
-            disabled={busy}
-            aria-busy={busy || undefined}
-          >
-            {busy ? <Loader2 className="animate-spin" aria-hidden /> : null}
-            {busy ? "Deleting…" : submitLabel}
-          </Button>
-        </div>
-      }
+      icon={<Trash2 size={16} />}
+      cancelLabel={keepLabel}
+      confirmLabel={submitLabel}
+      confirmIcon={<Trash2 size={13} />}
+      pendingLabel="Deleting…"
+      pending={busy}
+      onCancel={onClose}
+      onConfirm={onConfirm}
     >
-      {error || serverError ? (
-        <div className={styles.errorBlock} role="alert">
-          <p className={styles.errorText}>{error ?? serverError}</p>
-        </div>
+      {serverError ? (
+        <p
+          role="alert"
+          className="m-0 rounded-lg border border-red-500/25 bg-red-500/5 px-2.5 py-2 text-[12px] leading-[1.5] text-red-600 dark:text-red-400"
+        >
+          {serverError}
+        </p>
       ) : null}
-    </KanbanOverlay>
+    </ConfirmDialog>
   );
 }

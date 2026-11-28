@@ -78,21 +78,42 @@ export function SidePanel({
       <SheetContent
         side={side}
         showCloseButton={showCloseButton}
-        // A nested message overlay portals to <body>, so Radix sees its clicks
-        // as "outside" the sheet and would close the drawer before the overlay's
-        // own buttons receive the click. Keep the sheet open while it is up —
-        // the overlay is the active layer.
+        // A nested overlay (message dialog, book-session board, task dock, …)
+        // portals to <body>, so Radix sees its clicks — including the
+        // portal-rendered date and clock popovers — as "outside" the sheet and
+        // would close the drawer first (which unmounts any dialog it hosts).
+        // Keep the sheet open when the click lands inside a marked nested
+        // layer, its portalled popover, or the task dock; a click on the page
+        // beside the drawer still dismisses it as usual.
         onPointerDownOutside={(event) => {
-          const target = event.target;
+          const target = event.detail.originalEvent.target as Element | null;
           if (
-            target instanceof Element &&
-            target.closest("[data-message-overlay]")
+            target?.closest?.(
+              "[data-message-overlay], [data-nested-overlay], [data-keep-sheet-open], [data-radix-popper-content-wrapper]",
+            )
+          ) {
+            event.preventDefault();
+          }
+        }}
+        // Radix also dismisses on focus moving outside the sheet. A nested
+        // overlay that portals to <body> is outside the sheet in the DOM, so
+        // clicking its controls (e.g. a file picker button) focused it and
+        // closed the drawer — keep the sheet open for the same nested layers.
+        onFocusOutside={(event) => {
+          const target = event.target as Element | null;
+          if (
+            target?.closest?.(
+              "[data-message-overlay], [data-nested-overlay], [data-keep-sheet-open]",
+            )
           ) {
             event.preventDefault();
           }
         }}
         onEscapeKeyDown={(event) => {
-          if (typeof document !== "undefined" && document.querySelector("[data-message-overlay]")) {
+          if (
+            typeof document !== "undefined" &&
+            document.querySelector("[data-message-overlay], [data-nested-overlay]")
+          ) {
             event.preventDefault();
           }
         }}

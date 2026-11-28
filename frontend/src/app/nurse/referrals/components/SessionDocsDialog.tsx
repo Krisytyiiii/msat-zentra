@@ -1,14 +1,10 @@
 "use client";
 
 import * as React from "react";
-import { useQueryClient } from "@tanstack/react-query";
-import { Images, Paperclip, X } from "lucide-react";
+import { Images, Info, Loader2, Paperclip, Trash2, Upload } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { KanbanOverlay } from "@/components/ui/kanban-overlay";
 import { KanbanBoard, KanbanBoardEmpty } from "@/components/ui/kanban-board";
-import { useDock } from "@/components/dock/dock-store";
-import { apiErrorMessage } from "@/lib/api/errors";
-import { markSelfNotified } from "@/lib/realtime/nurseChannel";
-import { toast } from "@/components/ui/sonner";
 import {
   clinicAttachmentError,
   deleteClinicAttachment,
@@ -18,149 +14,89 @@ import type {
   ClinicAttachment,
   NurseSessionItem,
 } from "@/services/nurse/nurse.types";
-import { invalidateNurseQueries } from "../../overview/components/use-nurse-mutation";
+import { useNurseMutation } from "../../overview/components/use-nurse-mutation";
+import { cn } from "@/lib/utils";
 import { useActiveNowTick } from "@/lib/clock";
 import type { DialogProps } from "./NurseSessionDialogs";
-import styles from "./NurseReferralDialogs.module.css";
 
 /**
- * Clinic session documentation — the same KanbanBoard overlay design as the
- * other nurse confirmations (shared shell + filed-photos board + attach board,
- * 24px footer buttons). Filing or removing a photo hands the request to the
- * shared Dock and closes the overlay at once, so a slow request never leaves
- * it stuck.
+ * Clinic session documentation — the exact same filed-photos + attach boards
+ * the guidance desk uses, so documentation looks identical on both desks.
+ * Photos file on pick (the shared Dock reports the outcome); the overlay stays
+ * open so the filed grid updates in place.
  */
 export function SessionDocsDialog({
   referralId,
   session,
   open,
   onClose,
-  onConfirmed,
   onChanged,
 }: DialogProps & {
   referralId: string;
   session: NurseSessionItem;
-  /** Fired the moment the request is handed off — the page closes the Clinic
-      sessions board too and the Dock reports the outcome. */
+  /** Kept for the dialog-host contract; the overlay stays open after filing. */
   onConfirmed: () => void;
 }) {
-  const dock = useDock();
-  const queryClient = useQueryClient();
-  const [docs] = React.useState<ClinicAttachment[]>(session.attachments ?? []);
+  const [docs, setDocs] = React.useState<ClinicAttachment[]>(
+    session.attachments ?? [],
+  );
   const [error, setError] = React.useState<string | null>(null);
-  const inputRef = React.useRef<HTMLInputElement>(null);
-  const inputId = `nurse-docs-${session.id}`;
+  const [dragging, setDragging] = React.useState(false);
+  const inputRef = React.useRef<HTMLInputElement | null>(null);
   const now = useActiveNowTick(open);
-
-  // Escape closes the overlay — the same affordance as the other kanban
-  // overlays (the backdrop button covers pointer users).
-  React.useEffect(() => {
-    if (!open) return;
-    const onKey = (e: KeyboardEvent) => {
-      if (e.key !== "Escape") return;
-      onClose();
+  const uploadMutation = useNurseMutation({
+    mutationFn: (picked: File[]) =>
+      uploadClinicAttachments(referralId, session.id, picked),
+    sourceId: referralId,
+    scopes: "alerts",
+    successTitle: "Photos filed",
+    successDescription: (_picked, added) =>
+      `${added.length} photo${added.length === 1 ? "" : "s"} attached to this session.`,
+    errorFallback: "Could not upload the photos. Try again.",
+    silentError: true,
+    dockMessage: (_picked, added) =>
+      `${added.length} photo${added.length === 1 ? "" : "s"} filed`,
+    onSuccessExtra: (added) => {
+      setDocs((prev) => [...prev, ...added]);
       setError(null);
-    };
-    window.addEventListener("keydown", onKey);
-    return () => window.removeEventListener("keydown", onKey);
-  }, [open, onClose]);
+      onChanged();
+    },
+  });
+  const removeMutation = useNurseMutation({
+    mutationFn: (id: string) => deleteClinicAttachment(referralId, session.id, id),
+    sourceId: referralId,
+    scopes: "alerts",
+    successTitle: "Photo removed",
+    successDescription: () => "The photo was removed from this session.",
+    errorFallback: "Could not remove that photo. Try again.",
+    silentError: true,
+    dockMessage: () => "Photo removed",
+    onSuccessExtra: (_data, id) => {
+      setDocs((prev) => prev.filter((d) => d.id !== id));
+      setError(null);
+      onChanged();
+    },
+  });
+  const uploading = uploadMutation.isPending;
+  const busy = uploading || removeMutation.isPending;
+  const removingId = removeMutation.isPending
+    ? ((removeMutation.variables as string | undefined) ?? null)
+    : null;
+  const mutationError = uploadMutation.error ?? removeMutation.error;
+  const displayError = error ?? (mutationError ? mutationError.message : null);
 
   if (!open) return null;
 
   const docsLocked =
-    session.status === "scheduled" && new Date(session.scheduledAt).getTime() > now;
-
-  const displayError = error;
-
-  function closeDocs() {
-    onClose();
-    setError(null);
-  }
-
-  /* Picking photos closes the overlay immediately and files them through the
-     bottom-right Dock — the same hand-off the move/cancel sessions use. */
-  function handOffUpload(picked: File[]) {
-    let taskId: string | null = null;
-    try {
-      taskId = dock.startTask({
-        kind: "generic",
-        title: "Uploading session photos",
-        description: `${session.date} · ${picked.length} photo${picked.length === 1 ? "" : "s"}`,
-        total: picked.length,
-      });
-    } catch {
-      taskId = null;
-    }
-    closeDocs();
-    onConfirmed();
-    void (async () => {
-      try {
-        const added = await uploadClinicAttachments(referralId, session.id, picked);
-        markSelfNotified(referralId);
-        invalidateNurseQueries(queryClient, "alerts");
-        toast.success({
-          title: "Photos filed",
-          description: `${added.length} photo${added.length === 1 ? "" : "s"} attached to this session.`,
-        });
-        onChanged();
-        if (taskId) {
-          dock.completeTask(
-            taskId,
-            `${added.length} photo${added.length === 1 ? "" : "s"} filed`,
-          );
-        }
-      } catch (err) {
-        if (taskId) {
-          dock.failTask(
-            taskId,
-            apiErrorMessage(err, "Could not upload the photos. Try again."),
-          );
-        }
-      }
-    })();
-  }
-
-  /* Removing follows the same hand-off: the Dock carries the delete and the
-     overlay closes at once. */
-  function handOffRemove(doc: ClinicAttachment) {
-    let taskId: string | null = null;
-    try {
-      taskId = dock.startTask({
-        kind: "generic",
-        title: "Removing session photo",
-        description: doc.fileName,
-      });
-    } catch {
-      taskId = null;
-    }
-    closeDocs();
-    onConfirmed();
-    void (async () => {
-      try {
-        await deleteClinicAttachment(referralId, session.id, doc.id);
-        markSelfNotified(referralId);
-        invalidateNurseQueries(queryClient, "alerts");
-        toast.success({
-          title: "Photo removed",
-          description: "The photo was removed from this session.",
-        });
-        onChanged();
-        if (taskId) dock.completeTask(taskId, "Photo removed");
-      } catch (err) {
-        if (taskId) {
-          dock.failTask(
-            taskId,
-            apiErrorMessage(err, "Could not remove that photo. Try again."),
-          );
-        }
-      }
-    })();
-  }
+    session.status === "scheduled" &&
+    new Date(session.scheduledAt).getTime() > now;
 
   function onPick(list: FileList | null) {
-    if (!list) return;
+    if (!list || uploading) return;
     if (docsLocked) {
-      setError("This session hasn't started yet — you can file documentation once the scheduled time arrives.");
+      setError(
+        "This session hasn't started yet — you can file documentation once the scheduled time arrives.",
+      );
       return;
     }
     const picked = Array.from(list).slice(0, 5);
@@ -170,164 +106,205 @@ export function SessionDocsDialog({
       return;
     }
     setError(null);
-    handOffUpload(picked);
+    // File through the Dock and close at once — a slow upload never leaves the
+    // overlay (or the drawer behind it) stuck on screen.
+    uploadMutation.mutate(picked);
+    onClose();
   }
 
-  function onRemove(doc: ClinicAttachment) {
+  function onRemove(id: string) {
+    if (removeMutation.isPending) return;
     setError(null);
-    handOffRemove(doc);
+    removeMutation.mutate(id);
   }
+
+  const dropDisabled = uploading || docsLocked;
 
   return (
-    <div
-      className="whitespace-normal fixed inset-0 z-50 flex items-center justify-center p-4"
-      role="dialog"
-      aria-modal="true"
-      aria-label="Session documentation"
+    <KanbanOverlay
+      open={open}
+      onClose={() => {
+        if (busy) return;
+        onClose();
+        setError(null);
+      }}
+      dismissable={!busy}
+      busy={busy}
+      width="lg"
+      title="Session documentation"
+      icon={
+        <span className="text-primary" aria-hidden>
+          <Paperclip size={14} />
+        </span>
+      }
+      description="Optional photos for this session — JPG, PNG or WEBP, 5 MB each."
+      footer={
+        <div className="flex flex-wrap items-center justify-between gap-2 px-1 pb-1">
+          <p className="text-[12px] text-muted-foreground">
+            {docs.length === 0
+              ? "No photos filed yet"
+              : `${docs.length} photo${docs.length === 1 ? "" : "s"} filed`}
+          </p>
+          <Button variant="outline" onClick={onClose} disabled={busy}>
+            Done
+          </Button>
+        </div>
+      }
     >
-      <button
-        type="button"
-        aria-label="Cancel"
-        onClick={closeDocs}
-        className="absolute inset-0 cursor-default bg-black/50 backdrop-blur-[2px]"
-      />
-      <div className="relative w-full max-w-2xl">
+      <div
+        className="flex flex-col gap-3 px-1 pb-1"
+        aria-busy={busy || undefined}
+      >
+        {docsLocked ? (
+          <div
+            className="flex items-start gap-2 rounded-lg border border-amber-500/30 bg-amber-500/10 px-3 py-2 text-[12px] leading-4 text-amber-800 dark:text-amber-200"
+            role="status"
+          >
+            <Info className="mt-px size-3.5 shrink-0" aria-hidden />
+            <span>
+              This session hasn&apos;t started yet — filing unlocks once the
+              scheduled time arrives. Filed photos below stay viewable.
+            </span>
+          </div>
+        ) : null}
+
         <KanbanBoard
-          className={`bg-card max-h-[90vh] overflow-y-auto shadow-2xl ${styles.dialogScrollHidden}`}
-          title="Session documentation"
+          title="Filed photos"
           icon={
-            <span className="text-primary" aria-hidden>
+            <span className="text-muted-foreground" aria-hidden>
+              <Images size={14} />
+            </span>
+          }
+          count={docs.length}
+        >
+          {docs.length === 0 ? (
+            <KanbanBoardEmpty>
+              No photos filed yet — attach the first one below.
+            </KanbanBoardEmpty>
+          ) : (
+            <div className="grid grid-cols-2 gap-2 px-1 sm:grid-cols-3">
+              {docs.map((d) => (
+                <figure
+                  key={d.id}
+                  className="group relative flex min-w-0 flex-col overflow-hidden rounded-md border border-border bg-card"
+                >
+                  <a
+                    href={d.fileUrl}
+                    target="_blank"
+                    rel="noreferrer"
+                    className="block"
+                    aria-label={`Open ${d.fileName}`}
+                  >
+                    {/* eslint-disable-next-line @next/next/no-img-element */}
+                    <img
+                      src={d.fileUrl}
+                      alt={d.fileName}
+                      loading="lazy"
+                      className="h-24 w-full object-cover"
+                    />
+                  </a>
+                  <Button
+                    type="button"
+                    size="icon-sm"
+                    variant="outline"
+                    disabled={removingId === d.id || uploading}
+                    onClick={() => void onRemove(d.id)}
+                    aria-label={`Remove ${d.fileName}`}
+                    title={`Remove ${d.fileName}`}
+                    className="absolute right-1 top-1 size-7 rounded-md bg-card/90 opacity-0 shadow-sm transition-opacity focus-visible:opacity-100 group-hover:opacity-100"
+                  >
+                    {removingId === d.id ? (
+                      <Loader2 className="animate-spin" aria-hidden />
+                    ) : (
+                      <Trash2 aria-hidden />
+                    )}
+                  </Button>
+                  <figcaption
+                    className="truncate border-t border-border px-2 py-1 text-[12px] text-muted-foreground"
+                    title={d.fileName}
+                  >
+                    {d.fileName}
+                  </figcaption>
+                </figure>
+              ))}
+            </div>
+          )}
+        </KanbanBoard>
+
+        <KanbanBoard
+          title="Attach photos (optional)"
+          icon={
+            <span className="text-muted-foreground" aria-hidden>
               <Paperclip size={14} />
             </span>
           }
-          actions={
-            /* 24px close X — same as the other overlay kanbans. */
-            <button
-              type="button"
-              onClick={closeDocs}
-              autoFocus
-              aria-label="Close dialog"
-              className="flex h-6 w-6 items-center justify-center rounded-md text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
-            >
-              <X size={14} aria-hidden="true" />
-            </button>
-          }
-          description="Optional photos for this session — wound, slip, lab result… JPG/PNG/WEBP, 5 MB each."
-          footer={
-            /* 24px action button — same metric as the kanban boards. */
-            <div className="flex flex-wrap items-center justify-end gap-1.5 px-1 pb-1">
-              <Button
-                type="button"
-                variant="outline"
-                size="sm"
-                className="h-6 px-3 text-xs"
-                onClick={closeDocs}
-              >
-                Done
-              </Button>
-            </div>
+          description={
+            docsLocked
+              ? "This session hasn't started yet — filing unlocks once the scheduled time arrives."
+              : "Up to 5 images at a time."
           }
         >
-          <div className="flex flex-col gap-3 px-1 pb-1">
-            <KanbanBoard
-              title="Filed photos"
-              icon={
-                <span className="text-muted-foreground" aria-hidden>
-                  <Images size={14} />
-                </span>
-              }
-              count={docs.length}
-            >
-              {docs.length === 0 ? (
-                <KanbanBoardEmpty>No photos filed yet.</KanbanBoardEmpty>
-              ) : (
-                <div className="grid grid-cols-2 gap-2 px-1 sm:grid-cols-3 md:grid-cols-4">
-                  {docs.map((d) => (
-                    <figure
-                      key={d.id}
-                      className="flex min-w-0 flex-col overflow-hidden rounded-md border border-border bg-card"
-                    >
-                      <a
-                        href={d.fileUrl}
-                        target="_blank"
-                        rel="noreferrer"
-                        className="block"
-                        aria-label={`Open ${d.fileName}`}
-                      >
-                        {/* eslint-disable-next-line @next/next/no-img-element */}
-                        <img
-                          src={d.fileUrl}
-                          alt={d.fileName}
-                          className="h-24 w-full object-cover"
-                        />
-                      </a>
-                      <figcaption className="flex items-center justify-between gap-1 border-t border-border px-2 py-1">
-                        <span
-                          className="truncate text-[12px] text-muted-foreground"
-                          title={d.fileName}
-                        >
-                          {d.fileName}
-                        </span>
-                        <Button
-                          type="button"
-                          size="sm"
-                          variant="ghost"
-                          className="h-6 shrink-0 px-1.5 text-xs"
-                          onClick={() => void onRemove(d)}
-                          aria-label={`Remove ${d.fileName}`}
-                        >
-                          Remove
-                        </Button>
-                      </figcaption>
-                    </figure>
-                  ))}
-                </div>
+          <div className="px-1 pb-1">
+            <button
+              type="button"
+              disabled={dropDisabled}
+              onClick={() => inputRef.current?.click()}
+              onDragOver={(e) => {
+                e.preventDefault();
+                if (!dropDisabled) setDragging(true);
+              }}
+              onDragLeave={() => setDragging(false)}
+              onDrop={(e) => {
+                e.preventDefault();
+                setDragging(false);
+                onPick(e.dataTransfer.files);
+              }}
+              aria-label="Choose photos to attach"
+              className={cn(
+                "flex w-full flex-col items-center gap-1 rounded-lg border border-dashed px-4 py-4 transition-colors",
+                dragging
+                  ? "border-primary bg-primary/5"
+                  : "border-border hover:border-primary/50 hover:bg-muted/40",
+                dropDisabled &&
+                  "cursor-not-allowed opacity-50 hover:border-border hover:bg-transparent",
               )}
-            </KanbanBoard>
-            <KanbanBoard
-              title="Attach photos (optional)"
-              icon={
-                <span className="text-muted-foreground" aria-hidden>
-                  <Paperclip size={14} />
-                </span>
-              }
-              description={
-                docsLocked
-                  ? "This session hasn't started yet — filing unlocks once the scheduled time arrives."
-                  : "Up to 5 images at a time."
-              }
             >
-              <div className="flex items-center gap-2 px-1 pb-1">
-                <Button
-                  type="button"
-                  variant="outline"
-                  size="sm"
-                  className="h-6 px-3 text-xs"
-                  disabled={docsLocked}
-                  onClick={() => inputRef.current?.click()}
-                  aria-label="Choose photos to attach"
-                >
-                  <Paperclip aria-hidden />
-                  Choose files
-                </Button>
-                <input
-                  ref={inputRef}
-                  id={inputId}
-                  type="file"
-                  accept="image/jpeg,image/png,image/webp"
-                  multiple
-                  disabled={docsLocked}
-                  onChange={(e) => {
-                    void onPick(e.target.files);
-                    e.target.value = "";
-                  }}
-                  className="sr-only"
-                />
-              </div>
-            </KanbanBoard>
+              <Upload className="size-4 text-primary" aria-hidden />
+              <span className="text-[13px]">
+                <span className="font-semibold text-primary">Choose files</span>{" "}
+                <span className="text-muted-foreground">or drag and drop</span>
+              </span>
+              <span className="text-[12px] text-muted-foreground">
+                JPG, PNG or WEBP · up to 5 photos · 5 MB each
+              </span>
+            </button>
+            <input
+              ref={inputRef}
+              id={`nurse-docs-${session.id}`}
+              type="file"
+              accept="image/jpeg,image/png,image/webp"
+              multiple
+              disabled={dropDisabled}
+              onChange={(e) => {
+                onPick(e.target.files);
+                e.target.value = "";
+              }}
+              className="sr-only"
+              tabIndex={-1}
+            />
+            {uploading ? (
+              <p
+                className="mt-2 inline-flex items-center gap-1.5 text-[12px] text-muted-foreground"
+                role="status"
+                aria-live="polite"
+              >
+                <Loader2 className="size-3.5 animate-spin" aria-hidden />
+                Uploading photos…
+              </p>
+            ) : null}
             {displayError ? (
               <p
-                className="px-1 text-xs italic text-red-600 dark:text-red-400"
+                className="mt-2 text-[12px] leading-4 text-red-600 dark:text-red-400"
                 role="alert"
               >
                 {displayError}
@@ -336,6 +313,6 @@ export function SessionDocsDialog({
           </div>
         </KanbanBoard>
       </div>
-    </div>
+    </KanbanOverlay>
   );
 }

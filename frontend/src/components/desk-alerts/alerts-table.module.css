@@ -1,0 +1,634 @@
+/* Referred-cases board — the toolbar, one flat data list and the pager sit
+   directly on the page canvas (same frame as /nurse/alerts): a full-width
+   filter/search toolbar, a column head, then one hairline row per case. */
+
+/* Filter tab strip. */
+.filterRow {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.375rem;
+  padding: 0 0.25rem;
+}
+
+/* Toolbar row: one line, horizontal scroll when the tabs outgrow their
+   max width (never wraps inside the header). */
+.filterRowScroll {
+  flex-wrap: nowrap;
+  overflow-x: auto;
+  padding: 0;
+  scrollbar-width: none;
+  -ms-overflow-style: none;
+}
+
+/* No-match / empty state: fills the desk below the toolbar and centers on
+   both axes (the page adds `pageFit` so the board receives the viewport
+   height). */
+.emptyCenter {
+  display: flex;
+  flex: 1 1 auto;
+  width: 100%;
+  align-items: center;
+  justify-content: center;
+  padding: 2.5rem 0;
+}
+
+.emptyFill {
+  flex: 1 1 auto;
+  min-height: 0;
+}
+
+/* The same column template drives the head, the rows and the skeleton, so
+   all three line up. */
+.listPanel {
+  --case-cols:
+    6rem minmax(8.5rem, 1.5fr) minmax(5.5rem, 0.85fr) minmax(6.5rem, 1.1fr)
+    minmax(6rem, 0.85fr) 4.5rem minmax(4.5rem, 0.6fr) minmax(4.5rem, 0.6fr)
+    minmax(9rem, 1fr);
+  min-width: 0;
+  overflow: hidden;
+  border: 1px solid color-mix(in oklch, var(--border) 80%, transparent);
+  border-radius: 0.75rem;
+  background-color: color-mix(in oklch, var(--card) 55%, transparent);
+  background-image: linear-gradient(
+    160deg,
+    rgb(255 255 255 / 0.35),
+    rgb(255 255 255 / 0) 55%
+  );
+  backdrop-filter: blur(14px) saturate(135%);
+  -webkit-backdrop-filter: blur(14px) saturate(135%);
+}
+
+/* Dark mode: no card fill at all — the rows sit straight on the desk canvas
+   (the `!important` guards against the global `.dark .board-surface` tint). */
+:global(html.dark) .listPanel {
+  background: transparent !important;
+  background-image: none !important;
+  border-color: color-mix(in oklch, var(--border) 60%, transparent);
+  backdrop-filter: none;
+  -webkit-backdrop-filter: none;
+}
+
+.listHead {
+  display: grid;
+  grid-template-columns: var(--case-cols);
+  align-items: center;
+  gap: 0.75rem;
+  padding: 0.5rem 0.75rem;
+  border-bottom: 1px solid var(--border);
+  font-size: 0.75rem;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--muted-foreground);
+}
+
+.listHead > span {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.headActions {
+  text-align: right;
+}
+
+/* Vertical column rules — every column but the last is divided by a hairline. */
+.listHead > span:not(:last-child),
+.caseRow > .cell:not(:last-child),
+.skeletonRow > .cell:not(:last-child) {
+  border-right: 1px solid color-mix(in oklch, var(--border) 60%, transparent);
+  padding-right: 0.75rem;
+}
+
+/* Queue rows — flat list rows with no per-row card chrome. */
+.caseList {
+  display: flex;
+  flex-direction: column;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  min-width: 0;
+}
+
+.caseRow {
+  display: grid;
+  grid-template-columns: var(--case-cols);
+  align-items: center;
+  gap: 0.75rem;
+  padding: 0.5rem 0.75rem;
+  border-top: 1px solid color-mix(in oklch, var(--border) 70%, transparent);
+  min-width: 0;
+}
+
+.caseRow:first-child {
+  border-top: 0;
+}
+
+/* Rows open the case overlay on click / Enter / Space. */
+.caseRowInteractive {
+  cursor: pointer;
+  transition: background-color 140ms ease-out;
+}
+
+.caseRowInteractive:hover {
+  background-color: color-mix(in oklch, var(--muted) 40%, transparent);
+}
+
+.caseRowInteractive:focus-visible {
+  outline: 2px solid var(--ring);
+  outline-offset: -2px;
+}
+
+/* Board entrance + row cascade — same motion as the guidance overview board. */
+.boardIn {
+  animation: board-in 0.9s cubic-bezier(0.22, 1, 0.36, 1) backwards;
+  /* Clip the entrance motion so translated rows can't spurt past the board
+     edge and flash a page scrollbar while the animation runs. */
+  overflow: clip;
+}
+
+@keyframes board-in {
+  from {
+    opacity: 0;
+    transform: translateY(14px) scale(0.985);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+@keyframes case-row-in {
+  from {
+    opacity: 0;
+    transform: translateY(8px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.caseList > .caseRow {
+  animation: case-row-in 1s cubic-bezier(0.22, 1, 0.36, 1) backwards;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .boardIn,
+  .caseList > .caseRow {
+    animation: none;
+  }
+}
+
+.cell {
+  display: flex;
+  align-items: center;
+  min-width: 0;
+}
+
+.cellType {
+  justify-content: flex-start;
+}
+
+.cellLearner {
+  gap: 0.5rem;
+}
+
+/* Track lead (Intervention | Counseling | ADM) — rectangle pill. */
+.caseTypePill {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  min-width: 5.25rem;
+  height: 1.375rem;
+  padding: 0 0.4375rem;
+  border-radius: var(--radius-md);
+  font-size: 0.75rem;
+  font-weight: 600;
+  letter-spacing: 0.01em;
+  white-space: nowrap;
+}
+
+.caseIdentity {
+  min-width: 0;
+}
+
+/* Two-line meta cell (grade + section, session tallies, …). */
+.cellStack {
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 0.0625rem;
+}
+
+.cellValue {
+  max-width: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: 0.75rem;
+  font-weight: 500;
+  color: var(--foreground);
+}
+
+.cellMuted {
+  max-width: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: 0.75rem;
+  color: var(--muted-foreground);
+}
+
+/* Concern cell — tinted category chip. */
+.concernPill {
+  display: inline-flex;
+  align-items: center;
+  flex-shrink: 0;
+  max-width: 100%;
+  height: 1.375rem;
+  padding: 0 0.4375rem;
+  border: 1px solid transparent;
+  border-radius: var(--radius-md);
+  font-size: 0.75rem;
+  font-weight: 600;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  color: var(--muted-foreground);
+}
+
+/* Status / risk columns — left-aligned in their tracks. */
+.cellStatus {
+  justify-content: flex-start;
+}
+
+/* Right control column — latest-action glyph + booking control. */
+.caseActions {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  flex-wrap: wrap;
+  gap: 0.375rem;
+  min-width: 0;
+  white-space: nowrap;
+}
+
+.actionIcon {
+  width: 0.75rem;
+  height: 0.75rem;
+  flex-shrink: 0;
+  opacity: 1;
+}
+
+/* Icon-only latest action — the label lives in a hover/focus tooltip. */
+.actionIconButton {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  width: 1.5rem;
+  height: 1.5rem;
+  border-radius: var(--radius-md);
+  background-color: var(--muted);
+  color: var(--muted-foreground);
+  cursor: pointer;
+  outline: none;
+  transition:
+    background-color 140ms ease-out,
+    color 140ms ease-out;
+}
+
+.actionIconButton:hover {
+  color: var(--foreground);
+  background-color: color-mix(in oklch, var(--primary), transparent 88%);
+}
+
+.actionIconButton:focus-visible {
+  outline: 2px solid var(--ring);
+  outline-offset: 2px;
+}
+
+/* Student name — 13px, theme primary, truncates before the pills. */
+.studentName {
+  margin: 0;
+  max-width: 100%;
+  font-size: 0.8125rem;
+  font-weight: 600;
+  color: var(--primary);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.cellSub {
+  display: flex;
+  align-items: center;
+  gap: 0.375rem;
+  margin: 0.1875rem 0 0;
+  max-width: 100%;
+  min-width: 0;
+  font-size: 0.75rem;
+  color: var(--muted-foreground);
+  white-space: nowrap;
+  overflow: hidden;
+}
+
+.noRisk {
+  display: inline-block;
+  min-width: 4.5rem;
+  font-size: 0.8125rem;
+  line-height: 1.375rem;
+  color: var(--muted-foreground);
+}
+
+/* Drop the widest columns before the board gets tight, then stack the row
+   into labelled lines on phones (same breakpoints as the nurse board). */
+@media (max-width: 1180px) {
+  .listPanel {
+    --case-cols:
+      6rem minmax(8.5rem, 1.5fr) minmax(5.5rem, 0.85fr) minmax(6rem, 0.85fr)
+      4.5rem minmax(4.5rem, 0.6fr) minmax(8.5rem, 0.9fr);
+  }
+
+  .colConcern,
+  .colSessions {
+    display: none !important;
+  }
+}
+
+@media (max-width: 980px) {
+  .listPanel {
+    --case-cols:
+      5.75rem minmax(8rem, 1.6fr) minmax(6rem, 0.9fr) 4.5rem
+      minmax(8rem, 1fr);
+  }
+
+  .colGrade,
+  .colReferred {
+    display: none !important;
+  }
+}
+
+@media (max-width: 860px) {
+  .listHead {
+    display: none;
+  }
+
+  .caseRow,
+  .skeletonRow {
+    grid-template-columns: minmax(0, 1fr) auto;
+    grid-template-areas:
+      "learner type"
+      "concern concern"
+      "grade sessions"
+      "status risk"
+      "referred referred"
+      "actions actions";
+    row-gap: 0.5rem;
+    column-gap: 0.75rem;
+    padding: 0.625rem 0.75rem 0.6875rem;
+  }
+
+  .caseRow > .cell:not(:last-child),
+  .skeletonRow > .cell:not(:last-child) {
+    border-right: 0;
+    padding-right: 0;
+  }
+
+  .cellType {
+    grid-area: type;
+    justify-content: flex-end;
+  }
+
+  .cellLearner {
+    grid-area: learner;
+  }
+
+  .colGrade {
+    grid-area: grade;
+    display: flex !important;
+  }
+
+  .colConcern {
+    grid-area: concern;
+    display: flex !important;
+  }
+
+  .cellStatus {
+    grid-area: status;
+  }
+
+  .colRisk {
+    grid-area: risk;
+    display: flex !important;
+    justify-content: flex-end;
+  }
+
+  .colSessions {
+    grid-area: sessions;
+    display: flex !important;
+    align-items: flex-end;
+  }
+
+  .colReferred {
+    grid-area: referred;
+    display: flex !important;
+  }
+
+  .caseActions {
+    grid-area: actions;
+    justify-content: flex-start;
+    flex-wrap: wrap;
+  }
+}
+
+/* Loading — placeholder bars that keep the live column geometry. */
+.skelSearch {
+  height: 2rem;
+  width: 15rem;
+}
+
+.skelTab {
+  height: 1.75rem;
+  width: 5.5rem;
+}
+
+.skeletonRow {
+  display: grid;
+  grid-template-columns: var(--case-cols);
+  align-items: center;
+  gap: 0.75rem;
+  padding: 0.5rem 0.75rem;
+  border-top: 1px solid color-mix(in oklch, var(--border) 70%, transparent);
+  min-width: 0;
+}
+
+.skeletonRow:first-child {
+  border-top: 0;
+}
+
+.skelHeadLabel {
+  height: 0.6875rem;
+  width: 3.5rem;
+  max-width: 100%;
+}
+
+.skelTypePill {
+  height: 1.375rem;
+  width: 5.25rem;
+  border-radius: var(--radius-md);
+  flex-shrink: 0;
+}
+
+.skelAvatar {
+  height: 2rem;
+  width: 2rem;
+  border-radius: 9999px;
+  flex-shrink: 0;
+}
+
+.skelCaseName {
+  height: 0.875rem;
+  width: 10rem;
+}
+
+.skelPillShort {
+  height: 1.375rem;
+  width: 3rem;
+  flex-shrink: 0;
+}
+
+.skelPill {
+  height: 1.375rem;
+  width: 5.5rem;
+  flex-shrink: 0;
+}
+
+.skelLine {
+  height: 0.625rem;
+  width: 4.5rem;
+  max-width: 100%;
+}
+
+.skelLineShort {
+  height: 0.625rem;
+  width: 3rem;
+  max-width: 100%;
+}
+
+/* Concern cell — one chip, exactly like the real category pill. */
+.skelConcernPill {
+  height: 1.375rem;
+  width: 4.5rem;
+  border-radius: var(--radius-md);
+  flex-shrink: 0;
+}
+
+.skelTimePill {
+  height: 1.5rem;
+  width: 4.5rem;
+  border-radius: var(--radius-md);
+  flex-shrink: 0;
+}
+
+.skelBookPill {
+  height: 1.5rem;
+  width: 6.5rem;
+  border-radius: var(--radius-md);
+  flex-shrink: 0;
+}
+
+.skelBtnSm {
+  height: 1.5rem;
+  width: 1.5rem;
+  flex-shrink: 0;
+}
+
+/* ---- Data table (same language as the guidance overview grade board) ---- */
+.tableWrap {
+  min-width: 0;
+  overflow: hidden;
+  border-radius: var(--radius-md);
+  border: 1px solid var(--border);
+  background-color: var(--card);
+}
+
+/* Dark mode: no card fill — the rows sit straight on the desk canvas. */
+:global(html.dark) .tableWrap {
+  background-color: transparent;
+  border-color: color-mix(in oklch, var(--border) 60%, transparent);
+}
+
+.tableWrap [data-slot="table-container"] {
+  border-radius: inherit;
+  scrollbar-width: thin;
+  scrollbar-color: color-mix(in oklch, #f59e0b 65%, transparent) transparent;
+}
+
+.tableWrap [data-slot="table-container"]::-webkit-scrollbar {
+  width: 3px;
+  height: 3px;
+}
+
+.tableWrap [data-slot="table-container"]::-webkit-scrollbar-thumb {
+  background: color-mix(in oklch, #f59e0b 65%, transparent);
+  border-radius: 999px;
+}
+
+.tableWrap th,
+.tableWrap td {
+  padding: 0.75rem 1rem;
+}
+
+.tableWrap thead th {
+  font-size: 0.75rem;
+  font-weight: 500;
+  letter-spacing: 0.02em;
+  color: var(--muted-foreground);
+  border-bottom: 1px solid var(--border);
+  background-color: transparent;
+  white-space: nowrap;
+}
+
+.tableWrap tbody td {
+  font-size: 0.8125rem;
+  border-bottom: 1px solid color-mix(in oklch, var(--border), transparent 35%);
+}
+
+.tableWrap tbody tr:last-child td {
+  border-bottom: none;
+}
+
+/* Clickable case rows — opens the detail drawer. */
+.alertRow {
+  cursor: pointer;
+  transition: background-color 140ms ease-out;
+}
+
+.alertRow:hover {
+  background-color: color-mix(in oklch, var(--primary) 6%, transparent);
+}
+
+.alertRow:focus-visible {
+  outline: none;
+  box-shadow: inset 0 0 0 2px var(--ring);
+}
+
+/* Referred / detected elapsed pill. */
+.elapsedPill {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.25rem;
+  border-radius: var(--radius-md);
+  background-color: var(--secondary);
+  color: var(--secondary-foreground);
+  padding: 0.125rem 0.375rem;
+  font-size: 0.75rem;
+  font-weight: 500;
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+

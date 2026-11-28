@@ -23,6 +23,8 @@ interface GcForm03PreviewDialogProps {
   onConfirm: () => void;
 
   viewOnly?: boolean;
+  /** Opened from inside another dialog/drawer — paint above it. */
+  raised?: boolean;
 }
 
 export function GcForm03PreviewDialog({
@@ -32,6 +34,7 @@ export function GcForm03PreviewDialog({
   onClose,
   onConfirm,
   viewOnly = false,
+  raised = false,
 }: GcForm03PreviewDialogProps) {
   const [exporting, setExporting] = React.useState<"png" | "jpg" | "pdf" | null>(
     null,
@@ -195,6 +198,7 @@ export function GcForm03PreviewDialog({
       }
       description="Official Excel file preview (GCForm-03). Prints to A4 portrait."
       size="xl"
+      raised={raised}
       dismissable={!confirming && exporting === null}
       footer={
         <TooltipProvider delayDuration={100}>

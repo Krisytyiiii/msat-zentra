@@ -89,6 +89,13 @@ export interface MessageOverlayProps {
   showClose?: boolean;
   width?: keyof typeof WIDTHS;
   className?: string;
+  /**
+   * Render in place instead of a body portal. A Radix modal traps focus inside
+   * its own content, so an overlay portaled outside it (e.g. one opened from a
+   * case drawer) can never keep the caret — the drawer reclaims it on every
+   * keystroke. Nested dialogs pass `false` and mount this inside their content.
+   */
+  portal?: boolean;
 }
 
 export function MessageOverlay({
@@ -107,6 +114,7 @@ export function MessageOverlay({
   showClose = true,
   width = "md",
   className,
+  portal = true,
 }: MessageOverlayProps) {
   const titleId = React.useId();
   const descriptionId = React.useId();
@@ -141,7 +149,7 @@ export function MessageOverlay({
       actions
     );
 
-  return createPortal(
+  const overlay = (
     <div
       data-message-overlay=""
       className={cn(
@@ -236,7 +244,8 @@ export function MessageOverlay({
           </div>
         ) : null}
       </div>
-    </div>,
-    document.body,
+    </div>
   );
+
+  return portal ? createPortal(overlay, document.body) : overlay;
 }

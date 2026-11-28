@@ -5,6 +5,7 @@ import {
   excludeArchivedLearnerRows,
 } from "../../lib/learnerVisibility.js";
 import { ADM_STAGE_FLOW } from "../adm.js";
+import { isReferralEffectivelyDone } from "./openReferral.js";
 import { TIMELINE_DESK_LABELS, buildCaseTimeline } from "../../modules/referrals/timeline.js";
 import type { ReferralContext } from "./referral.types.js";
 
@@ -80,10 +81,11 @@ export async function listMine(ctx: ReferralContext, query: MineQuery) {
       },
 
       homeVisitations: { select: { id: true } },
-      // Completed clinic sessions mark the case done on the nurse board
-      // (derived), so the adviser's list must agree for older rows whose
-      // referral status was left at in_progress. The scheduledAt/venue fields
-      // feed the "session booked" pill the adviser sees on ADM cases.
+      // Completed clinic/counseling sessions mark the case done on the nurse
+      // and guidance boards (derived), so the adviser's list must agree for
+      // older rows whose referral status was left at in_progress. The
+      // scheduledAt/venue fields feed the "session booked" pill the adviser
+      // sees on ADM cases.
       counselingSessions: {
         select: {
           status: true,
@@ -174,22 +176,23 @@ export async function listMine(ctx: ReferralContext, query: MineQuery) {
     const timeline = timelines.get(r.id) ?? [];
     const referredAt =
       timeline[0]?.at ?? new Date().toISOString();
-    // The nurse board derives "Done" from a completed clinic session even when
-    // the referral row still says in_progress. Mirror that here so the
-    // adviser sees the same state instead of a stale "In progress".
-    const completedClinicAt = r.counselingSessions
+    // The nurse and guidance boards derive "Done" from a completed session
+    // even when the referral row still says in_progress. Mirror that here so
+    // the adviser sees the same state instead of a stale "In progress".
+    const latestCompletedAt = r.counselingSessions
       .filter((s) => s.status === "completed" && s.completedAt)
       .map((s) => (s.completedAt as Date).getTime())
       .sort((a, b) => b - a)[0];
-    const onNurseClinicDesk =
-      r.referredToRole === "nurse" ||
-      (r.status === "escalated" && r.escalatedTo === "nurse");
     const displayStatus =
-      onNurseClinicDesk &&
-      completedClinicAt !== undefined &&
       r.status !== "resolved" &&
       r.status !== "dismissed" &&
-      r.status !== "follow_up"
+      isReferralEffectivelyDone({
+        id: r.id,
+        status: r.status,
+        referredToRole: r.referredToRole,
+        counselingSessions: r.counselingSessions,
+        admProfiles: r.admProfiles,
+      })
         ? "resolved"
         : r.status;
     /* Booked-but-not-yet-held session (guidance/nurse schedules it on the
@@ -247,8 +250,8 @@ export async function listMine(ctx: ReferralContext, query: MineQuery) {
       resolvedAt:
         displayStatus === "resolved"
           ? (r.resolvedAt?.toISOString() ??
-            (completedClinicAt !== undefined
-              ? new Date(completedClinicAt).toISOString()
+            (latestCompletedAt !== undefined
+              ? new Date(latestCompletedAt).toISOString()
               : (timeline[timeline.length - 1]?.at ?? new Date().toISOString())))
           : null,
       anecdotalId: r.anecdotalRecordId,

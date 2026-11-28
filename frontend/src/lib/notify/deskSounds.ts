@@ -782,7 +782,12 @@ export function isAdviserClinicRejected(row: {
   if (/^you\b/i.test(message)) return false;
   return (
     /\bclinic referral for .+? was (?:dismissed|rejected|closed)\b/i.test(message) ||
-    /\bClinic (?:rejected|dismissed|closed) your referral for\b/i.test(message)
+    /\bClinic (?:rejected|dismissed|closed) your referral for\b/i.test(message) ||
+    // The nurse cancelling the booked clinic session drops the slot the
+    // adviser was told about; it rings the clinic-reject clip on that desk.
+    /\bClinic cancelled (?:a|an) (?:clinic |guidance )?session for\b/i.test(
+      message,
+    )
   );
 }
 
@@ -798,6 +803,17 @@ export function isAdviserReferralClosed(row: {
   if (row.sourceTable !== "referrals") return false;
   const message = row.message ?? "";
   if (/^you\b/i.test(message)) return false;
+  // A completed session can auto-close the case ("Clinic completed a session
+  // for … — case closed."). That is the case finishing, not being cancelled,
+  // so it must not ring the cancelled-referral clip on the adviser's desk.
+  // `.*?` must allow zero words: the nurse/guidance fanout says exactly
+  // "completed a session for" (no session-type word in between).
+  if (/\bcompleted (?:a|an) .*?session for\b/i.test(message)) return false;
+  // "Mark done" on the nurse clinic / guidance desk resolves the case as
+  // finished ("Clinic resolved your referral for … — case closed."), not
+  // cancelled — the adviser desk stays silent for a completed case. Only
+  // withdrawals and rejections ring the cancelled-referral clip.
+  if (/\bresolved (?:your|the) referral for\b/i.test(message)) return false;
   return (
     /\bnot endorsed\b/i.test(message) ||
     /\breferral for .+? was (?:dismissed|closed)\b/i.test(message) ||
@@ -846,6 +862,11 @@ export function isAdviserReferralSessionCancelled(row: {
   if (row.sourceTable !== "referrals") return false;
   const message = row.message ?? "";
   if (/^you\b/i.test(message)) return false;
+  // A clinic session drop is the clinic-reject clip instead
+  // (`isAdviserClinicRejected`); check that one first.
+  if (/\bClinic cancelled (?:a|an) (?:clinic |guidance )?session for\b/i.test(message)) {
+    return false;
+  }
   return /\bcancelled (?:a|an) (?:clinic |guidance )?session for\b/i.test(message);
 }
 

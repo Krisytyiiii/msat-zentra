@@ -14,6 +14,8 @@ export interface RawReferral {
   intakeNotes?: string | null;
   notes?: string | null;
   escalationReason?: string | null;
+  priority?: string | null;
+  resolutionSummary?: string | null;
 
   referredAt?: string | null;
 
@@ -21,6 +23,7 @@ export interface RawReferral {
   lastActionType?: string | null;
 
   dismissedByRole?: string | null;
+  referredByUser?: { fullName?: string | null } | null;
   anecdotalRecord?: RawAnecdotal | null;
   student?: RawStudent | null;
   roster?: RawRoster | null;
@@ -36,6 +39,7 @@ export interface RawAnecdotal {
   notesRecommendationsActions?: string | null;
   classPerformance?: string | null;
   attendanceSummary?: string | null;
+  confidentialityLevel?: string | null;
 }
 
 export interface RawStudent {
@@ -139,6 +143,15 @@ export interface NurseQueueRow {
   waitingDays: number | null;
 
   referredAt: string;
+
+  /** The staff member who filed the referral (same field the guidance drawer shows). */
+  referredBy: string;
+  /** Anecdote location (falls back to the record's description of location). */
+  location: string;
+  priority: string;
+  confidentiality: string;
+  recommendations: string;
+  resolutionSummary: string;
 
   followUpDate: string;
   intakeNotes: string;
@@ -289,6 +302,9 @@ export interface NurseAlertsPageParams {
   track?: "clinic" | "adm";
   highlight?: string;
   signal?: AbortSignal;
+  /** The alerts desk skips the bundled notification list (it only renders
+      cases, and the all-pages load would refetch it on every page). */
+  includeNotifications?: boolean;
 }
 
 export interface NurseAlertsPage extends NurseAlertsData {

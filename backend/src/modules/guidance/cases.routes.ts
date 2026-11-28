@@ -41,6 +41,8 @@ router.get(
       const bookedFilter = query.booked === "1";
       const completedFilter = query.completed === "1";
       const openFilter = query.open === "1";
+      const withdrawnFilter =
+        query.withdrawn === "1" ? "only" : query.withdrawn === "0" ? "exclude" : null;
       const page = Math.max(1, Number(query.page) || 1);
       const pageSize = resolveGuidancePageSize(req);
 
@@ -58,6 +60,7 @@ router.get(
             bookedFilter,
             completedFilter,
             openFilter,
+            withdrawnFilter,
             page,
             pageSize,
             highlight,

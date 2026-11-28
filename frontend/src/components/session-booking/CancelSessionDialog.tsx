@@ -3,6 +3,7 @@
 import * as React from "react";
 import { Ban, Loader2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { Dialog, DialogContent, DialogDescription, DialogTitle } from "@/components/ui/dialog";
 import { MessageOverlay } from "@/components/ui/message-overlay";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
@@ -52,65 +53,92 @@ export function CancelSessionDialog({
 
   if (!open) return null;
 
+  const dismiss = () => {
+    if (busy) return;
+    onClose();
+    setError(null);
+  };
+
   return (
-    <MessageOverlay
-      role="alertdialog"
-      tone="danger"
-      icon={<Ban size={16} aria-hidden="true" />}
-      title={title}
-      description={description}
-      width="md"
-      dismissable={!busy}
-      onDismiss={() => {
-        if (busy) return;
-        onClose();
-        setError(null);
+    /* A real Radix dialog: this opens from the shared case drawer, which is
+       itself a modal. A body-portaled overlay would sit outside that drawer's
+       focus scope, so the trap reclaimed focus from the reason field on every
+       keystroke and the nurse could not type. Nesting the overlay in a dialog
+       registers it as a focus branch of the drawer instead. */
+    <Dialog
+      open
+      onOpenChange={(next) => {
+        if (!next) dismiss();
       }}
-      footerHint="Esc to close"
-      actions={
-        <>
-          <Button
-            variant="outline"
-            className="h-6 px-2.5 text-xs"
-            onClick={onClose}
-            disabled={busy}
-          >
-            {keepLabel}
-          </Button>
-          <Button
-            variant="destructive"
-            className={`${styles.btnRed} h-6 px-2.5 text-xs`}
-            onClick={() => {
-              setError(null);
-              onSubmit(reason.trim() ? reason.trim() : undefined);
-            }}
-            disabled={busy}
-            aria-busy={busy || undefined}
-          >
-            {busy ? (
-              <Loader2 className="size-3.5 animate-spin" aria-hidden />
-            ) : null}
-            {busy ? "Cancelling…" : submitLabel}
-          </Button>
-        </>
-      }
     >
-      <div className="flex min-w-0 flex-col gap-1.5">
-        <Label htmlFor={`${idPrefix}-reason`}>{reasonLabel}</Label>
-        <Textarea
-          id={`${idPrefix}-reason`}
-          value={reason}
-          onChange={(e) => setReason(e.target.value)}
-          placeholder={reasonPlaceholder}
-          rows={3}
-          maxLength={500}
-        />
-      </div>
-      {error || serverError ? (
-        <div className={styles.errorBlock} role="alert">
-          <p className={styles.errorText}>{error ?? serverError}</p>
-        </div>
-      ) : null}
-    </MessageOverlay>
+      <DialogContent
+        showOverlay={false}
+        showCloseButton={false}
+        className="fixed inset-0 top-0 left-0 z-[60] block max-w-none translate-x-0 translate-y-0 gap-0 rounded-none border-0 bg-transparent p-0 shadow-none sm:max-w-none"
+        aria-busy={busy || undefined}
+        onEscapeKeyDown={(event) => {
+          if (busy) event.preventDefault();
+        }}
+      >
+        <DialogTitle className="sr-only">{title}</DialogTitle>
+        <DialogDescription className="sr-only">{description}</DialogDescription>
+        <MessageOverlay
+          portal={false}
+          role="alertdialog"
+          tone="danger"
+          icon={<Ban size={16} aria-hidden="true" />}
+          title={title}
+          description={description}
+          width="md"
+          dismissable={!busy}
+          onDismiss={dismiss}
+          footerHint="Esc to close"
+          actions={
+            <>
+              <Button
+                variant="outline"
+                className="h-6 px-2.5 text-xs"
+                onClick={onClose}
+                disabled={busy}
+              >
+                {keepLabel}
+              </Button>
+              <Button
+                variant="destructive"
+                className={`${styles.btnRed} h-6 px-2.5 text-xs`}
+                onClick={() => {
+                  setError(null);
+                  onSubmit(reason.trim() ? reason.trim() : undefined);
+                }}
+                disabled={busy}
+                aria-busy={busy || undefined}
+              >
+                {busy ? (
+                  <Loader2 className="size-3.5 animate-spin" aria-hidden />
+                ) : null}
+                {busy ? "Cancelling…" : submitLabel}
+              </Button>
+            </>
+          }
+        >
+          <div className="flex min-w-0 flex-col gap-1.5">
+            <Label htmlFor={`${idPrefix}-reason`}>{reasonLabel}</Label>
+            <Textarea
+              id={`${idPrefix}-reason`}
+              value={reason}
+              onChange={(e) => setReason(e.target.value)}
+              placeholder={reasonPlaceholder}
+              rows={3}
+              maxLength={500}
+            />
+          </div>
+          {error || serverError ? (
+            <div className={styles.errorBlock} role="alert">
+              <p className={styles.errorText}>{error ?? serverError}</p>
+            </div>
+          ) : null}
+        </MessageOverlay>
+      </DialogContent>
+    </Dialog>
   );
 }

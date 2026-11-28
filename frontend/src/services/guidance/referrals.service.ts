@@ -19,6 +19,7 @@ export async function fetchGuidanceReferrals(
   if (params.booked) search.set("booked", "1");
   if (params.completed) search.set("completed", "1");
   if (params.open) search.set("open", "1");
+  if (params.withdrawn !== undefined) search.set("withdrawn", params.withdrawn ? "1" : "0");
   if (params.page) search.set("page", String(params.page));
   if (params.pageSize) search.set("pageSize", String(params.pageSize));
   if (params.highlight) search.set("highlight", params.highlight);

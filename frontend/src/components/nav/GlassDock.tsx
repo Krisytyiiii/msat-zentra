@@ -3,7 +3,6 @@
 import * as React from "react";
 import Link from "next/link";
 import type { LucideIcon } from "lucide-react";
-import { ChevronLeft, ChevronRight } from "lucide-react";
 import {
   motion,
   useMotionValue,
@@ -34,8 +33,6 @@ const BASE_SIZE = 40;
 const PEAK_SIZE = 58;
 /** Cursor distance (px) over which a tile reaches full magnification. */
 const MAGNIFY_RADIUS = 130;
-/** Shared per-browser preference: expanded (labels) or icon-only. */
-const EXPANDED_KEY = "zentra.dock.expanded";
 
 function usePrefersReducedMotion(): boolean {
   const [reduce, setReduce] = React.useState(false);
@@ -51,55 +48,8 @@ function usePrefersReducedMotion(): boolean {
   return reduce;
 }
 
-/** null = the user never chose; then desktop opens expanded, mobile collapsed. */
-let storedExpanded: boolean | null = null;
-let storedExpandedRead = false;
-const expandedListeners = new Set<() => void>();
-
-function readExpandedPreference(): boolean | null {
-  if (!storedExpandedRead && typeof window !== "undefined") {
-    storedExpandedRead = true;
-    try {
-      const stored = window.localStorage.getItem(EXPANDED_KEY);
-      if (stored === "1") storedExpanded = true;
-      else if (stored === "0") storedExpanded = false;
-    } catch {
-      // Private mode / storage disabled: fall back to the default.
-    }
-  }
-  return storedExpanded;
-}
-
-function subscribeExpanded(listener: () => void): () => void {
-  expandedListeners.add(listener);
-  return () => {
-    expandedListeners.delete(listener);
-  };
-}
-
-function setExpandedPreference(next: boolean) {
-  storedExpanded = next;
-  storedExpandedRead = true;
-  try {
-    window.localStorage.setItem(EXPANDED_KEY, next ? "1" : "0");
-  } catch {
-    // Private mode / storage disabled: the session still toggles.
-  }
-  for (const listener of expandedListeners) listener();
-}
-
-/**
- * Whether the dock is in its labelled (expanded) form. Reads the remembered
- * choice through an external store so SSR hydration never mismatches; with no
- * stored choice it opens expanded on desktop and icon-only on narrow screens
- * (where the expanded panel floats over the page).
- */
-function useDockExpanded() {
-  const preference = React.useSyncExternalStore(
-    subscribeExpanded,
-    readExpandedPreference,
-    () => null,
-  );
+/** Whether the viewport is too narrow for the labelled panel. */
+function useDockMobile(): boolean {
   const [mobile, setMobile] = React.useState(false);
 
   React.useEffect(() => {
@@ -110,9 +60,7 @@ function useDockExpanded() {
     return () => query.removeEventListener("change", sync);
   }, []);
 
-  const expanded = preference === null ? !mobile : preference;
-
-  return { expanded, mobile, setExpanded: setExpandedPreference };
+  return mobile;
 }
 
 /**
@@ -270,11 +218,10 @@ function DockTile({
 /**
  * Floating glass navigation shared by every desk — pinned to the left edge of
  * the viewport, replacing the old left rail and top tab bar at every
- * breakpoint. It opens expanded with an icon + label per entry (so the desk is
- * readable without hovering) and collapses to the macOS-dock style icon rail,
- * where icons magnify with cursor proximity and a tooltip names the hovered
- * entry. The choice is remembered per browser; labels stay hidden on narrow
- * screens unless the user expands the dock, which then floats over the page.
+ * breakpoint. It is always a fixed labelled panel (icon + label per entry, so
+ * the desk is readable without hovering) and cannot be collapsed; on narrow
+ * screens, where a 14.5rem panel cannot push the page, it stays the icon rail
+ * and icons magnify with cursor proximity with a tooltip naming the entry.
  */
 export function GlassDock({
   groups,
@@ -290,18 +237,13 @@ export function GlassDock({
 }) {
   const mouseY = useMotionValue(Number.POSITIVE_INFINITY);
   const reduce = usePrefersReducedMotion();
-  const { expanded, mobile, setExpanded } = useDockExpanded();
+  const mobile = useDockMobile();
+  const expanded = !mobile;
   const navRef = React.useRef<HTMLElement>(null);
   // Tooltip label + its centre offset from the dock's top edge.
   const [tip, setTip] = React.useState<{ label: string; top: number } | null>(
     null,
   );
-
-  const toggle = React.useCallback(() => {
-    // Any collapsed-mode tooltip goes away with the switch.
-    setTip(null);
-    setExpanded(!expanded);
-  }, [expanded, setExpanded]);
 
   // Tell the shells how much left gutter the dock needs (see globals.css).
   React.useEffect(() => {
@@ -357,100 +299,65 @@ export function GlassDock({
     [groups],
   );
 
-  const overlay = expanded && mobile;
-
   return (
-    <>
-      {overlay ? (
-        <button
-          type="button"
-          className={styles.backdrop}
-          aria-label="Close navigation"
-          onClick={toggle}
-        />
-      ) : null}
-      <div className={styles.anchor}>
-        <motion.nav
-          ref={navRef}
-          className={cn(
-            styles.dock,
-            expanded && styles.dockExpanded,
-            overlay && styles.dockOverlay,
-          )}
-          aria-label={ariaLabel}
-          onPointerMove={(event) => {
-            if (!reduce && !expanded) mouseY.set(event.clientY);
-          }}
-          onPointerLeave={() => {
-            mouseY.set(Number.POSITIVE_INFINITY);
-            hideTip();
-          }}
-          initial={reduce ? false : { opacity: 0, x: -28 }}
-          animate={{ opacity: 1, x: 0 }}
-          transition={{ type: "spring", stiffness: 260, damping: 28, mass: 0.6 }}
-        >
-          <div className={styles.row}>
-            <ul className={styles.list} key={navKey}>
-              {entries.map((entry, index) =>
-                entry.kind === "sep" ? (
-                  expanded ? (
-                    <li
-                      key={entry.key}
-                      className={styles.groupLabel}
-                      style={{ "--tile-index": index } as React.CSSProperties}
-                    >
-                      {entry.label}
-                    </li>
-                  ) : (
-                    <li
-                      key={entry.key}
-                      className={styles.sepItem}
-                      style={{ "--tile-index": index } as React.CSSProperties}
-                      aria-hidden
-                    />
-                  )
-                ) : (
-                  <DockTile
+    <div className={styles.anchor}>
+      <motion.nav
+        ref={navRef}
+        className={cn(styles.dock, expanded && styles.dockExpanded)}
+        aria-label={ariaLabel}
+        onPointerMove={(event) => {
+          if (!reduce && !expanded) mouseY.set(event.clientY);
+        }}
+        onPointerLeave={() => {
+          mouseY.set(Number.POSITIVE_INFINITY);
+          hideTip();
+        }}
+        initial={reduce ? false : { opacity: 0, x: -28 }}
+        animate={{ opacity: 1, x: 0 }}
+        transition={{ type: "spring", stiffness: 260, damping: 28, mass: 0.6 }}
+      >
+        <div className={styles.row}>
+          <ul className={styles.list} key={navKey}>
+            {entries.map((entry, index) =>
+              entry.kind === "sep" ? (
+                expanded ? (
+                  <li
                     key={entry.key}
-                    item={entry.item}
-                    index={index}
-                    active={entry.item.href === activeHref}
-                    expanded={expanded}
-                    mouseY={mouseY}
-                    reduce={reduce}
-                    onEnter={showTip}
-                    onLeave={hideTip}
+                    className={styles.groupLabel}
+                    style={{ "--tile-index": index } as React.CSSProperties}
+                  >
+                    {entry.label}
+                  </li>
+                ) : (
+                  <li
+                    key={entry.key}
+                    className={styles.sepItem}
+                    style={{ "--tile-index": index } as React.CSSProperties}
+                    aria-hidden
                   />
-                ),
-              )}
-            </ul>
-          </div>
-          <button
-            type="button"
-            className={styles.toggle}
-            onClick={toggle}
-            aria-expanded={expanded}
-            aria-label={expanded ? "Collapse navigation" : "Expand navigation"}
-            title={expanded ? "Collapse navigation" : "Expand navigation"}
-          >
-            {expanded ? (
-              <ChevronLeft size={16} strokeWidth={2} aria-hidden />
-            ) : (
-              <ChevronRight size={16} strokeWidth={2} aria-hidden />
+                )
+              ) : (
+                <DockTile
+                  key={entry.key}
+                  item={entry.item}
+                  index={index}
+                  active={entry.item.href === activeHref}
+                  expanded={expanded}
+                  mouseY={mouseY}
+                  reduce={reduce}
+                  onEnter={showTip}
+                  onLeave={hideTip}
+                />
+              ),
             )}
-            {expanded ? <span className={styles.toggleLabel}>Collapse</span> : null}
-          </button>
-          {tip && !expanded ? (
-            <span
-              className={styles.tip}
-              style={{ top: tip.top }}
-              aria-hidden
-            >
-              {tip.label}
-            </span>
-          ) : null}
-        </motion.nav>
-      </div>
-    </>
+          </ul>
+        </div>
+        {tip && !expanded ? (
+          <span className={styles.tip} style={{ top: tip.top }} aria-hidden>
+            {tip.label}
+          </span>
+        ) : null}
+      </motion.nav>
+    </div>
   );
 }

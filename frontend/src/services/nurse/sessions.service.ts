@@ -16,14 +16,20 @@ export async function scheduleClinicSession(
 export async function completeClinicSession(
   id: string,
   sessionId: string,
-  input: { sessionNotes: string; outcome?: string; followUpAt?: string; followUpVenue?: string }
+  input: {
+    sessionNotes: string;
+    outcome?: string;
+    followUpAt?: string;
+    followUpType?: string;
+    followUpVenue?: string;
+  }
 ): Promise<void> {
   const body: Record<string, unknown> = { sessionNotes: input.sessionNotes };
   if (input.outcome?.trim()) body.outcome = input.outcome.trim();
   if (input.followUpAt) {
     body.followUpSession = {
       scheduledAt: input.followUpAt,
-      sessionType: "individual",
+      sessionType: input.followUpType?.trim() || "individual",
       ...(input.followUpVenue?.trim() ? { venue: input.followUpVenue.trim() } : {}),
     };
   }

@@ -3,6 +3,7 @@ import { AppError } from "../../lib/errors.js";
 import { writeAudit } from "../../lib/audit.js";
 import { fanoutNotification, fanoutToRole } from "../../lib/notify.js";
 import { actorName } from "../../modules/anecdotal/anecdotal.repository.js";
+import { findBlockingOpenReferral } from "../referrals/openReferral.js";
 import type { AnecdotalContext } from "./anecdotal.types.js";
 
 export interface ReferInput {
@@ -66,26 +67,21 @@ export async function referRecord(
     throw new AppError(400, "INVALID_ACTION", "A consultation reviewer can only be picked for ADM cases");
   }
 
-  // One live referral per learner per desk (type). The learner can be referred
-  // again only once the existing one is done (resolved or dismissed); a
-  // pending / in-progress / escalated case blocks a duplicate. Deliberately
-  // not term-scoped: an unfinished case still blocks until it is closed.
-  const studentMatch = record.studentId
-    ? { studentId: record.studentId }
-    : { rosterId: record.rosterId };
-  const existingOpen = await prisma.referral.findFirst({
-    where: {
-      referredToRole: input.referredToRole,
-      status: { notIn: ["dismissed", "resolved"] },
-      ...studentMatch,
-    },
-    select: { id: true },
+  // One live referral per learner per desk (type), per term. A case that is
+  // effectively finished for its desk (resolved/dismissed, a completed clinic
+  // or guidance session with nothing new booked, or an ADM case at
+  // `completion`) frees the slot even if the row still reads in_progress.
+  const existingOpen = await findBlockingOpenReferral({
+    referredToRole: input.referredToRole,
+    termId,
+    studentId: record.studentId,
+    rosterId: record.rosterId,
   });
   if (existingOpen) {
     throw new AppError(
       409,
       "REFERRAL_ALREADY_OPEN",
-      "This student already has an open referral of this type — resolve or dismiss it before referring again",
+      "This student already has an open referral of this type this term — resolve or dismiss it before referring again",
     );
   }
 

@@ -10,7 +10,10 @@ import {
 } from "./components/NurseOverviewCommandBar";
 import { NurseLatestReferralsPanel } from "./components/NurseOverviewQueues";
 import { NurseOverviewBreakdown } from "./components/NurseOverviewBreakdown";
-import { NurseOverviewTrends } from "./components/NurseOverviewTrends";
+import {
+  NurseCaseLoadBoard,
+  NurseWaitingTimeBoard,
+} from "./components/NurseOverviewTrends";
 import { fetchNurseOverview } from "@/services/nurse/overview.service";
 import type { NurseOverviewData } from "@/services/nurse/nurse.types";
 import { keepPreviousData, useQuery } from "@tanstack/react-query";
@@ -44,20 +47,16 @@ export default function NurseOverviewPage() {
 
           <div className={styles.body}>
             <div className={styles.chartsCol}>
+              <div className={styles.skeletonBoard}>
+                <Skeleton className="h-4 w-28" />
+                <Skeleton className={styles.skelLine} />
+              </div>
+
               <div className={styles.threeCol}>
-                {[0, 1, 2].map((i) => (
+                {[0, 1, 2, 3].map((i) => (
                   <div key={i} className={styles.skeletonBoard}>
                     <Skeleton className="h-4 w-32" />
                     <Skeleton className={styles.skelChartBlock} />
-                  </div>
-                ))}
-              </div>
-
-              <div className={styles.twoCol}>
-                {[0, 1].map((i) => (
-                  <div key={i} className={styles.skeletonBoard}>
-                    <Skeleton className="h-4 w-28" />
-                    <Skeleton className={styles.skelLine} />
                   </div>
                 ))}
               </div>
@@ -159,19 +158,20 @@ export default function NurseOverviewPage() {
         needsReview={data.needsReview ?? []}
       />
 
-      <div className={styles.body}>
+      <div
+        className={`${styles.body} ${
+          (data.latestReferrals ?? []).length > 0 ? "" : styles.bodyFull
+        }`}
+      >
         {/* Left: every chart. Right: the newest referrals rail (20% wide). */}
         <div className={styles.chartsCol}>
+          <NurseCaseLoadBoard dailyTrend={data.dailyTrend} />
+
           <NurseOverviewBreakdown
             statusBreakdown={data.statusBreakdown}
             clinicStatusBreakdown={data.clinicStatusBreakdown}
             admStatusBreakdown={data.admStatusBreakdown}
-          />
-
-          <NurseOverviewTrends
-            dailyTrend={data.dailyTrend}
-            needsReview={data.needsReview}
-            waitingTotal={data.kpis.needsReview}
+            waitingSlot={<NurseWaitingTimeBoard needsReview={data.needsReview} />}
           />
         </div>
 

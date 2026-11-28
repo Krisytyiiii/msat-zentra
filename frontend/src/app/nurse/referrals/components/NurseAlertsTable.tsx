@@ -15,6 +15,7 @@ import { NurseActionMenu } from "./NurseActionMenu";
 import { NurseActionTabs } from "./NurseActionTabs";
 import type { ActionValue, TypeFilter } from "./nurse-referrals-format";
 import { NurseCaseKanbanCard } from "./NurseCaseKanbanCard";
+import { NurseCasesTable } from "./NurseCasesTable";
 import { useNurseAlertFilters } from "./use-nurse-alert-filters";
 import { PAGE_SIZE, Pagination } from "@/components/shared/pagination";
 import { NurseAlertsDialogsHost } from "./nurse-alerts-dialogs-host";
@@ -81,8 +82,9 @@ export function NurseAlertsTable({
   lockType?: boolean;
   title?: string;
   /** "kanban" lays the cases out as a folder-card grid (the nurse boards:
-      ADM cases / Clinic matters) instead of the one-per-row list feed. */
-  layout?: "list" | "kanban";
+      ADM cases / Clinic matters) instead of the one-per-row list feed; "table"
+      is the guidance-style data list (concern / learner / sessions / status). */
+  layout?: "list" | "kanban" | "table";
   highlightId?: string | null;
   autoViewFormId?: string | null;
   paginate?: boolean;
@@ -192,8 +194,10 @@ export function NurseAlertsTable({
   }
   return (
     <div className={styles.layout}>
-      <div className={`${styles.feed}${layout === "kanban" ? ` ${styles.feedWide}` : ""}`}>
-        {layout === "kanban" ? (
+      <div
+        className={`${styles.feed}${layout === "list" ? "" : ` ${styles.feedWide}`}`}
+      >
+        {layout === "list" ? null : (
           <div className="flex flex-wrap items-center justify-between gap-2">
             <NurseActionTabs
               actionFilter={actionFilter}
@@ -213,7 +217,7 @@ export function NurseAlertsTable({
               />
             ) : null}
           </div>
-        ) : null}
+        )}
         {visibleRows.length === 0 ? (
           (search ?? "").trim() !== "" || hasActiveFilters ? (
             <div className={styles.emptyCenter}>
@@ -238,6 +242,12 @@ export function NurseAlertsTable({
               hint="New cases sent to you by advisers will appear here."
             />
           )
+        ) : layout === "table" ? (
+          <NurseCasesTable
+            alerts={visibleRows}
+            highlightId={highlightId}
+            onChanged={onChanged}
+          />
         ) : layout === "kanban" ? (
           <div className={styles.kanbanGrid} role="list" aria-label={title}>
             {visibleRows.map((alert) => (
@@ -323,7 +333,7 @@ export function NurseAlertsTable({
           <ScrollHint count={total} />
         )}
       </div>
-      {layout === "kanban" ? null : (
+      {layout === "list" ? (
         <NurseActionMenu
           actionFilter={actionFilter}
           counts={actionCounts}
@@ -331,7 +341,7 @@ export function NurseAlertsTable({
           onPick={pickAction}
           onClear={clearActionFilter}
         />
-      )}
+      ) : null}
       <NurseAlertsDialogsHost
         previewId={previewId}
         onPreviewClose={() => setPreviewId(null)}

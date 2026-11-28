@@ -1,132 +1,111 @@
 "use client";
 
 import * as React from "react";
-import { useQuery, useQueryClient } from "@tanstack/react-query";
+import { keepPreviousData, useQuery } from "@tanstack/react-query";
 import { Button } from "@/components/ui/button";
 import { Loader2 } from "lucide-react";
 import {
-  NurseAlertsBoard,
-  NurseAlertsBoardSkeleton,
+  NurseAlertsCasesTable,
   matchesAlertFilters,
   type TypeTrack,
-} from "./components/NurseAlertsBoard";
+} from "./components/nurse-alerts-cases-table";
+import { NurseAlertsSkeleton } from "./components/NurseAlertsSkeleton";
 import { fetchNurseAlerts } from "@/services/nurse/alerts.service";
 import { fetchNurseRiskLevels } from "@/services/nurse/risk.service";
 import type {
+  NurseAlertItem,
   NurseAlertsPage,
   NurseRiskLevel,
 } from "@/services/nurse/nurse.types";
 import { useNurseInvalidate } from "../overview/components/use-nurse-mutation";
-import { useDebouncedValue } from "@/lib/useDebouncedValue";
 import { useTerm } from "@/lib/term/TermContext";
 import { liveQueryOptions } from "@/lib/api/live";
+import { PAGE_SIZE } from "@/components/shared/pagination";
 import styles from "./components/nurse-alerts.module.css";
 import pageStyles from "../pages.module.css";
-import { PAGE_SIZE } from "@/components/shared/pagination";
-import { useUrlPager } from "@/components/shared/pagination/useUrlPager";
-import { useSearchParams } from "next/navigation";
 
-const NURSE_ALERTS_PAGE_SIZE = PAGE_SIZE;
-
-export default function NurseAlertsPage() {
-  return (
-    <React.Suspense>
-      <NurseAlertsPageInner />
-    </React.Suspense>
+/**
+ * Load every case on the desk once, like /guidance/alerts: the board then
+ * filters (type tabs + search) and pages client-side, so switching tabs is
+ * instant and the counts cover the whole desk rather than the current page.
+ * The bundled notification list is skipped — this page only renders cases.
+ */
+async function fetchAllAlertCases(signal?: AbortSignal): Promise<NurseAlertsPage> {
+  const first = await fetchNurseAlerts({
+    page: 1,
+    pageSize: PAGE_SIZE,
+    signal,
+    includeNotifications: false,
+  });
+  if (first.totalPages <= 1) return first;
+  const rest = await Promise.all(
+    Array.from({ length: first.totalPages - 1 }, (_, i) =>
+      fetchNurseAlerts({
+        page: i + 2,
+        pageSize: PAGE_SIZE,
+        signal,
+        includeNotifications: false,
+      })
+    )
   );
+  return {
+    ...first,
+    alerts: [first.alerts, ...rest.map((r) => r.alerts)].flat(),
+    cases: [first.cases, ...rest.map((r) => r.cases)].flat(),
+    page: 1,
+  };
 }
 
-function NurseAlertsPageInner() {
-  const searchParams = useSearchParams();
+/** The risk endpoint is bounded to 15 ids per call — chunk the whole desk. */
+async function fetchAllRiskLevels(
+  studentIds: string[]
+): Promise<Record<string, NurseRiskLevel>> {
+  if (studentIds.length === 0) return {};
+  const chunks: string[][] = [];
+  for (let i = 0; i < studentIds.length; i += 15) {
+    chunks.push(studentIds.slice(i, i + 15));
+  }
+  const settled = await Promise.all(
+    chunks.map((chunk) => fetchNurseRiskLevels(chunk))
+  );
+  return Object.assign({}, ...settled);
+}
+
+export default function NurseAlertsPage() {
   const invalidateNurse = useNurseInvalidate();
-  const queryClient = useQueryClient();
   const { activeTerm, termReady } = useTerm();
   const termKey = `${activeTerm?.schoolYearId ?? ""}:${activeTerm?.termId ?? ""}`;
-  const [queryInput, setQueryInput] = React.useState(searchParams.get("q") ?? "");
-  const pager = useUrlPager(0, {}, { searchParam: "q" });
-  const page = pager.page;
-  const setPage = pager.setPage;
+  const [queryInput, setQueryInput] = React.useState("");
   // The desk type tabs are a view-only filter on the rows already loaded —
-  // never a URL param and never a refetch, so switching is instant.
-  const [track, setTrack] = React.useState<TypeTrack>("all");
-
-  // Drop a legacy ?track=… from the URL (it used to drive a server refetch).
-  const cleanedTrackParam = React.useRef(false);
-  React.useEffect(() => {
-    if (cleanedTrackParam.current) return;
-    cleanedTrackParam.current = true;
-    if (searchParams.has("track")) pager.setFilters({ track: undefined });
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
-
-  const query = useDebouncedValue(queryInput.trim(), 300);
-  const debounced = query;
-
-  // Sync debounced search to the URL and reset to page 1 when it changes.
-  const firstSearchSync = React.useRef(true);
-  React.useEffect(() => {
-    if (firstSearchSync.current) {
-      firstSearchSync.current = false;
-      return;
-    }
-    pager.setFilters({ q: debounced || undefined });
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [debounced]);
+  // never a refetch, so switching is instant (same as /guidance/alerts).
+  const [track, setTrack] = React.useState<TypeTrack>("");
 
   const { data, isPending, isError, refetch, isFetching } =
     useQuery<NurseAlertsPage>({
       ...liveQueryOptions,
-      queryKey: ["nurse-alerts", page, debounced, termKey],
-      queryFn: ({ signal }) =>
-        fetchNurseAlerts({
-          q: debounced || undefined,
-          page,
-          pageSize: NURSE_ALERTS_PAGE_SIZE,
-          signal,
-        }),
-
-      // Page flips show the skeleton until their own payload lands; a
-      // same-page search refresh keeps the previous rows so typing doesn't
-      // flash the whole board. The next page is prefetched below.
-      placeholderData: (previousData, previousQuery) =>
-        previousData && previousQuery?.queryKey?.[1] === page
-          ? previousData
-          : undefined,
-      staleTime: 60_000,
+      queryKey: ["nurse-alerts", "cases", termKey],
+      queryFn: ({ signal }) => fetchAllAlertCases(signal),
+      placeholderData: keepPreviousData,
       enabled: termReady,
     });
 
-  // Warm the next page's cache as soon as a page resolves — low-latency pager.
-  React.useEffect(() => {
-    if (!data || !termReady) return;
-    const next = page + 1;
-    if (next > (data.totalPages ?? 1)) return;
-    void queryClient.prefetchQuery({
-      queryKey: ["nurse-alerts", next, debounced, termKey],
-      queryFn: ({ signal }) =>
-        fetchNurseAlerts({
-          q: debounced || undefined,
-          page: next,
-          pageSize: NURSE_ALERTS_PAGE_SIZE,
-          signal,
-        }),
-      staleTime: 60_000,
-    });
-  }, [data, page, queryClient, debounced, track, termKey, termReady]);
-
-  const totalPages = Math.max(1, data?.totalPages ?? 1);
-  const safePage = Math.min(page, totalPages);
-
-  const studentIds = React.useMemo(
-    () => [
-      ...new Set(
-        (data?.alerts ?? [])
-          .map((a) => a.studentId)
-          .filter((id): id is string => id !== null)
-      ),
-    ].sort(),
+  const cases = React.useMemo<NurseAlertItem[]>(
+    () => data?.cases ?? [],
     [data]
   );
+
+  const studentIds = React.useMemo(
+    () =>
+      [
+        ...new Set(
+          cases
+            .map((a) => a.studentId)
+            .filter((id): id is string => id !== null)
+        ),
+      ].sort(),
+    [cases]
+  );
+
   const {
     data: riskByStudent,
     isPending: riskPending,
@@ -136,25 +115,23 @@ function NurseAlertsPageInner() {
   } = useQuery<Record<string, NurseRiskLevel>>({
     ...liveQueryOptions,
     queryKey: ["nurse-risk-levels", studentIds, termKey],
-    queryFn: () => fetchNurseRiskLevels(studentIds),
+    queryFn: () => fetchAllRiskLevels(studentIds),
     staleTime: 300_000,
     enabled: termReady && studentIds.length > 0,
   });
   const riskLoading = studentIds.length > 0 && (riskPending || riskFetching);
 
   if (isPending) {
-    return (
-      <section className={styles.page} aria-busy="true" aria-label="Loading referred cases">
-        <NurseAlertsBoardSkeleton />
-      </section>
-    );
+    return <NurseAlertsSkeleton />;
   }
 
   if (isError || !data) {
     return (
       <section className={styles.page}>
         <div className={styles.pageError} role="alert">
-          <p className={styles.pageErrorTitle}>We couldn&apos;t load the referred cases</p>
+          <p className={styles.pageErrorTitle}>
+            We couldn&apos;t load the referred cases
+          </p>
           <p className={styles.pageErrorHint}>
             Please check your internet connection and try again.
           </p>
@@ -167,59 +144,62 @@ function NurseAlertsPageInner() {
             {isFetching ? (
               <Loader2 className={styles.spin} aria-hidden="true" />
             ) : null}
-            Try again
+            {isFetching ? "Retrying…" : "Try again"}
           </Button>
         </div>
       </section>
     );
   }
 
-  const refreshing = isFetching && !isPending;
-  // No rows are visible (empty desk, no search match, or the type tab hides
-  // this page's rows): give the page the viewport height so the centered
-  // message truly sits mid-page. Decided with the same predicate the board
-  // uses on the rows it renders, so `pageFit` flips on the very keystroke the
-  // callout appears — the message never renders inline first and then hops to
-  // the center when the debounced server query returns empty.
-  const visibleCount = (data.alerts ?? []).filter((a) =>
+  // Same predicate the board uses, so `pageFit` flips on the very keystroke
+  // the empty callout appears (mirrors /guidance/alerts).
+  const visibleCount = cases.filter((a) =>
     matchesAlertFilters(a, queryInput, track)
   ).length;
-  const isEmpty = data.total === 0 || visibleCount === 0;
+  const isEmpty = cases.length === 0 || visibleCount === 0;
+  const refreshing = isFetching && !isPending;
 
   return (
     <section
       className={isEmpty ? `${styles.page} ${pageStyles.pageFit}` : styles.page}
-      aria-busy={refreshing}
+      aria-busy={refreshing || undefined}
       aria-label="Referred cases"
     >
       {riskError && studentIds.length > 0 ? (
-        <p role="alert" style={{ margin: 0, fontSize: "0.8125rem", color: "var(--destructive)" }}>
+        <p
+          role="alert"
+          style={{
+            margin: 0,
+            fontSize: "0.8125rem",
+            color: "var(--destructive)",
+          }}
+        >
           Risk levels couldn&apos;t load.{" "}
           <button
             type="button"
             onClick={() => refetchRisk()}
             disabled={riskFetching}
-            style={{ textDecoration: "underline", background: "none", border: "none", padding: 0, cursor: "pointer", color: "inherit" }}
+            style={{
+              textDecoration: "underline",
+              background: "none",
+              border: "none",
+              padding: 0,
+              cursor: "pointer",
+              color: "inherit",
+            }}
           >
             {riskFetching ? "Retrying…" : "Retry"}
           </button>
         </p>
       ) : null}
-      <NurseAlertsBoard
-        alerts={Array.isArray(data.alerts) ? data.alerts : []}
+      <NurseAlertsCasesTable
+        rows={cases}
         riskByStudent={riskByStudent ?? {}}
         riskLoading={riskLoading}
         query={queryInput}
-        onQueryChange={(v) => {
-          setQueryInput(v);
-        }}
-        track={track}
-        onTrackChange={setTrack}
-        page={safePage}
-        total={data.total}
-        unfilteredTotal={data.unfilteredTotal}
-        onPageChange={setPage}
-        serverPaged
+        onQueryChange={setQueryInput}
+        type={track}
+        onTypeChange={setTrack}
         onChanged={() => {
           invalidateNurse();
         }}

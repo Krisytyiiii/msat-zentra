@@ -112,7 +112,7 @@ export async function completeSession(
         : `A follow-up was set for your referral for ${card.who}.`
       : ctx.role === "nurse"
         ? closedBySession
-          ? `Clinic completed a session for ${card.who} (${session.sessionType}, ${didWhen}) — case closed.`
+          ? `Clinic completed a session for ${card.who} (${session.sessionType}, ${didWhen}) — the case is now resolved.`
           : `Clinic completed a session for ${card.who} (${session.sessionType}, ${didWhen}).`
         : `Guidance completed a session for ${card.who} (${session.sessionType}, ${didWhen}).`;
     void fanoutNotification({

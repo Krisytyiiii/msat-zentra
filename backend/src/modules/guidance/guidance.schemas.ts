@@ -59,5 +59,6 @@ export const guidanceCasesQuerySchema = paginationQuerySchema(16).extend({
   booked: z.enum(["0", "1"]).optional(),
   completed: z.enum(["0", "1"]).optional(),
   open: z.enum(["0", "1"]).optional(),
+  withdrawn: z.enum(["0", "1"]).optional(),
   highlight: z.string().trim().max(120).optional(),
 });

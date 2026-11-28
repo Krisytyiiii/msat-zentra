@@ -260,7 +260,9 @@ export async function fetchNurseAlerts(
       `/api/referrals/?${query.toString()}`,
       { signal: params?.signal }
     ),
-    apiClient.get<RawNotification[]>("/api/notifications/"),
+    params?.includeNotifications === false
+      ? Promise.resolve({ data: [] as RawNotification[] })
+      : apiClient.get<RawNotification[]>("/api/notifications/"),
   ]);
 
   const raw = referralsRes.data;

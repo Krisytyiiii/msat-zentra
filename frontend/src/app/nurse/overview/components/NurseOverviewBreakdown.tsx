@@ -97,7 +97,6 @@ function BarPanel({
     <KanbanBoard
       title={title}
       icon={<BoardIcon icon={Icon} />}
-      count={total}
       description={description}
       className="flex-1"
     >
@@ -218,7 +217,6 @@ function GaugePanel({
     <KanbanBoard
       title={title}
       icon={<BoardIcon icon={Icon} />}
-      count={total}
       description={description}
       className="flex-1"
     >
@@ -330,7 +328,6 @@ function DonutPanel({
     <KanbanBoard
       title={title}
       icon={<BoardIcon icon={Icon} />}
-      count={total}
       description={description}
       className="flex-1"
     >
@@ -411,10 +408,13 @@ export function NurseOverviewBreakdown({
   statusBreakdown,
   clinicStatusBreakdown,
   admStatusBreakdown,
+  waitingSlot,
 }: {
   statusBreakdown: NurseBreakdownRow[];
   clinicStatusBreakdown: NurseBreakdownRow[];
   admStatusBreakdown: NurseBreakdownRow[];
+  /** Fourth grid cell — the Waiting time board sits beside ADM caseload. */
+  waitingSlot?: React.ReactNode;
 }) {
   return (
     <div className={styles.threeCol}>
@@ -444,6 +444,7 @@ export function NurseOverviewBreakdown({
         icon={Send}
         unit={admStatusBreakdown.reduce((n, r) => n + r.count, 0) === 1 ? "case" : "cases"}
       />
+      {waitingSlot ?? null}
     </div>
   );
 }

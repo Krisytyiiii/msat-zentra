@@ -23,6 +23,12 @@
   min-width: 0;
 }
 
+/* No newest-referrals rail: the charts take the freed column instead of
+   leaving a 20% gutter of dead space on the right. */
+.bodyFull {
+  grid-template-columns: minmax(0, 1fr);
+}
+
 @media (max-width: 1280px) {
   .body {
     grid-template-columns: minmax(0, 1fr);
@@ -200,31 +206,12 @@
 
 .threeCol {
   display: grid;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
+  grid-template-columns: repeat(2, minmax(0, 1fr));
   gap: 0.75rem;
-}
-
-@media (max-width: 1023px) {
-  .threeCol {
-    grid-template-columns: repeat(2, minmax(0, 1fr));
-  }
 }
 
 @media (max-width: 767px) {
   .threeCol {
-    grid-template-columns: minmax(0, 1fr);
-  }
-}
-
-/* Trends section: case-load line (wide) + waiting-time bars. */
-.twoCol {
-  display: grid;
-  grid-template-columns: 2fr 1fr;
-  gap: 0.75rem;
-}
-
-@media (max-width: 1023px) {
-  .twoCol {
     grid-template-columns: minmax(0, 1fr);
   }
 }

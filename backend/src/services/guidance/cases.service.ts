@@ -23,6 +23,8 @@ export interface CasesQuery {
   bookedFilter: boolean;
   completedFilter: boolean;
   openFilter: boolean;
+  /** `only` = cases withdrawn by the filing teacher, `exclude` = everything else. */
+  withdrawnFilter?: "only" | "exclude" | null;
   page: number;
   pageSize: number;
   highlight: string;
@@ -65,6 +67,7 @@ export async function getCases(ctx: GuidanceContext, query: CasesQuery) {
     bookedFilter,
     completedFilter,
     openFilter,
+    withdrawnFilter = null,
     page,
     pageSize,
     highlight,
@@ -72,10 +75,10 @@ export async function getCases(ctx: GuidanceContext, query: CasesQuery) {
 
   const scopeTermId = ctx.termId;
 
-  const dbClauses: any[] = [];
-  if (statusFilter) dbClauses.push({ status: statusFilter });
+  const statusClauses: any[] = statusFilter ? [{ status: statusFilter }] : [];
+  const typeClauses: any[] = [];
   if (typeFilter === "adm") {
-    dbClauses.push({
+    typeClauses.push({
       OR: [
         { escalatedTo: "adm_coordinator" },
         { referredToRole: "adm_coordinator" },
@@ -83,7 +86,7 @@ export async function getCases(ctx: GuidanceContext, query: CasesQuery) {
     });
   } else if (typeFilter === "counseling") {
 
-    dbClauses.push({
+    typeClauses.push({
       AND: [
         {
           OR: [
@@ -110,16 +113,68 @@ export async function getCases(ctx: GuidanceContext, query: CasesQuery) {
      (roster + attendance + anecdotal reads all honour this archive). */
   const archivedLearners = await archivedAdvisoryLearnerIds();
   const archivedClause = excludeArchivedLearnerRows(archivedLearners);
-  const scopeClauses: any[] = [deskScope];
-  if (Object.keys(archivedClause).length > 0) scopeClauses.push(archivedClause);
-  if (scopeTermId) scopeClauses.push({ termId: scopeTermId });
-  if (dbClauses.length) scopeClauses.push(...dbClauses);
-  const baseWhere: any = { AND: scopeClauses };
+  /* The desk scope every figure is counted over — status/action filters from
+     the request must never narrow it, or the whole-desk strip would collapse
+     to whatever lens the board currently has on. The desk's own type is part
+     of its scope (the counseling board never counts ADM cases). */
+  const statsScopeClauses: any[] = [deskScope, ...typeClauses];
+  if (Object.keys(archivedClause).length > 0) statsScopeClauses.push(archivedClause);
+  if (scopeTermId) statsScopeClauses.push({ termId: scopeTermId });
+  const scopeClauses: any[] = [...statsScopeClauses, ...statusClauses];
+  const baseWhere: any = { AND: statsScopeClauses };
+
+  /* Withdrawal is not a column: a dismissed case counts as cancelled only when
+     the filing teacher (adviser/subject teacher) dismissed it, which lives in
+     the audit log. Resolve that set once — the action lens and the summary both
+     use it. */
+  const dismissedScope = await prisma.referral.findMany({
+    where: { AND: [...statsScopeClauses, { status: "dismissed" }] },
+    select: { id: true, escalatedTo: true, referredToRole: true },
+  });
+  const cancelledIds = new Set<string>();
+  if (dismissedScope.length > 0) {
+    const cancelLogs = await prisma.auditLog.findMany({
+      where: {
+        sourceTable: "referrals",
+        sourceId: { in: dismissedScope.map((d) => d.id) },
+        actionType: "referral_dismissed",
+        user: { role: { in: ["adviser", "subject_teacher"] } },
+      },
+      select: { sourceId: true },
+    });
+    for (const l of cancelLogs) cancelledIds.add(l.sourceId);
+  }
+
+  /* One definition per lens, shared by the board's server-side action filter
+     and the whole-desk figures so a chip's count always equals the rows it
+     opens. These mirror isCaseDone / hasOpenBooking / isWithdrawn in the
+     frontend's referral-status labels: Done and Booked never overlap, and a
+     follow-up or withdrawn case is never Done. */
+  const doneClause = {
+    AND: [
+      { status: { notIn: ["follow_up", "dismissed"] } },
+      {
+        OR: [
+          { status: "resolved" },
+          { counselingSessions: { some: { status: "completed" } } },
+        ],
+      },
+    ],
+  };
+  const bookedClause = {
+    AND: [
+      { status: { notIn: ["follow_up", "resolved", "dismissed"] } },
+      { counselingSessions: { none: { status: "completed" } } },
+      { counselingSessions: { some: { status: "scheduled" } } },
+    ],
+  };
 
   const sessionClauses: any[] = [];
-  if (bookedFilter) sessionClauses.push({ counselingSessions: { some: {} } });
-  if (completedFilter) sessionClauses.push({ counselingSessions: { some: { status: "completed" } } });
+  if (bookedFilter) sessionClauses.push(bookedClause);
+  if (completedFilter) sessionClauses.push(doneClause);
   if (openFilter) sessionClauses.push({ status: { notIn: ["resolved", "dismissed"] } });
+  if (withdrawnFilter === "only") sessionClauses.push({ id: { in: [...cancelledIds] } });
+  if (withdrawnFilter === "exclude") sessionClauses.push({ id: { notIn: [...cancelledIds] } });
 
   const needle = q.trim();
   const searchClause = needle
@@ -444,28 +499,9 @@ export async function getCases(ctx: GuidanceContext, query: CasesQuery) {
             { referredToRole: { not: "adm_coordinator" } },
           ],
         };
-  const scopedFor = (t: "ADM" | "Counseling"): any => ({ AND: [...scopeClauses, typeClause(t)] });
+  const scopedFor = (t: "ADM" | "Counseling"): any => ({ AND: [...statsScopeClauses, typeClause(t)] });
   const openClause = { status: { notIn: ["resolved", "dismissed"] } };
-  const bookedClause = { counselingSessions: { some: {} } };
-  const doneClause = { counselingSessions: { some: { status: "completed" } } };
 
-  const dismissedScope = await prisma.referral.findMany({
-    where: { AND: [...scopeClauses, { status: "dismissed" }] },
-    select: { id: true, escalatedTo: true, referredToRole: true },
-  });
-  const cancelledIds = new Set<string>();
-  if (dismissedScope.length > 0) {
-    const cancelLogs = await prisma.auditLog.findMany({
-      where: {
-        sourceTable: "referrals",
-        sourceId: { in: dismissedScope.map((d) => d.id) },
-        actionType: "referral_dismissed",
-        user: { role: { in: ["adviser", "subject_teacher"] } },
-      },
-      select: { sourceId: true },
-    });
-    for (const l of cancelLogs) cancelledIds.add(l.sourceId);
-  }
   const cancelledOf = (t: "ADM" | "Counseling") =>
     dismissedScope.filter(
       (d) =>

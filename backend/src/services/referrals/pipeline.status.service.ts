@@ -130,10 +130,13 @@ export async function updateStatus(ctx: ReferralContext, referralId: string, inp
       ctx.role === "guidance_counselor";
     let message = `Your referral for ${card.who} was updated.`;
     if (nextStatus === "resolved") {
+      // Resolving is the case finishing, not a withdrawal — never word it as a
+      // closure here; the adviser's cancelled-referral clip keys off closure
+      // words and a completed case must stay silent on that desk.
       message = isClinic
-        ? `Clinic resolved your referral for ${card.who} — case closed.`
+        ? `Clinic resolved your referral for ${card.who} — the case is done.`
         : isGuidance
-          ? `Guidance resolved your referral for ${card.who} — case closed.`
+          ? `Guidance resolved your referral for ${card.who} — the case is done.`
           : `Your referral for ${card.who} was marked resolved.`;
     } else if (nextStatus === "info_requested") {
       message = isClinic

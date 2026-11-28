@@ -1,6 +1,7 @@
 "use client";
 
 import * as React from "react";
+import { createPortal } from "react-dom";
 import { usePathname } from "next/navigation";
 import { ChevronDown, ChevronUp, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -24,6 +25,12 @@ export function SharedDock() {
   const pathname = usePathname();
   const { tasks, dismissAllCompleted } = useDock();
   const [minimized, setMinimized] = React.useState(false);
+  const [mounted, setMounted] = React.useState(false);
+
+  React.useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect
+    setMounted(true);
+  }, []);
 
   if (pathname === "/login") return null;
   if (tasks.length === 0) return null;
@@ -41,9 +48,21 @@ export function SharedDock() {
 
   const steps = ordered.slice(0, 4).map((t) => t.title);
 
-  return (
+  if (!mounted) return null;
+
+  return createPortal(
     <div
-      className="fixed right-4 bottom-4 z-50 w-80 overflow-hidden rounded-xl border bg-card text-card-foreground shadow-2xl sm:w-96 [font-family:var(--font-inter)]"
+      /* Above every overlay: a task row is feedback for an action that may
+         have been started from inside an open drawer/dialog, so it must never
+         be hidden behind one. `pointer-events-auto` is mandatory — an open
+         Radix Sheet sets `pointer-events: none` on <body>, and without it the
+         X (and the row actions) were visible but unclickable. Portalled to
+         <body> so the drawer's `aria-hidden`/inert page tree can't swallow it
+         either. */
+      className="pointer-events-auto fixed right-4 bottom-4 z-[120] w-80 overflow-hidden rounded-xl border bg-card text-card-foreground shadow-2xl sm:w-96 [font-family:var(--font-inter)]"
+      /* Interacting with the task dock must not dismiss an open drawer, but it
+         must not block Escape either — hence a pointer-only marker. */
+      data-keep-sheet-open=""
       role="status"
       aria-live="polite"
       aria-label={header}
@@ -95,6 +114,7 @@ export function SharedDock() {
           </ul>
         </div>
       ) : null}
-    </div>
+    </div>,
+    document.body,
   );
 }

@@ -548,6 +548,10 @@ export function BookSessionDialog({
     return createPortal(
       <div
         className={board.overlay}
+        /* Marks this portal as the active nested layer: a side-panel drawer
+           underneath must not close when the nurse picks a date/time in here
+           (or in the portal-rendered calendar popover). */
+        data-nested-overlay=""
         onMouseDown={(e) => {
           if (!busy && e.target === e.currentTarget) {
             onClose();

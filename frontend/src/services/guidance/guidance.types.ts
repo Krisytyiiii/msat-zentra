@@ -145,6 +145,8 @@ export interface GuidanceReferralsParams {
   booked?: boolean;
   completed?: boolean;
   open?: boolean;
+  /** `true` = only cases withdrawn by the filing teacher; `false` = exclude them. */
+  withdrawn?: boolean;
   page?: number;
   pageSize?: number;
 

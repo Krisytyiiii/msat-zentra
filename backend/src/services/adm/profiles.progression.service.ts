@@ -92,6 +92,33 @@ export async function advanceStage(ctx: AdmContext, profileId: string, target: A
     where: { id: profile.id },
     data,
   });
+  // Completing the case finishes the referral behind it. Without this the row
+  // stayed `in_progress` forever and kept blocking the adviser from referring
+  // the learner again (the desks already show a completed ADM case as done).
+  if (target === "completion" && profile.referral) {
+    const closed = await prisma.referral.updateMany({
+      where: {
+        id: profile.referral.id,
+        status: { notIn: ["resolved", "dismissed"] },
+      },
+      data: {
+        status: "resolved",
+        resolvedAt: new Date(),
+        resolutionSummary: "ADM case completed",
+      },
+    });
+    if (closed.count > 0) {
+      await writeAudit({
+        userId: ctx.userId,
+        actionType: "referral_status_change",
+        sourceTable: "referrals",
+        sourceId: profile.referral.id,
+        reason: "ADM case completed — referral resolved",
+        oldValue: { status: "in_progress" },
+        newValue: { status: "resolved" },
+      });
+    }
+  }
   await writeAudit({
     userId: ctx.userId,
     actionType: "adm_edit",

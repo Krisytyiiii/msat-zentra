@@ -42,6 +42,7 @@ export function KanbanModal({
   raised = false,
 }: KanbanModalProps) {
   const cardRef = React.useRef<HTMLDivElement | null>(null);
+  const overlayRef = React.useRef<HTMLDivElement | null>(null);
   const [mounted, setMounted] = React.useState(false);
 
   React.useEffect(() => {
@@ -68,11 +69,36 @@ export function KanbanModal({
     };
   }, [open, initialFocusRef]);
 
+  React.useEffect(() => {
+    // A drawer behind this dialog runs Radix RemoveScroll, whose document-level
+    // wheel/touch listener cancels scroll events that don't start inside its
+    // own layer — the dialog (portalled to <body>) is outside it, so the wheel
+    // used to be swallowed and only the scrollbar thumb worked. Let these
+    // events stay inside the dialog: no bubbling to the document means no
+    // cancel, so the inner .body scrolls natively (default scroll is untouched;
+    // the listener is passive).
+    if (!open || !mounted) return;
+    const node = overlayRef.current;
+    if (!node) return;
+    const keep = (event: Event) => event.stopPropagation();
+    node.addEventListener("wheel", keep, { passive: true });
+    node.addEventListener("touchmove", keep, { passive: true });
+    return () => {
+      node.removeEventListener("wheel", keep);
+      node.removeEventListener("touchmove", keep);
+    };
+  }, [open, mounted]);
+
   if (!open || !mounted) return null;
 
   return createPortal(
     <div
-      className={`${styles.overlay}${raised ? ` ${styles.raised}` : ""}`}
+      ref={overlayRef}
+      className={`${styles.overlay} pointer-events-auto${raised ? ` ${styles.raised}` : ""}`}
+      // A raised modal is opened from inside a sheet/drawer: mark it as the
+      // active nested layer so the drawer underneath doesn't treat clicks
+      // (or Escape) as "outside" and close itself first.
+      data-nested-overlay={raised ? "" : undefined}
       onMouseDown={(e) => {
         if (dismissable && e.target === e.currentTarget) onClose();
       }}

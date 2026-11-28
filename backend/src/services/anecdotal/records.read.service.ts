@@ -6,6 +6,7 @@ import {
   archivedAdvisoryLearnerIds,
   excludeArchivedLearnerRows,
 } from "../../lib/learnerVisibility.js";
+import { isReferralEffectivelyDone } from "../referrals/openReferral.js";
 import type { AnecdotalContext } from "./anecdotal.types.js";
 
 export interface RecordsSummaryQuery {
@@ -167,7 +168,20 @@ export async function getReferable(query: ReferableQuery) {
       confidentialityLevel: true,
       descriptionOfIncident: true,
       notesRecommendationsActions: true,
-      referrals: { select: { id: true, status: true } },
+      referrals: {
+        select: {
+          id: true,
+          status: true,
+          termId: true,
+          referredToRole: true,
+          counselingSessions: { select: { status: true } },
+          admProfiles: {
+            orderBy: { createdAt: "desc" },
+            take: 1,
+            select: { stage: true },
+          },
+        },
+      },
       student: {
         select: {
           userId: true,
@@ -202,9 +216,15 @@ export async function getReferable(query: ReferableQuery) {
     mascot: r.student?.mascot ?? r.roster?.mascot ?? null,
     section: r.student?.section?.name ?? r.roster?.section?.name ?? r.section.name,
     excerpt: r.descriptionOfIncident?.slice(0, 120) ?? "",
-    // A record stays referable while it has no OPEN referral: cancelled or
-    // resolved cases can be re-referred from the same record.
-    hasReferral: r.referrals.some((x) => x.status !== "dismissed" && x.status !== "resolved"),
+    // A record stays referable while it has no live referral for the current
+    // term: cancelled/resolved cases, a clinic or guidance case whose session
+    // is already done, and a completed ADM case all free the record again —
+    // the same rule the POST guard applies (services/referrals/openReferral).
+    hasReferral: r.referrals.some(
+      (x) =>
+        (!scopeTermId || x.termId === scopeTermId) &&
+        !isReferralEffectivelyDone(x),
+    ),
     referralCount: r.referrals.length,
     hasAccount: r.student != null,
   }));

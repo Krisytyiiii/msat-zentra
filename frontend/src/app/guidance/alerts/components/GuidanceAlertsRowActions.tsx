@@ -9,6 +9,7 @@ import {
   type BookSessionStudentCard,
 } from "@/components/session-booking/BookSessionDialog";
 import { useDock } from "@/components/dock/dock-store";
+import { referralSessionsManageable } from "../../components/ReferralSessionButtons";
 import {
   Tooltip,
   TooltipContent,
@@ -240,6 +241,8 @@ export function GuidanceReferralBookSessionButton({
 
   const hasActiveSession = referral.sessions.some((s) => s.status === "scheduled");
   if (hasActiveSession) return null;
+  // A closed or endorsed case takes no new bookings — nothing left to schedule.
+  if (!referralSessionsManageable(referral)) return null;
 
   const studentCard: BookSessionStudentCard = {
     name: referral.student,

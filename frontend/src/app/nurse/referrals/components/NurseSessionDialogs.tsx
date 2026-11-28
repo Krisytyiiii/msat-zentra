@@ -1,10 +1,8 @@
 "use client";
 
 import * as React from "react";
-import { Paperclip } from "lucide-react";
-import { Button } from "@/components/ui/button";
 import { BookSessionDialog } from "@/components/session-booking/BookSessionDialog";
-import { FinishSessionDialog as SharedFinishSessionDialog } from "@/components/session-booking/FinishSessionDialog";
+import { FinishSessionDialog as SharedFinishSessionDialog, type FinishSessionFields } from "@/components/session-booking/FinishSessionDialog";
 import { CancelSessionDialog as SharedCancelSessionDialog } from "@/components/session-booking/CancelSessionDialog";
 import { DeleteSessionDialog as SharedDeleteSessionDialog } from "@/components/session-booking/DeleteSessionDialog";
 import { apiErrorMessage } from "@/lib/api/errors";
@@ -22,12 +20,10 @@ import {
 import { useQueryClient } from "@tanstack/react-query";
 import {
   cancelClinicSession,
-  clinicAttachmentError,
   completeClinicSession,
   deleteClinicSession,
   rescheduleClinicSession,
   scheduleClinicSession,
-  uploadClinicAttachments,
 } from "@/services/nurse/sessions.service";
 import type {
   NurseQueueRow,
@@ -35,8 +31,6 @@ import type {
 } from "@/services/nurse/nurse.types";
 import { invalidateNurseQueries, useNurseMutation } from "../../overview/components/use-nurse-mutation";
 import { refreshBookingReminders } from "@/components/notifications/BookingReminderStack";
-
-import { useActiveNowTick } from "@/lib/clock";
 
 export interface DialogProps {
   open: boolean;
@@ -128,34 +122,28 @@ export function FinishSessionDialog({
   onConfirmed: () => void;
 }) {
   const dock = useDock();
-  const [files, setFiles] = React.useState<File[]>([]);
-  const [pickError, setPickError] = React.useState<string | null>(null);
-  const inputRef = React.useRef<HTMLInputElement>(null);
   /** Dock task for the in-flight finish — completed/failed from the mutation
       callbacks, which keep firing after this overlay has unmounted. */
   const dockTaskId = React.useRef<string | null>(null);
 
   const finishMutation = useNurseMutation({
-    mutationFn: async (fields: {
-      sessionNotes: string;
-      outcome?: string;
-      followUpSession?: { scheduledAt: string };
-    }) => {
+    mutationFn: async (fields: FinishSessionFields) => {
       await completeClinicSession(referralId, session.id, {
         sessionNotes: fields.sessionNotes,
         ...(fields.outcome ? { outcome: fields.outcome } : {}),
-        ...(fields.followUpSession ? { followUpAt: fields.followUpSession.scheduledAt } : {}),
+        ...(fields.followUpSession
+          ? {
+              followUpAt: fields.followUpSession.scheduledAt,
+              followUpType: fields.followUpSession.sessionType,
+              ...(fields.followUpSession.venue
+                ? { followUpVenue: fields.followUpSession.venue }
+                : {}),
+            }
+          : {}),
       });
-      if (files.length > 0) {
-        await uploadClinicAttachments(referralId, session.id, files);
-      }
-      return { photoCount: files.length };
     },
     successTitle: "Session done",
-    successDescription: (_vars, data) =>
-      data.photoCount > 0
-        ? `Notes saved with ${data.photoCount} photo${data.photoCount === 1 ? "" : "s"} filed.`
-        : "The session was marked done.",
+    successDescription: () => "The session was marked done.",
     errorFallback: "Could not finish the session. Try again.",
     silentError: true,
     dock: false,
@@ -188,11 +176,9 @@ export function FinishSessionDialog({
       };
     },
     onSuccessExtra: () => {
-      setFiles([]);
-      setPickError(null);
       onChanged();
       if (dockTaskId.current) {
-        dock.completeTask(dockTaskId.current);
+        dock.completeTask(dockTaskId.current, "The session was marked done.");
         dockTaskId.current = null;
       }
     },
@@ -210,45 +196,18 @@ export function FinishSessionDialog({
   const serverError = finishMutation.error
     ? apiErrorMessage(finishMutation.error, "Could not finish the session. Try again.")
     : null;
-  const now = useActiveNowTick(open);
 
   if (!open) return null;
 
-  const notStarted = new Date(session.scheduledAt).getTime() > now;
-
-  function onPickFiles(list: FileList | null) {
-    if (!list) return;
-    const picked = Array.from(list).slice(0, 5);
-    const problem = clinicAttachmentError(picked);
-    if (problem) {
-      setPickError(problem);
-      return;
-    }
-    setPickError(null);
-    setFiles(picked);
-  }
-
-  function save(fields: {
-    sessionNotes: string;
-    outcome?: string;
-    followUpSession?: { scheduledAt: string };
-  }) {
-    if (files.length > 0) {
-      const problem = clinicAttachmentError(files);
-      if (problem) {
-        setPickError(problem);
-        return;
-      }
-    }
+  function save(fields: FinishSessionFields) {
     // The Dock carries the request: both overlays close at once (low latency),
     // the list is patched optimistically, and the Dock reports the outcome.
     let taskId: string | null = null;
     try {
       taskId = dock.startTask({
         kind: "generic",
-        title: "Finishing clinic session",
-        description: `${session.date}${files.length > 0 ? ` · ${files.length} photo${files.length === 1 ? "" : "s"}` : ""}`,
-        ...(files.length > 0 ? { total: files.length } : {}),
+        title: "Completing session",
+        description: session.date,
       });
     } catch {
       taskId = null;
@@ -261,7 +220,6 @@ export function FinishSessionDialog({
 
   function handleClose() {
     onClose();
-    setPickError(null);
     finishMutation.reset();
   }
 
@@ -270,51 +228,20 @@ export function FinishSessionDialog({
       open
       onClose={handleClose}
       onSubmit={(fields) => void save(fields)}
-      description="Record what happened. Photos are optional — file them now or later from the session list."
       sessionMeta={{
         type: sessionTypeLabel(session.sessionType),
         when: `${formatDate(session.date)} · ${formatTime(session.scheduledAt)}`,
         ...(session.venue ? { venue: session.venue } : {}),
       }}
-      showSessionType={false}
-      showFollowUpVenue={false}
-      docsSection={
-        <div className="flex flex-col gap-1.5 px-1 pb-1">
-          <Button
-            type="button"
-            variant="outline"
-            size="sm"
-            className="h-6 w-fit px-3 text-xs"
-            disabled={acting}
-            onClick={() => inputRef.current?.click()}
-            aria-label="Choose documentation photos"
-          >
-            <Paperclip aria-hidden />
-            Choose files
-          </Button>
-          <input
-            ref={inputRef}
-            id="nurse-done-files"
-            type="file"
-            accept="image/jpeg,image/png,image/webp"
-            multiple
-            disabled={acting}
-            onChange={(e) => {
-              onPickFiles(e.target.files);
-              e.target.value = "";
-            }}
-            className="sr-only"
-          />
-          <p className="text-[12px] text-muted-foreground">
-            {files.length === 0
-              ? "Wound photo, referral slip, lab result… JPG/PNG/WEBP, max 5 at a time, 5 MB each. You can skip this."
-              : `${files.length} photo${files.length === 1 ? "" : "s"} selected: ${files.map((f) => f.name).join(", ")}`}
-          </p>
-        </div>
-      }
-      notStarted={notStarted}
+      followUpTitle="Book a follow-up session (optional)"
+      followUpHint="If this needs another talk, book it now so it stays on the plan."
+      followUpDateLabel="Follow-up date"
+      followUpTimeLabel="Follow-up time"
+      venuePlaceholder="e.g. School clinic"
+      showSessionType
+      sessionTypeOptions={SESSION_KIND_OPTIONS}
       busy={acting}
-      serverError={pickError ?? serverError}
+      serverError={serverError}
       idPrefix="nurse-done"
     />
   );
@@ -477,7 +404,13 @@ export function DeleteSessionDialog({
   open,
   onClose,
   onChanged,
-}: DialogProps & { referralId: string; session: NurseSessionItem }) {
+  onDeletingChange,
+}: DialogProps & {
+  referralId: string;
+  session: NurseSessionItem;
+  /** Lets the drawer keep its session buttons disabled until the delete lands. */
+  onDeletingChange?: (deleting: boolean) => void;
+}) {
   const deleteMutation = useNurseMutation({
     mutationFn: () => deleteClinicSession(referralId, session.id),
     successTitle: "Session deleted",
@@ -486,9 +419,11 @@ export function DeleteSessionDialog({
     silentError: true,
     sourceId: referralId,
     onSuccessExtra: () => {
+      onDeletingChange?.(false);
       onClose();
       onChanged();
     },
+    onErrorExtra: () => onDeletingChange?.(false),
   });
   const acting = deleteMutation.isPending;
   const serverError = deleteMutation.error
@@ -501,11 +436,16 @@ export function DeleteSessionDialog({
     <SharedDeleteSessionDialog
       open
       onClose={() => {
+        if (acting) return;
         onClose();
         deleteMutation.reset();
       }}
       onConfirm={() => {
-        // Close at once — the shared Dock reports the delete until it settles.
+        // Confirm closes the overlay at once — the shared Dock reports the
+        // delete until it settles. The drawer disables its session buttons
+        // meanwhile, so the stale cancelled row can't be deleted twice.
+        if (acting) return;
+        onDeletingChange?.(true);
         onClose();
         deleteMutation.mutate();
       }}

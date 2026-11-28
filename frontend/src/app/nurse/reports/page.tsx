@@ -4,16 +4,25 @@ import { FileBarChart2, Loader2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { NurseEmptyCard } from "../components/NurseEmptyCard";
 import {
-  NurseAdmInsights,
-  NurseAdmStats,
-} from "./components/NurseAdmInsights";
-import { NurseAdmReports } from "./components/NurseAdmReports";
+  GuidanceAdmInsights,
+  GuidanceAdmStats,
+} from "../../guidance/adm/components/GuidanceAdmInsights";
+import { GuidanceAdmReports } from "../../guidance/adm/components/guidance-adm-reports";
+import { GuidanceAdmSkeleton } from "../../guidance/adm/components/GuidanceAdmSkeleton";
 import { NurseAdmRisk } from "./components/NurseAdmRisk";
-import { NurseAdmHotspotStat } from "./components/NurseAdmHotspotStat";
-import { NurseAdmSkeleton } from "./components/NurseAdmSkeleton";
 import { useNurseReportData } from "./components/use-nurse-report-data";
-import styles from "./components/nurse-adm.module.css";
+/* Same page/board chrome as /guidance/reports so both report desks render
+   pixel-identical layouts; only the case data and queue deep-links differ. */
+import styles from "../../guidance/adm/components/guidance-adm.module.css";
 import pageStyles from "../pages.module.css";
+
+/** Nurse queue deep-links for the shared report boards. */
+const NURSE_LINKS = {
+  basePath: "/nurse/referrals",
+  otherSegment: "clinic",
+  otherLabel: "clinic",
+  scopeLabel: "clinic",
+} as const;
 
 /**
  * Reports desk. Everything the page renders — case totals, category mix,
@@ -26,24 +35,16 @@ export default function NurseAdmPage() {
     useNurseReportData();
 
   if (isPending) {
-    return (
-      <section
-        className={styles.page}
-        aria-busy="true"
-        aria-label="Loading referrals report"
-      >
-        <NurseAdmSkeleton />
-      </section>
-    );
+    return <GuidanceAdmSkeleton />;
   }
 
   if (isError || !data) {
     return (
       <section className={styles.page}>
-        <div className={styles.pageError} role="alert">
-          <p className={styles.pageErrorTitle}>We couldn&apos;t load the referrals report</p>
-          <p className={styles.pageErrorHint}>
-            Please check your internet connection and try again.
+        <div className={styles.errorBlock} role="alert">
+          <p className={styles.errorText}>
+            We couldn&apos;t load the referrals report. Please check your internet
+            connection and try again.
           </p>
           <Button
             size="sm"
@@ -54,7 +55,7 @@ export default function NurseAdmPage() {
             {isFetching ? (
               <Loader2 className={styles.spin} aria-hidden="true" />
             ) : null}
-            Try again
+            {isFetching ? "Loading…" : "Try again"}
           </Button>
         </div>
       </section>
@@ -83,12 +84,9 @@ export default function NurseAdmPage() {
         <>
           {insights ? (
             <>
-              <NurseAdmStats
-                data={insights}
-                extra={<NurseAdmHotspotStat />}
-              />
-              <NurseAdmReports data={data} insights={insights} />
-              <NurseAdmInsights data={insights} />
+              <GuidanceAdmStats data={insights} />
+              <GuidanceAdmReports data={data} insights={insights} />
+              <GuidanceAdmInsights data={insights} links={NURSE_LINKS} />
               <NurseAdmRisk />
             </>
           ) : null}

@@ -124,7 +124,11 @@ export function KanbanOverlay({
 
   return createPortal(
     <div
-      className="fixed inset-0 z-50 flex items-center justify-center p-4"
+      className="pointer-events-auto fixed inset-0 z-50 flex items-center justify-center p-4"
+      // Marks this portal as a nested layer for `SidePanel`: without it, Radix
+      // sees a click inside the overlay as "outside" the sheet and closes the
+      // drawer, unmounting the overlay (and cancelling the file picker) first.
+      data-nested-overlay
       role="dialog"
       aria-modal="true"
       aria-busy={busy || undefined}

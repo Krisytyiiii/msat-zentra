@@ -1,6 +1,7 @@
 "use client";
 
 import * as React from "react";
+import { createPortal } from "react-dom";
 import { ShieldCheck, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { KanbanBoard } from "@/components/ui/kanban-board";
@@ -67,11 +68,16 @@ export function PrivacyNoticeDialog({
 
   if (!open) return null;
 
-  return (
+  return createPortal(
     /* `whitespace-normal` — callers mount this inside nowrap row cells
-       (e.g. `.cellActions`), and white-space inherits. */
+       (e.g. `.cellActions`), and white-space inherits.
+       Portalled to <body> and raised to z-60 with pointer-events forced on:
+       a Radix Sheet open underneath sets `pointer-events: none` on <body>
+       and hides the rest of the page, and the notice can be opened from
+       inside that drawer (endorsed/finished report). */
     <div
-      className="fixed inset-0 z-50 flex items-center justify-center p-4 whitespace-normal"
+      className="pointer-events-auto fixed inset-0 z-[60] flex items-center justify-center p-4 whitespace-normal"
+      data-nested-overlay=""
       role="dialog"
       aria-modal="true"
       aria-label={title}
@@ -121,6 +127,7 @@ export function PrivacyNoticeDialog({
           {null}
         </KanbanBoard>
       </div>
-    </div>
+    </div>,
+    document.body,
   );
 }

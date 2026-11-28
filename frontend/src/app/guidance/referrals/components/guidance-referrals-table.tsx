@@ -215,8 +215,8 @@ export function GuidanceReferralsTable({
           <div className={styles.emptyCenter}>
             <InsightCallout role="status" className="w-full max-w-xl text-left">
               {query.trim() !== ""
-                ? `No cases on this page match “${query.trim()}”.`
-                : "No cases on this page match your filters."}
+                ? `No cases match “${query.trim()}”.`
+                : "No cases match your filters."}
             </InsightCallout>
           </div>
         ) : (

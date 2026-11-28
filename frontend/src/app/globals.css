@@ -51,23 +51,17 @@
   --radius-4xl: calc(var(--radius) * 2.6);
 }
 
-/* Shared desk dock gutter (components/nav/GlassDock.tsx). The dock sets
-   data-dock on <html>: expanded shows icon + label rows in a wider panel, and
-   every shell pads its content by this variable so the panel never overlaps.
-   Narrow screens use the collapsed gutter even when expanded — there the
-   panel floats over the page with a scrim instead of pushing it. */
+/* Shared desk dock gutter (components/nav/GlassDock.tsx). The dock is a fixed
+   labelled panel (it cannot be collapsed) and sets data-dock="expanded", so
+   every shell pads its content by this variable and the panel never overlaps.
+   Narrow screens keep the icon-rail gutter because the labelled panel cannot
+   push a phone layout. */
 :root {
   --zentra-dock-clearance: 5rem;
 }
 
 html[data-dock="expanded"] {
   --zentra-dock-clearance: 16rem;
-}
-
-@media (max-width: 767px) {
-  html[data-dock="expanded"] {
-    --zentra-dock-clearance: 4.25rem;
-  }
 }
 
 :root {

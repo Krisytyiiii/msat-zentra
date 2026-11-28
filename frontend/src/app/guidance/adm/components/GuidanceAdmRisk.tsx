@@ -43,6 +43,7 @@ import {
   type CategorySlice,
   type CategoryTrend,
   type LevelSlice,
+  type RiskDashboard,
   type RiskLevelBucket,
 } from "@/components/risk-dashboard/risk-dashboard-data";
 import { GuidanceAdmInterpretation } from "./guidance-adm-interpretation";
@@ -82,16 +83,18 @@ function StudentsByLevel({
   mix,
   totalStudents,
   interpretation,
+  deskLabel,
 }: {
   mix: LevelSlice[];
   totalStudents: number;
   interpretation: string;
+  deskLabel: string;
 }) {
   return (
     <KanbanBoard
       title="Students by risk level"
       icon={<BoardIcon icon={HeartPulse} />}
-      description="Live levels for learners with a case on the guidance desk."
+      description={`Live levels for learners with a case on the ${deskLabel} desk.`}
       className="flex-1"
       footer={<GuidanceAdmInterpretation>{interpretation}</GuidanceAdmInterpretation>}
     >
@@ -186,9 +189,11 @@ function StudentsByLevel({
 function RiskCasesByCategory({
   rows,
   interpretation,
+  deskLabel,
 }: {
   rows: CategorySlice[];
   interpretation: string;
+  deskLabel: string;
 }) {
   const total = rows.reduce((s, r) => s + r.count, 0);
   const height = Math.max(140, rows.length * 28 + 8);
@@ -196,7 +201,7 @@ function RiskCasesByCategory({
     <KanbanBoard
       title="Risk cases by category"
       icon={<BoardIcon icon={ClipboardList} />}
-      description="What the guidance desk cases are about."
+      description={`What the ${deskLabel} desk cases are about.`}
       className="flex-1"
       footer={<GuidanceAdmInterpretation>{interpretation}</GuidanceAdmInterpretation>}
     >
@@ -394,7 +399,15 @@ function watchSummary(data: RiskWatchData): string {
   return `${joinParts(parts)}.`;
 }
 
-function WhoNeedsAttention({ data }: { data: RiskWatchData }) {
+function WhoNeedsAttention({
+  data,
+  basePath,
+  otherSegment,
+}: {
+  data: RiskWatchData;
+  basePath: string;
+  otherSegment: string;
+}) {
   const router = useRouter();
   const known = data.urgent + data.watch + data.okay;
   const interpretation =
@@ -436,8 +449,8 @@ function WhoNeedsAttention({ data }: { data: RiskWatchData }) {
             </TableHeader>
             <TableBody>
               {data.watchlist.map((s, index) => {
-                const href = `/guidance/referrals/${
-                  s.kind === "ADM" ? "adm" : "counseling"
+                const href = `${basePath}/${
+                  s.kind === "ADM" ? "adm" : otherSegment
                 }?highlight=${s.referralId}`;
                 const open = () => router.push(href);
                 return (
@@ -524,12 +537,29 @@ function WhoNeedsAttention({ data }: { data: RiskWatchData }) {
   );
 }
 
+/** Risk data shared by both report desks. */
+export interface AdmRiskBoardsData {
+  isPending: boolean;
+  dashboard: RiskDashboard | null;
+  trend: CategoryTrend | null;
+  watch: RiskWatchData | null;
+}
+
 /**
- * Risk section for /guidance/adm — the old /guidance/risk dashboard rebuilt
- * with the page's kanban boards and amber palette.
+ * Risk boards shared by /guidance/reports and /nurse/reports — identical
+ * markup and palette, only the desk wording and case deep-links differ.
  */
-export function GuidanceAdmRisk() {
-  const { isPending, dashboard, trend, watch } = useGuidanceAdmRiskData();
+export function AdmRiskBoards({
+  data,
+  desk = "guidance",
+}: {
+  data: AdmRiskBoardsData;
+  desk?: "guidance" | "nurse";
+}) {
+  const { isPending, dashboard, trend, watch } = data;
+  const deskLabel = desk === "nurse" ? "clinic" : "guidance";
+  const basePath = desk === "nurse" ? "/nurse/referrals" : "/guidance/referrals";
+  const otherSegment = desk === "nurse" ? "clinic" : "counseling";
 
   if (isPending || !dashboard || !trend || !watch) {
     return <GuidanceAdmRiskSkeleton />;
@@ -544,8 +574,9 @@ export function GuidanceAdmRisk() {
           interpretation={interpretLevelMix(
             dashboard.levelMix,
             dashboard.totalStudents,
-            "guidance",
+            desk === "nurse" ? "clinic" : "guidance",
           )}
+          deskLabel={deskLabel}
         />
         <RiskCasesByCategory
           rows={dashboard.categoryRows}
@@ -553,10 +584,23 @@ export function GuidanceAdmRisk() {
             dashboard.categoryRows,
             dashboard.totalCases,
           )}
+          deskLabel={deskLabel}
         />
       </div>
       <RiskTrend trend={trend} interpretation={interpretCategoryTrend(trend)} />
-      <WhoNeedsAttention data={watch} />
+      <WhoNeedsAttention
+        data={watch}
+        basePath={basePath}
+        otherSegment={otherSegment}
+      />
     </>
   );
+}
+
+/**
+ * Risk section for /guidance/reports — the old /guidance/risk dashboard
+ * rebuilt with the page's kanban boards and amber palette.
+ */
+export function GuidanceAdmRisk() {
+  return <AdmRiskBoards data={useGuidanceAdmRiskData()} desk="guidance" />;
 }

@@ -1,6 +1,7 @@
 "use client";
 
 import { markSelfNotified } from "@/lib/realtime/nurseChannel";
+import { useDock } from "@/components/dock/dock-store";
 import { useNurseInvalidate } from "../../overview/components/use-nurse-mutation";
 import {
   AdmReferralFormSheet,
@@ -53,6 +54,7 @@ export function NurseAdmReferralFormSheet({
   onChanged: () => void;
 }) {
   const invalidateNurse = useNurseInvalidate();
+  const dock = useDock();
   const reviewable = row.type === "ADM" && row.status === "pending";
 
   async function onConfirm({
@@ -62,11 +64,27 @@ export function NurseAdmReferralFormSheet({
     form: GcForm03Data;
     scheduledAt?: string;
   }) {
-    await confirmNurseReferralAndEndorse(row.id, {
-      recommendation: form.guidanceRecommendations.trim() || "Referred for ADM.",
-      ...(scheduledAt ? { scheduledAt } : {}),
-      referralForm: referralFormOf(form),
-    });
+    let taskId: string | null = null;
+    try {
+      taskId = dock.startTask({
+        kind: "adm-endorse",
+        title: "Endorsing to ADM",
+        description: "Saving the referral form and endorsement.",
+      });
+    } catch {
+      taskId = null;
+    }
+    try {
+      await confirmNurseReferralAndEndorse(row.id, {
+        recommendation: form.guidanceRecommendations.trim() || "Referred for ADM.",
+        ...(scheduledAt ? { scheduledAt } : {}),
+        referralForm: referralFormOf(form),
+      });
+    } catch (error) {
+      if (taskId) dock.failTask(taskId, "Could not endorse this case.");
+      throw error;
+    }
+    if (taskId) dock.completeTask(taskId, "Case endorsed.");
   }
 
   function onConfirmed() {

@@ -14,10 +14,8 @@ import { GuidanceReferralsTable } from "./guidance-referrals-table";
 import { GuidanceReferralsSkeleton } from "./GuidanceReferralsSkeleton";
 import {
   GuidanceBoardDeskHead,
-  GuidanceBoardFigures,
 } from "./GuidanceBoardDeskHead";
 import {
-  buildGuidanceSummary,
   matchesGuidanceFilters,
   resolveActionParams,
   type GuidanceAction,
@@ -113,6 +111,10 @@ export function GuidanceReferralsView({
   };
 
   const actionParams = resolveActionParams(action);
+  /* The action lens is resolved server-side (status/booked/completed/withdrawn)
+     so the chip count, the pager and the rows all describe the same slice —
+     the loaded page is no longer the boundary. */
+  const serverAction = action === "" ? null : actionParams;
   const effType =
     lockedType === "ADM"
       ? "adm"
@@ -124,14 +126,16 @@ export function GuidanceReferralsView({
             ? "counseling"
             : "";
 
-  /* Action tabs filter the already-loaded page, exactly like the nurse ADM
-     board: no refetch, no stale board. Only the type + search hit the API. */
+  /* Action tabs are a server-side lens: the chips (whole-desk counts), the
+     pager and the rows all describe the same filtered slice. Only free-text
+     search is additionally matched locally while the debounce catches up. */
   const requestedPage = takeover || !locked ? page : 1;
   const queryKey = [
     "guidance-referrals",
     requestedPage,
     debounced,
     effType,
+    action,
     termKey,
     landing ? (highlightId ?? "") : "",
   ];
@@ -143,7 +147,19 @@ export function GuidanceReferralsView({
       fetchGuidanceReferrals(
         {
           q: debounced || undefined,
-          type: effType || undefined,
+          type: serverAction?.type || effType || undefined,
+          ...(serverAction
+            ? {
+                status: serverAction.status || undefined,
+                booked: serverAction.booked || undefined,
+                completed: serverAction.completed || undefined,
+                open: serverAction.open || undefined,
+                withdrawn:
+                  serverAction.status === "dismissed"
+                    ? serverAction.withdrawn
+                    : undefined,
+              }
+            : {}),
           page: requestedPage,
           pageSize,
           ...(landing && highlightId ? { highlight: highlightId } : {}),
@@ -213,7 +229,6 @@ export function GuidanceReferralsView({
           <>
             {deskHead}
             <ShimmerGroup>
-              <GuidanceBoardFigures track={boardTrack} loading />
               <GuidanceReferralsSkeleton lockType table={isBoard} />
             </ShimmerGroup>
           </>
@@ -254,34 +269,27 @@ export function GuidanceReferralsView({
 
   const refreshing = isRefetching && !isPending;
   const loadedReferrals = Array.isArray(data.referrals) ? data.referrals : [];
-  const hasActionFilter = action !== "";
   /* Search types instantly over the loaded page (the debounced server query
-     catches up in the background); action tabs narrow the same slice. */
+     catches up in the background). The action lens is already applied by the
+     server, so it never hides rows the request returned. */
   const liveQuery = queryInput.trim();
-  const referrals =
-    hasActionFilter || liveQuery !== ""
-      ? loadedReferrals.filter((row) =>
-          matchesGuidanceFilters(row, liveQuery, actionParams)
-        )
-      : loadedReferrals;
+  const referrals = liveQuery !== ""
+    ? loadedReferrals.filter((row) =>
+        matchesGuidanceFilters(row, liveQuery, actionParams)
+      )
+    : loadedReferrals;
   const unfilteredTotal = data.unfilteredTotal ?? data.total ?? 0;
-  /* Tab badges count the loaded page, exactly like the nurse board — a
-     desk-wide count would advertise a case this page cannot show. */
-  const pageSummary = buildGuidanceSummary(loadedReferrals);
   const isTrueEmpty =
     loadedReferrals.length === 0 &&
     unfilteredTotal === 0 &&
     debounced === "" &&
     action === "" &&
     (locked || typeFilter === "");
-  /* While an action lens is on, report the filtered slice — never a stale
-     server total for rows the board is not showing. */
-  const displayTotal = hasActionFilter ? referrals.length : data.total;
-  const displayPage = hasActionFilter ? 1 : safePage;
-  const displayPageSize = hasActionFilter
-    ? Math.max(referrals.length, 1)
-    : data.pageSize;
-  const displayTotalPages = hasActionFilter ? 1 : totalPages;
+  /* Filtered totals now come from the server, so the pager matches the rows. */
+  const displayTotal = data.total;
+  const displayPage = safePage;
+  const displayPageSize = data.pageSize;
+  const displayTotalPages = totalPages;
 
   return (
     <section
@@ -292,12 +300,6 @@ export function GuidanceReferralsView({
       {isBoard ? (
         <>
           {deskHead}
-          {isTrueEmpty ? null : (
-            <GuidanceBoardFigures
-              track={boardTrack}
-              byType={data.summary?.byType?.[boardTrack]}
-            />
-          )}
         </>
       ) : isTrueEmpty ? null : (
         <GuidancePageHeader
@@ -317,7 +319,7 @@ export function GuidanceReferralsView({
       ) : (
       <GuidanceReferralsTable
         referrals={referrals}
-        summary={pageSummary}
+        summary={data.summary ?? null}
         total={displayTotal}
         unfilteredTotal={data.unfilteredTotal}
         page={displayPage}

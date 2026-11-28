@@ -3,6 +3,7 @@ import { AppError } from "../../lib/errors.js";
 import { writeAudit } from "../../lib/audit.js";
 import { fanoutNotification, fanoutToRole } from "../../lib/notify.js";
 import { assertActiveTerm, referralCard } from "../../modules/referrals/referrals.repository.js";
+import { findBlockingOpenReferral } from "./openReferral.js";
 import type { ReferralContext } from "./referral.types.js";
 
 export async function addNote(ctx: ReferralContext, referralId: string, notes: string) {
@@ -214,25 +215,20 @@ export async function reopenReferral(ctx: ReferralContext, referralId: string, i
   if (input.consultReviewer && nextRole !== "adm_coordinator") {
     throw new AppError(400, "INVALID_ACTION", "A consultation reviewer can only be picked for ADM cases");
   }
-  // Same one-live-referral-per-learner-per-type rule as a fresh referral:
-  // re-submitting a cancelled case must not duplicate an open one.
-  const studentMatch = referral.studentId
-    ? { studentId: referral.studentId }
-    : { rosterId: referral.rosterId };
-  const existingOpen = await prisma.referral.findFirst({
-    where: {
-      id: { not: referral.id },
-      referredToRole: nextRole,
-      status: { notIn: ["dismissed", "resolved"] },
-      ...studentMatch,
-    },
-    select: { id: true },
+  // Same one-live-referral-per-learner-per-type-per-term rule as a fresh
+  // referral: re-submitting a cancelled case must not duplicate an open one.
+  const existingOpen = await findBlockingOpenReferral({
+    referredToRole: nextRole,
+    termId: referral.termId,
+    studentId: referral.studentId,
+    rosterId: referral.rosterId,
+    excludeId: referral.id,
   });
   if (existingOpen) {
     throw new AppError(
       409,
       "REFERRAL_ALREADY_OPEN",
-      "This student already has an open referral of this type — resolve or dismiss it before referring again",
+      "This student already has an open referral of this type this term — resolve or dismiss it before referring again",
     );
   }
   const updated = await prisma.referral.update({

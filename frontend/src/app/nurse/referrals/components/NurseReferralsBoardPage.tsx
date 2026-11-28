@@ -9,13 +9,9 @@ import { NurseEmptyCard } from "../../components/NurseEmptyCard";
 import { NurseAlertsTable } from "./NurseAlertsTable";
 import { NurseReferralsSkeleton } from "./NurseReferralsSkeleton";
 import { ShimmerGroup } from "@/components/ui/shimmer-skeleton";
-import { NurseBoardDeskHead, NurseBoardFigures } from "./NurseBoardDeskHead";
+import { NurseBoardDeskHead } from "./NurseBoardDeskHead";
 import { fetchNurseAlerts } from "@/services/nurse/alerts.service";
-import { fetchNurseOverview } from "@/services/nurse/overview.service";
-import type {
-  NurseAlertsPage,
-  NurseOverviewData,
-} from "@/services/nurse/nurse.types";
+import type { NurseAlertsPage } from "@/services/nurse/nurse.types";
 import { useNurseInvalidate } from "../../overview/components/use-nurse-mutation";
 import { useDebouncedValue } from "@/lib/useDebouncedValue";
 import { useTerm } from "@/lib/term/TermContext";
@@ -139,21 +135,6 @@ function NurseReferralsBoard({ track }: { track: BoardTrack }) {
       enabled: termReady,
     });
 
-  /* The figure strip reads the clinic overview (whole term scope, computed
-     server-side) and shares its cache key with /nurse/overview, so opening
-     either page warms the other. */
-  const overviewQuery = useQuery<NurseOverviewData>({
-    ...liveQueryOptions,
-    queryKey: ["nurse-overview", "preview", termKey],
-    queryFn: ({ signal }) => fetchNurseOverview(signal),
-    enabled: termReady,
-  });
-
-  const breakdown =
-    (track === "adm"
-      ? overviewQuery.data?.admStatusBreakdown
-      : overviewQuery.data?.clinicStatusBreakdown) ?? [];
-
   const totalPages = Math.max(1, data?.totalPages ?? 1);
   const safePage = Math.min(data?.page ?? page, totalPages);
 
@@ -184,7 +165,6 @@ function NurseReferralsBoard({ track }: { track: BoardTrack }) {
       >
         {head}
         <ShimmerGroup>
-          <NurseBoardFigures track={track} breakdown={[]} loading />
           <NurseReferralsSkeleton />
         </ShimmerGroup>
       </section>
@@ -237,17 +217,12 @@ function NurseReferralsBoard({ track }: { track: BoardTrack }) {
         />
       ) : (
         <>
-          <NurseBoardFigures
-            track={track}
-            breakdown={breakdown}
-            loading={overviewQuery.isPending}
-          />
           <NurseAlertsTable
             alerts={Array.isArray(data.alerts) ? data.alerts : []}
             onChanged={refresh}
             initialType={copy.initialType}
             lockType
-            layout="kanban"
+            layout="table"
             pageSize={NURSE_BOARD_PAGE_SIZE}
             title={copy.boardTitle}
             highlightId={highlightId}

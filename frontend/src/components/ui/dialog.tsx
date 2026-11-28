@@ -51,13 +51,19 @@ function DialogContent({
   className,
   children,
   showCloseButton = true,
+  overlayClassName,
+  showOverlay = true,
   ...props
 }: React.ComponentProps<typeof DialogPrimitive.Content> & {
   showCloseButton?: boolean
+  /** Overlay scrim override (tone, blur) for dialogs that need a darker scrim. */
+  overlayClassName?: string
+  /** Skip the built-in scrim — for a dialog whose content paints its own. */
+  showOverlay?: boolean
 }) {
   return (
     <DialogPortal>
-      <DialogOverlay />
+      {showOverlay ? <DialogOverlay className={overlayClassName} /> : null}
       <DialogPrimitive.Content
         data-slot="dialog-content"
         className={cn(
