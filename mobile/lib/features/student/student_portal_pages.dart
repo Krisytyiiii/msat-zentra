@@ -12,6 +12,8 @@ import '../../design/overview_theme.dart';
 import '../../design/screen_search.dart';
 import '../../design/status_palette.dart';
 import '../../features/student/module_submission.dart';
+import '../../shared/date_strip_selector.dart';
+import '../../shared/identity_tile.dart';
 import '../../shared/models.dart';
 import '../../shared/widgets.dart';
 import '../../services/portal_service.dart';
@@ -953,6 +955,42 @@ class StudentSchedulePage extends ConsumerStatefulWidget {
 class _StudentScheduleState extends ConsumerState<StudentSchedulePage> {
   String _lastQuery = '';
   String _lastTerm = '';
+  late final DateTime _dateAnchor;
+  late DateTime _selectedDate;
+  String _classFilter = 'All';
+
+  @override
+  void initState() {
+    super.initState();
+    final now = philippineTime(DateTime.now());
+    _dateAnchor = DateTime.utc(now.year, now.month, now.day);
+    _selectedDate = _dateAnchor;
+    _lastTerm = '';
+  }
+
+  (DateTime, DateTime) _bounds(PortalTerm? term) {
+    var first = _dateAnchor.subtract(const Duration(days: 10000));
+    var last = DateTime.utc(9999, 12, 31);
+    final start = term?.startDate;
+    final end = term?.endDate;
+    if (start != null) {
+      final parsed = DateTime.tryParse(start);
+      if (parsed != null) first = DateTime.utc(parsed.year, parsed.month, parsed.day);
+    }
+    if (end != null) {
+      final parsed = DateTime.tryParse(end);
+      if (parsed != null) last = DateTime.utc(parsed.year, parsed.month, parsed.day);
+    }
+    return (first, last);
+  }
+
+  void _syncTerm(PortalTerm? term) {
+    final (first, last) = _bounds(term);
+    var target = _dateAnchor;
+    if (target.isBefore(first)) target = first;
+    if (target.isAfter(last)) target = last;
+    _selectedDate = target;
+  }
 
   Future<void> _refresh() async {
     ref.invalidate(studentScheduleProvider);
@@ -981,6 +1019,8 @@ class _StudentScheduleState extends ConsumerState<StudentSchedulePage> {
     final termKey = '${term?.schoolYearId}:${term?.id}';
     if (_lastTerm != termKey) {
       _lastTerm = termKey;
+      _syncTerm(term);
+      _classFilter = 'All';
     }
     final query = (ScreenSearchScope.maybeOf(context)?.query ?? '')
         .trim()
@@ -1037,8 +1077,8 @@ class _StudentScheduleState extends ConsumerState<StudentSchedulePage> {
         if (!compact) ...[
           ZContentHeader(
             title: 'Class Schedule',
-            icon: Icons.calendar_month_outlined,
-            description: 'Your designated classes for this term.',
+            icon: LucideIcons.bookOpen,
+            description: 'Your classes and weekly schedule.',
           ),
           const SizedBox(height: 12),
         ],
@@ -1073,117 +1113,207 @@ class _StudentScheduleState extends ConsumerState<StudentSchedulePage> {
 
   Widget _list(BuildContext context, PortalSchedule data, String query) {
     final theme = Theme.of(context);
-    SchoolDayConfig? config;
-    try {
-      if (data.config != null) {
-        config = SchoolDayConfig.fromJson(data.config!);
-      }
-    } catch (_) {
-      config = null;
-    }
-    final slots = data.slots
+    final today = _dateAnchor;
+    final now = philippineTime(DateTime.now());
+    final nowMinute = now.hour * 60 + now.minute;
+    final day = _selectedDate.weekday;
+    final config = SchoolDayConfig.tryFromJson(data.config);
+    final (first, last) = _bounds(portalScopeTerm(ref));
+
+    final searchMatches = data.slots
         .where((s) => query.isEmpty || s.subjectName.toLowerCase().contains(query))
         .toList();
-    if (slots.isEmpty) {
-      return SliverFillRemaining(
-        hasScrollBody: false,
-        child: Center(
-          child: ZEmpty(
-            icon: Icons.calendar_month_outlined,
-            title: data.slots.isEmpty ? 'No schedule published yet' : 'No classes match',
-            subtitle: data.slots.isEmpty ? null : 'Try a different search.',
-          ),
-        ),
-      );
+    final daySlots = searchMatches.where((s) => s.day == day).toList()
+      ..sort((a, b) => a.period.compareTo(b.period));
+
+    bool completed(PortalScheduleSlot slot) {
+      final window = config != null &&
+              slot.period >= 0 &&
+              slot.period < config.periods.length
+          ? config.periods[slot.period]
+          : null;
+      if (window == null) return _selectedDate.isBefore(today);
+      if (_selectedDate.isBefore(today)) return true;
+      return _selectedDate.isAtSameMomentAs(today) && nowMinute >= window.end;
     }
-    final byDay = <int, List<PortalScheduleSlot>>{};
-    for (final s in slots) {
-      byDay.putIfAbsent(s.day, () => []).add(s);
-    }
-    final days = byDay.keys.toList()..sort();
-    return SliverPadding(
-      padding: const EdgeInsets.fromLTRB(12, 16, 12, 0),
-      sliver: SliverList.separated(
-        itemCount: days.length,
-        separatorBuilder: (_, _) => const SizedBox(height: 16),
-        itemBuilder: (context, dayIndex) {
-          final day = days[dayIndex];
-          final daySlots = byDay[day]!;
-          return Column(
-            crossAxisAlignment: CrossAxisAlignment.stretch,
-            children: [
-              Text(_dayName(day), style: theme.textTheme.titleSmall?.copyWith(fontWeight: FontWeight.w700)),
-              const SizedBox(height: 8),
-              Column(
-                children: [
-                  for (final slot in daySlots)
-                    Builder(
-                      builder: (context) {
-                        final window =
-                            config != null &&
-                                slot.period >= 0 &&
-                                slot.period < config.periods.length
-                            ? config.periods[slot.period]
-                            : null;
-                        final time = window == null
-                            ? null
-                            : '${clockLabel(window.start)} – ${clockLabel(window.end)}';
-                        return Padding(
-                          padding: const EdgeInsets.only(bottom: 8),
-                          child: ZCard(
-                            padding: const EdgeInsets.all(12),
-                            child: Row(
-                              children: [
-                                CircleAvatar(
-                                  radius: 14,
-                                  backgroundColor:
-                                      theme.colorScheme.surfaceContainerLow,
-                                  child: Text(
-                                    '${slot.period + 1}',
-                                    style: const TextStyle(fontSize: 11),
-                                  ),
-                                ),
-                                const SizedBox(width: 10),
-                                Expanded(
-                                  child: Column(
-                                    crossAxisAlignment:
-                                        CrossAxisAlignment.start,
-                                    children: [
-                                      Text(
-                                        slot.subjectName,
-                                        style: const TextStyle(
-                                          fontSize: 13,
-                                          fontWeight: FontWeight.w600,
-                                        ),
-                                      ),
-                                      Text(
-                                        slot.teacherName ?? slot.subjectCode,
-                                        style: theme.textTheme.labelSmall,
-                                      ),
-                                    ],
-                                  ),
-                                ),
-                                if (time != null)
-                                  Text(
-                                    time,
-                                    style: theme.textTheme.labelSmall,
-                                  ),
-                              ],
-                            ),
-                          ),
-                        );
-                      },
-                    ),
-                ],
+
+    final filtered = daySlots.where((slot) {
+      if (_classFilter == 'All') return true;
+      final done = completed(slot);
+      return _classFilter == 'Completed' ? done : !done;
+    }).toList();
+    final count = filtered.length;
+
+    return SliverToBoxAdapter(
+      child: Padding(
+        padding: const EdgeInsets.fromLTRB(12, 8, 12, 0),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            DateStripSelector(
+              selectedDate: _selectedDate,
+              today: today,
+              firstDate: first,
+              lastDate: last,
+              stripKey: const ValueKey('student-class-date-selector'),
+              pickerHelpText: 'Choose class date',
+              hasEvent: (date) =>
+                  data.slots.any((slot) => slot.day == date.weekday),
+              onChanged: (date) => setState(
+                () => _selectedDate = DateTime.utc(date.year, date.month, date.day),
               ),
-            ],
-          );
-        },
+            ),
+            const SizedBox(height: 8),
+            Row(
+              children: [
+                Expanded(
+                  child: Text(
+                    'Showing $count ${count == 1 ? 'class' : 'classes'}',
+                    style: TextStyle(
+                      fontSize: 12,
+                      color: theme.colorScheme.onSurfaceVariant,
+                    ),
+                  ),
+                ),
+                TextButton.icon(
+                  onPressed: () => setState(() {
+                    const options = ['All', 'Completed', 'Pending'];
+                    _classFilter =
+                        options[(options.indexOf(_classFilter) + 1) %
+                            options.length];
+                  }),
+                  icon: const Icon(LucideIcons.listFilter, size: 14),
+                  label: Text(
+                    _classFilter,
+                    style: const TextStyle(fontSize: 12),
+                  ),
+                  style: TextButton.styleFrom(
+                    foregroundColor: theme.colorScheme.onSurface,
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 8,
+                      vertical: 0,
+                    ),
+                    minimumSize: Size.zero,
+                    tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                    visualDensity: VisualDensity.compact,
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 12),
+            if (count == 0)
+              ZEmpty(
+                icon: LucideIcons.calendarDays,
+                title: data.slots.isEmpty
+                    ? 'No classes yet'
+                    : query.isNotEmpty
+                        ? 'No classes match'
+                        : _classFilter == 'All'
+                            ? 'No classes'
+                            : 'No ${_classFilter.toLowerCase()} classes',
+                subtitle: data.slots.isEmpty
+                    ? 'No published classes for this term. Ask the school office to check your section schedule.'
+                    : query.isNotEmpty
+                        ? 'Try a different search.'
+                        : _classFilter != 'All'
+                            ? 'No ${_classFilter.toLowerCase()} classes for this date.'
+                            : 'No scheduled classes on ${const ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'][day - 1]}.',
+              )
+            else
+              for (final slot in filtered) ...[
+                _classCard(context, slot, config),
+                const SizedBox(height: 12),
+              ],
+          ],
+        ),
       ),
     );
   }
 
-  String _dayName(int day) => const ['', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'][day.clamp(0, 7)];
+  Widget _classCard(
+    BuildContext context,
+    PortalScheduleSlot slot,
+    SchoolDayConfig? config,
+  ) {
+    final theme = Theme.of(context);
+    final window = config != null &&
+            slot.period >= 0 &&
+            slot.period < config.periods.length
+        ? config.periods[slot.period]
+        : null;
+    final timing = window == null
+        ? 'Time not configured'
+        : '${clockLabel(window.start)} – ${clockLabel(window.end)}';
+    return Material(
+      color: theme.cardTheme.color,
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(12),
+        side: BorderSide(
+          color: theme.colorScheme.outline.withValues(alpha: 0.72),
+        ),
+      ),
+      clipBehavior: Clip.antiAlias,
+      elevation: 1,
+      shadowColor: Colors.black.withValues(
+        alpha: theme.brightness == Brightness.dark ? 0.4 : 0.06,
+      ),
+      child: Padding(
+        padding: const EdgeInsets.all(12),
+        child: Column(
+          children: [
+            Row(
+              children: [
+                ZIdentityTile(name: slot.subjectName, seed: slot.subjectId),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        slot.subjectName,
+                        style: theme.textTheme.titleSmall?.copyWith(
+                          fontSize: 13,
+                          fontWeight: FontWeight.w600,
+                        ),
+                      ),
+                      const SizedBox(height: 3),
+                      Text(
+                        slot.teacherName ?? slot.subjectCode,
+                        style: theme.textTheme.bodySmall?.copyWith(
+                          color: theme.colorScheme.onSurfaceVariant,
+                          fontFeatures: const [FontFeature.tabularFigures()],
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+                const SizedBox(width: 8),
+                ZStatusPill(
+                  text: 'P${slot.period + 1}',
+                  tone: StatusTone.blue,
+                  label: 'Period',
+                ),
+              ],
+            ),
+            const Padding(
+              padding: EdgeInsets.symmetric(vertical: 10),
+              child: Divider(height: 1),
+            ),
+            Align(
+              alignment: Alignment.centerLeft,
+              child: Text(
+                timing,
+                style: TextStyle(
+                  fontSize: 12,
+                  color: theme.colorScheme.onSurface,
+                ),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
 }
 
 // ---------------------------------------------------------------------------

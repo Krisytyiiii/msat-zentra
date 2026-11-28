@@ -197,12 +197,23 @@ class PortalTerm {
   final int termNumber;
   final String schoolYearId;
   final String schoolYearName;
-  PortalTerm({required this.id, required this.termNumber, required this.schoolYearId, required this.schoolYearName});
+  final String? startDate;
+  final String? endDate;
+  PortalTerm({
+    required this.id,
+    required this.termNumber,
+    required this.schoolYearId,
+    required this.schoolYearName,
+    this.startDate,
+    this.endDate,
+  });
   factory PortalTerm.fromJson(Map<String, dynamic> j) => PortalTerm(
         id: j['id'] as String? ?? '',
         termNumber: (j['termNumber'] ?? 1) as int,
         schoolYearId: j['schoolYearId'] as String? ?? '',
         schoolYearName: j['schoolYearName'] as String? ?? '',
+        startDate: j['startDate'] as String?,
+        endDate: j['endDate'] as String?,
       );
   String get label => '$schoolYearName · Term $termNumber';
 }

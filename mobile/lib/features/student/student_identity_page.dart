@@ -103,12 +103,10 @@ class _IdentityState extends ConsumerState<StudentIdentityPage> {
               child: ConstrainedBox(
                 constraints: const BoxConstraints(maxWidth: 440),
                 child: widget.qr
-                    ? RepaintBoundary(
-                        key: _cardKey,
-                        child: StudentQrCard(
-                          learner: student,
-                          onExport: _sharing ? null : _share,
-                        ),
+                    ? _QrScreen(
+                        learner: student,
+                        cardKey: _cardKey,
+                        onShare: _sharing ? null : _share,
                       )
                     : Column(
                         children: [
@@ -139,6 +137,26 @@ class _IdentityState extends ConsumerState<StudentIdentityPage> {
 const _blue = Color(0xFF2444B8);
 const _muted = Color(0xFF71809B);
 const _border = Color(0xFFE0E7FA);
+
+/// Dedicated QR presentation: just the QR card (sharing stays on the card's
+/// own export action).
+class _QrScreen extends StatelessWidget {
+  const _QrScreen({
+    required this.learner,
+    required this.cardKey,
+    required this.onShare,
+  });
+
+  final PortalLearner learner;
+  final GlobalKey cardKey;
+  final VoidCallback? onShare;
+
+  @override
+  Widget build(BuildContext context) => RepaintBoundary(
+    key: cardKey,
+    child: StudentQrCard(learner: learner, onExport: onShare),
+  );
+}
 
 class _Identity extends StatelessWidget {
   const _Identity({required this.learner});
@@ -322,11 +340,6 @@ class StudentQrCard extends StatelessWidget {
             ),
           const SizedBox(height: 16),
           _detail(
-            Icons.school_outlined,
-            'School',
-            'Mati School of Arts and Trades',
-          ),
-          _detail(
             Icons.menu_book_outlined,
             'Grade Level',
             learner.gradeLevel.isEmpty ? 'Not assigned' : learner.gradeLevel,
@@ -340,11 +353,14 @@ class StudentQrCard extends StatelessWidget {
             padding: EdgeInsets.symmetric(vertical: 16),
             child: Divider(height: 1, color: _border),
           ),
-          Image.asset(
-            'assets/msat.jpg',
-            width: 48,
-            height: 48,
-            fit: BoxFit.contain,
+          ClipRRect(
+            borderRadius: BorderRadius.circular(14),
+            child: Image.asset(
+              'assets/ocform01/msat-logo.png',
+              width: 56,
+              height: 56,
+              fit: BoxFit.cover,
+            ),
           ),
           const SizedBox(height: 16),
           const Row(

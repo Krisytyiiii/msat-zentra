@@ -335,12 +335,7 @@ class PortalProfileScreen extends ConsumerWidget {
         ? (learner?.name ?? 'Learner')
         : (parent?.name ?? 'Parent account');
     final roleLabel = isStudent
-        ? [
-            'Learner',
-            if (learner?.lrn.isNotEmpty == true) 'LRN ${learner!.lrn}',
-            if (learner?.gradeLevel.isNotEmpty == true) learner!.gradeLevel,
-            if (learner?.sectionName != null) learner!.sectionName!,
-          ].join(' · ')
+        ? 'Learner'
         : [
             'Parent / Guardian',
             if (children.isNotEmpty)
@@ -359,6 +354,7 @@ class PortalProfileScreen extends ConsumerWidget {
           router.go('/portal/notifications');
         },
         settingsPath: '/portal/settings',
+        qrPath: isStudent ? '/student/profile/qr' : null,
         notificationTitle: portalNotificationTitle,
         notificationTarget: (n) => portalNotificationTarget(n, portal),
         emptySubtitle: isStudent

@@ -264,4 +264,18 @@ void main() {
     expect(record.days.map((d) => d.state), ['present', 'absent', 'no-class', 'missing', 'upcoming']);
     expect(record.heatStart, '2026-09-16');
   });
+
+  test('portal term keeps authoritative start and end dates', () {
+    final term = PortalTerm.fromJson({
+      'id': 't2',
+      'termNumber': 2,
+      'schoolYearId': 'y1',
+      'schoolYearName': 'SY 2026-2027',
+      'startDate': '2026-09-16T00:00:00.000Z',
+      'endDate': '2026-12-18T00:00:00.000Z',
+    });
+    expect(term.startDate, '2026-09-16T00:00:00.000Z');
+    expect(term.endDate, '2026-12-18T00:00:00.000Z');
+    expect(term.label, 'SY 2026-2027 · Term 2');
+  });
 }

@@ -27,6 +27,7 @@ class StaffProfileData {
     required this.inbox,
     required this.onSeeAll,
     this.settingsPath,
+    this.qrPath,
     required this.notificationTitle,
     required this.notificationTarget,
     required this.emptySubtitle,
@@ -40,6 +41,9 @@ class StaffProfileData {
 
   /// Null for desks without a settings screen (learner portals).
   final String? settingsPath;
+
+  /// Learner portals only: the dedicated attendance QR screen.
+  final String? qrPath;
   final String Function(ZNotification notification) notificationTitle;
   final String? Function(ZNotification notification) notificationTarget;
   final String emptySubtitle;
@@ -48,9 +52,10 @@ class StaffProfileData {
 /// Full-screen account panel (Drive-style): Profile header, notifications with
 /// See all, appearance, settings and logout. Close sits top-right.
 class StaffProfileScreen extends ConsumerWidget {
-  const StaffProfileScreen({super.key, required this.data});
+  const StaffProfileScreen({super.key, required this.data, this.title = 'Profile'});
 
   final StaffProfileData data;
+  final String title;
 
   static String _modeLabel(ThemeMode mode) => switch (mode) {
     ThemeMode.light => 'Light',
@@ -120,6 +125,14 @@ class StaffProfileScreen extends ConsumerWidget {
     final router = GoRouter.maybeOf(context);
     Navigator.of(context).pop();
     router?.go(path);
+  }
+
+  void _openQr(BuildContext context) {
+    final path = data.qrPath;
+    if (path == null) return;
+    final router = GoRouter.maybeOf(context);
+    Navigator.of(context).pop();
+    router?.push(path);
   }
 
   Future<void> _logout(BuildContext context, WidgetRef ref) async {
@@ -213,9 +226,9 @@ class StaffProfileScreen extends ConsumerWidget {
       child: Scaffold(
         appBar: AppBar(
           automaticallyImplyLeading: false,
-          title: const Text(
-            'Profile',
-            style: TextStyle(fontSize: 22, fontWeight: FontWeight.w700),
+          title: Text(
+            title,
+            style: const TextStyle(fontSize: 22, fontWeight: FontWeight.w700),
           ),
           actionsPadding: const EdgeInsets.only(right: 12),
           actions: [
@@ -294,6 +307,25 @@ class StaffProfileScreen extends ConsumerWidget {
                     ),
                   ),
                   const SizedBox(height: 16),
+                  if (data.qrPath != null) ...[
+                    ZCard(
+                      padding: EdgeInsets.zero,
+                      child: ListTile(
+                        key: const ValueKey('profile-qr'),
+                        onTap: () => _openQr(context),
+                        leading: const Icon(LucideIcons.qrCode, size: 20),
+                        title: const Text(
+                          'My QR Code',
+                          style: TextStyle(fontSize: 14),
+                        ),
+                        trailing: const Icon(
+                          LucideIcons.chevronRight,
+                          size: 18,
+                        ),
+                      ),
+                    ),
+                    const SizedBox(height: 16),
+                  ],
                   Row(
                     children: [
                       const Icon(LucideIcons.bell, size: 20),
