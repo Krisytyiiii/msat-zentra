@@ -248,17 +248,12 @@ class _TermSelectPageState extends ConsumerState<TermSelectPage>
         terms.where((term) => term.id == initial?.id).firstOrNull ??
         defaultTerm([year], now);
     final reduceMotion = MediaQuery.disableAnimationsOf(context);
-    final buttonForeground =
-        theme.filledButtonTheme.style?.foregroundColor?.resolve(
-          const <WidgetState>{},
-        ) ??
-        colors.onPrimary;
     return IgnorePointer(
       ignoring: _saving,
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
-          const _FieldLabel(text: 'School year'),
+          const TermFieldLabel(text: 'School year'),
           const SizedBox(height: 6),
           DropdownButtonFormField<String>(
             key: ValueKey('school-year-${year.id}'),
@@ -290,7 +285,7 @@ class _TermSelectPageState extends ConsumerState<TermSelectPage>
                   }),
           ),
           const SizedBox(height: 16),
-          const _FieldLabel(text: 'Term'),
+          const TermFieldLabel(text: 'Term'),
           const SizedBox(height: 6),
           if (terms.isEmpty)
             const ZEmpty(
@@ -313,7 +308,7 @@ class _TermSelectPageState extends ConsumerState<TermSelectPage>
                             padding: EdgeInsets.only(
                               right: term == terms.last ? 0 : 8,
                             ),
-                            child: _TermOption(
+                            child: TermOption(
                               term: term,
                               status: termStatus(term, now),
                               selected: picked?.id == term.id,
@@ -330,7 +325,7 @@ class _TermSelectPageState extends ConsumerState<TermSelectPage>
                 ),
                 if (picked != null) ...[
                   const SizedBox(height: 12),
-                  _TermCard(
+                  TermSummaryCard(
                     term: picked,
                     yearName: year.name,
                     status: termStatus(picked, now),
@@ -377,11 +372,22 @@ class _TermSelectPageState extends ConsumerState<TermSelectPage>
             onPressed: picked == null || _saving
                 ? null
                 : () => _continue(picked, year),
+            style: FilledButton.styleFrom(
+              backgroundColor: const Color(0xFF2563EB),
+              foregroundColor: Colors.white,
+              disabledBackgroundColor: const Color(0xFF2563EB).withValues(alpha: 0.45),
+              disabledForegroundColor: Colors.white.withValues(alpha: 0.6),
+              minimumSize: const Size.fromHeight(46),
+              padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 11),
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(12),
+              ),
+            ),
             child: Row(
               mainAxisAlignment: MainAxisAlignment.center,
               children: [
                 if (_saving) ...[
-                  AuthSpinner(size: 15, color: buttonForeground),
+                  const AuthSpinner(size: 15, color: Colors.white),
                   const SizedBox(width: 9),
                 ],
                 Flexible(
@@ -399,8 +405,8 @@ class _TermSelectPageState extends ConsumerState<TermSelectPage>
   }
 }
 
-class _FieldLabel extends StatelessWidget {
-  const _FieldLabel({required this.text});
+class TermFieldLabel extends StatelessWidget {
+  const TermFieldLabel({super.key, required this.text});
   final String text;
 
   @override
@@ -415,8 +421,9 @@ class _FieldLabel extends StatelessWidget {
 
 /// Compact workspace card-style term option: surface fill, hairline border,
 /// amber edge and wash when selected.
-class _TermOption extends StatelessWidget {
-  const _TermOption({
+class TermOption extends StatelessWidget {
+  const TermOption({
+    super.key,
     required this.term,
     required this.status,
     required this.selected,
@@ -486,8 +493,9 @@ class _TermOption extends StatelessWidget {
   }
 }
 
-class _TermCard extends StatelessWidget {
-  const _TermCard({
+class TermSummaryCard extends StatelessWidget {
+  const TermSummaryCard({
+    super.key,
     required this.term,
     required this.yearName,
     required this.status,

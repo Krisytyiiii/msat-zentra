@@ -25,24 +25,24 @@ const _adviserDestinations = [
 
 const _studentDestinations = [
   (path: '/student/overview', label: 'Overview', icon: LucideIcons.layoutDashboard),
+  (path: '/student/schedule', label: 'Schedule', icon: LucideIcons.calendar),
   (path: '/student/grades', label: 'Grades', icon: LucideIcons.award),
   (
     path: '/student/attendance',
     label: 'Attendance',
     icon: LucideIcons.clipboardCheck,
   ),
-  (path: '/student/schedule', label: 'Schedule', icon: LucideIcons.calendar),
 ];
 
 const _parentDestinations = [
   (path: '/parent/overview', label: 'Overview', icon: LucideIcons.layoutDashboard),
+  (path: '/parent/schedule', label: 'Schedule', icon: LucideIcons.calendar),
   (path: '/parent/grades', label: 'Grades', icon: LucideIcons.award),
   (
     path: '/parent/attendance',
     label: 'Attendance',
     icon: LucideIcons.clipboardCheck,
   ),
-  (path: '/parent/schedule', label: 'Schedule', icon: LucideIcons.calendar),
 ];
 
 /// Lets a full-height editor sheet hide the floating staff bar while it is open.

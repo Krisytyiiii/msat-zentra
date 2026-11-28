@@ -19,6 +19,7 @@ import 'student/student_subject_attendance_page.dart';
 import 'student/student_subject_record_page.dart';
 import 'parent/parent_portal_pages.dart';
 import 'portal/portal_settings_page.dart';
+import 'portal/portal_term_select_page.dart';
 import 'portal/portal_views.dart';
 import '../shared/models.dart';
 import 'adviser/academic_overview_page.dart';
@@ -181,7 +182,8 @@ List<RouteBase> persistentStaffRoutes(List<RouteBase> routes) {
 }
 
 /// Learner portals render inside [PortalShell] (own header, drawer, floating
-/// navigation) instead of the teacher shell.
+/// navigation) instead of the teacher shell. Desks swap without a page
+/// transition, exactly like the adviser workspace tabs.
 List<RouteBase> _portalRoutes() => [
   ShellRoute(
     builder: (context, state, child) =>
@@ -189,7 +191,10 @@ List<RouteBase> _portalRoutes() => [
     routes: [
       GoRoute(
         path: '/portal/notifications',
-        builder: (context, _) => const PortalNotificationsPage(),
+        pageBuilder: (context, state) => NoTransitionPage<void>(
+          key: state.pageKey,
+          child: const PortalNotificationsPage(),
+        ),
       ),
       GoRoute(
         path: '/student/home',
@@ -197,29 +202,46 @@ List<RouteBase> _portalRoutes() => [
       ),
       GoRoute(
         path: '/student/overview',
-        builder: (context, _) => const StudentOverviewPage(),
+        pageBuilder: (context, state) => NoTransitionPage<void>(
+          key: state.pageKey,
+          child: const StudentOverviewPage(),
+        ),
       ),
       GoRoute(
         path: '/student/grades',
-        builder: (context, _) => const StudentGradesPage(),
+        pageBuilder: (context, state) => NoTransitionPage<void>(
+          key: state.pageKey,
+          child: const StudentGradesPage(),
+        ),
       ),
       GoRoute(
         path: '/student/attendance',
-        builder: (context, _) => const StudentAttendancePage(),
+        pageBuilder: (context, state) => NoTransitionPage<void>(
+          key: state.pageKey,
+          child: const StudentAttendancePage(),
+        ),
       ),
       GoRoute(
         path: '/student/schedule',
-        builder: (context, _) => const StudentSchedulePage(),
+        pageBuilder: (context, state) => NoTransitionPage<void>(
+          key: state.pageKey,
+          child: const StudentSchedulePage(),
+        ),
       ),
       GoRoute(
         path: '/student/modules',
-        builder: (context, state) =>
-            StudentModulesPage(kind: state.uri.queryParameters['kind']),
+        pageBuilder: (context, state) => NoTransitionPage<void>(
+          key: state.pageKey,
+          child: StudentModulesPage(kind: state.uri.queryParameters['kind']),
+        ),
       ),
       GoRoute(
         path: '/student/sessions',
-        builder: (context, state) => StudentSessionsPage(
-          admOnly: state.uri.queryParameters['track'] == 'adm',
+        pageBuilder: (context, state) => NoTransitionPage<void>(
+          key: state.pageKey,
+          child: StudentSessionsPage(
+            admOnly: state.uri.queryParameters['track'] == 'adm',
+          ),
         ),
       ),
       GoRoute(
@@ -228,27 +250,45 @@ List<RouteBase> _portalRoutes() => [
       ),
       GoRoute(
         path: '/parent/overview',
-        builder: (context, _) => const ParentOverviewPage(),
+        pageBuilder: (context, state) => NoTransitionPage<void>(
+          key: state.pageKey,
+          child: const ParentOverviewPage(),
+        ),
       ),
       GoRoute(
         path: '/parent/grades',
-        builder: (context, _) => const ParentGradesPage(),
+        pageBuilder: (context, state) => NoTransitionPage<void>(
+          key: state.pageKey,
+          child: const ParentGradesPage(),
+        ),
       ),
       GoRoute(
         path: '/parent/attendance',
-        builder: (context, _) => const ParentAttendancePage(),
+        pageBuilder: (context, state) => NoTransitionPage<void>(
+          key: state.pageKey,
+          child: const ParentAttendancePage(),
+        ),
       ),
       GoRoute(
         path: '/parent/schedule',
-        builder: (context, _) => const ParentSchedulePage(),
+        pageBuilder: (context, state) => NoTransitionPage<void>(
+          key: state.pageKey,
+          child: const ParentSchedulePage(),
+        ),
       ),
       GoRoute(
         path: '/parent/modules',
-        builder: (context, _) => const ParentModulesPage(),
+        pageBuilder: (context, state) => NoTransitionPage<void>(
+          key: state.pageKey,
+          child: const ParentModulesPage(),
+        ),
       ),
       GoRoute(
         path: '/parent/sessions',
-        builder: (context, _) => const ParentSessionsPage(),
+        pageBuilder: (context, state) => NoTransitionPage<void>(
+          key: state.pageKey,
+          child: const ParentSessionsPage(),
+        ),
       ),
     ],
   ),
@@ -305,48 +345,77 @@ final routerProvider = Provider<GoRouter>((ref) {
       return null;
     },
     routes: [
-      // Learner identity is a full-screen detail with its own header (like the
-      // staff record screens), so it stays outside the portal chrome.
+      // Learner full-screen details (identity, term scope, settings, subject
+      // records) swap with no transition, like the portal desks, so entering
+      // and going back never slides over the main header.
+      GoRoute(
+        path: '/portal/term',
+        pageBuilder: (context, state) => NoTransitionPage<void>(
+          key: state.pageKey,
+          child: const PortalTermSelectPage(),
+        ),
+      ),
       GoRoute(
         path: '/portal/settings',
-        builder: (context, _) => const PortalSettingsPage(),
+        pageBuilder: (context, state) => NoTransitionPage<void>(
+          key: state.pageKey,
+          child: const PortalSettingsPage(),
+        ),
       ),
       GoRoute(
         path: '/student/profile',
-        builder: (context, _) => const StudentIdentityPage(),
+        pageBuilder: (context, state) => NoTransitionPage<void>(
+          key: state.pageKey,
+          child: const StudentIdentityPage(),
+        ),
       ),
       GoRoute(
         path: '/student/profile/qr',
-        builder: (context, _) => const StudentIdentityPage(qr: true),
+        pageBuilder: (context, state) => NoTransitionPage<void>(
+          key: state.pageKey,
+          child: const StudentIdentityPage(qr: true),
+        ),
       ),
       GoRoute(
         path: '/student/grades/:subjectId',
-        builder: (context, state) => StudentSubjectRecordPage(
-          subjectId: state.pathParameters['subjectId'] ?? '',
-          subjectName: state.extra is String ? state.extra as String : null,
+        pageBuilder: (context, state) => NoTransitionPage<void>(
+          key: state.pageKey,
+          child: StudentSubjectRecordPage(
+            subjectId: state.pathParameters['subjectId'] ?? '',
+            subjectName: state.extra is String ? state.extra as String : null,
+          ),
         ),
       ),
       GoRoute(
         path: '/student/attendance/:subjectId',
-        builder: (context, state) => StudentSubjectAttendancePage(
-          subjectId: state.pathParameters['subjectId'] ?? '',
-          subjectName: state.extra is String ? state.extra as String : null,
+        pageBuilder: (context, state) => NoTransitionPage<void>(
+          key: state.pageKey,
+          child: StudentSubjectAttendancePage(
+            subjectId: state.pathParameters['subjectId'] ?? '',
+            subjectName: state.extra is String ? state.extra as String : null,
+          ),
         ),
       ),
       GoRoute(
         path: '/parent/children/:studentId/grades/:subjectId',
-        builder: (context, state) => StudentSubjectRecordPage(
-          childId: state.pathParameters['studentId'] ?? '',
-          subjectId: state.pathParameters['subjectId'] ?? '',
-          subjectName: state.extra is String ? state.extra as String : null,
+        pageBuilder: (context, state) => NoTransitionPage<void>(
+          key: state.pageKey,
+          child: StudentSubjectRecordPage(
+            childId: state.pathParameters['studentId'] ?? '',
+            subjectId: state.pathParameters['subjectId'] ?? '',
+            subjectName: state.extra is String ? state.extra as String : null,
+          ),
         ),
       ),
       GoRoute(
         path: '/parent/children/:studentId/attendance/:subjectId',
-        builder: (context, state) => StudentSubjectAttendancePage(
-          childId: state.pathParameters['studentId'] ?? '',
-          subjectId: state.pathParameters['subjectId'] ?? '',
-          subjectName: state.extra is String ? state.extra as String : null,
+        pageBuilder: (context, state) => NoTransitionPage<void>(
+          key: state.pageKey,
+          child: StudentSubjectAttendancePage(
+            childId: state.pathParameters['studentId'] ?? '',
+            subjectId: state.pathParameters['subjectId'] ?? '',
+            subjectName: state.extra is String ? state.extra as String : null,
+          ),
         ),
       ),
       ...persistentStaffRoutes([

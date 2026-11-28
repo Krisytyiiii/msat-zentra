@@ -119,6 +119,7 @@ class _StudentSubjectRecordState extends ConsumerState<StudentSubjectRecordPage>
       child: Scaffold(
         appBar: AppBar(
           centerTitle: true,
+          backgroundColor: theme.scaffoldBackgroundColor,
           surfaceTintColor: Colors.transparent,
           scrolledUnderElevation: 0,
           title: const Text('Grade Record'),

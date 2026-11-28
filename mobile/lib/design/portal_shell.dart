@@ -428,21 +428,11 @@ class PortalDrawer extends ConsumerWidget {
                     const SizedBox(height: 6),
                     const _PortalChildPicker(),
                   ],
-                  const SizedBox(height: 4),
-                  const _DrawerHeader('My learning'),
-                  _item(
-                    context,
-                    LucideIcons.folderOpen,
-                    'Modules',
-                    '/$portal/modules',
-                  ),
-                  _item(
-                    context,
-                    LucideIcons.calendarCheck,
-                    'Sessions',
-                    '/$portal/sessions',
-                  ),
-                  if (learner?.isAdm == true) ...[
+                  if (portal == 'student' && learner?.isAdm == true) ...[
+                    const SizedBox(height: 4),
+                    // ADM learners get their ADM desks here; regular learners
+                    // keep just the term picker (their Modules/Sessions stay
+                    // reachable from the Overview boards).
                     const _DrawerHeader('ADM'),
                     _item(
                       context,
@@ -455,6 +445,22 @@ class PortalDrawer extends ConsumerWidget {
                       LucideIcons.calendarCheck,
                       'ADM Sessions',
                       '/student/sessions?track=adm',
+                    ),
+                  ],
+                  if (portal == 'parent') ...[
+                    const SizedBox(height: 4),
+                    const _DrawerHeader('My learning'),
+                    _item(
+                      context,
+                      LucideIcons.folderOpen,
+                      'Modules',
+                      '/parent/modules',
+                    ),
+                    _item(
+                      context,
+                      LucideIcons.calendarCheck,
+                      'Sessions',
+                      '/parent/sessions',
                     ),
                   ],
                 ],
@@ -750,66 +756,7 @@ class _PortalTermPicker extends ConsumerWidget {
   }
 
   void _open(BuildContext context, WidgetRef ref) {
-    final terms = ref.read(portalTermsResultProvider).asData?.value;
-    if (terms == null) return;
-    final selected = ref.read(portalTermIdProvider);
-    showModalBottomSheet<void>(
-      context: context,
-      showDragHandle: true,
-      backgroundColor: Theme.of(context).colorScheme.surface,
-      builder: (ctx) {
-        final theme = Theme.of(ctx);
-        void choose(String? id) {
-          selectPortalTerm(ref, id);
-          ref.read(portalModulePageProvider.notifier).state = 1;
-          Navigator.pop(ctx);
-        }
-
-        Widget option({
-          required String label,
-          required bool active,
-          required VoidCallback onTap,
-        }) => ListTile(
-          shape: const StadiumBorder(),
-          title: Text(label, style: const TextStyle(fontSize: 14)),
-          trailing: active
-              ? Icon(LucideIcons.check, size: 18, color: theme.colorScheme.primary)
-              : null,
-          onTap: onTap,
-        );
-
-        return SafeArea(
-          child: SingleChildScrollView(
-            padding: const EdgeInsets.fromLTRB(12, 0, 12, 16),
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              crossAxisAlignment: CrossAxisAlignment.stretch,
-              children: [
-                Padding(
-                  padding: const EdgeInsets.fromLTRB(8, 0, 8, 8),
-                  child: Text(
-                    'Select term',
-                    style: theme.textTheme.titleMedium?.copyWith(
-                      fontWeight: FontWeight.w700,
-                    ),
-                  ),
-                ),
-                option(
-                  label: 'Current term',
-                  active: selected == null,
-                  onTap: () => choose(null),
-                ),
-                for (final term in terms.terms)
-                  option(
-                    label: term.label,
-                    active: selected == term.id,
-                    onTap: () => choose(term.id),
-                  ),
-              ],
-            ),
-          ),
-        );
-      },
-    );
+    if (!ref.read(portalTermsResultProvider).hasValue) return;
+    context.push('/portal/term');
   }
 }

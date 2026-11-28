@@ -381,6 +381,7 @@ class ParentGradesPage extends ConsumerStatefulWidget {
 class _ParentGradesState extends ConsumerState<ParentGradesPage> {
   String _lastQuery = '';
   String _lastTerm = '';
+  bool _descending = false;
 
   Future<void> _refresh() async {
     final selectedChildId = ref.read(selectedChildProvider);
@@ -522,41 +523,89 @@ class _ParentGradesState extends ConsumerState<ParentGradesPage> {
   }
 
   Widget _list(BuildContext context, PortalGrades data, String query) {
-    final grades = data.grades.where((g) => query.isEmpty || g.subjectName.toLowerCase().contains(query)).toList();
-    if (grades.isEmpty) {
-      return SliverFillRemaining(
-        hasScrollBody: false,
-        child: Center(
-          child: ZEmpty(
-            icon: Icons.grade_outlined,
-            title: data.grades.isEmpty ? 'No subjects for this term' : 'No subjects match',
-            subtitle: data.grades.isEmpty
-                ? 'The class load appears here once the section is linked.'
-                : 'Try a different search.',
+    final theme = Theme.of(context);
+    final grades = data.grades
+        .where((g) => query.isEmpty || g.subjectName.toLowerCase().contains(query))
+        .toList()
+      ..sort(
+        (a, b) => _descending
+            ? b.subjectName.toLowerCase().compareTo(a.subjectName.toLowerCase())
+            : a.subjectName.toLowerCase().compareTo(b.subjectName.toLowerCase()),
+      );
+    return SliverMainAxisGroup(
+      slivers: [
+        SliverToBoxAdapter(
+          child: Padding(
+            padding: const EdgeInsets.fromLTRB(12, 16, 12, 0),
+            child: PortalGradeSummaryCard(grades: data.grades),
           ),
         ),
-      );
-    }
-    return SliverPadding(
-      padding: const EdgeInsets.fromLTRB(12, 8, 12, 0),
-      sliver: SliverList.separated(
-        itemCount: grades.length,
-        separatorBuilder: (_, _) => const SizedBox(height: 8),
-        itemBuilder: (context, index) {
-          final grade = grades[index];
-          final childId = ref.read(selectedChildProvider);
-          return PortalGradeCard(
-            grade: grade,
-            onTap: childId == null
-                ? null
-                : () => context.push(
-                      '/parent/children/${Uri.encodeComponent(childId)}/grades/'
-                      '${Uri.encodeComponent(grade.subjectId)}',
-                      extra: grade.subjectName,
-                    ),
-          );
-        },
-      ),
+        SliverToBoxAdapter(
+          child: Padding(
+            padding: const EdgeInsets.fromLTRB(12, 16, 12, 0),
+            child: Row(
+              children: [
+                Expanded(
+                  child: Text(
+                    'Showing ${grades.length} subjects',
+                    style: TextStyle(fontSize: 12, color: theme.colorScheme.onSurfaceVariant),
+                  ),
+                ),
+                TextButton.icon(
+                  onPressed: () => setState(() => _descending = !_descending),
+                  icon: const Icon(LucideIcons.listFilter, size: 14),
+                  label: Text(
+                    _descending ? 'Name (Z-A)' : 'Name (A-Z)',
+                    style: const TextStyle(fontSize: 12),
+                  ),
+                  style: TextButton.styleFrom(
+                    foregroundColor: theme.colorScheme.onSurface,
+                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 0),
+                    minimumSize: Size.zero,
+                    tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                    visualDensity: VisualDensity.compact,
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ),
+        if (grades.isEmpty)
+          SliverToBoxAdapter(
+            child: Padding(
+              padding: const EdgeInsets.fromLTRB(12, 8, 12, 0),
+              child: ZEmpty(
+                icon: Icons.grade_outlined,
+                title: data.grades.isEmpty ? 'No subjects yet' : 'No subjects match',
+                subtitle: data.grades.isEmpty
+                    ? 'No published subjects for this term. Ask the school office to check your section schedule.'
+                    : 'Try a different search.',
+              ),
+            ),
+          )
+        else
+          SliverPadding(
+            padding: const EdgeInsets.fromLTRB(12, 8, 12, 0),
+            sliver: SliverList.separated(
+              itemCount: grades.length,
+              separatorBuilder: (_, _) => const SizedBox(height: 8),
+              itemBuilder: (context, index) {
+                final grade = grades[index];
+                final childId = ref.read(selectedChildProvider);
+                return PortalGradeCard(
+                  grade: grade,
+                  onTap: childId == null
+                      ? null
+                      : () => context.push(
+                            '/parent/children/${Uri.encodeComponent(childId)}/grades/'
+                            '${Uri.encodeComponent(grade.subjectId)}',
+                            extra: grade.subjectName,
+                          ),
+                );
+              },
+            ),
+          ),
+      ],
     );
   }
 }
@@ -574,6 +623,7 @@ class ParentAttendancePage extends ConsumerStatefulWidget {
 class _ParentAttendanceState extends ConsumerState<ParentAttendancePage> {
   String _lastQuery = '';
   String _lastTerm = '';
+  bool _descending = false;
 
   Future<void> _refresh() async {
     final selectedChildId = ref.read(selectedChildProvider);
@@ -719,60 +769,52 @@ class _ParentAttendanceState extends ConsumerState<ParentAttendancePage> {
     final s = data.summary;
     final bySubject = data.bySubject
         .where((sub) => query.isEmpty || sub.subjectName.toLowerCase().contains(query))
-        .toList();
-    final recent = data.recent
-        .where((r) => query.isEmpty || (r.subjectName ?? 'Daily attendance').toLowerCase().contains(query))
-        .toList();
+        .toList()
+      ..sort(
+        (a, b) => _descending
+            ? b.subjectName.toLowerCase().compareTo(a.subjectName.toLowerCase())
+            : a.subjectName.toLowerCase().compareTo(b.subjectName.toLowerCase()),
+      );
 
     return SliverMainAxisGroup(
       slivers: [
         SliverToBoxAdapter(
           child: Padding(
             padding: const EdgeInsets.fromLTRB(12, 16, 12, 0),
-            child: ZCard(
-              child: Column(
-                children: [
-                  Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                    children: [
-                      Text('Overall attendance', style: theme.textTheme.titleSmall?.copyWith(fontWeight: FontWeight.w700)),
-                      Text(
-                        s.hasMarks ? '${s.percent}%' : 'No marks',
-                        style: TextStyle(
-                          fontWeight: FontWeight.w700,
-                          fontSize: 20,
-                          color: s.hasMarks && s.isRisk ? theme.colorScheme.error : null,
-                        ),
-                      ),
-                    ],
+            child: PortalAttendanceRateCard(summary: s),
+          ),
+        ),
+        SliverToBoxAdapter(
+          child: Padding(
+            padding: const EdgeInsets.fromLTRB(12, 16, 12, 0),
+            child: Row(
+              children: [
+                Expanded(
+                  child: Text(
+                    'Showing ${bySubject.length} classes',
+                    style: TextStyle(fontSize: 12, color: theme.colorScheme.onSurfaceVariant),
                   ),
-                  const SizedBox(height: 10),
-                  ClipRRect(
-                    borderRadius: BorderRadius.circular(999),
-                    child: LinearProgressIndicator(value: s.hasMarks ? s.rate.clamp(0, 1) : 0, minHeight: 8),
+                ),
+                TextButton.icon(
+                  onPressed: () => setState(() => _descending = !_descending),
+                  icon: const Icon(LucideIcons.listFilter, size: 14),
+                  label: Text(
+                    _descending ? 'Name (Z-A)' : 'Name (A-Z)',
+                    style: const TextStyle(fontSize: 12),
                   ),
-                  const SizedBox(height: 10),
-                  Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceAround,
-                    children: [
-                      _stat(theme, 'Present', s.present),
-                      _stat(theme, 'Absent', s.absent),
-                      _stat(theme, 'Late', s.late),
-                      _stat(theme, 'Excused', s.excused),
-                    ],
+                  style: TextButton.styleFrom(
+                    foregroundColor: theme.colorScheme.onSurface,
+                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 0),
+                    minimumSize: Size.zero,
+                    tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                    visualDensity: VisualDensity.compact,
                   ),
-                ],
-              ),
+                ),
+              ],
             ),
           ),
         ),
-        if (bySubject.isNotEmpty) ...[
-          SliverToBoxAdapter(
-            child: Padding(
-              padding: const EdgeInsets.fromLTRB(12, 16, 12, 0),
-              child: Text('Classes', style: theme.textTheme.titleSmall?.copyWith(fontWeight: FontWeight.w700)),
-            ),
-          ),
+        if (bySubject.isNotEmpty)
           SliverPadding(
             padding: const EdgeInsets.fromLTRB(12, 8, 12, 0),
             sliver: SliverList.separated(
@@ -795,9 +837,15 @@ class _ParentAttendanceState extends ConsumerState<ParentAttendancePage> {
                             : StatusTone.green,
                     label: 'Present rate',
                   ),
-                  footer: sub.hasMarks
-                      ? 'P ${sub.present} · A ${sub.absent} · L ${sub.late}'
-                      : 'No attendance marks yet',
+                  footer: sub.hasMarks ? '' : 'No attendance marks yet',
+                  footerChild: sub.hasMarks
+                      ? PortalAttendanceBreakdown(
+                          present: sub.present,
+                          absent: sub.absent,
+                          late: sub.late,
+                          excused: sub.excused,
+                        )
+                      : null,
                   onTap: () {
                     final childId = ref.read(selectedChildProvider);
                     if (childId == null) return;
@@ -810,66 +858,21 @@ class _ParentAttendanceState extends ConsumerState<ParentAttendancePage> {
                 );
               },
             ),
-          ),
-        ],
-        SliverToBoxAdapter(
-          child: Padding(
-            padding: const EdgeInsets.fromLTRB(12, 16, 12, 0),
-            child: Text('Recent records', style: theme.textTheme.titleSmall?.copyWith(fontWeight: FontWeight.w700)),
-          ),
-        ),
-        if (recent.isEmpty)
-          SliverFillRemaining(
-            hasScrollBody: false,
-            child: Center(
-              child: ZEmpty(icon: Icons.fact_check_outlined, title: 'No attendance records yet', compact: true),
-            ),
           )
         else
-          SliverPadding(
-            padding: const EdgeInsets.fromLTRB(12, 8, 12, 0),
-            sliver: SliverList.separated(
-              itemCount: recent.take(20).length,
-              separatorBuilder: (_, _) => const SizedBox(height: 8),
-              itemBuilder: (context, index) {
-                final r = recent[index];
-                return ZCard(
-                  padding: const EdgeInsets.symmetric(vertical: 4, horizontal: 12),
-                  child: ListTile(
-                    dense: true,
-                    title: Text(r.subjectName ?? 'Daily attendance', style: const TextStyle(fontSize: 13)),
-                    subtitle: Text(formatPortalDate(r.date), style: const TextStyle(fontSize: 11)),
-                    trailing: _statusChip(theme, r.status),
-                  ),
-                );
-              },
+          SliverToBoxAdapter(
+            child: Padding(
+              padding: const EdgeInsets.fromLTRB(12, 8, 12, 0),
+              child: ZEmpty(
+                icon: Icons.calendar_month_outlined,
+                title: data.bySubject.isEmpty ? 'No classes yet' : 'No matching classes',
+                subtitle: data.bySubject.isEmpty
+                    ? 'No published classes for this term. Ask the school office to check your section schedule.'
+                    : 'Try a different search.',
+              ),
             ),
           ),
       ],
-    );
-  }
-
-  Widget _stat(ThemeData theme, String label, int value) => Column(
-    children: [
-      Text('$value', style: const TextStyle(fontWeight: FontWeight.w700, fontSize: 16)),
-      Text(label, style: theme.textTheme.labelSmall),
-    ],
-  );
-
-  Widget _statusChip(ThemeData theme, String status) {
-    final color = switch (status) {
-      'present' => Colors.green,
-      'absent' => theme.colorScheme.error,
-      'late' => Colors.orange,
-      _ => theme.colorScheme.onSurfaceVariant,
-    };
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
-      decoration: BoxDecoration(
-        color: color.withValues(alpha: 0.12),
-        borderRadius: BorderRadius.circular(999),
-      ),
-      child: Text(status, style: TextStyle(fontSize: 11, color: color, fontWeight: FontWeight.w600)),
     );
   }
 }

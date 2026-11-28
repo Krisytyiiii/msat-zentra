@@ -42,6 +42,8 @@ ThemeData settingsScreenTheme(ThemeData base) {
       foregroundColor: ink,
       surfaceTintColor: Colors.transparent,
       elevation: 0,
+      // Match the Grade/Attendance Record headers (overviewScreenTheme).
+      toolbarHeight: 72,
     ),
     cardTheme: CardThemeData(
       color: surface,

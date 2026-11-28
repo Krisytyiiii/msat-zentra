@@ -12,6 +12,7 @@ import '../../design/status_palette.dart';
 import '../../shared/models.dart';
 import '../../shared/widgets.dart';
 import '../../services/portal_service.dart';
+import '../portal/portal_widgets.dart';
 
 class StudentSubjectAttendancePage extends ConsumerStatefulWidget {
   const StudentSubjectAttendancePage({
@@ -33,6 +34,9 @@ class StudentSubjectAttendancePage extends ConsumerStatefulWidget {
 
 class _StudentSubjectAttendanceState
     extends ConsumerState<StudentSubjectAttendancePage> {
+  /// Attendance-log page, 5 dated entries per page.
+  int _logPage = 0;
+
   bool get _isParent => widget.childId != null;
 
   ParentSubjectKey? get _parentKey => _isParent
@@ -79,6 +83,7 @@ class _StudentSubjectAttendanceState
       child: Scaffold(
         appBar: AppBar(
           centerTitle: true,
+          backgroundColor: theme.scaffoldBackgroundColor,
           surfaceTintColor: Colors.transparent,
           scrolledUnderElevation: 0,
           title: const Text('Attendance Record'),
@@ -155,12 +160,6 @@ class _StudentSubjectAttendanceState
                 label: 'Grade and section',
                 compact: true,
               ),
-            if (record.subjectCode.isNotEmpty)
-              ZPill(
-                label: 'Subject code',
-                tone: StatusTone.neutral,
-                child: Text(record.subjectCode),
-              ),
           ],
         ),
         const SizedBox(height: 16),
@@ -186,74 +185,14 @@ class _StudentSubjectAttendanceState
     BuildContext context,
     PortalSubjectAttendanceDetail record,
   ) {
-    final theme = Theme.of(context);
-    final summary = record.summary;
-    return ZCard(
+    return PortalAttendanceRateCard(
       key: const ValueKey('student-attendance-summary'),
-      padding: const EdgeInsets.all(14),
-      child: Column(
-        children: [
-          Row(
-            children: [
-              Expanded(
-                child: Text(
-                  'Present rate',
-                  style: theme.textTheme.titleSmall?.copyWith(fontWeight: FontWeight.w700),
-                ),
-              ),
-              Text(
-                summary.hasMarks ? '${summary.percent}%' : 'No marks',
-                style: TextStyle(
-                  fontWeight: FontWeight.w800,
-                  fontSize: summary.hasMarks ? 20 : 13,
-                  color: summary.hasMarks && summary.isRisk
-                      ? theme.colorScheme.error
-                      : summary.hasMarks
-                          ? null
-                          : theme.colorScheme.onSurfaceVariant,
-                ),
-              ),
-            ],
-          ),
-          const SizedBox(height: 10),
-          ClipRRect(
-            borderRadius: BorderRadius.circular(999),
-            child: LinearProgressIndicator(
-              value: summary.hasMarks ? summary.rate.clamp(0, 1) : 0,
-              minHeight: 8,
-            ),
-          ),
-          const SizedBox(height: 10),
-          Row(
-            mainAxisAlignment: MainAxisAlignment.spaceAround,
-            children: [
-              _stat(theme, 'Present', summary.present),
-              _stat(theme, 'Absent', summary.absent),
-              _stat(theme, 'Late', summary.late),
-              _stat(theme, 'Excused', summary.excused),
-            ],
-          ),
-          if (!summary.hasMarks) ...[
-            const SizedBox(height: 8),
-            Text(
-              _isParent
-                  ? 'Marks appear here after the teacher records this class.'
-                  : 'Marks appear here after your teacher records this class.',
-              textAlign: TextAlign.center,
-              style: TextStyle(fontSize: 11, color: theme.colorScheme.onSurfaceVariant),
-            ),
-          ],
-        ],
-      ),
+      summary: record.summary,
+      note: _isParent
+          ? 'Marks appear here after the teacher records this class.'
+          : 'Marks appear here after your teacher records this class.',
     );
   }
-
-  Widget _stat(ThemeData theme, String label, int value) => Column(
-    children: [
-      Text('$value', style: const TextStyle(fontWeight: FontWeight.w700, fontSize: 16)),
-      Text(label, style: theme.textTheme.labelSmall),
-    ],
-  );
 
   Widget _heatmapCard(
     BuildContext context,
@@ -351,6 +290,7 @@ class _StudentSubjectAttendanceState
                 ('missing', 'No record'),
                 ('upcoming', 'Upcoming'),
                 ('no-class', 'No class'),
+                ('none', 'Not scheduled'),
               ])
                 _legend(theme, entry.$1, entry.$2),
             ],
@@ -369,17 +309,13 @@ class _StudentSubjectAttendanceState
 
   Widget _heatCell(BuildContext context, PortalAttendanceHeatDay? day) {
     final theme = Theme.of(context);
-    if (day == null || day.state == 'none') {
+    if (day == null) {
       return const AspectRatio(aspectRatio: 1, child: SizedBox.shrink());
     }
     final date = DateTime.tryParse(day.date);
     final label = _stateLabel(day.state);
     final fill = _stateFill(theme, day.state);
-    final border = day.state == 'missing'
-        ? Border.all(color: theme.colorScheme.outline)
-        : day.state == 'no-class' || day.state == 'upcoming'
-            ? Border.all(color: theme.colorScheme.outlineVariant)
-            : null;
+    final border = _stateBorder(theme, day.state);
     return Tooltip(
       message: date == null ? label : '${DateFormat('EEE, MMM d').format(date)} · $label',
       child: AspectRatio(
@@ -407,11 +343,7 @@ class _StudentSubjectAttendanceState
         decoration: BoxDecoration(
           color: _stateFill(theme, state),
           borderRadius: BorderRadius.circular(3),
-          border: state == 'missing'
-              ? Border.all(color: theme.colorScheme.outline)
-              : state == 'no-class' || state == 'upcoming'
-                  ? Border.all(color: theme.colorScheme.outlineVariant)
-                  : null,
+          border: _stateBorder(theme, state),
         ),
       ),
       const SizedBox(width: 4),
@@ -419,14 +351,31 @@ class _StudentSubjectAttendanceState
     ],
   );
 
+  /// Unmarked days warn in amber; cancelled class days stay a visible neutral
+  /// grey, so the two placeholder states never read as the same square.
+  Border? _stateBorder(ThemeData theme, String state) => switch (state) {
+        'missing' => Border.all(color: const Color(0xFFF59E0B)),
+        'no-class' => Border.all(
+            color: theme.colorScheme.onSurfaceVariant.withValues(alpha: 0.45),
+          ),
+        'upcoming' => Border.all(color: theme.colorScheme.outlineVariant),
+        'none' => Border.all(color: theme.colorScheme.outline),
+        _ => null,
+      };
+
   Color _stateFill(ThemeData theme, String state) => switch (state) {
         'present' => const Color(0xFF16A34A),
         'absent' => const Color(0xFFDC2626),
         'late' => const Color(0xFFD97706),
         'excused' => const Color(0xFF2563EB),
-        'missing' => theme.colorScheme.surfaceContainerLow,
+        'missing' => const Color(0xFFF59E0B).withValues(
+            alpha: theme.brightness == Brightness.dark ? 0.28 : 0.18,
+          ),
         'upcoming' => theme.colorScheme.surfaceContainerLowest,
-        'no-class' => theme.colorScheme.surfaceContainerHighest,
+        'no-class' => theme.colorScheme.onSurfaceVariant.withValues(
+            alpha: theme.brightness == Brightness.dark ? 0.22 : 0.18,
+          ),
+        'none' => theme.colorScheme.surfaceContainerLow,
         _ => Colors.transparent,
       };
 
@@ -438,7 +387,8 @@ class _StudentSubjectAttendanceState
         'missing' => 'No record',
         'upcoming' => 'Upcoming',
         'no-class' => 'No class',
-        _ => 'No class',
+        'none' => 'Not scheduled',
+        _ => 'Not scheduled',
       };
 
   Widget _logCard(BuildContext context, PortalSubjectAttendanceDetail record) {
@@ -451,42 +401,122 @@ class _StudentSubjectAttendanceState
         compact: true,
       );
     }
-    final format = DateFormat('MMM d, yyyy');
-    return ZCard(
-      key: const ValueKey('student-attendance-log'),
-      padding: const EdgeInsets.symmetric(vertical: 2, horizontal: 12),
-      child: Column(
-        children: [
-          for (final (index, entry) in record.log.indexed) ...[
-            if (index > 0) Divider(height: 1, color: theme.colorScheme.outline),
-            Padding(
-              padding: const EdgeInsets.symmetric(vertical: 8),
-              child: Row(
-                children: [
-                  Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(
-                          format.format(DateTime.tryParse(entry.date) ?? DateTime(2000)),
-                          style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w500),
-                        ),
-                        Text(
-                          'Period ${entry.slot + 1}',
-                          style: TextStyle(fontSize: 11, color: theme.colorScheme.onSurfaceVariant),
-                        ),
-                      ],
-                    ),
-                  ),
-                  _statusPill(entry.status),
-                ],
+    const pageSize = 5;
+    final entries = record.log;
+    final pages = (entries.length / pageSize).ceil().clamp(1, 100000);
+    final page = _logPage.clamp(0, pages - 1);
+    final start = page * pageSize;
+    final slice = entries.skip(start).take(pageSize).toList();
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        ZCard(
+          key: const ValueKey('student-attendance-log'),
+          padding: const EdgeInsets.symmetric(vertical: 2, horizontal: 12),
+          child: Column(
+            children: [
+              for (final (index, entry) in slice.indexed)
+                _logRow(context, entry, showDivider: index > 0),
+            ],
+          ),
+        ),
+        Padding(
+          padding: const EdgeInsets.fromLTRB(4, 0, 0, 0),
+          child: Row(
+            children: [
+              Expanded(
+                child: Text(
+                  'Showing ${start + 1}–${start + slice.length} of ${entries.length}',
+                  style: TextStyle(fontSize: 12, color: theme.colorScheme.onSurfaceVariant),
+                ),
               ),
-            ),
-          ],
-        ],
-      ),
+              if (pages > 1) ...[
+                IconButton(
+                  tooltip: 'Previous page',
+                  onPressed: page > 0 ? () => setState(() => _logPage = page - 1) : null,
+                  icon: const Icon(Icons.chevron_left, size: 20),
+                ),
+                Text(
+                  '${page + 1} / $pages',
+                  style: TextStyle(fontSize: 12, color: theme.colorScheme.onSurfaceVariant),
+                ),
+                IconButton(
+                  tooltip: 'Next page',
+                  onPressed: page < pages - 1 ? () => setState(() => _logPage = page + 1) : null,
+                  icon: const Icon(Icons.chevron_right, size: 20),
+                ),
+              ],
+            ],
+          ),
+        ),
+      ],
     );
   }
+
+  /// One dated mark: a status-tinted dot, the date with its weekday, and the
+  /// same status pill the rest of the desk uses.
+  Widget _logRow(
+    BuildContext context,
+    PortalAttendanceLogEntry entry, {
+    required bool showDivider,
+  }) {
+    final theme = Theme.of(context);
+    final date = DateTime.tryParse(entry.date) ?? DateTime(2000);
+    final color = _statusColor(entry.status);
+    return Column(
+      children: [
+        if (showDivider) Divider(height: 1, color: theme.colorScheme.outline),
+        Padding(
+          padding: const EdgeInsets.symmetric(vertical: 9),
+          child: Row(
+            children: [
+              Container(
+                width: 30,
+                height: 30,
+                decoration: BoxDecoration(
+                  color: color.withValues(alpha: 0.14),
+                  shape: BoxShape.circle,
+                ),
+                child: Center(
+                  child: Container(
+                    width: 9,
+                    height: 9,
+                    decoration: BoxDecoration(color: color, shape: BoxShape.circle),
+                  ),
+                ),
+              ),
+              const SizedBox(width: 10),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      DateFormat('MMM d, yyyy').format(date),
+                      style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w600),
+                    ),
+                    Text(
+                      DateFormat('EEEE').format(date),
+                      style: TextStyle(fontSize: 11, color: theme.colorScheme.onSurfaceVariant),
+                    ),
+                  ],
+                ),
+              ),
+              const SizedBox(width: 8),
+              _statusPill(entry.status),
+            ],
+          ),
+        ),
+      ],
+    );
+  }
+
+  Color _statusColor(String status) => switch (status) {
+        'present' => const Color(0xFF16A34A),
+        'absent' => const Color(0xFFDC2626),
+        'late' => const Color(0xFFD97706),
+        'excused' => const Color(0xFF2563EB),
+        _ => Colors.grey,
+      };
 
   Widget _statusPill(String status) => ZStatusPill(
     text: switch (status) {

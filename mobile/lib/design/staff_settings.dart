@@ -361,6 +361,9 @@ class _StaffPasswordEditorState extends ConsumerState<StaffPasswordEditor> {
   final _confirm = TextEditingController();
   String? _error;
   bool _busy = false;
+  bool _showCurrent = false;
+  bool _showNext = false;
+  bool _showConfirm = false;
 
   @override
   void dispose() {
@@ -392,6 +395,11 @@ class _StaffPasswordEditorState extends ConsumerState<StaffPasswordEditor> {
       _current.clear();
       _next.clear();
       _confirm.clear();
+      setState(() {
+        _showCurrent = false;
+        _showNext = false;
+        _showConfirm = false;
+      });
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(
@@ -415,6 +423,18 @@ class _StaffPasswordEditorState extends ConsumerState<StaffPasswordEditor> {
     }
   }
 
+  Widget _visibilityToggle({
+    required bool visible,
+    required VoidCallback onPressed,
+  }) => IconButton(
+    tooltip: visible ? 'Hide password' : 'Show password',
+    onPressed: onPressed,
+    icon: Icon(
+      visible ? Icons.visibility_off_outlined : Icons.visibility_outlined,
+      size: 20,
+    ),
+  );
+
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
@@ -425,22 +445,38 @@ class _StaffPasswordEditorState extends ConsumerState<StaffPasswordEditor> {
         children: [
           TextField(
             controller: _current,
-            decoration: const InputDecoration(labelText: 'Current password'),
-            obscureText: true,
+            decoration: InputDecoration(
+              labelText: 'Current password',
+              suffixIcon: _visibilityToggle(
+                visible: _showCurrent,
+                onPressed: () => setState(() => _showCurrent = !_showCurrent),
+              ),
+            ),
+            obscureText: !_showCurrent,
           ),
           const SizedBox(height: 8),
           TextField(
             controller: _next,
-            decoration: const InputDecoration(labelText: 'New password'),
-            obscureText: true,
+            decoration: InputDecoration(
+              labelText: 'New password',
+              suffixIcon: _visibilityToggle(
+                visible: _showNext,
+                onPressed: () => setState(() => _showNext = !_showNext),
+              ),
+            ),
+            obscureText: !_showNext,
           ),
           const SizedBox(height: 8),
           TextField(
             controller: _confirm,
-            decoration: const InputDecoration(
+            decoration: InputDecoration(
               labelText: 'Confirm new password',
+              suffixIcon: _visibilityToggle(
+                visible: _showConfirm,
+                onPressed: () => setState(() => _showConfirm = !_showConfirm),
+              ),
             ),
-            obscureText: true,
+            obscureText: !_showConfirm,
           ),
           if (_error != null) ...[
             const SizedBox(height: 4),

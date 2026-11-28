@@ -236,7 +236,10 @@ export async function learnerSectionForTermId(
   return learnerSectionForTerm(studentId, term);
 }
 
-/** Terms the learner has final grades or attendance for, newest first. */
+/** Terms of the school years the learner has final grades or attendance in,
+ * plus the active term's year — every term of those years, newest first, so the
+ * portal term picker shows the whole year (Term 1/2/3), not just terms with
+ * data. */
 export async function listLearnerTerms(
   studentId: string,
   activeTermId: string | null,
@@ -251,8 +254,13 @@ export async function listLearnerTerms(
   if (activeTermId) ids.add(activeTermId);
   if (ids.size === 0) return [];
 
-  const terms = await prisma.term.findMany({
+  const years = await prisma.term.findMany({
     where: { id: { in: [...ids] } },
+    select: { schoolYearId: true },
+  });
+  const yearIds = [...new Set(years.map((t) => t.schoolYearId))];
+  const terms = await prisma.term.findMany({
+    where: { schoolYearId: { in: yearIds } },
     select: {
       id: true,
       termNumber: true,

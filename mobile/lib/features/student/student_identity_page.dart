@@ -76,11 +76,18 @@ class _IdentityState extends ConsumerState<StudentIdentityPage> {
   @override
   Widget build(BuildContext context) {
     final learner = ref.watch(studentMeProvider);
+    final theme = overviewScreenTheme(Theme.of(context));
     return Theme(
-      data: overviewScreenTheme(Theme.of(context)),
+      data: theme,
       child: Scaffold(
         appBar: AppBar(
           centerTitle: true,
+          backgroundColor: theme.scaffoldBackgroundColor,
+          surfaceTintColor: Colors.transparent,
+          scrolledUnderElevation: 0,
+          shape: Border(
+            bottom: BorderSide(color: theme.colorScheme.outline),
+          ),
           title: Text(widget.qr ? 'My QR Code' : 'Profile'),
           leading: ZBackButton(
             tooltip: 'Back',

@@ -5,12 +5,14 @@
 // for account data and only allows a password change.
 
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:lucide_icons_flutter/lucide_icons.dart';
 
 import '../../core/session.dart';
 import '../../services/portal_service.dart';
+import '../../shared/identity_tile.dart';
 import '../../shared/models.dart';
 import '../../shared/widgets.dart';
 import '../../design/settings_theme.dart';
@@ -37,18 +39,69 @@ class PortalSettingsPage extends ConsumerWidget {
               const <PortalChild>[]
         : const <PortalChild>[];
 
+    final displayName = isStudent
+        ? learner?.name ?? 'Learner'
+        : parent?.name ?? 'Guardian';
+    final identityKey = isStudent
+        ? (learner?.lrn.isNotEmpty == true
+              ? learner!.lrn
+              : learner?.studentId)
+        : parent?.email;
+    final identityLine = isStudent
+        ? [
+            'Learner',
+            if (learner?.gradeLevel.isNotEmpty == true) learner!.gradeLevel,
+            if (learner?.sectionName != null) learner!.sectionName!,
+          ].join(' · ')
+        : [
+            'Guardian',
+            children.isEmpty
+                ? null
+                : '${children.length} linked learner${children.length == 1 ? '' : 's'}',
+          ].whereType<String>().join(' · ');
+
     final rows = isStudent
-        ? <({String label, String value})>[
-            (label: 'Name', value: learner?.name ?? '—'),
-            (label: 'LRN', value: learner?.lrn ?? '—'),
-            (label: 'Grade level', value: learner?.gradeLevel ?? '—'),
-            (label: 'Section', value: learner?.sectionName ?? '—'),
-            (label: 'Adviser', value: learner?.adviserName ?? '—'),
+        ? <_InfoData>[
+            _InfoData(
+              icon: Icons.person_outline,
+              label: 'Name',
+              value: learner?.name ?? '—',
+            ),
+            _InfoData(
+              icon: Icons.badge_outlined,
+              label: 'LRN',
+              value: learner?.lrn ?? '—',
+              copyValue: learner?.lrn,
+            ),
+            _InfoData(
+              icon: Icons.school_outlined,
+              label: 'Grade level',
+              value: learner?.gradeLevel ?? '—',
+            ),
+            _InfoData(
+              icon: Icons.groups_outlined,
+              label: 'Section',
+              value: learner?.sectionName ?? '—',
+            ),
+            _InfoData(
+              icon: Icons.support_agent_outlined,
+              label: 'Adviser',
+              value: learner?.adviserName ?? '—',
+            ),
           ]
-        : <({String label, String value})>[
-            (label: 'Name', value: parent?.name ?? '—'),
-            (label: 'Email', value: parent?.email ?? '—'),
-            (
+        : <_InfoData>[
+            _InfoData(
+              icon: Icons.person_outline,
+              label: 'Name',
+              value: parent?.name ?? '—',
+            ),
+            _InfoData(
+              icon: Icons.mail_outline,
+              label: 'Email',
+              value: parent?.email ?? '—',
+            ),
+            _InfoData(
+              icon: Icons.link,
               label: 'Linked learners',
               value: children.isEmpty
                   ? 'None'
@@ -62,6 +115,7 @@ class PortalSettingsPage extends ConsumerWidget {
         backgroundColor: theme.scaffoldBackgroundColor,
         appBar: AppBar(
           centerTitle: true,
+          backgroundColor: theme.scaffoldBackgroundColor,
           shape: Border(
             bottom: BorderSide(color: theme.colorScheme.outline),
           ),
@@ -82,17 +136,44 @@ class PortalSettingsPage extends ConsumerWidget {
           title: const Text('Settings'),
         ),
         body: ListView(
-          padding: const EdgeInsets.fromLTRB(16, 12, 16, 24),
+          padding: const EdgeInsets.fromLTRB(16, 16, 16, 24),
           children: [
-            const ZContentHeader(
-              title: 'Settings',
-              icon: LucideIcons.settings,
-              description: 'Your account details and sign-in security.',
+            ZCard(
+              padding: const EdgeInsets.all(14),
+              child: Row(
+                children: [
+                  ZIdentityTile(
+                    name: displayName,
+                    seed: identityKey,
+                    size: 48,
+                  ),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          displayName,
+                          style: const TextStyle(
+                            fontSize: 16,
+                            fontWeight: FontWeight.w700,
+                          ),
+                        ),
+                        const SizedBox(height: 2),
+                        Text(
+                          identityLine,
+                          style: TextStyle(
+                            fontSize: 12,
+                            color: theme.colorScheme.onSurfaceVariant,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ],
+              ),
             ),
-            Padding(
-              padding: const EdgeInsets.symmetric(vertical: 12),
-              child: Divider(height: 1, color: theme.colorScheme.outline),
-            ),
+            const SizedBox(height: 12),
             StaffSettingsSection(
               title: 'Account',
               subtitle: isStudent
@@ -100,11 +181,15 @@ class PortalSettingsPage extends ConsumerWidget {
                   : 'Your guardian account and the learners linked to it.',
               child: Column(
                 children: [
-                  for (final row in rows)
-                    _InfoRow(label: row.label, value: row.value),
+                  for (final (index, row) in rows.indexed) ...[
+                    if (index > 0)
+                      Divider(height: 1, color: theme.colorScheme.outline),
+                    _InfoRow(data: row),
+                  ],
                 ],
               ),
             ),
+            const SizedBox(height: 12),
             const StaffPasswordEditor(),
           ],
         ),
@@ -113,39 +198,84 @@ class PortalSettingsPage extends ConsumerWidget {
   }
 }
 
-class _InfoRow extends StatelessWidget {
-  const _InfoRow({required this.label, required this.value});
+class _InfoData {
+  const _InfoData({
+    required this.icon,
+    required this.label,
+    required this.value,
+    this.copyValue,
+  });
 
+  final IconData icon;
   final String label;
   final String value;
+
+  /// When set, the row offers a copy action (LRN).
+  final String? copyValue;
+}
+
+class _InfoRow extends StatelessWidget {
+  const _InfoRow({required this.data});
+
+  final _InfoData data;
+
+  Future<void> _copy(BuildContext context) async {
+    final value = data.copyValue;
+    if (value == null || value.isEmpty) return;
+    await Clipboard.setData(ClipboardData(text: value));
+    if (!context.mounted) return;
+    ScaffoldMessenger.of(context)
+      ..hideCurrentSnackBar()
+      ..showSnackBar(
+        SnackBar(content: Text('${data.label} copied.')),
+      );
+  }
 
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     return Padding(
-      padding: const EdgeInsets.symmetric(vertical: 6),
+      padding: const EdgeInsets.symmetric(vertical: 11),
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
+          Icon(data.icon, size: 18, color: theme.colorScheme.onSurfaceVariant),
+          const SizedBox(width: 10),
           SizedBox(
-            width: 112,
-            child: Text(
-              label,
-              style: theme.textTheme.bodySmall?.copyWith(
-                fontSize: 12,
-                color: theme.colorScheme.onSurfaceVariant,
+            width: 104,
+            child: Padding(
+              padding: const EdgeInsets.only(top: 1),
+              child: Text(
+                data.label,
+                style: theme.textTheme.bodySmall?.copyWith(
+                  fontSize: 12,
+                  color: theme.colorScheme.onSurfaceVariant,
+                ),
               ),
             ),
           ),
           Expanded(
             child: Text(
-              value,
+              data.value,
               style: theme.textTheme.bodyMedium?.copyWith(
                 fontSize: 13,
                 fontWeight: FontWeight.w600,
               ),
             ),
           ),
+          if (data.copyValue != null && data.copyValue!.isNotEmpty)
+            IconButton(
+              tooltip: 'Copy ${data.label}',
+              visualDensity: VisualDensity.compact,
+              padding: EdgeInsets.zero,
+              constraints: const BoxConstraints(minWidth: 32, minHeight: 32),
+              onPressed: () => _copy(context),
+              icon: Icon(
+                LucideIcons.copy,
+                size: 15,
+                color: theme.colorScheme.onSurfaceVariant,
+              ),
+            ),
         ],
       ),
     );
